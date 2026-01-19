@@ -26,3 +26,4 @@ Jeu de combat 1v1 au tour par tour avec système de races et classes.
 
 ```bash
 
+# Force Vercel refresh
