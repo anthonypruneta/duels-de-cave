@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import CharacterCreation from './components/CharacterCreation';
 import Combat from './components/Combat';
 
-function App() {
+function Application() {
   return (
     <Router>
       <Routes>
@@ -15,4 +15,4 @@ function App() {
   );
 }
 
-export default App;
+export default Application;
