@@ -5,13 +5,13 @@
 
 const races = {
   'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-  'Elfe': { bonus: '+10% crit permanent (+5 VIT)', icon: '🧝' },
+  'Elfe': { bonus: '+15% crit permanent (+5 VIT)', icon: '🧝' },
   'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
   'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-  'Dragonkin': { bonus: '+10 PV & +12 ResC', icon: '🐲' },
+  'Dragonkin': { bonus: '+10 PV & +15 ResC', icon: '🐲' },
   'Mort-vivant': { bonus: 'Revient à 25% PV (1x)', icon: '☠️' },
   'Lycan': { bonus: 'Auto = Saignement (0.5/stack)', icon: '🐺' },
-  'Sylvari': { bonus: 'Regen 3% PV/tour', icon: '🌿' }
+  'Sylvari': { bonus: 'Regen 2% PV/tour', icon: '🌿' }
 };
 
 const classes = {
@@ -51,7 +51,7 @@ const raceBonus = (race) => {
   const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
   if (race==='Humain') {b.hp=10;b.auto=2;b.def=2;b.cap=2;b.rescap=2;b.spd=2;}
   else if (race==='Nain') {b.hp=10;b.def=5;}
-  else if (race==='Dragonkin') {b.hp=10;b.rescap=12;}
+  else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
   else if (race==='Elfe') b.spd=5;
   return b;
 };
@@ -96,7 +96,7 @@ const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap));
 const critChance = (att, def) => {
   let c = 0.10;
   if (att.class === 'Voleur') c += 0.05 * tiers15(att.base.cap);
-  if (att.race === 'Elfe') c += 0.10;
+  if (att.race === 'Elfe') c += 0.15;
   return c;
 };
 
@@ -121,7 +121,7 @@ const processTurn = (p1, p2) => {
     }
 
     if (att.race === 'Sylvari') {
-      const heal = Math.max(1, Math.round(att.maxHP * 0.03));
+      const heal = Math.max(1, Math.round(att.maxHP * 0.02));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
@@ -139,7 +139,7 @@ const processTurn = (p1, p2) => {
       att.cd.maso = (att.cd.maso % 4) + 1;
       if (att.cd.maso === 4 && att.maso_taken > 0) {
         const t = tiers15(att.base.cap);
-        const dmg = Math.max(1, Math.round(att.maso_taken * (0.10 + 0.02 * t)));
+        const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
         att.maso_taken = 0;
         def.currentHP -= dmg;
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -187,7 +187,7 @@ const processTurn = (p1, p2) => {
         const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
         raw = dmgCap(atkSpell, def.base.rescap);
       } else if (isWar) {
-        const ignore = 0.15 + 0.03 * tiers15(att.base.cap);
+        const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
