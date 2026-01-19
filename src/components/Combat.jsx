@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import testImage1 from '../assets/characters/test.png';
+import testImage2 from '../assets/characters/test2.png';
 
 const Combat = () => {
   const [player1, setPlayer1] = useState(null);
@@ -315,20 +317,21 @@ const Combat = () => {
   useEffect(() => { resetCombat(); }, []);
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [combatLog]);
 
-  const CharacterCard = ({ character }) => {
+  const CharacterCard = ({ character, imageIndex }) => {
     if (!character) return null;
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const totalBonus = (k) => (character.bonuses.race[k] || 0) + (character.bonuses.class[k] || 0);
-    
+    const characterImage = imageIndex === 1 ? testImage1 : testImage2;
+
     return (
       <div className="relative bg-gradient-to-br from-stone-200 to-stone-100 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
         <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-amber-700 z-10">
           {character.race} • {character.class}
         </div>
         <div className="border-2 border-amber-400 rounded-xl overflow-hidden">
-          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center">
-            <div className="text-9xl opacity-30">{races[character.race].icon}</div>
+          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center overflow-hidden">
+            <img src={characterImage} alt={character.name} className="w-full h-full object-cover" />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
               <div className="text-white font-bold text-xl text-center">{character.name}</div>
               <div className="text-xs text-amber-300 text-center">{character.race} / {character.class}</div>
@@ -403,7 +406,7 @@ const Combat = () => {
         <div className="flex gap-6 items-start">
           {/* Carte joueur 1 - Gauche */}
           <div className="flex-shrink-0" style={{width: '380px'}}>
-            <CharacterCard character={player1} />
+            <CharacterCard character={player1} imageIndex={1} />
           </div>
 
           {/* Journal de combat - Centre */}
@@ -432,7 +435,7 @@ const Combat = () => {
 
           {/* Carte joueur 2 - Droite */}
           <div className="flex-shrink-0" style={{width: '380px'}}>
-            <CharacterCard character={player2} />
+            <CharacterCard character={player2} imageIndex={2} />
           </div>
         </div>
       </div>
