@@ -255,13 +255,22 @@ const Combat = () => {
     if (!player1 || !player2 || isSimulating) return;
     setIsSimulating(true);
     setWinner(null);
-    
+
+    // Jouer la musique de combat
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    if (combatMusic) {
+      combatMusic.currentTime = 0;
+      combatMusic.volume = 0.3;
+      combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
+    }
+
     const p1 = { ...player1, currentHP: player1.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
     const p2 = { ...player2, currentHP: player2.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
-    
+
     const logs = [`⚔️ Combat: ${p1.name} vs ${p2.name}`];
     setCombatLog(logs);
-    
+
     let turn = 1;
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
       const turnLog = [`--- Tour ${turn} ---`];
@@ -273,15 +282,29 @@ const Combat = () => {
       await new Promise(r => setTimeout(r, 1200));
       turn++;
     }
-    
+
     const w = p1.currentHP > 0 ? p1.name : p2.name;
     logs.push(`🏆 ${w} remporte le combat!`);
     setCombatLog([...logs]);
     setWinner(w);
     setIsSimulating(false);
+
+    // Arrêter la musique de combat et jouer la musique de victoire
+    if (combatMusic) combatMusic.pause();
+    if (victoryMusic) {
+      victoryMusic.currentTime = 0;
+      victoryMusic.volume = 0.4;
+      victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
+    }
   };
 
   const resetCombat = () => {
+    // Arrêter toutes les musiques
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    if (combatMusic) combatMusic.pause();
+    if (victoryMusic) victoryMusic.pause();
+
     setPlayer1(generateCharacter('SansNom'));
     setPlayer2(generateCharacter('SansNom'));
     setCombatLog([]);
@@ -346,38 +369,71 @@ const Combat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">Étape 3 — Combat</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <CharacterCard character={player1} />
-          <div className="flex flex-col justify-center items-center gap-6">
-            <div className="text-8xl font-bold text-amber-400">VS</div>
-            {winner && <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-8 py-4 rounded-lg font-bold text-2xl animate-pulse shadow-2xl border-4 border-yellow-400">🏆 {winner} gagne!</div>}
-            <div className="flex flex-col gap-3 w-full max-w-xs">
-              <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white px-8 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-blue-400">
-                ▶️ Lancer le combat
-              </button>
-              <button onClick={resetCombat} className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-purple-400">
-                🔄 Recommencer
-              </button>
+      {/* Musique de combat */}
+      <audio id="combat-music" loop>
+        <source src="/assets/music/combat.mp3" type="audio/mpeg" />
+      </audio>
+      <audio id="victory-music">
+        <source src="/assets/music/victory.mp3" type="audio/mpeg" />
+      </audio>
+
+      <div className="max-w-[1800px] mx-auto">
+        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">⚔️ Étape 3 — Combat ⚔️</h1>
+
+        {/* Boutons de contrôle en haut */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-blue-400">
+            ▶️ Lancer le combat
+          </button>
+          <button onClick={resetCombat} className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-purple-400">
+            🔄 Recommencer
+          </button>
+        </div>
+
+        {/* VS et Winner */}
+        {winner && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-12 py-5 rounded-xl font-bold text-3xl animate-pulse shadow-2xl border-4 border-yellow-400">
+              🏆 {winner} remporte le combat! 🏆
             </div>
           </div>
-          <CharacterCard character={player2} />
-        </div>
-        <div className="bg-stone-800 rounded-lg p-6 border-4 border-amber-700 max-h-96 overflow-y-auto shadow-2xl">
-          <h2 className="text-2xl font-bold text-amber-400 mb-4">📜 Journal de Combat</h2>
-          {combatLog.length === 0 ? (
-            <p className="text-gray-400 italic text-center py-8">Cliquez sur Lancer le combat...</p>
-          ) : (
-            <div className="space-y-1 font-mono text-sm">
-              {combatLog.map((log, idx) => (
-                <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-purple-400 font-bold' : log.includes('---') ? 'text-blue-400 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
-                  {log}
-                </div>
-              ))}
-              <div ref={logEndRef} />
+        )}
+
+        {/* Layout principal: Cartes + Journal au centre */}
+        <div className="flex gap-6 items-start">
+          {/* Carte joueur 1 - Gauche */}
+          <div className="flex-shrink-0" style={{width: '380px'}}>
+            <CharacterCard character={player1} />
+          </div>
+
+          {/* Journal de combat - Centre */}
+          <div className="flex-1 min-w-0">
+            <div className="bg-stone-800 rounded-lg p-6 border-4 border-amber-700 shadow-2xl h-[600px] flex flex-col">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <div className="text-6xl font-bold text-amber-400">VS</div>
+              </div>
+              <h2 className="text-2xl font-bold text-amber-400 mb-4 text-center">📜 Journal de Combat</h2>
+              <div className="flex-1 overflow-y-auto">
+                {combatLog.length === 0 ? (
+                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                ) : (
+                  <div className="space-y-1 font-mono text-sm">
+                    {combatLog.map((log, idx) => (
+                      <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-purple-400 font-bold' : log.includes('---') ? 'text-blue-400 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
+                        {log}
+                      </div>
+                    ))}
+                    <div ref={logEndRef} />
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Carte joueur 2 - Droite */}
+          <div className="flex-shrink-0" style={{width: '380px'}}>
+            <CharacterCard character={player2} />
+          </div>
         </div>
       </div>
     </div>
