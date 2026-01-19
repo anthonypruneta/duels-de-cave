@@ -327,7 +327,7 @@ const Combat = () => {
           {character.race} • {character.class}
         </div>
         <div className="border-2 border-amber-400 rounded-xl overflow-hidden">
-          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
+          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center">
             <div className="text-9xl opacity-30">{races[character.race].icon}</div>
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
               <div className="text-white font-bold text-xl text-center">{character.name}</div>
@@ -382,10 +382,10 @@ const Combat = () => {
 
         {/* Boutons de contrôle en haut */}
         <div className="flex justify-center gap-4 mb-8">
-          <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-blue-400">
+          <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-amber-400">
             ▶️ Lancer le combat
           </button>
-          <button onClick={resetCombat} className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-purple-400">
+          <button onClick={resetCombat} className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-600">
             🔄 Recommencer
           </button>
         </div>
@@ -419,7 +419,7 @@ const Combat = () => {
                 ) : (
                   <div className="space-y-1 font-mono text-sm">
                     {combatLog.map((log, idx) => (
-                      <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-purple-400 font-bold' : log.includes('---') ? 'text-blue-400 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
+                      <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
                         {log}
                       </div>
                     ))}

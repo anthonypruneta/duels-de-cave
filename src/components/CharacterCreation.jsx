@@ -136,21 +136,21 @@ const CharacterCreation = () => {
   // Welcome screen
   if (step === 'welcome') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-purple-900 to-stone-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
         <div className="max-w-3xl w-full text-center">
           <div className="w-24 h-24 mx-auto text-amber-400 mb-4 animate-pulse text-6xl">✨</div>
           <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-transparent bg-clip-text">Duels de Cave</h1>
-          <p className="text-2xl text-purple-300 mb-8 font-semibold">Bienvenue, Guerrier !</p>
+          <p className="text-2xl text-amber-300 mb-8 font-semibold">Bienvenue, Guerrier !</p>
           <div className="bg-stone-800/80 rounded-2xl p-8 mb-8 border-2 border-amber-600 shadow-2xl">
             <p className="text-lg text-gray-300 mb-6">Combats épiques au tour par tour dans l'arène légendaire.</p>
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-purple-900/50 rounded-lg p-4 border border-purple-600">
+              <div className="bg-stone-800/50 rounded-lg p-4 border border-amber-600">
                 <div className="text-amber-400 font-bold mb-3">🎭 8 Races</div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
                   {Object.entries(races).map(([n,i])=><div key={n} className="flex items-center gap-1"><span>{i.icon}</span><span>{n}</span></div>)}
                 </div>
               </div>
-              <div className="bg-purple-900/50 rounded-lg p-4 border border-purple-600">
+              <div className="bg-stone-800/50 rounded-lg p-4 border border-amber-600">
                 <div className="text-amber-400 font-bold mb-3">⚔️ 8 Classes</div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
                   {Object.entries(classes).map(([n,i])=><div key={n} className="flex items-center gap-1"><span>{i.icon}</span><span>{n}</span></div>)}
@@ -171,19 +171,19 @@ const CharacterCreation = () => {
   if (step === 'success') {
     const totalBonus = (k) => (character.bonuses.race[k]||0) + (character.bonuses.class[k]||0);
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-purple-900 to-stone-900 p-6">
+      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-2xl"><span className="text-5xl">✓</span></div>
             <h2 className="text-5xl font-bold mb-4 text-amber-400">Personnage Créé !</h2>
-            <p className="text-purple-300 text-lg">Votre héros est prêt</p>
+            <p className="text-amber-300 text-lg">Votre héros est prêt</p>
           </div>
           <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
             <div className="bg-gradient-to-br from-amber-100 via-stone-100 to-amber-50 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1 rounded-full text-xs font-bold shadow-lg border-2 border-amber-700 z-10">{character.race.toLowerCase()} • {character.class.toLowerCase()}</div>
               <div className="border-2 border-amber-400 rounded-xl p-1 bg-white">
                 <div className="border border-amber-700 rounded-lg overflow-hidden">
-                  <div className="h-96 relative bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center border-b-2 border-amber-700">
+                  <div className="h-96 relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center border-b-2 border-amber-700">
                     <div className="text-9xl opacity-20">{races[character.race].icon}</div>
                     <div className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-lg p-3 border border-amber-600">
                       <div className="text-white font-bold text-lg text-center">{character.name}</div>
@@ -221,7 +221,7 @@ const CharacterCreation = () => {
             <div className="mt-2 text-xs text-stone-300 text-center">Mot-clé: <span className="text-amber-400 font-bold">{character.keyword}</span></div>
           </div>
           <div className="flex justify-center">
-            <button onClick={()=>{setStep('welcome');setFormData({name:'',gender:'',keyword:''});setCharacter(null);setErrors({});}} className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg border-2 border-purple-400 transition-all">Créer un Autre Personnage</button>
+            <button onClick={()=>{setStep('welcome');setFormData({name:'',gender:'',keyword:''});setCharacter(null);setErrors({});}} className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg border-2 border-stone-600 transition-all">Créer un Autre Personnage</button>
           </div>
         </div>
       </div>
@@ -230,11 +230,11 @@ const CharacterCreation = () => {
 
   // Creation form
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-900 via-purple-900 to-stone-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
           <h2 className="text-5xl font-bold mb-3 text-amber-400">Création de Personnage</h2>
-          <p className="text-purple-300 text-lg">Forgez votre légende...</p>
+          <p className="text-amber-300 text-lg">Forgez votre légende...</p>
         </div>
         <div className="bg-stone-800/90 rounded-2xl p-8 border-4 border-amber-600 shadow-2xl">
           <div className="mb-6">
@@ -246,7 +246,7 @@ const CharacterCreation = () => {
           <div className="mb-6">
             <label className="text-amber-400 font-bold mb-3 text-lg block">Sexe</label>
             <div className="grid grid-cols-2 gap-4">
-              <button type="button" onClick={()=>handleInputChange('gender','male')} className={`py-5 px-6 rounded-lg font-bold text-lg transition-all border-2 ${formData.gender==='male'?'bg-blue-600 border-blue-400 text-white shadow-lg scale-105':'bg-stone-900 border-stone-700 text-gray-400 hover:border-blue-600'}`}>
+              <button type="button" onClick={()=>handleInputChange('gender','male')} className={`py-5 px-6 rounded-lg font-bold text-lg transition-all border-2 ${formData.gender==='male'?'bg-amber-600 border-amber-400 text-white shadow-lg scale-105':'bg-stone-900 border-stone-700 text-gray-400 hover:border-amber-600'}`}>
                 <span className="text-3xl mb-2 block">👨</span>Homme
               </button>
               <button type="button" onClick={()=>handleInputChange('gender','female')} className={`py-5 px-6 rounded-lg font-bold text-lg transition-all border-2 ${formData.gender==='female'?'bg-pink-600 border-pink-400 text-white shadow-lg scale-105':'bg-stone-900 border-stone-700 text-gray-400 hover:border-pink-600'}`}>
@@ -269,8 +269,8 @@ const CharacterCreation = () => {
             </button>
           </div>
         </div>
-        <div className="mt-6 bg-purple-900/30 border border-purple-600 rounded-lg p-4">
-          <p className="text-purple-300 text-sm text-center">🎲 Race et classe générées aléatoirement</p>
+        <div className="mt-6 bg-stone-800/30 border border-amber-600 rounded-lg p-4">
+          <p className="text-amber-300 text-sm text-center">🎲 Race et classe générées aléatoirement</p>
         </div>
       </div>
     </div>
