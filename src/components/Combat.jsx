@@ -12,19 +12,19 @@ const Combat = () => {
 
   const races = {
     'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-    'Elfe': { bonus: 'Si plus rapide: +15% crit (+5 VIT)', icon: '🧝' },
+    'Elfe': { bonus: '+10% crit permanent (+5 VIT)', icon: '🧝' },
     'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
     'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-    'Dragonkin': { bonus: '+10 PV & +10 ResC', icon: '🐲' },
-    'Mort-vivant': { bonus: 'Revient à 20% PV (1x)', icon: '☠️' },
-    'Lycan': { bonus: 'Auto = Saignement +1 stack', icon: '🐺' },
+    'Dragonkin': { bonus: '+10 PV & +12 ResC', icon: '🐲' },
+    'Mort-vivant': { bonus: 'Revient à 25% PV (1x)', icon: '☠️' },
+    'Lycan': { bonus: 'Auto = Saignement (0.5/stack)', icon: '🐺' },
     'Sylvari': { bonus: 'Regen 3% PV/tour', icon: '🌿' }
   };
 
   const classes = {
     'Guerrier': { ability: 'Frappe pénétrante', icon: '🗡️' },
     'Voleur': { ability: 'Esquive + Crit', icon: '🌀' },
-    'Paladin': { ability: 'Renvoie 30%+ dégâts', icon: '🛡️' },
+    'Paladin': { ability: 'Renvoie 40%+ dégâts', icon: '🛡️' },
     'Healer': { ability: 'Soin puissant', icon: '✚' },
     'Archer': { ability: 'Volée 2+ flèches', icon: '🏹' },
     'Mage': { ability: 'Sort magique', icon: '🔮' },
@@ -58,7 +58,7 @@ const Combat = () => {
     const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
     if (race==='Humain') {b.hp=10;b.auto=2;b.def=2;b.cap=2;b.rescap=2;b.spd=2;}
     else if (race==='Nain') {b.hp=10;b.def=5;}
-    else if (race==='Dragonkin') {b.hp=10;b.rescap=10;}
+    else if (race==='Dragonkin') {b.hp=10;b.rescap=12;}
     else if (race==='Elfe') b.spd=5;
     return b;
   };
@@ -103,12 +103,12 @@ const Combat = () => {
   const critChance = (att, def) => {
     let c = 0.10;
     if (att.class === 'Voleur') c += 0.05 * tiers15(att.base.cap);
-    if (att.race === 'Elfe' && att.base.spd > def.base.spd) c += 0.15;
+    if (att.race === 'Elfe') c += 0.10;
     return c;
   };
 
   const reviveUndead = (target, log) => {
-    const revive = Math.max(1, Math.round(0.20 * target.maxHP));
+    const revive = Math.max(1, Math.round(0.25 * target.maxHP));
     target.undead = true;
     target.currentHP = revive;
     log.push(`☠️ ${target.name} revient à ${revive} PV!`);
@@ -160,15 +160,16 @@ const Combat = () => {
       }
       
       if (att.bleed_stacks > 0) {
-        att.currentHP -= att.bleed_stacks;
-        log.push(`🩸 ${att.name} saigne ${att.bleed_stacks} dégâts`);
+        const bleedDmg = Math.ceil(att.bleed_stacks / 2);
+        att.currentHP -= bleedDmg;
+        log.push(`🩸 ${att.name} saigne ${bleedDmg} dégâts`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
           reviveUndead(att, log);
         }
       }
-      
+
       if (att.class === 'Paladin' && att.cd.pal === 2) {
-        att.reflect = 0.30 + 0.05 * tiers15(att.base.cap);
+        att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
         log.push(`🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
       }
       
@@ -203,7 +204,7 @@ const Combat = () => {
           raw = dmgCap(atkSpell, def.base.rescap);
           if (i === 0) log.push(`🔮 ${att.name} lance un sort`);
         } else if (isWar) {
-          const ignore = 0.20 + 0.05 * tiers15(att.base.cap);
+          const ignore = 0.15 + 0.03 * tiers15(att.base.cap);
           if (def.base.def <= def.base.rescap) {
             const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
             raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
