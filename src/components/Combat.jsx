@@ -56,7 +56,7 @@ const Combat = () => {
 
   const raceBonus = (race) => {
     const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-    if (race==='Humain') {b.hp=10;b.auto=2;b.def=2;b.cap=2;b.rescap=2;b.spd=2;}
+    if (race==='Humain') {b.hp=10;b.auto=1;b.def=1;b.cap=1;b.rescap=1;b.spd=1;}
     else if (race==='Nain') {b.hp=10;b.def=5;}
     else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
     else if (race==='Elfe') b.spd=5;
@@ -103,7 +103,7 @@ const Combat = () => {
   const critChance = (att, def) => {
     let c = 0.10;
     if (att.class === 'Voleur') c += 0.05 * tiers15(att.base.cap);
-    if (att.race === 'Elfe') c += 0.15;
+    if (att.race === 'Elfe') c += 0.20;
     return c;
   };
 
@@ -136,7 +136,7 @@ const Combat = () => {
       
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
-        const hit = Math.max(1, Math.round((0.10 + 0.02 * t) * att.base.cap));
+        const hit = Math.max(1, Math.round((0.15 + 0.03 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
         log.push(`💠 Familier de ${att.name} → ${raw} dégâts`);
@@ -160,7 +160,7 @@ const Combat = () => {
       }
       
       if (att.bleed_stacks > 0) {
-        const bleedDmg = Math.ceil(att.bleed_stacks / 2);
+        const bleedDmg = Math.ceil(att.bleed_stacks / 3);
         att.currentHP -= bleedDmg;
         log.push(`🩸 ${att.name} saigne ${bleedDmg} dégâts`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
