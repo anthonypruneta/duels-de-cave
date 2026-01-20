@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import testImage1 from '../assets/characters/test.png';
+import testImage2 from '../assets/characters/test2.png';
+import Header from './Header';
 
 const Combat = () => {
   const [player1, setPlayer1] = useState(null);
@@ -10,19 +13,19 @@ const Combat = () => {
 
   const races = {
     'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-    'Elfe': { bonus: 'Si plus rapide: +15% crit (+5 VIT)', icon: '🧝' },
+    'Elfe': { bonus: '+15% crit permanent (+5 VIT)', icon: '🧝' },
     'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
     'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-    'Dragonkin': { bonus: '+10 PV & +10 ResC', icon: '🐲' },
-    'Mort-vivant': { bonus: 'Revient à 20% PV (1x)', icon: '☠️' },
-    'Lycan': { bonus: 'Auto = Saignement +1 stack', icon: '🐺' },
-    'Sylvari': { bonus: 'Regen 3% PV/tour', icon: '🌿' }
+    'Dragonkin': { bonus: '+10 PV & +15 ResC', icon: '🐲' },
+    'Mort-vivant': { bonus: 'Revient à 25% PV (1x)', icon: '☠️' },
+    'Lycan': { bonus: 'Auto = Saignement (0.5/stack)', icon: '🐺' },
+    'Sylvari': { bonus: 'Regen 2% PV/tour', icon: '🌿' }
   };
 
   const classes = {
     'Guerrier': { ability: 'Frappe pénétrante', icon: '🗡️' },
     'Voleur': { ability: 'Esquive + Crit', icon: '🌀' },
-    'Paladin': { ability: 'Renvoie 30%+ dégâts', icon: '🛡️' },
+    'Paladin': { ability: 'Renvoie 40%+ dégâts', icon: '🛡️' },
     'Healer': { ability: 'Soin puissant', icon: '✚' },
     'Archer': { ability: 'Volée 2+ flèches', icon: '🏹' },
     'Mage': { ability: 'Sort magique', icon: '🔮' },
@@ -54,17 +57,17 @@ const Combat = () => {
 
   const raceBonus = (race) => {
     const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-    if (race==='Humain') {b.hp=10;b.auto=2;b.def=2;b.cap=2;b.rescap=2;b.spd=2;}
-    else if (race==='Nain') {b.hp=10;b.def=5;}
-    else if (race==='Dragonkin') {b.hp=10;b.rescap=10;}
-    else if (race==='Elfe') b.spd=5;
+    if (race==='Humain') {b.hp=10;b.auto=1;b.def=1;b.cap=1;b.rescap=1;b.spd=1;}
+    else if (race==='Nain') {b.hp=10;b.def=4;}
+    else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
+    else if (race==='Elfe') {b.auto=1;b.cap=1;b.spd=5;}
     return b;
   };
 
   const classBonus = (clazz) => {
     const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
     if (clazz==='Voleur') b.spd=5;
-    if (clazz==='Guerrier') b.auto=3;
+    if (clazz==='Guerrier') b.auto=2;
     return b;
   };
 
@@ -101,7 +104,7 @@ const Combat = () => {
   const critChance = (att, def) => {
     let c = 0.10;
     if (att.class === 'Voleur') c += 0.05 * tiers15(att.base.cap);
-    if (att.race === 'Elfe' && att.base.spd > def.base.spd) c += 0.15;
+    if (att.race === 'Elfe') c += 0.20;
     return c;
   };
 
@@ -127,14 +130,14 @@ const Combat = () => {
       }
       
       if (att.race === 'Sylvari') {
-        const heal = Math.max(1, Math.round(att.maxHP * 0.03));
+        const heal = Math.max(1, Math.round(att.maxHP * 0.02));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`🌿 ${att.name} régénère ${heal} PV`);
       }
       
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
-        const hit = Math.max(1, Math.round((0.10 + 0.02 * t) * att.base.cap));
+        const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
         log.push(`💠 Familier de ${att.name} → ${raw} dégâts`);
@@ -147,7 +150,7 @@ const Combat = () => {
         att.cd.maso = (att.cd.maso % 4) + 1;
         if (att.cd.maso === 4 && att.maso_taken > 0) {
           const t = tiers15(att.base.cap);
-          const dmg = Math.max(1, Math.round(att.maso_taken * (0.10 + 0.02 * t)));
+          const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
           att.maso_taken = 0;
           def.currentHP -= dmg;
           log.push(`🩸 ${att.name} renvoie ${dmg} dégâts accumulés`);
@@ -158,15 +161,16 @@ const Combat = () => {
       }
       
       if (att.bleed_stacks > 0) {
-        att.currentHP -= att.bleed_stacks;
-        log.push(`🩸 ${att.name} saigne ${att.bleed_stacks} dégâts`);
+        const bleedDmg = Math.ceil(att.bleed_stacks / 3);
+        att.currentHP -= bleedDmg;
+        log.push(`🩸 ${att.name} saigne ${bleedDmg} dégâts`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
           reviveUndead(att, log);
         }
       }
-      
+
       if (att.class === 'Paladin' && att.cd.pal === 2) {
-        att.reflect = 0.30 + 0.05 * tiers15(att.base.cap);
+        att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
         log.push(`🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
       }
       
@@ -201,7 +205,7 @@ const Combat = () => {
           raw = dmgCap(atkSpell, def.base.rescap);
           if (i === 0) log.push(`🔮 ${att.name} lance un sort`);
         } else if (isWar) {
-          const ignore = 0.20 + 0.05 * tiers15(att.base.cap);
+          const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
           if (def.base.def <= def.base.rescap) {
             const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
             raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
@@ -255,13 +259,22 @@ const Combat = () => {
     if (!player1 || !player2 || isSimulating) return;
     setIsSimulating(true);
     setWinner(null);
-    
+
+    // Jouer la musique de combat
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    if (combatMusic) {
+      combatMusic.currentTime = 0;
+      combatMusic.volume = 0.3;
+      combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
+    }
+
     const p1 = { ...player1, currentHP: player1.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
     const p2 = { ...player2, currentHP: player2.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
-    
+
     const logs = [`⚔️ Combat: ${p1.name} vs ${p2.name}`];
     setCombatLog(logs);
-    
+
     let turn = 1;
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
       const turnLog = [`--- Tour ${turn} ---`];
@@ -273,15 +286,29 @@ const Combat = () => {
       await new Promise(r => setTimeout(r, 1200));
       turn++;
     }
-    
+
     const w = p1.currentHP > 0 ? p1.name : p2.name;
     logs.push(`🏆 ${w} remporte le combat!`);
     setCombatLog([...logs]);
     setWinner(w);
     setIsSimulating(false);
+
+    // Arrêter la musique de combat et jouer la musique de victoire
+    if (combatMusic) combatMusic.pause();
+    if (victoryMusic) {
+      victoryMusic.currentTime = 0;
+      victoryMusic.volume = 0.4;
+      victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
+    }
   };
 
   const resetCombat = () => {
+    // Arrêter toutes les musiques
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    if (combatMusic) combatMusic.pause();
+    if (victoryMusic) victoryMusic.pause();
+
     setPlayer1(generateCharacter('SansNom'));
     setPlayer2(generateCharacter('SansNom'));
     setCombatLog([]);
@@ -292,20 +319,21 @@ const Combat = () => {
   useEffect(() => { resetCombat(); }, []);
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [combatLog]);
 
-  const CharacterCard = ({ character }) => {
+  const CharacterCard = ({ character, imageIndex }) => {
     if (!character) return null;
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const totalBonus = (k) => (character.bonuses.race[k] || 0) + (character.bonuses.class[k] || 0);
-    
+    const characterImage = imageIndex === 1 ? testImage1 : testImage2;
+
     return (
       <div className="relative bg-gradient-to-br from-stone-200 to-stone-100 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
         <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-amber-700 z-10">
           {character.race} • {character.class}
         </div>
         <div className="border-2 border-amber-400 rounded-xl overflow-hidden">
-          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
-            <div className="text-9xl opacity-30">{races[character.race].icon}</div>
+          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center overflow-hidden">
+            <img src={characterImage} alt={character.name} className="w-full h-full object-cover" />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
               <div className="text-white font-bold text-xl text-center">{character.name}</div>
               <div className="text-xs text-amber-300 text-center">{character.race} / {character.class}</div>
@@ -346,38 +374,72 @@ const Combat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">Étape 3 — Combat</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <CharacterCard character={player1} />
-          <div className="flex flex-col justify-center items-center gap-6">
-            <div className="text-8xl font-bold text-amber-400">VS</div>
-            {winner && <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-8 py-4 rounded-lg font-bold text-2xl animate-pulse shadow-2xl border-4 border-yellow-400">🏆 {winner} gagne!</div>}
-            <div className="flex flex-col gap-3 w-full max-w-xs">
-              <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white px-8 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-blue-400">
-                ▶️ Lancer le combat
-              </button>
-              <button onClick={resetCombat} className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-purple-400">
-                🔄 Recommencer
-              </button>
+      <Header />
+      {/* Musique de combat */}
+      <audio id="combat-music" loop>
+        <source src="/assets/music/combat.mp3" type="audio/mpeg" />
+      </audio>
+      <audio id="victory-music">
+        <source src="/assets/music/victory.mp3" type="audio/mpeg" />
+      </audio>
+
+      <div className="max-w-[1800px] mx-auto">
+        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">⚔️ Étape 3 — Combat ⚔️</h1>
+
+        {/* Boutons de contrôle en haut */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-amber-400">
+            ▶️ Lancer le combat
+          </button>
+          <button onClick={resetCombat} className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-600">
+            🔄 Recommencer
+          </button>
+        </div>
+
+        {/* VS et Winner */}
+        {winner && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-12 py-5 rounded-xl font-bold text-3xl animate-pulse shadow-2xl border-4 border-yellow-400">
+              🏆 {winner} remporte le combat! 🏆
             </div>
           </div>
-          <CharacterCard character={player2} />
-        </div>
-        <div className="bg-stone-800 rounded-lg p-6 border-4 border-amber-700 max-h-96 overflow-y-auto shadow-2xl">
-          <h2 className="text-2xl font-bold text-amber-400 mb-4">📜 Journal de Combat</h2>
-          {combatLog.length === 0 ? (
-            <p className="text-gray-400 italic text-center py-8">Cliquez sur Lancer le combat...</p>
-          ) : (
-            <div className="space-y-1 font-mono text-sm">
-              {combatLog.map((log, idx) => (
-                <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-purple-400 font-bold' : log.includes('---') ? 'text-blue-400 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
-                  {log}
-                </div>
-              ))}
-              <div ref={logEndRef} />
+        )}
+
+        {/* Layout principal: Cartes + Journal au centre */}
+        <div className="flex gap-6 items-start">
+          {/* Carte joueur 1 - Gauche */}
+          <div className="flex-shrink-0" style={{width: '380px'}}>
+            <CharacterCard character={player1} imageIndex={1} />
+          </div>
+
+          {/* Journal de combat - Centre */}
+          <div className="flex-1 min-w-0">
+            <div className="bg-stone-800 rounded-lg p-6 border-4 border-amber-700 shadow-2xl h-[600px] flex flex-col">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <div className="text-6xl font-bold text-amber-400">VS</div>
+              </div>
+              <h2 className="text-2xl font-bold text-amber-400 mb-4 text-center">📜 Journal de Combat</h2>
+              <div className="flex-1 overflow-y-auto">
+                {combatLog.length === 0 ? (
+                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                ) : (
+                  <div className="space-y-1 font-mono text-sm">
+                    {combatLog.map((log, idx) => (
+                      <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
+                        {log}
+                      </div>
+                    ))}
+                    <div ref={logEndRef} />
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Carte joueur 2 - Droite */}
+          <div className="flex-shrink-0" style={{width: '380px'}}>
+            <CharacterCard character={player2} imageIndex={2} />
+          </div>
         </div>
       </div>
     </div>
