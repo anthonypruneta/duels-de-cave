@@ -27,6 +27,37 @@ Ce projet utilise Firebase pour l'authentification des utilisateurs. Suis ces é
 5. Active "Email/Password" (la première option)
 6. Clique sur "Enregistrer"
 
+## 3.5. Activer Firestore Database
+
+1. Dans le menu latéral, va dans "Firestore Database"
+2. Clique sur "Créer une base de données"
+3. Choisis "Commencer en mode production" (sécurisé par défaut)
+4. Sélectionne un emplacement (ex: europe-west1 pour l'Europe)
+5. Clique sur "Activer"
+
+### Règles de sécurité Firestore (importantes!)
+
+Une fois la base créée, va dans l'onglet "Règles" et remplace par:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Règle pour la collection 'characters'
+    match /characters/{userId} {
+      // L'utilisateur peut lire et écrire uniquement son propre personnage
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Permet de lire tous les personnages (pour le backoffice admin)
+      // Tu peux restreindre ça à un email admin spécifique plus tard
+      allow read: if request.auth != null;
+    }
+  }
+}
+```
+
+Publie les règles en cliquant sur "Publier".
+
 ## 4. Configurer les variables d'environnement
 
 1. Copie le fichier `.env.example` en `.env`:

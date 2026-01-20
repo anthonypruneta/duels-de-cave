@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import CharacterCreation from './components/CharacterCreation';
 import Combat from './components/Combat';
 import Auth from './components/Auth';
+import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function Application() {
@@ -25,6 +26,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <Combat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
               </ProtectedRoute>
             }
           />
