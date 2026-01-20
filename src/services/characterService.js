@@ -4,6 +4,7 @@ import {
   setDoc,
   getDoc,
   getDocs,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -103,8 +104,8 @@ export const canCreateCharacter = async (userId) => {
 export const getAllCharacters = async () => {
   try {
     const charactersRef = collection(db, 'characters');
-    const q = query(charactersRef, orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
+    // Essayer sans orderBy d'abord (peut nécessiter un index)
+    const querySnapshot = await getDocs(charactersRef);
 
     const characters = [];
     querySnapshot.forEach((doc) => {
@@ -114,9 +115,29 @@ export const getAllCharacters = async () => {
       });
     });
 
+    // Trier manuellement par date de création
+    characters.sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt.toMillis() - a.createdAt.toMillis();
+    });
+
+    console.log('Personnages récupérés:', characters.length);
     return { success: true, data: characters };
   } catch (error) {
     console.error('Erreur lors de la récupération des personnages:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Supprimer un personnage (pour backoffice admin)
+export const deleteCharacter = async (userId) => {
+  try {
+    const characterRef = doc(db, 'characters', userId);
+    await deleteDoc(characterRef);
+    console.log('Personnage supprimé:', userId);
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error);
     return { success: false, error: error.message };
   }
 };

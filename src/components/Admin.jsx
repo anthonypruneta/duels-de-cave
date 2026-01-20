@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters } from '../services/characterService';
+import { getAllCharacters, deleteCharacter } from '../services/characterService';
 import Header from './Header';
 
 const Admin = () => {
@@ -9,6 +9,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -42,8 +43,10 @@ const Admin = () => {
 
       if (result.success) {
         setCharacters(result.data);
+        console.log('Personnages chargés dans Admin:', result.data);
       } else {
         setError(result.error);
+        console.error('Erreur chargement personnages:', result.error);
       }
 
       setLoading(false);
@@ -51,6 +54,26 @@ const Admin = () => {
 
     loadCharacters();
   }, []);
+
+  const handleDelete = async (userId, characterName) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le personnage "${characterName}" ?`)) {
+      return;
+    }
+
+    setDeleting(true);
+    const result = await deleteCharacter(userId);
+
+    if (result.success) {
+      // Retirer le personnage de la liste
+      setCharacters(characters.filter(char => char.id !== userId));
+      setSelectedCharacter(null);
+      alert('Personnage supprimé avec succès!');
+    } else {
+      alert('Erreur lors de la suppression: ' + result.error);
+    }
+
+    setDeleting(false);
+  };
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
@@ -331,7 +354,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             </div>
 
             {/* Prompt Midjourney */}
-            <div className="bg-amber-900/30 rounded-lg p-4 border-2 border-amber-600">
+            <div className="bg-amber-900/30 rounded-lg p-4 border-2 border-amber-600 mb-4">
               <p className="text-amber-400 font-bold mb-2">🎨 Prompt Midjourney:</p>
               <p className="text-white text-sm mb-3 font-mono bg-stone-900/50 p-3 rounded">
                 {generateMidjourneyPrompt(selectedCharacter)}
@@ -344,8 +367,17 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               </button>
             </div>
 
+            {/* Bouton suppression */}
+            <button
+              onClick={() => handleDelete(selectedCharacter.id, selectedCharacter.name)}
+              disabled={deleting}
+              className="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-600 text-white py-3 rounded-lg font-bold transition mb-4"
+            >
+              {deleting ? '⏳ Suppression...' : '🗑️ Supprimer ce personnage'}
+            </button>
+
             {/* User ID */}
-            <div className="mt-4 text-xs text-gray-500 text-center">
+            <div className="text-xs text-gray-500 text-center">
               User ID: {selectedCharacter.userId}
             </div>
           </div>
