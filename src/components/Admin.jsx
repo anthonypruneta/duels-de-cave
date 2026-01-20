@@ -65,8 +65,75 @@ const Admin = () => {
   };
 
   const generateMidjourneyPrompt = (char) => {
-    const genderText = char.gender === 'male' ? 'homme' : 'femme';
-    return `${genderText} ${char.race.toLowerCase()} ${char.class.toLowerCase()}, ${char.keyword}, fantasy art, detailed character portrait, epic, dramatic lighting, high quality --ar 2:3`;
+    const genderText = char.gender === 'male' ? 'Male' : 'Female';
+    const characterType = char.gender === 'male' ? 'hero' : 'heroine';
+
+    // Descriptions physiques par race
+    const raceDescriptions = {
+      'Humain': 'balanced athletic build, determined eyes, weathered features, battle-scarred skin, strong jawline',
+      'Elfe': 'elegant slender build, luminous eyes, pointed ears, graceful features, ethereal presence, flowing hair',
+      'Orc': 'massive muscular build, prominent tusks, green-grey skin, fierce eyes, tribal scars, imposing stature',
+      'Nain': 'stout powerful build, thick braided beard, rugged features, stone-grey eyes, weathered skin',
+      'Dragonkin': 'tall draconic humanoid with emerald and obsidian scales, glowing reptilian eyes, sharp horns swept back, long scaled tail',
+      'Mort-vivant': 'gaunt skeletal frame, pale bluish rotten flesh, glowing ghostly eyes, exposed ribs, decayed skin, undead aura',
+      'Lycan': 'tall athletic wolf-like humanoid, silver and charcoal fur, glowing amber eyes, sharp claws, feral grace',
+      'Sylvari': 'lithe plant-like humanoid, bark-textured skin with moss patches, leaf-like hair, glowing sap veins, nature-infused'
+    };
+
+    // Descriptions d'équipement par classe
+    const classDescriptions = {
+      'Guerrier': 'heavy plate armor with battle dents, large two-handed sword, shield strapped to back, metal greaves, war-ready stance',
+      'Voleur': 'light leather armor with dark hood, twin daggers at belt, lockpicks and pouches, agile crouched stance, shadowy presence',
+      'Paladin': 'radiant blessed armor, holy symbol glowing on chest, ornate shield, divine aura, righteous stance',
+      'Healer': 'flowing robes with herbal pouches, glowing healing staff, bandages and vials, gentle aura around hands, restorative stance',
+      'Archer': 'reinforced leather gear, longbow with glowing string, quiver of enchanted arrows, steady aim stance',
+      'Mage': 'flowing spellcaster robes, arcane catalysts hanging from belt, glowing crystal focus, magical runes on clothing',
+      'Demoniste': 'dark ritualistic robes, summoning circles on fabric, demonic sigils, shadowy familiar lurking, occult accessories',
+      'Masochiste': 'torn leather straps, exposed scarred skin, ritual chains, bone spikes, rusted hook weapon, tortured stance'
+    };
+
+    // Traits raciaux spécifiques
+    const racialTraits = {
+      'Humain': 'adaptable presence, versatile stance, inner determination radiating',
+      'Elfe': 'graceful movements, magical affinity glowing softly, ancient wisdom in eyes',
+      'Orc': 'battle fury barely contained, intimidating war cry stance, tribal warrior pride',
+      'Nain': 'unshakeable stance, stone-like resilience, ancient forge wisdom',
+      'Dragonkin': 'faint smoke rising from nostrils, inner glow under scales, magical energy pulsing beneath skin',
+      'Mort-vivant': 'necrotic aura seeping, spectral presence, death energy swirling',
+      'Lycan': 'subtle blood-scent aura, slightly elongated fangs, light feral presence without aggression',
+      'Sylvari': 'photosynthetic glow, living vines growing, nature magic emanating, flower blooms appearing'
+    };
+
+    // Backgrounds par race
+    const raceBackgrounds = {
+      'Humain': 'pixel medieval fortress courtyard, training grounds, banners waving, torches lit',
+      'Elfe': 'pixel enchanted forest glade, ancient trees, magical mist, moonlight filtering through',
+      'Orc': 'pixel tribal war camp, burning braziers, battle trophies, volcanic rocks',
+      'Nain': 'pixel mountain forge, anvil glowing, stone halls, underground cavern',
+      'Dragonkin': 'pixel arcane canyon lit by volcanic cracks, emerald fog, magical circle etched in stone',
+      'Mort-vivant': 'pixel drowned crypt, flooded corridor, eerie teal lighting, broken tombs',
+      'Lycan': 'pixel moonlit clearing, ancient forest shrine, shadowy trees, mystical atmosphere',
+      'Sylvari': 'pixel living grove, bioluminescent plants, nature spirits floating, verdant magic'
+    };
+
+    const raceDesc = raceDescriptions[char.race] || 'mysterious appearance';
+    const classDesc = classDescriptions[char.class] || 'warrior gear';
+    const racialTrait = racialTraits[char.race] || 'unique presence';
+    const background = raceBackgrounds[char.race] || 'pixel fantasy landscape';
+
+    return `HD-2D pixel art sprite, Octopath Traveler style, high-detail pixel clusters, dramatic rim lighting, crisp clean pixels, full-body sprite, imposing but elegant RPG ${characterType}
+
+${genderText} ${char.race} ${char.class} named "${char.name}", ${raceDesc}
+
+${char.class} attire: ${classDesc}
+
+Theme: "${char.keyword}" - subtle ${char.keyword.toLowerCase()}-inspired accents, ${char.keyword.toLowerCase()}-colored highlights, magical aura reflecting the ${char.keyword.toLowerCase()} theme, atmospheric particles
+
+${char.race} trait: ${racialTrait}
+
+Background: ${background}, fantasy atmosphere, cinematic depth
+
+no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprite aesthetic --ar 2:3 --style raw`;
   };
 
   const copyToClipboard = (text) => {
