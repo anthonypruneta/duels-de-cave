@@ -42,6 +42,23 @@ try {
     experimentalForceLongPolling: true, // Force le long polling au lieu de WebSocket
   });
   console.log('✅ Firestore initialisé avec long polling activé');
+
+  // Test de connexion Firestore
+  import('firebase/firestore').then(({ doc, getDoc }) => {
+    const testRef = doc(db, 'test', 'test123');
+    getDoc(testRef)
+      .then(snap => {
+        if (snap.exists()) {
+          console.log('✅ TEST FIRESTORE RÉUSSI - Document lu:', snap.data());
+        } else {
+          console.log('ℹ️ TEST FIRESTORE - Document test n\'existe pas (créez-le manuellement)');
+        }
+      })
+      .catch(err => {
+        console.error('❌ TEST FIRESTORE ÉCHOUÉ:', err.code, err.message);
+      });
+  });
+
 } catch (error) {
   // Si déjà initialisé, utiliser l'instance existante
   db = getFirestore(app);
