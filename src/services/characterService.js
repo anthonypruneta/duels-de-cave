@@ -46,7 +46,17 @@ export const getUserCharacter = async (userId) => {
   }
 };
 
-// Vérifier si l'utilisateur peut créer un personnage (1 par semaine)
+// Fonction helper pour obtenir le lundi de la semaine d'une date
+const getMondayOfWeek = (date) => {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = dimanche, 1 = lundi, etc.
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajustement pour avoir le lundi
+  const monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0); // Minuit
+  return monday;
+};
+
+// Vérifier si l'utilisateur peut créer un personnage (1 par semaine, reset le lundi)
 export const canCreateCharacter = async (userId) => {
   try {
     const characterRef = doc(db, 'characters', userId);
@@ -59,16 +69,28 @@ export const canCreateCharacter = async (userId) => {
     const character = characterSnap.data();
     const createdAt = character.createdAt.toDate();
     const now = new Date();
-    const daysSinceCreation = (now - createdAt) / (1000 * 60 * 60 * 24);
 
-    if (daysSinceCreation >= 7) {
-      return { canCreate: true, reason: 'week_passed' };
+    // Trouver le lundi de la semaine de création
+    const creationMonday = getMondayOfWeek(createdAt);
+
+    // Trouver le lundi de la semaine actuelle
+    const currentMonday = getMondayOfWeek(now);
+
+    // Si le lundi actuel est après le lundi de création, on peut créer
+    if (currentMonday > creationMonday) {
+      return { canCreate: true, reason: 'new_week' };
     } else {
-      const daysRemaining = Math.ceil(7 - daysSinceCreation);
+      // Calculer le prochain lundi (lundi + 7 jours)
+      const nextMonday = new Date(creationMonday);
+      nextMonday.setDate(nextMonday.getDate() + 7);
+
+      // Calculer les jours restants jusqu'au prochain lundi
+      const daysRemaining = Math.ceil((nextMonday - now) / (1000 * 60 * 60 * 24));
+
       return {
         canCreate: false,
-        reason: 'too_soon',
-        daysRemaining
+        reason: 'same_week',
+        daysRemaining: Math.max(1, daysRemaining) // Au moins 1 jour
       };
     }
   } catch (error) {

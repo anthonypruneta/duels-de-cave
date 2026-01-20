@@ -243,7 +243,7 @@ const CharacterCreation = () => {
 
           <div className="mt-6 bg-stone-800/50 rounded-lg p-4 border border-stone-700 max-w-md mx-auto">
             <p className="text-stone-400 text-xs text-center">
-              ℹ️ Vous pourrez créer un nouveau personnage dans 7 jours après la création
+              ℹ️ Vous pourrez créer un nouveau personnage à partir du prochain lundi
             </p>
           </div>
         </div>
@@ -261,10 +261,13 @@ const CharacterCreation = () => {
           <h2 className="text-4xl font-bold mb-4 text-amber-400">Patience, Guerrier...</h2>
           <div className="bg-stone-800/90 rounded-2xl p-8 border-2 border-amber-600">
             <p className="text-xl text-gray-300 mb-4">
-              Vous avez déjà créé un personnage récemment.
+              Vous avez déjà créé un personnage cette semaine.
             </p>
             <p className="text-lg text-amber-300">
-              Vous pourrez en créer un nouveau dans <span className="font-bold text-2xl">{daysRemaining}</span> jour{daysRemaining > 1 ? 's' : ''}.
+              Prochain reset: <span className="font-bold text-2xl">Lundi prochain</span>
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              (dans {daysRemaining} jour{daysRemaining > 1 ? 's' : ''})
             </p>
           </div>
         </div>
@@ -410,7 +413,7 @@ const CharacterCreation = () => {
 
         <div className="mt-6 bg-stone-800/30 border border-amber-600 rounded-lg p-4 max-w-2xl mx-auto">
           <p className="text-amber-300 text-sm text-center">
-            🎲 Race et classe générées aléatoirement • ⏳ 1 personnage par semaine
+            🎲 Race et classe générées aléatoirement • ⏳ 1 personnage par semaine (reset lundi)
           </p>
         </div>
       </div>
