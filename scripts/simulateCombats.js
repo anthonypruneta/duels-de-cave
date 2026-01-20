@@ -50,16 +50,16 @@ const genStats = () => {
 const raceBonus = (race) => {
   const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
   if (race==='Humain') {b.hp=10;b.auto=1;b.def=1;b.cap=1;b.rescap=1;b.spd=1;}
-  else if (race==='Nain') {b.hp=10;b.def=5;}
+  else if (race==='Nain') {b.hp=10;b.def=4;}
   else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
-  else if (race==='Elfe') b.spd=5;
+  else if (race==='Elfe') {b.auto=1;b.cap=1;b.spd=5;}
   return b;
 };
 
 const classBonus = (clazz) => {
   const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
   if (clazz==='Voleur') b.spd=5;
-  if (clazz==='Guerrier') b.auto=3;
+  if (clazz==='Guerrier') b.auto=2;
   return b;
 };
 
@@ -101,7 +101,7 @@ const critChance = (att, def) => {
 };
 
 const reviveUndead = (target) => {
-  const revive = Math.max(1, Math.round(0.25 * target.maxHP));
+  const revive = Math.max(1, Math.round(0.20 * target.maxHP));
   target.undead = true;
   target.currentHP = revive;
 };
