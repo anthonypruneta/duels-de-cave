@@ -33,16 +33,21 @@ export const saveCharacter = async (userId, characterData) => {
 // Récupérer le personnage d'un utilisateur
 export const getUserCharacter = async (userId) => {
   try {
+    console.log('📖 Tentative de récupération du personnage pour userId:', userId);
     const characterRef = doc(db, 'characters', userId);
     const characterSnap = await getDoc(characterRef);
 
     if (characterSnap.exists()) {
+      console.log('✅ Personnage trouvé:', characterSnap.data());
       return { success: true, data: characterSnap.data() };
     } else {
+      console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
       return { success: true, data: null };
     }
   } catch (error) {
-    console.error('Erreur lors de la récupération:', error);
+    console.error('❌ Erreur lors de la récupération:', error);
+    console.error('Code erreur:', error.code);
+    console.error('Message:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -60,10 +65,12 @@ const getMondayOfWeek = (date) => {
 // Vérifier si l'utilisateur peut créer un personnage (1 par semaine, reset le lundi)
 export const canCreateCharacter = async (userId) => {
   try {
+    console.log('🔍 Vérification si l\'utilisateur peut créer un personnage...');
     const characterRef = doc(db, 'characters', userId);
     const characterSnap = await getDoc(characterRef);
 
     if (!characterSnap.exists()) {
+      console.log('✅ Pas de personnage existant, création autorisée');
       return { canCreate: true, reason: 'no_character' };
     }
 
@@ -79,6 +86,7 @@ export const canCreateCharacter = async (userId) => {
 
     // Si le lundi actuel est après le lundi de création, on peut créer
     if (currentMonday > creationMonday) {
+      console.log('✅ Nouvelle semaine, création autorisée');
       return { canCreate: true, reason: 'new_week' };
     } else {
       // Calculer le prochain lundi (lundi + 7 jours)
@@ -88,6 +96,7 @@ export const canCreateCharacter = async (userId) => {
       // Calculer les jours restants jusqu'au prochain lundi
       const daysRemaining = Math.ceil((nextMonday - now) / (1000 * 60 * 60 * 24));
 
+      console.log('⏳ Personnage créé cette semaine, attendre', daysRemaining, 'jours');
       return {
         canCreate: false,
         reason: 'same_week',
@@ -95,7 +104,8 @@ export const canCreateCharacter = async (userId) => {
       };
     }
   } catch (error) {
-    console.error('Erreur lors de la vérification:', error);
+    console.error('❌ Erreur lors de la vérification:', error);
+    console.error('Code erreur:', error.code);
     return { canCreate: false, error: error.message };
   }
 };
