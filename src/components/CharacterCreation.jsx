@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Header from './Header';
 
 const CharacterCreation = () => {
   const [step, setStep] = useState('welcome');
@@ -231,6 +232,7 @@ const CharacterCreation = () => {
   // Creation form
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+      <Header />
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
           <h2 className="text-5xl font-bold mb-3 text-amber-400">Création de Personnage</h2>

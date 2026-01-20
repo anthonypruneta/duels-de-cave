@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
+import Header from './Header';
 
 const Combat = () => {
   const [player1, setPlayer1] = useState(null);
@@ -373,6 +374,7 @@ const Combat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+      <Header />
       {/* Musique de combat */}
       <audio id="combat-music" loop>
         <source src="/assets/music/combat.mp3" type="audio/mpeg" />
