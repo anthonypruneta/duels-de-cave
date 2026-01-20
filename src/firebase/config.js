@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
 // Configuration Firebase
 // IMPORTANT: Remplace ces valeurs par tes propres clés Firebase
@@ -27,31 +27,14 @@ console.log('🔥 Firebase Config:', {
   hasValidConfig: firebaseConfig.projectId !== "YOUR_PROJECT_ID"
 });
 
-// Initialiser Firebase
-const app = initializeApp(firebaseConfig);
+// Initialiser Firestore avec la configuration par défaut
+export const db = getFirestore(app);
+console.log('✅ Firestore initialisé (configuration par défaut)');
 
 // Initialiser les services
 export const auth = getAuth(app);
 
-// Initialiser Firestore avec persistence désactivée
-// Cela force une connexion réseau directe sans cache offline
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: {
-      kind: 'memory'  // Utilise seulement la mémoire, pas IndexedDB
-    },
-    experimentalForceLongPolling: true,
-    experimentalAutoDetectLongPolling: false
-  });
-  console.log('✅ Firestore initialisé (cache mémoire + long polling)');
-
-} catch (error) {
-  // Si déjà initialisé, utiliser l'instance existante
-  db = getFirestore(app);
-  console.log('ℹ️ Firestore déjà initialisé, utilisation de l\'instance existante');
-}
-
-export { db };
+// Initialiser les services
+export const auth = getAuth(app);
 
 export default app;
