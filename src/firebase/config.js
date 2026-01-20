@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 
 // Configuration Firebase
 // IMPORTANT: Remplace ces valeurs par tes propres clés Firebase
@@ -33,15 +33,18 @@ const app = initializeApp(firebaseConfig);
 // Initialiser les services
 export const auth = getAuth(app);
 
-// Initialiser Firestore avec long polling pour éviter les problèmes "offline"
-// Le long polling est plus fiable que WebSocket dans certains environnements
+// Initialiser Firestore avec persistence désactivée
+// Cela force une connexion réseau directe sans cache offline
 let db;
 try {
   db = initializeFirestore(app, {
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-    experimentalForceLongPolling: true, // Force le long polling au lieu de WebSocket
+    localCache: {
+      kind: 'memory'  // Utilise seulement la mémoire, pas IndexedDB
+    },
+    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: false
   });
-  console.log('✅ Firestore initialisé avec long polling activé');
+  console.log('✅ Firestore initialisé (cache mémoire + long polling)');
 
   // Test de connexion Firestore
   import('firebase/firestore').then(({ doc, getDoc }) => {
