@@ -127,7 +127,7 @@ const processTurn = (p1, p2) => {
 
     if (att.class === 'Demoniste') {
       const t = tiers15(att.base.cap);
-      const hit = Math.max(1, Math.round((0.15 + 0.03 * t) * att.base.cap));
+      const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap);
       def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {

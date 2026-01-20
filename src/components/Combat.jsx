@@ -136,7 +136,7 @@ const Combat = () => {
       
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
-        const hit = Math.max(1, Math.round((0.15 + 0.03 * t) * att.base.cap));
+        const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
         log.push(`💠 Familier de ${att.name} → ${raw} dégâts`);
