@@ -1,15 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
 // Configuration Firebase
-// IMPORTANT: Remplace ces valeurs par tes propres clés Firebase
-// Pour obtenir ces clés:
-// 1. Va sur https://console.firebase.google.com/
-// 2. Crée un nouveau projet ou utilise un projet existant
-// 3. Ajoute une application web
-// 4. Copie les valeurs de configuration ici
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT_ID.firebaseapp.com",
@@ -33,25 +26,8 @@ const app = initializeApp(firebaseConfig);
 // Initialiser les services
 export const auth = getAuth(app);
 
-// Initialiser Firestore avec persistence désactivée
-// Cela force une connexion réseau directe sans cache offline
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: {
-      kind: 'memory'  // Utilise seulement la mémoire, pas IndexedDB
-    },
-    experimentalForceLongPolling: true,
-    experimentalAutoDetectLongPolling: false
-  });
-  console.log('✅ Firestore initialisé (cache mémoire + long polling)');
-
-} catch (error) {
-  // Si déjà initialisé, utiliser l'instance existante
-  db = getFirestore(app);
-  console.log('ℹ️ Firestore déjà initialisé, utilisation de l\'instance existante');
-}
-
-export { db };
+// Initialiser Firestore avec la configuration par défaut
+export const db = getFirestore(app);
+console.log('✅ Firestore initialisé (configuration par défaut)');
 
 export default app;
