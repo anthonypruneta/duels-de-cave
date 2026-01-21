@@ -10,7 +10,7 @@ Ce projet utilise Firebase pour l'authentification des utilisateurs. Suis ces é
 4. Désactive Google Analytics si tu ne veux pas de tracking (optionnel)
 5. Clique sur "Créer le projet"
 
-## 2. Ajouter une application Web
+## 2. Ajouter une application Web  
 
 1. Dans la console Firebase, clique sur l'icône Web `</>` pour ajouter une application
 2. Nomme ton application (ex: "Duels de Cave Web")
