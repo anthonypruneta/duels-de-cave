@@ -29,5 +29,6 @@ export const auth = getAuth(app);
 // Initialiser Firestore avec la configuration par défaut
 export const db = getFirestore(app);
 console.log('✅ Firestore initialisé (configuration par défaut)');
+console.log('📍 Base de données:', firebaseConfig.projectId);
 
 export default app;
