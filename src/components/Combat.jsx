@@ -23,14 +23,14 @@ const Combat = () => {
   };
 
   const classes = {
-    'Guerrier': { ability: 'Frappe pénétrante', icon: '🗡️' },
-    'Voleur': { ability: 'Esquive + Crit', icon: '🌀' },
-    'Paladin': { ability: 'Renvoie 40%+ dégâts', icon: '🛡️' },
-    'Healer': { ability: 'Soin puissant', icon: '✚' },
-    'Archer': { ability: 'Volée 2+ flèches', icon: '🏹' },
-    'Mage': { ability: 'Sort magique', icon: '🔮' },
-    'Demoniste': { ability: 'Familier', icon: '💠' },
-    'Masochiste': { ability: 'Renvoie dégâts', icon: '🩸' }
+    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 8% +2%/15Cap', icon: '🗡️' },
+    'Voleur': { ability: 'Esquive (CD: 2 tours)', description: '+5 VIT | Esquive 1 coup | +15% crit/palier 15Cap | Crit x2', icon: '🌀' },
+    'Paladin': { ability: 'Riposte (Chaque tour)', description: 'Renvoie 70% +12%/15Cap des dégâts reçus', icon: '🛡️' },
+    'Healer': { ability: 'Soin puissant (CD: 2 tours)', description: '+2 Auto | Heal 20% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
+    'Archer': { ability: 'Tir multiple (CD: 3 tours)', description: '2 tirs à Cap15, +1 tir par palier 15Cap', icon: '🏹' },
+    'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
+    'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (15% +3%/15Cap) × Capacité en dégâts', icon: '💠' },
+    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
   const genStats = () => {
@@ -108,20 +108,15 @@ const Combat = () => {
     return c;
   };
 
-  const reviveUndead = (target, log) => {
+  const reviveUndead = (target, log, playerColor) => {
     const revive = Math.max(1, Math.round(0.20 * target.maxHP));
     target.undead = true;
     target.currentHP = revive;
-    log.push(`☠️ ${target.name} revient à ${revive} PV!`);
+    log.push(`${playerColor} ☠️ ${target.name} revient à ${revive} PV!`);
   };
 
-  const processTurn = (p1, p2, log) => {
-    const first = p1.base.spd >= p2.base.spd ? p1 : p2;
-    const second = first === p1 ? p2 : p1;
-    
-    [first, second].forEach((att) => {
-      const def = att === first ? second : first;
-      if (att.currentHP <= 0 || def.currentHP <= 0) return;
+  const processPlayerAction = (att, def, log, isP1) => {
+    if (att.currentHP <= 0 || def.currentHP <= 0) return;
       
       att.reflect = false;
       const cycle = { war: 3, rog: 4, pal: 2, heal: 5, arc: 3, mag: 3, dem: 1, maso: 4 };
@@ -129,10 +124,12 @@ const Combat = () => {
         att.cd[k] = (att.cd[k] % cycle[k]) + 1;
       }
       
+      const playerColor = isP1 ? '[P1]' : '[P2]';
+
       if (att.race === 'Sylvari') {
         const heal = Math.max(1, Math.round(att.maxHP * 0.02));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`🌿 ${att.name} régénère ${heal} PV`);
+        log.push(`${playerColor}${playerColor} 🌿 ${att.name} régénère ${heal} PV`);
       }
       
       if (att.class === 'Demoniste') {
@@ -140,9 +137,9 @@ const Combat = () => {
         const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
-        log.push(`💠 Familier de ${att.name} → ${raw} dégâts`);
+        log.push(`${playerColor}💠 Familier de ${att.name} → ${raw} dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, log);
+          reviveUndead(def, log, playerColor);
         }
       }
       
@@ -153,9 +150,9 @@ const Combat = () => {
           const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
           att.maso_taken = 0;
           def.currentHP -= dmg;
-          log.push(`🩸 ${att.name} renvoie ${dmg} dégâts accumulés`);
+          log.push(`${playerColor}🩸 ${att.name} renvoie ${dmg} dégâts accumulés`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-            reviveUndead(def, log);
+            reviveUndead(def, log, playerColor);
           }
         }
       }
@@ -163,27 +160,27 @@ const Combat = () => {
       if (att.bleed_stacks > 0) {
         const bleedDmg = Math.ceil(att.bleed_stacks / 3);
         att.currentHP -= bleedDmg;
-        log.push(`🩸 ${att.name} saigne ${bleedDmg} dégâts`);
+        log.push(`${playerColor}🩸 ${att.name} saigne ${bleedDmg} dégâts`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-          reviveUndead(att, log);
+          reviveUndead(att, log, playerColor);
         }
       }
 
       if (att.class === 'Paladin' && att.cd.pal === 2) {
         att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
-        log.push(`🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
+        log.push(`${playerColor}🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
       }
       
       if (att.class === 'Healer' && att.cd.heal === 5) {
         const miss = att.maxHP - att.currentHP;
         const heal = Math.max(1, Math.round(0.20 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`✚ ${att.name} soigne ${heal} PV`);
+        log.push(`${playerColor}✚ ${att.name} soigne ${heal} PV`);
       }
       
       if (att.class === 'Voleur' && att.cd.rog === 4) {
         att.dodge = true;
-        log.push(`🌀 ${att.name} esquivera prochaine attaque`);
+        log.push(`${playerColor}🌀 ${att.name} esquivera prochaine attaque`);
       }
       
       const isMage = att.class === 'Mage' && att.cd.mag === 3;
@@ -203,7 +200,7 @@ const Combat = () => {
         if (isMage) {
           const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
           raw = dmgCap(atkSpell, def.base.rescap);
-          if (i === 0) log.push(`🔮 ${att.name} lance un sort`);
+          if (i === 0) log.push(`${playerColor}🔮 ${att.name} lance un sort`);
         } else if (isWar) {
           const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
           if (def.base.def <= def.base.rescap) {
@@ -213,7 +210,7 @@ const Combat = () => {
             const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
             raw = dmgCap(Math.round(att.base.cap * mult), effRes);
           }
-          if (i === 0) log.push(`🗡️ ${att.name} frappe pénétrant`);
+          if (i === 0) log.push(`${playerColor}🗡️ ${att.name} frappe pénétrant`);
         } else {
           raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
           if (att.race === 'Lycan') {
@@ -225,34 +222,33 @@ const Combat = () => {
         
         if (def.dodge) {
           def.dodge = false;
-          log.push(`💨 ${def.name} esquive!`);
+          log.push(`${playerColor}💨 ${def.name} esquive!`);
           raw = 0;
         }
         
         if (def.reflect && raw > 0) {
           const back = Math.round(def.reflect * raw);
           att.currentHP -= back;
-          log.push(`🔁 ${def.name} renvoie ${back}`);
+          log.push(`${playerColor}🔁 ${def.name} renvoie ${back}`);
         }
         
         def.currentHP -= raw;
         if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
         
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, log);
+          reviveUndead(def, log, playerColor);
         } else if (def.currentHP <= 0) {
           total += raw;
           break;
         }
         
         total += raw;
-        if (isArcher) log.push(`🏹 Flèche ${i + 1}: ${raw}${isCrit ? ' CRIT' : ''}`);
+        if (isArcher) log.push(`${playerColor}🏹 Flèche ${i + 1}: ${raw}${isCrit ? ' CRIT' : ''}`);
       }
       
       if (!isArcher && total > 0) {
-        log.push(`${att.name} → ${def.name}: ${total} dégâts`);
+        log.push(`${playerColor}${att.name} → ${def.name}: ${total} dégâts`);
       }
-    });
   };
 
   const simulateCombat = async () => {
@@ -277,13 +273,35 @@ const Combat = () => {
 
     let turn = 1;
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
-      const turnLog = [`--- Tour ${turn} ---`];
-      processTurn(p1, p2, turnLog);
-      logs.push(...turnLog);
+      logs.push(`--- Tour ${turn} ---`);
+      setCombatLog([...logs]);
+      await new Promise(r => setTimeout(r, 400));
+
+      // Déterminer qui attaque en premier selon la vitesse
+      const first = p1.base.spd >= p2.base.spd ? p1 : p2;
+      const second = first === p1 ? p2 : p1;
+      const firstIsP1 = first === p1;
+
+      // Action du premier joueur
+      const log1 = [];
+      processPlayerAction(first, second, log1, firstIsP1);
+      logs.push(...log1);
       setCombatLog([...logs]);
       setPlayer1({...p1});
       setPlayer2({...p2});
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 800));
+
+      // Si le combat n'est pas fini, action du deuxième joueur
+      if (p1.currentHP > 0 && p2.currentHP > 0) {
+        const log2 = [];
+        processPlayerAction(second, first, log2, !firstIsP1);
+        logs.push(...log2);
+        setCombatLog([...logs]);
+        setPlayer1({...p1});
+        setPlayer2({...p2});
+        await new Promise(r => setTimeout(r, 800));
+      }
+
       turn++;
     }
 
@@ -363,7 +381,10 @@ const Combat = () => {
               </div>
               <div className="flex items-start gap-2 bg-stone-700/50 rounded p-2 text-xs">
                 <span className="text-lg">{classes[character.class].icon}</span>
-                <span className="text-gray-400">{classes[character.class].ability}</span>
+                <div className="flex-1">
+                  <div className="text-amber-400 font-semibold mb-1">{classes[character.class].ability}</div>
+                  <div className="text-gray-400 text-[10px]">{classes[character.class].description}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -424,11 +445,18 @@ const Combat = () => {
                   <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
                 ) : (
                   <div className="space-y-1 font-mono text-sm">
-                    {combatLog.map((log, idx) => (
-                      <div key={idx} className={`${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : 'text-gray-300'}`}>
-                        {log}
-                      </div>
-                    ))}
+                    {combatLog.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                      const baseColor = isP1 ? 'text-blue-400' : isP2 ? 'text-red-400' : 'text-gray-300';
+                      const className = `${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : baseColor}`;
+                      return (
+                        <div key={idx} className={className}>
+                          {cleanLog}
+                        </div>
+                      );
+                    })}
                     <div ref={logEndRef} />
                   </div>
                 )}
