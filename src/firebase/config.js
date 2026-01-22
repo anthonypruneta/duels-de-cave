@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -26,8 +26,24 @@ const app = initializeApp(firebaseConfig);
 // Initialiser les services
 export const auth = getAuth(app);
 
-// Initialiser Firestore avec la configuration par défaut
-export const db = getFirestore(app);
-console.log('✅ Firestore initialisé (configuration par défaut)');
+// Initialiser Firestore avec configuration optimisée pour éviter les timeouts
+// Solutions basées sur: https://github.com/firebase/firebase-js-sdk/issues/8255
+export const db = initializeFirestore(app, {
+  // Force long polling pour une meilleure compatibilité réseau
+  // Résout: "Could not reach Cloud Firestore backend" errors
+  experimentalForceLongPolling: true,
+
+  // Désactive fetch streams qui peuvent causer des problèmes de connexion
+  useFetchStreams: false,
+
+  // Active le cache persistant pour mode offline
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
+console.log('✅ Firestore initialisé avec configuration optimisée');
+console.log('🔧 Long polling: activé | Cache persistant: activé');
+console.log('📍 Base de données:', firebaseConfig.projectId);
 
 export default app;
