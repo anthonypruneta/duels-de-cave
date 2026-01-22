@@ -115,7 +115,7 @@ const useAbility = (attacker, defender, turn) => {
       if (turn % 3 === 0) {
         // Frappe résistance la plus faible
         const minRes = Math.min(defender.stats.def, defender.stats.rescap);
-        const ignorePct = getScaling(cap, 15, 3) / 100; // Nerfé de 20%+5% à 15%+3%
+        const ignorePct = getScaling(cap, 10, 2) / 100; // Nerfé de 15%+3% à 10%+2%
         const effectiveRes = minRes * (1 - ignorePct);
         dmg = Math.max(1, attacker.stats.auto - effectiveRes);
         effects.push('Frappe pénétrante');
@@ -123,7 +123,7 @@ const useAbility = (attacker, defender, turn) => {
       break;
 
     case 'Voleur':
-      if (turn % 3 === 0) { // Buffé de CD4 à CD3
+      if (turn % 2 === 0) { // Buffé de CD3 à CD2
         effects.push('Esquive');
         attacker.dodgeNext = true;
       }
@@ -131,7 +131,7 @@ const useAbility = (attacker, defender, turn) => {
 
     case 'Paladin':
       if (turn % 2 === 0) {
-        const ripostePct = getScaling(cap, 50, 8) / 100; // Buffé de 30%+5% à 50%+8%
+        const ripostePct = getScaling(cap, 70, 12) / 100; // Buffé de 50%+8% à 70%+12%
         attacker.ripostePercent = ripostePct;
         effects.push(`Riposte ${(ripostePct*100).toFixed(0)}%`);
       }
@@ -168,14 +168,14 @@ const useAbility = (attacker, defender, turn) => {
 
     case 'Demoniste':
       // PASSIF - Attaque tous les tours !
-      const familierPct = getScaling(cap, 10, 2) / 100;
+      const familierPct = getScaling(cap, 15, 3) / 100; // Buffé de 10%+2% à 15%+3%
       dmg = Math.floor(cap * familierPct);
       effects.push('Familier');
       break;
 
     case 'Masochiste':
       if (turn % 4 === 0 && attacker.damageReceived > 0) {
-        const returnPct = getScaling(cap, 20, 4) / 100; // Buffé de 10%+2% à 20%+4%
+        const returnPct = getScaling(cap, 30, 6) / 100; // Buffé de 20%+4% à 30%+6%
         dmg = Math.floor(attacker.damageReceived * returnPct);
         attacker.damageReceived = 0;
         effects.push(`Renvoie ${dmg} dégâts`);
