@@ -37,6 +37,9 @@ export const auth = getAuth(app);
 // Le cache persistant peut causer "client is offline" errors
 // Solutions: https://github.com/firebase/firebase-js-sdk/issues/3207
 export const db = initializeFirestore(app, {
+  // Spécifier explicitement la base de données par défaut
+  databaseId: "(default)",
+
   // Force long polling pour une meilleure compatibilité réseau
   experimentalForceLongPolling: true,
 
