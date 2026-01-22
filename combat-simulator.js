@@ -186,7 +186,7 @@ const useAbility = (attacker, defender, turn) => {
 };
 
 // Combat complet
-const simulateCombat = (char1, char2, maxTurns = 100) => {
+const simulateCombat = (char1, char2, maxTurns = 100, trackTurns = false) => {
   let turn = 0;
 
   // Reset HP
@@ -278,6 +278,12 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
   }
 
   // Résultat
+  if (trackTurns) {
+    if (char1.currentHp > 0 && char2.currentHp <= 0) return { winner: 'char1', turns: turn };
+    if (char2.currentHp > 0 && char1.currentHp <= 0) return { winner: 'char2', turns: turn };
+    return { winner: 'draw', turns: turn };
+  }
+
   if (char1.currentHp > 0 && char2.currentHp <= 0) return 'char1';
   if (char2.currentHp > 0 && char1.currentHp <= 0) return 'char2';
   return 'draw';
@@ -370,5 +376,54 @@ const runSimulations = (count = 1000, analyzeRaces = false) => {
   }
 };
 
+// Analyser la durée des combats
+const analyzeCombatDuration = (count = 1000) => {
+  const classes = ['Guerrier', 'Voleur', 'Paladin', 'Healer', 'Archer', 'Mage', 'Demoniste', 'Masochiste'];
+  const races = ['Humain', 'Elfe', 'Orc', 'Nain', 'Dragonkin', 'Mort-vivant', 'Lycan', 'Sylvari'];
+
+  let totalTurns = 0;
+  let minTurns = Infinity;
+  let maxTurns = 0;
+  const turnDistribution = {};
+
+  console.log(`🎲 Analyse de la durée de ${count} combats...\\n`);
+
+  for (let i = 0; i < count; i++) {
+    const race1 = races[Math.floor(Math.random() * races.length)];
+    const class1 = classes[Math.floor(Math.random() * classes.length)];
+    const char1 = createCharacter(race1, class1);
+
+    const race2 = races[Math.floor(Math.random() * races.length)];
+    const class2 = classes[Math.floor(Math.random() * classes.length)];
+    const char2 = createCharacter(race2, class2);
+
+    const result = simulateCombat(char1, char2, 100, true);
+    const turns = result.turns;
+
+    totalTurns += turns;
+    minTurns = Math.min(minTurns, turns);
+    maxTurns = Math.max(maxTurns, turns);
+
+    const bucket = Math.floor(turns / 5) * 5; // Groupes de 5 tours
+    turnDistribution[bucket] = (turnDistribution[bucket] || 0) + 1;
+  }
+
+  const avgTurns = (totalTurns / count).toFixed(1);
+
+  console.log(`📊 Statistiques de durée des combats:\\n`);
+  console.log(`Durée moyenne: ${avgTurns} tours`);
+  console.log(`Min: ${minTurns} tours | Max: ${maxTurns} tours\\n`);
+
+  console.log('Distribution par tranches de 5 tours:');
+  const sortedBuckets = Object.keys(turnDistribution).map(Number).sort((a, b) => a - b);
+  for (const bucket of sortedBuckets) {
+    const count = turnDistribution[bucket];
+    const pct = ((count / 1000) * 100).toFixed(1);
+    const bar = '█'.repeat(Math.floor(count / 20));
+    console.log(`${String(bucket).padStart(2)}-${String(bucket + 4).padStart(2)} tours: ${bar} ${count} (${pct}%)`);
+  }
+};
+
 // Lancer les simulations
-runSimulations(10000, true); // true = analyser les races
+// runSimulations(10000, true); // true = analyser les races
+analyzeCombatDuration(1000);
