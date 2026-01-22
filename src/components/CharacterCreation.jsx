@@ -28,14 +28,14 @@ const CharacterCreation = () => {
   };
 
   const classes = {
-    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: 'Frappe la résistance la plus faible et ignore 12-20% de cette stat', icon: '🗡️' },
-    'Voleur': { ability: 'Esquive + Crit (CD: 4 tours)', description: 'Esquive prochaine attaque. Bonus crit basé sur Capacité', icon: '🌀' },
-    'Paladin': { ability: 'Riposte (CD: 2 tours)', description: 'Renvoie 40-55% des dégâts reçus', icon: '🛡️' },
-    'Healer': { ability: 'Soin puissant (CD: 5 tours)', description: 'Soin = 20% PV manquants + 25-40% × Capacité', icon: '✚' },
-    'Archer': { ability: 'Volée de flèches (CD: 3 tours)', description: 'Tire 2-4 flèches selon Capacité', icon: '🏹' },
-    'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + 40-55% × Capacité (vs ResC)', icon: '🔮' },
-    'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: 20-32% × Capacité en dégâts', icon: '💠' },
-    'Masochiste': { ability: 'Renvoie dégâts (CD: 4 tours)', description: 'Renvoie 15-27% des dégâts cumulés reçus', icon: '🩸' }
+    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 20% +5%/15Cap', icon: '🗡️' },
+    'Voleur': { ability: 'Esquive (CD: 4 tours)', description: '+5 VIT | Esquive 1 coup | +5% crit par palier 15Cap', icon: '🌀' },
+    'Paladin': { ability: 'Riposte (1 tour sur 2)', description: 'Renvoie 30% +5%/15Cap des dégâts reçus', icon: '🛡️' },
+    'Healer': { ability: 'Soin puissant (CD: 5 tours)', description: 'Heal 20% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
+    'Archer': { ability: 'Tir multiple (CD: 3 tours)', description: '2 tirs à Cap15, +1 tir par palier 15Cap', icon: '🏹' },
+    'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
+    'Demoniste': { ability: 'Familier (CD: 3 tours)', description: 'Dégâts = (10% +2%/15Cap) × Capacité', icon: '💠' },
+    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (10% +2%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
   // Charger le personnage existant au montage
