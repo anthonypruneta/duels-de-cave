@@ -46,6 +46,7 @@ const getClassBonus = (clazz) => {
   const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
   if (clazz==='Voleur') b.spd=5;
   if (clazz==='Guerrier') b.auto=3;
+  if (clazz==='Healer') b.auto=3; // Buffé pour augmenter DPS
   return b;
 };
 
@@ -90,7 +91,9 @@ const calculateBaseDamage = (attacker, defender) => {
   }
 
   const isCrit = Math.random() < critChance;
-  let dmg = isCrit ? baseDmg * 1.5 : baseDmg;
+  // Voleur: crit damage x2 au lieu de x1.5
+  const critMultiplier = (attacker.class === 'Voleur') ? 2.0 : 1.5;
+  let dmg = isCrit ? baseDmg * critMultiplier : baseDmg;
 
   // Orc: +20% dégâts sous 50% HP
   if (attacker.race === 'Orc' && attacker.currentHp < attacker.stats.hp * 0.5) {
@@ -123,7 +126,7 @@ const useAbility = (attacker, defender, turn) => {
       break;
 
     case 'Voleur':
-      if (turn % 3 === 0) { // Retour de CD2 à CD3
+      if (turn % 2 === 0) { // Buffé de CD3 à CD2
         effects.push('Esquive');
         attacker.dodgeNext = true;
       }
@@ -135,7 +138,7 @@ const useAbility = (attacker, defender, turn) => {
       break;
 
     case 'Healer':
-      if (turn % 3 === 0) { // Buffé de CD4 à CD3
+      if (turn % 2 === 0) { // Buffé de CD3 à CD2
         const missingHp = attacker.stats.hp - attacker.currentHp;
         const baseHeal = missingHp * 0.20;
         const capHealPct = getScaling(cap, 25, 5) / 100;
@@ -172,7 +175,7 @@ const useAbility = (attacker, defender, turn) => {
 
     case 'Masochiste':
       if (turn % 4 === 0 && attacker.damageReceived > 0) {
-        const returnPct = getScaling(cap, 40, 8) / 100; // Buffé de 30%+6% à 40%+8%
+        const returnPct = getScaling(cap, 60, 12) / 100; // Buffé de 50%+10% à 60%+12%
         dmg = Math.floor(attacker.damageReceived * returnPct);
         attacker.damageReceived = 0;
         effects.push(`Renvoie ${dmg} dégâts`);
@@ -230,8 +233,11 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       const ability = useAbility(attacker, defender, turn);
       let totalDmg = ability.dmg;
 
-      // Si pas de capacité spéciale, attaque normale
-      if (totalDmg === 0 && ability.effects.length === 0) {
+      // Si pas de capacité spéciale OU capacité de support (heal/esquive), attaque normale
+      // Le Healer et Voleur doivent attaquer même quand ils utilisent leur capacité
+      const supportAbility = ability.heal > 0 || ability.effects.includes('Esquive');
+
+      if (totalDmg === 0) {
         totalDmg = calculateBaseDamage(attacker, defender);
       }
 
