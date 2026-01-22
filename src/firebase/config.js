@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, enableNetwork, onSnapshot, collection } from 'firebase/firestore';
+import { initializeFirestore, enableNetwork, onSnapshot, collection, setLogLevel } from 'firebase/firestore';
+
+// Activer le debug logging pour diagnostiquer les problèmes de connexion
+setLogLevel('debug');
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -49,6 +52,32 @@ console.log('✅ Firestore initialisé avec configuration optimisée');
 console.log('🔧 Long polling: activé | Cache: MEMOIRE uniquement');
 console.log('📍 Base de données:', firebaseConfig.projectId);
 
+// Flag pour indiquer si Firestore est prêt
+let firestoreReady = false;
+
+// Export d'une promesse qui se résout quand Firestore est prêt
+export const waitForFirestore = () => {
+  if (firestoreReady) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const checkInterval = setInterval(() => {
+      if (firestoreReady) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+    }, 100);
+
+    // Timeout après 30 secondes
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      console.warn('⚠️ Timeout en attendant la connexion Firestore');
+      resolve(); // Résoudre quand même pour ne pas bloquer l'app
+    }, 30000);
+  });
+};
+
 // Forcer l'activation du réseau Firestore
 enableNetwork(db)
   .then(() => {
@@ -59,24 +88,51 @@ enableNetwork(db)
   });
 
 // Debug: Tester la connexion Firestore avec un snapshot
+// Augmentation du délai à 3 secondes pour laisser la connexion s'établir
 setTimeout(() => {
+  console.log('🔄 Début du test de connexion Firestore...');
+
   const testRef = collection(db, 'characters');
   const unsubscribe = onSnapshot(
     testRef,
     { includeMetadataChanges: true },
     (snapshot) => {
-      console.log('🔍 Test connexion Firestore:', {
+      const connectionInfo = {
         hasData: !snapshot.empty,
         fromCache: snapshot.metadata.fromCache,
         hasPendingWrites: snapshot.metadata.hasPendingWrites,
         isOnline: !snapshot.metadata.fromCache
-      });
+      };
+
+      console.log('🔍 Test connexion Firestore:', connectionInfo);
+
+      // Marquer comme prêt uniquement si on a réussi à se connecter (pas fromCache)
+      if (!snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites === false) {
+        firestoreReady = true;
+        console.log('✅ Firestore est maintenant PRÊT pour les requêtes');
+      } else {
+        console.warn('⚠️ Données servies depuis le cache, connexion réseau peut-être pas établie');
+        // Considérer comme prêt quand même après le premier snapshot
+        firestoreReady = true;
+      }
+
       unsubscribe();
     },
     (error) => {
       console.error('❌ Erreur test connexion Firestore:', error);
+      console.error('📋 Détails erreur:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n')
+      });
+
+      // Même en cas d'erreur, permettre les requêtes après 5 secondes
+      setTimeout(() => {
+        console.warn('⚠️ Marquage Firestore comme prêt malgré l\'erreur (fallback)');
+        firestoreReady = true;
+      }, 5000);
     }
   );
-}, 1000);
+}, 3000);
 
 export default app;

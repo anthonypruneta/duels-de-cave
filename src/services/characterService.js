@@ -10,10 +10,15 @@ import {
   orderBy,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, waitForFirestore } from '../firebase/config';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
+  // Attendre que Firestore soit prêt avant la première tentative
+  console.log('⏳ Attente de la connexion Firestore...');
+  await waitForFirestore();
+  console.log('✅ Firestore prêt, exécution de l\'opération');
+
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -22,18 +27,24 @@ const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
     } catch (error) {
       lastError = error;
 
-      // Ne retry que pour les erreurs réseau
+      // Ne retry que pour les erreurs réseau et offline
       const isNetworkError =
         error.code === 'unavailable' ||
         error.code === 'deadline-exceeded' ||
         error.message?.includes('Failed to fetch') ||
-        error.message?.includes('network');
+        error.message?.includes('network') ||
+        error.message?.includes('offline');
 
       if (!isNetworkError || attempt === maxRetries) {
+        console.error(`❌ Échec définitif après ${attempt} tentatives:`, {
+          code: error.code,
+          message: error.message
+        });
         throw error;
       }
 
       console.warn(`⚠️ Tentative ${attempt}/${maxRetries} échouée, retry dans ${delayMs}ms...`);
+      console.warn(`   Erreur:`, error.message);
       await new Promise(resolve => setTimeout(resolve, delayMs));
       delayMs *= 2; // Exponential backoff
     }
