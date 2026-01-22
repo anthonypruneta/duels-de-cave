@@ -28,14 +28,14 @@ const CharacterCreation = () => {
   };
 
   const classes = {
-    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 20% +5%/15Cap', icon: '🗡️' },
-    'Voleur': { ability: 'Esquive (CD: 4 tours)', description: '+5 VIT | Esquive 1 coup | +5% crit par palier 15Cap', icon: '🌀' },
-    'Paladin': { ability: 'Riposte (1 tour sur 2)', description: 'Renvoie 30% +5%/15Cap des dégâts reçus', icon: '🛡️' },
-    'Healer': { ability: 'Soin puissant (CD: 5 tours)', description: 'Heal 20% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
+    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 15% +3%/15Cap', icon: '🗡️' },
+    'Voleur': { ability: 'Esquive (CD: 3 tours)', description: '+5 VIT | Esquive 1 coup | +5% crit par palier 15Cap', icon: '🌀' },
+    'Paladin': { ability: 'Riposte (1 tour sur 2)', description: 'Renvoie 50% +8%/15Cap des dégâts reçus', icon: '🛡️' },
+    'Healer': { ability: 'Soin puissant (CD: 4 tours)', description: 'Heal 20% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
     'Archer': { ability: 'Tir multiple (CD: 3 tours)', description: '2 tirs à Cap15, +1 tir par palier 15Cap', icon: '🏹' },
     'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
-    'Demoniste': { ability: 'Familier (CD: 3 tours)', description: 'Dégâts = (10% +2%/15Cap) × Capacité', icon: '💠' },
-    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (10% +2%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
+    'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (10% +2%/15Cap) × Capacité en dégâts', icon: '💠' },
+    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (20% +4%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
   // Charger le personnage existant au montage
