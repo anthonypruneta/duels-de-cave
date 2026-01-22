@@ -38,7 +38,7 @@ export const auth = getAuth(app);
 // Solutions: https://github.com/firebase/firebase-js-sdk/issues/3207
 export const db = initializeFirestore(app, {
   // Spécifier explicitement la base de données par défaut
-  databaseId: "(default)",
+  databaseId: "default",
 
   // Force long polling pour une meilleure compatibilité réseau
   experimentalForceLongPolling: true,
