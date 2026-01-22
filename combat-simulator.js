@@ -46,7 +46,7 @@ const getClassBonus = (clazz) => {
   const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
   if (clazz==='Voleur') b.spd=5;
   if (clazz==='Guerrier') b.auto=3;
-  if (clazz==='Healer') b.auto=3; // Buffé pour augmenter DPS
+  if (clazz==='Healer') b.auto=2; // Nerfé de +3 à +2
   return b;
 };
 
@@ -84,10 +84,10 @@ const calculateBaseDamage = (attacker, defender) => {
   let critChance = 0.05;
   if (attacker.race === 'Elfe') critChance += 0.20;
 
-  // Voleur: +10% crit par palier (buffé de +5%)
+  // Voleur: +15% crit par palier (buffé de +10%)
   if (attacker.class === 'Voleur') {
     const paliers = Math.floor(attacker.stats.cap / 15);
-    critChance += paliers * 0.10;
+    critChance += paliers * 0.15;
   }
 
   const isCrit = Math.random() < critChance;
