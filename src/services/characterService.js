@@ -12,18 +12,51 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
+// Helper pour retry automatique en cas d'erreur réseau
+const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      // Ne retry que pour les erreurs réseau
+      const isNetworkError =
+        error.code === 'unavailable' ||
+        error.code === 'deadline-exceeded' ||
+        error.message?.includes('Failed to fetch') ||
+        error.message?.includes('network');
+
+      if (!isNetworkError || attempt === maxRetries) {
+        throw error;
+      }
+
+      console.warn(`⚠️ Tentative ${attempt}/${maxRetries} échouée, retry dans ${delayMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      delayMs *= 2; // Exponential backoff
+    }
+  }
+
+  throw lastError;
+};
+
 // Sauvegarder un personnage
 export const saveCharacter = async (userId, characterData) => {
   try {
-    const characterRef = doc(db, 'characters', userId);
-    const data = {
-      ...characterData,
-      userId,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    };
-    await setDoc(characterRef, data);
-    return { success: true, data };
+    const result = await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      const data = {
+        ...characterData,
+        userId,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+      await setDoc(characterRef, data);
+      return data;
+    });
+    return { success: true, data: result };
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error);
     return { success: false, error: error.message };
@@ -34,12 +67,16 @@ export const saveCharacter = async (userId, characterData) => {
 export const getUserCharacter = async (userId) => {
   try {
     console.log('📖 Tentative de récupération du personnage pour userId:', userId);
-    const characterRef = doc(db, 'characters', userId);
-    const characterSnap = await getDoc(characterRef);
 
-    if (characterSnap.exists()) {
-      console.log('✅ Personnage trouvé:', characterSnap.data());
-      return { success: true, data: characterSnap.data() };
+    const result = await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      const characterSnap = await getDoc(characterRef);
+      return characterSnap;
+    });
+
+    if (result.exists()) {
+      console.log('✅ Personnage trouvé:', result.data());
+      return { success: true, data: result.data() };
     } else {
       console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
       return { success: true, data: null };
@@ -66,8 +103,11 @@ const getMondayOfWeek = (date) => {
 export const canCreateCharacter = async (userId) => {
   try {
     console.log('🔍 Vérification si l\'utilisateur peut créer un personnage...');
-    const characterRef = doc(db, 'characters', userId);
-    const characterSnap = await getDoc(characterRef);
+
+    const characterSnap = await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      return await getDoc(characterRef);
+    });
 
     if (!characterSnap.exists()) {
       console.log('✅ Pas de personnage existant, création autorisée');
@@ -113,9 +153,10 @@ export const canCreateCharacter = async (userId) => {
 // Récupérer tous les personnages (pour backoffice admin)
 export const getAllCharacters = async () => {
   try {
-    const charactersRef = collection(db, 'characters');
-    // Essayer sans orderBy d'abord (peut nécessiter un index)
-    const querySnapshot = await getDocs(charactersRef);
+    const querySnapshot = await retryOperation(async () => {
+      const charactersRef = collection(db, 'characters');
+      return await getDocs(charactersRef);
+    });
 
     const characters = [];
     querySnapshot.forEach((doc) => {
@@ -142,8 +183,10 @@ export const getAllCharacters = async () => {
 // Supprimer un personnage (pour backoffice admin)
 export const deleteCharacter = async (userId) => {
   try {
-    const characterRef = doc(db, 'characters', userId);
-    await deleteDoc(characterRef);
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await deleteDoc(characterRef);
+    });
     console.log('Personnage supprimé:', userId);
     return { success: true };
   } catch (error) {
