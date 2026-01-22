@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeFirestore, enableNetwork, onSnapshot, collection } from 'firebase/firestore';
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -20,30 +20,63 @@ console.log('🔥 Firebase Config:', {
   hasValidConfig: firebaseConfig.projectId !== "YOUR_PROJECT_ID"
 });
 
+// Vérifier la connectivité réseau du navigateur
+console.log('🌐 État réseau navigateur:', navigator.onLine ? 'ONLINE' : 'OFFLINE');
+
 // Initialiser Firebase
 const app = initializeApp(firebaseConfig);
 
 // Initialiser les services
 export const auth = getAuth(app);
 
-// Initialiser Firestore avec configuration optimisée pour éviter les timeouts
-// Solutions basées sur: https://github.com/firebase/firebase-js-sdk/issues/8255
+// Initialiser Firestore avec cache MEMOIRE uniquement (pas persistant)
+// Le cache persistant peut causer "client is offline" errors
+// Solutions: https://github.com/firebase/firebase-js-sdk/issues/3207
 export const db = initializeFirestore(app, {
   // Force long polling pour une meilleure compatibilité réseau
-  // Résout: "Could not reach Cloud Firestore backend" errors
   experimentalForceLongPolling: true,
 
   // Désactive fetch streams qui peuvent causer des problèmes de connexion
   useFetchStreams: false,
 
-  // Active le cache persistant pour mode offline
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+  // Cache MEMOIRE uniquement (résout les problèmes "client is offline")
+  localCache: {
+    kind: 'memory'
+  }
 });
 
 console.log('✅ Firestore initialisé avec configuration optimisée');
-console.log('🔧 Long polling: activé | Cache persistant: activé');
+console.log('🔧 Long polling: activé | Cache: MEMOIRE uniquement');
 console.log('📍 Base de données:', firebaseConfig.projectId);
+
+// Forcer l'activation du réseau Firestore
+enableNetwork(db)
+  .then(() => {
+    console.log('✅ Réseau Firestore activé avec succès');
+  })
+  .catch((error) => {
+    console.error('❌ Erreur activation réseau Firestore:', error);
+  });
+
+// Debug: Tester la connexion Firestore avec un snapshot
+setTimeout(() => {
+  const testRef = collection(db, 'characters');
+  const unsubscribe = onSnapshot(
+    testRef,
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      console.log('🔍 Test connexion Firestore:', {
+        hasData: !snapshot.empty,
+        fromCache: snapshot.metadata.fromCache,
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
+        isOnline: !snapshot.metadata.fromCache
+      });
+      unsubscribe();
+    },
+    (error) => {
+      console.error('❌ Erreur test connexion Firestore:', error);
+    }
+  );
+}, 1000);
 
 export default app;
