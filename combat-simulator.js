@@ -79,7 +79,7 @@ const createCharacter = (race, clazz) => {
 
 // Calculer les dégâts de base
 const calculateBaseDamage = (attacker, defender) => {
-  const baseDmg = Math.max(1, attacker.stats.auto - defender.stats.def);
+  const baseDmg = Math.max(1, Math.round(attacker.stats.auto - 0.5 * defender.stats.def));
 
   // Bonus Elfe: +20% crit
   let critChance = 0.05;
@@ -119,7 +119,7 @@ const useAbility = (attacker, defender, turn) => {
         const minRes = Math.min(defender.stats.def, defender.stats.rescap);
         const ignorePct = getScaling(cap, 8, 2) / 100; // Nerfé de 10%+2% à 8%+2%
         const effectiveRes = minRes * (1 - ignorePct);
-        dmg = Math.max(1, attacker.stats.auto - effectiveRes);
+        dmg = Math.max(1, Math.round(attacker.stats.auto - 0.5 * effectiveRes));
         effects.push('Frappe pénétrante');
       }
       break;
@@ -160,7 +160,7 @@ const useAbility = (attacker, defender, turn) => {
       if (turn % 3 === 0) {
         const magicPct = getScaling(cap, 40, 5) / 100;
         const magicDmg = cap * magicPct;
-        dmg = Math.max(1, attacker.stats.auto + magicDmg - defender.stats.rescap);
+        dmg = Math.max(1, Math.round(attacker.stats.auto + magicDmg - 0.5 * defender.stats.rescap));
         effects.push('Sort magique');
       }
       break;
@@ -425,5 +425,5 @@ const analyzeCombatDuration = (count = 1000) => {
 };
 
 // Lancer les simulations
-// runSimulations(10000, true); // true = analyser les races
-analyzeCombatDuration(1000);
+runSimulations(10000, true); // true = analyser les races
+// analyzeCombatDuration(1000);
