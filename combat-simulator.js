@@ -267,18 +267,23 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
 };
 
 // Simulation massive
-const runSimulations = (count = 1000) => {
+const runSimulations = (count = 1000, analyzeRaces = false) => {
   const classes = ['Guerrier', 'Voleur', 'Paladin', 'Healer', 'Archer', 'Mage', 'Demoniste', 'Masochiste'];
   const races = ['Humain', 'Elfe', 'Orc', 'Nain', 'Dragonkin', 'Mort-vivant', 'Lycan', 'Sylvari'];
 
   const results = {};
+  const raceResults = {};
 
   // Initialiser résultats
   for (const c of classes) {
     results[c] = { wins: 0, losses: 0, draws: 0 };
   }
+  for (const r of races) {
+    raceResults[r] = { wins: 0, losses: 0, draws: 0 };
+  }
 
-  console.log(`🎲 Simulation de ${count} combats par classe...\\n`);
+  const target = analyzeRaces ? 'race' : 'classe';
+  console.log(`🎲 Simulation de ${count} combats par ${target}...\\n`);
 
   for (let i = 0; i < count; i++) {
     // Créer 2 personnages aléatoires
@@ -295,33 +300,58 @@ const runSimulations = (count = 1000) => {
     if (result === 'char1') {
       results[class1].wins++;
       results[class2].losses++;
+      raceResults[race1].wins++;
+      raceResults[race2].losses++;
     } else if (result === 'char2') {
       results[class2].wins++;
       results[class1].losses++;
+      raceResults[race2].wins++;
+      raceResults[race1].losses++;
     } else {
       results[class1].draws++;
       results[class2].draws++;
+      raceResults[race1].draws++;
+      raceResults[race2].draws++;
     }
   }
 
   // Afficher résultats
-  console.log('📊 Résultats des simulations:\\n');
-  console.log('Classe        | Victoires | Défaites | Égalités | Winrate');
-  console.log('------------- | --------- | -------- | -------- | -------');
+  if (!analyzeRaces) {
+    console.log('📊 Résultats des simulations (CLASSES):\\n');
+    console.log('Classe        | Victoires | Défaites | Égalités | Winrate');
+    console.log('------------- | --------- | -------- | -------- | -------');
 
-  const sortedClasses = Object.keys(results).sort((a, b) => {
-    const wrA = results[a].wins / (results[a].wins + results[a].losses + results[a].draws);
-    const wrB = results[b].wins / (results[b].wins + results[b].losses + results[b].draws);
-    return wrB - wrA;
-  });
+    const sortedClasses = Object.keys(results).sort((a, b) => {
+      const wrA = results[a].wins / (results[a].wins + results[a].losses + results[a].draws);
+      const wrB = results[b].wins / (results[b].wins + results[b].losses + results[b].draws);
+      return wrB - wrA;
+    });
 
-  for (const clazz of sortedClasses) {
-    const r = results[clazz];
-    const total = r.wins + r.losses + r.draws;
-    const winrate = ((r.wins / total) * 100).toFixed(1);
-    console.log(`${clazz.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    for (const clazz of sortedClasses) {
+      const r = results[clazz];
+      const total = r.wins + r.losses + r.draws;
+      const winrate = ((r.wins / total) * 100).toFixed(1);
+      console.log(`${clazz.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    }
+  } else {
+    console.log('📊 Résultats des simulations (RACES):\\n');
+    console.log('Race          | Victoires | Défaites | Égalités | Winrate');
+    console.log('------------- | --------- | -------- | -------- | -------');
+
+    const sortedRaces = Object.keys(raceResults).sort((a, b) => {
+      const wrA = raceResults[a].wins / (raceResults[a].wins + raceResults[a].losses + raceResults[a].draws);
+      const wrB = raceResults[b].wins / (raceResults[b].wins + raceResults[b].losses + raceResults[b].draws);
+      return wrB - wrA;
+    });
+
+    for (const race of sortedRaces) {
+      const r = raceResults[race];
+      const total = r.wins + r.losses + r.draws;
+      const winrate = ((r.wins / total) * 100).toFixed(1);
+      console.log(`${race.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    }
   }
 };
 
 // Lancer les simulations
-runSimulations(10000);
+runSimulations(10000, true); // true = analyser les races
