@@ -72,7 +72,8 @@ const createCharacter = (race, clazz) => {
     currentHp: stats.hp,
     abilityCD: 0,
     damageReceived: 0, // Pour Masochiste
-    hasRevived: false  // Pour Mort-vivant
+    hasRevived: false,  // Pour Mort-vivant
+    bleedStacks: 0     // Pour Lycan
   };
 };
 
@@ -99,8 +100,6 @@ const calculateBaseDamage = (attacker, defender) => {
   if (attacker.race === 'Orc' && attacker.currentHp < attacker.stats.hp * 0.5) {
     dmg *= 1.20;
   }
-
-  // Lycan: saignement (pas implémenté ici, compterait +1/tour)
 
   return Math.floor(dmg);
 };
@@ -197,6 +196,8 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
   char2.damageReceived = 0;
   char1.hasRevived = false;
   char2.hasRevived = false;
+  char1.bleedStacks = 0;
+  char2.bleedStacks = 0;
 
   while (turn < maxTurns && char1.currentHp > 0 && char2.currentHp > 0) {
     turn++;
@@ -215,6 +216,17 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       if (attacker.race === 'Sylvari') {
         const regen = Math.floor(attacker.stats.hp * 0.02);
         attacker.currentHp = Math.min(attacker.stats.hp, attacker.currentHp + regen);
+      }
+
+      // Saignement Lycan
+      if (attacker.bleedStacks > 0) {
+        const bleedDmg = Math.ceil(attacker.bleedStacks / 3);
+        attacker.currentHp -= bleedDmg;
+        if (attacker.currentHp <= 0 && attacker.race === 'Mort-vivant' && !attacker.hasRevived) {
+          attacker.currentHp = Math.floor(attacker.stats.hp * 0.20);
+          attacker.hasRevived = true;
+        }
+        if (attacker.currentHp <= 0) break;
       }
 
       // Esquive du Voleur
@@ -244,6 +256,11 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       // Appliquer dégâts
       defender.currentHp -= totalDmg;
       defender.damageReceived += totalDmg;
+
+      // Lycan: ajouter stack de saignement
+      if (attacker.race === 'Lycan' && totalDmg > 0) {
+        defender.bleedStacks += 1;
+      }
 
       // Riposte Paladin
       if (defender.ripostePercent && totalDmg > 0) {
