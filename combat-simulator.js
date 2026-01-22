@@ -83,10 +83,10 @@ const calculateBaseDamage = (attacker, defender) => {
   let critChance = 0.05;
   if (attacker.race === 'Elfe') critChance += 0.20;
 
-  // Voleur: +5% crit par palier
+  // Voleur: +10% crit par palier (buffé de +5%)
   if (attacker.class === 'Voleur') {
     const paliers = Math.floor(attacker.stats.cap / 15);
-    critChance += paliers * 0.05;
+    critChance += paliers * 0.10;
   }
 
   const isCrit = Math.random() < critChance;
@@ -115,7 +115,7 @@ const useAbility = (attacker, defender, turn) => {
       if (turn % 3 === 0) {
         // Frappe résistance la plus faible
         const minRes = Math.min(defender.stats.def, defender.stats.rescap);
-        const ignorePct = getScaling(cap, 10, 2) / 100; // Nerfé de 15%+3% à 10%+2%
+        const ignorePct = getScaling(cap, 8, 2) / 100; // Nerfé de 10%+2% à 8%+2%
         const effectiveRes = minRes * (1 - ignorePct);
         dmg = Math.max(1, attacker.stats.auto - effectiveRes);
         effects.push('Frappe pénétrante');
@@ -123,22 +123,19 @@ const useAbility = (attacker, defender, turn) => {
       break;
 
     case 'Voleur':
-      if (turn % 2 === 0) { // Buffé de CD3 à CD2
+      if (turn % 3 === 0) { // Retour de CD2 à CD3
         effects.push('Esquive');
         attacker.dodgeNext = true;
       }
       break;
 
     case 'Paladin':
-      if (turn % 2 === 0) {
-        const ripostePct = getScaling(cap, 70, 12) / 100; // Buffé de 50%+8% à 70%+12%
-        attacker.ripostePercent = ripostePct;
-        effects.push(`Riposte ${(ripostePct*100).toFixed(0)}%`);
-      }
+      // Riposte est maintenant gérée comme passif permanent (voir combat loop)
+      // Pas de capacité spéciale, le Paladin attaque normalement + riposte
       break;
 
     case 'Healer':
-      if (turn % 4 === 0) { // Buffé de CD5 à CD4
+      if (turn % 3 === 0) { // Buffé de CD4 à CD3
         const missingHp = attacker.stats.hp - attacker.currentHp;
         const baseHeal = missingHp * 0.20;
         const capHealPct = getScaling(cap, 25, 5) / 100;
@@ -175,7 +172,7 @@ const useAbility = (attacker, defender, turn) => {
 
     case 'Masochiste':
       if (turn % 4 === 0 && attacker.damageReceived > 0) {
-        const returnPct = getScaling(cap, 30, 6) / 100; // Buffé de 20%+4% à 30%+6%
+        const returnPct = getScaling(cap, 40, 8) / 100; // Buffé de 30%+6% à 40%+8%
         dmg = Math.floor(attacker.damageReceived * returnPct);
         attacker.damageReceived = 0;
         effects.push(`Renvoie ${dmg} dégâts`);
@@ -221,6 +218,12 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       if (defender.dodgeNext) {
         defender.dodgeNext = false;
         continue;
+      }
+
+      // Paladin: Riposte permanente (passif)
+      if (attacker.class === 'Paladin') {
+        const ripostePct = getScaling(attacker.stats.cap, 70, 12) / 100;
+        attacker.ripostePercent = ripostePct;
       }
 
       // Utiliser capacité
