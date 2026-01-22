@@ -72,13 +72,14 @@ const createCharacter = (race, clazz) => {
     currentHp: stats.hp,
     abilityCD: 0,
     damageReceived: 0, // Pour Masochiste
-    hasRevived: false  // Pour Mort-vivant
+    hasRevived: false,  // Pour Mort-vivant
+    bleedStacks: 0     // Pour Lycan
   };
 };
 
 // Calculer les dégâts de base
 const calculateBaseDamage = (attacker, defender) => {
-  const baseDmg = Math.max(1, attacker.stats.auto - defender.stats.def);
+  const baseDmg = Math.max(1, Math.round(attacker.stats.auto - 0.5 * defender.stats.def));
 
   // Bonus Elfe: +20% crit
   let critChance = 0.05;
@@ -100,8 +101,6 @@ const calculateBaseDamage = (attacker, defender) => {
     dmg *= 1.20;
   }
 
-  // Lycan: saignement (pas implémenté ici, compterait +1/tour)
-
   return Math.floor(dmg);
 };
 
@@ -120,7 +119,7 @@ const useAbility = (attacker, defender, turn) => {
         const minRes = Math.min(defender.stats.def, defender.stats.rescap);
         const ignorePct = getScaling(cap, 8, 2) / 100; // Nerfé de 10%+2% à 8%+2%
         const effectiveRes = minRes * (1 - ignorePct);
-        dmg = Math.max(1, attacker.stats.auto - effectiveRes);
+        dmg = Math.max(1, Math.round(attacker.stats.auto - 0.5 * effectiveRes));
         effects.push('Frappe pénétrante');
       }
       break;
@@ -161,7 +160,7 @@ const useAbility = (attacker, defender, turn) => {
       if (turn % 3 === 0) {
         const magicPct = getScaling(cap, 40, 5) / 100;
         const magicDmg = cap * magicPct;
-        dmg = Math.max(1, attacker.stats.auto + magicDmg - defender.stats.rescap);
+        dmg = Math.max(1, Math.round(attacker.stats.auto + magicDmg - 0.5 * defender.stats.rescap));
         effects.push('Sort magique');
       }
       break;
@@ -187,7 +186,7 @@ const useAbility = (attacker, defender, turn) => {
 };
 
 // Combat complet
-const simulateCombat = (char1, char2, maxTurns = 100) => {
+const simulateCombat = (char1, char2, maxTurns = 100, trackTurns = false) => {
   let turn = 0;
 
   // Reset HP
@@ -197,6 +196,8 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
   char2.damageReceived = 0;
   char1.hasRevived = false;
   char2.hasRevived = false;
+  char1.bleedStacks = 0;
+  char2.bleedStacks = 0;
 
   while (turn < maxTurns && char1.currentHp > 0 && char2.currentHp > 0) {
     turn++;
@@ -215,6 +216,17 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       if (attacker.race === 'Sylvari') {
         const regen = Math.floor(attacker.stats.hp * 0.02);
         attacker.currentHp = Math.min(attacker.stats.hp, attacker.currentHp + regen);
+      }
+
+      // Saignement Lycan
+      if (attacker.bleedStacks > 0) {
+        const bleedDmg = Math.ceil(attacker.bleedStacks / 3);
+        attacker.currentHp -= bleedDmg;
+        if (attacker.currentHp <= 0 && attacker.race === 'Mort-vivant' && !attacker.hasRevived) {
+          attacker.currentHp = Math.floor(attacker.stats.hp * 0.20);
+          attacker.hasRevived = true;
+        }
+        if (attacker.currentHp <= 0) break;
       }
 
       // Esquive du Voleur
@@ -245,6 +257,11 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
       defender.currentHp -= totalDmg;
       defender.damageReceived += totalDmg;
 
+      // Lycan: ajouter stack de saignement
+      if (attacker.race === 'Lycan' && totalDmg > 0) {
+        defender.bleedStacks += 1;
+      }
+
       // Riposte Paladin
       if (defender.ripostePercent && totalDmg > 0) {
         const riposteDmg = Math.floor(totalDmg * defender.ripostePercent);
@@ -261,24 +278,35 @@ const simulateCombat = (char1, char2, maxTurns = 100) => {
   }
 
   // Résultat
+  if (trackTurns) {
+    if (char1.currentHp > 0 && char2.currentHp <= 0) return { winner: 'char1', turns: turn };
+    if (char2.currentHp > 0 && char1.currentHp <= 0) return { winner: 'char2', turns: turn };
+    return { winner: 'draw', turns: turn };
+  }
+
   if (char1.currentHp > 0 && char2.currentHp <= 0) return 'char1';
   if (char2.currentHp > 0 && char1.currentHp <= 0) return 'char2';
   return 'draw';
 };
 
 // Simulation massive
-const runSimulations = (count = 1000) => {
+const runSimulations = (count = 1000, analyzeRaces = false) => {
   const classes = ['Guerrier', 'Voleur', 'Paladin', 'Healer', 'Archer', 'Mage', 'Demoniste', 'Masochiste'];
   const races = ['Humain', 'Elfe', 'Orc', 'Nain', 'Dragonkin', 'Mort-vivant', 'Lycan', 'Sylvari'];
 
   const results = {};
+  const raceResults = {};
 
   // Initialiser résultats
   for (const c of classes) {
     results[c] = { wins: 0, losses: 0, draws: 0 };
   }
+  for (const r of races) {
+    raceResults[r] = { wins: 0, losses: 0, draws: 0 };
+  }
 
-  console.log(`🎲 Simulation de ${count} combats par classe...\\n`);
+  const target = analyzeRaces ? 'race' : 'classe';
+  console.log(`🎲 Simulation de ${count} combats par ${target}...\\n`);
 
   for (let i = 0; i < count; i++) {
     // Créer 2 personnages aléatoires
@@ -295,33 +323,107 @@ const runSimulations = (count = 1000) => {
     if (result === 'char1') {
       results[class1].wins++;
       results[class2].losses++;
+      raceResults[race1].wins++;
+      raceResults[race2].losses++;
     } else if (result === 'char2') {
       results[class2].wins++;
       results[class1].losses++;
+      raceResults[race2].wins++;
+      raceResults[race1].losses++;
     } else {
       results[class1].draws++;
       results[class2].draws++;
+      raceResults[race1].draws++;
+      raceResults[race2].draws++;
     }
   }
 
   // Afficher résultats
-  console.log('📊 Résultats des simulations:\\n');
-  console.log('Classe        | Victoires | Défaites | Égalités | Winrate');
-  console.log('------------- | --------- | -------- | -------- | -------');
+  if (!analyzeRaces) {
+    console.log('📊 Résultats des simulations (CLASSES):\\n');
+    console.log('Classe        | Victoires | Défaites | Égalités | Winrate');
+    console.log('------------- | --------- | -------- | -------- | -------');
 
-  const sortedClasses = Object.keys(results).sort((a, b) => {
-    const wrA = results[a].wins / (results[a].wins + results[a].losses + results[a].draws);
-    const wrB = results[b].wins / (results[b].wins + results[b].losses + results[b].draws);
-    return wrB - wrA;
-  });
+    const sortedClasses = Object.keys(results).sort((a, b) => {
+      const wrA = results[a].wins / (results[a].wins + results[a].losses + results[a].draws);
+      const wrB = results[b].wins / (results[b].wins + results[b].losses + results[b].draws);
+      return wrB - wrA;
+    });
 
-  for (const clazz of sortedClasses) {
-    const r = results[clazz];
-    const total = r.wins + r.losses + r.draws;
-    const winrate = ((r.wins / total) * 100).toFixed(1);
-    console.log(`${clazz.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    for (const clazz of sortedClasses) {
+      const r = results[clazz];
+      const total = r.wins + r.losses + r.draws;
+      const winrate = ((r.wins / total) * 100).toFixed(1);
+      console.log(`${clazz.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    }
+  } else {
+    console.log('📊 Résultats des simulations (RACES):\\n');
+    console.log('Race          | Victoires | Défaites | Égalités | Winrate');
+    console.log('------------- | --------- | -------- | -------- | -------');
+
+    const sortedRaces = Object.keys(raceResults).sort((a, b) => {
+      const wrA = raceResults[a].wins / (raceResults[a].wins + raceResults[a].losses + raceResults[a].draws);
+      const wrB = raceResults[b].wins / (raceResults[b].wins + raceResults[b].losses + raceResults[b].draws);
+      return wrB - wrA;
+    });
+
+    for (const race of sortedRaces) {
+      const r = raceResults[race];
+      const total = r.wins + r.losses + r.draws;
+      const winrate = ((r.wins / total) * 100).toFixed(1);
+      console.log(`${race.padEnd(13)} | ${String(r.wins).padStart(9)} | ${String(r.losses).padStart(8)} | ${String(r.draws).padStart(8)} | ${winrate}%`);
+    }
+  }
+};
+
+// Analyser la durée des combats
+const analyzeCombatDuration = (count = 1000) => {
+  const classes = ['Guerrier', 'Voleur', 'Paladin', 'Healer', 'Archer', 'Mage', 'Demoniste', 'Masochiste'];
+  const races = ['Humain', 'Elfe', 'Orc', 'Nain', 'Dragonkin', 'Mort-vivant', 'Lycan', 'Sylvari'];
+
+  let totalTurns = 0;
+  let minTurns = Infinity;
+  let maxTurns = 0;
+  const turnDistribution = {};
+
+  console.log(`🎲 Analyse de la durée de ${count} combats...\\n`);
+
+  for (let i = 0; i < count; i++) {
+    const race1 = races[Math.floor(Math.random() * races.length)];
+    const class1 = classes[Math.floor(Math.random() * classes.length)];
+    const char1 = createCharacter(race1, class1);
+
+    const race2 = races[Math.floor(Math.random() * races.length)];
+    const class2 = classes[Math.floor(Math.random() * classes.length)];
+    const char2 = createCharacter(race2, class2);
+
+    const result = simulateCombat(char1, char2, 100, true);
+    const turns = result.turns;
+
+    totalTurns += turns;
+    minTurns = Math.min(minTurns, turns);
+    maxTurns = Math.max(maxTurns, turns);
+
+    const bucket = Math.floor(turns / 5) * 5; // Groupes de 5 tours
+    turnDistribution[bucket] = (turnDistribution[bucket] || 0) + 1;
+  }
+
+  const avgTurns = (totalTurns / count).toFixed(1);
+
+  console.log(`📊 Statistiques de durée des combats:\\n`);
+  console.log(`Durée moyenne: ${avgTurns} tours`);
+  console.log(`Min: ${minTurns} tours | Max: ${maxTurns} tours\\n`);
+
+  console.log('Distribution par tranches de 5 tours:');
+  const sortedBuckets = Object.keys(turnDistribution).map(Number).sort((a, b) => a - b);
+  for (const bucket of sortedBuckets) {
+    const count = turnDistribution[bucket];
+    const pct = ((count / 1000) * 100).toFixed(1);
+    const bar = '█'.repeat(Math.floor(count / 20));
+    console.log(`${String(bucket).padStart(2)}-${String(bucket + 4).padStart(2)} tours: ${bar} ${count} (${pct}%)`);
   }
 };
 
 // Lancer les simulations
-runSimulations(10000);
+runSimulations(10000, true); // true = analyser les races
+// analyzeCombatDuration(1000);
