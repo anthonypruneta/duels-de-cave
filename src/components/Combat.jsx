@@ -34,44 +34,93 @@ const Combat = () => {
     'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
-  // Calculer la description réelle basée sur les stats du personnage
+  // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   const getCalculatedDescription = (className, cap, auto) => {
     const paliers = Math.floor(cap / 15);
 
     switch(className) {
       case 'Guerrier':
-        const ignorePercent = 8 + (paliers * 2);
-        return `+3 Auto | Frappe résistance faible & ignore ${ignorePercent}%`;
+        const ignoreBase = 8;
+        const ignoreBonus = paliers * 2;
+        return (
+          <>
+            +3 Auto | Frappe résistance faible & ignore {ignoreBase}%
+            {ignoreBonus > 0 && <span className="text-green-400"> +{ignoreBonus}%</span>}
+          </>
+        );
 
       case 'Voleur':
         const critBonus = paliers * 15;
-        return `+5 VIT | Esquive 1 coup | +${critBonus}% crit | Crit x2`;
+        return (
+          <>
+            +5 VIT | Esquive 1 coup | Crit x2
+            {critBonus > 0 && <span className="text-green-400"> | +{critBonus}% crit</span>}
+          </>
+        );
 
       case 'Paladin':
-        const ripostePercent = 70 + (paliers * 12);
-        return `Renvoie ${ripostePercent}% des dégâts reçus`;
+        const riposteBase = 70;
+        const riposteBonus = paliers * 12;
+        return (
+          <>
+            Renvoie {riposteBase}%
+            {riposteBonus > 0 && <span className="text-green-400"> +{riposteBonus}%</span>} des dégâts reçus
+          </>
+        );
 
       case 'Healer':
-        const healPercent = 25 + (paliers * 5);
-        return `+2 Auto | Heal 20% PV manquants + ${healPercent}% × Cap (${cap})`;
+        const healBase = 25;
+        const healBonus = paliers * 5;
+        return (
+          <>
+            +2 Auto | Heal 20% PV manquants + ({healBase}%
+            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}) × Cap ({cap})
+          </>
+        );
 
       case 'Archer':
-        const arrows = 2 + paliers;
-        return `${arrows} tirs simultanés`;
+        const arrowsBase = 2;
+        const arrowsBonus = paliers;
+        return (
+          <>
+            {arrowsBase} tirs
+            {arrowsBonus > 0 && <span className="text-green-400"> +{arrowsBonus}</span>} simultanés
+          </>
+        );
 
       case 'Mage':
-        const magicPercent = 40 + (paliers * 5);
-        const magicDmg = Math.round(cap * (magicPercent / 100));
-        return `Dégâts = Auto + ${magicDmg} dégâts magiques (vs ResC)`;
+        const magicBase = 40;
+        const magicBonusPct = paliers * 5;
+        const magicDmg = Math.round(cap * (magicBase / 100));
+        const magicDmgBonus = Math.round(cap * (magicBonusPct / 100));
+        return (
+          <>
+            Dégâts = Auto + {magicDmg}
+            {magicDmgBonus > 0 && <span className="text-green-400"> +{magicDmgBonus}</span>} dégâts magiques (vs ResC)
+          </>
+        );
 
       case 'Demoniste':
-        const familierPercent = 15 + (paliers * 3);
-        const familierDmg = Math.round(cap * (familierPercent / 100));
-        return `Chaque tour: ${familierDmg} dégâts automatiques`;
+        const familierBase = 15;
+        const familierBonusPct = paliers * 3;
+        const familierDmg = Math.round(cap * (familierBase / 100));
+        const familierDmgBonus = Math.round(cap * (familierBonusPct / 100));
+        return (
+          <>
+            Chaque tour: {familierDmg}
+            {familierDmgBonus > 0 && <span className="text-green-400"> +{familierDmgBonus}</span>} dégâts automatiques
+          </>
+        );
 
       case 'Masochiste':
-        const returnPercent = 60 + (paliers * 12);
-        return `Renvoie ${returnPercent}% des dégâts reçus accumulés`;
+        const returnBase = 60;
+        const returnBonus = paliers * 12;
+        return (
+          <>
+            Renvoie {returnBase}%
+            {returnBonus > 0 && <span className="text-green-400"> +{returnBonus}%</span>} des dégâts reçus accumulés
+          </>
+        );
 
       default:
         return classes[className]?.description || '';
