@@ -9,6 +9,7 @@ const Combat = () => {
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [currentAction, setCurrentAction] = useState(null); // {player: 1|2, action: string}
   const logEndRef = useRef(null);
 
   const races = {
@@ -31,6 +32,50 @@ const Combat = () => {
     'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
     'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (15% +3%/15Cap) × Capacité en dégâts', icon: '💠' },
     'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
+  };
+
+  // Calculer la description réelle basée sur les stats du personnage
+  const getCalculatedDescription = (className, cap, auto) => {
+    const paliers = Math.floor(cap / 15);
+
+    switch(className) {
+      case 'Guerrier':
+        const ignorePercent = 8 + (paliers * 2);
+        return `+3 Auto | Frappe résistance faible & ignore ${ignorePercent}%`;
+
+      case 'Voleur':
+        const critBonus = paliers * 15;
+        return `+5 VIT | Esquive 1 coup | +${critBonus}% crit | Crit x2`;
+
+      case 'Paladin':
+        const ripostePercent = 70 + (paliers * 12);
+        return `Renvoie ${ripostePercent}% des dégâts reçus`;
+
+      case 'Healer':
+        const healPercent = 25 + (paliers * 5);
+        return `+2 Auto | Heal 20% PV manquants + ${healPercent}% × Cap (${cap})`;
+
+      case 'Archer':
+        const arrows = 2 + paliers;
+        return `${arrows} tirs simultanés`;
+
+      case 'Mage':
+        const magicPercent = 40 + (paliers * 5);
+        const magicDmg = Math.round(cap * (magicPercent / 100));
+        return `Dégâts = Auto + ${magicDmg} dégâts magiques (vs ResC)`;
+
+      case 'Demoniste':
+        const familierPercent = 15 + (paliers * 3);
+        const familierDmg = Math.round(cap * (familierPercent / 100));
+        return `Chaque tour: ${familierDmg} dégâts automatiques`;
+
+      case 'Masochiste':
+        const returnPercent = 60 + (paliers * 12);
+        return `Renvoie ${returnPercent}% des dégâts reçus accumulés`;
+
+      default:
+        return classes[className]?.description || '';
+    }
   };
 
   const genStats = () => {
@@ -284,22 +329,30 @@ const Combat = () => {
 
       // Action du premier joueur
       const log1 = [];
+      setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: [] });
+      await new Promise(r => setTimeout(r, 300));
       processPlayerAction(first, second, log1, firstIsP1);
+      setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: log1 });
       logs.push(...log1);
       setCombatLog([...logs]);
       setPlayer1({...p1});
       setPlayer2({...p2});
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 1200));
+      setCurrentAction(null);
 
       // Si le combat n'est pas fini, action du deuxième joueur
       if (p1.currentHP > 0 && p2.currentHP > 0) {
         const log2 = [];
+        setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: [] });
+        await new Promise(r => setTimeout(r, 300));
         processPlayerAction(second, first, log2, !firstIsP1);
+        setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: log2 });
         logs.push(...log2);
         setCombatLog([...logs]);
         setPlayer1({...p1});
         setPlayer2({...p2});
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 1200));
+        setCurrentAction(null);
       }
 
       turn++;
@@ -332,6 +385,7 @@ const Combat = () => {
     setCombatLog([]);
     setWinner(null);
     setIsSimulating(false);
+    setCurrentAction(null);
   };
 
   useEffect(() => { resetCombat(); }, []);
@@ -383,7 +437,7 @@ const Combat = () => {
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
                   <div className="text-amber-400 font-semibold mb-1">{classes[character.class].ability}</div>
-                  <div className="text-gray-400 text-[10px]">{classes[character.class].description}</div>
+                  <div className="text-gray-400 text-[10px]">{getCalculatedDescription(character.class, character.base.cap, character.base.auto)}</div>
                 </div>
               </div>
             </div>
@@ -426,47 +480,87 @@ const Combat = () => {
           </div>
         )}
 
-        {/* Layout principal: Cartes + Journal au centre */}
-        <div className="flex gap-6 items-start">
-          {/* Carte joueur 1 - Gauche */}
-          <div className="flex-shrink-0" style={{width: '380px'}}>
+        {/* Affichage des cartes de personnages */}
+        <div className="flex gap-6 justify-center mb-6">
+          <div className="flex-shrink-0" style={{width: '320px'}}>
             <CharacterCard character={player1} imageIndex={1} />
           </div>
+          <div className="flex-shrink-0" style={{width: '320px'}}>
+            <CharacterCard character={player2} imageIndex={2} />
+          </div>
+        </div>
 
-          {/* Journal de combat - Centre */}
-          <div className="flex-1 min-w-0">
-            <div className="bg-stone-800 rounded-lg p-6 border-4 border-amber-700 shadow-2xl h-[600px] flex flex-col">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="text-6xl font-bold text-amber-400">VS</div>
-              </div>
-              <h2 className="text-2xl font-bold text-amber-400 mb-4 text-center">📜 Journal de Combat</h2>
-              <div className="flex-1 overflow-y-auto">
-                {combatLog.length === 0 ? (
-                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
-                ) : (
-                  <div className="space-y-1 font-mono text-sm">
-                    {combatLog.map((log, idx) => {
-                      const isP1 = log.startsWith('[P1]');
-                      const isP2 = log.startsWith('[P2]');
-                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                      const baseColor = isP1 ? 'text-blue-400' : isP2 ? 'text-red-400' : 'text-gray-300';
-                      const className = `${log.includes('🏆') ? 'text-yellow-400 font-bold text-lg' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-3 pt-2 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : baseColor}`;
-                      return (
-                        <div key={idx} className={className}>
-                          {cleanLog}
-                        </div>
-                      );
-                    })}
-                    <div ref={logEndRef} />
-                  </div>
-                )}
-              </div>
+        {/* Layout principal: Actions + Journal au centre */}
+        <div className="grid grid-cols-3 gap-4 items-start">
+          {/* Zone d'action Joueur 1 - Gauche */}
+          <div className="bg-stone-800 rounded-lg p-4 border-4 border-blue-600 shadow-2xl h-[400px] flex flex-col">
+            <h3 className="text-xl font-bold text-blue-400 mb-4 text-center">Attaque Joueur 1</h3>
+            <div className="flex-1 overflow-y-auto">
+              {currentAction && currentAction.player === 1 ? (
+                <div className="space-y-2 font-mono text-sm">
+                  {currentAction.logs.map((log, idx) => {
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                    return (
+                      <div key={idx} className="text-blue-300 p-2 bg-blue-900/30 rounded">
+                        {cleanLog}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic text-center py-8">En attente...</p>
+              )}
             </div>
           </div>
 
-          {/* Carte joueur 2 - Droite */}
-          <div className="flex-shrink-0" style={{width: '380px'}}>
-            <CharacterCard character={player2} imageIndex={2} />
+          {/* Journal de combat - Centre */}
+          <div className="bg-stone-800 rounded-lg p-4 border-4 border-amber-700 shadow-2xl h-[400px] flex flex-col">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="text-5xl font-bold text-amber-400">VS</div>
+            </div>
+            <h2 className="text-xl font-bold text-amber-400 mb-3 text-center">📜 Journal de Combat</h2>
+            <div className="flex-1 overflow-y-auto">
+              {combatLog.length === 0 ? (
+                <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+              ) : (
+                <div className="space-y-1 font-mono text-xs">
+                  {combatLog.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                    const baseColor = isP1 ? 'text-blue-400' : isP2 ? 'text-red-400' : 'text-gray-300';
+                    const className = `${log.includes('🏆') ? 'text-yellow-400 font-bold text-base' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-2 pt-1 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : baseColor}`;
+                    return (
+                      <div key={idx} className={className}>
+                        {cleanLog}
+                      </div>
+                    );
+                  })}
+                  <div ref={logEndRef} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Zone d'action Joueur 2 - Droite */}
+          <div className="bg-stone-800 rounded-lg p-4 border-4 border-red-600 shadow-2xl h-[400px] flex flex-col">
+            <h3 className="text-xl font-bold text-red-400 mb-4 text-center">Attaque Joueur 2</h3>
+            <div className="flex-1 overflow-y-auto">
+              {currentAction && currentAction.player === 2 ? (
+                <div className="space-y-2 font-mono text-sm">
+                  {currentAction.logs.map((log, idx) => {
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                    return (
+                      <div key={idx} className="text-red-300 p-2 bg-red-900/30 rounded">
+                        {cleanLog}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic text-center py-8">En attente...</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
