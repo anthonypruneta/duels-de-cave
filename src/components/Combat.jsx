@@ -480,94 +480,94 @@ const Combat = () => {
           </div>
         )}
 
-        {/* Affichage des cartes de personnages */}
-        <div className="flex gap-6 justify-center mb-6">
-          <div className="flex-shrink-0" style={{width: '320px'}}>
+        {/* Layout principal: Perso 1 | Chat | Perso 2 */}
+        <div className="flex gap-4 items-start justify-center">
+          {/* Carte joueur 1 - Gauche */}
+          <div className="flex-shrink-0" style={{width: '340px'}}>
             <CharacterCard character={player1} imageIndex={1} />
           </div>
-          <div className="flex items-center justify-center" style={{width: '120px'}}>
-            <div className="text-6xl font-bold text-amber-400">VS</div>
+
+          {/* Zone de chat messenger - Centre */}
+          <div className="flex-shrink-0" style={{width: '600px'}}>
+            <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[700px] flex flex-col">
+              <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
+                <h2 className="text-2xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {combatLog.length === 0 ? (
+                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                ) : (
+                  <>
+                    {combatLog.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                      // Messages de système (tours, victoire, etc.)
+                      if (!isP1 && !isP2) {
+                        if (log.includes('🏆')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-4">
+                              <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (log.includes('---')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-3">
+                              <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={idx} className="flex justify-center">
+                            <div className="text-amber-300 text-sm italic">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Messages du Joueur 1 (gauche, bleu)
+                      if (isP1) {
+                        return (
+                          <div key={idx} className="flex justify-start">
+                            <div className="max-w-[70%]">
+                              <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
+                                <div className="font-mono text-sm">{cleanLog}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Messages du Joueur 2 (droite, rouge)
+                      if (isP2) {
+                        return (
+                          <div key={idx} className="flex justify-end">
+                            <div className="max-w-[70%]">
+                              <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
+                                <div className="font-mono text-sm">{cleanLog}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                    <div ref={logEndRef} />
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex-shrink-0" style={{width: '320px'}}>
+
+          {/* Carte joueur 2 - Droite */}
+          <div className="flex-shrink-0" style={{width: '340px'}}>
             <CharacterCard character={player2} imageIndex={2} />
-          </div>
-        </div>
-
-        {/* Zone de chat messenger */}
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[500px] flex flex-col">
-            <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
-              <h2 className="text-xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {combatLog.length === 0 ? (
-                <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
-              ) : (
-                <>
-                  {combatLog.map((log, idx) => {
-                    const isP1 = log.startsWith('[P1]');
-                    const isP2 = log.startsWith('[P2]');
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                    // Messages de système (tours, victoire, etc.)
-                    if (!isP1 && !isP2) {
-                      if (log.includes('🏆')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-4">
-                            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (log.includes('---')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-3">
-                            <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={idx} className="flex justify-center">
-                          <div className="text-amber-300 text-sm italic">
-                            {cleanLog}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // Messages du Joueur 1 (gauche, bleu)
-                    if (isP1) {
-                      return (
-                        <div key={idx} className="flex justify-start">
-                          <div className="max-w-[70%]">
-                            <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
-                              <div className="font-mono text-sm">{cleanLog}</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // Messages du Joueur 2 (droite, rouge)
-                    if (isP2) {
-                      return (
-                        <div key={idx} className="flex justify-end">
-                          <div className="max-w-[70%]">
-                            <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
-                              <div className="font-mono text-sm">{cleanLog}</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                  <div ref={logEndRef} />
-                </>
-              )}
-            </div>
           </div>
         </div>
       </div>
