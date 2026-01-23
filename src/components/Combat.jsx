@@ -485,80 +485,87 @@ const Combat = () => {
           <div className="flex-shrink-0" style={{width: '320px'}}>
             <CharacterCard character={player1} imageIndex={1} />
           </div>
+          <div className="flex items-center justify-center" style={{width: '120px'}}>
+            <div className="text-6xl font-bold text-amber-400">VS</div>
+          </div>
           <div className="flex-shrink-0" style={{width: '320px'}}>
             <CharacterCard character={player2} imageIndex={2} />
           </div>
         </div>
 
-        {/* Layout principal: Actions + Journal au centre */}
-        <div className="grid grid-cols-3 gap-4 items-start">
-          {/* Zone d'action Joueur 1 - Gauche */}
-          <div className="bg-stone-800 rounded-lg p-4 border-4 border-blue-600 shadow-2xl h-[400px] flex flex-col">
-            <h3 className="text-xl font-bold text-blue-400 mb-4 text-center">Attaque Joueur 1</h3>
-            <div className="flex-1 overflow-y-auto">
-              {currentAction && currentAction.player === 1 ? (
-                <div className="space-y-2 font-mono text-sm">
-                  {currentAction.logs.map((log, idx) => {
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                    return (
-                      <div key={idx} className="text-blue-300 p-2 bg-blue-900/30 rounded">
-                        {cleanLog}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic text-center py-8">En attente...</p>
-              )}
+        {/* Zone de chat messenger */}
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[500px] flex flex-col">
+            <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
+              <h2 className="text-xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
             </div>
-          </div>
-
-          {/* Journal de combat - Centre */}
-          <div className="bg-stone-800 rounded-lg p-4 border-4 border-amber-700 shadow-2xl h-[400px] flex flex-col">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="text-5xl font-bold text-amber-400">VS</div>
-            </div>
-            <h2 className="text-xl font-bold text-amber-400 mb-3 text-center">📜 Journal de Combat</h2>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {combatLog.length === 0 ? (
                 <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
               ) : (
-                <div className="space-y-1 font-mono text-xs">
+                <>
                   {combatLog.map((log, idx) => {
                     const isP1 = log.startsWith('[P1]');
                     const isP2 = log.startsWith('[P2]');
                     const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                    const baseColor = isP1 ? 'text-blue-400' : isP2 ? 'text-red-400' : 'text-gray-300';
-                    const className = `${log.includes('🏆') ? 'text-yellow-400 font-bold text-base' : log.includes('☠️') ? 'text-amber-400 font-bold' : log.includes('---') ? 'text-amber-300 font-bold mt-2 pt-1 border-t border-stone-700' : log.includes('CRIT') ? 'text-red-400 font-bold' : log.includes('esquive') || log.includes('régénère') || log.includes('soigne') ? 'text-green-300' : log.includes('🩸') || log.includes('🐺') ? 'text-red-300' : baseColor}`;
-                    return (
-                      <div key={idx} className={className}>
-                        {cleanLog}
-                      </div>
-                    );
+
+                    // Messages de système (tours, victoire, etc.)
+                    if (!isP1 && !isP2) {
+                      if (log.includes('🏆')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-4">
+                            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('---')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-3">
+                            <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="flex justify-center">
+                          <div className="text-amber-300 text-sm italic">
+                            {cleanLog}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Messages du Joueur 1 (gauche, bleu)
+                    if (isP1) {
+                      return (
+                        <div key={idx} className="flex justify-start">
+                          <div className="max-w-[70%]">
+                            <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
+                              <div className="font-mono text-sm">{cleanLog}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Messages du Joueur 2 (droite, rouge)
+                    if (isP2) {
+                      return (
+                        <div key={idx} className="flex justify-end">
+                          <div className="max-w-[70%]">
+                            <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
+                              <div className="font-mono text-sm">{cleanLog}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                   })}
                   <div ref={logEndRef} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Zone d'action Joueur 2 - Droite */}
-          <div className="bg-stone-800 rounded-lg p-4 border-4 border-red-600 shadow-2xl h-[400px] flex flex-col">
-            <h3 className="text-xl font-bold text-red-400 mb-4 text-center">Attaque Joueur 2</h3>
-            <div className="flex-1 overflow-y-auto">
-              {currentAction && currentAction.player === 2 ? (
-                <div className="space-y-2 font-mono text-sm">
-                  {currentAction.logs.map((log, idx) => {
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                    return (
-                      <div key={idx} className="text-red-300 p-2 bg-red-900/30 rounded">
-                        {cleanLog}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic text-center py-8">En attente...</p>
+                </>
               )}
             </div>
           </div>
