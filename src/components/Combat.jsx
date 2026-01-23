@@ -34,44 +34,93 @@ const Combat = () => {
     'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
-  // Calculer la description réelle basée sur les stats du personnage
+  // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   const getCalculatedDescription = (className, cap, auto) => {
     const paliers = Math.floor(cap / 15);
 
     switch(className) {
       case 'Guerrier':
-        const ignorePercent = 8 + (paliers * 2);
-        return `+3 Auto | Frappe résistance faible & ignore ${ignorePercent}%`;
+        const ignoreBase = 8;
+        const ignoreBonus = paliers * 2;
+        return (
+          <>
+            +3 Auto | Frappe résistance faible & ignore {ignoreBase}%
+            {ignoreBonus > 0 && <span className="text-green-400"> +{ignoreBonus}%</span>}
+          </>
+        );
 
       case 'Voleur':
         const critBonus = paliers * 15;
-        return `+5 VIT | Esquive 1 coup | +${critBonus}% crit | Crit x2`;
+        return (
+          <>
+            +5 VIT | Esquive 1 coup | Crit x2
+            {critBonus > 0 && <span className="text-green-400"> | +{critBonus}% crit</span>}
+          </>
+        );
 
       case 'Paladin':
-        const ripostePercent = 70 + (paliers * 12);
-        return `Renvoie ${ripostePercent}% des dégâts reçus`;
+        const riposteBase = 70;
+        const riposteBonus = paliers * 12;
+        return (
+          <>
+            Renvoie {riposteBase}%
+            {riposteBonus > 0 && <span className="text-green-400"> +{riposteBonus}%</span>} des dégâts reçus
+          </>
+        );
 
       case 'Healer':
-        const healPercent = 25 + (paliers * 5);
-        return `+2 Auto | Heal 20% PV manquants + ${healPercent}% × Cap (${cap})`;
+        const healBase = 25;
+        const healBonus = paliers * 5;
+        return (
+          <>
+            +2 Auto | Heal 20% PV manquants + ({healBase}%
+            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}) × Cap ({cap})
+          </>
+        );
 
       case 'Archer':
-        const arrows = 2 + paliers;
-        return `${arrows} tirs simultanés`;
+        const arrowsBase = 2;
+        const arrowsBonus = paliers;
+        return (
+          <>
+            {arrowsBase} tirs
+            {arrowsBonus > 0 && <span className="text-green-400"> +{arrowsBonus}</span>} simultanés
+          </>
+        );
 
       case 'Mage':
-        const magicPercent = 40 + (paliers * 5);
-        const magicDmg = Math.round(cap * (magicPercent / 100));
-        return `Dégâts = Auto + ${magicDmg} dégâts magiques (vs ResC)`;
+        const magicBase = 40;
+        const magicBonusPct = paliers * 5;
+        const magicDmg = Math.round(cap * (magicBase / 100));
+        const magicDmgBonus = Math.round(cap * (magicBonusPct / 100));
+        return (
+          <>
+            Dégâts = Auto + {magicDmg}
+            {magicDmgBonus > 0 && <span className="text-green-400"> +{magicDmgBonus}</span>} dégâts magiques (vs ResC)
+          </>
+        );
 
       case 'Demoniste':
-        const familierPercent = 15 + (paliers * 3);
-        const familierDmg = Math.round(cap * (familierPercent / 100));
-        return `Chaque tour: ${familierDmg} dégâts automatiques`;
+        const familierBase = 15;
+        const familierBonusPct = paliers * 3;
+        const familierDmg = Math.round(cap * (familierBase / 100));
+        const familierDmgBonus = Math.round(cap * (familierBonusPct / 100));
+        return (
+          <>
+            Chaque tour: {familierDmg}
+            {familierDmgBonus > 0 && <span className="text-green-400"> +{familierDmgBonus}</span>} dégâts automatiques
+          </>
+        );
 
       case 'Masochiste':
-        const returnPercent = 60 + (paliers * 12);
-        return `Renvoie ${returnPercent}% des dégâts reçus accumulés`;
+        const returnBase = 60;
+        const returnBonus = paliers * 12;
+        return (
+          <>
+            Renvoie {returnBase}%
+            {returnBonus > 0 && <span className="text-green-400"> +{returnBonus}%</span>} des dégâts reçus accumulés
+          </>
+        );
 
       default:
         return classes[className]?.description || '';
@@ -117,6 +166,14 @@ const Combat = () => {
   };
 
   const generateCharacter = (name) => {
+    // Noms aléatoires
+    const names = [
+      'Thorin', 'Aria', 'Zephyr', 'Luna', 'Drake', 'Nova',
+      'Ragnar', 'Lyra', 'Orion', 'Sable', 'Raven', 'Phoenix',
+      'Atlas', 'Selene', 'Kael', 'Mira', 'Ash', 'Storm'
+    ];
+    const randomName = names[Math.floor(Math.random() * names.length)];
+
     const raceKeys = Object.keys(races);
     const classKeys = Object.keys(classes);
     const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
@@ -133,7 +190,7 @@ const Combat = () => {
       spd: raw.spd+rB.spd+cB.spd
     };
     return {
-      name, race, class: charClass, base,
+      name: randomName, race, class: charClass, base,
       bonuses: { race: rB, class: cB },
       currentHP: base.hp, maxHP: base.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
@@ -157,7 +214,7 @@ const Combat = () => {
     const revive = Math.max(1, Math.round(0.20 * target.maxHP));
     target.undead = true;
     target.currentHP = revive;
-    log.push(`${playerColor} ☠️ ${target.name} revient à ${revive} PV!`);
+    log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
   };
 
   const processPlayerAction = (att, def, log, isP1) => {
@@ -174,20 +231,20 @@ const Combat = () => {
       if (att.race === 'Sylvari') {
         const heal = Math.max(1, Math.round(att.maxHP * 0.02));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor}${playerColor} 🌿 ${att.name} régénère ${heal} PV`);
+        log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
       }
-      
+
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
         const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
-        log.push(`${playerColor}💠 Familier de ${att.name} → ${raw} dégâts`);
+        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
       }
-      
+
       if (att.class === 'Masochiste') {
         att.cd.maso = (att.cd.maso % 4) + 1;
         if (att.cd.maso === 4 && att.maso_taken > 0) {
@@ -195,17 +252,17 @@ const Combat = () => {
           const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
           att.maso_taken = 0;
           def.currentHP -= dmg;
-          log.push(`${playerColor}🩸 ${att.name} renvoie ${dmg} dégâts accumulés`);
+          log.push(`${playerColor} 🩸 ${att.name} renvoie tous les dégâts accumulés et inflige ${dmg} points de dégâts à ${def.name}`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, log, playerColor);
           }
         }
       }
-      
+
       if (att.bleed_stacks > 0) {
         const bleedDmg = Math.ceil(att.bleed_stacks / 3);
         att.currentHP -= bleedDmg;
-        log.push(`${playerColor}🩸 ${att.name} saigne ${bleedDmg} dégâts`);
+        log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
           reviveUndead(att, log, playerColor);
         }
@@ -213,19 +270,19 @@ const Combat = () => {
 
       if (att.class === 'Paladin' && att.cd.pal === 2) {
         att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
-        log.push(`${playerColor}🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
+        log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
-      
+
       if (att.class === 'Healer' && att.cd.heal === 5) {
         const miss = att.maxHP - att.currentHP;
         const heal = Math.max(1, Math.round(0.20 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor}✚ ${att.name} soigne ${heal} PV`);
+        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
       }
-      
+
       if (att.class === 'Voleur' && att.cd.rog === 4) {
         att.dodge = true;
-        log.push(`${playerColor}🌀 ${att.name} esquivera prochaine attaque`);
+        log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
       }
       
       const isMage = att.class === 'Mage' && att.cd.mag === 3;
@@ -237,15 +294,17 @@ const Combat = () => {
       
       let hits = isArcher ? Math.max(2, 1 + tiers15(att.base.cap)) : 1;
       let total = 0;
-      
+      let wasCrit = false;
+
       for (let i = 0; i < hits; i++) {
         const isCrit = Math.random() < critChance(att, def);
+        if (isCrit) wasCrit = true;
         let raw = 0;
         
         if (isMage) {
           const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
           raw = dmgCap(atkSpell, def.base.rescap);
-          if (i === 0) log.push(`${playerColor}🔮 ${att.name} lance un sort`);
+          if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
         } else if (isWar) {
           const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
           if (def.base.def <= def.base.rescap) {
@@ -255,44 +314,54 @@ const Combat = () => {
             const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
             raw = dmgCap(Math.round(att.base.cap * mult), effRes);
           }
-          if (i === 0) log.push(`${playerColor}🗡️ ${att.name} frappe pénétrant`);
+          if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
         } else {
           raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
           if (att.race === 'Lycan') {
             def.bleed_stacks = (def.bleed_stacks || 0) + 1;
           }
         }
-        
+
         if (isCrit) raw = Math.round(raw * 1.5);
-        
+
         if (def.dodge) {
           def.dodge = false;
-          log.push(`${playerColor}💨 ${def.name} esquive!`);
+          log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
           raw = 0;
         }
-        
+
         if (def.reflect && raw > 0) {
           const back = Math.round(def.reflect * raw);
           att.currentHP -= back;
-          log.push(`${playerColor}🔁 ${def.name} renvoie ${back}`);
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
-        
+
         def.currentHP -= raw;
         if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
-        
+
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         } else if (def.currentHP <= 0) {
           total += raw;
           break;
         }
-        
+
         total += raw;
-        if (isArcher) log.push(`${playerColor}🏹 Flèche ${i + 1}: ${raw}${isCrit ? ' CRIT' : ''}`);
+        if (isArcher) {
+          const critText = isCrit ? ' CRITIQUE !' : '';
+          log.push(`${playerColor} 🏹 ${att.name} tire sa flèche n°${i + 1} et inflige ${raw} points de dégâts${critText}`);
+        }
       }
-      
+
       if (!isArcher && total > 0) {
-        log.push(`${playerColor}${att.name} → ${def.name}: ${total} dégâts`);
+        const critText = wasCrit ? ' CRITIQUE !' : '';
+        if (isMage) {
+          log.push(`${playerColor} ${att.name} inflige ${total} points de dégâts magiques à ${def.name}${critText}`);
+        } else if (isWar) {
+          log.push(`${playerColor} ${att.name} transperce les défenses de ${def.name} et inflige ${total} points de dégâts${critText}`);
+        } else {
+          log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
+        }
       }
   };
 
@@ -313,12 +382,12 @@ const Combat = () => {
     const p1 = { ...player1, currentHP: player1.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
     const p2 = { ...player2, currentHP: player2.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
 
-    const logs = [`⚔️ Combat: ${p1.name} vs ${p2.name}`];
+    const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
     setCombatLog(logs);
 
     let turn = 1;
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
-      logs.push(`--- Tour ${turn} ---`);
+      logs.push(`--- Début du tour ${turn} ---`);
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 400));
 
@@ -359,7 +428,8 @@ const Combat = () => {
     }
 
     const w = p1.currentHP > 0 ? p1.name : p2.name;
-    logs.push(`🏆 ${w} remporte le combat!`);
+    const loser = p1.currentHP > 0 ? p2.name : p1.name;
+    logs.push(`🏆 ${w} remporte glorieusement le combat contre ${loser} !`);
     setCombatLog([...logs]);
     setWinner(w);
     setIsSimulating(false);
@@ -480,94 +550,94 @@ const Combat = () => {
           </div>
         )}
 
-        {/* Affichage des cartes de personnages */}
-        <div className="flex gap-6 justify-center mb-6">
-          <div className="flex-shrink-0" style={{width: '320px'}}>
+        {/* Layout principal: Perso 1 | Chat | Perso 2 */}
+        <div className="flex gap-4 items-start justify-center">
+          {/* Carte joueur 1 - Gauche */}
+          <div className="flex-shrink-0" style={{width: '340px'}}>
             <CharacterCard character={player1} imageIndex={1} />
           </div>
-          <div className="flex items-center justify-center" style={{width: '120px'}}>
-            <div className="text-6xl font-bold text-amber-400">VS</div>
+
+          {/* Zone de chat messenger - Centre */}
+          <div className="flex-shrink-0" style={{width: '600px'}}>
+            <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[700px] flex flex-col">
+              <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
+                <h2 className="text-2xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {combatLog.length === 0 ? (
+                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                ) : (
+                  <>
+                    {combatLog.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                      // Messages de système (tours, victoire, etc.)
+                      if (!isP1 && !isP2) {
+                        if (log.includes('🏆')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-4">
+                              <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (log.includes('---')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-3">
+                              <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={idx} className="flex justify-center">
+                            <div className="text-amber-300 text-sm italic">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Messages du Joueur 1 (gauche, bleu)
+                      if (isP1) {
+                        return (
+                          <div key={idx} className="flex justify-start">
+                            <div className="max-w-[70%]">
+                              <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
+                                <div className="font-mono text-sm">{cleanLog}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Messages du Joueur 2 (droite, rouge)
+                      if (isP2) {
+                        return (
+                          <div key={idx} className="flex justify-end">
+                            <div className="max-w-[70%]">
+                              <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
+                                <div className="font-mono text-sm">{cleanLog}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                    <div ref={logEndRef} />
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex-shrink-0" style={{width: '320px'}}>
+
+          {/* Carte joueur 2 - Droite */}
+          <div className="flex-shrink-0" style={{width: '340px'}}>
             <CharacterCard character={player2} imageIndex={2} />
-          </div>
-        </div>
-
-        {/* Zone de chat messenger */}
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[500px] flex flex-col">
-            <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
-              <h2 className="text-xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {combatLog.length === 0 ? (
-                <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
-              ) : (
-                <>
-                  {combatLog.map((log, idx) => {
-                    const isP1 = log.startsWith('[P1]');
-                    const isP2 = log.startsWith('[P2]');
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                    // Messages de système (tours, victoire, etc.)
-                    if (!isP1 && !isP2) {
-                      if (log.includes('🏆')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-4">
-                            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (log.includes('---')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-3">
-                            <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={idx} className="flex justify-center">
-                          <div className="text-amber-300 text-sm italic">
-                            {cleanLog}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // Messages du Joueur 1 (gauche, bleu)
-                    if (isP1) {
-                      return (
-                        <div key={idx} className="flex justify-start">
-                          <div className="max-w-[70%]">
-                            <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
-                              <div className="font-mono text-sm">{cleanLog}</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // Messages du Joueur 2 (droite, rouge)
-                    if (isP2) {
-                      return (
-                        <div key={idx} className="flex justify-end">
-                          <div className="max-w-[70%]">
-                            <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
-                              <div className="font-mono text-sm">{cleanLog}</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                  <div ref={logEndRef} />
-                </>
-              )}
-            </div>
           </div>
         </div>
       </div>
