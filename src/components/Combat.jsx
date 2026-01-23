@@ -117,6 +117,14 @@ const Combat = () => {
   };
 
   const generateCharacter = (name) => {
+    // Noms aléatoires
+    const names = [
+      'Thorin', 'Aria', 'Zephyr', 'Luna', 'Drake', 'Nova',
+      'Ragnar', 'Lyra', 'Orion', 'Sable', 'Raven', 'Phoenix',
+      'Atlas', 'Selene', 'Kael', 'Mira', 'Ash', 'Storm'
+    ];
+    const randomName = names[Math.floor(Math.random() * names.length)];
+
     const raceKeys = Object.keys(races);
     const classKeys = Object.keys(classes);
     const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
@@ -133,7 +141,7 @@ const Combat = () => {
       spd: raw.spd+rB.spd+cB.spd
     };
     return {
-      name, race, class: charClass, base,
+      name: randomName, race, class: charClass, base,
       bonuses: { race: rB, class: cB },
       currentHP: base.hp, maxHP: base.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
@@ -157,7 +165,7 @@ const Combat = () => {
     const revive = Math.max(1, Math.round(0.20 * target.maxHP));
     target.undead = true;
     target.currentHP = revive;
-    log.push(`${playerColor} ☠️ ${target.name} revient à ${revive} PV!`);
+    log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
   };
 
   const processPlayerAction = (att, def, log, isP1) => {
@@ -174,20 +182,20 @@ const Combat = () => {
       if (att.race === 'Sylvari') {
         const heal = Math.max(1, Math.round(att.maxHP * 0.02));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor}${playerColor} 🌿 ${att.name} régénère ${heal} PV`);
+        log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
       }
-      
+
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
         const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap);
         def.currentHP -= raw;
-        log.push(`${playerColor}💠 Familier de ${att.name} → ${raw} dégâts`);
+        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
       }
-      
+
       if (att.class === 'Masochiste') {
         att.cd.maso = (att.cd.maso % 4) + 1;
         if (att.cd.maso === 4 && att.maso_taken > 0) {
@@ -195,17 +203,17 @@ const Combat = () => {
           const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
           att.maso_taken = 0;
           def.currentHP -= dmg;
-          log.push(`${playerColor}🩸 ${att.name} renvoie ${dmg} dégâts accumulés`);
+          log.push(`${playerColor} 🩸 ${att.name} renvoie tous les dégâts accumulés et inflige ${dmg} points de dégâts à ${def.name}`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, log, playerColor);
           }
         }
       }
-      
+
       if (att.bleed_stacks > 0) {
         const bleedDmg = Math.ceil(att.bleed_stacks / 3);
         att.currentHP -= bleedDmg;
-        log.push(`${playerColor}🩸 ${att.name} saigne ${bleedDmg} dégâts`);
+        log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
           reviveUndead(att, log, playerColor);
         }
@@ -213,19 +221,19 @@ const Combat = () => {
 
       if (att.class === 'Paladin' && att.cd.pal === 2) {
         att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
-        log.push(`${playerColor}🛡️ ${att.name} prépare riposte ${Math.round(att.reflect * 100)}%`);
+        log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
-      
+
       if (att.class === 'Healer' && att.cd.heal === 5) {
         const miss = att.maxHP - att.currentHP;
         const heal = Math.max(1, Math.round(0.20 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor}✚ ${att.name} soigne ${heal} PV`);
+        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
       }
-      
+
       if (att.class === 'Voleur' && att.cd.rog === 4) {
         att.dodge = true;
-        log.push(`${playerColor}🌀 ${att.name} esquivera prochaine attaque`);
+        log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
       }
       
       const isMage = att.class === 'Mage' && att.cd.mag === 3;
@@ -237,15 +245,17 @@ const Combat = () => {
       
       let hits = isArcher ? Math.max(2, 1 + tiers15(att.base.cap)) : 1;
       let total = 0;
-      
+      let wasCrit = false;
+
       for (let i = 0; i < hits; i++) {
         const isCrit = Math.random() < critChance(att, def);
+        if (isCrit) wasCrit = true;
         let raw = 0;
         
         if (isMage) {
           const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
           raw = dmgCap(atkSpell, def.base.rescap);
-          if (i === 0) log.push(`${playerColor}🔮 ${att.name} lance un sort`);
+          if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
         } else if (isWar) {
           const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
           if (def.base.def <= def.base.rescap) {
@@ -255,44 +265,54 @@ const Combat = () => {
             const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
             raw = dmgCap(Math.round(att.base.cap * mult), effRes);
           }
-          if (i === 0) log.push(`${playerColor}🗡️ ${att.name} frappe pénétrant`);
+          if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
         } else {
           raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
           if (att.race === 'Lycan') {
             def.bleed_stacks = (def.bleed_stacks || 0) + 1;
           }
         }
-        
+
         if (isCrit) raw = Math.round(raw * 1.5);
-        
+
         if (def.dodge) {
           def.dodge = false;
-          log.push(`${playerColor}💨 ${def.name} esquive!`);
+          log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
           raw = 0;
         }
-        
+
         if (def.reflect && raw > 0) {
           const back = Math.round(def.reflect * raw);
           att.currentHP -= back;
-          log.push(`${playerColor}🔁 ${def.name} renvoie ${back}`);
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
-        
+
         def.currentHP -= raw;
         if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
-        
+
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         } else if (def.currentHP <= 0) {
           total += raw;
           break;
         }
-        
+
         total += raw;
-        if (isArcher) log.push(`${playerColor}🏹 Flèche ${i + 1}: ${raw}${isCrit ? ' CRIT' : ''}`);
+        if (isArcher) {
+          const critText = isCrit ? ' CRITIQUE !' : '';
+          log.push(`${playerColor} 🏹 ${att.name} tire sa flèche n°${i + 1} et inflige ${raw} points de dégâts${critText}`);
+        }
       }
-      
+
       if (!isArcher && total > 0) {
-        log.push(`${playerColor}${att.name} → ${def.name}: ${total} dégâts`);
+        const critText = wasCrit ? ' CRITIQUE !' : '';
+        if (isMage) {
+          log.push(`${playerColor} ${att.name} inflige ${total} points de dégâts magiques à ${def.name}${critText}`);
+        } else if (isWar) {
+          log.push(`${playerColor} ${att.name} transperce les défenses de ${def.name} et inflige ${total} points de dégâts${critText}`);
+        } else {
+          log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
+        }
       }
   };
 
@@ -313,12 +333,12 @@ const Combat = () => {
     const p1 = { ...player1, currentHP: player1.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
     const p2 = { ...player2, currentHP: player2.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
 
-    const logs = [`⚔️ Combat: ${p1.name} vs ${p2.name}`];
+    const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
     setCombatLog(logs);
 
     let turn = 1;
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
-      logs.push(`--- Tour ${turn} ---`);
+      logs.push(`--- Début du tour ${turn} ---`);
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 400));
 
@@ -359,7 +379,8 @@ const Combat = () => {
     }
 
     const w = p1.currentHP > 0 ? p1.name : p2.name;
-    logs.push(`🏆 ${w} remporte le combat!`);
+    const loser = p1.currentHP > 0 ? p2.name : p1.name;
+    logs.push(`🏆 ${w} remporte glorieusement le combat contre ${loser} !`);
     setCombatLog([...logs]);
     setWinner(w);
     setIsSimulating(false);
