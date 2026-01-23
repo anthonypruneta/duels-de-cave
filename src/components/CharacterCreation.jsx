@@ -38,6 +38,50 @@ const CharacterCreation = () => {
     'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
 
+  // Calculer la description réelle basée sur les stats du personnage
+  const getCalculatedDescription = (className, cap, auto) => {
+    const paliers = Math.floor(cap / 15);
+
+    switch(className) {
+      case 'Guerrier':
+        const ignorePercent = 8 + (paliers * 2);
+        return `+3 Auto | Frappe résistance faible & ignore ${ignorePercent}%`;
+
+      case 'Voleur':
+        const critBonus = paliers * 15;
+        return `+5 VIT | Esquive 1 coup | +${critBonus}% crit | Crit x2`;
+
+      case 'Paladin':
+        const ripostePercent = 70 + (paliers * 12);
+        return `Renvoie ${ripostePercent}% des dégâts reçus`;
+
+      case 'Healer':
+        const healPercent = 25 + (paliers * 5);
+        return `+2 Auto | Heal 20% PV manquants + ${healPercent}% × Cap (${cap})`;
+
+      case 'Archer':
+        const arrows = 2 + paliers;
+        return `${arrows} tirs simultanés`;
+
+      case 'Mage':
+        const magicPercent = 40 + (paliers * 5);
+        const magicDmg = Math.round(cap * (magicPercent / 100));
+        return `Dégâts = Auto + ${magicDmg} dégâts magiques (vs ResC)`;
+
+      case 'Demoniste':
+        const familierPercent = 15 + (paliers * 3);
+        const familierDmg = Math.round(cap * (familierPercent / 100));
+        return `Chaque tour: ${familierDmg} dégâts automatiques`;
+
+      case 'Masochiste':
+        const returnPercent = 60 + (paliers * 12);
+        return `Renvoie ${returnPercent}% des dégâts reçus accumulés`;
+
+      default:
+        return classes[className]?.description || '';
+    }
+  };
+
   // Charger le personnage existant au montage
   useEffect(() => {
     const loadCharacter = async () => {
@@ -226,7 +270,7 @@ const CharacterCreation = () => {
                 <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
                 <div>
                   <div className="text-amber-400 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
-                  <div className="text-gray-300 text-xs">{classes[existingCharacter.class].description}</div>
+                  <div className="text-gray-300 text-xs">{getCalculatedDescription(existingCharacter.class, existingCharacter.base.cap, existingCharacter.base.auto)}</div>
                 </div>
               </div>
             </div>
