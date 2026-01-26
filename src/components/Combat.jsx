@@ -3,6 +3,19 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
 
+// Composant Tooltip réutilisable
+const Tooltip = ({ children, content }) => {
+  return (
+    <span className="relative group cursor-help">
+      {children}
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+        {content}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
+      </span>
+    </span>
+  );
+};
+
 const Combat = () => {
   const [player1, setPlayer1] = useState(null);
   const [player2, setPlayer2] = useState(null);
@@ -42,10 +55,17 @@ const Combat = () => {
       case 'Guerrier':
         const ignoreBase = 8;
         const ignoreBonus = paliers * 2;
+        const ignoreTotal = ignoreBase + ignoreBonus;
         return (
           <>
-            +3 Auto | Frappe résistance faible & ignore {ignoreBase}%
-            {ignoreBonus > 0 && <span className="text-green-400"> +{ignoreBonus}%</span>}
+            +3 Auto | Frappe résistance faible & ignore{' '}
+            {ignoreBonus > 0 ? (
+              <Tooltip content={`Base: ${ignoreBase}% | Bonus (${paliers} paliers): +${ignoreBonus}%`}>
+                <span className="text-green-400">{ignoreTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{ignoreBase}%</span>
+            )}
           </>
         );
 
@@ -54,71 +74,119 @@ const Combat = () => {
         return (
           <>
             +5 VIT | Esquive 1 coup | Crit x2
-            {critBonus > 0 && <span className="text-green-400"> | +{critBonus}% crit</span>}
+            {critBonus > 0 && (
+              <Tooltip content={`Bonus (${paliers} paliers): +${critBonus}%`}>
+                <span className="text-green-400"> | +{critBonus}% crit</span>
+              </Tooltip>
+            )}
           </>
         );
 
       case 'Paladin':
         const riposteBase = 70;
         const riposteBonus = paliers * 12;
+        const riposteTotal = riposteBase + riposteBonus;
         return (
           <>
-            Renvoie {riposteBase}%
-            {riposteBonus > 0 && <span className="text-green-400"> +{riposteBonus}%</span>} des dégâts reçus
+            Renvoie{' '}
+            {riposteBonus > 0 ? (
+              <Tooltip content={`Base: ${riposteBase}% | Bonus (${paliers} paliers): +${riposteBonus}%`}>
+                <span className="text-green-400">{riposteTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{riposteBase}%</span>
+            )}
+            {' '}des dégâts reçus
           </>
         );
 
       case 'Healer':
         const healBase = 25;
         const healBonus = paliers * 5;
+        const healTotal = healBase + healBonus;
         return (
           <>
-            +2 Auto | Heal 20% PV manquants + {healBase}%
-            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}
+            +2 Auto | Heal 20% PV manquants +{' '}
+            {healBonus > 0 ? (
+              <Tooltip content={`Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
+                <span className="text-green-400">{healTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{healBase}%</span>
+            )}
           </>
         );
 
       case 'Archer':
         const arrowsBase = 2;
         const arrowsBonus = paliers;
+        const arrowsTotal = arrowsBase + arrowsBonus;
         return (
           <>
-            {arrowsBase} tirs
-            {arrowsBonus > 0 && <span className="text-green-400"> +{arrowsBonus}</span>} simultanés
+            {arrowsBonus > 0 ? (
+              <Tooltip content={`Base: ${arrowsBase} | Bonus (${paliers} paliers): +${arrowsBonus}`}>
+                <span className="text-green-400">{arrowsTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{arrowsBase}</span>
+            )}
+            {' '}tirs simultanés
           </>
         );
 
       case 'Mage':
         const magicBase = 40;
         const magicBonusPct = paliers * 5;
-        const magicDmg = Math.round(cap * (magicBase / 100));
-        const magicDmgBonus = Math.round(cap * (magicBonusPct / 100));
+        const magicTotalPct = magicBase + magicBonusPct;
+        const magicDmgTotal = Math.round(cap * (magicTotalPct / 100));
         return (
           <>
-            Dégâts = Auto + {magicDmg}
-            {magicDmgBonus > 0 && <span className="text-green-400"> +{magicDmgBonus}</span>} dégâts magiques (vs ResC)
+            Dégâts = Auto +{' '}
+            {magicBonusPct > 0 ? (
+              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
+                <span className="text-green-400">{magicDmgTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{magicDmgTotal}</span>
+            )}
+            {' '}dégâts magiques (vs ResC)
           </>
         );
 
       case 'Demoniste':
         const familierBase = 15;
         const familierBonusPct = paliers * 3;
-        const familierDmg = Math.round(cap * (familierBase / 100));
-        const familierDmgBonus = Math.round(cap * (familierBonusPct / 100));
+        const familierTotalPct = familierBase + familierBonusPct;
+        const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
         return (
           <>
-            Chaque tour: {familierDmg}
-            {familierDmgBonus > 0 && <span className="text-green-400"> +{familierDmgBonus}</span>} dégâts automatiques
+            Chaque tour:{' '}
+            {familierBonusPct > 0 ? (
+              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
+                <span className="text-green-400">{familierDmgTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{familierDmgTotal}</span>
+            )}
+            {' '}dégâts automatiques
           </>
         );
 
       case 'Masochiste':
         const returnBase = 60;
         const returnBonus = paliers * 12;
+        const returnTotal = returnBase + returnBonus;
         return (
           <>
-            Renvoie {returnBase}%
-            {returnBonus > 0 && <span className="text-green-400"> +{returnBonus}%</span>} des dégâts reçus accumulés
+            Renvoie{' '}
+            {returnBonus > 0 ? (
+              <Tooltip content={`Base: ${returnBase}% | Bonus (${paliers} paliers): +${returnBonus}%`}>
+                <span className="text-green-400">{returnTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{returnBase}%</span>
+            )}
+            {' '}des dégâts reçus accumulés
           </>
         );
 
@@ -483,9 +551,34 @@ const Combat = () => {
     if (!character) return null;
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+claude/image-upload-border-overlay-5lvY0
     const totalBonus = (k) => (character.bonuses.race[k] || 0) + (character.bonuses.class[k] || 0);
     // Utiliser l'image du personnage si elle existe, sinon utiliser l'image par défaut
     const characterImage = character.characterImage || (imageIndex === 1 ? testImage1 : testImage2);
+=======
+    const raceB = character.bonuses.race;
+    const classB = character.bonuses.class;
+    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const baseWithoutBonus = (k) => character.base[k] - totalBonus(k);
+    const tooltipContent = (k) => {
+      const parts = [`Base: ${baseWithoutBonus(k)}`];
+      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      return parts.join(' | ');
+    };
+    const characterImage = imageIndex === 1 ? testImage1 : testImage2;
+main
+
+    const StatWithTooltip = ({ statKey, label }) => {
+      const hasBonus = totalBonus(statKey) > 0;
+      return hasBonus ? (
+        <Tooltip content={tooltipContent(statKey)}>
+          <span className="text-green-400">{label}: {character.base[statKey]}</span>
+        </Tooltip>
+      ) : (
+        <span>{label}: {character.base[statKey]}</span>
+      );
+    };
 
     return (
       <div className="relative bg-gradient-to-br from-stone-200 to-stone-100 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
@@ -497,25 +590,24 @@ const Combat = () => {
             <img src={characterImage} alt={character.name} className="w-full h-full object-cover" />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
               <div className="text-white font-bold text-xl text-center">{character.name}</div>
-              <div className="text-xs text-amber-300 text-center">{character.race} / {character.class}</div>
             </div>
           </div>
           <div className="bg-stone-800/95 p-4">
             <div className="mb-3">
               <div className="flex justify-between text-sm text-white mb-2">
-                <div>HP: {character.base.hp}{totalBonus('hp') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('hp')})</span>}</div>
-                <div>VIT: {character.base.spd}{totalBonus('spd') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('spd')})</span>}</div>
+                <StatWithTooltip statKey="hp" label="HP" />
+                <StatWithTooltip statKey="spd" label="VIT" />
               </div>
               <div className="text-xs text-amber-300 mb-2">{character.name} — PV {character.currentHP}/{character.maxHP}</div>
               <div className="bg-stone-900 rounded-full h-3 overflow-hidden border border-amber-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm text-white mb-3">
-              <div className="text-gray-400">Auto: <span className="font-bold">{character.base.auto}</span>{totalBonus('auto') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('auto')})</span>}</div>
-              <div className="text-gray-400">Déf: <span className="font-bold">{character.base.def}</span>{totalBonus('def') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('def')})</span>}</div>
-              <div className="text-gray-400">Cap: <span className="font-bold">{character.base.cap}</span>{totalBonus('cap') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('cap')})</span>}</div>
-              <div className="text-gray-400">ResC: <span className="font-bold">{character.base.rescap}</span>{totalBonus('rescap') > 0 && <span className="text-green-400 text-xs ml-1">(+{totalBonus('rescap')})</span>}</div>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div className="text-gray-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
+              <div className="text-gray-400"><StatWithTooltip statKey="def" label="Déf" /></div>
+              <div className="text-gray-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
+              <div className="text-gray-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
             </div>
             <div className="space-y-2">
               <div className="flex items-start gap-2 bg-stone-700/50 rounded p-2 text-xs">
