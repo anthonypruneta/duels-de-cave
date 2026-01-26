@@ -207,9 +207,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       // Charger l'image de bordure
       const border = new Image();
       border.onload = () => {
-        // Utiliser les dimensions de la bordure comme référence
-        const targetWidth = border.width;
-        const targetHeight = border.height;
+        // Limiter la taille max pour éviter les images trop lourdes
+        const MAX_WIDTH = 600;
+        const MAX_HEIGHT = 900;
+
+        // Calculer le ratio pour respecter les proportions de la bordure
+        const borderRatio = border.width / border.height;
+        let targetWidth = Math.min(border.width, MAX_WIDTH);
+        let targetHeight = targetWidth / borderRatio;
+
+        if (targetHeight > MAX_HEIGHT) {
+          targetHeight = MAX_HEIGHT;
+          targetWidth = targetHeight * borderRatio;
+        }
 
         canvas.width = targetWidth;
         canvas.height = targetHeight;
@@ -227,8 +237,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         // Superposer la bordure par-dessus
         ctx.drawImage(border, 0, 0, targetWidth, targetHeight);
 
-        // Convertir en URL de données
-        const resultDataUrl = canvas.toDataURL('image/png');
+        // Convertir en JPEG avec compression (qualité 0.85)
+        const resultDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         setProcessedImage(resultDataUrl);
         setProcessingImage(false);
       };
@@ -247,7 +257,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     link.click();
   };
 
-  // Fonction pour sauvegarder l'image dans Firebase
+  // Fonction pour sauvegarder l'image dans Firebase Storage
   const saveImageToCharacter = async () => {
     if (!processedImage || !selectedCharacter) return;
 
@@ -255,15 +265,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     const result = await updateCharacterImage(selectedCharacter.id, processedImage);
 
     if (result.success) {
+      // Utiliser l'URL de Storage (pas le base64)
+      const imageUrl = result.imageUrl || processedImage;
+
       // Mettre à jour le personnage localement
       const updatedCharacters = characters.map(char =>
         char.id === selectedCharacter.id
-          ? { ...char, characterImage: processedImage }
+          ? { ...char, characterImage: imageUrl }
           : char
       );
       setCharacters(updatedCharacters);
-      setSelectedCharacter({ ...selectedCharacter, characterImage: processedImage });
+      setSelectedCharacter({ ...selectedCharacter, characterImage: imageUrl });
       alert('Image sauvegardée avec succès !');
+      resetUpload();
     } else {
       alert('Erreur lors de la sauvegarde: ' + result.error);
     }
