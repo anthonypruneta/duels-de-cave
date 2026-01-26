@@ -77,8 +77,8 @@ const CharacterCreation = () => {
         const healBonus = paliers * 5;
         return (
           <>
-            +2 Auto | Heal 20% PV manquants + ({healBase}%
-            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}) × Cap ({cap})
+            +2 Auto | Heal 20% PV manquants + {healBase}%
+            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}
           </>
         );
 
