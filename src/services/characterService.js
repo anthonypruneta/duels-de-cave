@@ -10,7 +10,8 @@ import {
   orderBy,
   Timestamp
 } from 'firebase/firestore';
-import { db, waitForFirestore } from '../firebase/config';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { db, storage, waitForFirestore } from '../firebase/config';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
@@ -207,17 +208,31 @@ export const deleteCharacter = async (userId) => {
 };
 
 // Mettre à jour l'image d'un personnage (pour backoffice admin)
+// Upload sur Firebase Storage puis sauvegarde de l'URL dans Firestore
 export const updateCharacterImage = async (userId, imageDataUrl) => {
   try {
+    // 1. Upload l'image sur Firebase Storage
+    const storageRef = ref(storage, `characters/${userId}/profile.jpg`);
+
+    // uploadString accepte les data URLs directement
+    await uploadString(storageRef, imageDataUrl, 'data_url');
+    console.log('Image uploadée sur Storage:', userId);
+
+    // 2. Récupérer l'URL de téléchargement
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('URL de téléchargement:', downloadURL);
+
+    // 3. Sauvegarder l'URL dans Firestore
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
       await setDoc(characterRef, {
-        characterImage: imageDataUrl,
+        characterImage: downloadURL,
         updatedAt: Timestamp.now()
       }, { merge: true });
     });
+
     console.log('Image du personnage mise à jour:', userId);
-    return { success: true };
+    return { success: true, imageUrl: downloadURL };
   } catch (error) {
     console.error('Erreur lors de la mise à jour de l\'image:', error);
     return { success: false, error: error.message };
