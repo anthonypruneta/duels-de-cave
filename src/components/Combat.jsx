@@ -551,6 +551,11 @@ const Combat = () => {
     if (!character) return null;
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+claude/image-upload-border-overlay-5lvY0
+    const totalBonus = (k) => (character.bonuses.race[k] || 0) + (character.bonuses.class[k] || 0);
+    // Utiliser l'image du personnage si elle existe, sinon utiliser l'image par défaut
+    const characterImage = character.characterImage || (imageIndex === 1 ? testImage1 : testImage2);
+=======
     const raceB = character.bonuses.race;
     const classB = character.bonuses.class;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
@@ -562,6 +567,7 @@ const Combat = () => {
       return parts.join(' | ');
     };
     const characterImage = imageIndex === 1 ? testImage1 : testImage2;
+main
 
     const StatWithTooltip = ({ statKey, label }) => {
       const hasBonus = totalBonus(statKey) > 0;
