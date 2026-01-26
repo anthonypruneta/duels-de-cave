@@ -9,6 +9,8 @@ const CharacterCreation = () => {
   const [existingCharacter, setExistingCharacter] = useState(null);
   const [canCreate, setCanCreate] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
+  const [step, setStep] = useState(1); // 1 = roll race/classe, 2 = nom/sexe/mot-clé
+  const [rolledCharacter, setRolledCharacter] = useState(null); // Personnage rollé (avec race, classe, stats)
   const [formData, setFormData] = useState({ name: '', gender: '', keyword: '' });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -195,7 +197,8 @@ const CharacterCreation = () => {
     return b;
   };
 
-  const generateCharacter = (name, gender, keyword) => {
+  // Roll aléatoire de race/classe/stats (étape 1)
+  const rollCharacter = () => {
     const raceKeys = Object.keys(races);
     const classKeys = Object.keys(classes);
     const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
@@ -211,7 +214,20 @@ const CharacterCreation = () => {
       rescap: raw.rescap+rB.rescap+cB.rescap,
       spd: raw.spd+rB.spd+cB.spd
     };
-    return { name, race, class: charClass, gender, keyword, base, bonuses: {race:rB,class:cB} };
+    setRolledCharacter({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+  };
+
+  // Générer le personnage final avec nom/sexe/mot-clé (étape 2)
+  const generateCharacter = (name, gender, keyword) => {
+    return {
+      name,
+      gender,
+      keyword,
+      race: rolledCharacter.race,
+      class: rolledCharacter.class,
+      base: rolledCharacter.base,
+      bonuses: rolledCharacter.bonuses
+    };
   };
 
   const validateForm = () => {
@@ -368,14 +384,201 @@ const CharacterCreation = () => {
     );
   }
 
-  // Formulaire de création
+  // Formulaire de création - Étape 1: Roll Race/Classe
+  if (step === 1) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+        <Header />
+        <div className="max-w-4xl w-full pt-20">
+          <div className="text-center mb-8">
+            <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
+            <p className="text-amber-300 text-lg">Lance les dés et découvre ta race et ta classe!</p>
+          </div>
+
+          {!rolledCharacter ? (
+            /* Avant le roll: gros bouton central */
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-stone-800/90 rounded-2xl p-12 border-4 border-amber-600 shadow-2xl text-center">
+                <div className="text-8xl mb-8">🎲</div>
+                <button
+                  onClick={rollCharacter}
+                  className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-8 py-6 rounded-lg font-bold text-2xl shadow-lg border-2 border-amber-400 transition-all transform hover:scale-105"
+                >
+                  🎲 ROLL MON PERSONNAGE 🎲
+                </button>
+                <p className="text-gray-400 mt-4 text-sm">Race et classe seront générées aléatoirement</p>
+              </div>
+
+              {/* Info races et classes */}
+              <div className="mt-8 grid md:grid-cols-2 gap-6">
+                <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
+                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">🎭 8 Races</h3>
+                  <div className="space-y-2">
+                    {Object.entries(races).map(([name, info]) => (
+                      <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-2xl">{info.icon}</span>
+                          <span className="text-white font-bold">{name}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 ml-8">{info.bonus}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
+                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">⚔️ 8 Classes</h3>
+                  <div className="space-y-2">
+                    {Object.entries(classes).map(([name, info]) => (
+                      <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-2xl">{info.icon}</span>
+                          <span className="text-white font-bold">{name}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 ml-8">{info.ability}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Après le roll: afficher le personnage */
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-stone-800/90 rounded-2xl p-6 border-4 border-amber-600 shadow-2xl">
+                <div className="text-center mb-6">
+                  <h3 className="text-3xl font-bold text-amber-400 mb-2">
+                    {rolledCharacter.race} • {rolledCharacter.class}
+                  </h3>
+                  <p className="text-gray-300">Voici ton personnage généré aléatoirement!</p>
+                </div>
+
+                {/* Stats */}
+                <div className="bg-stone-900/50 rounded-xl p-6 border-2 border-amber-500 mb-6">
+                  <h4 className="text-xl font-bold text-amber-300 mb-4">📊 Statistiques</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">HP (Points de Vie)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.hp}</div>
+                    </div>
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">VIT (Vitesse)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.spd}</div>
+                    </div>
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">Auto (Attaque)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.auto}</div>
+                    </div>
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">Déf (Défense)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.def}</div>
+                    </div>
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">Cap (Capacité)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.cap}</div>
+                    </div>
+                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                      <div className="text-gray-400 text-sm">ResC (Résistance Cap.)</div>
+                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.rescap}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bonus Race */}
+                <div className="bg-stone-900/50 rounded-xl p-4 border-2 border-blue-500 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{races[rolledCharacter.race].icon}</span>
+                    <span className="text-blue-300 font-bold text-lg">Race: {rolledCharacter.race}</span>
+                  </div>
+                  <p className="text-gray-300 text-sm">{races[rolledCharacter.race].bonus}</p>
+                </div>
+
+                {/* Bonus Classe */}
+                <div className="bg-stone-900/50 rounded-xl p-4 border-2 border-purple-500 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{classes[rolledCharacter.class].icon}</span>
+                    <span className="text-purple-300 font-bold text-lg">Classe: {rolledCharacter.class}</span>
+                  </div>
+                  <div className="text-sm mb-1 text-amber-300">{classes[rolledCharacter.class].ability}</div>
+                  <div className="text-gray-300 text-xs">{getCalculatedDescription(rolledCharacter.class, rolledCharacter.base.cap, rolledCharacter.base.auto)}</div>
+                </div>
+
+                {/* Boutons */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={rollCharacter}
+                    className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-4 rounded-lg font-bold text-lg shadow-lg border-2 border-gray-500 transition-all"
+                  >
+                    🎲 Re-roll
+                  </button>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-6 py-4 rounded-lg font-bold text-lg shadow-lg border-2 border-amber-400 transition-all"
+                  >
+                    ✅ Continuer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Formulaire de création - Étape 2: Nom/Sexe/Mot-clé
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
       <Header />
       <div className="max-w-4xl w-full pt-20">
         <div className="text-center mb-8">
-          <h2 className="text-5xl font-bold mb-3 text-amber-400">Création de Personnage</h2>
-          <p className="text-amber-300 text-lg">Forgez votre légende...</p>
+          <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>
+          <p className="text-amber-300 text-lg">Donne-lui un nom et forge son identité...</p>
+        </div>
+
+        {/* Résumé du personnage rollé */}
+        <div className="max-w-2xl mx-auto mb-6">
+          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl p-6 border-2 border-amber-500 shadow-lg">
+            <div className="text-center mb-4">
+              <h3 className="text-2xl font-bold text-amber-300">
+                {races[rolledCharacter.race].icon} {rolledCharacter.race} • {classes[rolledCharacter.class].icon} {rolledCharacter.class}
+              </h3>
+            </div>
+            <div className="grid grid-cols-6 gap-2 text-center text-sm">
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">HP</div>
+                <div className="text-white font-bold">{rolledCharacter.base.hp}</div>
+              </div>
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">Auto</div>
+                <div className="text-white font-bold">{rolledCharacter.base.auto}</div>
+              </div>
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">Déf</div>
+                <div className="text-white font-bold">{rolledCharacter.base.def}</div>
+              </div>
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">Cap</div>
+                <div className="text-white font-bold">{rolledCharacter.base.cap}</div>
+              </div>
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">ResC</div>
+                <div className="text-white font-bold">{rolledCharacter.base.rescap}</div>
+              </div>
+              <div className="bg-stone-900/50 rounded p-2 border border-stone-700">
+                <div className="text-gray-400 text-xs">VIT</div>
+                <div className="text-white font-bold">{rolledCharacter.base.spd}</div>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={() => setStep(1)}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-gray-600"
+              >
+                ← Retour au roll
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="bg-stone-800/90 rounded-2xl p-8 border-4 border-amber-600 shadow-2xl max-w-2xl mx-auto">
@@ -466,48 +669,6 @@ const CharacterCreation = () => {
               <>✨ Créer mon Personnage ✨</>
             )}
           </button>
-        </div>
-
-        {/* Info races et classes */}
-        <div className="mt-8 grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {/* Races */}
-          <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
-            <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">🎭 8 Races</h3>
-            <div className="space-y-2">
-              {Object.entries(races).map(([name, info]) => (
-                <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{info.icon}</span>
-                    <span className="text-white font-bold">{name}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 ml-8">{info.bonus}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Classes */}
-          <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
-            <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">⚔️ 8 Classes</h3>
-            <div className="space-y-2">
-              {Object.entries(classes).map(([name, info]) => (
-                <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{info.icon}</span>
-                    <span className="text-white font-bold">{name}</span>
-                  </div>
-                  <p className="text-xs text-amber-300 ml-8 mb-1">{info.ability}</p>
-                  <p className="text-xs text-gray-400 ml-8">{info.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 bg-stone-800/30 border border-amber-600 rounded-lg p-4 max-w-2xl mx-auto">
-          <p className="text-amber-300 text-sm text-center">
-            🎲 Race et classe générées aléatoirement • ⏳ 1 personnage par semaine (reset lundi)
-          </p>
         </div>
       </div>
     </div>
