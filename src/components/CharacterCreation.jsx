@@ -4,6 +4,19 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter } from '../services/characterService';
 import Header from './Header';
 
+// Composant Tooltip réutilisable
+const Tooltip = ({ children, content }) => {
+  return (
+    <span className="relative group cursor-help">
+      {children}
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+        {content}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
+      </span>
+    </span>
+  );
+};
+
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
@@ -48,10 +61,17 @@ const CharacterCreation = () => {
       case 'Guerrier':
         const ignoreBase = 8;
         const ignoreBonus = paliers * 2;
+        const ignoreTotal = ignoreBase + ignoreBonus;
         return (
           <>
-            +3 Auto | Frappe résistance faible & ignore {ignoreBase}%
-            {ignoreBonus > 0 && <span className="text-green-400"> +{ignoreBonus}%</span>}
+            +3 Auto | Frappe résistance faible & ignore{' '}
+            {ignoreBonus > 0 ? (
+              <Tooltip content={`Base: ${ignoreBase}% | Bonus (${paliers} paliers): +${ignoreBonus}%`}>
+                <span className="text-green-400">{ignoreTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{ignoreBase}%</span>
+            )}
           </>
         );
 
@@ -60,71 +80,119 @@ const CharacterCreation = () => {
         return (
           <>
             +5 VIT | Esquive 1 coup | Crit x2
-            {critBonus > 0 && <span className="text-green-400"> | +{critBonus}% crit</span>}
+            {critBonus > 0 && (
+              <Tooltip content={`Bonus (${paliers} paliers): +${critBonus}%`}>
+                <span className="text-green-400"> | +{critBonus}% crit</span>
+              </Tooltip>
+            )}
           </>
         );
 
       case 'Paladin':
         const riposteBase = 70;
         const riposteBonus = paliers * 12;
+        const riposteTotal = riposteBase + riposteBonus;
         return (
           <>
-            Renvoie {riposteBase}%
-            {riposteBonus > 0 && <span className="text-green-400"> +{riposteBonus}%</span>} des dégâts reçus
+            Renvoie{' '}
+            {riposteBonus > 0 ? (
+              <Tooltip content={`Base: ${riposteBase}% | Bonus (${paliers} paliers): +${riposteBonus}%`}>
+                <span className="text-green-400">{riposteTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{riposteBase}%</span>
+            )}
+            {' '}des dégâts reçus
           </>
         );
 
       case 'Healer':
         const healBase = 25;
         const healBonus = paliers * 5;
+        const healTotal = healBase + healBonus;
         return (
           <>
-            +2 Auto | Heal 20% PV manquants + {healBase}%
-            {healBonus > 0 && <span className="text-green-400"> +{healBonus}%</span>}
+            +2 Auto | Heal 20% PV manquants +{' '}
+            {healBonus > 0 ? (
+              <Tooltip content={`Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
+                <span className="text-green-400">{healTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{healBase}%</span>
+            )}
           </>
         );
 
       case 'Archer':
         const arrowsBase = 2;
         const arrowsBonus = paliers;
+        const arrowsTotal = arrowsBase + arrowsBonus;
         return (
           <>
-            {arrowsBase} tirs
-            {arrowsBonus > 0 && <span className="text-green-400"> +{arrowsBonus}</span>} simultanés
+            {arrowsBonus > 0 ? (
+              <Tooltip content={`Base: ${arrowsBase} | Bonus (${paliers} paliers): +${arrowsBonus}`}>
+                <span className="text-green-400">{arrowsTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{arrowsBase}</span>
+            )}
+            {' '}tirs simultanés
           </>
         );
 
       case 'Mage':
         const magicBase = 40;
         const magicBonusPct = paliers * 5;
-        const magicDmg = Math.round(cap * (magicBase / 100));
-        const magicDmgBonus = Math.round(cap * (magicBonusPct / 100));
+        const magicTotalPct = magicBase + magicBonusPct;
+        const magicDmgTotal = Math.round(cap * (magicTotalPct / 100));
         return (
           <>
-            Dégâts = Auto + {magicDmg}
-            {magicDmgBonus > 0 && <span className="text-green-400"> +{magicDmgBonus}</span>} dégâts magiques (vs ResC)
+            Dégâts = Auto +{' '}
+            {magicBonusPct > 0 ? (
+              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
+                <span className="text-green-400">{magicDmgTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{magicDmgTotal}</span>
+            )}
+            {' '}dégâts magiques (vs ResC)
           </>
         );
 
       case 'Demoniste':
         const familierBase = 15;
         const familierBonusPct = paliers * 3;
-        const familierDmg = Math.round(cap * (familierBase / 100));
-        const familierDmgBonus = Math.round(cap * (familierBonusPct / 100));
+        const familierTotalPct = familierBase + familierBonusPct;
+        const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
         return (
           <>
-            Chaque tour: {familierDmg}
-            {familierDmgBonus > 0 && <span className="text-green-400"> +{familierDmgBonus}</span>} dégâts automatiques
+            Chaque tour:{' '}
+            {familierBonusPct > 0 ? (
+              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
+                <span className="text-green-400">{familierDmgTotal}</span>
+              </Tooltip>
+            ) : (
+              <span>{familierDmgTotal}</span>
+            )}
+            {' '}dégâts automatiques
           </>
         );
 
       case 'Masochiste':
         const returnBase = 60;
         const returnBonus = paliers * 12;
+        const returnTotal = returnBase + returnBonus;
         return (
           <>
-            Renvoie {returnBase}%
-            {returnBonus > 0 && <span className="text-green-400"> +{returnBonus}%</span>} des dégâts reçus accumulés
+            Renvoie{' '}
+            {returnBonus > 0 ? (
+              <Tooltip content={`Base: ${returnBase}% | Bonus (${paliers} paliers): +${returnBonus}%`}>
+                <span className="text-green-400">{returnTotal}%</span>
+              </Tooltip>
+            ) : (
+              <span>{returnBase}%</span>
+            )}
+            {' '}des dégâts reçus accumulés
           </>
         );
 
@@ -475,51 +543,39 @@ const CharacterCreation = () => {
                 <div className="bg-stone-900/50 rounded-xl p-6 border-2 border-amber-500 mb-6">
                   <h4 className="text-xl font-bold text-amber-300 mb-4">📊 Statistiques</h4>
                   {(() => {
-                    const bonus = (k) => (rolledCharacter.bonuses.race[k] || 0) + (rolledCharacter.bonuses.class[k] || 0);
+                    const raceB = rolledCharacter.bonuses.race;
+                    const classB = rolledCharacter.bonuses.class;
+                    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+                    const baseWithoutBonus = (k) => rolledCharacter.base[k] - totalBonus(k);
+                    const tooltipContent = (k) => {
+                      const parts = [`Base: ${baseWithoutBonus(k)}`];
+                      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+                      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+                      return parts.join(' | ');
+                    };
+                    const StatDisplay = ({ statKey, label }) => {
+                      const hasBonus = totalBonus(statKey) > 0;
+                      return (
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">{label}</div>
+                          {hasBonus ? (
+                            <Tooltip content={tooltipContent(statKey)}>
+                              <div className="text-green-400 font-bold text-2xl">{rolledCharacter.base[statKey]}</div>
+                            </Tooltip>
+                          ) : (
+                            <div className="text-white font-bold text-2xl">{rolledCharacter.base[statKey]}</div>
+                          )}
+                        </div>
+                      );
+                    };
                     return (
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">HP (Points de Vie)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.hp}
-                            {bonus('hp') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('hp')})</span>}
-                          </div>
-                        </div>
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">VIT (Vitesse)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.spd}
-                            {bonus('spd') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('spd')})</span>}
-                          </div>
-                        </div>
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">Auto (Attaque)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.auto}
-                            {bonus('auto') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('auto')})</span>}
-                          </div>
-                        </div>
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">Déf (Défense)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.def}
-                            {bonus('def') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('def')})</span>}
-                          </div>
-                        </div>
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">Cap (Capacité)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.cap}
-                            {bonus('cap') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('cap')})</span>}
-                          </div>
-                        </div>
-                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                          <div className="text-gray-400 text-sm">ResC (Résistance Cap.)</div>
-                          <div className="text-white font-bold text-2xl">
-                            {rolledCharacter.base.rescap}
-                            {bonus('rescap') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('rescap')})</span>}
-                          </div>
-                        </div>
+                        <StatDisplay statKey="hp" label="HP (Points de Vie)" />
+                        <StatDisplay statKey="spd" label="VIT (Vitesse)" />
+                        <StatDisplay statKey="auto" label="Auto (Attaque)" />
+                        <StatDisplay statKey="def" label="Déf (Défense)" />
+                        <StatDisplay statKey="cap" label="Cap (Capacité)" />
+                        <StatDisplay statKey="rescap" label="ResC (Résistance Cap.)" />
                       </div>
                     );
                   })()}
