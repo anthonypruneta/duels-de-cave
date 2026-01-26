@@ -484,7 +484,8 @@ const Combat = () => {
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const totalBonus = (k) => (character.bonuses.race[k] || 0) + (character.bonuses.class[k] || 0);
-    const characterImage = imageIndex === 1 ? testImage1 : testImage2;
+    // Utiliser l'image du personnage si elle existe, sinon utiliser l'image par défaut
+    const characterImage = character.characterImage || (imageIndex === 1 ? testImage1 : testImage2);
 
     return (
       <div className="relative bg-gradient-to-br from-stone-200 to-stone-100 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">

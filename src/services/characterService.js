@@ -205,3 +205,21 @@ export const deleteCharacter = async (userId) => {
     return { success: false, error: error.message };
   }
 };
+
+// Mettre à jour l'image d'un personnage (pour backoffice admin)
+export const updateCharacterImage = async (userId, imageDataUrl) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        characterImage: imageDataUrl,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    console.log('Image du personnage mise à jour:', userId);
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'image:', error);
+    return { success: false, error: error.message };
+  }
+};

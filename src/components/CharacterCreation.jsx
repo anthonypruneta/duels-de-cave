@@ -385,7 +385,15 @@ const CharacterCreation = () => {
               <div className="border-2 border-amber-400 rounded-xl p-1 bg-white">
                 <div className="border border-amber-700 rounded-lg overflow-hidden">
                   <div className="h-96 relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center border-b-2 border-amber-700">
-                    <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                    {existingCharacter.characterImage ? (
+                      <img
+                        src={existingCharacter.characterImage}
+                        alt={existingCharacter.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                    )}
                     <div className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-lg p-3 border border-amber-600">
                       <div className="text-white font-bold text-lg text-center">{existingCharacter.name}</div>
                       <div className="text-xs text-amber-300 text-center mt-1">
