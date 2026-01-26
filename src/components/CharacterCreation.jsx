@@ -161,23 +161,41 @@ const CharacterCreation = () => {
 
   const genStats = () => {
     const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
-    let rem = 120 - (120 * 0.20 + 75);
+    let rem = 28; // 28 points à distribuer équitablement
+
+    // Spike optionnel (30% chance) - ajoute de la variété sans dominer
     const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
-    const spikeCount = Math.random() < 0.5 ? 2 : 1;
-    for (let i = 0; i < spikeCount && rem > 0; i++) {
-      const k = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-      const target = Math.min(35, s[k] + 8 + Math.floor(Math.random() * 10));
-      while (s[k] < target && rem > 0) { s[k]++; rem--; }
+    if (Math.random() < 0.3) {
+      const k = pool[Math.floor(Math.random() * pool.length)];
+      const spikeAmount = 5 + Math.floor(Math.random() * 6); // +5 à +10
+      const actual = Math.min(spikeAmount, 35 - s[k]);
+      s[k] += actual;
+      rem -= actual;
     }
-    let guard = 10000;
-    while (rem > 0 && guard--) {
-      const entries = [['hp',1],['auto',3],['def',3],['cap',3],['rescap',3],['spd',3]];
-      let tot = entries.reduce((a,[,w])=>a+w,0), r = Math.random()*tot, k='hp';
-      for (const [key,w] of entries) { r-=w; if(r<=0){k=key;break;}}
-      if (k==='hp' && s.hp+4<=200) {s.hp+=4;rem--;}
-      else if (k!=='hp' && s[k]+1<=35) {s[k]++;rem--;}
-      else break;
+
+    // Distribution équilibrée des points restants
+    let guard = 1000;
+    while (rem > 0 && guard-- > 0) {
+      // Poids égaux : HP a autant de chances que les autres stats
+      const entries = [['hp',2],['auto',2],['def',2],['cap',2],['rescap',2],['spd',2]];
+      const tot = entries.reduce((a,[,w]) => a + w, 0);
+      let r = Math.random() * tot;
+      let k = 'hp';
+      for (const [key, w] of entries) {
+        r -= w;
+        if (r <= 0) { k = key; break; }
+      }
+
+      // 1 point = +3 HP (max 150) ou +1 autre stat (max 35)
+      if (k === 'hp') {
+        if (s.hp + 3 <= 150) { s.hp += 3; rem--; }
+        // Si HP au max, on continue (pas de break)
+      } else {
+        if (s[k] + 1 <= 35) { s[k]++; rem--; }
+        // Si stat au max, on continue (pas de break)
+      }
     }
+
     return s;
   };
 
