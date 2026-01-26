@@ -474,32 +474,55 @@ const CharacterCreation = () => {
                 {/* Stats */}
                 <div className="bg-stone-900/50 rounded-xl p-6 border-2 border-amber-500 mb-6">
                   <h4 className="text-xl font-bold text-amber-300 mb-4">📊 Statistiques</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">HP (Points de Vie)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.hp}</div>
-                    </div>
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">VIT (Vitesse)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.spd}</div>
-                    </div>
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">Auto (Attaque)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.auto}</div>
-                    </div>
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">Déf (Défense)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.def}</div>
-                    </div>
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">Cap (Capacité)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.cap}</div>
-                    </div>
-                    <div className="bg-stone-800 rounded p-3 border border-stone-700">
-                      <div className="text-gray-400 text-sm">ResC (Résistance Cap.)</div>
-                      <div className="text-white font-bold text-2xl">{rolledCharacter.base.rescap}</div>
-                    </div>
-                  </div>
+                  {(() => {
+                    const bonus = (k) => (rolledCharacter.bonuses.race[k] || 0) + (rolledCharacter.bonuses.class[k] || 0);
+                    return (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">HP (Points de Vie)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.hp}
+                            {bonus('hp') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('hp')})</span>}
+                          </div>
+                        </div>
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">VIT (Vitesse)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.spd}
+                            {bonus('spd') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('spd')})</span>}
+                          </div>
+                        </div>
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">Auto (Attaque)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.auto}
+                            {bonus('auto') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('auto')})</span>}
+                          </div>
+                        </div>
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">Déf (Défense)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.def}
+                            {bonus('def') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('def')})</span>}
+                          </div>
+                        </div>
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">Cap (Capacité)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.cap}
+                            {bonus('cap') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('cap')})</span>}
+                          </div>
+                        </div>
+                        <div className="bg-stone-800 rounded p-3 border border-stone-700">
+                          <div className="text-gray-400 text-sm">ResC (Résistance Cap.)</div>
+                          <div className="text-white font-bold text-2xl">
+                            {rolledCharacter.base.rescap}
+                            {bonus('rescap') > 0 && <span className="text-green-400 text-lg ml-2">(+{bonus('rescap')})</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Bonus Race */}
