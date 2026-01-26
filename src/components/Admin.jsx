@@ -45,22 +45,23 @@ const Admin = () => {
     'Masochiste': '🩸'
   };
 
+  // Fonction pour charger/recharger les personnages
+  const loadCharacters = async () => {
+    setLoading(true);
+    const result = await getAllCharacters();
+
+    if (result.success) {
+      setCharacters(result.data);
+      console.log('Personnages chargés dans Admin:', result.data);
+    } else {
+      setError(result.error);
+      console.error('Erreur chargement personnages:', result.error);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadCharacters = async () => {
-      setLoading(true);
-      const result = await getAllCharacters();
-
-      if (result.success) {
-        setCharacters(result.data);
-        console.log('Personnages chargés dans Admin:', result.data);
-      } else {
-        setError(result.error);
-        console.error('Erreur chargement personnages:', result.error);
-      }
-
-      setLoading(false);
-    };
-
     loadCharacters();
   }, []);
 
@@ -265,19 +266,12 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     const result = await updateCharacterImage(selectedCharacter.id, processedImage);
 
     if (result.success) {
-      // Utiliser l'URL de Storage (pas le base64)
-      const imageUrl = result.imageUrl || processedImage;
-
-      // Mettre à jour le personnage localement
-      const updatedCharacters = characters.map(char =>
-        char.id === selectedCharacter.id
-          ? { ...char, characterImage: imageUrl }
-          : char
-      );
-      setCharacters(updatedCharacters);
-      setSelectedCharacter({ ...selectedCharacter, characterImage: imageUrl });
-      alert('Image sauvegardée avec succès !');
+      // Recharger les données depuis Firestore pour avoir l'URL correcte
+      await loadCharacters();
+      // Fermer le modal et réinitialiser
+      setSelectedCharacter(null);
       resetUpload();
+      alert('Image sauvegardée avec succès !');
     } else {
       alert('Erreur lors de la sauvegarde: ' + result.error);
     }
@@ -352,7 +346,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                     <img
                       src={char.characterImage}
                       alt={char.name}
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-full object-contain rounded-t-lg bg-stone-900"
+                      style={{ maxHeight: '280px' }}
                     />
                   </div>
                 )}
