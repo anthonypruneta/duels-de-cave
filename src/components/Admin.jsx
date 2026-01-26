@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter } from '../services/characterService';
 import Header from './Header';
+import borderImage from '../assets/backgrounds/border.png';
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -10,6 +11,13 @@ const Admin = () => {
   const [error, setError] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // États pour l'upload d'image
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [processedImage, setProcessedImage] = useState(null);
+  const [processingImage, setProcessingImage] = useState(false);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -164,6 +172,89 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     alert('Prompt copié!');
   };
 
+  // Fonction pour gérer l'upload d'image
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Vérifier que c'est une image
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image valide');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedImage(e.target.result);
+      setProcessedImage(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Fonction pour superposer la bordure sur l'image
+  const processImageWithBorder = () => {
+    if (!uploadedImage) return;
+
+    setProcessingImage(true);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    // Charger l'image uploadée
+    const userImg = new Image();
+    userImg.onload = () => {
+      // Charger l'image de bordure
+      const border = new Image();
+      border.onload = () => {
+        // Utiliser les dimensions de la bordure comme référence
+        const targetWidth = border.width;
+        const targetHeight = border.height;
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        // Calculer les dimensions pour que l'image remplisse le canvas
+        const scale = Math.max(targetWidth / userImg.width, targetHeight / userImg.height);
+        const scaledWidth = userImg.width * scale;
+        const scaledHeight = userImg.height * scale;
+        const offsetX = (targetWidth - scaledWidth) / 2;
+        const offsetY = (targetHeight - scaledHeight) / 2;
+
+        // Dessiner l'image uploadée (en arrière-plan, redimensionnée pour couvrir)
+        ctx.drawImage(userImg, offsetX, offsetY, scaledWidth, scaledHeight);
+
+        // Superposer la bordure par-dessus
+        ctx.drawImage(border, 0, 0, targetWidth, targetHeight);
+
+        // Convertir en URL de données
+        const resultDataUrl = canvas.toDataURL('image/png');
+        setProcessedImage(resultDataUrl);
+        setProcessingImage(false);
+      };
+      border.src = borderImage;
+    };
+    userImg.src = uploadedImage;
+  };
+
+  // Fonction pour télécharger l'image résultante
+  const downloadProcessedImage = () => {
+    if (!processedImage) return;
+
+    const link = document.createElement('a');
+    link.download = 'character-with-border.png';
+    link.href = processedImage;
+    link.click();
+  };
+
+  // Réinitialiser l'upload
+  const resetUpload = () => {
+    setUploadedImage(null);
+    setProcessedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center">
@@ -193,6 +284,97 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           <p className="text-amber-300 text-lg">
             {characters.length} personnage{characters.length > 1 ? 's' : ''} créé{characters.length > 1 ? 's' : ''}
           </p>
+        </div>
+
+        {/* Section Upload d'image avec bordure */}
+        <div className="bg-stone-800/90 rounded-xl p-6 border-2 border-amber-600 shadow-xl mb-8">
+          <h2 className="text-2xl font-bold text-amber-400 mb-4">🖼️ Générateur d'image avec bordure</h2>
+          <p className="text-gray-400 mb-4">
+            Uploadez une image de personnage et superposez automatiquement la bordure décorative.
+          </p>
+
+          {/* Canvas caché pour le traitement */}
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+          {/* Zone d'upload */}
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Colonne gauche: Upload */}
+            <div className="flex-1">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+                id="image-upload"
+              />
+              <label
+                htmlFor="image-upload"
+                className="block w-full p-8 border-2 border-dashed border-amber-500/50 rounded-lg cursor-pointer hover:border-amber-400 hover:bg-stone-700/30 transition text-center"
+              >
+                {uploadedImage ? (
+                  <div>
+                    <img
+                      src={uploadedImage}
+                      alt="Image uploadée"
+                      className="max-h-64 mx-auto rounded-lg mb-2"
+                    />
+                    <p className="text-amber-300 text-sm">Cliquez pour changer d'image</p>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-4xl mb-2 block">📤</span>
+                    <p className="text-amber-300">Cliquez pour uploader une image</p>
+                    <p className="text-gray-500 text-sm mt-1">PNG, JPG, WEBP...</p>
+                  </div>
+                )}
+              </label>
+
+              {uploadedImage && (
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={processImageWithBorder}
+                    disabled={processingImage}
+                    className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-600 text-white py-3 rounded-lg font-bold transition"
+                  >
+                    {processingImage ? '⏳ Traitement...' : '✨ Appliquer la bordure'}
+                  </button>
+                  <button
+                    onClick={resetUpload}
+                    className="bg-stone-600 hover:bg-stone-500 text-white px-4 py-3 rounded-lg transition"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Colonne droite: Résultat */}
+            <div className="flex-1">
+              <div className="bg-stone-900/50 rounded-lg p-4 min-h-64 flex items-center justify-center">
+                {processedImage ? (
+                  <div className="text-center">
+                    <img
+                      src={processedImage}
+                      alt="Image avec bordure"
+                      className="max-h-80 mx-auto rounded-lg shadow-lg"
+                    />
+                    <button
+                      onClick={downloadProcessedImage}
+                      className="mt-4 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-lg font-bold transition"
+                    >
+                      📥 Télécharger l'image
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500">
+                    <span className="text-4xl block mb-2">🎨</span>
+                    <p>Le résultat apparaîtra ici</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {characters.length === 0 ? (
