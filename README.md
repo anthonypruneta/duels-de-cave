@@ -19,11 +19,3 @@ Jeu de combat 1v1 au tour par tour avec système de races et classes.
 \- \*\*Combats au tour par tour\*\* avec mécaniques avancées
 
 \- \*\*Génération de personnages\*\* avec Midjourney
-
-
-
-\## 🚀 Installation
-
-```bash
-
-# Force Vercel refresh
