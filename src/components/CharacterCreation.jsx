@@ -161,7 +161,7 @@ const CharacterCreation = () => {
 
   const genStats = () => {
     const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
-    let rem = 28; // 28 points à distribuer équitablement
+    let rem = 35; // 35 points à distribuer équitablement
 
     // Spike optionnel (30% chance) - ajoute de la variété sans dominer
     const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
@@ -188,7 +188,7 @@ const CharacterCreation = () => {
 
       // 1 point = +3 HP (max 150) ou +1 autre stat (max 35)
       if (k === 'hp') {
-        if (s.hp + 3 <= 150) { s.hp += 3; rem--; }
+        if (s.hp + 3 <= 200) { s.hp += 3; rem--; }
         // Si HP au max, on continue (pas de break)
       } else {
         if (s[k] + 1 <= 35) { s[k]++; rem--; }
