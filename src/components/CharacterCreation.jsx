@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter } from '../services/characterService';
 import Header from './Header';
 import { races, classes } from '../data/gameData';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -189,7 +190,7 @@ const CharacterCreation = () => {
       const { success, data } = await getUserCharacter(currentUser.uid);
 
       if (success && data) {
-        setExistingCharacter(data);
+        setExistingCharacter(normalizeCharacterBonuses(data));
         setCanCreate(false);
       } else {
         // Vérifier si l'utilisateur peut créer un personnage
