@@ -128,7 +128,8 @@ const processTurn = (p1, p2) => {
     if (att.class === 'Demoniste') {
       const t = tiers15(att.base.cap);
       const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
-      const raw = dmgCap(hit, def.base.rescap);
+      // Le familier ignore 60% de la résistance magique
+      const raw = dmgCap(hit, def.base.rescap * 0.4);
       def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def);
@@ -140,6 +141,9 @@ const processTurn = (p1, p2) => {
       if (att.cd.maso === 4 && att.maso_taken > 0) {
         const t = tiers15(att.base.cap);
         const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
+        // Heal 10% des dégâts encaissés
+        const healAmount = Math.max(1, Math.round(att.maso_taken * 0.10));
+        att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         def.currentHP -= dmg;
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -162,7 +166,7 @@ const processTurn = (p1, p2) => {
 
     if (att.class === 'Healer' && att.cd.heal === 5) {
       const miss = att.maxHP - att.currentHP;
-      const heal = Math.max(1, Math.round(0.20 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
+      const heal = Math.max(1, Math.round(0.15 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 

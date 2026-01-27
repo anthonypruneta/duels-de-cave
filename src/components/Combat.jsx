@@ -51,11 +51,11 @@ const Combat = () => {
     'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 8% +2%/15Cap', icon: '🗡️' },
     'Voleur': { ability: 'Esquive (CD: 2 tours)', description: '+5 VIT | Esquive 1 coup | +15% crit/palier 15Cap | Crit x2', icon: '🌀' },
     'Paladin': { ability: 'Riposte (Chaque tour)', description: 'Renvoie 70% +12%/15Cap des dégâts reçus', icon: '🛡️' },
-    'Healer': { ability: 'Soin puissant (CD: 2 tours)', description: '+2 Auto | Heal 20% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
+    'Healer': { ability: 'Soin puissant (CD: 2 tours)', description: 'Heal 15% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
     'Archer': { ability: 'Tir multiple (CD: 3 tours)', description: '2 tirs à Cap15, +1 tir par palier 15Cap', icon: '🏹' },
     'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
     'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (15% +3%/15Cap) × Capacité en dégâts', icon: '💠' },
-    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
+    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts accumulés & heal 10%', icon: '🩸' }
   };
 
   // Charger les personnages depuis la BDD
@@ -130,7 +130,7 @@ const Combat = () => {
         const healTotal = healBase + healBonus;
         return (
           <>
-            +2 Auto | Heal 20% PV manquants +{' '}
+            Heal 15% PV manquants +{' '}
             {healBonus > 0 ? (
               <Tooltip content={`Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
                 <span className="text-green-400">{healTotal}%</span>
@@ -272,7 +272,8 @@ const Combat = () => {
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
         const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
-        const raw = dmgCap(hit, def.base.rescap);
+        // Le familier ignore 60% de la résistance magique
+        const raw = dmgCap(hit, def.base.rescap * 0.4);
         def.currentHP -= raw;
         log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -285,9 +286,12 @@ const Combat = () => {
         if (att.cd.maso === 4 && att.maso_taken > 0) {
           const t = tiers15(att.base.cap);
           const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
+          // Heal 10% des dégâts encaissés
+          const healAmount = Math.max(1, Math.round(att.maso_taken * 0.10));
+          att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
           att.maso_taken = 0;
           def.currentHP -= dmg;
-          log.push(`${playerColor} 🩸 ${att.name} renvoie tous les dégâts accumulés et inflige ${dmg} points de dégâts à ${def.name}`);
+          log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${dmg} points de dégâts et récupère ${healAmount} points de vie`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, log, playerColor);
           }
@@ -310,7 +314,7 @@ const Combat = () => {
 
       if (att.class === 'Healer' && att.cd.heal === 5) {
         const miss = att.maxHP - att.currentHP;
-        const heal = Math.max(1, Math.round(0.20 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
+        const heal = Math.max(1, Math.round(0.15 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
       }
