@@ -109,15 +109,16 @@ const Combat = () => {
         const healBase = 25;
         const healBonus = paliers * 5;
         const healTotal = healBase + healBonus;
+        const healValue = Math.round(cap * (healTotal / 100));
         return (
           <>
             Heal 15% PV manquants +{' '}
             {healBonus > 0 ? (
-              <Tooltip content={`${healTotal}% de Cap (${cap}) | Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
-                <span className="text-green-400">{healTotal}% de la Cap</span>
+              <Tooltip content={`${healTotal}% de la Cap (${cap}) | Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
+                <span className="text-green-400">{healValue}</span>
               </Tooltip>
             ) : (
-              <span>{healBase}% de la Cap</span>
+              <span>{healValue}</span>
             )}
           </>
         );
@@ -148,11 +149,11 @@ const Combat = () => {
           <>
             Dégâts = Auto +{' '}
             {magicBonusPct > 0 ? (
-              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) = ${magicDmgTotal} | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
-                <span className="text-green-400">{magicTotalPct}% de la Cap</span>
+              <Tooltip content={`${magicTotalPct}% de la Cap (${cap}) | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
+                <span className="text-green-400">{magicDmgTotal}</span>
               </Tooltip>
             ) : (
-              <span>{magicBase}% de la Cap</span>
+              <span>{magicDmgTotal}</span>
             )}
             {' '}(vs ResC)
           </>
@@ -167,13 +168,13 @@ const Combat = () => {
           <>
             Familier:{' '}
             {familierBonusPct > 0 ? (
-              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) = ${familierDmgTotal} | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
-                <span className="text-green-400">{familierTotalPct}% de la Cap</span>
+              <Tooltip content={`${familierTotalPct}% de la Cap (${cap}) | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
+                <span className="text-green-400">{familierDmgTotal}</span>
               </Tooltip>
             ) : (
-              <span>{familierBase}% de la Cap</span>
+              <span>{familierDmgTotal}</span>
             )}
-            {' '}/ tour (ignore 60% ResC)
+            {' '}dégâts / tour (ignore 60% ResC)
           </>
         );
 
