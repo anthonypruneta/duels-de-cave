@@ -767,32 +767,6 @@ const Combat = () => {
       <div className="max-w-[1800px] mx-auto pt-16">
         <h1 className="text-5xl font-bold text-center mb-8 text-stone-100">⚔️ Combat ⚔️</h1>
 
-        {/* Boutons de contrôle en haut */}
-        <div className="flex justify-center gap-4 mb-8">
-          <button
-            onClick={simulateCombat}
-            disabled={isSimulating}
-            className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-10 py-4 font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-400"
-          >
-            ▶️ Lancer le combat
-          </button>
-          <button
-            onClick={backToSelection}
-            className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-10 py-4 font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border border-stone-500"
-          >
-            ← Changer de combattants
-          </button>
-        </div>
-
-        {/* VS et Winner */}
-        {winner && (
-          <div className="flex justify-center mb-8">
-            <div className="bg-stone-100 text-stone-900 px-12 py-5 font-bold text-3xl animate-pulse shadow-2xl border-2 border-stone-400">
-              🏆 {winner} remporte le combat! 🏆
-            </div>
-          </div>
-        )}
-
         {/* Layout principal: Perso 1 | Chat | Perso 2 */}
         <div className="flex gap-4 items-start justify-center">
           {/* Carte joueur 1 - Gauche */}
@@ -800,9 +774,36 @@ const Combat = () => {
             <CharacterCard character={player1} imageIndex={1} />
           </div>
 
-          {/* Zone de chat messenger - Centre */}
-          <div className="flex-shrink-0" style={{width: '600px'}}>
-            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl h-[700px] flex flex-col">
+          {/* Zone centrale - Boutons + Chat */}
+          <div className="flex-shrink-0 flex flex-col" style={{width: '600px'}}>
+            {/* Boutons de contrôle alignés avec le haut des images */}
+            <div className="flex justify-center gap-4 mb-4">
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating}
+                className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+              <button
+                onClick={backToSelection}
+                className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+              >
+                ← Changer
+              </button>
+            </div>
+
+            {/* Message de victoire */}
+            {winner && (
+              <div className="flex justify-center mb-4">
+                <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                  🏆 {winner} remporte le combat! 🏆
+                </div>
+              </div>
+            )}
+
+            {/* Zone de chat messenger */}
+            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex-1 flex flex-col" style={{minHeight: '600px'}}>
               <div className="bg-stone-900 p-3 border-b border-stone-600">
                 <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
               </div>
