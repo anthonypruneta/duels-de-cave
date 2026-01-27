@@ -63,7 +63,7 @@ function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-stone-800/90 backdrop-blur-sm border-2 border-amber-600 rounded-lg p-8 w-full max-w-md shadow-2xl">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-amber-400 mb-2">⚔️ Duels de Cave</h1>

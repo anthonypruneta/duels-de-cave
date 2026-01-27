@@ -261,7 +261,6 @@ const Combat = () => {
       }
 
       if (att.class === 'Masochiste') {
-        att.cd.maso = (att.cd.maso % 4) + 1;
         if (att.cd.maso === 4 && att.maso_taken > 0) {
           const t = tiers15(att.base.cap);
           const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
@@ -310,7 +309,7 @@ const Combat = () => {
       let mult = 1.0;
       if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
 
-      let hits = isArcher ? Math.max(2, 1 + tiers15(att.base.cap)) : 1;
+      let hits = isArcher ? 2 + tiers15(att.base.cap) : 1;
       let total = 0;
       let wasCrit = false;
 
@@ -699,7 +698,7 @@ const Combat = () => {
   // Phase de sélection
   if (phase === 'selection') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+      <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <h1 className="text-5xl font-bold text-center mb-4 text-stone-100">⚔️ Arène de Combat ⚔️</h1>
@@ -754,7 +753,7 @@ const Combat = () => {
 
   // Phase de combat
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+    <div className="min-h-screen p-6">
       <Header />
       {/* Musique de combat */}
       <audio id="combat-music" loop>
