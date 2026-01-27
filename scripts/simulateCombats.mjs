@@ -1,29 +1,22 @@
 #!/usr/bin/env node
 
 // Script de simulation pour tester l'équilibrage
-// Usage: node scripts/simulateCombats.js [nombre]
+// Usage: node scripts/simulateCombats.mjs [nombre]
 
-const races = {
-  'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-  'Elfe': { bonus: '+15% crit permanent (+5 VIT)', icon: '🧝' },
-  'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
-  'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-  'Dragonkin': { bonus: '+10 PV & +15 ResC', icon: '🐲' },
-  'Mort-vivant': { bonus: 'Revient à 25% PV (1x)', icon: '☠️' },
-  'Lycan': { bonus: 'Auto = Saignement (0.5/stack)', icon: '🐺' },
-  'Sylvari': { bonus: 'Regen 2% PV/tour', icon: '🌿' }
-};
-
-const classes = {
-  'Guerrier': { ability: 'Frappe pénétrante', icon: '🗡️' },
-  'Voleur': { ability: 'Esquive + Crit', icon: '🌀' },
-  'Paladin': { ability: 'Renvoie 40%+ dégâts', icon: '🛡️' },
-  'Healer': { ability: 'Soin puissant', icon: '✚' },
-  'Archer': { ability: 'Volée 2+ flèches', icon: '🏹' },
-  'Mage': { ability: 'Sort magique', icon: '🔮' },
-  'Demoniste': { ability: 'Familier', icon: '💠' },
-  'Masochiste': { ability: 'Renvoie dégâts', icon: '🩸' }
-};
+import { races } from '../src/data/races.js';
+import { classes } from '../src/data/classes.js';
+import {
+  cooldowns,
+  classConstants,
+  raceConstants,
+  generalConstants,
+  tiers15,
+  dmgPhys,
+  dmgCap,
+  calcCritChance,
+  getRaceBonus,
+  getClassBonus
+} from '../src/data/combatMechanics.js';
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
@@ -47,30 +40,14 @@ const genStats = () => {
   return s;
 };
 
-const raceBonus = (race) => {
-  const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-  if (race==='Humain') {b.hp=10;b.auto=1;b.def=1;b.cap=1;b.rescap=1;b.spd=1;}
-  else if (race==='Nain') {b.hp=10;b.def=4;}
-  else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
-  else if (race==='Elfe') {b.auto=1;b.cap=1;b.spd=5;}
-  return b;
-};
-
-const classBonus = (clazz) => {
-  const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-  if (clazz==='Voleur') b.spd=5;
-  if (clazz==='Guerrier') b.auto=2;
-  return b;
-};
-
 const generateCharacter = (name) => {
   const raceKeys = Object.keys(races);
   const classKeys = Object.keys(classes);
   const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
   const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
   const raw = genStats();
-  const rB = raceBonus(race);
-  const cB = classBonus(charClass);
+  const rB = getRaceBonus(race);
+  const cB = getClassBonus(charClass);
   const base = {
     hp: raw.hp+rB.hp+cB.hp,
     auto: raw.auto+rB.auto+cB.auto,
@@ -89,19 +66,8 @@ const generateCharacter = (name) => {
   };
 };
 
-const tiers15 = (cap) => Math.floor(cap / 15);
-const dmgPhys = (auto, def) => Math.max(1, Math.round(auto - 0.5 * def));
-const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap));
-
-const critChance = (att, def) => {
-  let c = 0.10;
-  if (att.class === 'Voleur') c += 0.05 * tiers15(att.base.cap);
-  if (att.race === 'Elfe') c += 0.20;
-  return c;
-};
-
 const reviveUndead = (target) => {
-  const revive = Math.max(1, Math.round(0.20 * target.maxHP));
+  const revive = Math.max(1, Math.round(raceConstants.mortVivant.revivePercent * target.maxHP));
   target.undead = true;
   target.currentHP = revive;
 };
@@ -115,33 +81,35 @@ const processTurn = (p1, p2) => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
     att.reflect = false;
-    const cycle = { war: 3, rog: 4, pal: 2, heal: 5, arc: 3, mag: 3, dem: 1, maso: 4 };
-    for (const k of Object.keys(cycle)) {
-      att.cd[k] = (att.cd[k] % cycle[k]) + 1;
+    for (const k of Object.keys(cooldowns)) {
+      att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
     }
 
+    // Sylvari regen
     if (att.race === 'Sylvari') {
-      const heal = Math.max(1, Math.round(att.maxHP * 0.02));
+      const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
+    // Demoniste familier
     if (att.class === 'Demoniste') {
       const t = tiers15(att.base.cap);
-      const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
-      // Le familier ignore 60% de la résistance magique
-      const raw = dmgCap(hit, def.base.rescap * 0.4);
+      const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
+      const hit = Math.max(1, Math.round((capBase + capPerTier * t) * att.base.cap));
+      const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def);
       }
     }
 
+    // Masochiste renvoi
     if (att.class === 'Masochiste') {
-      if (att.cd.maso === 4 && att.maso_taken > 0) {
+      if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
         const t = tiers15(att.base.cap);
-        const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
-        // Heal 10% des dégâts encaissés
-        const healAmount = Math.max(1, Math.round(att.maso_taken * 0.10));
+        const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
+        const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerTier * t)));
+        const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         def.currentHP -= dmg;
@@ -151,6 +119,7 @@ const processTurn = (p1, p2) => {
       }
     }
 
+    // Lycan saignement
     if (att.bleed_stacks > 0) {
       const bleedDmg = Math.ceil(att.bleed_stacks / 3);
       att.currentHP -= bleedDmg;
@@ -159,38 +128,50 @@ const processTurn = (p1, p2) => {
       }
     }
 
-    if (att.class === 'Paladin' && att.cd.pal === 2) {
-      att.reflect = 0.40 + 0.05 * tiers15(att.base.cap);
+    // Paladin riposte
+    if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+      const { reflectBase, reflectPerTier } = classConstants.paladin;
+      att.reflect = reflectBase + reflectPerTier * tiers15(att.base.cap);
     }
 
-    if (att.class === 'Healer' && att.cd.heal === 5) {
+    // Healer soin
+    if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
       const miss = att.maxHP - att.currentHP;
-      const heal = Math.max(1, Math.round(0.15 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
+      const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
-    if (att.class === 'Voleur' && att.cd.rog === 4) {
+    // Voleur esquive
+    if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
       att.dodge = true;
     }
 
-    const isMage = att.class === 'Mage' && att.cd.mag === 3;
-    const isWar = att.class === 'Guerrier' && att.cd.war === 3;
-    const isArcher = att.class === 'Archer' && att.cd.arc === 3;
+    const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
+    const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
+    const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
 
+    // Orc bonus dégâts
     let mult = 1.0;
-    if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
+    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+      mult = raceConstants.orc.damageBonus;
+    }
 
-    let hits = isArcher ? 2 + tiers15(att.base.cap) : 1;
+    // Archer flèches multiples
+    const { arrowsBase, arrowsPerTier } = classConstants.archer;
+    let hits = isArcher ? arrowsBase + arrowsPerTier * tiers15(att.base.cap) : 1;
 
     for (let i = 0; i < hits; i++) {
-      const isCrit = Math.random() < critChance(att, def);
+      const isCrit = Math.random() < calcCritChance(att);
       let raw = 0;
 
       if (isMage) {
-        const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
+        const { capBase, capPerTier } = classConstants.mage;
+        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap * mult);
         raw = dmgCap(atkSpell, def.base.rescap);
       } else if (isWar) {
-        const ignore = 0.12 + 0.02 * tiers15(att.base.cap);
+        const { ignoreBase, ignorePerTier } = classConstants.guerrier;
+        const ignore = ignoreBase + ignorePerTier * tiers15(att.base.cap);
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
@@ -201,11 +182,14 @@ const processTurn = (p1, p2) => {
       } else {
         raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
         if (att.race === 'Lycan') {
-          def.bleed_stacks = (def.bleed_stacks || 0) + 1;
+          def.bleed_stacks = (def.bleed_stacks || 0) + raceConstants.lycan.bleedPerHit;
         }
       }
 
-      if (isCrit) raw = Math.round(raw * 1.5);
+      // Crit multiplier (x1.5 pour tous)
+      if (isCrit) {
+        raw = Math.round(raw * generalConstants.critMultiplier);
+      }
 
       if (def.dodge) {
         def.dodge = false;
@@ -234,7 +218,7 @@ const simulateSingleCombat = () => {
   const p2 = generateCharacter('P2');
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
     processTurn(p1, p2);
     turn++;
   }
