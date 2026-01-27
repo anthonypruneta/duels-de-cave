@@ -354,8 +354,8 @@ const CharacterCreation = () => {
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800/90 border-2 border-amber-600 rounded-lg px-8 py-4 mb-3">
-              <h2 className="text-4xl font-bold text-stone-300">Mon Personnage</h2>
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3 mb-3">
+              <h2 className="text-4xl font-bold text-stone-200">Mon Personnage</h2>
             </div>
             <p className="text-stone-400">Votre héros est prêt pour le combat</p>
           </div>
@@ -424,8 +424,8 @@ const CharacterCreation = () => {
             </button>
           </div>
 
-          <div className="mt-6 bg-stone-800/40 border border-stone-600/40 rounded-lg px-6 py-3 max-w-lg mx-auto">
-            <p className="text-stone-400/80 text-sm text-center">
+          <div className="mt-6 bg-stone-800/50 border border-stone-600 px-6 py-3 max-w-lg mx-auto">
+            <p className="text-stone-400 text-sm text-center">
               ℹ️ Vous pourrez créer un nouveau personnage à partir du prochain lundi
             </p>
           </div>
