@@ -603,13 +603,13 @@ const Combat = () => {
     };
 
     return (
-      <div className="relative bg-gradient-to-br from-stone-200 to-stone-100 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-amber-700 z-10">
+      <div className="relative rounded-2xl shadow-2xl">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-amber-700 z-10">
           {character.race} • {character.class}
         </div>
-        <div className="border-2 border-amber-400 rounded-xl overflow-hidden">
-          <div className="h-96 relative border-4 border-amber-900 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center overflow-hidden">
-            <img src={characterImage} alt={character.name} className="w-full h-full object-cover" />
+        <div className="rounded-xl overflow-hidden">
+          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
+            <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
               <div className="text-white font-bold text-xl text-center">{character.name}</div>
             </div>
