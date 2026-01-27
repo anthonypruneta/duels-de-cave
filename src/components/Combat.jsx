@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
+import { getAllCharacters } from '../services/characterService';
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -17,12 +18,22 @@ const Tooltip = ({ children, content }) => {
 };
 
 const Combat = () => {
+  // États pour les personnages disponibles
+  const [availableCharacters, setAvailableCharacters] = useState([]);
+  const [loadingCharacters, setLoadingCharacters] = useState(true);
+
+  // États pour la sélection
+  const [selectedChar1, setSelectedChar1] = useState(null);
+  const [selectedChar2, setSelectedChar2] = useState(null);
+  const [phase, setPhase] = useState('selection'); // 'selection' ou 'combat'
+
+  // États pour le combat
   const [player1, setPlayer1] = useState(null);
   const [player2, setPlayer2] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
-  const [currentAction, setCurrentAction] = useState(null); // {player: 1|2, action: string}
+  const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
 
   const races = {
@@ -46,6 +57,19 @@ const Combat = () => {
     'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (15% +3%/15Cap) × Capacité en dégâts', icon: '💠' },
     'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts reçus accumulés', icon: '🩸' }
   };
+
+  // Charger les personnages depuis la BDD
+  useEffect(() => {
+    const loadCharacters = async () => {
+      setLoadingCharacters(true);
+      const result = await getAllCharacters();
+      if (result.success) {
+        setAvailableCharacters(result.data);
+      }
+      setLoadingCharacters(false);
+    };
+    loadCharacters();
+  }, []);
 
   // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   const getCalculatedDescription = (className, cap, auto) => {
@@ -195,93 +219,18 @@ const Combat = () => {
     }
   };
 
-  const genStats = () => {
-    const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
-    let rem = 35; // 35 points à distribuer équitablement
-
-    // Spike optionnel (30% chance) - ajoute de la variété sans dominer
-    const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
-    if (Math.random() < 0.3) {
-      const k = pool[Math.floor(Math.random() * pool.length)];
-      const spikeAmount = 5 + Math.floor(Math.random() * 6); // +5 à +10
-      const actual = Math.min(spikeAmount, 35 - s[k]);
-      s[k] += actual;
-      rem -= actual;
-    }
-
-    // Distribution équilibrée des points restants
-    let guard = 1000;
-    while (rem > 0 && guard-- > 0) {
-      // Poids égaux : HP a autant de chances que les autres stats
-      const entries = [['hp',2],['auto',2],['def',2],['cap',2],['rescap',2],['spd',2]];
-      const tot = entries.reduce((a,[,w]) => a + w, 0);
-      let r = Math.random() * tot;
-      let k = 'hp';
-      for (const [key, w] of entries) {
-        r -= w;
-        if (r <= 0) { k = key; break; }
-      }
-
-      // 1 point = +3 HP (max 200) ou +1 autre stat (max 35)
-      if (k === 'hp') {
-        if (s.hp + 3 <= 200) { s.hp += 3; rem--; }
-        // Si HP au max, on continue (pas de break)
-      } else {
-        if (s[k] + 1 <= 35) { s[k]++; rem--; }
-        // Si stat au max, on continue (pas de break)
-      }
-    }
-
-    return s;
-  };
-
-  const raceBonus = (race) => {
-    const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-    if (race==='Humain') {b.hp=10;b.auto=1;b.def=1;b.cap=1;b.rescap=1;b.spd=1;}
-    else if (race==='Nain') {b.hp=10;b.def=4;}
-    else if (race==='Dragonkin') {b.hp=10;b.rescap=15;}
-    else if (race==='Elfe') {b.auto=1;b.cap=1;b.spd=5;}
-    return b;
-  };
-
-  const classBonus = (clazz) => {
-    const b = {hp:0,auto:0,def:0,cap:0,rescap:0,spd:0};
-    if (clazz==='Voleur') b.spd=5;
-    if (clazz==='Guerrier') b.auto=2;
-    return b;
-  };
-
-  const generateCharacter = (name) => {
-    // Noms aléatoires
-    const names = [
-      'Thorin', 'Aria', 'Zephyr', 'Luna', 'Drake', 'Nova',
-      'Ragnar', 'Lyra', 'Orion', 'Sable', 'Raven', 'Phoenix',
-      'Atlas', 'Selene', 'Kael', 'Mira', 'Ash', 'Storm'
-    ];
-    const randomName = names[Math.floor(Math.random() * names.length)];
-
-    const raceKeys = Object.keys(races);
-    const classKeys = Object.keys(classes);
-    const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
-    const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
-    const raw = genStats();
-    const rB = raceBonus(race);
-    const cB = classBonus(charClass);
-    const base = {
-      hp: raw.hp+rB.hp+cB.hp,
-      auto: raw.auto+rB.auto+cB.auto,
-      def: raw.def+rB.def+cB.def,
-      cap: raw.cap+rB.cap+cB.cap,
-      rescap: raw.rescap+rB.rescap+cB.rescap,
-      spd: raw.spd+rB.spd+cB.spd
-    };
+  // Préparer un personnage pour le combat
+  const prepareForCombat = (char) => {
     return {
-      name: randomName, race, class: charClass, base,
-      bonuses: { race: rB, class: cB },
-      currentHP: base.hp, maxHP: base.hp,
+      ...char,
+      currentHP: char.base.hp,
+      maxHP: char.base.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
-      undead: false, dodge: false, reflect: false,
-      bleed_stacks: 0, maso_taken: 0
+      undead: false,
+      dodge: false,
+      reflect: false,
+      bleed_stacks: 0,
+      maso_taken: 0
     };
   };
 
@@ -305,13 +254,13 @@ const Combat = () => {
 
   const processPlayerAction = (att, def, log, isP1) => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
-      
+
       att.reflect = false;
       const cycle = { war: 3, rog: 4, pal: 2, heal: 5, arc: 3, mag: 3, dem: 1, maso: 4 };
       for (const k of Object.keys(cycle)) {
         att.cd[k] = (att.cd[k] % cycle[k]) + 1;
       }
-      
+
       const playerColor = isP1 ? '[P1]' : '[P2]';
 
       if (att.race === 'Sylvari') {
@@ -370,14 +319,14 @@ const Combat = () => {
         att.dodge = true;
         log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
       }
-      
+
       const isMage = att.class === 'Mage' && att.cd.mag === 3;
       const isWar = att.class === 'Guerrier' && att.cd.war === 3;
       const isArcher = att.class === 'Archer' && att.cd.arc === 3;
-      
+
       let mult = 1.0;
       if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
-      
+
       let hits = isArcher ? Math.max(2, 1 + tiers15(att.base.cap)) : 1;
       let total = 0;
       let wasCrit = false;
@@ -386,7 +335,7 @@ const Combat = () => {
         const isCrit = Math.random() < critChance(att, def);
         if (isCrit) wasCrit = true;
         let raw = 0;
-        
+
         if (isMage) {
           const atkSpell = Math.round(att.base.auto * mult + (0.40 + 0.05 * tiers15(att.base.cap)) * att.base.cap * mult);
           raw = dmgCap(atkSpell, def.base.rescap);
@@ -451,6 +400,20 @@ const Combat = () => {
       }
   };
 
+  // Lancer le combat avec les personnages sélectionnés
+  const startCombat = () => {
+    if (!selectedChar1 || !selectedChar2) return;
+
+    const p1 = prepareForCombat(selectedChar1);
+    const p2 = prepareForCombat(selectedChar2);
+
+    setPlayer1(p1);
+    setPlayer2(p2);
+    setPhase('combat');
+    setCombatLog([]);
+    setWinner(null);
+  };
+
   const simulateCombat = async () => {
     if (!player1 || !player2 || isSimulating) return;
     setIsSimulating(true);
@@ -465,8 +428,8 @@ const Combat = () => {
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    const p1 = { ...player1, currentHP: player1.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
-    const p2 = { ...player2, currentHP: player2.maxHP, cd: {war:0,rog:0,pal:0,heal:0,arc:0,mag:0,dem:0,maso:0}, undead: false, dodge: false, reflect: false, bleed_stacks: 0, maso_taken: 0 };
+    const p1 = prepareForCombat(selectedChar1);
+    const p2 = prepareForCombat(selectedChar2);
 
     const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
     setCombatLog(logs);
@@ -529,23 +492,87 @@ const Combat = () => {
     }
   };
 
-  const resetCombat = () => {
+  const backToSelection = () => {
     // Arrêter toutes les musiques
     const combatMusic = document.getElementById('combat-music');
     const victoryMusic = document.getElementById('victory-music');
     if (combatMusic) combatMusic.pause();
     if (victoryMusic) victoryMusic.pause();
 
-    setPlayer1(generateCharacter('SansNom'));
-    setPlayer2(generateCharacter('SansNom'));
+    setPhase('selection');
+    setPlayer1(null);
+    setPlayer2(null);
     setCombatLog([]);
     setWinner(null);
     setIsSimulating(false);
     setCurrentAction(null);
   };
 
-  useEffect(() => { resetCombat(); }, []);
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [combatLog]);
+
+  // Composant pour sélectionner un personnage
+  const CharacterSelector = ({ selectedChar, onSelect, otherSelectedId, label }) => {
+    return (
+      <div className="bg-stone-800/90 rounded-xl p-4 border-2 border-amber-600">
+        <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">{label}</h3>
+
+        {selectedChar ? (
+          <div className="text-center">
+            <div className="relative inline-block">
+              {selectedChar.characterImage ? (
+                <img
+                  src={selectedChar.characterImage}
+                  alt={selectedChar.name}
+                  className="w-32 h-40 object-cover rounded-lg border-2 border-amber-500 mx-auto"
+                />
+              ) : (
+                <div className="w-32 h-40 bg-stone-700 rounded-lg border-2 border-amber-500 flex items-center justify-center mx-auto">
+                  <span className="text-5xl">{races[selectedChar.race]?.icon || '❓'}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-white font-bold mt-2">{selectedChar.name}</p>
+            <p className="text-amber-300 text-sm">{selectedChar.race} • {selectedChar.class}</p>
+            <p className="text-gray-400 text-xs mt-1">HP: {selectedChar.base.hp} | VIT: {selectedChar.base.spd}</p>
+            <button
+              onClick={() => onSelect(null)}
+              className="mt-2 text-red-400 text-sm hover:text-red-300"
+            >
+              Changer
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {availableCharacters
+              .filter(char => char.id !== otherSelectedId)
+              .map(char => (
+                <div
+                  key={char.id}
+                  onClick={() => onSelect(char)}
+                  className="flex items-center gap-3 p-2 bg-stone-700/50 rounded-lg cursor-pointer hover:bg-stone-600/50 transition"
+                >
+                  {char.characterImage ? (
+                    <img src={char.characterImage} alt={char.name} className="w-12 h-14 object-cover rounded" />
+                  ) : (
+                    <div className="w-12 h-14 bg-stone-600 rounded flex items-center justify-center">
+                      <span className="text-2xl">{races[char.race]?.icon || '❓'}</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-white font-bold text-sm">{char.name}</p>
+                    <p className="text-amber-300 text-xs">{char.race} • {char.class}</p>
+                  </div>
+                  <div className="text-right text-xs text-gray-400">
+                    <p>HP: {char.base.hp}</p>
+                    <p>VIT: {char.base.spd}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const CharacterCard = ({ character, imageIndex }) => {
     if (!character) return null;
@@ -623,6 +650,63 @@ const Combat = () => {
     );
   };
 
+  // Phase de sélection
+  if (phase === 'selection') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+        <Header />
+        <div className="max-w-4xl mx-auto pt-20">
+          <h1 className="text-5xl font-bold text-center mb-4 text-amber-400">⚔️ Arène de Combat ⚔️</h1>
+          <p className="text-center text-amber-300 mb-8">Sélectionnez deux combattants pour le duel</p>
+
+          {loadingCharacters ? (
+            <div className="text-center text-amber-400 text-xl">Chargement des personnages...</div>
+          ) : availableCharacters.length < 2 ? (
+            <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
+              <p className="text-gray-400 text-xl mb-4">Il faut au moins 2 personnages pour combattre</p>
+              <p className="text-amber-300">Personnages disponibles: {availableCharacters.length}</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <CharacterSelector
+                  selectedChar={selectedChar1}
+                  onSelect={setSelectedChar1}
+                  otherSelectedId={selectedChar2?.id}
+                  label="Combattant 1"
+                />
+
+                <CharacterSelector
+                  selectedChar={selectedChar2}
+                  onSelect={setSelectedChar2}
+                  otherSelectedId={selectedChar1?.id}
+                  label="Combattant 2"
+                />
+              </div>
+
+              {selectedChar1 && selectedChar2 && (
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-4 mb-6">
+                    <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
+                    <span className="text-4xl text-amber-400">⚔️</span>
+                    <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
+                  </div>
+                  <button
+                    onClick={startCombat}
+                    className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-2xl border-2 border-amber-400 transition-all hover:scale-105"
+                  >
+                    ⚔️ Commencer le Combat ⚔️
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Phase de combat
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
       <Header />
@@ -634,16 +718,23 @@ const Combat = () => {
         <source src="/assets/music/victory.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">⚔️ Étape 3 — Combat ⚔️</h1>
+      <div className="max-w-[1800px] mx-auto pt-16">
+        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">⚔️ Combat ⚔️</h1>
 
         {/* Boutons de contrôle en haut */}
         <div className="flex justify-center gap-4 mb-8">
-          <button onClick={simulateCombat} disabled={isSimulating} className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-amber-400">
+          <button
+            onClick={simulateCombat}
+            disabled={isSimulating}
+            className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-amber-400"
+          >
             ▶️ Lancer le combat
           </button>
-          <button onClick={resetCombat} className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-600">
-            🔄 Recommencer
+          <button
+            onClick={backToSelection}
+            className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-600"
+          >
+            ← Changer de combattants
           </button>
         </div>
 
