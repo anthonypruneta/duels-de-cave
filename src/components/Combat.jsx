@@ -523,10 +523,10 @@ const Combat = () => {
                 <img
                   src={selectedChar.characterImage}
                   alt={selectedChar.name}
-                  className="w-32 h-40 object-cover rounded-lg border-2 border-amber-500 mx-auto"
+                  className="w-40 h-auto object-contain mx-auto"
                 />
               ) : (
-                <div className="w-32 h-40 bg-stone-700 rounded-lg border-2 border-amber-500 flex items-center justify-center mx-auto">
+                <div className="w-32 h-40 bg-stone-700 rounded-lg flex items-center justify-center mx-auto">
                   <span className="text-5xl">{races[selectedChar.race]?.icon || '❓'}</span>
                 </div>
               )}
@@ -552,7 +552,7 @@ const Combat = () => {
                   className="flex items-center gap-3 p-2 bg-stone-700/50 rounded-lg cursor-pointer hover:bg-stone-600/50 transition"
                 >
                   {char.characterImage ? (
-                    <img src={char.characterImage} alt={char.name} className="w-12 h-14 object-cover rounded" />
+                    <img src={char.characterImage} alt={char.name} className="w-12 h-auto object-contain" />
                   ) : (
                     <div className="w-12 h-14 bg-stone-600 rounded flex items-center justify-center">
                       <span className="text-2xl">{races[char.race]?.icon || '❓'}</span>
@@ -610,9 +610,6 @@ const Combat = () => {
         <div className="rounded-xl overflow-hidden">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
             <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 rounded-lg p-3 border border-amber-600">
-              <div className="text-white font-bold text-xl text-center">{character.name}</div>
-            </div>
           </div>
           <div className="bg-stone-800/95 p-4">
             <div className="mb-3">
