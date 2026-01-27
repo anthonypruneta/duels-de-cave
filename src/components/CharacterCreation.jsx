@@ -336,7 +336,7 @@ const CharacterCreation = () => {
   // Chargement
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Header />
         <div className="text-amber-400 text-2xl">Chargement...</div>
       </div>
@@ -348,7 +348,7 @@ const CharacterCreation = () => {
     const totalBonus = (k) => (existingCharacter.bonuses.race[k]||0) + (existingCharacter.bonuses.class[k]||0);
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+      <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="text-center mb-8">
@@ -436,7 +436,7 @@ const CharacterCreation = () => {
   // Message si l'utilisateur ne peut pas créer de personnage (< 7 jours)
   if (!canCreate) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6">
         <Header />
         <div className="max-w-2xl w-full text-center">
           <div className="text-6xl mb-6">⏳</div>
@@ -460,7 +460,7 @@ const CharacterCreation = () => {
   // Formulaire de création - Étape 1: Roll Race/Classe
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6">
         <Header />
         <div className="max-w-4xl w-full pt-20">
           <div className="text-center mb-8">
@@ -612,7 +612,7 @@ const CharacterCreation = () => {
 
   // Formulaire de création - Étape 2: Nom/Sexe/Mot-clé
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       <Header />
       <div className="max-w-4xl w-full pt-20">
         <div className="text-center mb-8">
