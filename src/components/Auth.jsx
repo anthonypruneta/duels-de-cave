@@ -66,10 +66,12 @@ function Auth() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-stone-800/90 backdrop-blur-sm border-2 border-amber-600 rounded-lg p-8 w-full max-w-md shadow-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-400 mb-2">⚔️ Duels de Cave</h1>
-          <p className="text-stone-300">
-            {isLogin ? 'Connecte-toi pour continuer' : 'Crée ton compte'}
-          </p>
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl">
+            <h1 className="text-4xl font-bold text-amber-400 mb-2">⚔️ Duels de Cave</h1>
+            <p className="text-stone-300">
+              {isLogin ? 'Connecte-toi pour continuer' : 'Crée ton compte'}
+            </p>
+          </div>
         </div>
 
         {error && (

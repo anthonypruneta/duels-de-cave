@@ -1,26 +1,7 @@
 // Script de simulation pour tester l'équilibrage du jeu
 
-const races = {
-  'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-  'Elfe': { bonus: 'Si plus rapide: +15% crit (+5 VIT)', icon: '🧝' },
-  'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
-  'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-  'Dragonkin': { bonus: '+10 PV & +10 ResC', icon: '🐲' },
-  'Mort-vivant': { bonus: 'Revient à 20% PV (1x)', icon: '☠️' },
-  'Lycan': { bonus: 'Auto = Saignement +1 stack', icon: '🐺' },
-  'Sylvari': { bonus: 'Regen 3% PV/tour', icon: '🌿' }
-};
-
-const classes = {
-  'Guerrier': { ability: 'Frappe pénétrante', icon: '🗡️' },
-  'Voleur': { ability: 'Esquive + Crit', icon: '🌀' },
-  'Paladin': { ability: 'Renvoie 30%+ dégâts', icon: '🛡️' },
-  'Healer': { ability: 'Soin puissant', icon: '✚' },
-  'Archer': { ability: 'Volée 2+ flèches', icon: '🏹' },
-  'Mage': { ability: 'Sort magique', icon: '🔮' },
-  'Demoniste': { ability: 'Familier', icon: '💠' },
-  'Masochiste': { ability: 'Renvoie dégâts', icon: '🩸' }
-};
+import { races } from '../data/races';
+import { classes } from '../data/classes';
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };

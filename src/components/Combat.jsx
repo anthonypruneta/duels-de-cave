@@ -3,7 +3,9 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
 import { getAllCharacters } from '../services/characterService';
-import { races, classes } from '../data/gameData';
+import { races } from '../data/races';
+import { classes } from '../data/classes';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -43,7 +45,7 @@ const Combat = () => {
       setLoadingCharacters(true);
       const result = await getAllCharacters();
       if (result.success) {
-        setAvailableCharacters(result.data);
+        setAvailableCharacters(result.data.map(normalizeCharacterBonuses));
       }
       setLoadingCharacters(false);
     };
@@ -121,7 +123,7 @@ const Combat = () => {
         );
 
       case 'Archer':
-        const arrowsBase = 2;
+        const arrowsBase = 1;
         const arrowsBonus = paliers;
         const arrowsTotal = arrowsBase + arrowsBonus;
         return (
@@ -290,7 +292,7 @@ const Combat = () => {
         log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
 
-      if (att.class === 'Healer' && att.cd.heal === 5) {
+      if (att.class === 'Healer' && att.cd.heal === 4) {
         const miss = att.maxHP - att.currentHP;
         const heal = Math.max(1, Math.round(0.15 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -309,7 +311,7 @@ const Combat = () => {
       let mult = 1.0;
       if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
 
-      let hits = isArcher ? 2 + tiers15(att.base.cap) : 1;
+      let hits = isArcher ? 1 + tiers15(att.base.cap) : 1;
       let total = 0;
       let wasCrit = false;
 
