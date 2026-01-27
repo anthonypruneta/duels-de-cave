@@ -378,30 +378,31 @@ const CharacterCreation = () => {
           </div>
 
           <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
-            <div className="bg-gradient-to-br from-amber-100 via-stone-100 to-amber-50 rounded-2xl p-2 shadow-2xl border-4 border-amber-600">
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1 rounded-full text-xs font-bold shadow-lg border-2 border-amber-700 z-10">
+            <div className="shadow-2xl">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
                 {existingCharacter.race} • {existingCharacter.class}
               </div>
-              <div className="border-2 border-amber-400 rounded-xl p-1 bg-white">
-                <div className="border border-amber-700 rounded-lg overflow-hidden">
-                  <div className="h-96 relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center border-b-2 border-amber-700">
-                    {existingCharacter.characterImage ? (
-                      <img
-                        src={existingCharacter.characterImage}
-                        alt={existingCharacter.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
+              <div className="overflow-hidden">
+                <div className="relative bg-stone-900 flex items-center justify-center">
+                  {existingCharacter.characterImage ? (
+                    <img
+                      src={existingCharacter.characterImage}
+                      alt={existingCharacter.name}
+                      className="w-full h-auto object-contain"
+                    />
+                  ) : (
+                    <div className="h-96 w-full flex items-center justify-center">
                       <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
-                    )}
-                    <div className="absolute bottom-3 left-3 right-3 bg-black/70 rounded-lg p-3 border border-amber-600">
-                      <div className="text-white font-bold text-lg text-center">{existingCharacter.name}</div>
-                      <div className="text-xs text-amber-300 text-center mt-1">
-                        {existingCharacter.gender==='male'?'homme':'femme'} • {existingCharacter.race}/{existingCharacter.class}
-                      </div>
+                    </div>
+                  )}
+                  <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
+                    <div className="text-white font-bold text-lg text-center">{existingCharacter.name}</div>
+                    <div className="text-xs text-stone-400 text-center mt-1">
+                      {existingCharacter.gender==='male'?'homme':'femme'} • {existingCharacter.race}/{existingCharacter.class}
                     </div>
                   </div>
-                  <div className="bg-stone-800 p-3">
+                </div>
+                <div className="bg-stone-800 p-3">
                     <div className="flex justify-between text-xs text-white mb-2 font-bold">
                       <div>HP : {existingCharacter.base.hp}{totalBonus('hp')>0&&<span className="text-green-400 ml-1">(+{totalBonus('hp')})</span>}</div>
                       <div>VIT : {existingCharacter.base.spd}{totalBonus('spd')>0&&<span className="text-green-400 ml-1">(+{totalBonus('spd')})</span>}</div>
@@ -418,18 +419,18 @@ const CharacterCreation = () => {
             </div>
 
             <div className="mt-4 space-y-2 text-sm">
-              <div className="flex items-start gap-2 bg-stone-800/90 rounded-lg p-3 border border-amber-600">
+              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
                 <span className="text-2xl">{races[existingCharacter.race].icon}</span>
                 <div>
-                  <div className="text-amber-400 font-bold mb-1">Race: {existingCharacter.race}</div>
-                  <div className="text-gray-300 text-xs">{races[existingCharacter.race].bonus}</div>
+                  <div className="text-amber-200 font-bold mb-1">Race: {existingCharacter.race}</div>
+                  <div className="text-stone-400 text-xs">{races[existingCharacter.race].bonus}</div>
                 </div>
               </div>
-              <div className="flex items-start gap-2 bg-stone-800/90 rounded-lg p-3 border border-amber-600">
+              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
                 <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
                 <div>
-                  <div className="text-amber-400 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
-                  <div className="text-gray-300 text-xs">{getCalculatedDescription(existingCharacter.class, existingCharacter.base.cap, existingCharacter.base.auto)}</div>
+                  <div className="text-amber-200 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
+                  <div className="text-stone-400 text-xs">{getCalculatedDescription(existingCharacter.class, existingCharacter.base.cap, existingCharacter.base.auto)}</div>
                 </div>
               </div>
             </div>
@@ -438,13 +439,13 @@ const CharacterCreation = () => {
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => navigate('/combat')}
-              className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-12 py-4 rounded-xl font-bold text-xl shadow-2xl border-4 border-amber-400 hover:scale-105 transition-all"
+              className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
             >
               ⚔️ Aller au Combat ⚔️
             </button>
           </div>
 
-          <div className="mt-6 bg-stone-800/50 rounded-lg p-4 border border-stone-700 max-w-md mx-auto">
+          <div className="mt-6 bg-stone-800/50 p-4 border border-stone-600 max-w-md mx-auto">
             <p className="text-stone-400 text-xs text-center">
               ℹ️ Vous pourrez créer un nouveau personnage à partir du prochain lundi
             </p>

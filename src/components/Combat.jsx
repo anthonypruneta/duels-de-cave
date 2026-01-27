@@ -513,8 +513,8 @@ const Combat = () => {
   // Composant pour sélectionner un personnage
   const CharacterSelector = ({ selectedChar, onSelect, otherSelectedId, label }) => {
     return (
-      <div className="bg-stone-800/90 rounded-xl p-4 border-2 border-amber-600">
-        <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">{label}</h3>
+      <div className="bg-stone-800/90 p-4 border border-stone-600">
+        <h3 className="text-xl font-bold text-stone-200 mb-4 text-center">{label}</h3>
 
         {selectedChar ? (
           <div className="text-center">
@@ -526,17 +526,17 @@ const Combat = () => {
                   className="w-40 h-auto object-contain mx-auto"
                 />
               ) : (
-                <div className="w-32 h-40 bg-stone-700 rounded-lg flex items-center justify-center mx-auto">
+                <div className="w-32 h-40 bg-stone-700 flex items-center justify-center mx-auto border border-stone-500">
                   <span className="text-5xl">{races[selectedChar.race]?.icon || '❓'}</span>
                 </div>
               )}
             </div>
             <p className="text-white font-bold mt-2">{selectedChar.name}</p>
-            <p className="text-amber-300 text-sm">{selectedChar.race} • {selectedChar.class}</p>
-            <p className="text-gray-400 text-xs mt-1">HP: {selectedChar.base.hp} | VIT: {selectedChar.base.spd}</p>
+            <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
+            <p className="text-stone-500 text-xs mt-1">HP: {selectedChar.base.hp} | VIT: {selectedChar.base.spd}</p>
             <button
               onClick={() => onSelect(null)}
-              className="mt-2 text-red-400 text-sm hover:text-red-300"
+              className="mt-2 text-stone-400 text-sm hover:text-white border border-stone-600 px-3 py-1 hover:border-stone-400 transition-all"
             >
               Changer
             </button>
@@ -603,41 +603,44 @@ const Combat = () => {
     };
 
     return (
-      <div className="relative rounded-2xl shadow-2xl">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white px-5 py-1.5 rounded-full text-sm font-bold shadow-lg border-2 border-amber-700 z-10">
+      <div className="relative shadow-2xl">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
           {character.race} • {character.class}
         </div>
-        <div className="rounded-xl overflow-hidden">
+        <div className="overflow-hidden">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
             <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
+            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
+              <div className="text-white font-bold text-xl text-center">{character.name}</div>
+            </div>
           </div>
-          <div className="bg-stone-800/95 p-4">
+          <div className="bg-stone-800 p-4 border-t border-stone-600">
             <div className="mb-3">
               <div className="flex justify-between text-sm text-white mb-2">
                 <StatWithTooltip statKey="hp" label="HP" />
                 <StatWithTooltip statKey="spd" label="VIT" />
               </div>
-              <div className="text-xs text-amber-300 mb-2">{character.name} — PV {character.currentHP}/{character.maxHP}</div>
-              <div className="bg-stone-900 rounded-full h-3 overflow-hidden border border-amber-600">
+              <div className="text-xs text-stone-400 mb-2">{character.name} — PV {character.currentHP}/{character.maxHP}</div>
+              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-gray-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-              <div className="text-gray-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-              <div className="text-gray-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-              <div className="text-gray-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-start gap-2 bg-stone-700/50 rounded p-2 text-xs">
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
-                <span className="text-amber-400">{races[character.race].bonus}</span>
+                <span className="text-stone-300">{races[character.race].bonus}</span>
               </div>
-              <div className="flex items-start gap-2 bg-stone-700/50 rounded p-2 text-xs">
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
-                  <div className="text-amber-400 font-semibold mb-1">{classes[character.class].ability}</div>
-                  <div className="text-gray-400 text-[10px]">{getCalculatedDescription(character.class, character.base.cap, character.base.auto)}</div>
+                  <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, character.base.cap, character.base.auto)}</div>
                 </div>
               </div>
             </div>
@@ -653,15 +656,15 @@ const Combat = () => {
       <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
-          <h1 className="text-5xl font-bold text-center mb-4 text-amber-400">⚔️ Arène de Combat ⚔️</h1>
-          <p className="text-center text-amber-300 mb-8">Sélectionnez deux combattants pour le duel</p>
+          <h1 className="text-5xl font-bold text-center mb-4 text-stone-100">⚔️ Arène de Combat ⚔️</h1>
+          <p className="text-center text-stone-400 mb-8">Sélectionnez deux combattants pour le duel</p>
 
           {loadingCharacters ? (
-            <div className="text-center text-amber-400 text-xl">Chargement des personnages...</div>
+            <div className="text-center text-stone-300 text-xl">Chargement des personnages...</div>
           ) : availableCharacters.length < 2 ? (
-            <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
-              <p className="text-gray-400 text-xl mb-4">Il faut au moins 2 personnages pour combattre</p>
-              <p className="text-amber-300">Personnages disponibles: {availableCharacters.length}</p>
+            <div className="bg-stone-800/50 p-8 border border-stone-600 text-center">
+              <p className="text-stone-400 text-xl mb-4">Il faut au moins 2 personnages pour combattre</p>
+              <p className="text-stone-300">Personnages disponibles: {availableCharacters.length}</p>
             </div>
           ) : (
             <>
@@ -685,12 +688,12 @@ const Combat = () => {
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-4 mb-6">
                     <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
-                    <span className="text-4xl text-amber-400">⚔️</span>
+                    <span className="text-4xl text-stone-400">⚔️</span>
                     <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
                   </div>
                   <button
                     onClick={startCombat}
-                    className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-2xl border-2 border-amber-400 transition-all hover:scale-105"
+                    className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
                   >
                     ⚔️ Commencer le Combat ⚔️
                   </button>
@@ -716,20 +719,20 @@ const Combat = () => {
       </audio>
 
       <div className="max-w-[1800px] mx-auto pt-16">
-        <h1 className="text-5xl font-bold text-center mb-8 text-amber-400">⚔️ Combat ⚔️</h1>
+        <h1 className="text-5xl font-bold text-center mb-8 text-stone-100">⚔️ Combat ⚔️</h1>
 
         {/* Boutons de contrôle en haut */}
         <div className="flex justify-center gap-4 mb-8">
           <button
             onClick={simulateCombat}
             disabled={isSimulating}
-            className="bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-amber-400"
+            className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-10 py-4 font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-400"
           >
             ▶️ Lancer le combat
           </button>
           <button
             onClick={backToSelection}
-            className="bg-gradient-to-r from-stone-700 to-stone-800 hover:from-stone-800 hover:to-stone-900 text-white px-10 py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-stone-600"
+            className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-10 py-4 font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg border border-stone-500"
           >
             ← Changer de combattants
           </button>
@@ -738,7 +741,7 @@ const Combat = () => {
         {/* VS et Winner */}
         {winner && (
           <div className="flex justify-center mb-8">
-            <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-12 py-5 rounded-xl font-bold text-3xl animate-pulse shadow-2xl border-4 border-yellow-400">
+            <div className="bg-stone-100 text-stone-900 px-12 py-5 font-bold text-3xl animate-pulse shadow-2xl border-2 border-stone-400">
               🏆 {winner} remporte le combat! 🏆
             </div>
           </div>
@@ -753,13 +756,13 @@ const Combat = () => {
 
           {/* Zone de chat messenger - Centre */}
           <div className="flex-shrink-0" style={{width: '600px'}}>
-            <div className="bg-stone-800 rounded-lg border-4 border-amber-700 shadow-2xl h-[700px] flex flex-col">
-              <div className="bg-stone-900 p-3 border-b-2 border-amber-700 rounded-t-lg">
-                <h2 className="text-2xl font-bold text-amber-400 text-center">⚔️ Combat en direct</h2>
+            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl h-[700px] flex flex-col">
+              <div className="bg-stone-900 p-3 border-b border-stone-600">
+                <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {combatLog.length === 0 ? (
-                  <p className="text-gray-400 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                  <p className="text-stone-500 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
                 ) : (
                   <>
                     {combatLog.map((log, idx) => {
@@ -772,7 +775,7 @@ const Combat = () => {
                         if (log.includes('🏆')) {
                           return (
                             <div key={idx} className="flex justify-center my-4">
-                              <div className="bg-gradient-to-r from-yellow-500 to-amber-600 text-stone-900 px-6 py-3 rounded-xl font-bold text-lg shadow-lg">
+                              <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
                                 {cleanLog}
                               </div>
                             </div>
@@ -781,7 +784,7 @@ const Combat = () => {
                         if (log.includes('---')) {
                           return (
                             <div key={idx} className="flex justify-center my-3">
-                              <div className="bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-bold">
+                              <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
                                 {cleanLog}
                               </div>
                             </div>
@@ -789,19 +792,19 @@ const Combat = () => {
                         }
                         return (
                           <div key={idx} className="flex justify-center">
-                            <div className="text-amber-300 text-sm italic">
+                            <div className="text-stone-400 text-sm italic">
                               {cleanLog}
                             </div>
                           </div>
                         );
                       }
 
-                      // Messages du Joueur 1 (gauche, bleu)
+                      // Messages du Joueur 1 (gauche)
                       if (isP1) {
                         return (
                           <div key={idx} className="flex justify-start">
                             <div className="max-w-[70%]">
-                              <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tl-sm shadow-lg">
+                              <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
                                 <div className="font-mono text-sm">{cleanLog}</div>
                               </div>
                             </div>
@@ -809,12 +812,12 @@ const Combat = () => {
                         );
                       }
 
-                      // Messages du Joueur 2 (droite, rouge)
+                      // Messages du Joueur 2 (droite)
                       if (isP2) {
                         return (
                           <div key={idx} className="flex justify-end">
                             <div className="max-w-[70%]">
-                              <div className="bg-red-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm shadow-lg">
+                              <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-red-500">
                                 <div className="font-mono text-sm">{cleanLog}</div>
                               </div>
                             </div>
