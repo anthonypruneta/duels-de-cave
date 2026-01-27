@@ -7,7 +7,7 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-amber-400 text-2xl">Chargement...</div>
       </div>
     );

@@ -296,7 +296,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Header />
         <div className="text-amber-400 text-2xl">Chargement...</div>
       </div>
@@ -305,7 +305,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6">
         <Header />
         <div className="bg-red-900/50 border-2 border-red-500 rounded-lg p-6 max-w-md">
           <p className="text-red-300 text-center">Erreur: {error}</p>
@@ -315,7 +315,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-900 via-stone-800 to-stone-900 p-6">
+    <div className="min-h-screen p-6">
       <Header />
       <div className="max-w-7xl mx-auto pt-20">
         <div className="text-center mb-8">

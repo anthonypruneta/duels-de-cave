@@ -137,7 +137,6 @@ const processTurn = (p1, p2) => {
     }
 
     if (att.class === 'Masochiste') {
-      att.cd.maso = (att.cd.maso % 4) + 1;
       if (att.cd.maso === 4 && att.maso_taken > 0) {
         const t = tiers15(att.base.cap);
         const dmg = Math.max(1, Math.round(att.maso_taken * (0.15 + 0.03 * t)));
@@ -181,7 +180,7 @@ const processTurn = (p1, p2) => {
     let mult = 1.0;
     if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
 
-    let hits = isArcher ? Math.max(2, 1 + tiers15(att.base.cap)) : 1;
+    let hits = isArcher ? 2 + tiers15(att.base.cap) : 1;
 
     for (let i = 0; i < hits; i++) {
       const isCrit = Math.random() < critChance(att, def);
