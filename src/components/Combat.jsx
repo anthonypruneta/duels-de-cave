@@ -121,7 +121,7 @@ const Combat = () => {
         );
 
       case 'Archer':
-        const arrowsBase = 2;
+        const arrowsBase = 1;
         const arrowsBonus = paliers;
         const arrowsTotal = arrowsBase + arrowsBonus;
         return (
@@ -309,7 +309,7 @@ const Combat = () => {
       let mult = 1.0;
       if (att.race === 'Orc' && att.currentHP < 0.5 * att.maxHP) mult = 1.2;
 
-      let hits = isArcher ? 2 + tiers15(att.base.cap) : 1;
+      let hits = isArcher ? 1 + tiers15(att.base.cap) : 1;
       let total = 0;
       let wasCrit = false;
 
