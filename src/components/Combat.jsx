@@ -3,7 +3,9 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
 import { getAllCharacters } from '../services/characterService';
-import { races, classes } from '../data/gameData';
+import { races } from '../data/races';
+import { classes } from '../data/classes';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -43,7 +45,7 @@ const Combat = () => {
       setLoadingCharacters(true);
       const result = await getAllCharacters();
       if (result.success) {
-        setAvailableCharacters(result.data);
+        setAvailableCharacters(result.data.map(normalizeCharacterBonuses));
       }
       setLoadingCharacters(false);
     };
