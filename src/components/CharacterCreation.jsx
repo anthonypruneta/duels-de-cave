@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter } from '../services/characterService';
 import Header from './Header';
-import { races, classes } from '../data/gameData';
+import { races } from '../data/races';
+import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 
 // Composant Tooltip réutilisable
