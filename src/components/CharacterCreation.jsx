@@ -416,7 +416,6 @@ const CharacterCreation = () => {
                   </div>
                 </div>
               </div>
-            </div>
 
             <div className="mt-4 space-y-2 text-sm">
               <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
