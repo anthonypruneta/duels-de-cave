@@ -380,9 +380,6 @@ const CharacterCreation = () => {
                   )}
                   <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
                     <div className="text-white font-bold text-lg text-center">{existingCharacter.name}</div>
-                    <div className="text-xs text-stone-400 text-center mt-1">
-                      {existingCharacter.gender==='male'?'homme':'femme'} • {existingCharacter.race}/{existingCharacter.class}
-                    </div>
                   </div>
                 </div>
                 <div className="bg-stone-800 p-3">
@@ -427,8 +424,8 @@ const CharacterCreation = () => {
             </button>
           </div>
 
-          <div className="mt-6 bg-stone-800/30 p-4 border border-stone-600/50 max-w-md mx-auto">
-            <p className="text-stone-400 text-xs text-center">
+          <div className="mt-6 bg-stone-900/80 p-4 border border-amber-500/60 rounded-lg shadow-lg max-w-md mx-auto">
+            <p className="text-stone-200 text-sm text-center">
               ℹ️ Vous pourrez créer un nouveau personnage à partir du prochain lundi
             </p>
           </div>
