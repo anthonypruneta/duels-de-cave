@@ -3,6 +3,7 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
 import { getAllCharacters } from '../services/characterService';
+import { races, classes } from '../data/gameData';
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -35,28 +36,6 @@ const Combat = () => {
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-
-  const races = {
-    'Humain': { bonus: '+10 PV & +2 toutes stats', icon: '👥' },
-    'Elfe': { bonus: '+15% crit permanent (+5 VIT)', icon: '🧝' },
-    'Orc': { bonus: 'Sous 50% PV: +20% dégâts', icon: '🪓' },
-    'Nain': { bonus: '+10 PV & +5 Déf', icon: '⛏️' },
-    'Dragonkin': { bonus: '+10 PV & +15 ResC', icon: '🐲' },
-    'Mort-vivant': { bonus: 'Revient à 25% PV (1x)', icon: '☠️' },
-    'Lycan': { bonus: 'Auto = Saignement (0.5/stack)', icon: '🐺' },
-    'Sylvari': { bonus: 'Regen 2% PV/tour', icon: '🌿' }
-  };
-
-  const classes = {
-    'Guerrier': { ability: 'Frappe pénétrante (CD: 3 tours)', description: '+3 Auto | Frappe résistance faible & ignore 8% +2%/15Cap', icon: '🗡️' },
-    'Voleur': { ability: 'Esquive (CD: 2 tours)', description: '+5 VIT | Esquive 1 coup | +15% crit/palier 15Cap | Crit x2', icon: '🌀' },
-    'Paladin': { ability: 'Riposte (Chaque tour)', description: 'Renvoie 70% +12%/15Cap des dégâts reçus', icon: '🛡️' },
-    'Healer': { ability: 'Soin puissant (CD: 2 tours)', description: 'Heal 15% PV manquants + (25% +5%/15Cap) × Capacité', icon: '✚' },
-    'Archer': { ability: 'Tir multiple (CD: 3 tours)', description: '2 tirs à Cap15, +1 tir par palier 15Cap', icon: '🏹' },
-    'Mage': { ability: 'Sort magique (CD: 3 tours)', description: 'Dégâts = Auto + (40% +5%/15Cap) × Capacité (vs ResC)', icon: '🔮' },
-    'Demoniste': { ability: 'Familier (Passif)', description: 'Chaque tour: (15% +3%/15Cap) × Capacité en dégâts', icon: '💠' },
-    'Masochiste': { ability: 'Renvoi dégâts (CD: 4 tours)', description: 'Renvoie (60% +12%/15Cap) des dégâts accumulés & heal 10%', icon: '🩸' }
-  };
 
   // Charger les personnages depuis la BDD
   useEffect(() => {
@@ -670,11 +649,11 @@ const Combat = () => {
     };
 
     return (
-      <div className="relative shadow-2xl">
+      <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
           {character.race} • {character.class}
         </div>
-        <div className="overflow-hidden">
+        <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
             <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
