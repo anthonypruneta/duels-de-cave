@@ -290,7 +290,7 @@ const Combat = () => {
         log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
 
-      if (att.class === 'Healer' && att.cd.heal === 5) {
+      if (att.class === 'Healer' && att.cd.heal === 4) {
         const miss = att.maxHP - att.currentHP;
         const heal = Math.max(1, Math.round(0.15 * miss + (0.25 + 0.05 * tiers15(att.base.cap)) * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
