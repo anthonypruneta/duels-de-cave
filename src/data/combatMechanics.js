@@ -61,7 +61,7 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 10, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1 },
+  lycan: { bleedPerHit: 1, bleedDivisor: 3 },
   sylvari: { regenPercent: 0.02 }
 };
 
