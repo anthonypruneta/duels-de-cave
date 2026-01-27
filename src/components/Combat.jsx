@@ -438,7 +438,7 @@ const Combat = () => {
     while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= 30) {
       logs.push(`--- Début du tour ${turn} ---`);
       setCombatLog([...logs]);
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 800));
 
       // Déterminer qui attaque en premier selon la vitesse
       const first = p1.base.spd >= p2.base.spd ? p1 : p2;
@@ -455,7 +455,7 @@ const Combat = () => {
       setCombatLog([...logs]);
       setPlayer1({...p1});
       setPlayer2({...p2});
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 2000));
       setCurrentAction(null);
 
       // Si le combat n'est pas fini, action du deuxième joueur
@@ -469,7 +469,7 @@ const Combat = () => {
         setCombatLog([...logs]);
         setPlayer1({...p1});
         setPlayer2({...p2});
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 2000));
         setCurrentAction(null);
       }
 
@@ -509,6 +509,69 @@ const Combat = () => {
   };
 
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [combatLog]);
+
+  // Fonction pour formater le texte du log avec les couleurs
+  const formatLogMessage = (text, isP1) => {
+    if (!player1 || !player2) return text;
+
+    const p1Name = player1.name;
+    const p2Name = player2.name;
+
+    // Regex pour trouver les nombres de dégâts/soins
+    const parts = [];
+    let remaining = text;
+    let key = 0;
+
+    // Fonction pour ajouter du texte avec mise en forme
+    const processText = (str) => {
+      const result = [];
+      let current = str;
+
+      // Remplacer les noms des joueurs
+      const nameRegex = new RegExp(`(${p1Name}|${p2Name})`, 'g');
+      const nameParts = current.split(nameRegex);
+
+      nameParts.forEach((part, i) => {
+        if (part === p1Name) {
+          result.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        } else if (part === p2Name) {
+          result.push(<span key={`name-${key++}`} className="font-bold text-purple-400">{part}</span>);
+        } else if (part) {
+          // Chercher les nombres de dégâts/soins dans cette partie
+          const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+          let lastIndex = 0;
+          let match;
+          const subParts = [];
+
+          while ((match = numRegex.exec(part)) !== null) {
+            // Texte avant le nombre
+            if (match.index > lastIndex) {
+              subParts.push(part.slice(lastIndex, match.index));
+            }
+            // Le nombre avec style
+            const isHeal = match[2].toLowerCase().includes('vie');
+            const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
+            subParts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
+            subParts.push(` ${match[2]}`);
+            lastIndex = match.index + match[0].length;
+          }
+
+          // Texte restant
+          if (lastIndex < part.length) {
+            subParts.push(part.slice(lastIndex));
+          }
+
+          if (subParts.length > 0) {
+            result.push(...subParts);
+          }
+        }
+      });
+
+      return result;
+    };
+
+    return processText(text);
+  };
 
   // Composant pour sélectionner un personnage
   const CharacterSelector = ({ selectedChar, onSelect, otherSelectedId, label }) => {
@@ -803,9 +866,9 @@ const Combat = () => {
                       if (isP1) {
                         return (
                           <div key={idx} className="flex justify-start">
-                            <div className="max-w-[70%]">
+                            <div className="max-w-[80%]">
                               <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
-                                <div className="font-mono text-sm">{cleanLog}</div>
+                                <div className="text-sm">{formatLogMessage(cleanLog, true)}</div>
                               </div>
                             </div>
                           </div>
@@ -816,9 +879,9 @@ const Combat = () => {
                       if (isP2) {
                         return (
                           <div key={idx} className="flex justify-end">
-                            <div className="max-w-[70%]">
-                              <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-red-500">
-                                <div className="font-mono text-sm">{cleanLog}</div>
+                            <div className="max-w-[80%]">
+                              <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500">
+                                <div className="text-sm">{formatLogMessage(cleanLog, false)}</div>
                               </div>
                             </div>
                           </div>
