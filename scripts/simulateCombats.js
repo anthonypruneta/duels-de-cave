@@ -128,8 +128,9 @@ const processTurn = (p1, p2) => {
     if (att.class === 'Demoniste') {
       const t = tiers15(att.base.cap);
       const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
-      // Le familier ignore la résistance magique
-      def.currentHP -= hit;
+      // Le familier ignore 60% de la résistance magique
+      const raw = dmgCap(hit, def.base.rescap * 0.4);
+      def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def);
       }

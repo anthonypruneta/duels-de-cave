@@ -272,9 +272,10 @@ const Combat = () => {
       if (att.class === 'Demoniste') {
         const t = tiers15(att.base.cap);
         const hit = Math.max(1, Math.round((0.20 + 0.04 * t) * att.base.cap));
-        // Le familier ignore la résistance magique
-        def.currentHP -= hit;
-        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${hit} points de dégâts`);
+        // Le familier ignore 60% de la résistance magique
+        const raw = dmgCap(hit, def.base.rescap * 0.4);
+        def.currentHP -= raw;
+        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
