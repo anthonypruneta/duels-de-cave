@@ -703,8 +703,12 @@ const Combat = () => {
       <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
-          <h1 className="text-5xl font-bold text-center mb-4 text-stone-300">⚔️ Arène de Combat ⚔️</h1>
-          <p className="text-center text-stone-400 mb-8">Sélectionnez deux combattants pour le duel</p>
+          <div className="text-center mb-8">
+            <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+              <h1 className="text-5xl font-bold text-center mb-4 text-stone-300">⚔️ Arène de Combat ⚔️</h1>
+              <p className="text-center text-stone-400">Sélectionnez deux combattants pour le duel</p>
+            </div>
+          </div>
 
           {loadingCharacters ? (
             <div className="text-center text-stone-300 text-xl">Chargement des personnages...</div>
@@ -766,7 +770,11 @@ const Combat = () => {
       </audio>
 
       <div className="max-w-[1800px] mx-auto pt-16">
-        <h1 className="text-5xl font-bold text-center mb-8 text-stone-300">⚔️ Combat ⚔️</h1>
+        <div className="text-center mb-8">
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+            <h1 className="text-5xl font-bold text-center text-stone-300">⚔️ Combat ⚔️</h1>
+          </div>
+        </div>
 
         {/* Layout principal: Perso 1 | Chat | Perso 2 */}
         <div className="flex gap-4 items-start justify-center">

@@ -354,8 +354,10 @@ const CharacterCreation = () => {
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="text-center mb-8">
-            <h2 className="text-5xl font-bold mb-4 text-stone-300">Mon Personnage</h2>
-            <p className="text-stone-400 text-lg">Votre héros est prêt pour le combat</p>
+            <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+              <h2 className="text-5xl font-bold mb-4 text-stone-300">Mon Personnage</h2>
+              <p className="text-stone-400 text-lg">Votre héros est prêt pour le combat</p>
+            </div>
           </div>
 
           <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
@@ -442,7 +444,9 @@ const CharacterCreation = () => {
         <Header />
         <div className="max-w-2xl w-full text-center">
           <div className="text-6xl mb-6">⏳</div>
-          <h2 className="text-4xl font-bold mb-4 text-amber-400">Patience, Guerrier...</h2>
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-4">
+            <h2 className="text-4xl font-bold text-amber-400">Patience, Guerrier...</h2>
+          </div>
           <div className="bg-stone-800/90 rounded-2xl p-8 border-2 border-amber-600">
             <p className="text-xl text-gray-300 mb-4">
               Vous avez déjà créé un personnage cette semaine.
@@ -466,8 +470,10 @@ const CharacterCreation = () => {
         <Header />
         <div className="max-w-4xl w-full pt-20">
           <div className="text-center mb-8">
-            <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
-            <p className="text-amber-300 text-lg">Lance les dés et découvre ta race et ta classe!</p>
+            <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+              <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
+              <p className="text-amber-300 text-lg">Lance les dés et découvre ta race et ta classe!</p>
+            </div>
           </div>
 
           {!rolledCharacter ? (
@@ -618,8 +624,10 @@ const CharacterCreation = () => {
       <Header />
       <div className="max-w-4xl w-full pt-20">
         <div className="text-center mb-8">
-          <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>
-          <p className="text-amber-300 text-lg">Donne-lui un nom et forge son identité...</p>
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+            <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>
+            <p className="text-amber-300 text-lg">Donne-lui un nom et forge son identité...</p>
+          </div>
         </div>
 
         {/* Résumé du personnage rollé */}
