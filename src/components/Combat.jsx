@@ -803,11 +803,11 @@ const Combat = () => {
             )}
 
             {/* Zone de chat messenger */}
-            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex-1 flex flex-col" style={{minHeight: '600px'}}>
+            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[600px]">
               <div className="bg-stone-900 p-3 border-b border-stone-600">
                 <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                 {combatLog.length === 0 ? (
                   <p className="text-stone-500 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
                 ) : (
