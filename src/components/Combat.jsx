@@ -113,11 +113,11 @@ const Combat = () => {
           <>
             Heal 15% PV manquants +{' '}
             {healBonus > 0 ? (
-              <Tooltip content={`Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
-                <span className="text-green-400">{healTotal}%</span>
+              <Tooltip content={`${healTotal}% de Cap (${cap}) | Base: ${healBase}% | Bonus (${paliers} paliers): +${healBonus}%`}>
+                <span className="text-green-400">{healTotal}% de la Cap</span>
               </Tooltip>
             ) : (
-              <span>{healBase}%</span>
+              <span>{healBase}% de la Cap</span>
             )}
           </>
         );
@@ -148,13 +148,13 @@ const Combat = () => {
           <>
             Dégâts = Auto +{' '}
             {magicBonusPct > 0 ? (
-              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
-                <span className="text-green-400">{magicDmgTotal}</span>
+              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) = ${magicDmgTotal} | Base: ${magicBase}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
+                <span className="text-green-400">{magicTotalPct}% de la Cap</span>
               </Tooltip>
             ) : (
-              <span>{magicDmgTotal}</span>
+              <span>{magicBase}% de la Cap</span>
             )}
-            {' '}dégâts magiques (vs ResC)
+            {' '}(vs ResC)
           </>
         );
 
@@ -165,15 +165,15 @@ const Combat = () => {
         const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
         return (
           <>
-            Chaque tour:{' '}
+            Familier:{' '}
             {familierBonusPct > 0 ? (
-              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
-                <span className="text-green-400">{familierDmgTotal}</span>
+              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) = ${familierDmgTotal} | Base: ${familierBase}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
+                <span className="text-green-400">{familierTotalPct}% de la Cap</span>
               </Tooltip>
             ) : (
-              <span>{familierDmgTotal}</span>
+              <span>{familierBase}% de la Cap</span>
             )}
-            {' '}dégâts automatiques
+            {' '}/ tour (ignore 60% ResC)
           </>
         );
 
