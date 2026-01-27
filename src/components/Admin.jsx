@@ -319,8 +319,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       <Header />
       <div className="max-w-7xl mx-auto pt-20">
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold mb-4 text-amber-400">🎯 Backoffice Admin</h1>
-          <p className="text-amber-300 text-lg">
+          <h1 className="text-5xl font-bold mb-4 text-stone-300">🎯 Backoffice Admin</h1>
+          <p className="text-stone-400 text-lg">
             {characters.length} personnage{characters.length > 1 ? 's' : ''} créé{characters.length > 1 ? 's' : ''}
           </p>
         </div>
