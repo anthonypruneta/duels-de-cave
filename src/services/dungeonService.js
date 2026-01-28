@@ -2,10 +2,10 @@
  * Service Donjon - Duels de Cave
  *
  * Gère les opérations liées au donjon :
- * - Progression des niveaux
- * - Génération et attribution du loot
+ * - Limite de 3 runs par jour
+ * - Progression niveau 1 → 2 → 3 à la suite
+ * - Loot du dernier étage réussi si mort
  * - Équipement des armes
- * - Stockage Firestore
  */
 
 import {
@@ -16,7 +16,13 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
-import { getDungeonLevelById, isLevelUnlocked } from '../data/dungeons.js';
+import {
+  getDungeonLevelById,
+  getDungeonLevelByNumber,
+  isNewDay,
+  getRemainingRuns,
+  DUNGEON_CONSTANTS
+} from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
 
 // ============================================================================
@@ -60,9 +66,11 @@ const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
  * Document Firestore: dungeonProgress/{userId}
  * {
  *   userId: string,
- *   completedLevels: string[],        // IDs des niveaux complétés
  *   equippedWeapon: string | null,    // ID de l'arme équipée
- *   lastDungeonRun: Timestamp,        // Dernière tentative de donjon
+ *   runsToday: number,                // Nombre de runs aujourd'hui
+ *   lastRunDate: Timestamp,           // Date de la dernière run
+ *   totalRuns: number,                // Total de runs effectuées
+ *   bestRun: number,                  // Meilleur niveau atteint (1-3)
  *   totalBossKills: number,           // Stats globales
  *   createdAt: Timestamp,
  *   updatedAt: Timestamp
@@ -82,16 +90,25 @@ export const getDungeonProgress = async (userId) => {
     });
 
     if (result.exists()) {
+      const data = result.data();
       console.log('✅ Progression trouvée');
-      return { success: true, data: result.data() };
+
+      // Reset le compteur si nouveau jour
+      if (isNewDay(data.lastRunDate)) {
+        data.runsToday = 0;
+      }
+
+      return { success: true, data };
     } else {
       // Initialiser la progression si elle n'existe pas
       console.log('ℹ️ Aucune progression, initialisation...');
       const initialProgress = {
         userId,
-        completedLevels: [],
         equippedWeapon: null,
-        lastDungeonRun: null,
+        runsToday: 0,
+        lastRunDate: null,
+        totalRuns: 0,
+        bestRun: 0,
         totalBossKills: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -111,39 +128,84 @@ export const getDungeonProgress = async (userId) => {
 };
 
 // ============================================================================
-// VÉRIFIER SI UN NIVEAU EST ACCESSIBLE
+// VÉRIFIER SI LE JOUEUR PEUT FAIRE UNE RUN
 // ============================================================================
-export const canAccessLevel = async (userId, levelId) => {
+export const canStartDungeonRun = async (userId) => {
   try {
     const { success, data, error } = await getDungeonProgress(userId);
 
     if (!success) {
-      return { canAccess: false, error };
+      return { canStart: false, error };
     }
 
-    const canAccess = isLevelUnlocked(levelId, data.completedLevels);
-    const level = getDungeonLevelById(levelId);
+    const remaining = getRemainingRuns(data.runsToday, data.lastRunDate);
 
     return {
-      canAccess,
-      level,
-      completedLevels: data.completedLevels,
-      reason: canAccess ? 'unlocked' : 'locked'
+      canStart: remaining > 0,
+      runsRemaining: remaining,
+      runsToday: isNewDay(data.lastRunDate) ? 0 : data.runsToday,
+      maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
+      reason: remaining > 0 ? 'ok' : 'no_runs_left'
     };
   } catch (error) {
-    console.error('❌ Erreur vérification accès niveau:', error);
-    return { canAccess: false, error: error.message };
+    console.error('❌ Erreur vérification run:', error);
+    return { canStart: false, error: error.message };
   }
 };
 
 // ============================================================================
-// GÉNÉRER LE LOOT APRÈS VICTOIRE
+// DÉMARRER UNE RUN DE DONJON
 // ============================================================================
-export const generateLoot = (levelId) => {
-  const level = getDungeonLevelById(levelId);
+export const startDungeonRun = async (userId) => {
+  try {
+    const canStartResult = await canStartDungeonRun(userId);
+
+    if (!canStartResult.canStart) {
+      return {
+        success: false,
+        error: 'Plus de runs disponibles aujourd\'hui',
+        runsRemaining: 0
+      };
+    }
+
+    console.log('🏰 Démarrage d\'une run de donjon');
+
+    // Incrémenter le compteur de runs
+    await retryOperation(async () => {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      const progressSnap = await getDoc(progressRef);
+      const currentData = progressSnap.data();
+
+      // Reset si nouveau jour
+      const runsToday = isNewDay(currentData.lastRunDate) ? 1 : currentData.runsToday + 1;
+
+      await updateDoc(progressRef, {
+        runsToday,
+        lastRunDate: Timestamp.now(),
+        totalRuns: (currentData.totalRuns || 0) + 1,
+        updatedAt: Timestamp.now()
+      });
+    });
+
+    return {
+      success: true,
+      runsRemaining: canStartResult.runsRemaining - 1,
+      startingLevel: 1
+    };
+  } catch (error) {
+    console.error('❌ Erreur démarrage run:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
+// GÉNÉRER LE LOOT POUR UN NIVEAU
+// ============================================================================
+export const generateLoot = (levelNumber) => {
+  const level = getDungeonLevelByNumber(levelNumber);
 
   if (!level) {
-    console.error('❌ Niveau invalide:', levelId);
+    console.error('❌ Niveau invalide:', levelNumber);
     return null;
   }
 
@@ -156,44 +218,43 @@ export const generateLoot = (levelId) => {
 };
 
 // ============================================================================
-// ENREGISTRER LA VICTOIRE ET LE LOOT
+// ENREGISTRER LA FIN D'UNE RUN (victoire ou défaite)
 // ============================================================================
-export const recordVictory = async (userId, levelId, droppedWeaponId) => {
+export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel = null) => {
   try {
-    console.log('🏆 Enregistrement victoire:', { userId, levelId, droppedWeaponId });
+    console.log('🏆 Fin de run:', { userId, highestLevelBeaten, defeatedOnLevel });
 
-    const result = await retryOperation(async () => {
+    // Générer le loot basé sur le dernier niveau réussi
+    const lootWeapon = highestLevelBeaten > 0 ? generateLoot(highestLevelBeaten) : null;
+
+    // Mettre à jour les stats
+    await retryOperation(async () => {
       const progressRef = doc(db, 'dungeonProgress', userId);
       const progressSnap = await getDoc(progressRef);
-      const currentData = progressSnap.exists() ? progressSnap.data() : {
-        userId,
-        completedLevels: [],
-        equippedWeapon: null,
-        totalBossKills: 0,
-        createdAt: Timestamp.now()
-      };
+      const currentData = progressSnap.data();
 
-      // Ajouter le niveau aux niveaux complétés (sans doublon)
-      const completedLevels = currentData.completedLevels || [];
-      if (!completedLevels.includes(levelId)) {
-        completedLevels.push(levelId);
-      }
-
-      const updatedData = {
-        ...currentData,
-        completedLevels,
-        lastDungeonRun: Timestamp.now(),
-        totalBossKills: (currentData.totalBossKills || 0) + 1,
+      const updateData = {
+        totalBossKills: (currentData.totalBossKills || 0) + highestLevelBeaten,
         updatedAt: Timestamp.now()
       };
 
-      await setDoc(progressRef, updatedData);
-      return updatedData;
+      // Mettre à jour le meilleur score si battu
+      if (highestLevelBeaten > (currentData.bestRun || 0)) {
+        updateData.bestRun = highestLevelBeaten;
+      }
+
+      await updateDoc(progressRef, updateData);
     });
 
-    return { success: true, data: result };
+    return {
+      success: true,
+      highestLevelBeaten,
+      defeatedOnLevel,
+      lootWeapon,
+      isFullClear: highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
+    };
   } catch (error) {
-    console.error('❌ Erreur enregistrement victoire:', error);
+    console.error('❌ Erreur fin de run:', error);
     return { success: false, error: error.message };
   }
 };
@@ -310,12 +371,15 @@ export const getPlayerDungeonSummary = async (userId) => {
       ? getWeaponById(progress.equippedWeapon)
       : null;
 
+    const runsRemaining = getRemainingRuns(progress.runsToday, progress.lastRunDate);
+
     return {
       success: true,
       data: {
         ...progress,
         equippedWeaponData: equippedWeapon,
-        levelsCompleted: progress.completedLevels.length,
+        runsRemaining,
+        maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
         hasLegendaryWeapon: equippedWeapon?.rarete === 'légendaire'
       }
     };
