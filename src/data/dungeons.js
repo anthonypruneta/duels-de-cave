@@ -54,31 +54,29 @@ export const dungeonLevels = {
   niveau_1: {
     id: 'niveau_1',
     niveau: 1,
-    nom: 'Repaire des Bandits',
-    description: 'Une grotte sombre où se cachent des bandits de grand chemin.',
+    nom: 'Forteresse Gobeline',
+    description: 'Une forteresse de pierres où règne un chef gobelin vicieux.',
     difficulte: DIFFICULTY.TRES_FACILE,
-    bossId: 'bandit',
-    bossNom: 'Bandit des Grands Chemins',
+    bossId: 'chef_gobelin',
+    bossNom: 'Chef Gobelin Grukk',
     dropRarity: RARITY.COMMUNE,
-    icon: '🏚️',
-    bossIcon: '🗡️',
-    // Modificateurs de stats pour le boss (pourcentage des stats du joueur)
-    bossStatModifier: 0.5, // 50% des stats du joueur
+    icon: '🏰',
+    bossIcon: '👺',
+    bossStatModifier: 0.5,
   },
 
   niveau_2: {
     id: 'niveau_2',
     niveau: 2,
-    nom: 'Forteresse Gobeline',
-    description: 'Une forteresse de pierres où règne un chef gobelin impitoyable.',
+    nom: 'Repaire des Bandits',
+    description: 'Une grotte sombre où se cache un bandit de grand chemin redoutable.',
     difficulte: DIFFICULTY.NORMAL,
-    bossId: 'chef_gobelin',
-    bossNom: 'Chef Gobelin Grukk',
+    bossId: 'bandit',
+    bossNom: 'Bandit des Grands Chemins',
     dropRarity: RARITY.RARE,
-    icon: '🏰',
-    bossIcon: '👺',
-    // Stats équivalentes au joueur
-    bossStatModifier: 1.0, // 100% des stats du joueur
+    icon: '🏚️',
+    bossIcon: '🗡️',
+    bossStatModifier: 1.0,
   },
 
   niveau_3: {

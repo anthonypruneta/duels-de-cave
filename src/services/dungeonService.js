@@ -13,6 +13,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   Timestamp
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
@@ -351,6 +352,26 @@ export const handleLootChoice = async (userId, droppedWeaponId, equipNew) => {
     }
   } catch (error) {
     console.error('❌ Erreur choix loot:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
+// RESET LES RUNS D'UN JOUEUR (admin)
+// ============================================================================
+export const resetDungeonRuns = async (userId) => {
+  try {
+    console.log('🔄 Reset des runs pour:', userId);
+
+    await retryOperation(async () => {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      await deleteDoc(progressRef);
+    });
+
+    console.log('✅ Runs réinitialisées');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Erreur reset runs:', error);
     return { success: false, error: error.message };
   }
 };
