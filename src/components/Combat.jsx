@@ -730,10 +730,9 @@ const Combat = () => {
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3 mb-3">
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-4xl font-bold text-stone-200">⚔️ Arène de Combat ⚔️</h1>
             </div>
-            <p className="text-stone-400">Sélectionnez deux combattants pour le duel</p>
           </div>
 
           {loadingCharacters ? (
@@ -762,18 +761,22 @@ const Combat = () => {
               </div>
 
               {selectedChar1 && selectedChar2 && (
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-4 mb-6">
-                    <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
-                    <span className="text-4xl text-stone-400">⚔️</span>
-                    <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
+                <div className="text-center -mt-4">
+                  <div className="bg-stone-800 border border-stone-600 px-6 py-3 mb-4 inline-block">
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
+                      <span className="text-3xl text-stone-400">⚔️</span>
+                      <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
+                    </div>
                   </div>
-                  <button
-                    onClick={startCombat}
-                    className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
-                  >
-                    ⚔️ Commencer le Combat ⚔️
-                  </button>
+                  <div>
+                    <button
+                      onClick={startCombat}
+                      className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
+                    >
+                      ⚔️ Commencer le Combat ⚔️
+                    </button>
+                  </div>
                 </div>
               )}
             </>
