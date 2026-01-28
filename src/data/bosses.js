@@ -13,7 +13,7 @@
 // ============================================================================
 export const bosses = {
   // =========================================================================
-  // BOSS NIVEAU 1 - BANDIT (Très Facile)
+  // BOSS NIVEAU 2 - BANDIT (Normal)
   // Stats: 25 partout, 150 HP
   // Capacité: Saignement tous les 2 tours (comme Lycan)
   // =========================================================================
@@ -51,7 +51,7 @@ export const bosses = {
   },
 
   // =========================================================================
-  // BOSS NIVEAU 2 - CHEF GOBELIN (Normal)
+  // BOSS NIVEAU 1 - CHEF GOBELIN (Très Facile)
   // Stats: 15 partout, 120 HP
   // =========================================================================
   chef_gobelin: {
