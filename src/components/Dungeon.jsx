@@ -35,6 +35,20 @@ import {
 } from '../data/combatMechanics';
 import Header from './Header';
 
+// Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
+const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+
+const getBossImage = (imageFile) => {
+  if (!imageFile) return null;
+  return bossImageModules[`../assets/bosses/${imageFile}`] || null;
+};
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
+
 const Dungeon = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -528,8 +542,8 @@ const Dungeon = () => {
           {/* Arme droppée */}
           <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${RARITY_BG_COLORS[lootWeapon.rarete]} mb-6`}>
             <div className="text-center">
-              {lootWeapon.image ? (
-                <img src={lootWeapon.image} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
+              {getWeaponImage(lootWeapon.imageFile) ? (
+                <img src={getWeaponImage(lootWeapon.imageFile)} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
               ) : (
                 <div className="text-6xl mb-3">{lootWeapon.icon}</div>
               )}
@@ -562,8 +576,8 @@ const Dungeon = () => {
               <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
               <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${RARITY_BG_COLORS[hasCurrentWeapon.rarete]}`}>
                 <div className="flex items-center gap-3">
-                  {hasCurrentWeapon.image ? (
-                    <img src={hasCurrentWeapon.image} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
+                  {getWeaponImage(hasCurrentWeapon.imageFile) ? (
+                    <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
                   ) : (
                     <span className="text-3xl">{hasCurrentWeapon.icon}</span>
                   )}
@@ -684,8 +698,8 @@ const Dungeon = () => {
             {/* Boss */}
             <div className="bg-stone-800 p-4 border border-stone-600">
               <div className="text-center">
-                {boss.characterImage ? (
-                  <img src={boss.characterImage} alt={boss.name} className="w-full max-w-[200px] mx-auto h-auto" />
+                {getBossImage(boss.imageFile) ? (
+                  <img src={getBossImage(boss.imageFile)} alt={boss.name} className="w-full max-w-[200px] mx-auto h-auto" />
                 ) : (
                   <div className="text-6xl mb-2">{getBossById(boss.bossId)?.icon}</div>
                 )}
@@ -786,8 +800,8 @@ const Dungeon = () => {
         {dungeonSummary?.equippedWeaponData && (
           <div className={`mb-8 p-4 border-2 ${RARITY_BORDER_COLORS[dungeonSummary.equippedWeaponData.rarete]} ${RARITY_BG_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
             <div className="flex items-center gap-4">
-              {dungeonSummary.equippedWeaponData.image ? (
-                <img src={dungeonSummary.equippedWeaponData.image} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
+              {getWeaponImage(dungeonSummary.equippedWeaponData.imageFile) ? (
+                <img src={getWeaponImage(dungeonSummary.equippedWeaponData.imageFile)} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
               ) : (
                 <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
               )}
