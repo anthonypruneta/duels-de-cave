@@ -8,11 +8,6 @@
  * mais avec des capacités uniques.
  */
 
-// Images des boss
-import banditImage from '../assets/bosses/bandit.png';
-import gobelinImage from '../assets/bosses/gobelin.png';
-import dragonImage from '../assets/bosses/dragon.png';
-
 // ============================================================================
 // DÉFINITION DES BOSS
 // ============================================================================
@@ -27,7 +22,7 @@ export const bosses = {
     nom: 'Bandit des Grands Chemins',
     description: 'Un brigand sans scrupules qui terrorise les voyageurs.',
     icon: '🗡️',
-    image: banditImage,
+    imageFile: 'bandit.png',
 
     // Stats fixes
     baseStats: {
@@ -64,7 +59,7 @@ export const bosses = {
     nom: 'Chef Gobelin Grukk',
     description: 'Le chef d\'une tribu gobeline, rusé et vicieux.',
     icon: '👺',
-    image: gobelinImage,
+    imageFile: 'gobelin.png',
 
     // Stats fixes
     baseStats: {
@@ -91,7 +86,7 @@ export const bosses = {
     nom: 'Vyraxion le Dévoreur',
     description: 'Un dragon ancien aux écailles impénétrables, gardien d\'un trésor légendaire.',
     icon: '🐲',
-    image: dragonImage,
+    imageFile: 'dragon.png',
 
     // Stats fixes
     baseStats: {
@@ -145,7 +140,7 @@ export function createBossCombatant(bossId) {
     class: 'Boss',
     isBoss: true,
     bossId: boss.id,
-    characterImage: boss.image,
+    imageFile: boss.imageFile,
 
     // Stats de combat
     base: { ...boss.baseStats },

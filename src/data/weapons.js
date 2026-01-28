@@ -9,11 +9,6 @@
  * Les armes légendaires ont un effet spécial avec un trigger.
  */
 
-// Images des armes (pour l'instant seulement les bâtons)
-import baton1Image from '../assets/weapons/baton1.png';
-import baton2Image from '../assets/weapons/baton2.png';
-import baton3Image from '../assets/weapons/baton3.png';
-
 // ============================================================================
 // TYPES DE TRIGGERS POUR LES EFFETS LÉGENDAIRES
 // ============================================================================
@@ -80,7 +75,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BATON,
     rarete: RARITY.COMMUNE,
     icon: '🪄',
-    image: baton1Image,
+    imageFile: 'baton1.png',
     stats: {
       cap: 3,
       hp: 5,
@@ -95,7 +90,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BATON,
     rarete: RARITY.RARE,
     icon: '🪄',
-    image: baton2Image,
+    imageFile: 'baton2.png',
     stats: {
       cap: 5,
       hp: 10,
@@ -110,7 +105,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BATON,
     rarete: RARITY.LEGENDAIRE,
     icon: '🌳',
-    image: baton3Image,
+    imageFile: 'baton3.png',
     stats: {
       cap: 5,
       hp: 10,
