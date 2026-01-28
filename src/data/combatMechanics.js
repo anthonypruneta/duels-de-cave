@@ -17,7 +17,7 @@ export const cooldowns = {
 export const classConstants = {
   guerrier: {
     autoBonus: 3,
-    ignoreBase: 0.12,      // 12% ignore résistance de base
+    ignoreBase: 0.10,      // 10% ignore résistance de base
     ignorePerTier: 0.02    // +2% par palier de 15 Cap
   },
   voleur: {
@@ -42,7 +42,7 @@ export const classConstants = {
     capPerTier: 0.05       // +5% par palier
   },
   demoniste: {
-    capBase: 0.20,         // 20% de Cap de base (pour calcul dégâts)
+    capBase: 0.25,         // 25% de Cap de base (pour calcul dégâts)
     capPerTier: 0.04,      // +4% par palier
     ignoreResist: 0.60     // Ignore 60% de la ResC
   },
@@ -59,7 +59,7 @@ export const raceConstants = {
   elfe: { auto: 1, cap: 1, spd: 5, critBonus: 0.20 },
   orc: { lowHpThreshold: 0.50, damageBonus: 1.20 },
   nain: { hp: 10, def: 4 },
-  dragonkin: { hp: 10, rescap: 15 },
+  dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
   lycan: { bleedPerHit: 1, bleedDivisor: 3 },
   sylvari: { regenPercent: 0.02 }
