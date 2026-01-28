@@ -730,10 +730,9 @@ const Combat = () => {
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3 mb-3">
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-4xl font-bold text-stone-200">⚔️ Arène de Combat ⚔️</h1>
             </div>
-            <p className="text-stone-400">Sélectionnez deux combattants pour le duel</p>
           </div>
 
           {loadingCharacters ? (
