@@ -761,18 +761,22 @@ const Combat = () => {
               </div>
 
               {selectedChar1 && selectedChar2 && (
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-4 mb-6">
-                    <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
-                    <span className="text-4xl text-stone-400">⚔️</span>
-                    <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
+                <div className="text-center -mt-4">
+                  <div className="bg-stone-800 border border-stone-600 px-6 py-3 mb-4 inline-block">
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-2xl font-bold text-white">{selectedChar1.name}</span>
+                      <span className="text-3xl text-stone-400">⚔️</span>
+                      <span className="text-2xl font-bold text-white">{selectedChar2.name}</span>
+                    </div>
                   </div>
-                  <button
-                    onClick={startCombat}
-                    className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
-                  >
-                    ⚔️ Commencer le Combat ⚔️
-                  </button>
+                  <div>
+                    <button
+                      onClick={startCombat}
+                      className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
+                    >
+                      ⚔️ Commencer le Combat ⚔️
+                    </button>
+                  </div>
                 </div>
               )}
             </>
