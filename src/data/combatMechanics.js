@@ -128,3 +128,98 @@ export const getClassBonus = (charClass) => {
   }
   return b;
 };
+
+// ============================================================================
+// CONSTANTES DES ARMES LÉGENDAIRES
+// ============================================================================
+export const weaponConstants = {
+  // Branche d'Yggdrasil (Bâton légendaire)
+  yggdrasil: {
+    healDamagePercent: 0.5,    // 50% des soins en dégâts
+    regenPercent: 0.03,        // 3% HP max par tour (si pas de heal)
+  },
+
+  // Égide d'Athéna (Bouclier légendaire)
+  egide: {
+    defToAtkPercent: 0.05,     // 5% DEF → ATK
+    rescapToAtkPercent: 0.05,  // 5% RESC → ATK
+  },
+
+  // Zweihänder (Épée légendaire)
+  zweihander: {
+    triggerEveryNTurns: 4,
+    damageBonus: 0.3,          // +30% dégâts
+    priorityOverride: true,
+  },
+
+  // Lævateinn (Dague légendaire)
+  laevateinn: {
+    triggerEveryNTurns: 4,
+    critDamageBonus: 0.3,      // +30% dégâts sur tous les crits
+    guaranteedCrit: true,
+  },
+
+  // Mjöllnir (Marteau légendaire)
+  mjollnir: {
+    triggerEveryNAttacks: 5,
+    stunDuration: 1,
+  },
+
+  // Gungnir (Lance légendaire)
+  gungnir: {
+    atkReductionPercent: 0.1,  // -10% ATK ennemi au premier coup
+  },
+
+  // Arc des Cieux (Arc légendaire)
+  arcCieux: {
+    triggerEveryNTurns: 4,
+    bonusAttacks: 1,
+    bonusAttackDamage: 0.5,    // 50% des dégâts
+  },
+
+  // Codex Archon (Tome légendaire)
+  codexArchon: {
+    doubleCastTriggers: [2, 6], // Se déclenche au 2e et 6e sort
+    secondCastDamage: 0.7,      // 70% des dégâts
+  },
+};
+
+// ============================================================================
+// CONSTANTES DES BOSS
+// ============================================================================
+export const bossConstants = {
+  // Modificateurs de stats par niveau de donjon
+  statModifiers: {
+    niveau_1: 0.5,  // 50% des stats du joueur
+    niveau_2: 1.0,  // 100% des stats du joueur
+    niveau_3: 1.5,  // 150% des stats du joueur
+  },
+
+  // Bandit (Boss niveau 1)
+  bandit: {
+    abilityTrigger: 3,         // Tous les 3 tours
+    damageBonus: 0.2,          // +20% dégâts
+  },
+
+  // Chef Gobelin (Boss niveau 2)
+  chefGobelin: {
+    abilityTrigger: 4,         // Tous les 4 tours
+    summonDamagePercent: 0.3,  // 30% ATK en dégâts bonus
+    physicalReduction: 0.1,    // -10% dégâts physiques (passif)
+  },
+
+  // Dragon (Boss niveau 3)
+  dragon: {
+    abilityTrigger: 3,         // Tous les 3 tours
+    breathDamagePercent: 0.8,  // 80% CAP en dégâts magiques
+    enrageThreshold: 0.25,     // À 25% HP
+    enrageStatBonus: 0.25,     // +25% ATK et CAP en enrage
+    lowHpReduction: 0.15,      // -15% dégâts sous 30% HP (passif)
+    lowHpThreshold: 0.3,
+  },
+};
+
+// ============================================================================
+// CLASSES QUI PEUVENT SE SOIGNER (pour Branche d'Yggdrasil)
+// ============================================================================
+export const healingClasses = ['Healer', 'Paladin'];
