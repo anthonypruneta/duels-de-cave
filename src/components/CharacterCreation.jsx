@@ -423,12 +423,18 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-4">
             <button
               onClick={() => navigate('/combat')}
               className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
             >
               ⚔️ Aller au Combat ⚔️
+            </button>
+            <button
+              onClick={() => navigate('/dungeon')}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
+            >
+              🏰 Donjon 🏰
             </button>
           </div>
 

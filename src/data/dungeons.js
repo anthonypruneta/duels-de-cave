@@ -1,8 +1,9 @@
 /**
  * Système de Donjon - Duels de Cave
  *
- * 3 niveaux de donjon avec difficulté croissante.
- * Chaque niveau a un boss et drop une arme de rareté fixe.
+ * 3 niveaux de donjon progressifs (1 → 2 → 3 à la suite)
+ * Limite: 3 runs par jour
+ * Si on meurt, on récupère le loot du dernier étage réussi
  *
  * Niveau 1: Très facile → Arme Commune
  * Niveau 2: Normal → Arme Rare
@@ -10,6 +11,14 @@
  */
 
 import { RARITY } from './weapons.js';
+
+// ============================================================================
+// CONSTANTES DU DONJON
+// ============================================================================
+export const DUNGEON_CONSTANTS = {
+  MAX_RUNS_PER_DAY: 3,
+  TOTAL_LEVELS: 3,
+};
 
 // ============================================================================
 // DIFFICULTÉS
@@ -32,6 +41,12 @@ export const DIFFICULTY_COLORS = {
   [DIFFICULTY.TRES_DIFFICILE]: 'text-red-400',
 };
 
+export const DIFFICULTY_BG_COLORS = {
+  [DIFFICULTY.TRES_FACILE]: 'bg-green-900/30 border-green-600',
+  [DIFFICULTY.NORMAL]: 'bg-yellow-900/30 border-yellow-600',
+  [DIFFICULTY.TRES_DIFFICILE]: 'bg-red-900/30 border-red-600',
+};
+
 // ============================================================================
 // DÉFINITION DES NIVEAUX DE DONJON
 // ============================================================================
@@ -43,12 +58,12 @@ export const dungeonLevels = {
     description: 'Une grotte sombre où se cachent des bandits de grand chemin.',
     difficulte: DIFFICULTY.TRES_FACILE,
     bossId: 'bandit',
+    bossNom: 'Bandit des Grands Chemins',
     dropRarity: RARITY.COMMUNE,
     icon: '🏚️',
-    background: 'cave_dark',
+    bossIcon: '🗡️',
     // Modificateurs de stats pour le boss (pourcentage des stats du joueur)
     bossStatModifier: 0.5, // 50% des stats du joueur
-    unlockCondition: null, // Toujours débloqué
   },
 
   niveau_2: {
@@ -58,15 +73,12 @@ export const dungeonLevels = {
     description: 'Une forteresse de pierres où règne un chef gobelin impitoyable.',
     difficulte: DIFFICULTY.NORMAL,
     bossId: 'chef_gobelin',
+    bossNom: 'Chef Gobelin Grukk',
     dropRarity: RARITY.RARE,
     icon: '🏰',
-    background: 'fortress',
+    bossIcon: '👺',
     // Stats équivalentes au joueur
     bossStatModifier: 1.0, // 100% des stats du joueur
-    unlockCondition: {
-      type: 'level_complete',
-      levelId: 'niveau_1',
-    },
   },
 
   niveau_3: {
@@ -76,15 +88,12 @@ export const dungeonLevels = {
     description: 'L\'antre d\'un dragon ancien, gardien d\'un trésor légendaire.',
     difficulte: DIFFICULTY.TRES_DIFFICILE,
     bossId: 'dragon',
+    bossNom: 'Vyraxion le Dévoreur',
     dropRarity: RARITY.LEGENDAIRE,
     icon: '🐉',
-    background: 'dragon_lair',
+    bossIcon: '🐲',
     // Stats supérieures au joueur
     bossStatModifier: 1.5, // 150% des stats du joueur
-    unlockCondition: {
-      type: 'level_complete',
-      levelId: 'niveau_2',
-    },
   },
 };
 
@@ -114,38 +123,40 @@ export function getAllDungeonLevels() {
 }
 
 /**
- * Vérifie si un niveau est débloqué pour un joueur
- * @param {string} levelId - ID du niveau à vérifier
- * @param {Array<string>} completedLevels - Liste des IDs de niveaux complétés
+ * Vérifie si c'est un nouveau jour (reset à minuit)
  */
-export function isLevelUnlocked(levelId, completedLevels = []) {
-  const level = getDungeonLevelById(levelId);
-  if (!level) return false;
+export function isNewDay(lastRunDate) {
+  if (!lastRunDate) return true;
 
-  // Pas de condition = toujours débloqué
-  if (!level.unlockCondition) return true;
+  const last = lastRunDate instanceof Date ? lastRunDate : lastRunDate.toDate();
+  const now = new Date();
 
-  // Vérifie la condition
-  if (level.unlockCondition.type === 'level_complete') {
-    return completedLevels.includes(level.unlockCondition.levelId);
-  }
-
-  return false;
-}
-
-/**
- * Récupère les niveaux accessibles pour un joueur
- */
-export function getAccessibleLevels(completedLevels = []) {
-  return getAllDungeonLevels().filter(level =>
-    isLevelUnlocked(level.id, completedLevels)
+  // Compare les dates (jour/mois/année)
+  return (
+    last.getDate() !== now.getDate() ||
+    last.getMonth() !== now.getMonth() ||
+    last.getFullYear() !== now.getFullYear()
   );
 }
 
 /**
- * Récupère le prochain niveau non complété
+ * Calcule les runs restantes aujourd'hui
  */
-export function getNextLevel(completedLevels = []) {
-  const allLevels = getAllDungeonLevels();
-  return allLevels.find(level => !completedLevels.includes(level.id)) || null;
+export function getRemainingRuns(runsToday, lastRunDate) {
+  // Si c'est un nouveau jour, reset le compteur
+  if (isNewDay(lastRunDate)) {
+    return DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+  }
+  return Math.max(0, DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY - runsToday);
+}
+
+/**
+ * Récupère le loot correspondant au niveau atteint
+ * @param {number} highestLevelBeaten - Plus haut niveau battu (0 si aucun)
+ */
+export function getLootForLevel(highestLevelBeaten) {
+  if (highestLevelBeaten <= 0) return null;
+
+  const level = getDungeonLevelByNumber(highestLevelBeaten);
+  return level ? level.dropRarity : null;
 }
