@@ -1383,7 +1383,7 @@ const Dungeon = () => {
         )}
 
         <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
+          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
             Retour
           </button>
           <button

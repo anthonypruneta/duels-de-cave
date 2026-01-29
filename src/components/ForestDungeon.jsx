@@ -668,7 +668,7 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        <div className="text-emerald-400 text-2xl">Chargement de la forêt...</div>
+        <div className="text-amber-400 text-2xl">Chargement de la forêt...</div>
       </div>
     );
   }
@@ -689,20 +689,20 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
-        <div className="bg-stone-800 border border-emerald-600 p-8 max-w-md w-full text-center">
+        <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">🌲</div>
-          <h2 className="text-3xl font-bold text-emerald-300 mb-4">Victoire !</h2>
+          <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
           <p className="text-stone-300 mb-6">
             Gains :{' '}
             {Object.entries(rewardSummary.gainsByStat).map(([stat, value], index) => (
-              <span key={stat} className="text-emerald-200 font-semibold">
+              <span key={stat} className="text-amber-200 font-semibold">
                 {labels[stat] || stat} +{value}{index < Object.keys(rewardSummary.gainsByStat).length - 1 ? ', ' : ''}
               </span>
             ))}
           </p>
           <button
             onClick={handleRewardContinue}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 font-bold"
+            className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
           >
             {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
           </button>
@@ -717,13 +717,13 @@ const ForestDungeon = () => {
         <Header />
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-emerald-400' : 'text-red-400'}`}>
+          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
             {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
           </h2>
           <p className="text-gray-300 mb-8">
             {gameState === 'victory' ? 'La forêt vous renforce.' : 'Aucun gain cette fois-ci.'}
           </p>
-          <button onClick={handleBackToLobby} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 font-bold">
+          <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
             Retour
           </button>
         </div>
@@ -738,26 +738,26 @@ const ForestDungeon = () => {
         <Header />
         <div className="max-w-6xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-emerald-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-emerald-300">Forêt — Niveau {currentLevelData?.niveau}</h2>
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+              <h2 className="text-4xl font-bold text-stone-200">Forêt — Niveau {currentLevelData?.niveau}</h2>
             </div>
           </div>
 
           <div className="mb-6 flex items-center justify-center gap-4">
-            <button
-              onClick={simulateCombat}
-              disabled={isSimulating || !player || !boss}
-              className={`px-8 py-3 font-bold ${
-                isSimulating ? 'bg-stone-700 text-stone-500 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
-            >
-              {isSimulating ? 'Combat en cours...' : 'Lancer le combat'}
-            </button>
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating || !player || !boss}
+                className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
             <button
               onClick={handleBackToLobby}
-              className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-3 font-bold border border-stone-500"
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
             >
-              Quitter
+              ← Abandonner
             </button>
           </div>
 
@@ -767,7 +767,7 @@ const ForestDungeon = () => {
             </div>
 
             <div className="flex-1 bg-stone-800 border border-stone-600 p-4 h-[520px] overflow-y-auto">
-              <div className="text-center text-emerald-300 font-bold mb-4">Journal du combat</div>
+              <div className="text-center text-amber-400 font-bold mb-4">Journal du combat</div>
               <div className="space-y-2 text-sm">
                 {combatLog.map((log, idx) => {
                   const cleanLog = log.trim();
@@ -822,33 +822,23 @@ const ForestDungeon = () => {
     <div className="min-h-screen p-6">
       <Header />
       <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-emerald-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-emerald-300">La Forêt</h2>
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+              <h2 className="text-4xl font-bold text-stone-200">La Forêt</h2>
+            </div>
           </div>
-        </div>
 
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
-          <h3 className="text-xl font-bold text-emerald-300 mb-4 text-center">3 niveaux progressifs</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
+          <div className="grid grid-cols-3 gap-4">
             {levels.map((level) => (
               <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
-                <div className="text-3xl mb-2">
-                  {getBossImage(level.boss.imageFile) ? (
-                    <img
-                      src={getBossImage(level.boss.imageFile)}
-                      alt={level.boss.nom}
-                      className="w-12 h-auto mx-auto"
-                    />
-                  ) : (
-                    level.boss.icon
-                  )}
-                </div>
+                <div className="text-3xl mb-2">{level.boss.icon}</div>
                 <p className="text-white font-bold">Niveau {level.niveau}</p>
                 <p className={`text-sm ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>
                   {level.difficulte}
                 </p>
-                <p className="text-xs mt-1 text-emerald-200">
+                <p className="text-xs mt-1 text-amber-200">
                   Gains: {level.rewardRolls} stats tirées
                 </p>
               </div>
@@ -857,12 +847,12 @@ const ForestDungeon = () => {
         </div>
 
         <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
+          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
             Retour
           </button>
           <button
             onClick={handleStartRun}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4 font-bold text-xl border border-emerald-500"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl border border-amber-500"
           >
             Entrer dans la forêt
           </button>
