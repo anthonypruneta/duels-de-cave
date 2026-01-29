@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
@@ -94,6 +95,7 @@ const getWeaponTooltipContent = (weapon) => {
 };
 
 const Combat = () => {
+  const navigate = useNavigate();
   // États pour les personnages disponibles
   const [availableCharacters, setAvailableCharacters] = useState([]);
   const [loadingCharacters, setLoadingCharacters] = useState(true);
@@ -866,10 +868,16 @@ const Combat = () => {
       <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-col items-center mb-8 gap-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-4xl font-bold text-stone-200">⚔️ Arène de Combat ⚔️</h1>
             </div>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition"
+            >
+              ⬅️ Retour à l&apos;accueil
+            </button>
           </div>
 
           {loadingCharacters ? (
