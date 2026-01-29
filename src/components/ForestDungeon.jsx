@@ -218,7 +218,12 @@ const ForestDungeon = () => {
         const critBonusPct = Math.round(critPerTier * 100) * paliers;
         return (
           <>
-            +{spdBonus} VIT | Esquive 1 coup | +{critBonusPct}% crit (palier 15Cap)
+            +{spdBonus} VIT | Esquive 1 coup
+            {critBonusPct > 0 && (
+              <Tooltip content={`Bonus (${paliers} paliers): +${critBonusPct}%`}>
+                <span className="text-green-400"> | +{critBonusPct}% crit</span>
+              </Tooltip>
+            )}
           </>
         );
       }
@@ -238,22 +243,27 @@ const ForestDungeon = () => {
             ) : (
               <span>{reflectBasePct}%</span>
             )}
-            {' '}des dégâts
+            {' '}des dégâts reçus
           </>
         );
       }
 
       case 'Healer': {
         const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
-        const healBasePct = Math.round((missingHpPercent + capBase) * 100);
+        const missingPct = Math.round(missingHpPercent * 100);
+        const healBasePct = Math.round(capBase * 100);
         const healBonusPct = Math.round(capPerTier * 100) * paliers;
+        const healTotalPct = healBasePct + healBonusPct;
+        const healValue = Math.round(cap * (healTotalPct / 100));
         return (
           <>
-            Soin {healBasePct}% PV manquants{' '}
-            {healBonusPct > 0 && (
-              <Tooltip content={`Base: ${healBasePct}% | Bonus (${paliers} paliers): +${healBonusPct}%`}>
-                <span className="text-green-400">(+{healBonusPct}%)</span>
+            Heal {missingPct}% PV manquants +{' '}
+            {healBonusPct > 0 ? (
+              <Tooltip content={`${healTotalPct}% de la Cap (${cap}) | Base: ${healBasePct}% | Bonus (${paliers} paliers): +${healBonusPct}%`}>
+                <span className="text-green-400">{healValue}</span>
               </Tooltip>
+            ) : (
+              <span>{healValue}</span>
             )}
           </>
         );
@@ -262,14 +272,17 @@ const ForestDungeon = () => {
       case 'Archer': {
         const { arrowsBase, arrowsPerTier } = classConstants.archer;
         const arrowsBonus = arrowsPerTier * paliers;
+        const arrowsTotal = arrowsBase + arrowsBonus;
         return (
           <>
-            {arrowsBase} tir{arrowsBase > 1 ? 's' : ''}{' '}
-            {arrowsBonus > 0 && (
+            {arrowsBonus > 0 ? (
               <Tooltip content={`Base: ${arrowsBase} | Bonus (${paliers} paliers): +${arrowsBonus}`}>
-                <span className="text-green-400">(+{arrowsBonus})</span>
+                <span className="text-green-400">{arrowsTotal}</span>
               </Tooltip>
+            ) : (
+              <span>{arrowsBase}</span>
             )}
+            {' '}tirs simultanés
           </>
         );
       }
@@ -279,14 +292,18 @@ const ForestDungeon = () => {
         const magicBasePct = Math.round(capBase * 100);
         const magicBonusPct = Math.round(capPerTier * 100) * paliers;
         const magicTotalPct = magicBasePct + magicBonusPct;
+        const magicDmgTotal = Math.round(cap * (magicTotalPct / 100));
         return (
           <>
-            {magicTotalPct}% de Cap ({cap}){' '}
-            {magicBonusPct > 0 && (
-              <Tooltip content={`Base: ${magicBasePct}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
-                <span className="text-green-400">(+{magicBonusPct}%)</span>
+            Dégâts = Auto +{' '}
+            {magicBonusPct > 0 ? (
+              <Tooltip content={`${magicTotalPct}% de la Cap (${cap}) | Base: ${magicBasePct}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
+                <span className="text-green-400">{magicDmgTotal}</span>
               </Tooltip>
+            ) : (
+              <span>{magicDmgTotal}</span>
             )}
+            {' '}dégâts magiques (vs ResC)
           </>
         );
       }
@@ -296,15 +313,19 @@ const ForestDungeon = () => {
         const familierBasePct = Math.round(capBase * 100);
         const familierBonusPct = Math.round(capPerTier * 100) * paliers;
         const familierTotalPct = familierBasePct + familierBonusPct;
+        const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
         const ignoreResPct = Math.round(ignoreResist * 100);
         return (
           <>
-            Familier: {familierTotalPct}% de Cap ({cap}){' '}
-            {familierBonusPct > 0 && (
+            Chaque tour:{' '}
+            {familierBonusPct > 0 ? (
               <Tooltip content={`${familierTotalPct}% de Cap (${cap}) | Base: ${familierBasePct}% | Bonus (${paliers} paliers): +${familierBonusPct}% | Ignore ${ignoreResPct}% ResC`}>
-                <span className="text-green-400">(+{familierBonusPct}%)</span>
+                <span className="text-green-400">{familierDmgTotal}</span>
               </Tooltip>
+            ) : (
+              <span>{familierDmgTotal}</span>
             )}
+            {' '}dégâts (ignore {ignoreResPct}% ResC)
           </>
         );
       }

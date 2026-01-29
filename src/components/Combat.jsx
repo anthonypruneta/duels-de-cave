@@ -692,17 +692,7 @@ const Combat = () => {
             <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
             <p className="text-stone-500 text-xs mt-1">
               HP: {getBaseWithBoosts(selectedChar).hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
-              {selectedChar.equippedWeaponData?.stats?.hp ? (
-                <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.hp)}`}>
-                  ({selectedChar.equippedWeaponData.stats.hp > 0 ? `+${selectedChar.equippedWeaponData.stats.hp}` : selectedChar.equippedWeaponData.stats.hp})
-                </span>
-              ) : null}
               {' '}| VIT: {getBaseWithBoosts(selectedChar).spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
-              {selectedChar.equippedWeaponData?.stats?.spd ? (
-                <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.spd)}`}>
-                  ({selectedChar.equippedWeaponData.stats.spd > 0 ? `+${selectedChar.equippedWeaponData.stats.spd}` : selectedChar.equippedWeaponData.stats.spd})
-                </span>
-              ) : null}
             </p>
             {selectedChar.equippedWeaponData ? (
               <div className="mt-2 flex items-center justify-center gap-2 text-xs text-stone-300">
@@ -801,11 +791,6 @@ const Combat = () => {
         <Tooltip content={tooltipContent(statKey)}>
           <span className={labelClass}>
             {label}: {displayValue}
-            {weaponDelta !== 0 && (
-              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
-                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
-              </span>
-            )}
           </span>
         </Tooltip>
       ) : (
@@ -865,7 +850,7 @@ const Combat = () => {
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, getBaseWithBoosts(character).cap, getBaseWithBoosts(character).auto)}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             </div>
