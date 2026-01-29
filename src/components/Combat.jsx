@@ -3,9 +3,11 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
 import { getAllCharacters } from '../services/characterService';
+import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { applyWeaponStats, RARITY_COLORS } from '../data/weapons';
 import {
   cooldowns,
   classConstants,
@@ -17,6 +19,13 @@ import {
   calcCritChance
 } from '../data/combatMechanics';
 
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
+
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
   return (
@@ -26,6 +35,56 @@ const Tooltip = ({ children, content }) => {
         {content}
         <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
       </span>
+    </span>
+  );
+};
+
+const STAT_LABELS = {
+  hp: 'HP',
+  auto: 'Auto',
+  def: 'Déf',
+  cap: 'Cap',
+  rescap: 'ResC',
+  spd: 'VIT'
+};
+
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && (
+        <span className="block text-amber-200">
+          Effet: {weapon.effet.nom} — {weapon.effet.description}
+        </span>
+      )}
+      {stats && (
+        <span className="block text-stone-200">
+          Stats: {stats}
+        </span>
+      )}
     </span>
   );
 };
@@ -55,7 +114,17 @@ const Combat = () => {
       setLoadingCharacters(true);
       const result = await getAllCharacters();
       if (result.success) {
-        setAvailableCharacters(result.data.map(normalizeCharacterBonuses));
+        const charactersWithWeapons = await Promise.all(
+          result.data.map(async (char) => {
+            const weaponResult = await getEquippedWeapon(char.id);
+            return normalizeCharacterBonuses({
+              ...char,
+              equippedWeaponData: weaponResult.success ? weaponResult.weapon : null,
+              equippedWeaponId: weaponResult.success ? weaponResult.weapon?.id || null : null
+            });
+          })
+        );
+        setAvailableCharacters(charactersWithWeapons);
       }
       setLoadingCharacters(false);
     };
@@ -232,10 +301,14 @@ const Combat = () => {
 
   // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
+    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
+    const baseWithWeapon = weaponId ? applyWeaponStats(char.base, weaponId) : { ...char.base };
     return {
       ...char,
-      currentHP: char.base.hp,
-      maxHP: char.base.hp,
+      base: baseWithWeapon,
+      baseWithoutWeapon: char.base,
+      currentHP: baseWithWeapon.hp,
+      maxHP: baseWithWeapon.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
       undead: false,
       dodge: false,
@@ -606,7 +679,42 @@ const Combat = () => {
             </div>
             <p className="text-white font-bold mt-2">{selectedChar.name}</p>
             <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
-            <p className="text-stone-500 text-xs mt-1">HP: {selectedChar.base.hp} | VIT: {selectedChar.base.spd}</p>
+            <p className="text-stone-500 text-xs mt-1">
+              HP: {selectedChar.base.hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
+              {selectedChar.equippedWeaponData?.stats?.hp ? (
+                <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.hp)}`}>
+                  ({selectedChar.equippedWeaponData.stats.hp > 0 ? `+${selectedChar.equippedWeaponData.stats.hp}` : selectedChar.equippedWeaponData.stats.hp})
+                </span>
+              ) : null}
+              {' '}| VIT: {selectedChar.base.spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
+              {selectedChar.equippedWeaponData?.stats?.spd ? (
+                <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.spd)}`}>
+                  ({selectedChar.equippedWeaponData.stats.spd > 0 ? `+${selectedChar.equippedWeaponData.stats.spd}` : selectedChar.equippedWeaponData.stats.spd})
+                </span>
+              ) : null}
+            </p>
+            {selectedChar.equippedWeaponData ? (
+              <div className="mt-2 flex items-center justify-center gap-2 text-xs text-stone-300">
+                <Tooltip content={getWeaponTooltipContent(selectedChar.equippedWeaponData)}>
+                  <span className="flex items-center gap-2">
+                    {getWeaponImage(selectedChar.equippedWeaponData.imageFile) ? (
+                      <img
+                        src={getWeaponImage(selectedChar.equippedWeaponData.imageFile)}
+                        alt={selectedChar.equippedWeaponData.nom}
+                        className="w-6 h-auto"
+                      />
+                    ) : (
+                      <span className="text-base">{selectedChar.equippedWeaponData.icon}</span>
+                    )}
+                    <span className={`font-semibold ${RARITY_COLORS[selectedChar.equippedWeaponData.rarete]}`}>
+                      {selectedChar.equippedWeaponData.nom}
+                    </span>
+                  </span>
+                </Tooltip>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs text-stone-500">Aucune arme équipée</div>
+            )}
             <button
               onClick={() => onSelect(null)}
               className="mt-2 text-stone-400 text-sm hover:text-white border border-stone-600 px-3 py-1 hover:border-stone-400 transition-all"
@@ -651,27 +759,44 @@ const Combat = () => {
     if (!character) return null;
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const raceB = character.bonuses.race;
-    const classB = character.bonuses.class;
+    const raceB = character.bonuses?.race || {};
+    const classB = character.bonuses?.class || {};
+    const weapon = character.equippedWeaponData;
+    const baseStats = character.baseWithoutWeapon || character.base;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => character.base[k] - totalBonus(k);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      if (weaponDelta !== 0) {
+        parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+      }
       return parts.join(' | ');
     };
     // Utiliser l'image du personnage si elle existe, sinon utiliser l'image par défaut
     const characterImage = character.characterImage || (imageIndex === 1 ? testImage1 : testImage2);
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const hasBonus = totalBonus(statKey) > 0;
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const displayValue = baseStats[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + weaponDelta;
+      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className="text-green-400">{label}: {character.base[statKey]}</span>
+          <span className={labelClass}>
+            {label}: {displayValue}
+            {weaponDelta !== 0 && (
+              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
+                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
+              </span>
+            )}
+          </span>
         </Tooltip>
       ) : (
-        <span>{label}: {character.base[statKey]}</span>
+        <span>{label}: {displayValue}</span>
       );
     };
 
@@ -705,6 +830,20 @@ const Combat = () => {
               <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
             </div>
             <div className="space-y-2">
+              {weapon && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <Tooltip content={getWeaponTooltipContent(weapon)}>
+                    <span className="flex items-center gap-2">
+                      {getWeaponImage(weapon.imageFile) ? (
+                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                      ) : (
+                        <span className="text-xl">{weapon.icon}</span>
+                      )}
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    </span>
+                  </Tooltip>
+                </div>
+              )}
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
                 <span className="text-stone-300">{races[character.race].bonus}</span>
