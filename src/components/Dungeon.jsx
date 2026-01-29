@@ -140,10 +140,9 @@ const Dungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
 
-  const playDungeonMusic = () => {
+  const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.currentTime = 0;
+    if (dungeonMusic && dungeonMusic.paused) {
       dungeonMusic.volume = 0.35;
       dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
     }
@@ -159,7 +158,7 @@ const Dungeon = () => {
 
   useEffect(() => {
     if (gameState === 'fighting') {
-      playDungeonMusic();
+      ensureDungeonMusic();
     }
   }, [gameState]);
 
@@ -605,6 +604,7 @@ const Dungeon = () => {
     setHighestLevelBeaten(0);
     setCombatResult(null);
     setCurrentAction(null);
+    ensureDungeonMusic();
 
     // Préparer le premier combat
     const levelData = getDungeonLevelByNumber(1);
@@ -621,6 +621,7 @@ const Dungeon = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    ensureDungeonMusic();
 
     const p = { ...player };
     const b = { ...boss };
