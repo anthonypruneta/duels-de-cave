@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, updateCharacterBaseStats } from '../services/characterService';
-import { getEquippedWeapon } from '../services/dungeonService';
+import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import {
@@ -62,6 +62,7 @@ const ForestDungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -336,12 +337,21 @@ const ForestDungeon = () => {
     return { updatedBase, gainsByStat };
   };
 
-  const handleStartRun = () => {
+  const handleStartRun = async () => {
+    setError(null);
+    const result = await startDungeonRun(currentUser.uid);
+
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
     setGameState('fighting');
     setCurrentLevel(1);
     setCombatResult(null);
     setCurrentAction(null);
     setRewardSummary(null);
+    setIsSimulating(false);
 
     const levelData = getForestLevelByNumber(1);
     const playerReady = prepareForCombat(character);
@@ -766,48 +776,93 @@ const ForestDungeon = () => {
               <PlayerCard char={player} />
             </div>
 
-            <div className="flex-1 bg-stone-800 border border-stone-600 p-4 h-[520px] overflow-y-auto">
-              <div className="text-center text-amber-400 font-bold mb-4">Journal du combat</div>
-              <div className="space-y-2 text-sm">
-                {combatLog.map((log, idx) => {
-                  const cleanLog = log.trim();
-                  if (!cleanLog) return <div key={idx} className="h-2" />;
-                  const isP1 = cleanLog.startsWith('[P1]');
-                  const isP2 = cleanLog.startsWith('[P2]');
+          <div className="flex-1 bg-stone-800 border border-stone-600 p-4 h-[520px] overflow-y-auto">
+            <div className="text-center text-amber-400 font-bold mb-4">Journal du combat</div>
+            <div className="space-y-2 text-sm">
+              {combatLog.length === 0 ? (
+                <p className="text-stone-500 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+              ) : (
+                <>
+                  {combatLog.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
 
-                  if (isP1) {
-                    return (
-                      <div key={idx} className="flex justify-start">
-                        <div className="max-w-[80%]">
-                          <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
-                            <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                    if (!isP1 && !isP2) {
+                      if (log.includes('🏆')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-4">
+                            <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('💀')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-4">
+                            <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('💚')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-3">
+                            <div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('---') || log.includes('⚔️')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-3">
+                            <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                              {cleanLog}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="flex justify-center">
+                          <div className="text-stone-400 text-sm italic">
+                            {cleanLog}
                           </div>
                         </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  if (isP2) {
-                    return (
-                      <div key={idx} className="flex justify-end">
-                        <div className="max-w-[80%]">
-                          <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500">
-                            <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                    if (isP1) {
+                      return (
+                        <div key={idx} className="flex justify-start">
+                          <div className="max-w-[80%]">
+                            <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
+                              <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  return (
-                    <div key={idx} className="flex justify-center">
-                      <div className="text-stone-400 text-sm italic">{cleanLog}</div>
-                    </div>
-                  );
-                })}
-                <div ref={logEndRef} />
-              </div>
+                    if (isP2) {
+                      return (
+                        <div key={idx} className="flex justify-end">
+                          <div className="max-w-[80%]">
+                            <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500">
+                              <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
+                  <div ref={logEndRef} />
+                </>
+              )}
             </div>
+          </div>
 
             <div className="flex-shrink-0" style={{ width: '340px' }}>
               <BossCard bossChar={boss} />
@@ -845,6 +900,12 @@ const ForestDungeon = () => {
             ))}
           </div>
         </div>
+
+        {error && (
+          <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+            <p className="text-red-300">{error}</p>
+          </div>
+        )}
 
         <div className="flex gap-4 justify-center">
           <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">

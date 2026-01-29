@@ -561,12 +561,6 @@ const CharacterCreation = () => {
             >
               ⚔️ PVP ⚔️
             </button>
-            <button
-              onClick={() => navigate('/forest')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-emerald-500 hover:border-emerald-400 transition-all"
-            >
-              🌲 Forêt 🌲
-            </button>
           </div>
 
           <div className="mt-6 bg-stone-800 border border-amber-600/50 px-6 py-4 max-w-lg mx-auto rounded-lg">
