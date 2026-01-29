@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import CharacterCreation from './components/CharacterCreation';
 import Combat from './components/Combat';
 import Dungeon from './components/Dungeon';
+import ForestDungeon from './components/ForestDungeon';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -35,6 +36,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <Dungeon />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forest"
+            element={
+              <ProtectedRoute>
+                <ForestDungeon />
               </ProtectedRoute>
             }
           />

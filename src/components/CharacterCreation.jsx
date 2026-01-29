@@ -7,6 +7,7 @@ import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { getStatPointValue } from '../utils/statPoints';
 import { RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, tiers15, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 
@@ -321,12 +322,14 @@ const CharacterCreation = () => {
         if (r <= 0) { k = key; break; }
       }
 
-      // 1 point = +3 HP (max 150) ou +1 autre stat (max 35)
+      // 1 point = bonus selon la conversion des stats
       if (k === 'hp') {
-        if (s.hp + 3 <= 200) { s.hp += 3; rem--; }
+        const hpGain = getStatPointValue('hp');
+        if (s.hp + hpGain <= 200) { s.hp += hpGain; rem--; }
         // Si HP au max, on continue (pas de break)
       } else {
-        if (s[k] + 1 <= 35) { s[k]++; rem--; }
+        const statGain = getStatPointValue(k);
+        if (s[k] + statGain <= 35) { s[k] += statGain; rem--; }
         // Si stat au max, on continue (pas de break)
       }
     }
@@ -545,7 +548,7 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center gap-4">
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
               onClick={() => navigate('/combat')}
               className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
@@ -557,6 +560,12 @@ const CharacterCreation = () => {
               className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
             >
               🏰 Donjon 🏰
+            </button>
+            <button
+              onClick={() => navigate('/forest')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-emerald-500 hover:border-emerald-400 transition-all"
+            >
+              🌲 Forêt 🌲
             </button>
           </div>
 
