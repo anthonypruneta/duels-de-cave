@@ -333,6 +333,7 @@ const ForestDungeon = () => {
       if (att.rageReady) {
         raw = Math.round(raw * 2);
         att.rageReady = false;
+        att.rageUsed = true;
         log.push(`${playerColor} 💢 ${att.name} libère sa rage et double ses dégâts !`);
       }
 
@@ -379,7 +380,7 @@ const ForestDungeon = () => {
       }
     }
 
-    if (def?.ability?.type === 'bear_rage' && !def.rageReady && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.25) {
+    if (def?.ability?.type === 'bear_rage' && !def.rageReady && !def.rageUsed && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.25) {
       def.rageReady = true;
       log.push(`${playerColor} 🐻 ${def.name} entre en rage et prépare un coup dévastateur !`);
     }

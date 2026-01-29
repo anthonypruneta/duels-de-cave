@@ -622,7 +622,7 @@ const Dungeon = () => {
       const log1 = [];
       setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: [] });
       await new Promise(r => setTimeout(r, 300));
-      bossAbilityCooldown = processPlayerAction(first, second, log1, firstIsPlayer, firstIsPlayer ? 0 : bossAbilityCooldown);
+      bossAbilityCooldown = processPlayerAction(first, second, log1, firstIsPlayer, bossAbilityCooldown);
       setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: log1 });
       logs.push(...log1);
       setCombatLog([...logs]);
@@ -636,7 +636,7 @@ const Dungeon = () => {
         const log2 = [];
         setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: [] });
         await new Promise(r => setTimeout(r, 300));
-        bossAbilityCooldown = processPlayerAction(second, first, log2, !firstIsPlayer, !firstIsPlayer ? 0 : bossAbilityCooldown);
+        bossAbilityCooldown = processPlayerAction(second, first, log2, !firstIsPlayer, bossAbilityCooldown);
         setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: log2 });
         logs.push(...log2);
         setCombatLog([...logs]);
