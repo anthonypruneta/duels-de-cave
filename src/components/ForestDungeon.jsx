@@ -16,7 +16,7 @@ import {
   dmgCap,
   calcCritChance
 } from '../data/combatMechanics';
-import { applyWeaponStats, getWeaponById } from '../data/weapons';
+import { applyWeaponStats, getWeaponById, RARITY_COLORS } from '../data/weapons';
 import {
   FOREST_DIFFICULTY_COLORS,
   getAllForestLevels,
@@ -27,10 +27,66 @@ import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } f
 import Header from './Header';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
 const getBossImage = (imageFile) => {
   if (!imageFile) return null;
   return bossImageModules[`../assets/bosses/${imageFile}`] || null;
+};
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
+
+const STAT_LABELS = {
+  hp: 'HP',
+  auto: 'ATK',
+  def: 'DEF',
+  cap: 'CAP',
+  rescap: 'RESC',
+  spd: 'VIT'
+};
+
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && (
+        <span className="block text-amber-200">
+          Effet: {weapon.effet.nom} — {weapon.effet.description}
+        </span>
+      )}
+      {stats && (
+        <span className="block text-stone-200">
+          Stats: {stats}
+        </span>
+      )}
+    </span>
+  );
 };
 
 // Composant Tooltip réutilisable
@@ -205,45 +261,41 @@ const ForestDungeon = () => {
       }
     }
 
-    if (att.race === 'Lycan') {
-      const bleedDmg = raceConstants.lycan.bleedPerTurn * (att.bleed_stacks || 0);
-      if (bleedDmg > 0) {
-        att.currentHP -= bleedDmg;
-        log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
-        if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-          reviveUndead(att, log, playerColor);
-        }
+    if (att.bleed_stacks > 0) {
+      const bleedDmg = Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
+      att.currentHP -= bleedDmg;
+      log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
+      if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
+        reviveUndead(att, log, playerColor);
       }
     }
 
-    if (att.class === 'Healer') {
-      if (att.cd.heal === cooldowns.heal) {
-        const t = tiers15(att.base.cap);
-        const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
-        const missing = att.maxHP - att.currentHP;
-        const healPercent = missingHpPercent + capBase + capPerTier * t;
-        const heal = Math.max(1, Math.round(missing * healPercent));
-        att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
-      }
-    }
-
-    const isArcher = att.class === 'Archer';
-    const isMage = att.class === 'Mage';
-    const isWar = att.class === 'Guerrier';
-
-    const paladinReflect = att.class === 'Paladin';
-    if (paladinReflect) {
-      const t = tiers15(att.base.cap);
+    if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
       const { reflectBase, reflectPerTier } = classConstants.paladin;
-      att.reflect = reflectBase + reflectPerTier * t;
+      att.reflect = reflectBase + reflectPerTier * tiers15(att.base.cap);
+      log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
-    const masochisteReflect = att.class === 'Masochiste';
-    if (masochisteReflect) {
-      const t = tiers15(att.base.cap);
-      const { returnBase, returnPerTier } = classConstants.masochiste;
-      att.reflect = returnBase + returnPerTier * t;
+    if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+      const miss = att.maxHP - att.currentHP;
+      const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap));
+      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+      log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+    }
+
+    if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+      att.dodge = true;
+      log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
+    }
+
+    const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
+    const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
+    const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+
+    let mult = 1.0;
+    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+      mult = raceConstants.orc.damageBonus;
     }
 
     let total = 0;
@@ -253,10 +305,8 @@ const ForestDungeon = () => {
     for (let i = 0; i < attacks; i++) {
       let raw = 0;
       const ignore = isWar ? classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerTier * tiers15(att.base.cap) : 0;
-      const critChance = calcCritChance(att.base.spd, def.base.spd);
-      const isCrit = Math.random() < critChance;
+      const isCrit = Math.random() < calcCritChance(att);
       wasCrit = wasCrit || isCrit;
-      const mult = isCrit ? 1.5 : 1;
 
       if (isMage) {
         const t = tiers15(att.base.cap);
@@ -278,6 +328,8 @@ const ForestDungeon = () => {
         }
       }
 
+      if (isCrit) raw = Math.round(raw * generalConstants.critMultiplier);
+
       if (att.rageReady) {
         raw = Math.round(raw * 2);
         att.rageReady = false;
@@ -290,7 +342,7 @@ const ForestDungeon = () => {
       if (def.dodge) {
         def.dodge = false;
         log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
-        continue;
+        raw = 0;
       }
 
       if (def.reflect && raw > 0) {
@@ -558,6 +610,7 @@ const ForestDungeon = () => {
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
+    const weapon = char.equippedWeaponData;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
     const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
@@ -567,17 +620,30 @@ const ForestDungeon = () => {
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       return parts.join(' | ');
     };
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0;
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const displayValue = baseStats[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className="text-green-400">{label}: {baseStats[statKey]}</span>
+          <span className={labelClass}>
+            {label}: {displayValue}
+            {weaponDelta !== 0 && (
+              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
+                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
+              </span>
+            )}
+          </span>
         </Tooltip>
       ) : (
-        <span>{label}: {baseStats[statKey]}</span>
+        <span>{label}: {displayValue}</span>
       );
     };
 
@@ -619,6 +685,22 @@ const ForestDungeon = () => {
               <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="RESC" /></div>
             </div>
             <div className="space-y-2">
+              {weapon && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <Tooltip content={getWeaponTooltipContent(weapon)}>
+                    <span className="flex items-center gap-2">
+                      {getWeaponImage(weapon.imageFile) ? (
+                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                      ) : (
+                        <span className="text-xl">{weapon.icon}</span>
+                      )}
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>
+                        {weapon.nom}
+                      </span>
+                    </span>
+                  </Tooltip>
+                </div>
+              )}
               {races[char.race] && (
                 <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                   <span className="text-lg">{races[char.race].icon}</span>

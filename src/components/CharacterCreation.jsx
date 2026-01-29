@@ -484,7 +484,7 @@ const CharacterCreation = () => {
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
                 {existingCharacter.race} • {existingCharacter.class}
               </div>
-              <div className="overflow-hidden">
+              <div className="overflow-visible">
                 <div className="relative bg-stone-900 flex items-center justify-center">
                   {existingCharacter.characterImage ? (
                     <img
