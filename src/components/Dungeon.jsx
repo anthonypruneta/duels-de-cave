@@ -21,6 +21,7 @@ import {
   RARITY_BG_COLORS,
   applyWeaponStats
 } from '../data/weapons';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { createBossCombatant, getBossById } from '../data/bosses';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -50,10 +51,8 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
-const getSolidRarityBg = (rarity) => {
-  const base = RARITY_BG_COLORS[rarity] || '';
-  return base.replace('/50', '');
-};
+const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
+const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
 
 // Composant Tooltip (même que Combat.jsx)
 const Tooltip = ({ children, content }) => {
@@ -339,11 +338,12 @@ const Dungeon = () => {
   // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithWeapon = weaponId ? applyWeaponStats(char.base, weaponId) : { ...char.base };
+    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithWeapon = weaponId ? applyWeaponStats(baseWithBoosts, weaponId) : { ...baseWithBoosts };
     return {
       ...char,
       base: baseWithWeapon,
-      baseWithoutWeapon: char.base,
+      baseWithoutWeapon: baseWithBoosts,
       currentHP: baseWithWeapon.hp,
       maxHP: baseWithWeapon.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
@@ -795,14 +795,16 @@ const Dungeon = () => {
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
+    const forestBoosts = getForestBoosts(char);
     const weapon = char.equippedWeaponData;
-    const baseStats = char.baseWithoutWeapon || char.base;
+    const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
@@ -895,7 +897,7 @@ const Dungeon = () => {
                   <span className="text-lg">{classes[char.class].icon}</span>
                   <div className="flex-1">
                     <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, char.base.cap, char.base.auto)}</div>
+                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div>
                   </div>
                 </div>
               )}

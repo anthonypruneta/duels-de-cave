@@ -7,8 +7,8 @@ import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
-import { getStatPointValue } from '../utils/statPoints';
-import { RARITY_COLORS } from '../data/weapons';
+import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, tiers15, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -275,10 +275,15 @@ const CharacterCreation = () => {
       if (success && data) {
         const normalized = normalizeCharacterBonuses(data);
         setExistingCharacter(normalized);
-        const weaponResult = await getEquippedWeapon(currentUser.uid);
-        if (weaponResult.success) {
-          setEquippedWeapon(weaponResult.weapon);
+        let weaponId = normalized.equippedWeaponId || null;
+        let weaponData = weaponId ? getWeaponById(weaponId) : null;
+        if (!weaponData) {
+          const weaponResult = await getEquippedWeapon(currentUser.uid);
+          if (weaponResult.success) {
+            weaponData = weaponResult.weapon;
+          }
         }
+        setEquippedWeapon(weaponData);
         setCanCreate(false);
       } else {
         // Vérifier si l'utilisateur peut créer un personnage
@@ -370,7 +375,9 @@ const CharacterCreation = () => {
       race: rolledCharacter.race,
       class: rolledCharacter.class,
       base: rolledCharacter.base,
-      bonuses: rolledCharacter.bonuses
+      bonuses: rolledCharacter.bonuses,
+      forestBoosts: getEmptyStatBoosts(),
+      equippedWeaponId: null
     };
   };
 
@@ -425,21 +432,24 @@ const CharacterCreation = () => {
   // Afficher le personnage existant
   if (existingCharacter) {
     const totalBonus = (k) => (existingCharacter.bonuses.race[k]||0) + (existingCharacter.bonuses.class[k]||0);
+    const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
+    const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
     const weapon = equippedWeapon;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
-    const baseWithoutBonus = (k) => existingCharacter.base[k] - totalBonus(k);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (existingCharacter.bonuses.race[k] > 0) parts.push(`Race: +${existingCharacter.bonuses.race[k]}`);
       if (existingCharacter.bonuses.class[k] > 0) parts.push(`Classe: +${existingCharacter.bonuses.class[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const weaponDelta = weaponStatValue(statKey);
-      const displayValue = existingCharacter.base[statKey] + weaponDelta;
-      const hasBonus = totalBonus(statKey) > 0 || weaponDelta !== 0;
-      const totalDelta = totalBonus(statKey) + weaponDelta;
+      const displayValue = baseStats[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>

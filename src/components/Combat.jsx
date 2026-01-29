@@ -7,7 +7,8 @@ import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
-import { applyWeaponStats, RARITY_COLORS } from '../data/weapons';
+import { applyWeaponStats, getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
   cooldowns,
   classConstants,
@@ -53,6 +54,9 @@ const getWeaponStatColor = (value) => {
   if (value < 0) return 'text-red-400';
   return 'text-yellow-300';
 };
+
+const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
+const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
 
 const formatWeaponStats = (weapon) => {
   if (!weapon?.stats) return null;
@@ -116,11 +120,17 @@ const Combat = () => {
       if (result.success) {
         const charactersWithWeapons = await Promise.all(
           result.data.map(async (char) => {
-            const weaponResult = await getEquippedWeapon(char.id);
+            let weaponId = char.equippedWeaponId || null;
+            let weaponData = weaponId ? getWeaponById(weaponId) : null;
+            if (!weaponData) {
+              const weaponResult = await getEquippedWeapon(char.id);
+              weaponData = weaponResult.success ? weaponResult.weapon : null;
+              weaponId = weaponResult.success ? weaponResult.weapon?.id || null : null;
+            }
             return normalizeCharacterBonuses({
               ...char,
-              equippedWeaponData: weaponResult.success ? weaponResult.weapon : null,
-              equippedWeaponId: weaponResult.success ? weaponResult.weapon?.id || null : null
+              equippedWeaponData: weaponData,
+              equippedWeaponId: weaponId
             });
           })
         );
@@ -302,11 +312,12 @@ const Combat = () => {
   // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithWeapon = weaponId ? applyWeaponStats(char.base, weaponId) : { ...char.base };
+    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithWeapon = weaponId ? applyWeaponStats(baseWithBoosts, weaponId) : { ...baseWithBoosts };
     return {
       ...char,
       base: baseWithWeapon,
-      baseWithoutWeapon: char.base,
+      baseWithoutWeapon: baseWithBoosts,
       currentHP: baseWithWeapon.hp,
       maxHP: baseWithWeapon.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
@@ -680,13 +691,13 @@ const Combat = () => {
             <p className="text-white font-bold mt-2">{selectedChar.name}</p>
             <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
             <p className="text-stone-500 text-xs mt-1">
-              HP: {selectedChar.base.hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
+              HP: {getBaseWithBoosts(selectedChar).hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
               {selectedChar.equippedWeaponData?.stats?.hp ? (
                 <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.hp)}`}>
                   ({selectedChar.equippedWeaponData.stats.hp > 0 ? `+${selectedChar.equippedWeaponData.stats.hp}` : selectedChar.equippedWeaponData.stats.hp})
                 </span>
               ) : null}
-              {' '}| VIT: {selectedChar.base.spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
+              {' '}| VIT: {getBaseWithBoosts(selectedChar).spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
               {selectedChar.equippedWeaponData?.stats?.spd ? (
                 <span className={`ml-1 ${getWeaponStatColor(selectedChar.equippedWeaponData.stats.spd)}`}>
                   ({selectedChar.equippedWeaponData.stats.spd > 0 ? `+${selectedChar.equippedWeaponData.stats.spd}` : selectedChar.equippedWeaponData.stats.spd})
@@ -744,8 +755,8 @@ const Combat = () => {
                     <p className="text-amber-300 text-xs">{char.race} • {char.class}</p>
                   </div>
                   <div className="text-right text-xs text-gray-400">
-                    <p>HP: {char.base.hp}</p>
-                    <p>VIT: {char.base.spd}</p>
+                    <p>HP: {getBaseWithBoosts(char).hp}</p>
+                    <p>VIT: {getBaseWithBoosts(char).spd}</p>
                   </div>
                 </div>
               ))}
@@ -761,14 +772,16 @@ const Combat = () => {
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const raceB = character.bonuses?.race || {};
     const classB = character.bonuses?.class || {};
+    const forestBoosts = getForestBoosts(character);
     const weapon = character.equippedWeaponData;
-    const baseStats = character.baseWithoutWeapon || character.base;
+    const baseStats = character.baseWithoutWeapon || getBaseWithBoosts(character);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
@@ -781,8 +794,8 @@ const Combat = () => {
     const StatWithTooltip = ({ statKey, label }) => {
       const weaponDelta = weapon?.stats?.[statKey] ?? 0;
       const displayValue = baseStats[statKey] + weaponDelta;
-      const hasBonus = totalBonus(statKey) > 0 || weaponDelta !== 0;
-      const totalDelta = totalBonus(statKey) + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
@@ -852,7 +865,7 @@ const Combat = () => {
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, character.base.cap, character.base.auto)}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, getBaseWithBoosts(character).cap, getBaseWithBoosts(character).auto)}</div>
                 </div>
               </div>
             </div>

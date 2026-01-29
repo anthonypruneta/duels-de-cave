@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCharacter, updateCharacterBaseStats } from '../services/characterService';
+import { getUserCharacter, updateCharacterEquippedWeapon, updateCharacterForestBoosts } from '../services/characterService';
 import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -16,14 +16,14 @@ import {
   dmgCap,
   calcCritChance
 } from '../data/combatMechanics';
-import { applyWeaponStats } from '../data/weapons';
+import { applyWeaponStats, getWeaponById } from '../data/weapons';
 import {
   FOREST_DIFFICULTY_COLORS,
   getAllForestLevels,
   getForestLevelByNumber,
   createForestBossCombatant
 } from '../data/forestDungeons';
-import { applyStatPoints, getStatLabels } from '../utils/statPoints';
+import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } from '../utils/statPoints';
 import Header from './Header';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -76,12 +76,26 @@ const ForestDungeon = () => {
         return;
       }
 
-      const weaponResult = await getEquippedWeapon(currentUser.uid);
-      setEquippedWeapon(weaponResult.success ? weaponResult.weapon : null);
+      const characterData = charResult.data;
+      const forestBoosts = { ...getEmptyStatBoosts(), ...(characterData.forestBoosts || {}) };
+      let weaponId = characterData.equippedWeaponId || null;
+      let weaponData = weaponId ? getWeaponById(weaponId) : null;
+
+      if (!weaponData) {
+        const weaponResult = await getEquippedWeapon(currentUser.uid);
+        weaponData = weaponResult.success ? weaponResult.weapon : null;
+        weaponId = weaponResult.success ? weaponResult.weapon?.id || null : null;
+        if (weaponId && weaponId !== characterData.equippedWeaponId) {
+          updateCharacterEquippedWeapon(currentUser.uid, weaponId);
+        }
+      }
+
+      setEquippedWeapon(weaponData);
       setCharacter(normalizeCharacterBonuses({
-        ...charResult.data,
-        equippedWeaponData: weaponResult.success ? weaponResult.weapon : null,
-        equippedWeaponId: weaponResult.success ? weaponResult.weapon?.id || null : null
+        ...characterData,
+        forestBoosts,
+        equippedWeaponData: weaponData,
+        equippedWeaponId: weaponId
       }));
 
       setLoading(false);
@@ -96,11 +110,12 @@ const ForestDungeon = () => {
 
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithWeapon = weaponId ? applyWeaponStats(char.base, weaponId) : { ...char.base };
+    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithWeapon = weaponId ? applyWeaponStats(baseWithBoosts, weaponId) : { ...baseWithBoosts };
     return {
       ...char,
       base: baseWithWeapon,
-      baseWithoutWeapon: char.base,
+      baseWithoutWeapon: baseWithBoosts,
       currentHP: baseWithWeapon.hp,
       maxHP: baseWithWeapon.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
@@ -328,14 +343,14 @@ const ForestDungeon = () => {
     }
 
     const gainsByStat = {};
-    let updatedBase = { ...character.base };
+    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character.forestBoosts || {}) };
     Object.entries(pointsByStat).forEach(([stat, points]) => {
-      const { updatedStats, delta } = applyStatPoints(updatedBase, stat, points);
-      updatedBase = updatedStats;
+      const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, points);
+      updatedBoosts = updatedStats;
       gainsByStat[stat] = (gainsByStat[stat] || 0) + delta;
     });
 
-    return { updatedBase, gainsByStat };
+    return { updatedBoosts, gainsByStat };
   };
 
   const handleStartRun = async () => {
@@ -427,10 +442,10 @@ const ForestDungeon = () => {
       const rewardResult = rollForestRewards(levelData);
       const updatedCharacter = {
         ...character,
-        base: rewardResult.updatedBase
+        forestBoosts: rewardResult.updatedBoosts
       };
       setCharacter(updatedCharacter);
-      updateCharacterBaseStats(currentUser.uid, rewardResult.updatedBase);
+      updateCharacterForestBoosts(currentUser.uid, rewardResult.updatedBoosts);
 
       const nextLevel = currentLevel + 1;
       setRewardSummary({
@@ -545,16 +560,18 @@ const ForestDungeon = () => {
     const classB = char.bonuses?.class || {};
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k);
+    const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       return parts.join(' | ');
     };
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const hasBonus = totalBonus(statKey) > 0;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0;
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
           <span className="text-green-400">{label}: {baseStats[statKey]}</span>
