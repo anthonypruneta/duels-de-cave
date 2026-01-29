@@ -50,6 +50,11 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
+const getSolidRarityBg = (rarity) => {
+  const base = RARITY_BG_COLORS[rarity] || '';
+  return base.replace('/50', '');
+};
+
 // Composant Tooltip (même que Combat.jsx)
 const Tooltip = ({ children, content }) => {
   return (
