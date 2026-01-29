@@ -817,8 +817,8 @@ const Dungeon = () => {
     const StatWithTooltip = ({ statKey, label }) => {
       const weaponDelta = weapon?.stats?.[statKey] ?? 0;
       const displayValue = baseStats[statKey] + weaponDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + weaponDelta;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
