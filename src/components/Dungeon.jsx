@@ -18,8 +18,10 @@ import {
 import {
   RARITY_COLORS,
   RARITY_BORDER_COLORS,
-  RARITY_BG_COLORS
+  RARITY_BG_COLORS,
+  applyWeaponStats
 } from '../data/weapons';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { createBossCombatant, getBossById } from '../data/bosses';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -49,6 +51,9 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
+const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
+const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
+
 // Composant Tooltip (même que Combat.jsx)
 const Tooltip = ({ children, content }) => {
   return (
@@ -58,6 +63,56 @@ const Tooltip = ({ children, content }) => {
         {content}
         <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
       </span>
+    </span>
+  );
+};
+
+const STAT_LABELS = {
+  hp: 'HP',
+  auto: 'Auto',
+  def: 'Déf',
+  cap: 'Cap',
+  rescap: 'ResC',
+  spd: 'VIT'
+};
+
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && (
+        <span className="block text-amber-200">
+          Effet: {weapon.effet.nom} — {weapon.effet.description}
+        </span>
+      )}
+      {stats && (
+        <span className="block text-stone-200">
+          Stats: {stats}
+        </span>
+      )}
     </span>
   );
 };
@@ -102,6 +157,11 @@ const Dungeon = () => {
         const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
         if (summaryResult.success) {
           setDungeonSummary(summaryResult.data);
+          setCharacter(prev => prev ? {
+            ...prev,
+            equippedWeaponData: summaryResult.data.equippedWeaponData,
+            equippedWeaponId: summaryResult.data.equippedWeaponData?.id || null
+          } : prev);
         }
       } catch (err) {
         setError('Erreur de chargement');
@@ -277,10 +337,15 @@ const Dungeon = () => {
 
   // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
+    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
+    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithWeapon = weaponId ? applyWeaponStats(baseWithBoosts, weaponId) : { ...baseWithBoosts };
     return {
       ...char,
-      currentHP: char.base.hp,
-      maxHP: char.base.hp,
+      base: baseWithWeapon,
+      baseWithoutWeapon: baseWithBoosts,
+      currentHP: baseWithWeapon.hp,
+      maxHP: baseWithWeapon.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
       undead: false,
       dodge: false,
@@ -730,25 +795,44 @@ const Dungeon = () => {
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
+    const forestBoosts = getForestBoosts(char);
+    const weapon = char.equippedWeaponData;
+    const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => char.base[k] - totalBonus(k);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      if (weaponDelta !== 0) {
+        parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+      }
       return parts.join(' | ');
     };
 
     const characterImage = char.characterImage || null;
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const hasBonus = totalBonus(statKey) > 0;
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const displayValue = baseStats[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className="text-green-400">{label}: {char.base[statKey]}</span>
+          <span className={labelClass}>
+            {label}: {displayValue}
+            {weaponDelta !== 0 && (
+              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
+                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
+              </span>
+            )}
+          </span>
         </Tooltip>
       ) : (
-        <span>{label}: {char.base[statKey]}</span>
+        <span>{label}: {displayValue}</span>
       );
     };
 
@@ -788,6 +872,20 @@ const Dungeon = () => {
               <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
             </div>
             <div className="space-y-2">
+              {weapon && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <Tooltip content={getWeaponTooltipContent(weapon)}>
+                    <span className="flex items-center gap-2">
+                      {getWeaponImage(weapon.imageFile) ? (
+                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                      ) : (
+                        <span className="text-xl">{weapon.icon}</span>
+                      )}
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    </span>
+                  </Tooltip>
+                </div>
+              )}
               {races[char.race] && (
                 <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                   <span className="text-lg">{races[char.race].icon}</span>
@@ -799,7 +897,7 @@ const Dungeon = () => {
                   <span className="text-lg">{classes[char.class].icon}</span>
                   <div className="flex-1">
                     <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, char.base.cap, char.base.auto)}</div>
+                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div>
                   </div>
                 </div>
               )}
@@ -1240,19 +1338,23 @@ const Dungeon = () => {
 
         {/* Arme équipée */}
         {dungeonSummary?.equippedWeaponData && (
-          <div className={`mb-8 p-4 border-2 ${RARITY_BORDER_COLORS[dungeonSummary.equippedWeaponData.rarete]} ${RARITY_BG_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
+          <div className={`mb-8 p-4 border-2 border-stone-600 bg-stone-800`}>
             <div className="flex items-center gap-4">
-              {getWeaponImage(dungeonSummary.equippedWeaponData.imageFile) ? (
-                <img src={getWeaponImage(dungeonSummary.equippedWeaponData.imageFile)} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
-              ) : (
-                <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
-              )}
-              <div className="flex-1">
-                <p className="text-sm text-gray-400">Arme équipée</p>
-                <p className={`text-xl font-bold ${RARITY_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
-                  {dungeonSummary.equippedWeaponData.nom}
-                </p>
-              </div>
+              <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
+                <div className="flex items-center gap-4">
+                  {getWeaponImage(dungeonSummary.equippedWeaponData.imageFile) ? (
+                    <img src={getWeaponImage(dungeonSummary.equippedWeaponData.imageFile)} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
+                  ) : (
+                    <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-400">Arme équipée</p>
+                    <p className={`text-xl font-bold ${RARITY_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
+                      {dungeonSummary.equippedWeaponData.nom}
+                    </p>
+                  </div>
+                </div>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -1283,7 +1385,7 @@ const Dungeon = () => {
         )}
 
         <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
+          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
             Retour
           </button>
           <button
@@ -1299,7 +1401,7 @@ const Dungeon = () => {
           </button>
         </div>
 
-        <div className="mt-8 bg-stone-800/50 border border-stone-600 p-4 text-center">
+        <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">
           <p className="text-gray-400 text-sm">
             Vous êtes soigné entre chaque boss. Si vous êtes vaincu, vous obtenez le loot du dernier niveau réussi.
           </p>
