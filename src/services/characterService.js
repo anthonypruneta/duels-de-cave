@@ -238,3 +238,20 @@ export const updateCharacterImage = async (userId, imageDataUrl) => {
     return { success: false, error: error.message };
   }
 };
+
+// Mettre à jour les stats de base d'un personnage
+export const updateCharacterBaseStats = async (userId, baseStats) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        base: baseStats,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des stats:', error);
+    return { success: false, error: error.message };
+  }
+};
