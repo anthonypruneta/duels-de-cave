@@ -1336,7 +1336,7 @@ const Dungeon = () => {
 
         {/* Arme équipée */}
         {dungeonSummary?.equippedWeaponData && (
-          <div className={`mb-8 p-4 border-2 ${RARITY_BORDER_COLORS[dungeonSummary.equippedWeaponData.rarete]} ${getSolidRarityBg(dungeonSummary.equippedWeaponData.rarete)}`}>
+          <div className={`mb-8 p-4 border-2 border-stone-600 bg-stone-800`}>
             <div className="flex items-center gap-4">
               <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
                 <div className="flex items-center gap-4">
