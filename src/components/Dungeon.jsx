@@ -140,6 +140,28 @@ const Dungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
 
+  const ensureDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic && dungeonMusic.paused) {
+      dungeonMusic.volume = 0.35;
+      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    }
+  };
+
+  const stopDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic) {
+      dungeonMusic.pause();
+      dungeonMusic.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (gameState === 'fighting') {
+      ensureDungeonMusic();
+    }
+  }, [gameState]);
+
   // Charger les données au montage
   useEffect(() => {
     const loadData = async () => {
@@ -582,6 +604,7 @@ const Dungeon = () => {
     setHighestLevelBeaten(0);
     setCombatResult(null);
     setCurrentAction(null);
+    ensureDungeonMusic();
 
     // Préparer le premier combat
     const levelData = getDungeonLevelByNumber(1);
@@ -598,6 +621,7 @@ const Dungeon = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    ensureDungeonMusic();
 
     const p = { ...player };
     const b = { ...boss };
@@ -676,6 +700,7 @@ const Dungeon = () => {
         setCombatResult(null);
       } else {
         // Full clear!
+        stopDungeonMusic();
         await new Promise(r => setTimeout(r, 1500));
         const result = await endDungeonRun(currentUser.uid, newHighest);
         if (result.success && result.lootWeapon) {
@@ -690,6 +715,7 @@ const Dungeon = () => {
       setCombatLog([...logs]);
       setCombatResult('defeat');
 
+      stopDungeonMusic();
       await new Promise(r => setTimeout(r, 1500));
       const result = await endDungeonRun(currentUser.uid, highestLevelBeaten, currentLevel);
       if (result.success && result.lootWeapon) {
@@ -724,6 +750,7 @@ const Dungeon = () => {
     if (summaryResult.success) {
       setDungeonSummary(summaryResult.data);
     }
+    stopDungeonMusic();
     setGameState('lobby');
     setCurrentLevel(1);
     setHighestLevelBeaten(0);
@@ -1009,6 +1036,9 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <audio id="dungeon-music" loop>
+          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-2xl mx-auto pt-20">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">🎁</div>
@@ -1107,6 +1137,9 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <audio id="dungeon-music" loop>
+          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-[1800px] mx-auto pt-16">
           {/* Header avec progression */}
           <div className="flex justify-center mb-4">
@@ -1291,6 +1324,9 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <audio id="dungeon-music" loop>
+          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
           <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
@@ -1313,6 +1349,9 @@ const Dungeon = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <audio id="dungeon-music" loop>
+        <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+      </audio>
       <div className="max-w-4xl mx-auto pt-20">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-stone-800 border border-stone-600 px-8 py-3">
