@@ -455,11 +455,6 @@ const CharacterCreation = () => {
         <Tooltip content={tooltipContent(statKey)}>
           <div className={valueClassName}>
             {label} : <span className={`font-bold ${labelClass}`}>{displayValue}</span>
-            {weaponDelta !== 0 && (
-              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
-                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
-              </span>
-            )}
           </div>
         </Tooltip>
       ) : (
