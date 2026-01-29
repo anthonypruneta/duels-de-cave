@@ -74,5 +74,11 @@ export const createForestBossCombatant = (bossData) => ({
   maxHP: bossData.stats.hp,
   ability: bossData.ability,
   rageReady: false,
-  imageFile: bossData.imageFile || null
+  imageFile: bossData.imageFile || null,
+  cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
+  undead: false,
+  dodge: false,
+  reflect: false,
+  bleed_stacks: 0,
+  maso_taken: 0
 });

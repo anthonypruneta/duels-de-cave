@@ -564,6 +564,8 @@ const ForestDungeon = () => {
       );
     };
 
+    const characterImage = char.characterImage || null;
+
     return (
       <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
@@ -571,9 +573,13 @@ const ForestDungeon = () => {
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            <div className="w-full h-48 flex items-center justify-center">
-              <span className="text-7xl">{races[char.race]?.icon || '❓'}</span>
-            </div>
+            {characterImage ? (
+              <img src={characterImage} alt={char.name} className="w-full h-auto object-contain" />
+            ) : (
+              <div className="w-full h-48 flex items-center justify-center">
+                <span className="text-7xl">{races[char.race]?.icon || '❓'}</span>
+              </div>
+            )}
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
               <div className="text-white font-bold text-xl text-center">{char.name}</div>
             </div>
