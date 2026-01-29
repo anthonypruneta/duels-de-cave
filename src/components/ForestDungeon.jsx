@@ -121,6 +121,23 @@ const ForestDungeon = () => {
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
 
+  const playForestMusic = () => {
+    const forestMusic = document.getElementById('forest-music');
+    if (forestMusic) {
+      forestMusic.currentTime = 0;
+      forestMusic.volume = 0.35;
+      forestMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    }
+  };
+
+  const stopForestMusic = () => {
+    const forestMusic = document.getElementById('forest-music');
+    if (forestMusic) {
+      forestMusic.pause();
+      forestMusic.currentTime = 0;
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!currentUser) return;
@@ -163,6 +180,15 @@ const ForestDungeon = () => {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
+
+  useEffect(() => {
+    if (gameState === 'fighting' || gameState === 'reward') {
+      playForestMusic();
+    }
+    if (gameState === 'victory' || gameState === 'defeat') {
+      stopForestMusic();
+    }
+  }, [gameState]);
 
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
@@ -544,6 +570,7 @@ const ForestDungeon = () => {
   };
 
   const handleBackToLobby = () => {
+    stopForestMusic();
     setGameState('lobby');
     setCurrentLevel(1);
     setPlayer(null);
@@ -780,6 +807,9 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <audio id="forest-music" loop>
+          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        </audio>
         <div className="text-amber-400 text-2xl">Chargement de la forêt...</div>
       </div>
     );
@@ -789,6 +819,9 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <audio id="forest-music" loop>
+          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        </audio>
         <div className="text-red-400 text-2xl">Aucun personnage trouvé.</div>
       </div>
     );
@@ -801,6 +834,9 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
+        <audio id="forest-music" loop>
+          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        </audio>
         <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">🌲</div>
           <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
@@ -827,6 +863,9 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <audio id="forest-music" loop>
+          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
           <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
@@ -848,6 +887,9 @@ const ForestDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <audio id="forest-music" loop>
+          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-6xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
@@ -999,6 +1041,9 @@ const ForestDungeon = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <audio id="forest-music" loop>
+        <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+      </audio>
       <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
