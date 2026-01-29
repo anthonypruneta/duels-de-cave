@@ -21,7 +21,7 @@ const DungeonSelection = () => {
             <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
               <div className="text-4xl mb-2">🏰</div>
               <p className="text-white font-bold text-lg">La Grotte aux merveilles</p>
-              <p className="text-sm text-stone-400 mb-4">Donjon d’armes et loot</p>
+              <p className="text-sm text-stone-400 mb-4">Donjon d’armes</p>
               <button
                 onClick={() => navigate('/dungeon')}
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
@@ -32,7 +32,7 @@ const DungeonSelection = () => {
             <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
               <div className="text-4xl mb-2">🌲</div>
               <p className="text-white font-bold text-lg">La Forêt enchantée</p>
-              <p className="text-sm text-stone-400 mb-4">Donjon d’EXP et progression</p>
+              <p className="text-sm text-stone-400 mb-4">Donjon d’EXP</p>
               <button
                 onClick={() => navigate('/forest')}
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
