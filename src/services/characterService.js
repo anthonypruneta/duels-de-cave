@@ -238,3 +238,54 @@ export const updateCharacterImage = async (userId, imageDataUrl) => {
     return { success: false, error: error.message };
   }
 };
+
+// Mettre à jour les stats de base d'un personnage
+export const updateCharacterBaseStats = async (userId, baseStats) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        base: baseStats,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des stats:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Mettre à jour les boosts de stats de la forêt
+export const updateCharacterForestBoosts = async (userId, forestBoosts) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        forestBoosts,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des boosts forêt:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Mettre à jour l'arme équipée (stockée dans le personnage)
+export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        equippedWeaponId: weaponId || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de l\'arme équipée:', error);
+    return { success: false, error: error.message };
+  }
+};
