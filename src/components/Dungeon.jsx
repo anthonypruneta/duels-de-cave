@@ -50,6 +50,11 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
+const getSolidRarityBg = (rarity) => {
+  const base = RARITY_BG_COLORS[rarity] || '';
+  return base.replace('/50', '');
+};
+
 // Composant Tooltip (même que Combat.jsx)
 const Tooltip = ({ children, content }) => {
   return (
@@ -1331,7 +1336,7 @@ const Dungeon = () => {
 
         {/* Arme équipée */}
         {dungeonSummary?.equippedWeaponData && (
-          <div className={`mb-8 p-4 border-2 ${RARITY_BORDER_COLORS[dungeonSummary.equippedWeaponData.rarete]} ${RARITY_BG_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
+          <div className={`mb-8 p-4 border-2 ${RARITY_BORDER_COLORS[dungeonSummary.equippedWeaponData.rarete]} ${getSolidRarityBg(dungeonSummary.equippedWeaponData.rarete)}`}>
             <div className="flex items-center gap-4">
               <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
                 <div className="flex items-center gap-4">
@@ -1394,7 +1399,7 @@ const Dungeon = () => {
           </button>
         </div>
 
-        <div className="mt-8 bg-stone-800/50 border border-stone-600 p-4 text-center">
+        <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">
           <p className="text-gray-400 text-sm">
             Vous êtes soigné entre chaque boss. Si vous êtes vaincu, vous obtenez le loot du dernier niveau réussi.
           </p>
