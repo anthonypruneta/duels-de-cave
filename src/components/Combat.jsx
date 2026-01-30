@@ -959,14 +959,14 @@ const Combat = () => {
         </div>
 
         {/* Layout principal: Perso 1 | Chat | Perso 2 */}
-        <div className="flex gap-4 items-start justify-center">
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center">
           {/* Carte joueur 1 - Gauche */}
-          <div className="flex-shrink-0" style={{width: '340px'}}>
+          <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
             <CharacterCard character={player1} imageIndex={1} />
           </div>
 
           {/* Zone centrale - Boutons + Chat */}
-          <div className="flex-shrink-0 flex flex-col" style={{width: '600px'}}>
+          <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
             {/* Boutons de contrôle alignés avec le haut des images */}
             <div className="flex justify-center gap-4 mb-4">
               <button
@@ -1071,7 +1071,7 @@ const Combat = () => {
           </div>
 
           {/* Carte joueur 2 - Droite */}
-          <div className="flex-shrink-0" style={{width: '340px'}}>
+          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
             <CharacterCard character={player2} imageIndex={2} />
           </div>
         </div>

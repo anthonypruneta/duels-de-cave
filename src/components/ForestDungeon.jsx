@@ -1080,12 +1080,12 @@ const ForestDungeon = () => {
           </div>
 
           {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
-          <div className="flex gap-4 items-start justify-center">
-            <div className="flex-shrink-0" style={{width: '340px'}}>
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center">
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <PlayerCard char={player} />
             </div>
 
-            <div className="flex-shrink-0 flex flex-col" style={{width: '600px'}}>
+            <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
               <div className="flex justify-center gap-4 mb-4">
                 {combatResult === null && (
                   <button
@@ -1211,7 +1211,7 @@ const ForestDungeon = () => {
               </div>
             </div>
 
-            <div className="flex-shrink-0" style={{width: '340px'}}>
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} />
             </div>
           </div>

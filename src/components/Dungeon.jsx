@@ -1174,14 +1174,14 @@ const Dungeon = () => {
           </div>
 
           {/* Layout principal: Joueur | Chat | Boss (même que Combat.jsx) */}
-          <div className="flex gap-4 items-start justify-center">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center">
             {/* Carte joueur - Gauche */}
-            <div className="flex-shrink-0" style={{width: '340px'}}>
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <PlayerCard char={player} />
             </div>
 
             {/* Zone centrale - Boutons + Chat */}
-            <div className="flex-shrink-0 flex flex-col" style={{width: '600px'}}>
+            <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
               {/* Boutons de contrôle */}
               <div className="flex justify-center gap-4 mb-4">
                 {combatResult === null && (
@@ -1315,7 +1315,7 @@ const Dungeon = () => {
             </div>
 
             {/* Carte boss - Droite */}
-            <div className="flex-shrink-0" style={{width: '340px'}}>
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} />
             </div>
           </div>
