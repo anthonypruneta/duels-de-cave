@@ -293,3 +293,20 @@ export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
     return { success: false, error: error.message };
   }
 };
+
+// Mettre à jour le niveau du personnage
+export const updateCharacterLevel = async (userId, level) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        level,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du niveau:', error);
+    return { success: false, error: error.message };
+  }
+};

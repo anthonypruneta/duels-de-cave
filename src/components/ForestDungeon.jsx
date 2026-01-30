@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCharacter, updateCharacterEquippedWeapon, updateCharacterForestBoosts } from '../services/characterService';
+import {
+  getUserCharacter,
+  updateCharacterEquippedWeapon,
+  updateCharacterForestBoosts,
+  updateCharacterLevel
+} from '../services/characterService';
 import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -149,6 +154,10 @@ const ForestDungeon = () => {
       }
 
       const characterData = charResult.data;
+      const level = characterData.level ?? 1;
+      if (characterData.level == null) {
+        updateCharacterLevel(currentUser.uid, level);
+      }
       const forestBoosts = { ...getEmptyStatBoosts(), ...(characterData.forestBoosts || {}) };
       let weaponId = characterData.equippedWeaponId || null;
       let weaponData = weaponId ? getWeaponById(weaponId) : null;
@@ -166,7 +175,7 @@ const ForestDungeon = () => {
       setCharacter(normalizeCharacterBonuses({
         ...characterData,
         forestBoosts,
-        level: characterData.level ?? 1,
+        level,
         equippedWeaponData: weaponData,
         equippedWeaponId: weaponId
       }));

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCharacter } from '../services/characterService';
+import { getUserCharacter, updateCharacterLevel } from '../services/characterService';
 import {
   getPlayerDungeonSummary,
   startDungeonRun,
@@ -174,7 +174,14 @@ const Dungeon = () => {
           navigate('/');
           return;
         }
-        setCharacter(charResult.data);
+        const level = charResult.data.level ?? 1;
+        if (charResult.data.level == null) {
+          updateCharacterLevel(currentUser.uid, level);
+        }
+        setCharacter({
+          ...charResult.data,
+          level
+        });
 
         const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
         if (summaryResult.success) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -274,9 +274,13 @@ const CharacterCreation = () => {
 
       if (success && data) {
         const normalized = normalizeCharacterBonuses(data);
+        const level = normalized.level ?? 1;
+        if (normalized.level == null) {
+          updateCharacterLevel(currentUser.uid, level);
+        }
         setExistingCharacter({
           ...normalized,
-          level: normalized.level ?? 1
+          level
         });
         let weaponId = normalized.equippedWeaponId || null;
         let weaponData = weaponId ? getWeaponById(weaponId) : null;

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
-import { getAllCharacters } from '../services/characterService';
+import { getAllCharacters, updateCharacterLevel } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -122,6 +122,10 @@ const Combat = () => {
       if (result.success) {
         const charactersWithWeapons = await Promise.all(
           result.data.map(async (char) => {
+            const level = char.level ?? 1;
+            if (char.level == null) {
+              await updateCharacterLevel(char.id, level);
+            }
             let weaponId = char.equippedWeaponId || null;
             let weaponData = weaponId ? getWeaponById(weaponId) : null;
             if (!weaponData) {
@@ -131,6 +135,7 @@ const Combat = () => {
             }
             return normalizeCharacterBonuses({
               ...char,
+              level,
               equippedWeaponData: weaponData,
               equippedWeaponId: weaponId
             });
