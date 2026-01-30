@@ -25,6 +25,7 @@ import {
   DUNGEON_CONSTANTS
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
+import { getUserCharacter, updateCharacterEquippedWeapon } from './characterService';
 
 // ============================================================================
 // HELPER RETRY (même pattern que characterService)
@@ -281,6 +282,8 @@ export const equipWeapon = async (userId, weaponId) => {
       });
     });
 
+    await updateCharacterEquippedWeapon(userId, weaponId);
+
     console.log('✅ Arme équipée:', weapon.nom);
     return { success: true, weapon };
   } catch (error) {
@@ -303,6 +306,8 @@ export const unequipWeapon = async (userId) => {
         updatedAt: Timestamp.now()
       });
     });
+
+    await updateCharacterEquippedWeapon(userId, null);
 
     console.log('✅ Arme déséquipée');
     return { success: true };
@@ -388,9 +393,19 @@ export const getPlayerDungeonSummary = async (userId) => {
     }
 
     const progress = progressResult.data;
-    const equippedWeapon = progress.equippedWeapon
-      ? getWeaponById(progress.equippedWeapon)
-      : null;
+    let equippedWeapon = null;
+    const characterResult = await getUserCharacter(userId);
+    const characterWeaponId = characterResult.success ? characterResult.data?.equippedWeaponId || null : null;
+
+    if (characterWeaponId) {
+      equippedWeapon = getWeaponById(characterWeaponId);
+    }
+
+    if (!equippedWeapon) {
+      equippedWeapon = progress.equippedWeapon
+        ? getWeaponById(progress.equippedWeapon)
+        : null;
+    }
 
     const runsRemaining = getRemainingRuns(progress.runsToday, progress.lastRunDate);
 
