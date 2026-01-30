@@ -121,7 +121,7 @@ export function getAllDungeonLevels() {
 }
 
 /**
- * Vérifie si c'est un nouveau jour (reset à minuit)
+ * Vérifie si c'est un nouveau jour (reset à midi)
  */
 export function isNewDay(lastRunDate) {
   if (!lastRunDate) return true;
@@ -129,12 +129,18 @@ export function isNewDay(lastRunDate) {
   const last = lastRunDate instanceof Date ? lastRunDate : lastRunDate.toDate();
   const now = new Date();
 
-  // Compare les dates (jour/mois/année)
-  return (
-    last.getDate() !== now.getDate() ||
-    last.getMonth() !== now.getMonth() ||
-    last.getFullYear() !== now.getFullYear()
-  );
+  const getResetAnchor = (date) => {
+    const anchor = new Date(date);
+    anchor.setHours(12, 0, 0, 0);
+    if (date < anchor) {
+      anchor.setDate(anchor.getDate() - 1);
+    }
+    return anchor;
+  };
+
+  const currentAnchor = getResetAnchor(now);
+
+  return last < currentAnchor;
 }
 
 /**
