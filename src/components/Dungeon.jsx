@@ -449,6 +449,13 @@ const Dungeon = () => {
     p.stunned = false;
     p.stunnedTurns = 0;
     p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
+    if (p.weaponState?.counters) {
+      p.weaponState.counters.turnCount = 0;
+      p.weaponState.counters.attackCount = 0;
+      p.weaponState.counters.spellCount = 0;
+      p.weaponState.counters.firstHitDone = false;
+      p.weaponState.counters.gungnirApplied = false;
+    }
   };
 
   // Fonction de résurrection mort-vivant
@@ -992,6 +999,7 @@ const Dungeon = () => {
     const forestBoosts = getForestBoosts(char);
     const weapon = char.equippedWeaponData;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
@@ -1003,6 +1011,12 @@ const Dungeon = () => {
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       }
+      if (k === 'auto') {
+        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+        if (passiveAutoBonus !== 0) {
+          parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+        }
+      }
       return parts.join(' | ');
     };
 
@@ -1010,9 +1024,12 @@ const Dungeon = () => {
 
     const StatWithTooltip = ({ statKey, label }) => {
       const weaponDelta = weapon?.stats?.[statKey] ?? 0;
-      const displayValue = baseStats[statKey] + weaponDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const passiveAutoBonus = statKey === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>

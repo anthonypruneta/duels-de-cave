@@ -17,6 +17,7 @@ import { RARITY } from './weapons.js';
 // ============================================================================
 export const DUNGEON_CONSTANTS = {
   MAX_RUNS_PER_DAY: 10,
+  MAX_RUNS_PER_RESET: 5,
   TOTAL_LEVELS: 3,
 };
 
@@ -121,14 +122,12 @@ export function getAllDungeonLevels() {
 }
 
 /**
- * Vérifie si c'est un nouveau jour (reset à midi)
+ * Vérifie si c'est une nouvelle période (reset à minuit et à midi)
  */
 export function getResetAnchor(date) {
   const anchor = new Date(date);
-  anchor.setHours(12, 0, 0, 0);
-  if (date < anchor) {
-    anchor.setDate(anchor.getDate() - 1);
-  }
+  const hour = anchor.getHours();
+  anchor.setHours(hour >= 12 ? 12 : 0, 0, 0, 0);
   return anchor;
 }
 
@@ -150,8 +149,8 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
   const lastAnchor = getResetAnchor(last);
   const diffMs = currentAnchor - lastAnchor;
   if (diffMs <= 0) return 0;
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.floor(diffMs / dayMs);
+  const periodMs = 12 * 60 * 60 * 1000;
+  return Math.floor(diffMs / periodMs);
 }
 
 /**
@@ -159,10 +158,10 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
  */
 export function getRemainingRuns(runsToday, lastRunDate) {
   if (!lastRunDate) {
-    return DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+    return DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
   }
   const periods = getResetPeriodsSince(lastRunDate, new Date());
-  const totalAllowance = (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+  const totalAllowance = (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
   return Math.max(0, totalAllowance - (runsToday || 0));
 }
 

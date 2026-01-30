@@ -118,7 +118,7 @@ export const getDungeonProgress = async (userId) => {
       } else {
         const periods = getResetPeriodsSince(data.lastCreditDate, new Date());
         if (periods > 0) {
-          updates.runsAvailable = runsAvailable + periods * DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+          updates.runsAvailable = runsAvailable + periods * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
           updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
         }
       }
@@ -139,7 +139,7 @@ export const getDungeonProgress = async (userId) => {
         userId,
         equippedWeapon: null,
         runsToday: 0,
-        runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
+        runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
         lastRunDate: null,
         lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
         totalRuns: 0,
@@ -181,7 +181,7 @@ export const canStartDungeonRun = async (userId) => {
       canStart: remaining > 0,
       runsRemaining: remaining,
       runsToday: isNewDay(data.lastRunDate) ? 0 : data.runsToday,
-      maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
+      maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
       reason: remaining > 0 ? 'ok' : 'no_runs_left'
     };
   } catch (error) {
@@ -457,7 +457,7 @@ export const getPlayerDungeonSummary = async (userId) => {
         ...progress,
         equippedWeaponData: equippedWeapon,
         runsRemaining,
-        maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
+        maxRuns: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
         hasLegendaryWeapon: equippedWeapon?.rarete === 'légendaire'
       }
     };
