@@ -8,7 +8,6 @@ import {
   classConstants,
   raceConstants,
   generalConstants,
-  tiers15,
   dmgPhys,
   dmgCap,
   calcCritChance,
@@ -91,9 +90,8 @@ const processTurn = (p1, p2) => {
 
     // Demoniste - Familier
     if (att.class === 'Demoniste') {
-      const t = tiers15(att.base.cap);
-      const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerTier * t) * att.base.cap));
+      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -104,9 +102,8 @@ const processTurn = (p1, p2) => {
     // Masochiste - Renvoi de dégâts
     if (att.class === 'Masochiste') {
       if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
-        const t = tiers15(att.base.cap);
-        const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
-        const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerTier * t)));
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+        const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
@@ -128,15 +125,15 @@ const processTurn = (p1, p2) => {
 
     // Paladin - Riposte
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
-      const { reflectBase, reflectPerTier } = classConstants.paladin;
-      att.reflect = reflectBase + reflectPerTier * tiers15(att.base.cap);
+      const { reflectBase, reflectPerCap } = classConstants.paladin;
+      att.reflect = reflectBase + reflectPerCap * att.base.cap;
     }
 
     // Healer - Soin
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
       const miss = att.maxHP - att.currentHP;
-      const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap));
+      const { missingHpPercent, capScale } = classConstants.healer;
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
@@ -156,7 +153,7 @@ const processTurn = (p1, p2) => {
     }
 
     // Archer - Tirs multiples
-    let hits = isArcher ? classConstants.archer.arrowsBase + classConstants.archer.arrowsPerTier * tiers15(att.base.cap) : 1;
+    const hits = isArcher ? classConstants.archer.hitCount : 1;
 
     for (let i = 0; i < hits; i++) {
       const isCrit = Math.random() < calcCritChance(att);
@@ -164,19 +161,28 @@ const processTurn = (p1, p2) => {
 
       if (isMage) {
         // Mage - Sort magique
-        const { capBase, capPerTier } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap * mult);
+        const { capBase, capPerCap } = classConstants.mage;
+        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerCap * att.base.cap) * att.base.cap * mult);
         raw = dmgCap(atkSpell, def.base.rescap);
       } else if (isWar) {
         // Guerrier - Frappe pénétrante
-        const { ignoreBase, ignorePerTier } = classConstants.guerrier;
-        const ignore = ignoreBase + ignorePerTier * tiers15(att.base.cap);
+        const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+        const ignore = ignoreBase + ignorePerCap * att.base.cap;
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
         } else {
           const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
           raw = dmgCap(Math.round(att.base.cap * mult), effRes);
+        }
+      } else if (isArcher) {
+        if (i === 0) {
+          raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+        } else {
+          const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+          const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * mult), def.base.def);
+          const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * mult), def.base.rescap);
+          raw = physPart + capPart;
         }
       } else {
         // Attaque normale

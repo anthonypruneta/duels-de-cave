@@ -30,7 +30,7 @@ export const FOREST_LEVELS = [
       nom: 'Ours',
       icon: '🐻',
       imageFile: 'ours.png',
-      stats: { hp: 180, auto: 25, def: 25, rescap: 25, spd: 25, cap: 25 },
+      stats: { hp: 25, auto: 25, def: 25, rescap: 25, spd: 25, cap: 25 },
       ability: {
         type: 'bear_rage',
         name: 'Rage',
@@ -49,7 +49,7 @@ export const FOREST_LEVELS = [
       nom: 'Licorne',
       icon: '🦄',
       imageFile: 'licorne.png',
-      stats: { hp: 200, auto: 30, def: 30, rescap: 30, spd: 30, cap: 30 },
+      stats: { hp: 30, auto: 30, def: 30, rescap: 30, spd: 30, cap: 30 },
       ability: {
         type: 'unicorn_cycle',
         name: 'Alternance mystique',
