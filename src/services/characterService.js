@@ -257,14 +257,18 @@ export const updateCharacterBaseStats = async (userId, baseStats) => {
 };
 
 // Mettre à jour les boosts de stats de la forêt
-export const updateCharacterForestBoosts = async (userId, forestBoosts) => {
+export const updateCharacterForestBoosts = async (userId, forestBoosts, level = null) => {
   try {
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
-      await setDoc(characterRef, {
+      const updateData = {
         forestBoosts,
         updatedAt: Timestamp.now()
-      }, { merge: true });
+      };
+      if (level !== null) {
+        updateData.level = level;
+      }
+      await setDoc(characterRef, updateData, { merge: true });
     });
     return { success: true };
   } catch (error) {

@@ -691,10 +691,11 @@ const Combat = () => {
               )}
             </div>
             <p className="text-white font-bold mt-2">{selectedChar.name}</p>
-            <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
+            <p className="text-stone-400 text-sm">
+              {selectedChar.race} • {selectedChar.class} • Niveau {selectedChar.level ?? 1}
+            </p>
             <p className="text-stone-500 text-xs mt-1">
-              HP: {getBaseWithBoosts(selectedChar).hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
-              {' '}| VIT: {getBaseWithBoosts(selectedChar).spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
+              Niveau: {selectedChar.level ?? 1} | Arme: {selectedChar.equippedWeaponData?.nom || 'Aucune arme'}
             </p>
             {selectedChar.equippedWeaponData ? (
               <div className="mt-2 flex items-center justify-center gap-2 text-xs text-stone-300">
@@ -744,11 +745,13 @@ const Combat = () => {
                   )}
                   <div className="flex-1">
                     <p className="text-white font-bold text-sm">{char.name}</p>
-                    <p className="text-amber-300 text-xs">{char.race} • {char.class}</p>
+                    <p className="text-amber-300 text-xs">
+                      {char.race} • {char.class} • Niveau {char.level ?? 1}
+                    </p>
                   </div>
                   <div className="text-right text-xs text-gray-400">
-                    <p>HP: {getBaseWithBoosts(char).hp}</p>
-                    <p>VIT: {getBaseWithBoosts(char).spd}</p>
+                    <p>Niveau: {char.level ?? 1}</p>
+                    <p>Arme: {char.equippedWeaponData?.nom || 'Aucune'}</p>
                   </div>
                 </div>
               ))}
@@ -803,7 +806,7 @@ const Combat = () => {
     return (
       <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
-          {character.race} • {character.class}
+          {character.race} • {character.class} • Niveau {character.level ?? 1}
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
