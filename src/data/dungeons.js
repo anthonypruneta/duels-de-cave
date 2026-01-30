@@ -2,7 +2,7 @@
  * Système de Donjon - Duels de Cave
  *
  * 3 niveaux de donjon progressifs (1 → 2 → 3 à la suite)
- * Limite: 3 runs par jour
+ * Limite: 10 runs par jour (cumulables)
  * Si on meurt, on récupère le loot du dernier étage réussi
  *
  * Niveau 1: Très facile → Arme Commune
@@ -16,7 +16,7 @@ import { RARITY } from './weapons.js';
 // CONSTANTES DU DONJON
 // ============================================================================
 export const DUNGEON_CONSTANTS = {
-  MAX_RUNS_PER_DAY: 3,
+  MAX_RUNS_PER_DAY: 10,
   TOTAL_LEVELS: 3,
 };
 
@@ -123,35 +123,47 @@ export function getAllDungeonLevels() {
 /**
  * Vérifie si c'est un nouveau jour (reset à midi)
  */
+export function getResetAnchor(date) {
+  const anchor = new Date(date);
+  anchor.setHours(12, 0, 0, 0);
+  if (date < anchor) {
+    anchor.setDate(anchor.getDate() - 1);
+  }
+  return anchor;
+}
+
 export function isNewDay(lastRunDate) {
   if (!lastRunDate) return true;
 
   const last = lastRunDate instanceof Date ? lastRunDate : lastRunDate.toDate();
   const now = new Date();
 
-  const getResetAnchor = (date) => {
-    const anchor = new Date(date);
-    anchor.setHours(12, 0, 0, 0);
-    if (date < anchor) {
-      anchor.setDate(anchor.getDate() - 1);
-    }
-    return anchor;
-  };
-
   const currentAnchor = getResetAnchor(now);
 
   return last < currentAnchor;
+}
+
+export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
+  if (!lastCreditDate) return 0;
+  const last = lastCreditDate instanceof Date ? lastCreditDate : lastCreditDate.toDate();
+  const currentAnchor = getResetAnchor(now);
+  const lastAnchor = getResetAnchor(last);
+  const diffMs = currentAnchor - lastAnchor;
+  if (diffMs <= 0) return 0;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Math.floor(diffMs / dayMs);
 }
 
 /**
  * Calcule les runs restantes aujourd'hui
  */
 export function getRemainingRuns(runsToday, lastRunDate) {
-  // Si c'est un nouveau jour, reset le compteur
-  if (isNewDay(lastRunDate)) {
+  if (!lastRunDate) {
     return DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
   }
-  return Math.max(0, DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY - runsToday);
+  const periods = getResetPeriodsSince(lastRunDate, new Date());
+  const totalAllowance = (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+  return Math.max(0, totalAllowance - (runsToday || 0));
 }
 
 /**
