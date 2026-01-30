@@ -274,7 +274,10 @@ const CharacterCreation = () => {
 
       if (success && data) {
         const normalized = normalizeCharacterBonuses(data);
-        setExistingCharacter(normalized);
+        setExistingCharacter({
+          ...normalized,
+          level: normalized.level ?? 1
+        });
         let weaponId = normalized.equippedWeaponId || null;
         let weaponData = weaponId ? getWeaponById(weaponId) : null;
         if (!weaponData) {
@@ -377,6 +380,7 @@ const CharacterCreation = () => {
       base: rolledCharacter.base,
       bonuses: rolledCharacter.bonuses,
       forestBoosts: getEmptyStatBoosts(),
+      level: 1,
       equippedWeaponId: null
     };
   };
@@ -477,7 +481,7 @@ const CharacterCreation = () => {
           <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
             <div className="shadow-2xl">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
-                {existingCharacter.race} • {existingCharacter.class}
+                {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
               <div className="overflow-visible">
                 <div className="relative bg-stone-900 flex items-center justify-center">
