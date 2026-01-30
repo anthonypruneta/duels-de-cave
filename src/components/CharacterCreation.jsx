@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel } from '../services/characterService';
+import { getEquippedWeapon } from '../services/dungeonService';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, tiers15, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
 
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
@@ -21,9 +31,60 @@ const Tooltip = ({ children, content }) => {
   );
 };
 
+const STAT_LABELS = {
+  hp: 'HP',
+  auto: 'Auto',
+  def: 'Déf',
+  cap: 'Cap',
+  rescap: 'ResC',
+  spd: 'VIT'
+};
+
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && (
+        <span className="block text-amber-200">
+          Effet: {weapon.effet.nom} — {weapon.effet.description}
+        </span>
+      )}
+      {stats && (
+        <span className="block text-stone-200">
+          Stats: {stats}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
+  const [equippedWeapon, setEquippedWeapon] = useState(null);
   const [canCreate, setCanCreate] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [step, setStep] = useState(1); // 1 = roll race/classe, 2 = nom/sexe/mot-clé
@@ -212,7 +273,24 @@ const CharacterCreation = () => {
       const { success, data } = await getUserCharacter(currentUser.uid);
 
       if (success && data) {
-        setExistingCharacter(normalizeCharacterBonuses(data));
+        const normalized = normalizeCharacterBonuses(data);
+        const level = normalized.level ?? 1;
+        if (normalized.level == null) {
+          updateCharacterLevel(currentUser.uid, level);
+        }
+        setExistingCharacter({
+          ...normalized,
+          level
+        });
+        let weaponId = normalized.equippedWeaponId || null;
+        let weaponData = weaponId ? getWeaponById(weaponId) : null;
+        if (!weaponData) {
+          const weaponResult = await getEquippedWeapon(currentUser.uid);
+          if (weaponResult.success) {
+            weaponData = weaponResult.weapon;
+          }
+        }
+        setEquippedWeapon(weaponData);
         setCanCreate(false);
       } else {
         // Vérifier si l'utilisateur peut créer un personnage
@@ -256,12 +334,14 @@ const CharacterCreation = () => {
         if (r <= 0) { k = key; break; }
       }
 
-      // 1 point = +3 HP (max 150) ou +1 autre stat (max 35)
+      // 1 point = bonus selon la conversion des stats
       if (k === 'hp') {
-        if (s.hp + 3 <= 200) { s.hp += 3; rem--; }
+        const hpGain = getStatPointValue('hp');
+        if (s.hp + hpGain <= 200) { s.hp += hpGain; rem--; }
         // Si HP au max, on continue (pas de break)
       } else {
-        if (s[k] + 1 <= 35) { s[k]++; rem--; }
+        const statGain = getStatPointValue(k);
+        if (s[k] + statGain <= 35) { s[k] += statGain; rem--; }
         // Si stat au max, on continue (pas de break)
       }
     }
@@ -302,7 +382,10 @@ const CharacterCreation = () => {
       race: rolledCharacter.race,
       class: rolledCharacter.class,
       base: rolledCharacter.base,
-      bonuses: rolledCharacter.bonuses
+      bonuses: rolledCharacter.bonuses,
+      forestBoosts: getEmptyStatBoosts(),
+      level: 1,
+      equippedWeaponId: null
     };
   };
 
@@ -357,6 +440,37 @@ const CharacterCreation = () => {
   // Afficher le personnage existant
   if (existingCharacter) {
     const totalBonus = (k) => (existingCharacter.bonuses.race[k]||0) + (existingCharacter.bonuses.class[k]||0);
+    const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
+    const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
+    const weapon = equippedWeapon;
+    const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const tooltipContent = (k) => {
+      const parts = [`Base: ${baseWithoutBonus(k)}`];
+      if (existingCharacter.bonuses.race[k] > 0) parts.push(`Race: +${existingCharacter.bonuses.race[k]}`);
+      if (existingCharacter.bonuses.class[k] > 0) parts.push(`Classe: +${existingCharacter.bonuses.class[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
+      return parts.join(' | ');
+    };
+    const StatLine = ({ statKey, label, valueClassName = '' }) => {
+      const weaponDelta = weaponStatValue(statKey);
+      const displayValue = baseStats[statKey] + weaponDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
+      return hasBonus ? (
+        <Tooltip content={tooltipContent(statKey)}>
+          <div className={valueClassName}>
+            {label} : <span className={`font-bold ${labelClass}`}>{displayValue}</span>
+          </div>
+        </Tooltip>
+      ) : (
+        <div className={valueClassName}>
+          {label} : <span className="text-white font-bold">{displayValue}</span>
+        </div>
+      );
+    };
 
     return (
       <div className="min-h-screen p-6">
@@ -371,9 +485,9 @@ const CharacterCreation = () => {
           <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
             <div className="shadow-2xl">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
-                {existingCharacter.race} • {existingCharacter.class}
+                {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
-              <div className="overflow-hidden">
+              <div className="overflow-visible">
                 <div className="relative bg-stone-900 flex items-center justify-center">
                   {existingCharacter.characterImage ? (
                     <img
@@ -391,17 +505,35 @@ const CharacterCreation = () => {
                   </div>
                 </div>
                 <div className="bg-stone-800 p-3">
-                    <div className="flex justify-between text-xs text-white mb-2 font-bold">
-                      <div>HP : {existingCharacter.base.hp}{totalBonus('hp')>0&&<span className="text-green-400 ml-1">(+{totalBonus('hp')})</span>}</div>
-                      <div>VIT : {existingCharacter.base.spd}{totalBonus('spd')>0&&<span className="text-green-400 ml-1">(+{totalBonus('spd')})</span>}</div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
-                      <div>Auto : <span className="text-white font-bold">{existingCharacter.base.auto}</span>{totalBonus('auto')>0&&<span className="text-green-400 ml-1">(+{totalBonus('auto')})</span>}</div>
-                      <div>Déf : <span className="text-white font-bold">{existingCharacter.base.def}</span>{totalBonus('def')>0&&<span className="text-green-400 ml-1">(+{totalBonus('def')})</span>}</div>
-                      <div>Cap : <span className="text-white font-bold">{existingCharacter.base.cap}</span>{totalBonus('cap')>0&&<span className="text-green-400 ml-1">(+{totalBonus('cap')})</span>}</div>
-                      <div>ResC : <span className="text-white font-bold">{existingCharacter.base.rescap}</span>{totalBonus('rescap')>0&&<span className="text-green-400 ml-1">(+{totalBonus('rescap')})</span>}</div>
-                    </div>
+                  <div className="flex justify-between text-xs text-white mb-2 font-bold">
+                    <StatLine statKey="hp" label="HP" valueClassName="text-white" />
+                    <StatLine statKey="spd" label="VIT" valueClassName="text-white" />
                   </div>
+                  <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
+                    <StatLine statKey="auto" label="Auto" />
+                    <StatLine statKey="def" label="Déf" />
+                    <StatLine statKey="cap" label="Cap" />
+                    <StatLine statKey="rescap" label="ResC" />
+                  </div>
+                  {weapon ? (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                      <Tooltip content={getWeaponTooltipContent(weapon)}>
+                        <span className="flex items-center gap-2">
+                          {getWeaponImage(weapon.imageFile) ? (
+                            <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                          ) : (
+                            <span className="text-xl">{weapon.icon}</span>
+                          )}
+                          <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                        </span>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
+                      Aucune arme équipée
+                    </div>
+                  )}
+                </div>
                 </div>
               </div>
 
@@ -417,24 +549,30 @@ const CharacterCreation = () => {
                 <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
                 <div>
                   <div className="text-amber-200 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
-                  <div className="text-stone-400 text-xs">{getCalculatedDescription(existingCharacter.class, existingCharacter.base.cap, existingCharacter.base.auto)}</div>
+                  <div className="text-stone-400 text-xs">
+                    {getCalculatedDescription(
+                      existingCharacter.class,
+                      existingCharacter.base.cap + weaponStatValue('cap'),
+                      existingCharacter.base.auto + weaponStatValue('auto')
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center gap-4">
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <button
+              onClick={() => navigate('/dungeons')}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
+            >
+              🏰 Donjon 🏰
+            </button>
             <button
               onClick={() => navigate('/combat')}
               className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
             >
-              ⚔️ Aller au Combat ⚔️
-            </button>
-            <button
-              onClick={() => navigate('/dungeon')}
-              className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
-            >
-              🏰 Donjon 🏰
+              ⚔️ PVP ⚔️
             </button>
           </div>
 
