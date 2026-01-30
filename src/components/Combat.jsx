@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
@@ -112,6 +112,16 @@ const Combat = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
+
+  const shouldAutoScrollLog = () => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  };
+
+  useEffect(() => {
+    if (!shouldAutoScrollLog()) return;
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [combatLog]);
 
   // Charger les personnages depuis la BDD
   useEffect(() => {
@@ -1059,8 +1069,9 @@ const Combat = () => {
                               </div>
                             </div>
                           );
-                        }
-                      })}
+                      }
+                    })}
+                    <div ref={logEndRef} />
                     </>
                   )}
                 </div>

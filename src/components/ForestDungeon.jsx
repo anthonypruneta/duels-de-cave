@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -124,6 +124,7 @@ const ForestDungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const logEndRef = useRef(null);
 
   const ensureForestMusic = () => {
     const forestMusic = document.getElementById('forest-music');
@@ -185,6 +186,16 @@ const ForestDungeon = () => {
     loadData();
   }, [currentUser, navigate]);
 
+
+  const shouldAutoScrollLog = () => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  };
+
+  useEffect(() => {
+    if (!shouldAutoScrollLog()) return;
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [combatLog]);
 
   useEffect(() => {
     if (gameState === 'fighting' || gameState === 'reward') {
@@ -1200,6 +1211,7 @@ const ForestDungeon = () => {
                           );
                         }
                       })}
+                      <div ref={logEndRef} />
                     </>
                   )}
                 </div>
