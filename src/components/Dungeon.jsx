@@ -1035,11 +1035,6 @@ const Dungeon = () => {
         <Tooltip content={tooltipContent(statKey)}>
           <span className={labelClass}>
             {label}: {displayValue}
-            {weaponDelta !== 0 && (
-              <span className={`ml-1 ${getWeaponStatColor(weaponDelta)}`}>
-                ({weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta})
-              </span>
-            )}
           </span>
         </Tooltip>
       ) : (
