@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, updateCharacterLevel } from '../services/characterService';
@@ -138,61 +138,7 @@ const Dungeon = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
-
-  const ensureDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic && dungeonMusic.paused) {
-      dungeonMusic.volume = 0.35;
-      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
-    }
-  };
-
-  const stopDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.pause();
-      dungeonMusic.currentTime = 0;
-    }
-  };
-
-  useEffect(() => {
-    if (gameState === 'fighting') {
-      ensureDungeonMusic();
-    }
-  }, [gameState]);
-
-  const ensureDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic && dungeonMusic.paused) {
-      dungeonMusic.volume = 0.35;
-      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
-    }
-  };
-
-  const stopDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.pause();
-      dungeonMusic.currentTime = 0;
-    }
-  };
-
-  useEffect(() => {
-    if (gameState === 'fighting') {
-      ensureDungeonMusic();
-    }
-  }, [gameState]);
-
-  const shouldAutoScrollLog = () => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(min-width: 768px)').matches;
-  };
-
-  // Scroll auto du log (desktop uniquement)
-  useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [combatLog]);
+  const logEndRef = useRef(null);
 
   const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
@@ -1370,6 +1316,7 @@ const Dungeon = () => {
                           );
                         }
                       })}
+                      <div ref={logEndRef} />
                     </>
                   )}
                 </div>
