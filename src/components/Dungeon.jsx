@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, updateCharacterLevel } from '../services/characterService';
@@ -138,7 +138,28 @@ const Dungeon = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
-  const logEndRef = useRef(null);
+
+  const ensureDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic && dungeonMusic.paused) {
+      dungeonMusic.volume = 0.35;
+      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    }
+  };
+
+  const stopDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic) {
+      dungeonMusic.pause();
+      dungeonMusic.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (gameState === 'fighting') {
+      ensureDungeonMusic();
+    }
+  }, [gameState]);
 
   const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
@@ -202,8 +223,6 @@ const Dungeon = () => {
     loadData();
   }, [currentUser, navigate]);
 
-  // Scroll auto du log
-  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [combatLog]);
 
   // Descriptions calculées des classes (même que Combat.jsx)
   const getCalculatedDescription = (className, cap, auto) => {
@@ -1174,7 +1193,7 @@ const Dungeon = () => {
           </div>
 
           {/* Layout principal: Joueur | Chat | Boss (même que Combat.jsx) */}
-          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur - Gauche */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <PlayerCard char={player} />
@@ -1183,19 +1202,19 @@ const Dungeon = () => {
             {/* Zone centrale - Boutons + Chat */}
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
               {/* Boutons de contrôle */}
-              <div className="flex justify-center gap-4 mb-4">
+              <div className="flex justify-center gap-3 md:gap-4 mb-4">
                 {combatResult === null && (
                   <button
                     onClick={simulateCombat}
                     disabled={isSimulating}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
                   >
                     ▶️ Lancer le combat
                   </button>
                 )}
                 <button
                   onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-8 py-3 font-bold text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
                 >
                   ← Abandonner
                 </button>
@@ -1220,13 +1239,13 @@ const Dungeon = () => {
               )}
 
               {/* Zone de chat messenger (même que Combat.jsx) */}
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[600px]">
+              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
                 <div className="bg-stone-900 p-3 border-b border-stone-600">
-                  <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                  <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
-                    <p className="text-stone-500 italic text-center py-8">Cliquez sur "Lancer le combat" pour commencer...</p>
+                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (
                     <>
                       {combatLog.map((log, idx) => {
@@ -1286,8 +1305,8 @@ const Dungeon = () => {
                           return (
                             <div key={idx} className="flex justify-start">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
-                                  <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
                             </div>
@@ -1299,15 +1318,14 @@ const Dungeon = () => {
                           return (
                             <div key={idx} className="flex justify-end">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500">
-                                  <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
                             </div>
                           );
                         }
                       })}
-                      <div ref={logEndRef} />
                     </>
                   )}
                 </div>
