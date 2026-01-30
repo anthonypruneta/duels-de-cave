@@ -866,7 +866,7 @@ const Dungeon = () => {
     return (
       <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
-          {char.race} • {char.class}
+          {char.race} • {char.class} • Niveau {char.level ?? 1}
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">

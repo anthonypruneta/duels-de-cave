@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import Header from './Header';
@@ -94,6 +95,7 @@ const getWeaponTooltipContent = (weapon) => {
 };
 
 const Combat = () => {
+  const navigate = useNavigate();
   // États pour les personnages disponibles
   const [availableCharacters, setAvailableCharacters] = useState([]);
   const [loadingCharacters, setLoadingCharacters] = useState(true);
@@ -689,7 +691,9 @@ const Combat = () => {
               )}
             </div>
             <p className="text-white font-bold mt-2">{selectedChar.name}</p>
-            <p className="text-stone-400 text-sm">{selectedChar.race} • {selectedChar.class}</p>
+            <p className="text-stone-400 text-sm">
+              {selectedChar.race} • {selectedChar.class} • Niveau {selectedChar.level ?? 1}
+            </p>
             <p className="text-stone-500 text-xs mt-1">
               HP: {getBaseWithBoosts(selectedChar).hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
               {' '}| VIT: {getBaseWithBoosts(selectedChar).spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
@@ -742,11 +746,13 @@ const Combat = () => {
                   )}
                   <div className="flex-1">
                     <p className="text-white font-bold text-sm">{char.name}</p>
-                    <p className="text-amber-300 text-xs">{char.race} • {char.class}</p>
+                    <p className="text-amber-300 text-xs">
+                      {char.race} • {char.class} • Niveau {char.level ?? 1}
+                    </p>
                   </div>
                   <div className="text-right text-xs text-gray-400">
-                    <p>HP: {getBaseWithBoosts(char).hp}</p>
-                    <p>VIT: {getBaseWithBoosts(char).spd}</p>
+                    <p>Niveau: {char.level ?? 1}</p>
+                    <p>Arme: {char.equippedWeaponData?.nom || 'Aucune'}</p>
                   </div>
                 </div>
               ))}
@@ -801,7 +807,7 @@ const Combat = () => {
     return (
       <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
-          {character.race} • {character.class}
+          {character.race} • {character.class} • Niveau {character.level ?? 1}
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
@@ -866,10 +872,16 @@ const Combat = () => {
       <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-4xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-col items-center mb-8 gap-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-4xl font-bold text-stone-200">⚔️ Arène de Combat ⚔️</h1>
             </div>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition"
+            >
+              ⬅️ Retour à l&apos;accueil
+            </button>
           </div>
 
           {loadingCharacters ? (
