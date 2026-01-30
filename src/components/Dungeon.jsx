@@ -161,28 +161,6 @@ const Dungeon = () => {
     }
   }, [gameState]);
 
-  const ensureDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic && dungeonMusic.paused) {
-      dungeonMusic.volume = 0.35;
-      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
-    }
-  };
-
-  const stopDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.pause();
-      dungeonMusic.currentTime = 0;
-    }
-  };
-
-  useEffect(() => {
-    if (gameState === 'fighting') {
-      ensureDungeonMusic();
-    }
-  }, [gameState]);
-
   // Charger les données au montage
   useEffect(() => {
     const loadData = async () => {
