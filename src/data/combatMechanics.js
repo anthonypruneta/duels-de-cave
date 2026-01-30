@@ -1,5 +1,5 @@
 // Mécaniques de combat centralisées
-// Ce fichier est la source unique de vérité pour tous les calculs de combat
+// Ce fichier est la source unique de vérité pour tous les calculs de combat.
 
 // Cooldowns des classes (en tours)
 export const cooldowns = {
