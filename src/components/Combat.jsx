@@ -8,14 +8,25 @@ import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
-import { applyWeaponStats, getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import {
+  applyGungnirDebuff,
+  applyMjollnirStun,
+  applyPassiveWeaponStats,
+  initWeaponCombatState,
+  modifyCritDamage,
+  onAttack,
+  onHeal,
+  onSpellCast,
+  onTurnStart
+} from '../utils/weaponEffects';
 import {
   cooldowns,
   classConstants,
   raceConstants,
   generalConstants,
-  tiers15,
+  weaponConstants,
   dmgPhys,
   dmgCap,
   calcCritChance
@@ -112,6 +123,10 @@ const Combat = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
+  const logEndRef = useRef(null);
+  const [isSoundOpen, setIsSoundOpen] = useState(true);
+  const [volume, setVolume] = useState(0.3);
+  const [isMuted, setIsMuted] = useState(false);
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -123,15 +138,71 @@ const Combat = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
 
-  const shouldAutoScrollLog = () => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(min-width: 768px)').matches;
+  const applyCombatVolume = () => {
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    [combatMusic, victoryMusic].forEach((audio) => {
+      if (audio) {
+        audio.volume = volume;
+        audio.muted = isMuted;
+      }
+    });
   };
 
   useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [combatLog]);
+    applyCombatVolume();
+  }, [volume, isMuted, phase, winner]);
+
+  const handleVolumeChange = (event) => {
+    const nextVolume = Number(event.target.value);
+    setVolume(nextVolume);
+    setIsMuted(nextVolume === 0);
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
+    if (isMuted && volume === 0) {
+      setVolume(0.3);
+    }
+  };
+
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="text-lg"
+              aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-full accent-amber-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">
+              {Math.round((isMuted ? 0 : volume) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   // Charger les personnages depuis la BDD
   useEffect(() => {
@@ -170,161 +241,122 @@ const Combat = () => {
   // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   // Utilise les constantes centralisées de combatMechanics.js
   const getCalculatedDescription = (className, cap, auto) => {
-    const paliers = tiers15(cap);
-
     switch(className) {
       case 'Guerrier': {
-        const { ignoreBase, ignorePerTier, autoBonus } = classConstants.guerrier;
+        const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
         const ignoreBasePct = Math.round(ignoreBase * 100);
-        const ignoreBonusPct = Math.round(ignorePerTier * 100) * paliers;
+        const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
         const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
         return (
           <>
             +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
-            {ignoreBonusPct > 0 ? (
-              <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (${paliers} paliers): +${ignoreBonusPct}%`}>
-                <span className="text-green-400">{ignoreTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{ignoreBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+              <span className="text-green-400">{ignoreTotalPct}%</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Voleur': {
-        const { spdBonus, critPerTier } = classConstants.voleur;
-        const critBonusPct = Math.round(critPerTier * 100) * paliers;
+        const { spdBonus, critPerCap } = classConstants.voleur;
+        const critBonusPct = Math.round(critPerCap * cap * 100);
         return (
           <>
             +{spdBonus} VIT | Esquive 1 coup
-            {critBonusPct > 0 && (
-              <Tooltip content={`Bonus (${paliers} paliers): +${critBonusPct}%`}>
-                <span className="text-green-400"> | +{critBonusPct}% crit</span>
-              </Tooltip>
-            )}
+            <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+              <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Paladin': {
-        const { reflectBase, reflectPerTier } = classConstants.paladin;
+        const { reflectBase, reflectPerCap } = classConstants.paladin;
         const reflectBasePct = Math.round(reflectBase * 100);
-        const reflectBonusPct = Math.round(reflectPerTier * 100) * paliers;
+        const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
         const reflectTotalPct = reflectBasePct + reflectBonusPct;
         return (
           <>
             Renvoie{' '}
-            {reflectBonusPct > 0 ? (
-              <Tooltip content={`Base: ${reflectBasePct}% | Bonus (${paliers} paliers): +${reflectBonusPct}%`}>
-                <span className="text-green-400">{reflectTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{reflectBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+              <span className="text-green-400">{reflectTotalPct}%</span>
+            </Tooltip>
             {' '}des dégâts reçus
           </>
         );
       }
 
       case 'Healer': {
-        const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
+        const { missingHpPercent, capScale } = classConstants.healer;
         const missingPct = Math.round(missingHpPercent * 100);
-        const healBasePct = Math.round(capBase * 100);
-        const healBonusPct = Math.round(capPerTier * 100) * paliers;
-        const healTotalPct = healBasePct + healBonusPct;
-        const healValue = Math.round(cap * (healTotalPct / 100));
+        const healValue = Math.round(capScale * cap);
         return (
           <>
             Heal {missingPct}% PV manquants +{' '}
-            {healBonusPct > 0 ? (
-              <Tooltip content={`${healTotalPct}% de la Cap (${cap}) | Base: ${healBasePct}% | Bonus (${paliers} paliers): +${healBonusPct}%`}>
-                <span className="text-green-400">{healValue}</span>
-              </Tooltip>
-            ) : (
-              <span>{healValue}</span>
-            )}
+            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+              <span className="text-green-400">{healValue}</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Archer': {
-        const { arrowsBase, arrowsPerTier } = classConstants.archer;
-        const arrowsBonus = arrowsPerTier * paliers;
-        const arrowsTotal = arrowsBase + arrowsBonus;
+        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+        const hit2Cap = Math.round(hit2CapMultiplier * cap);
         return (
           <>
-            {arrowsBonus > 0 ? (
-              <Tooltip content={`Base: ${arrowsBase} | Bonus (${paliers} paliers): +${arrowsBonus}`}>
-                <span className="text-green-400">{arrowsTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{arrowsBase}</span>
-            )}
-            {' '}tirs simultanés
+            2 attaques: 1 tir normal +{' '}
+            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+              <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Mage': {
-        const { capBase, capPerTier } = classConstants.mage;
-        const magicBasePct = Math.round(capBase * 100);
-        const magicBonusPct = Math.round(capPerTier * 100) * paliers;
-        const magicTotalPct = magicBasePct + magicBonusPct;
-        const magicDmgTotal = Math.round(cap * (magicTotalPct / 100));
+        const { capBase, capPerCap } = classConstants.mage;
+        const magicPct = capBase + capPerCap * cap;
+        const magicDmg = Math.round(magicPct * cap);
         return (
           <>
             Dégâts = Auto +{' '}
-            {magicBonusPct > 0 ? (
-              <Tooltip content={`${magicTotalPct}% de la Cap (${cap}) | Base: ${magicBasePct}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
-                <span className="text-green-400">{magicDmgTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{magicDmgTotal}</span>
-            )}
+            <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+              <span className="text-green-400">{auto + magicDmg}</span>
+            </Tooltip>
             {' '}(vs ResC)
           </>
         );
       }
 
       case 'Demoniste': {
-        const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
-        const familierBasePct = Math.round(capBase * 100);
-        const familierBonusPct = Math.round(capPerTier * 100) * paliers;
-        const familierTotalPct = familierBasePct + familierBonusPct;
-        const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
+        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const familierPct = capBase + capPerCap * cap;
+        const familierDmgTotal = Math.round(familierPct * cap);
         const ignoreResistPct = Math.round(ignoreResist * 100);
         return (
           <>
             Familier:{' '}
-            {familierBonusPct > 0 ? (
-              <Tooltip content={`${familierTotalPct}% de la Cap (${cap}) | Base: ${familierBasePct}% | Bonus (${paliers} paliers): +${familierBonusPct}%`}>
-                <span className="text-green-400">{familierDmgTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{familierDmgTotal}</span>
-            )}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap})`}>
+              <span className="text-green-400">{familierDmgTotal}</span>
+            </Tooltip>
             {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
           </>
         );
       }
 
       case 'Masochiste': {
-        const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const returnBasePct = Math.round(returnBase * 100);
-        const returnBonusPct = Math.round(returnPerTier * 100) * paliers;
+        const returnBonusPct = Math.round(returnPerCap * cap * 100);
         const returnTotalPct = returnBasePct + returnBonusPct;
         const healPct = Math.round(healPercent * 100);
         return (
           <>
             Renvoie{' '}
-            {returnBonusPct > 0 ? (
-              <Tooltip content={`Base: ${returnBasePct}% | Bonus (${paliers} paliers): +${returnBonusPct}%`}>
-                <span className="text-green-400">{returnTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{returnBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+              <span className="text-green-400">{returnTotalPct}%</span>
+            </Tooltip>
             {' '}des dégâts accumulés & heal {healPct}%
           </>
         );
@@ -339,7 +371,8 @@ const Combat = () => {
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithWeapon = weaponId ? applyWeaponStats(baseWithBoosts, weaponId) : { ...baseWithBoosts };
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+    const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
       base: baseWithWeapon,
@@ -351,7 +384,10 @@ const Combat = () => {
       dodge: false,
       reflect: false,
       bleed_stacks: 0,
-      maso_taken: 0
+      maso_taken: 0,
+      stunned: false,
+      stunnedTurns: 0,
+      weaponState
     };
   };
 
@@ -367,12 +403,28 @@ const Combat = () => {
   const processPlayerAction = (att, def, log, isP1) => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
+      const playerColor = isP1 ? '[P1]' : '[P2]';
+      if (att.stunnedTurns > 0) {
+        att.stunnedTurns -= 1;
+        if (att.stunnedTurns <= 0) {
+          att.stunned = false;
+        }
+        log.push(`${playerColor} 😵 ${att.name} est étourdi et ne peut pas agir ce tour`);
+        return;
+      }
+
       att.reflect = false;
       for (const k of Object.keys(cooldowns)) {
         att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
       }
 
-      const playerColor = isP1 ? '[P1]' : '[P2]';
+      const turnEffects = onTurnStart(att.weaponState, att, 0);
+      if (turnEffects.log.length > 0) {
+        log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
+      }
+      if (turnEffects.regen > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
+      }
 
       if (att.race === 'Sylvari') {
         const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
@@ -381,9 +433,8 @@ const Combat = () => {
       }
 
       if (att.class === 'Demoniste') {
-        const t = tiers15(att.base.cap);
-        const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
-        const hit = Math.max(1, Math.round((capBase + capPerTier * t) * att.base.cap));
+        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
         def.currentHP -= raw;
         log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
@@ -394,9 +445,8 @@ const Combat = () => {
 
       if (att.class === 'Masochiste') {
         if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
-          const t = tiers15(att.base.cap);
-          const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
-          const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerTier * t)));
+          const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+          const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
           const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
           att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
           att.maso_taken = 0;
@@ -418,17 +468,23 @@ const Combat = () => {
       }
 
       if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
-        const { reflectBase, reflectPerTier } = classConstants.paladin;
-        att.reflect = reflectBase + reflectPerTier * tiers15(att.base.cap);
+        const { reflectBase, reflectPerCap } = classConstants.paladin;
+        att.reflect = reflectBase + reflectPerCap * att.base.cap;
         log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
 
       if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
         const miss = att.maxHP - att.currentHP;
-        const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
-        const heal = Math.max(1, Math.round(missingHpPercent * miss + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap));
+        const { missingHpPercent, capScale } = classConstants.healer;
+        const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+        const healEffects = onHeal(att.weaponState, att, heal, def);
+        if (healEffects.bonusDamage > 0) {
+          const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+          def.currentHP -= bonusDmg;
+          log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+        }
       }
 
       if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
@@ -444,40 +500,66 @@ const Combat = () => {
       if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
         mult = raceConstants.orc.damageBonus;
       }
+      if (turnEffects.damageMultiplier !== 1) {
+        mult *= turnEffects.damageMultiplier;
+      }
 
-      let hits = isArcher ? classConstants.archer.arrowsBase + classConstants.archer.arrowsPerTier * tiers15(att.base.cap) : 1;
+      const baseHits = isArcher ? classConstants.archer.hitCount : 1;
+      const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
       let total = 0;
       let wasCrit = false;
 
-      for (let i = 0; i < hits; i++) {
-        const isCrit = Math.random() < calcCritChance(att);
+      for (let i = 0; i < totalHits; i++) {
+        const isBonusAttack = i >= baseHits;
+        const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att);
         if (isCrit) wasCrit = true;
         let raw = 0;
+        const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
 
         if (isMage) {
-          const { capBase, capPerTier } = classConstants.mage;
-          const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap * mult);
+          const { capBase, capPerCap } = classConstants.mage;
+          const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
           raw = dmgCap(atkSpell, def.base.rescap);
           if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
+          const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
+          if (spellEffects.doubleCast) {
+            def.currentHP -= spellEffects.secondCastDamage;
+            log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
+            if (spellEffects.secondCastDamage > 0) {
+              def.maso_taken = (def.maso_taken || 0) + spellEffects.secondCastDamage;
+            }
+          }
         } else if (isWar) {
-          const { ignoreBase, ignorePerTier } = classConstants.guerrier;
-          const ignore = ignoreBase + ignorePerTier * tiers15(att.base.cap);
+          const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+          const ignore = ignoreBase + ignorePerCap * att.base.cap;
           if (def.base.def <= def.base.rescap) {
             const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
-            raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
+            raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
           } else {
             const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
-            raw = dmgCap(Math.round(att.base.cap * mult), effRes);
+            raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
           }
           if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
+        } else if (isArcher && !isBonusAttack) {
+          if (i === 0) {
+            raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
+          } else {
+            const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+            const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
+            const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
+            raw = physPart + capPart;
+          }
         } else {
-          raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+          raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
           if (att.race === 'Lycan') {
             def.bleed_stacks = (def.bleed_stacks || 0) + raceConstants.lycan.bleedPerHit;
           }
         }
 
-        if (isCrit) raw = Math.round(raw * generalConstants.critMultiplier);
+        if (isCrit) {
+          const critDamage = Math.round(raw * generalConstants.critMultiplier);
+          raw = modifyCritDamage(att.weaponState, critDamage);
+        }
 
         if (def.dodge) {
           def.dodge = false;
@@ -494,6 +576,19 @@ const Combat = () => {
         def.currentHP -= raw;
         if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
 
+        if (!isMage) {
+          const attackEffects = onAttack(att.weaponState, att, def, raw);
+          if (attackEffects.stunTarget) {
+            Object.assign(def, applyMjollnirStun(def));
+          }
+          if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
+            def.base = applyGungnirDebuff(def.base);
+          }
+          if (attackEffects.log.length > 0) {
+            log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+          }
+        }
+
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         } else if (def.currentHP <= 0) {
@@ -502,9 +597,12 @@ const Combat = () => {
         }
 
         total += raw;
-        if (isArcher) {
+        if (isArcher && !isBonusAttack) {
           const critText = isCrit ? ' CRITIQUE !' : '';
-          log.push(`${playerColor} 🏹 ${att.name} tire sa flèche n°${i + 1} et inflige ${raw} points de dégâts${critText}`);
+          const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
+          log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${raw} points de dégâts${critText}`);
+        } else if (isBonusAttack) {
+          log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${raw} points de dégâts`);
         }
       }
 
@@ -560,8 +658,22 @@ const Combat = () => {
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 800));
 
-      // Déterminer qui attaque en premier selon la vitesse
-      const first = p1.base.spd >= p2.base.spd ? p1 : p2;
+      // Déterminer qui attaque en premier selon la vitesse + priorité d'arme
+      const p1HasPriority = p1.weaponState?.isLegendary
+        && p1.weaponState.weaponId === 'epee_legendaire'
+        && ((p1.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
+      const p2HasPriority = p2.weaponState?.isLegendary
+        && p2.weaponState.weaponId === 'epee_legendaire'
+        && ((p2.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
+
+      let first;
+      if (p1HasPriority && !p2HasPriority) {
+        first = p1;
+      } else if (p2HasPriority && !p1HasPriority) {
+        first = p2;
+      } else {
+        first = p1.base.spd >= p2.base.spd ? p1 : p2;
+      }
       const second = first === p1 ? p2 : p1;
       const firstIsP1 = first === p1;
 
@@ -893,6 +1005,7 @@ const Combat = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8 gap-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
@@ -961,6 +1074,7 @@ const Combat = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <SoundControl />
       {/* Musique de combat */}
       <audio id="combat-music" loop>
         <source src="/assets/music/combat.mp3" type="audio/mpeg" />
