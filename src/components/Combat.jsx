@@ -123,6 +123,16 @@ const Combat = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
 
+  const shouldAutoScrollLog = () => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  };
+
+  useEffect(() => {
+    if (!shouldAutoScrollLog()) return;
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [combatLog]);
+
   // Charger les personnages depuis la BDD
   useEffect(() => {
     const loadCharacters = async () => {

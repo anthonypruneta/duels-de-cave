@@ -194,6 +194,39 @@ const Dungeon = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
 
+  const ensureDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic && dungeonMusic.paused) {
+      dungeonMusic.volume = 0.35;
+      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    }
+  };
+
+  const stopDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic) {
+      dungeonMusic.pause();
+      dungeonMusic.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (gameState === 'fighting') {
+      ensureDungeonMusic();
+    }
+  }, [gameState]);
+
+  const shouldAutoScrollLog = () => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(min-width: 768px)').matches;
+  };
+
+  // Scroll auto du log (desktop uniquement)
+  useEffect(() => {
+    if (!shouldAutoScrollLog()) return;
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [combatLog]);
+
   // Charger les données au montage
   useEffect(() => {
     const loadData = async () => {
@@ -1398,7 +1431,7 @@ const Dungeon = () => {
         {/* Info runs */}
         <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
           <div>
-            <p className="text-amber-300 font-bold">Runs aujourd'hui</p>
+            <p className="text-amber-300 font-bold">Runs aujourd'hui (reset à midi)</p>
             <p className="text-white text-2xl">
               {dungeonSummary?.runsRemaining || 0} / {DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY} restantes
             </p>
