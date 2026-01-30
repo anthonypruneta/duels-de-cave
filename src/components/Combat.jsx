@@ -113,6 +113,9 @@ const Combat = () => {
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
+  const [isSoundOpen, setIsSoundOpen] = useState(true);
+  const [volume, setVolume] = useState(0.3);
+  const [isMuted, setIsMuted] = useState(false);
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -123,6 +126,72 @@ const Combat = () => {
     if (!shouldAutoScrollLog()) return;
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
+
+  const applyCombatVolume = () => {
+    const combatMusic = document.getElementById('combat-music');
+    const victoryMusic = document.getElementById('victory-music');
+    [combatMusic, victoryMusic].forEach((audio) => {
+      if (audio) {
+        audio.volume = volume;
+        audio.muted = isMuted;
+      }
+    });
+  };
+
+  useEffect(() => {
+    applyCombatVolume();
+  }, [volume, isMuted, phase, winner]);
+
+  const handleVolumeChange = (event) => {
+    const nextVolume = Number(event.target.value);
+    setVolume(nextVolume);
+    setIsMuted(nextVolume === 0);
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
+    if (isMuted && volume === 0) {
+      setVolume(0.3);
+    }
+  };
+
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="text-lg"
+              aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-full accent-amber-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">
+              {Math.round((isMuted ? 0 : volume) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   // Charger les personnages depuis la BDD
   useEffect(() => {
@@ -884,6 +953,7 @@ const Combat = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8 gap-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
@@ -952,6 +1022,7 @@ const Combat = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <SoundControl />
       {/* Musique de combat */}
       <audio id="combat-music" loop>
         <source src="/assets/music/combat.mp3" type="audio/mpeg" />

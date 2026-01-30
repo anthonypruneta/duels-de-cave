@@ -139,7 +139,7 @@ const Dungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [isSoundOpen, setIsSoundOpen] = useState(true);
   const [volume, setVolume] = useState(0.35);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -205,16 +205,16 @@ const Dungeon = () => {
   };
 
   const SoundControl = () => (
-    <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
       <button
         type="button"
         onClick={() => setIsSoundOpen((prev) => !prev)}
-        className="bg-stone-800/90 text-stone-100 border border-stone-600 px-3 py-2 text-sm font-bold shadow-lg hover:bg-stone-700"
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
       >
         {isMuted || volume === 0 ? '🔇' : '🔊'} Son
       </button>
       {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-52 shadow-xl">
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
           <div className="flex items-center gap-2">
             <button
               type="button"
