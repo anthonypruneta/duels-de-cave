@@ -112,7 +112,6 @@ const Combat = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
-  const logEndRef = useRef(null);
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
