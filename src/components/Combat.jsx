@@ -112,16 +112,7 @@ const Combat = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
-
-  const shouldAutoScrollLog = () => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(min-width: 768px)').matches;
-  };
-
-  useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [combatLog]);
+  const logEndRef = useRef(null);
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
