@@ -1,5 +1,5 @@
 // Mécaniques de combat centralisées
-// Ce fichier est la source unique de vérité pour tous les calculs de combat
+// Ce fichier est la source unique de vérité pour tous les calculs de combat.
 
 // Cooldowns des classes (en tours)
 export const cooldowns = {
@@ -18,37 +18,37 @@ export const classConstants = {
   guerrier: {
     autoBonus: 3,
     ignoreBase: 0.10,      // 10% ignore résistance de base
-    ignorePerTier: 0.02    // +2% par palier de 15 Cap
+    ignorePerCap: 0.01     // +1% par point de Cap
   },
   voleur: {
     spdBonus: 5,
-    critPerTier: 0.05      // +5% crit par palier (dans calcCritChance)
+    critPerCap: 0.01       // +1% crit par point de Cap
   },
   paladin: {
     reflectBase: 0.40,     // 40% renvoi de base
-    reflectPerTier: 0.05   // +5% par palier
+    reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
     missingHpPercent: 0.15, // 15% des PV manquants
-    capBase: 0.25,          // 25% de Cap de base
-    capPerTier: 0.05        // +5% par palier
+    capScale: 0.35          // 35% de la Cap
   },
   archer: {
-    arrowsBase: 1,         // 1 flèche de base
-    arrowsPerTier: 1       // +1 flèche par palier
+    hitCount: 2,
+    hit2AutoMultiplier: 1.30,
+    hit2CapMultiplier: 0.25
   },
   mage: {
-    capBase: 0.40,         // 40% de Cap de base
-    capPerTier: 0.05       // +5% par palier
+    capBase: 0.43,         // 43% de Cap de base
+    capPerCap: 0
   },
   demoniste: {
-    capBase: 0.25,         // 25% de Cap de base (pour calcul dégâts)
-    capPerTier: 0.04,      // +4% par palier
+    capBase: 0.28,         // 28% de Cap de base (pour calcul dégâts)
+    capPerCap: 0,
     ignoreResist: 0.60     // Ignore 60% de la ResC
   },
   masochiste: {
     returnBase: 0.15,      // 15% des dégâts accumulés
-    returnPerTier: 0.03,   // +3% par palier
+    returnPerCap: 0.02,    // +2% par point de Cap
     healPercent: 0.10      // Heal 10% des dégâts encaissés
   }
 };
@@ -70,18 +70,16 @@ export const generalConstants = {
   baseCritChance: 0.10,    // 10% crit de base
   critMultiplier: 1.5,     // x1.5 dégâts crit (sauf Voleur)
   maxTurns: 30,            // Maximum de tours par combat
-  tierThreshold: 15        // Seuil pour les paliers de Cap
 };
 
 // Fonctions utilitaires
-export const tiers15 = (cap) => Math.floor(cap / generalConstants.tierThreshold);
 export const dmgPhys = (auto, def) => Math.max(1, Math.round(auto - 0.5 * def));
 export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap));
 
 // Calcul du crit chance (identique à Combat.jsx)
 export const calcCritChance = (attacker) => {
   let c = generalConstants.baseCritChance;
-  if (attacker.class === 'Voleur') c += 0.05 * tiers15(attacker.base.cap);
+  if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
   if (attacker.race === 'Elfe') c += raceConstants.elfe.critBonus;
   return c;
 };

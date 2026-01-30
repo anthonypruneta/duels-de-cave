@@ -9,7 +9,7 @@ import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
-import { classConstants, raceConstants, tiers15, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -99,161 +99,122 @@ const CharacterCreation = () => {
   // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   // Utilise les constantes centralisées de combatMechanics.js
   const getCalculatedDescription = (className, cap, auto) => {
-    const paliers = tiers15(cap);
-
     switch(className) {
       case 'Guerrier': {
-        const { ignoreBase, ignorePerTier, autoBonus } = classConstants.guerrier;
+        const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
         const ignoreBasePct = Math.round(ignoreBase * 100);
-        const ignoreBonusPct = Math.round(ignorePerTier * 100) * paliers;
+        const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
         const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
         return (
           <>
             +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
-            {ignoreBonusPct > 0 ? (
-              <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (${paliers} paliers): +${ignoreBonusPct}%`}>
-                <span className="text-green-400">{ignoreTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{ignoreBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+              <span className="text-green-400">{ignoreTotalPct}%</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Voleur': {
-        const { spdBonus, critPerTier } = classConstants.voleur;
-        const critBonusPct = Math.round(critPerTier * 100) * paliers;
+        const { spdBonus, critPerCap } = classConstants.voleur;
+        const critBonusPct = Math.round(critPerCap * cap * 100);
         return (
           <>
             +{spdBonus} VIT | Esquive 1 coup
-            {critBonusPct > 0 && (
-              <Tooltip content={`Bonus (${paliers} paliers): +${critBonusPct}%`}>
-                <span className="text-green-400"> | +{critBonusPct}% crit</span>
-              </Tooltip>
-            )}
+            <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+              <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Paladin': {
-        const { reflectBase, reflectPerTier } = classConstants.paladin;
+        const { reflectBase, reflectPerCap } = classConstants.paladin;
         const reflectBasePct = Math.round(reflectBase * 100);
-        const reflectBonusPct = Math.round(reflectPerTier * 100) * paliers;
+        const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
         const reflectTotalPct = reflectBasePct + reflectBonusPct;
         return (
           <>
             Renvoie{' '}
-            {reflectBonusPct > 0 ? (
-              <Tooltip content={`Base: ${reflectBasePct}% | Bonus (${paliers} paliers): +${reflectBonusPct}%`}>
-                <span className="text-green-400">{reflectTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{reflectBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+              <span className="text-green-400">{reflectTotalPct}%</span>
+            </Tooltip>
             {' '}des dégâts reçus
           </>
         );
       }
 
       case 'Healer': {
-        const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
+        const { missingHpPercent, capScale } = classConstants.healer;
         const missingPct = Math.round(missingHpPercent * 100);
-        const healBasePct = Math.round(capBase * 100);
-        const healBonusPct = Math.round(capPerTier * 100) * paliers;
-        const healTotalPct = healBasePct + healBonusPct;
+        const healValue = Math.round(capScale * cap);
         return (
           <>
             Heal {missingPct}% PV manquants +{' '}
-            {healBonusPct > 0 ? (
-              <Tooltip content={`Base: ${healBasePct}% | Bonus (${paliers} paliers): +${healBonusPct}%`}>
-                <span className="text-green-400">{healTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{healBasePct}%</span>
-            )}
-            {' '}× Cap
+            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+              <span className="text-green-400">{healValue}</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Archer': {
-        const { arrowsBase, arrowsPerTier } = classConstants.archer;
-        const arrowsBonus = arrowsPerTier * paliers;
-        const arrowsTotal = arrowsBase + arrowsBonus;
+        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+        const hit2Cap = Math.round(hit2CapMultiplier * cap);
         return (
           <>
-            {arrowsBonus > 0 ? (
-              <Tooltip content={`Base: ${arrowsBase} | Bonus (${paliers} paliers): +${arrowsBonus}`}>
-                <span className="text-green-400">{arrowsTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{arrowsBase}</span>
-            )}
-            {' '}tirs simultanés
+            2 attaques: 1 tir normal +{' '}
+            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+              <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+            </Tooltip>
           </>
         );
       }
 
       case 'Mage': {
-        const { capBase, capPerTier } = classConstants.mage;
-        const magicBasePct = Math.round(capBase * 100);
-        const magicBonusPct = Math.round(capPerTier * 100) * paliers;
-        const magicTotalPct = magicBasePct + magicBonusPct;
-        const magicDmgTotal = Math.round(cap * (magicTotalPct / 100));
+        const { capBase, capPerCap } = classConstants.mage;
+        const magicPct = capBase + capPerCap * cap;
+        const magicDmgTotal = Math.round(magicPct * cap);
         return (
           <>
             Dégâts = Auto +{' '}
-            {magicBonusPct > 0 ? (
-              <Tooltip content={`${magicTotalPct}% de Cap (${cap}) | Base: ${magicBasePct}% | Bonus (${paliers} paliers): +${magicBonusPct}%`}>
-                <span className="text-green-400">{magicDmgTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{magicDmgTotal}</span>
-            )}
+            <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+              <span className="text-green-400">{auto + magicDmgTotal}</span>
+            </Tooltip>
             {' '}dégâts magiques (vs ResC)
           </>
         );
       }
 
       case 'Demoniste': {
-        const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
-        const familierBasePct = Math.round(capBase * 100);
-        const familierBonusPct = Math.round(capPerTier * 100) * paliers;
-        const familierTotalPct = familierBasePct + familierBonusPct;
-        const familierDmgTotal = Math.round(cap * (familierTotalPct / 100));
+        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const familierPct = capBase + capPerCap * cap;
+        const familierDmgTotal = Math.round(familierPct * cap);
         const ignoreResPct = Math.round(ignoreResist * 100);
         return (
           <>
             Chaque tour:{' '}
-            {familierBonusPct > 0 ? (
-              <Tooltip content={`${familierTotalPct}% de Cap (${cap}) | Base: ${familierBasePct}% | Bonus (${paliers} paliers): +${familierBonusPct}% | Ignore ${ignoreResPct}% ResC`}>
-                <span className="text-green-400">{familierDmgTotal}</span>
-              </Tooltip>
-            ) : (
-              <span>{familierDmgTotal}</span>
-            )}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | Ignore ${ignoreResPct}% ResC`}>
+              <span className="text-green-400">{familierDmgTotal}</span>
+            </Tooltip>
             {' '}dégâts (ignore {ignoreResPct}% ResC)
           </>
         );
       }
 
       case 'Masochiste': {
-        const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const returnBasePct = Math.round(returnBase * 100);
-        const returnBonusPct = Math.round(returnPerTier * 100) * paliers;
+        const returnBonusPct = Math.round(returnPerCap * cap * 100);
         const returnTotalPct = returnBasePct + returnBonusPct;
         const healPct = Math.round(healPercent * 100);
         return (
           <>
             Renvoie{' '}
-            {returnBonusPct > 0 ? (
-              <Tooltip content={`Base: ${returnBasePct}% | Bonus (${paliers} paliers): +${returnBonusPct}%`}>
-                <span className="text-green-400">{returnTotalPct}%</span>
-              </Tooltip>
-            ) : (
-              <span>{returnBasePct}%</span>
-            )}
+            <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+              <span className="text-green-400">{returnTotalPct}%</span>
+            </Tooltip>
             {' '}des dégâts accumulés & heal {healPct}%
           </>
         );
