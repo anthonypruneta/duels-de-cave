@@ -695,7 +695,8 @@ const Combat = () => {
               {selectedChar.race} • {selectedChar.class} • Niveau {selectedChar.level ?? 1}
             </p>
             <p className="text-stone-500 text-xs mt-1">
-              Niveau: {selectedChar.level ?? 1} | Arme: {selectedChar.equippedWeaponData?.nom || 'Aucune arme'}
+              HP: {getBaseWithBoosts(selectedChar).hp + (selectedChar.equippedWeaponData?.stats?.hp ?? 0)}
+              {' '}| VIT: {getBaseWithBoosts(selectedChar).spd + (selectedChar.equippedWeaponData?.stats?.spd ?? 0)}
             </p>
             {selectedChar.equippedWeaponData ? (
               <div className="mt-2 flex items-center justify-center gap-2 text-xs text-stone-300">
