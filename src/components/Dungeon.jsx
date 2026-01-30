@@ -161,6 +161,28 @@ const Dungeon = () => {
     }
   }, [gameState]);
 
+  const ensureDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic && dungeonMusic.paused) {
+      dungeonMusic.volume = 0.35;
+      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    }
+  };
+
+  const stopDungeonMusic = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic) {
+      dungeonMusic.pause();
+      dungeonMusic.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (gameState === 'fighting') {
+      ensureDungeonMusic();
+    }
+  }, [gameState]);
+
   // Charger les données au montage
   useEffect(() => {
     const loadData = async () => {
@@ -1358,7 +1380,7 @@ const Dungeon = () => {
       <div className="max-w-4xl mx-auto pt-20">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-stone-200">Le Donjon</h2>
+            <h2 className="text-4xl font-bold text-stone-200">La Grotte</h2>
           </div>
         </div>
 
@@ -1439,7 +1461,7 @@ const Dungeon = () => {
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans le donjon' : 'Plus de runs'}
+            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la grotte' : 'Plus de runs'}
           </button>
         </div>
 
