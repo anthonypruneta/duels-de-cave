@@ -2,7 +2,7 @@
  * Service Donjon - Duels de Cave
  *
  * Gère les opérations liées au donjon :
- * - Limite de 3 runs par jour
+ * - Limite de 10 runs par jour (cumulables)
  * - Progression niveau 1 → 2 → 3 à la suite
  * - Loot du dernier étage réussi si mort
  * - Équipement des armes
@@ -22,6 +22,8 @@ import {
   getDungeonLevelByNumber,
   isNewDay,
   getRemainingRuns,
+  getResetAnchor,
+  getResetPeriodsSince,
   DUNGEON_CONSTANTS
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
@@ -70,7 +72,9 @@ const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
  *   userId: string,
  *   equippedWeapon: string | null,    // ID de l'arme équipée
  *   runsToday: number,                // Nombre de runs aujourd'hui
+ *   runsAvailable: number,            // Runs disponibles (cumulables)
  *   lastRunDate: Timestamp,           // Date de la dernière run
+ *   lastCreditDate: Timestamp,        // Dernière attribution de runs
  *   totalRuns: number,                // Total de runs effectuées
  *   bestRun: number,                  // Meilleur niveau atteint (1-3)
  *   totalBossKills: number,           // Stats globales
@@ -100,6 +104,33 @@ export const getDungeonProgress = async (userId) => {
         data.runsToday = 0;
       }
 
+      const runsAvailable = Number.isFinite(data.runsAvailable)
+        ? data.runsAvailable
+        : getRemainingRuns(data.runsToday || 0, data.lastRunDate);
+      const updates = {};
+      const currentAnchor = getResetAnchor(new Date());
+
+      if (!Number.isFinite(data.runsAvailable)) {
+        updates.runsAvailable = runsAvailable;
+        updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+      } else if (!data.lastCreditDate) {
+        updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+      } else {
+        const periods = getResetPeriodsSince(data.lastCreditDate, new Date());
+        if (periods > 0) {
+          updates.runsAvailable = runsAvailable + periods * DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY;
+          updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await retryOperation(async () => {
+          const progressRef = doc(db, 'dungeonProgress', userId);
+          await updateDoc(progressRef, updates);
+        });
+        Object.assign(data, updates);
+      }
+
       return { success: true, data };
     } else {
       // Initialiser la progression si elle n'existe pas
@@ -108,7 +139,9 @@ export const getDungeonProgress = async (userId) => {
         userId,
         equippedWeapon: null,
         runsToday: 0,
+        runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY,
         lastRunDate: null,
+        lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
         totalRuns: 0,
         bestRun: 0,
         totalBossKills: 0,
@@ -140,7 +173,9 @@ export const canStartDungeonRun = async (userId) => {
       return { canStart: false, error };
     }
 
-    const remaining = getRemainingRuns(data.runsToday, data.lastRunDate);
+    const remaining = Number.isFinite(data.runsAvailable)
+      ? data.runsAvailable
+      : getRemainingRuns(data.runsToday, data.lastRunDate);
 
     return {
       canStart: remaining > 0,
@@ -180,9 +215,14 @@ export const startDungeonRun = async (userId) => {
 
       // Reset si nouveau jour
       const runsToday = isNewDay(currentData.lastRunDate) ? 1 : currentData.runsToday + 1;
+      const currentAvailable = Number.isFinite(currentData.runsAvailable)
+        ? currentData.runsAvailable
+        : getRemainingRuns(currentData.runsToday || 0, currentData.lastRunDate);
+      const runsAvailable = Math.max(0, currentAvailable - 1);
 
       await updateDoc(progressRef, {
         runsToday,
+        runsAvailable,
         lastRunDate: Timestamp.now(),
         totalRuns: (currentData.totalRuns || 0) + 1,
         updatedAt: Timestamp.now()
@@ -407,7 +447,9 @@ export const getPlayerDungeonSummary = async (userId) => {
         : null;
     }
 
-    const runsRemaining = getRemainingRuns(progress.runsToday, progress.lastRunDate);
+    const runsRemaining = Number.isFinite(progress.runsAvailable)
+      ? progress.runsAvailable
+      : getRemainingRuns(progress.runsToday, progress.lastRunDate);
 
     return {
       success: true,

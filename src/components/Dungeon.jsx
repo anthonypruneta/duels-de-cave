@@ -139,12 +139,18 @@ const Dungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.35);
+  const [isMuted, setIsMuted] = useState(false);
 
   const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic && dungeonMusic.paused) {
-      dungeonMusic.volume = 0.35;
-      dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+    if (dungeonMusic) {
+      dungeonMusic.volume = volume;
+      dungeonMusic.muted = isMuted;
+      if (dungeonMusic.paused) {
+        dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+      }
     }
   };
 
@@ -167,11 +173,74 @@ const Dungeon = () => {
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
+  const applyDungeonVolume = () => {
+    const dungeonMusic = document.getElementById('dungeon-music');
+    if (dungeonMusic) {
+      dungeonMusic.volume = volume;
+      dungeonMusic.muted = isMuted;
+    }
+  };
+
   // Scroll auto du log (desktop uniquement)
   useEffect(() => {
     if (!shouldAutoScrollLog()) return;
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
+
+  useEffect(() => {
+    applyDungeonVolume();
+  }, [volume, isMuted, gameState]);
+
+  const handleVolumeChange = (event) => {
+    const nextVolume = Number(event.target.value);
+    setVolume(nextVolume);
+    setIsMuted(nextVolume === 0);
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
+    if (isMuted && volume === 0) {
+      setVolume(0.35);
+    }
+  };
+
+  const SoundControl = () => (
+    <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-stone-800/90 text-stone-100 border border-stone-600 px-3 py-2 text-sm font-bold shadow-lg hover:bg-stone-700"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-52 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="text-lg"
+              aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-full accent-amber-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">
+              {Math.round((isMuted ? 0 : volume) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   // Charger les données au montage
   useEffect(() => {
@@ -1020,6 +1089,7 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <SoundControl />
         <div className="text-amber-400 text-2xl">Chargement du donjon...</div>
       </div>
     );
@@ -1029,6 +1099,7 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <SoundControl />
         <div className="text-center">
           <div className="text-6xl mb-4">🚫</div>
           <p className="text-gray-300 text-xl">Vous devez créer un personnage</p>
@@ -1052,6 +1123,7 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
@@ -1153,6 +1225,7 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
@@ -1340,6 +1413,7 @@ const Dungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
@@ -1365,6 +1439,7 @@ const Dungeon = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <SoundControl />
       <audio id="dungeon-music" loop>
         <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
       </audio>
@@ -1378,10 +1453,11 @@ const Dungeon = () => {
         {/* Info runs */}
         <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
           <div>
-            <p className="text-amber-300 font-bold">Runs aujourd'hui (reset à midi)</p>
+            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
             <p className="text-white text-2xl">
-              {dungeonSummary?.runsRemaining || 0} / {DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY} restantes
+              {dungeonSummary?.runsRemaining || 0}
             </p>
+            <p className="text-stone-400 text-sm">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY} par jour (reset à midi)</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400 text-sm">Meilleur run</p>

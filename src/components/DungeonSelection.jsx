@@ -38,10 +38,11 @@ const DungeonSelection = () => {
 
         <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
           <div>
-            <p className="text-amber-300 font-bold">Essais aujourd'hui</p>
+            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
             <p className="text-white text-2xl">
-              {loading ? '...' : `${runsRemaining} / ${maxRuns}`}
+              {loading ? '...' : `${runsRemaining}`}
             </p>
+            <p className="text-stone-400 text-sm">+{maxRuns} par jour (reset à midi)</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400 text-sm">Chaque donjon consomme 1 essai</p>
