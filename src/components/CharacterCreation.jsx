@@ -513,8 +513,8 @@ const CharacterCreation = () => {
                   <div className="text-stone-400 text-xs">
                     {getCalculatedDescription(
                       existingCharacter.class,
-                      existingCharacter.base.cap + weaponStatValue('cap'),
-                      existingCharacter.base.auto + weaponStatValue('auto')
+                      baseStats.cap + weaponStatValue('cap'),
+                      baseStats.auto + weaponStatValue('auto')
                     )}
                   </div>
                 </div>
