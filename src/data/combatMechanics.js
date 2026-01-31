@@ -139,8 +139,8 @@ export const weaponConstants = {
 
   // Égide d'Athéna (Bouclier légendaire)
   egide: {
-    defToAtkPercent: 0.05,     // 5% DEF → ATK
-    rescapToAtkPercent: 0.05,  // 5% RESC → ATK
+    defToAtkPercent: 0.1,     // 10% DEF → ATK
+    rescapToAtkPercent: 0.1,  // 10% RESC → ATK
   },
 
   // Zweihänder (Épée légendaire)
