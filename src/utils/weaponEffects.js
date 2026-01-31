@@ -83,7 +83,7 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass) {
   if (weapon.rarete === RARITY.LEGENDAIRE) {
     switch (weapon.id) {
       case 'bouclier_legendaire': {
-        // Égide d'Athéna: +5% DEF et +5% RESC → ATK
+        // Égide d'Athéna: +10% DEF et +10% RESC → ATK
         const atkBonus = Math.round(
           modifiedStats.def * weaponConstants.egide.defToAtkPercent +
           modifiedStats.rescap * weaponConstants.egide.rescapToAtkPercent
