@@ -9,7 +9,7 @@ import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
-import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -405,6 +405,12 @@ const CharacterCreation = () => {
     const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
     const weapon = equippedWeapon;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
+    const egideAtkBonus = weapon?.id === 'bouclier_legendaire'
+      ? Math.round(
+        (baseStats.def + weaponStatValue('def')) * weaponConstants.egide.defToAtkPercent +
+        (baseStats.rescap + weaponStatValue('rescap')) * weaponConstants.egide.rescapToAtkPercent
+      )
+      : 0;
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
@@ -412,13 +418,15 @@ const CharacterCreation = () => {
       if (existingCharacter.bonuses.class[k] > 0) parts.push(`Classe: +${existingCharacter.bonuses.class[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
+      if (k === 'auto' && egideAtkBonus > 0) parts.push(`Égide: +${egideAtkBonus}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const weaponDelta = weaponStatValue(statKey);
-      const displayValue = baseStats[statKey] + weaponDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta;
+      const egideDelta = statKey === 'auto' ? egideAtkBonus : 0;
+      const displayValue = baseStats[statKey] + weaponDelta + egideDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || egideDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + egideDelta;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
