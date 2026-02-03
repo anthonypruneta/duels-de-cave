@@ -9,6 +9,7 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
   applyGungnirDebuff,
@@ -103,6 +104,14 @@ const getWeaponTooltipContent = (weapon) => {
       )}
     </span>
   );
+};
+
+const getPassiveDetails = (passive) => {
+  if (!passive) return null;
+  const base = getMageTowerPassiveById(passive.id);
+  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+  if (!base || !levelData) return null;
+  return { ...base, level: passive.level, levelData };
 };
 
 const Combat = () => {
@@ -854,6 +863,23 @@ const Combat = () => {
             ) : (
               <div className="mt-2 text-xs text-stone-500">Aucune arme équipée</div>
             )}
+            {(() => {
+              const passiveDetails = getPassiveDetails(selectedChar.mageTowerPassive);
+              if (!passiveDetails) return null;
+              return (
+                <div className="mt-2 text-xs text-stone-300 border border-amber-500/50 bg-stone-900/60 p-2">
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="text-base">{passiveDetails.icon}</span>
+                    <span className="font-semibold text-amber-300">
+                      {passiveDetails.name} — Niv. {passiveDetails.level}
+                    </span>
+                  </span>
+                  <div className="text-[10px] text-stone-400 mt-1">
+                    {passiveDetails.levelData.description}
+                  </div>
+                </div>
+              );
+            })()}
             <button
               onClick={() => onSelect(null)}
               className="mt-2 text-stone-400 text-sm hover:text-white border border-stone-600 px-3 py-1 hover:border-stone-400 transition-all"
@@ -904,6 +930,7 @@ const Combat = () => {
     const classB = character.bonuses?.class || {};
     const forestBoosts = getForestBoosts(character);
     const weapon = character.equippedWeaponData;
+    const passiveDetails = getPassiveDetails(character.mageTowerPassive);
     const baseStats = character.baseWithoutWeapon || getBaseWithBoosts(character);
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
@@ -990,6 +1017,19 @@ const Combat = () => {
                       <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                     </span>
                   </Tooltip>
+                </div>
+              )}
+              {passiveDetails && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">{passiveDetails.icon}</span>
+                  <div className="flex-1">
+                    <div className="text-amber-300 font-semibold mb-1">
+                      {passiveDetails.name} — Niveau {passiveDetails.level}
+                    </div>
+                    <div className="text-stone-400 text-[10px]">
+                      {passiveDetails.levelData.description}
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">

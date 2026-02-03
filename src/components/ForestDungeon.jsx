@@ -22,6 +22,7 @@ import {
   calcCritChance
 } from '../data/combatMechanics';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import {
   FOREST_DIFFICULTY_COLORS,
   getAllForestLevels,
@@ -103,6 +104,14 @@ const getWeaponTooltipContent = (weapon) => {
       )}
     </span>
   );
+};
+
+const getPassiveDetails = (passive) => {
+  if (!passive) return null;
+  const base = getMageTowerPassiveById(passive.id);
+  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+  if (!base || !levelData) return null;
+  return { ...base, level: passive.level, levelData };
 };
 
 // Composant Tooltip réutilisable
@@ -964,6 +973,7 @@ const ForestDungeon = () => {
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
     const weapon = char.equippedWeaponData;
+    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
@@ -1057,6 +1067,19 @@ const ForestDungeon = () => {
                       </span>
                     </span>
                   </Tooltip>
+                </div>
+              )}
+              {passiveDetails && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">{passiveDetails.icon}</span>
+                  <div className="flex-1">
+                    <div className="text-amber-300 font-semibold mb-1">
+                      {passiveDetails.name} — Niveau {passiveDetails.level}
+                    </div>
+                    <div className="text-stone-400 text-[10px]">
+                      {passiveDetails.levelData.description}
+                    </div>
+                  </div>
                 </div>
               )}
               {races[char.race] && (

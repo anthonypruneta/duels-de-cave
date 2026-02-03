@@ -1,26 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCharacter, updateCharacterLevel } from '../services/characterService';
 import {
-  getPlayerDungeonSummary,
-  startDungeonRun,
-  endDungeonRun,
-  handleLootChoice
-} from '../services/dungeonService';
+  getUserCharacter,
+  updateCharacterEquippedWeapon,
+  updateCharacterMageTowerPassive,
+  updateCharacterLevel
+} from '../services/characterService';
+import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
+import { races } from '../data/races';
+import { classes } from '../data/classes';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import {
-  getAllDungeonLevels,
-  getDungeonLevelByNumber,
-  DIFFICULTY_LABELS,
-  DIFFICULTY_COLORS,
-  DUNGEON_CONSTANTS
-} from '../data/dungeons';
+  cooldowns,
+  classConstants,
+  raceConstants,
+  generalConstants,
+  weaponConstants,
+  dmgPhys,
+  dmgCap,
+  calcCritChance
+} from '../data/combatMechanics';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import {
-  RARITY_COLORS,
-  RARITY_BORDER_COLORS,
-  RARITY_BG_COLORS
-} from '../data/weapons';
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+  MAGE_TOWER_DIFFICULTY_COLORS,
+  getAllMageTowerLevels,
+  getMageTowerLevelByNumber,
+  createMageTowerBossCombatant
+} from '../data/mageTowerDungeons';
+import {
+  getMageTowerPassiveById,
+  getMageTowerPassiveLevel,
+  rollMageTowerPassive
+} from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
   applyGungnirDebuff,
@@ -33,22 +45,8 @@ import {
   onSpellCast,
   onTurnStart
 } from '../utils/weaponEffects';
-import { createBossCombatant, getBossById } from '../data/bosses';
-import { races } from '../data/races';
-import { classes } from '../data/classes';
-import {
-  cooldowns,
-  classConstants,
-  raceConstants,
-  generalConstants,
-  weaponConstants,
-  dmgPhys,
-  dmgCap,
-  calcCritChance
-} from '../data/combatMechanics';
 import Header from './Header';
 
-// Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -62,28 +60,12 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
-const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
-const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
-
-// Composant Tooltip (même que Combat.jsx)
-const Tooltip = ({ children, content }) => {
-  return (
-    <span className="relative group cursor-help">
-      {children}
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
-        {content}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
-      </span>
-    </span>
-  );
-};
-
 const STAT_LABELS = {
   hp: 'HP',
-  auto: 'Auto',
-  def: 'Déf',
-  cap: 'Cap',
-  rescap: 'ResC',
+  auto: 'ATK',
+  def: 'DEF',
+  cap: 'CAP',
+  rescap: 'RESC',
   spd: 'VIT'
 };
 
@@ -128,87 +110,129 @@ const getWeaponTooltipContent = (weapon) => {
   );
 };
 
-const getPassiveDetails = (passive) => {
-  if (!passive) return null;
-  const base = getMageTowerPassiveById(passive.id);
-  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
-  if (!base || !levelData) return null;
-  return { ...base, level: passive.level, levelData };
+// Composant Tooltip réutilisable
+const Tooltip = ({ children, content }) => {
+  return (
+    <span className="relative group cursor-help">
+      {children}
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+        {content}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
+      </span>
+    </span>
+  );
 };
 
-const Dungeon = () => {
+const MageTower = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // États
   const [loading, setLoading] = useState(true);
   const [character, setCharacter] = useState(null);
-  const [dungeonSummary, setDungeonSummary] = useState(null);
-  const [gameState, setGameState] = useState('lobby'); // lobby, fighting, victory, defeat, loot
+  const [equippedWeapon, setEquippedWeapon] = useState(null);
+  const [equippedPassive, setEquippedPassive] = useState(null);
+  const [gameState, setGameState] = useState('lobby'); // lobby, fighting, reward, victory, defeat
   const [currentLevel, setCurrentLevel] = useState(1);
-  const [highestLevelBeaten, setHighestLevelBeaten] = useState(0);
-  const [lootWeapon, setLootWeapon] = useState(null);
-  const [error, setError] = useState(null);
-  const [autoEquipDone, setAutoEquipDone] = useState(false);
-
-  // États de combat (même pattern que Combat.jsx)
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
+  const [rewardSummary, setRewardSummary] = useState(null);
+  const [error, setError] = useState(null);
   const logEndRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(true);
   const [volume, setVolume] = useState(0.35);
   const [isMuted, setIsMuted] = useState(false);
 
-  const ensureDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.volume = volume;
-      dungeonMusic.muted = isMuted;
-      if (dungeonMusic.paused) {
-        dungeonMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+  const ensureTowerMusic = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.volume = volume;
+      towerMusic.muted = isMuted;
+      if (towerMusic.paused) {
+        towerMusic.play().catch(error => console.log('Autoplay bloqué:', error));
       }
     }
   };
 
-  const stopDungeonMusic = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.pause();
-      dungeonMusic.currentTime = 0;
+  const stopTowerMusic = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.pause();
+      towerMusic.currentTime = 0;
     }
   };
 
   useEffect(() => {
-    if (gameState === 'fighting') {
-      ensureDungeonMusic();
-    }
-  }, [gameState]);
+    const loadData = async () => {
+      if (!currentUser) return;
+      setLoading(true);
+
+      const charResult = await getUserCharacter(currentUser.uid);
+      if (!charResult.success || !charResult.data) {
+        navigate('/');
+        return;
+      }
+
+      const characterData = charResult.data;
+      const level = characterData.level ?? 1;
+      if (characterData.level == null) {
+        updateCharacterLevel(currentUser.uid, level);
+      }
+      const mageTowerPassive = characterData.mageTowerPassive || null;
+      const forestBoosts = { ...getEmptyStatBoosts(), ...(characterData.forestBoosts || {}) };
+      let weaponId = characterData.equippedWeaponId || null;
+      let weaponData = weaponId ? getWeaponById(weaponId) : null;
+
+      if (!weaponData) {
+        const weaponResult = await getEquippedWeapon(currentUser.uid);
+        weaponData = weaponResult.success ? weaponResult.weapon : null;
+        weaponId = weaponResult.success ? weaponResult.weapon?.id || null : null;
+        if (weaponId && weaponId !== characterData.equippedWeaponId) {
+          updateCharacterEquippedWeapon(currentUser.uid, weaponId);
+        }
+      }
+
+      setEquippedWeapon(weaponData);
+      setEquippedPassive(mageTowerPassive);
+      setCharacter(normalizeCharacterBonuses({
+        ...characterData,
+        forestBoosts,
+        level,
+        mageTowerPassive,
+        equippedWeaponData: weaponData,
+        equippedWeaponId: weaponId
+      }));
+
+      setLoading(false);
+    };
+
+    loadData();
+  }, [currentUser, navigate]);
+
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
-  const applyDungeonVolume = () => {
-    const dungeonMusic = document.getElementById('dungeon-music');
-    if (dungeonMusic) {
-      dungeonMusic.volume = volume;
-      dungeonMusic.muted = isMuted;
-    }
-  };
-
-  // Scroll auto du log (desktop uniquement)
   useEffect(() => {
     if (!shouldAutoScrollLog()) return;
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
 
+  const applyTowerVolume = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.volume = volume;
+      towerMusic.muted = isMuted;
+    }
+  };
+
   useEffect(() => {
-    applyDungeonVolume();
+    applyTowerVolume();
   }, [volume, isMuted, gameState]);
 
   const handleVolumeChange = (event) => {
@@ -262,46 +286,14 @@ const Dungeon = () => {
     </div>
   );
 
-  // Charger les données au montage
   useEffect(() => {
-    const loadData = async () => {
-      if (!currentUser) return;
-
-      setLoading(true);
-      try {
-        const charResult = await getUserCharacter(currentUser.uid);
-        if (!charResult.success || !charResult.data) {
-          navigate('/');
-          return;
-        }
-        const level = charResult.data.level ?? 1;
-        if (charResult.data.level == null) {
-          updateCharacterLevel(currentUser.uid, level);
-        }
-        setCharacter({
-          ...charResult.data,
-          level
-        });
-
-        const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-        if (summaryResult.success) {
-          setDungeonSummary(summaryResult.data);
-          setCharacter(prev => prev ? {
-            ...prev,
-            equippedWeaponData: summaryResult.data.equippedWeaponData,
-            equippedWeaponId: summaryResult.data.equippedWeaponData?.id || null
-          } : prev);
-        }
-      } catch (err) {
-        setError('Erreur de chargement');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [currentUser, navigate]);
-
+    if (gameState === 'fighting' || gameState === 'reward') {
+      ensureTowerMusic();
+    }
+    if (gameState === 'victory' || gameState === 'defeat') {
+      stopTowerMusic();
+    }
+  }, [gameState]);
 
   // Descriptions calculées des classes (même que Combat.jsx)
   const getCalculatedDescription = (className, cap, auto) => {
@@ -320,6 +312,7 @@ const Dungeon = () => {
           </>
         );
       }
+
       case 'Voleur': {
         const { spdBonus, critPerCap } = classConstants.voleur;
         const critBonusPct = Math.round(critPerCap * cap * 100);
@@ -332,6 +325,7 @@ const Dungeon = () => {
           </>
         );
       }
+
       case 'Paladin': {
         const { reflectBase, reflectPerCap } = classConstants.paladin;
         const reflectBasePct = Math.round(reflectBase * 100);
@@ -347,6 +341,7 @@ const Dungeon = () => {
           </>
         );
       }
+
       case 'Healer': {
         const { missingHpPercent, capScale } = classConstants.healer;
         const missingPct = Math.round(missingHpPercent * 100);
@@ -360,6 +355,7 @@ const Dungeon = () => {
           </>
         );
       }
+
       case 'Archer': {
         const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
         const hit2Auto = Math.round(hit2AutoMultiplier * auto);
@@ -373,6 +369,7 @@ const Dungeon = () => {
           </>
         );
       }
+
       case 'Mage': {
         const { capBase, capPerCap } = classConstants.mage;
         const magicPct = capBase + capPerCap * cap;
@@ -383,25 +380,27 @@ const Dungeon = () => {
             <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
               <span className="text-green-400">{auto + magicDmgTotal}</span>
             </Tooltip>
-            {' '}(vs ResC)
+            {' '}dégâts magiques (vs ResC)
           </>
         );
       }
+
       case 'Demoniste': {
         const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
         const familierPct = capBase + capPerCap * cap;
         const familierDmgTotal = Math.round(familierPct * cap);
-        const ignoreResistPct = Math.round(ignoreResist * 100);
+        const ignoreResPct = Math.round(ignoreResist * 100);
         return (
           <>
-            Familier:{' '}
-            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap})`}>
+            Chaque tour:{' '}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | Ignore ${ignoreResPct}% ResC`}>
               <span className="text-green-400">{familierDmgTotal}</span>
             </Tooltip>
-            {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+            {' '}dégâts (ignore {ignoreResPct}% ResC)
           </>
         );
       }
+
       case 'Masochiste': {
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const returnBasePct = Math.round(returnBase * 100);
@@ -418,12 +417,12 @@ const Dungeon = () => {
           </>
         );
       }
+
       default:
         return classes[className]?.description || '';
     }
   };
 
-  // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
@@ -441,13 +440,16 @@ const Dungeon = () => {
       reflect: false,
       bleed_stacks: 0,
       maso_taken: 0,
+      shield: 0,
+      shieldExploded: false,
+      spectralMarked: false,
+      boneGuardActive: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState
     };
   };
 
-  // Full heal du joueur (entre les boss)
   const fullHealPlayer = (p) => {
     p.currentHP = p.maxHP;
     p.undead = false;
@@ -455,19 +457,13 @@ const Dungeon = () => {
     p.reflect = false;
     p.bleed_stacks = 0;
     p.maso_taken = 0;
+    p.shield = 0;
+    p.shieldExploded = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
-    if (p.weaponState?.counters) {
-      p.weaponState.counters.turnCount = 0;
-      p.weaponState.counters.attackCount = 0;
-      p.weaponState.counters.spellCount = 0;
-      p.weaponState.counters.firstHitDone = false;
-      p.weaponState.counters.gungnirApplied = false;
-    }
   };
 
-  // Fonction de résurrection mort-vivant
   const reviveUndead = (target, log, playerColor) => {
     const revive = Math.max(1, Math.round(raceConstants.mortVivant.revivePercent * target.maxHP));
     target.undead = true;
@@ -475,26 +471,145 @@ const Dungeon = () => {
     log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
   };
 
-  // Traiter l'action d'un combattant (joueur ou boss)
-  // Utilise [P1]/[P2] comme Combat.jsx (P1 = joueur, P2 = boss)
-  const processPlayerAction = (att, def, log, isPlayer, bossAbilityCooldown) => {
-    if (att.currentHP <= 0 || def.currentHP <= 0) return bossAbilityCooldown;
+  const getPassiveDetails = (passive) => {
+    if (!passive) return null;
+    const base = getMageTowerPassiveById(passive.id);
+    const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+    if (!base || !levelData) return null;
+    return { ...base, level: passive.level, levelData };
+  };
+
+  const getUnicornPactTurnData = (passiveDetails, turn) => {
+    if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
+    const isTurnA = turn % 2 === 1;
+    return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
+  };
+
+  const getAuraBonus = (passiveDetails, turn) => {
+    if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
+    return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+  };
+
+  const applyBossIncomingModifier = (defender, damage) => {
+    if (defender?.ability?.type === 'bone_guard' && defender.boneGuardActive) {
+      return Math.round(damage * 0.7);
+    }
+    return damage;
+  };
+
+  const processPlayerAction = (att, def, log, isPlayer, turn) => {
+    if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
     const playerColor = isPlayer ? '[P1]' : '[P2]';
+    const playerChar = isPlayer ? att : def;
+    const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
+    const unicornData = getUnicornPactTurnData(playerPassive, turn);
+    const auraBonus = getAuraBonus(playerPassive, turn);
+    let skillUsed = false;
+
+    const resolveDamage = (raw, isCrit) => {
+      let adjusted = raw;
+
+      if (isPlayer) {
+        if (unicornData) {
+          adjusted = Math.round(adjusted * (1 + unicornData.outgoing));
+        }
+        if (auraBonus) {
+          adjusted = Math.round(adjusted * (1 + auraBonus));
+        }
+        if (def.spectralMarked && def.spectralMarkBonus) {
+          adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
+        }
+        adjusted = applyBossIncomingModifier(def, adjusted);
+      } else if (unicornData) {
+        adjusted = Math.round(adjusted * (1 + unicornData.incoming));
+      }
+
+      if (!isPlayer && isCrit && playerPassive?.id === 'obsidian_skin') {
+        adjusted = Math.round(adjusted * (1 - playerPassive.levelData.critReduction));
+      }
+
+      if (def.dodge) {
+        def.dodge = false;
+        log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
+        return 0;
+      }
+
+      if (def.reflect && adjusted > 0) {
+        const back = Math.round(def.reflect * adjusted);
+        att.currentHP -= back;
+        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+      }
+
+      let remaining = adjusted;
+      if (def.shield > 0 && remaining > 0) {
+        const absorbed = Math.min(def.shield, remaining);
+        def.shield -= absorbed;
+        remaining -= absorbed;
+        log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
+
+        if (def.ability?.type === 'lich_shield' && def.shield <= 0 && !def.shieldExploded) {
+          def.shieldExploded = true;
+          let explosionDamage = Math.max(1, Math.round(def.maxHP * 0.2));
+          if (unicornData) {
+            explosionDamage = Math.round(explosionDamage * (1 + unicornData.incoming));
+          }
+          if (playerChar.shield > 0 && explosionDamage > 0) {
+            const absorbedExplosion = Math.min(playerChar.shield, explosionDamage);
+            playerChar.shield -= absorbedExplosion;
+            explosionDamage -= absorbedExplosion;
+            log.push(`${playerColor} 🛡️ ${playerChar.name} absorbe ${absorbedExplosion} dégâts de l'explosion grâce au bouclier`);
+          }
+          if (explosionDamage > 0) {
+            playerChar.currentHP -= explosionDamage;
+            log.push(`${playerColor} 💥 Le bouclier de ${def.name} explose et inflige ${explosionDamage} points de dégâts à ${playerChar.name}`);
+            if (playerChar.currentHP <= 0 && playerChar.race === 'Mort-vivant' && !playerChar.undead) {
+              reviveUndead(playerChar, log, playerColor);
+            }
+          }
+        }
+      }
+
+      if (remaining > 0) {
+        def.currentHP -= remaining;
+        def.maso_taken = (def.maso_taken || 0) + remaining;
+      }
+
+      if (isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
+        def.spectralMarked = true;
+        def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
+        log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
+      }
+
+      if (isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
+        const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
+        att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+        log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
+      }
+
+      if (def?.ability?.type === 'bone_guard' && !def.boneGuardActive && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.4) {
+        def.boneGuardActive = true;
+        log.push(`${playerColor} 💀 ${def.name} renforce sa carapace et réduit les dégâts reçus !`);
+      }
+
+      return remaining;
+    };
+
     if (att.stunnedTurns > 0) {
       att.stunnedTurns -= 1;
       if (att.stunnedTurns <= 0) {
         att.stunned = false;
       }
       log.push(`${playerColor} 😵 ${att.name} est étourdi et ne peut pas agir ce tour`);
-      return bossAbilityCooldown;
+      return;
     }
 
     att.reflect = false;
     for (const k of Object.keys(cooldowns)) {
       att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
     }
-    const turnEffects = onTurnStart(att.weaponState || { isLegendary: false, counters: {} }, att, 0);
+
+    const turnEffects = onTurnStart(att.weaponState || { isLegendary: false, counters: {} }, att, turn);
     if (turnEffects.log.length > 0) {
       log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
     }
@@ -502,42 +617,39 @@ const Dungeon = () => {
       att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
     }
 
-    // Passif Sylvari (regen)
     if (att.race === 'Sylvari') {
       const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
     }
 
-    // Passif Demoniste (familier)
     if (att.class === 'Demoniste') {
       const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-      def.currentHP -= raw;
-      log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
+      const inflicted = resolveDamage(raw, false);
+      log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, log, playerColor);
       }
     }
 
-    // Capacité Masochiste
     if (att.class === 'Masochiste') {
       if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
+        skillUsed = skillUsed || isPlayer;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
-        def.currentHP -= dmg;
-        log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${dmg} points de dégâts et récupère ${healAmount} points de vie`);
+        const inflicted = resolveDamage(dmg, false);
+        log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
       }
     }
 
-    // Saignement
     if (att.bleed_stacks > 0) {
       const bleedDmg = Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
       att.currentHP -= bleedDmg;
@@ -547,15 +659,15 @@ const Dungeon = () => {
       }
     }
 
-    // Capacité Paladin (riposte)
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+      skillUsed = skillUsed || isPlayer;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       att.reflect = reflectBase + reflectPerCap * att.base.cap;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
-    // Capacité Healer
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+      skillUsed = skillUsed || isPlayer;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
       const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
@@ -564,46 +676,27 @@ const Dungeon = () => {
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-        def.currentHP -= bonusDmg;
+        const inflicted = resolveDamage(bonusDmg, false);
         log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+        if (inflicted > 0 && def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+          reviveUndead(def, log, playerColor);
+        }
       }
     }
 
-    // Capacité Voleur (esquive)
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+      skillUsed = skillUsed || isPlayer;
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
 
-    // ===== CAPACITÉS SPÉCIALES DES BOSS =====
-    let newBossCooldown = bossAbilityCooldown;
-    if (!isPlayer && att.ability) {
-      newBossCooldown++;
-
-      // Bandit: Saignement tous les 2 tours
-      if (att.bossId === 'bandit' && newBossCooldown >= att.ability.cooldown) {
-        def.bleed_stacks = (def.bleed_stacks || 0) + 1;
-        log.push(`${playerColor} 🗡️ ${att.name} empoisonne sa lame et applique un saignement !`);
-        newBossCooldown = 0;
-      }
-
-      // Dragon: Sort +50% dégâts tous les 5 tours
-      if (att.bossId === 'dragon' && newBossCooldown >= att.ability.cooldown) {
-        const spellDmg = Math.round(att.base.cap * 1.5);
-        const raw = dmgCap(spellDmg, def.base.rescap);
-        def.currentHP -= raw;
-        log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${raw} points de dégâts`);
-        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, log, playerColor);
-        }
-        newBossCooldown = 0;
-      }
-    }
-
-    // Déterminer le type d'attaque
     const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
     const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
     const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+
+    if (isPlayer && (isMage || isWar || isArcher)) {
+      skillUsed = true;
+    }
 
     let mult = 1.0;
     if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
@@ -614,34 +707,33 @@ const Dungeon = () => {
       mult *= turnEffects.damageMultiplier;
     }
 
+    let total = 0;
     const baseHits = isArcher ? classConstants.archer.hitCount : 1;
     const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
-    let total = 0;
     let wasCrit = false;
+    const forceCrit = isPlayer
+      && playerPassive?.id === 'obsidian_skin'
+      && att.currentHP <= att.maxHP * playerPassive.levelData.critThreshold;
 
     for (let i = 0; i < totalHits; i++) {
       const isBonusAttack = i >= baseHits;
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att);
-      if (isCrit) wasCrit = true;
-      let raw = 0;
+      const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
       const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
+      let raw = 0;
+      wasCrit = wasCrit || isCrit;
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
         const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
-        if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
-          def.currentHP -= spellEffects.secondCastDamage;
+          const extra = spellEffects.secondCastDamage;
+          const inflictedExtra = resolveDamage(extra, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
-          if (spellEffects.secondCastDamage > 0) {
-            def.maso_taken = (def.maso_taken || 0) + spellEffects.secondCastDamage;
-          }
         }
       } else if (isWar) {
-        const { ignoreBase, ignorePerCap } = classConstants.guerrier;
-        const ignore = ignoreBase + ignorePerCap * att.base.cap;
+        const ignore = classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerCap * att.base.cap;
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
@@ -649,7 +741,6 @@ const Dungeon = () => {
           const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
           raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
         }
-        if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
       } else if (isArcher && !isBonusAttack) {
         if (i === 0) {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
@@ -671,23 +762,17 @@ const Dungeon = () => {
         raw = modifyCritDamage(att.weaponState, critDamage);
       }
 
-      if (def.dodge) {
-        def.dodge = false;
-        log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
-        raw = 0;
+      if (att.rageReady) {
+        raw = Math.round(raw * 2);
+        att.rageReady = false;
+        att.rageUsed = true;
+        log.push(`${playerColor} 💢 ${att.name} libère sa rage et double ses dégâts !`);
       }
 
-      if (def.reflect && raw > 0) {
-        const back = Math.round(def.reflect * raw);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
-      def.currentHP -= raw;
-      if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
+      const inflicted = resolveDamage(raw, isCrit);
 
       if (!isMage) {
-        const attackEffects = onAttack(att.weaponState, att, def, raw);
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
         if (attackEffects.stunTarget) {
           Object.assign(def, applyMjollnirStun(def));
         }
@@ -702,17 +787,27 @@ const Dungeon = () => {
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, log, playerColor);
       } else if (def.currentHP <= 0) {
-        total += raw;
+        total += inflicted;
         break;
       }
 
-      total += raw;
+      total += inflicted;
       if (isArcher && !isBonusAttack) {
         const critText = isCrit ? ' CRITIQUE !' : '';
         const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
-        log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${raw} points de dégâts${critText}`);
+        log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${inflicted} points de dégâts${critText}`);
       } else if (isBonusAttack) {
-        log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${raw} points de dégâts`);
+        log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
+      }
+    }
+
+    if (isPlayer && skillUsed && playerPassive?.id === 'elemental_fury') {
+      const baseLightning = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
+      const lightningRaw = dmgPhys(baseLightning, def.base.def);
+      const lightningDamage = resolveDamage(lightningRaw, false);
+      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        reviveUndead(def, log, playerColor);
       }
     }
 
@@ -726,11 +821,35 @@ const Dungeon = () => {
         log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
       }
     }
-
-    return newBossCooldown;
   };
 
-  // Démarrer une run
+  const rollMageTowerPassiveReward = (level) => rollMageTowerPassive(level);
+
+  const applyStartOfCombatEffects = (playerChar, bossChar, logs) => {
+    const passiveDetails = getPassiveDetails(playerChar.mageTowerPassive);
+
+    if (passiveDetails?.id === 'arcane_barrier') {
+      const shieldValue = Math.max(1, Math.round(playerChar.maxHP * passiveDetails.levelData.shieldPercent));
+      playerChar.shield = shieldValue;
+      logs.push(`🛡️ Barrière arcanique: ${playerChar.name} gagne un bouclier de ${shieldValue} PV.`);
+    }
+
+    if (passiveDetails?.id === 'mind_breach') {
+      const reduction = passiveDetails.levelData.defReduction;
+      const reducedDef = Math.max(0, Math.round(bossChar.base.def * (1 - reduction)));
+      bossChar.base.def = reducedDef;
+      logs.push(`🧠 Brèche mentale: ${bossChar.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+    }
+
+    if (bossChar?.ability?.type === 'lich_shield') {
+      bossChar.shield = Math.max(1, Math.round(bossChar.maxHP * 0.2));
+      logs.push(`🧟 Barrière macabre: ${bossChar.name} se protège avec ${bossChar.shield} points de bouclier.`);
+    }
+
+    bossChar.spectralMarked = false;
+    bossChar.spectralMarkBonus = 0;
+  };
+
   const handleStartRun = async () => {
     setError(null);
     const result = await startDungeonRun(currentUser.uid);
@@ -742,15 +861,20 @@ const Dungeon = () => {
 
     setGameState('fighting');
     setCurrentLevel(1);
-    setHighestLevelBeaten(0);
     setCombatResult(null);
     setCurrentAction(null);
-    ensureDungeonMusic();
+    setRewardSummary(null);
+    setIsSimulating(false);
+    ensureTowerMusic();
 
-    // Préparer le premier combat
-    const levelData = getDungeonLevelByNumber(1);
-    const playerReady = prepareForCombat(character);
-    const bossReady = createBossCombatant(levelData.bossId);
+    const levelData = getMageTowerLevelByNumber(1);
+    const playerReady = prepareForCombat({
+      ...character,
+      mageTowerPassive: equippedPassive,
+      equippedWeaponData: equippedWeapon,
+      equippedWeaponId: equippedWeapon?.id || null
+    });
+    const bossReady = createMageTowerBossCombatant(levelData.boss);
     if (bossReady) {
       bossReady.weaponState = initWeaponCombatState(bossReady, null);
       bossReady.stunned = false;
@@ -762,27 +886,30 @@ const Dungeon = () => {
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
-  // Lancer le combat (timing identique à Combat.jsx)
   const simulateCombat = async () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
-    ensureDungeonMusic();
+    ensureTowerMusic();
 
     const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
+    applyStartOfCombatEffects(p, b, logs);
     setCombatLog(logs);
 
     let turn = 1;
-    let bossAbilityCooldown = 0;
 
     while (p.currentHP > 0 && b.currentHP > 0 && turn <= generalConstants.maxTurns) {
       logs.push(`--- Début du tour ${turn} ---`);
+      const passiveDetails = getPassiveDetails(p.mageTowerPassive);
+      const unicornTurn = getUnicornPactTurnData(passiveDetails, turn);
+      if (unicornTurn) {
+        logs.push(`🦄 Pacte de la Licorne — ${unicornTurn.label} : ${p.name} agit ${unicornTurn.label === 'Tour A' ? 'en premier' : 'en second'}.`);
+      }
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 800));
 
-      // Déterminer qui attaque en premier selon la vitesse + priorité d'arme
       const playerHasPriority = p.weaponState?.isLegendary
         && p.weaponState.weaponId === 'epee_legendaire'
         && ((p.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
@@ -791,7 +918,9 @@ const Dungeon = () => {
         && ((b.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
 
       let playerFirst;
-      if (playerHasPriority && !bossHasPriority) {
+      if (unicornTurn) {
+        playerFirst = unicornTurn.label === 'Tour A';
+      } else if (playerHasPriority && !bossHasPriority) {
         playerFirst = true;
       } else if (bossHasPriority && !playerHasPriority) {
         playerFirst = false;
@@ -802,30 +931,28 @@ const Dungeon = () => {
       const second = playerFirst ? b : p;
       const firstIsPlayer = playerFirst;
 
-      // Action du premier combattant
       const log1 = [];
       setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: [] });
       await new Promise(r => setTimeout(r, 300));
-      bossAbilityCooldown = processPlayerAction(first, second, log1, firstIsPlayer, bossAbilityCooldown);
+      processPlayerAction(first, second, log1, firstIsPlayer, turn);
       setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: log1 });
       logs.push(...log1);
       setCombatLog([...logs]);
-      setPlayer({...p});
-      setBoss({...b});
+      setPlayer({ ...p });
+      setBoss({ ...b });
       await new Promise(r => setTimeout(r, 2000));
       setCurrentAction(null);
 
-      // Si le combat n'est pas fini, action du deuxième combattant
       if (p.currentHP > 0 && b.currentHP > 0) {
         const log2 = [];
         setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: [] });
         await new Promise(r => setTimeout(r, 300));
-        bossAbilityCooldown = processPlayerAction(second, first, log2, !firstIsPlayer, bossAbilityCooldown);
+        processPlayerAction(second, first, log2, !firstIsPlayer, turn);
         setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: log2 });
         logs.push(...log2);
         setCombatLog([...logs]);
-        setPlayer({...p});
-        setBoss({...b});
+        setPlayer({ ...p });
+        setBoss({ ...b });
         await new Promise(r => setTimeout(r, 2000));
         setCurrentAction(null);
       }
@@ -833,118 +960,102 @@ const Dungeon = () => {
       turn++;
     }
 
-    // Résultat du combat
     if (p.currentHP > 0) {
       logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
 
-      const newHighest = currentLevel;
-      setHighestLevelBeaten(newHighest);
-
-      if (currentLevel < DUNGEON_CONSTANTS.TOTAL_LEVELS) {
-        // Full heal avant le prochain boss
-        await new Promise(r => setTimeout(r, 1500));
-        fullHealPlayer(p);
-        logs.push(``, `💚 ${p.name} récupère tous ses points de vie !`);
-
-        const nextLevel = currentLevel + 1;
-        setCurrentLevel(nextLevel);
-
-        const nextLevelData = getDungeonLevelByNumber(nextLevel);
-      const nextBoss = createBossCombatant(nextLevelData.bossId);
-      if (nextBoss) {
-        nextBoss.weaponState = initWeaponCombatState(nextBoss, null);
-        nextBoss.stunned = false;
-        nextBoss.stunnedTurns = 0;
+      const droppedPassive = rollMageTowerPassiveReward(currentLevel);
+      let autoEquipped = false;
+      let updatedPassive = equippedPassive;
+      if (!equippedPassive && droppedPassive) {
+        updatedPassive = droppedPassive;
+        autoEquipped = true;
+        setEquippedPassive(droppedPassive);
+        updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
       }
+      const updatedCharacter = {
+        ...character,
+        mageTowerPassive: updatedPassive
+      };
+      setCharacter(updatedCharacter);
 
-        setPlayer({...p});
-        setBoss(nextBoss);
-        setCombatLog([...logs, ``, `⚔️ Niveau ${nextLevel}: ${nextLevelData.nom} — ${p.name} vs ${nextBoss.name} !`]);
-        setCombatResult(null);
-      } else {
-        // Full clear!
-        stopDungeonMusic();
-        await new Promise(r => setTimeout(r, 1500));
-        const result = await endDungeonRun(currentUser.uid, newHighest);
-        if (result.success && result.lootWeapon) {
-          setLootWeapon(result.lootWeapon);
-          setGameState('loot');
-        } else {
-          setGameState('victory');
-        }
-      }
+      const nextLevel = currentLevel + 1;
+      setRewardSummary({
+        droppedPassive,
+        autoEquipped,
+        hasNextLevel: nextLevel <= getAllMageTowerLevels().length,
+        nextLevel
+      });
+      setGameState('reward');
     } else {
       logs.push(`💀 ${p.name} a été vaincu par ${b.name}...`);
       setCombatLog([...logs]);
       setCombatResult('defeat');
-
-      stopDungeonMusic();
-      await new Promise(r => setTimeout(r, 1500));
-      const result = await endDungeonRun(currentUser.uid, highestLevelBeaten, currentLevel);
-      if (result.success && result.lootWeapon) {
-        setLootWeapon(result.lootWeapon);
-        setGameState('loot');
-      } else {
-        setGameState('defeat');
-      }
+      setGameState('defeat');
     }
 
     setIsSimulating(false);
   };
 
-  useEffect(() => {
-    if (!lootWeapon || autoEquipDone || !currentUser) return;
-    if (dungeonSummary?.equippedWeaponData) return;
-
-    const autoEquip = async () => {
-      await handleLootChoice(currentUser.uid, lootWeapon.id, true);
-      const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-      if (summaryResult.success) {
-        setDungeonSummary(summaryResult.data);
+  const handleRewardContinue = (passiveOverride = equippedPassive) => {
+    if (!rewardSummary) return;
+    if (rewardSummary.hasNextLevel) {
+      const nextLevelData = getMageTowerLevelByNumber(rewardSummary.nextLevel);
+      const refreshedPlayer = prepareForCombat({
+        ...character,
+        mageTowerPassive: passiveOverride,
+        equippedWeaponData: equippedWeapon,
+        equippedWeaponId: equippedWeapon?.id || null
+      });
+      fullHealPlayer(refreshedPlayer);
+      const nextBoss = createMageTowerBossCombatant(nextLevelData.boss);
+      if (nextBoss) {
+        nextBoss.weaponState = initWeaponCombatState(nextBoss, null);
+        nextBoss.stunned = false;
+        nextBoss.stunnedTurns = 0;
       }
-      setAutoEquipDone(true);
-    };
-
-    autoEquip();
-  }, [lootWeapon, autoEquipDone, currentUser, dungeonSummary]);
-
-  // Gérer le choix du loot
-  const handleLootDecision = async (equipNew) => {
-    if (lootWeapon && !autoEquipDone) {
-      await handleLootChoice(currentUser.uid, lootWeapon.id, equipNew);
+      setCurrentLevel(rewardSummary.nextLevel);
+      setPlayer(refreshedPlayer);
+      setBoss(nextBoss);
+      setCombatLog([
+        `⚔️ Niveau ${rewardSummary.nextLevel}: ${nextLevelData.nom} — ${refreshedPlayer.name} vs ${nextBoss.name} !`
+      ]);
+      setRewardSummary(null);
+      setCombatResult(null);
+      setGameState('fighting');
+    } else {
+      setRewardSummary(null);
+      setGameState('victory');
     }
-
-    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-    if (summaryResult.success) {
-      setDungeonSummary(summaryResult.data);
-    }
-
-    setLootWeapon(null);
-    setAutoEquipDone(false);
-    setGameState('lobby');
   };
 
-  // Retour au lobby
-  const handleBackToLobby = async () => {
-    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-    if (summaryResult.success) {
-      setDungeonSummary(summaryResult.data);
+  const handlePassiveDecision = async (equipNew) => {
+    if (!rewardSummary) return;
+    const droppedPassive = rewardSummary.droppedPassive;
+    const nextPassive = equipNew && droppedPassive ? droppedPassive : equippedPassive;
+
+    if (equipNew && droppedPassive) {
+      setEquippedPassive(droppedPassive);
+      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
     }
-    stopDungeonMusic();
+
+    handleRewardContinue(nextPassive);
+  };
+
+  const handleBackToLobby = () => {
+    stopTowerMusic();
     setGameState('lobby');
     setCurrentLevel(1);
-    setHighestLevelBeaten(0);
     setPlayer(null);
     setBoss(null);
     setCombatLog([]);
     setCombatResult(null);
     setCurrentAction(null);
-    setAutoEquipDone(false);
+    setRewardSummary(null);
   };
 
-  // Formater les messages du log avec les couleurs (même style que Combat.jsx)
   const formatLogMessage = (text) => {
     if (!player || !boss) return text;
 
@@ -996,31 +1107,25 @@ const Dungeon = () => {
     return processText(text);
   };
 
-  // ============================================================================
-  // COMPOSANT CARTE JOUEUR (même style que Combat.jsx CharacterCard)
-  // ============================================================================
   const PlayerCard = ({ char }) => {
     if (!char) return null;
     const hpPercent = (char.currentHP / char.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
-    const forestBoosts = getForestBoosts(char);
     const weapon = char.equippedWeaponData;
-    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
-    const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const baseStats = char.baseWithoutWeapon || char.base;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
+    const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Niveaux: +${forestBoosts[k]}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
-      if (weaponDelta !== 0) {
-        parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
-      }
+      if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       if (k === 'auto') {
         const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
         if (passiveAutoBonus !== 0) {
@@ -1029,8 +1134,6 @@ const Dungeon = () => {
       }
       return parts.join(' | ');
     };
-
-    const characterImage = char.characterImage || null;
 
     const StatWithTooltip = ({ statKey, label }) => {
       const weaponDelta = weapon?.stats?.[statKey] ?? 0;
@@ -1051,6 +1154,9 @@ const Dungeon = () => {
         <span>{label}: {displayValue}</span>
       );
     };
+
+    const characterImage = char.characterImage || null;
+    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
 
     return (
       <div className="relative shadow-2xl overflow-visible">
@@ -1078,14 +1184,14 @@ const Dungeon = () => {
               </div>
               <div className="text-xs text-stone-400 mb-2">{char.name} — PV {Math.max(0, char.currentHP)}/{char.maxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
+                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${hpPercent}%` }} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="ATK" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="def" label="DEF" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="cap" label="CAP" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="RESC" /></div>
             </div>
             <div className="space-y-2">
               {weapon && (
@@ -1097,9 +1203,28 @@ const Dungeon = () => {
                       ) : (
                         <span className="text-xl">{weapon.icon}</span>
                       )}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>
+                        {weapon.nom}
+                      </span>
                     </span>
                   </Tooltip>
+                </div>
+              )}
+              {races[char.race] && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">{races[char.race].icon}</span>
+                  <span className="text-stone-300">{races[char.race].bonus}</span>
+                </div>
+              )}
+              {classes[char.class] && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">{classes[char.class].icon}</span>
+                  <div className="flex-1">
+                    <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
+                    <div className="text-stone-400 text-[10px]">
+                      {getCalculatedDescription(char.class, baseStats.cap, baseStats.auto)}
+                    </div>
+                  </div>
                 </div>
               )}
               {passiveDetails && (
@@ -1115,21 +1240,6 @@ const Dungeon = () => {
                   </div>
                 </div>
               )}
-              {races[char.race] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{races[char.race].icon}</span>
-                  <span className="text-stone-300">{races[char.race].bonus}</span>
-                </div>
-              )}
-              {classes[char.class] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{classes[char.class].icon}</span>
-                  <div className="flex-1">
-                    <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1137,21 +1247,17 @@ const Dungeon = () => {
     );
   };
 
-  // ============================================================================
-  // COMPOSANT CARTE BOSS
-  // ============================================================================
   const BossCard = ({ bossChar }) => {
     if (!bossChar) return null;
     const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const bossData = getBossById(bossChar.bossId);
+    const levelData = getMageTowerLevelByNumber(currentLevel);
     const bossImg = getBossImage(bossChar.imageFile);
-    const currentLvlData = getDungeonLevelByNumber(currentLevel);
 
     return (
       <div className="relative shadow-2xl overflow-visible">
-        <div className={`absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 ${DIFFICULTY_COLORS[currentLvlData?.difficulte] || 'text-stone-200'}`}>
-          Boss • {DIFFICULTY_LABELS[currentLvlData?.difficulte] || 'Donjon'}
+        <div className={`absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 ${MAGE_TOWER_DIFFICULTY_COLORS[levelData?.difficulte] || 'text-stone-200'}`}>
+          Boss • {levelData?.difficulte || 'Tour du Mage'}
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
@@ -1159,7 +1265,7 @@ const Dungeon = () => {
               <img src={bossImg} alt={bossChar.name} className="w-full h-auto object-contain" />
             ) : (
               <div className="w-full h-48 flex items-center justify-center">
-                <span className="text-7xl">{bossData?.icon || '👹'}</span>
+                <span className="text-7xl">{levelData?.boss?.icon || '🌲'}</span>
               </div>
             )}
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
@@ -1174,20 +1280,20 @@ const Dungeon = () => {
               </div>
               <div className="text-xs text-stone-400 mb-2">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
+                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${hpPercent}%` }} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
-              <div className="text-stone-400">Déf: {bossChar.base.def}</div>
-              <div className="text-stone-400">Cap: {bossChar.base.cap}</div>
-              <div className="text-stone-400">ResC: {bossChar.base.rescap}</div>
+              <div className="text-stone-400">ATK: {bossChar.base.auto}</div>
+              <div className="text-stone-400">DEF: {bossChar.base.def}</div>
+              <div className="text-stone-400">CAP: {bossChar.base.cap}</div>
+              <div className="text-stone-400">RESC: {bossChar.base.rescap}</div>
             </div>
             {bossChar.ability && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">⚡</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.nom}</div>
+                  <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.name}</div>
                   <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
                 </div>
               </div>
@@ -1198,16 +1304,15 @@ const Dungeon = () => {
     );
   };
 
-  // ============================================================================
-  // RENDUS
-  // ============================================================================
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <SoundControl />
-        <div className="text-amber-400 text-2xl">Chargement du donjon...</div>
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
+        </audio>
+        <div className="text-amber-400 text-2xl">Chargement de la tour...</div>
       </div>
     );
   }
@@ -1217,187 +1322,147 @@ const Dungeon = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <SoundControl />
-        <div className="text-center">
-          <div className="text-6xl mb-4">🚫</div>
-          <p className="text-gray-300 text-xl">Vous devez créer un personnage</p>
-          <button onClick={() => navigate('/')} className="mt-4 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 font-bold">
-            Créer un personnage
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
+        </audio>
+        <div className="text-red-400 text-2xl">Aucun personnage trouvé.</div>
+      </div>
+    );
+  }
+
+  const levels = getAllMageTowerLevels();
+
+  if (gameState === 'reward' && rewardSummary) {
+    const droppedDetails = getPassiveDetails(rewardSummary.droppedPassive);
+    const equippedDetails = getPassiveDetails(equippedPassive);
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <Header />
+        <SoundControl />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
+        </audio>
+        <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">🪄</div>
+          <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
+          <p className="text-stone-300 mb-6">
+            Vous trouvez un passif mystique pour la Tour du Mage.
+          </p>
+          {droppedDetails && (
+            <div className="bg-stone-900/60 border border-stone-600 p-4 mb-6">
+              <div className="text-4xl mb-2">{droppedDetails.icon}</div>
+              <div className="text-amber-300 font-semibold">
+                {droppedDetails.name} — Niveau {droppedDetails.level}
+              </div>
+              <div className="text-stone-400 text-sm mt-2">
+                {droppedDetails.levelData.description}
+              </div>
+            </div>
+          )}
+          {equippedDetails && !rewardSummary.autoEquipped && (
+            <div className="bg-stone-900/40 border border-stone-700 p-3 mb-6 text-left">
+              <div className="text-stone-300 text-xs uppercase mb-2">Passif actuel</div>
+              <div className="flex items-start gap-2">
+                <span className="text-xl">{equippedDetails.icon}</span>
+                <div>
+                  <div className="text-amber-200 text-sm font-semibold">
+                    {equippedDetails.name} — Niveau {equippedDetails.level}
+                  </div>
+                  <div className="text-stone-400 text-xs">
+                    {equippedDetails.levelData.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {rewardSummary.autoEquipped ? (
+            <>
+              <p className="text-emerald-300 mb-4 text-sm">
+                Aucun passif équipé : le nouveau passif est automatiquement équipé.
+              </p>
+              <button
+                onClick={handleRewardContinue}
+                className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
+              >
+                {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-stone-300 text-sm">Remplacer votre passif actuel ?</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => handlePassiveDecision(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 font-bold border border-amber-500"
+                >
+                  Oui
+                </button>
+                <button
+                  onClick={() => handlePassiveDecision(false)}
+                  className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 font-bold border border-stone-500"
+                >
+                  Non
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'victory' || gameState === 'defeat') {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <SoundControl />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
+        </audio>
+        <div className="max-w-2xl mx-auto pt-20 text-center">
+          <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
+          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
+            {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
+          </h2>
+          <p className="text-gray-300 mb-8">
+            {gameState === 'victory' ? 'La Tour du Mage vous a mis à l’épreuve.' : 'Aucun gain cette fois-ci.'}
+          </p>
+          <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
+            Retour
           </button>
         </div>
       </div>
     );
   }
 
-  const levels = getAllDungeonLevels();
-  const currentLevelData = getDungeonLevelByNumber(currentLevel);
-
-  // ============================================================================
-  // ÉCRAN DE LOOT
-  // ============================================================================
-  if (gameState === 'loot' && lootWeapon) {
-    const hasCurrentWeapon = dungeonSummary?.equippedWeaponData;
-
+  if (gameState === 'fighting') {
+    const currentLevelData = getMageTowerLevelByNumber(currentLevel);
     return (
       <div className="min-h-screen p-6">
         <Header />
         <SoundControl />
-        <audio id="dungeon-music" loop>
-          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎁</div>
-            <h2 className="text-4xl font-bold text-amber-400 mb-2">Butin obtenu !</h2>
-            <p className="text-gray-300">
-              {highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
-                ? 'Vous avez vaincu tous les boss !'
-                : highestLevelBeaten > 0
-                  ? `Vous avez atteint le niveau ${highestLevelBeaten}`
-                  : 'Défaite au premier niveau'}
-            </p>
-          </div>
-
-          {/* Arme droppée */}
-          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${RARITY_BG_COLORS[lootWeapon.rarete]} mb-6`}>
-            <div className="text-center">
-              {getWeaponImage(lootWeapon.imageFile) ? (
-                <img src={getWeaponImage(lootWeapon.imageFile)} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
-              ) : (
-                <div className="text-6xl mb-3">{lootWeapon.icon}</div>
-              )}
-              <h3 className={`text-2xl font-bold ${RARITY_COLORS[lootWeapon.rarete]}`}>{lootWeapon.nom}</h3>
-              <p className={`text-sm uppercase ${RARITY_COLORS[lootWeapon.rarete]}`}>{lootWeapon.rarete}</p>
-              <p className="text-gray-400 text-sm mt-2">{lootWeapon.description}</p>
-
-              <div className="mt-4 flex justify-center gap-4 flex-wrap">
-                {Object.entries(lootWeapon.stats).map(([stat, value]) => (
-                  <div key={stat} className="bg-stone-800 px-3 py-1 border border-stone-600">
-                    <span className="text-gray-400 text-sm">{stat.toUpperCase()}</span>
-                    <span className={`ml-2 font-bold ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {value > 0 ? '+' : ''}{value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {lootWeapon.effet && (
-                <div className="mt-4 bg-amber-900/30 border border-amber-600 p-3">
-                  <p className="text-amber-300 font-bold">{lootWeapon.effet.nom}</p>
-                  <p className="text-amber-200 text-sm">{lootWeapon.effet.description}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {hasCurrentWeapon && (
-            <div className="mb-6">
-              <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
-              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${RARITY_BG_COLORS[hasCurrentWeapon.rarete]}`}>
-                <div className="flex items-center gap-3">
-                  {getWeaponImage(hasCurrentWeapon.imageFile) ? (
-                    <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
-                  ) : (
-                    <span className="text-3xl">{hasCurrentWeapon.icon}</span>
-                  )}
-                  <div>
-                    <p className={`font-bold ${RARITY_COLORS[hasCurrentWeapon.rarete]}`}>{hasCurrentWeapon.nom}</p>
-                    <div className="flex gap-2">
-                      {Object.entries(hasCurrentWeapon.stats).map(([stat, value]) => (
-                        <span key={stat} className="text-xs text-gray-400">
-                          {stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {hasCurrentWeapon ? (
-            <div className="flex gap-4">
-              <button onClick={() => handleLootDecision(false)} className="flex-1 bg-stone-700 hover:bg-stone-600 text-white px-6 py-4 font-bold border border-stone-500">
-                Garder mon arme
-              </button>
-              <button onClick={() => handleLootDecision(true)} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white px-6 py-4 font-bold border border-amber-500">
-                Équiper la nouvelle
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-sm text-stone-300">
-                Aucune arme équipée : la nouvelle arme est équipée automatiquement.
-              </p>
-              <button
-                onClick={() => handleLootDecision(true)}
-                disabled={!autoEquipDone}
-                className={`w-full px-6 py-4 font-bold border ${
-                  autoEquipDone
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500'
-                    : 'bg-stone-700 text-stone-500 border-stone-600 cursor-not-allowed'
-                }`}
-              >
-                {autoEquipDone ? 'Continuer' : 'Équipement en cours...'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // ÉCRAN DE COMBAT (même UI que Combat.jsx)
-  // ============================================================================
-  if (gameState === 'fighting' && player && boss) {
-    return (
-      <div className="min-h-screen p-6">
-        <Header />
-        <SoundControl />
-        <audio id="dungeon-music" loop>
-          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
-        </audio>
-        <div className="max-w-[1800px] mx-auto pt-16">
-          {/* Header avec progression */}
-          <div className="flex justify-center mb-4">
+        <div className="max-w-6xl mx-auto pt-20">
+          <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h1 className="text-3xl font-bold text-stone-200">🏰 Donjon — Niveau {currentLevel} 🏰</h1>
+              <h2 className="text-4xl font-bold text-stone-200">Tour du Mage — Niveau {currentLevelData?.niveau}</h2>
             </div>
           </div>
 
-          {/* Indicateur de progression */}
-          <div className="flex justify-center items-center gap-4 mb-6">
-            {levels.map((level, idx) => (
-              <div key={level.id} className="flex items-center gap-2">
-                <div className={`w-10 h-10 flex items-center justify-center border-2 text-sm font-bold ${
-                  idx + 1 < currentLevel ? 'bg-green-600 border-green-400 text-white' :
-                  idx + 1 === currentLevel ? 'bg-amber-600 border-amber-400 text-white' :
-                  'bg-stone-800 border-stone-600 text-stone-500'
-                }`}>
-                  {idx + 1 < currentLevel ? '✓' : level.niveau}
-                </div>
-                {idx < levels.length - 1 && (
-                  <div className={`w-8 h-0.5 ${idx + 1 < currentLevel ? 'bg-green-500' : 'bg-stone-600'}`} />
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Layout principal: Joueur | Chat | Boss (même que Combat.jsx) */}
+          {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            {/* Carte joueur - Gauche */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <PlayerCard char={player} />
             </div>
 
-            {/* Zone centrale - Boutons + Chat */}
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
-              {/* Boutons de contrôle */}
               <div className="flex justify-center gap-3 md:gap-4 mb-4">
                 {combatResult === null && (
                   <button
                     onClick={simulateCombat}
-                    disabled={isSimulating}
+                    disabled={isSimulating || !player || !boss}
                     className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
                   >
                     ▶️ Lancer le combat
@@ -1411,7 +1476,6 @@ const Dungeon = () => {
                 </button>
               </div>
 
-              {/* Message de victoire */}
               {combatResult === 'victory' && (
                 <div className="flex justify-center mb-4">
                   <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
@@ -1420,7 +1484,6 @@ const Dungeon = () => {
                 </div>
               )}
 
-              {/* Message de défaite */}
               {combatResult === 'defeat' && (
                 <div className="flex justify-center mb-4">
                   <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
@@ -1429,7 +1492,6 @@ const Dungeon = () => {
                 </div>
               )}
 
-              {/* Zone de chat messenger (même que Combat.jsx) */}
               <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
                 <div className="bg-stone-900 p-3 border-b border-stone-600">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
@@ -1444,7 +1506,6 @@ const Dungeon = () => {
                         const isP2 = log.startsWith('[P2]');
                         const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
 
-                        // Messages système
                         if (!isP1 && !isP2) {
                           if (log.includes('🏆')) {
                             return (
@@ -1491,7 +1552,6 @@ const Dungeon = () => {
                           );
                         }
 
-                        // Messages du Joueur (gauche, bordure bleue)
                         if (isP1) {
                           return (
                             <div key={idx} className="flex justify-start">
@@ -1504,7 +1564,6 @@ const Dungeon = () => {
                           );
                         }
 
-                        // Messages du Boss (droite, bordure violette)
                         if (isP2) {
                           return (
                             <div key={idx} className="flex justify-end">
@@ -1524,7 +1583,6 @@ const Dungeon = () => {
               </div>
             </div>
 
-            {/* Carte boss - Droite */}
             <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} />
             </div>
@@ -1534,103 +1592,32 @@ const Dungeon = () => {
     );
   }
 
-  // ============================================================================
-  // ÉCRAN VICTOIRE/DÉFAITE SANS LOOT
-  // ============================================================================
-  if (gameState === 'victory' || gameState === 'defeat') {
-    return (
-      <div className="min-h-screen p-6">
-        <Header />
-        <SoundControl />
-        <audio id="dungeon-music" loop>
-          <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
-        </audio>
-        <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
-            {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
-          </h2>
-          <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'Vous avez vaincu tous les boss !' : 'Aucun loot obtenu.'}
-          </p>
-          <button onClick={handleBackToLobby} className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 font-bold">
-            Retour
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // LOBBY
-  // ============================================================================
   return (
     <div className="min-h-screen p-6">
       <Header />
       <SoundControl />
-      <audio id="dungeon-music" loop>
-        <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
+      <audio id="tower-music" loop>
+        <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
       <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-stone-200">La Grotte</h2>
-          </div>
-        </div>
-
-        {/* Info runs */}
-        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
-          <div>
-            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
-            <p className="text-white text-2xl">
-              {dungeonSummary?.runsRemaining || 0}
-            </p>
-            <p className="text-stone-400 text-sm">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY} par jour (reset à midi)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-gray-400 text-sm">Meilleur run</p>
-            <p className="text-amber-400 font-bold">
-              {dungeonSummary?.bestRun ? `Niveau ${dungeonSummary.bestRun}` : 'Aucune'}
-            </p>
-          </div>
-        </div>
-
-        {/* Arme équipée */}
-        {dungeonSummary?.equippedWeaponData && (
-          <div className={`mb-8 p-4 border-2 border-stone-600 bg-stone-800`}>
-            <div className="flex items-center gap-4">
-              <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
-                <div className="flex items-center gap-4">
-                  {getWeaponImage(dungeonSummary.equippedWeaponData.imageFile) ? (
-                    <img src={getWeaponImage(dungeonSummary.equippedWeaponData.imageFile)} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
-                  ) : (
-                    <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-400">Arme équipée</p>
-                    <p className={`text-xl font-bold ${RARITY_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
-                      {dungeonSummary.equippedWeaponData.nom}
-                    </p>
-                  </div>
-                </div>
-              </Tooltip>
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+              <h2 className="text-4xl font-bold text-stone-200">Tour du Mage</h2>
             </div>
           </div>
-        )}
 
-        {/* Aperçu des niveaux */}
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
-          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 Niveaux progressifs</h3>
+          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
           <div className="grid grid-cols-3 gap-4">
             {levels.map((level) => (
               <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
-                <div className="text-3xl mb-2">{getBossById(level.bossId)?.icon}</div>
+                <div className="text-3xl mb-2">{level.boss.icon}</div>
                 <p className="text-white font-bold">Niveau {level.niveau}</p>
-                <p className={`text-sm ${DIFFICULTY_COLORS[level.difficulte]}`}>
-                  {DIFFICULTY_LABELS[level.difficulte]}
+                <p className={`text-sm ${MAGE_TOWER_DIFFICULTY_COLORS[level.difficulte]}`}>
+                  {level.difficulte}
                 </p>
-                <p className={`text-xs mt-1 ${RARITY_COLORS[level.dropRarity]}`}>
-                  Loot: {level.dropRarity}
+                <p className="text-xs mt-1 text-amber-200">
+                  Drop: passif niveau {level.niveau}
                 </p>
               </div>
             ))}
@@ -1649,25 +1636,14 @@ const Dungeon = () => {
           </button>
           <button
             onClick={handleStartRun}
-            disabled={!dungeonSummary?.runsRemaining}
-            className={`px-12 py-4 font-bold text-xl ${
-              dungeonSummary?.runsRemaining > 0
-                ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
-                : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
-            }`}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl border border-amber-500"
           >
-            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la grotte' : 'Plus de runs'}
+            Entrer dans la tour
           </button>
-        </div>
-
-        <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">
-          <p className="text-gray-400 text-sm">
-            Vous êtes soigné entre chaque boss. Si vous êtes vaincu, vous obtenez le loot du dernier niveau réussi.
-          </p>
         </div>
       </div>
     </div>
   );
 };
 
-export default Dungeon;
+export default MageTower;
