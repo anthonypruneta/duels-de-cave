@@ -346,7 +346,8 @@ const CharacterCreation = () => {
       bonuses: rolledCharacter.bonuses,
       forestBoosts: getEmptyStatBoosts(),
       level: 1,
-      equippedWeaponId: null
+      equippedWeaponId: null,
+      mageTowerPassive: null
     };
   };
 

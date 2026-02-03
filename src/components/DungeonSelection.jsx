@@ -51,7 +51,7 @@ const DungeonSelection = () => {
 
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
           <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">Choisis ton aventure</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
               <div className="text-4xl mb-2">🏰</div>
               <p className="text-white font-bold text-lg">La Grotte aux merveilles</p>
@@ -72,6 +72,17 @@ const DungeonSelection = () => {
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
               >
                 Entrer dans la forêt
+              </button>
+            </div>
+            <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
+              <div className="text-4xl mb-2">🪄</div>
+              <p className="text-white font-bold text-lg">Tour du Mage</p>
+              <p className="text-sm text-stone-400 mb-4">Donjon de passifs mystiques</p>
+              <button
+                onClick={() => navigate('/mage-tower')}
+                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
+              >
+                Entrer dans la tour
               </button>
             </div>
           </div>
