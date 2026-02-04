@@ -491,7 +491,7 @@ const CharacterCreation = () => {
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
                   {weapon ? (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                    <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                       <Tooltip content={getWeaponTooltipContent(weapon)}>
                         <span className="flex items-center gap-2">
                           {getWeaponImage(weapon.imageFile) ? (
@@ -502,6 +502,19 @@ const CharacterCreation = () => {
                           <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                         </span>
                       </Tooltip>
+                      <div className="text-[11px] text-stone-400 space-y-1">
+                        <div>{weapon.description}</div>
+                        {weapon.effet && (
+                          <div className="text-amber-200">
+                            Effet: {weapon.effet.nom} — {weapon.effet.description}
+                          </div>
+                        )}
+                        {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                          <div className="text-stone-200">
+                            Stats: {formatWeaponStats(weapon)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
