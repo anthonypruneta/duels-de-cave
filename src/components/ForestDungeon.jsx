@@ -114,6 +114,37 @@ const getPassiveDetails = (passive) => {
   return { ...base, level: passive.level, levelData };
 };
 
+const getUnicornPactTurnData = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
+  const isTurnA = turn % 2 === 1;
+  return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
+};
+
+const getAuraBonus = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
+  return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+};
+
+const applyStartOfCombatPassives = (playerChar, bossChar, log, label) => {
+  const passiveDetails = getPassiveDetails(playerChar.mageTowerPassive);
+  if (!passiveDetails) return;
+
+  if (passiveDetails.id === 'arcane_barrier') {
+    const shieldValue = Math.max(1, Math.round(playerChar.maxHP * passiveDetails.levelData.shieldPercent));
+    playerChar.shield = shieldValue;
+    log.push(`${label} 🛡️ Barrière arcanique: ${playerChar.name} gagne un bouclier de ${shieldValue} PV.`);
+  }
+
+  if (passiveDetails.id === 'mind_breach') {
+    const reduction = passiveDetails.levelData.defReduction;
+    bossChar.base.def = Math.max(0, Math.round(bossChar.base.def * (1 - reduction)));
+    log.push(`${label} 🧠 Brèche mentale: ${bossChar.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+  }
+
+  bossChar.spectralMarked = false;
+  bossChar.spectralMarkBonus = 0;
+};
+
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
   return (
@@ -440,6 +471,9 @@ const ForestDungeon = () => {
       reflect: false,
       bleed_stacks: 0,
       maso_taken: 0,
+      shield: 0,
+      spectralMarked: false,
+      spectralMarkBonus: 0,
       stunned: false,
       stunnedTurns: 0,
       weaponState
@@ -481,6 +515,71 @@ const ForestDungeon = () => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
     const playerColor = isPlayer ? '[P1]' : '[P2]';
+    const playerChar = isPlayer ? att : def;
+    const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
+    const unicornData = getUnicornPactTurnData(playerPassive, turn);
+    const auraBonus = getAuraBonus(playerPassive, turn);
+    let skillUsed = false;
+
+    const applyMageTowerDamage = (raw, isCrit) => {
+      let adjusted = raw;
+
+      if (isPlayer) {
+        if (unicornData) {
+          adjusted = Math.round(adjusted * (1 + unicornData.outgoing));
+        }
+        if (auraBonus) {
+          adjusted = Math.round(adjusted * (1 + auraBonus));
+        }
+        if (def.spectralMarked && def.spectralMarkBonus) {
+          adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
+        }
+      } else if (unicornData) {
+        adjusted = Math.round(adjusted * (1 + unicornData.incoming));
+      }
+
+      if (!isPlayer && isCrit && playerPassive?.id === 'obsidian_skin') {
+        adjusted = Math.round(adjusted * (1 - playerPassive.levelData.critReduction));
+      }
+
+      if (def.dodge) {
+        def.dodge = false;
+        log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
+        return 0;
+      }
+
+      if (def.shield > 0 && adjusted > 0) {
+        const absorbed = Math.min(def.shield, adjusted);
+        def.shield -= absorbed;
+        adjusted -= absorbed;
+        log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
+      }
+
+      if (def.reflect && adjusted > 0) {
+        const back = Math.round(def.reflect * adjusted);
+        att.currentHP -= back;
+        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+      }
+
+      if (adjusted > 0) {
+        def.currentHP -= adjusted;
+        def.maso_taken = (def.maso_taken || 0) + adjusted;
+      }
+
+      if (isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
+        def.spectralMarked = true;
+        def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
+        log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
+      }
+
+      if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
+        const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
+        att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+        log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
+      }
+
+      return adjusted;
+    };
     if (att.stunnedTurns > 0) {
       att.stunnedTurns -= 1;
       if (att.stunnedTurns <= 0) {
@@ -515,8 +614,8 @@ const ForestDungeon = () => {
       let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       raw = applyBossOutgoingModifier(att, raw, turn);
       raw = applyBossIncomingModifier(def, raw, turn);
-      def.currentHP -= raw;
-      log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
+      const inflicted = applyMageTowerDamage(raw, false);
+      log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, log, playerColor);
       }
@@ -524,6 +623,7 @@ const ForestDungeon = () => {
 
     if (att.class === 'Masochiste') {
       if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
+        if (isPlayer) skillUsed = true;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
@@ -532,8 +632,8 @@ const ForestDungeon = () => {
         let raw = dmg;
         raw = applyBossOutgoingModifier(att, raw, turn);
         raw = applyBossIncomingModifier(def, raw, turn);
-        def.currentHP -= raw;
-        log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${raw} points de dégâts et récupère ${healAmount} points de vie`);
+        const inflicted = applyMageTowerDamage(raw, false);
+        log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
@@ -550,12 +650,14 @@ const ForestDungeon = () => {
     }
 
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+      if (isPlayer) skillUsed = true;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       att.reflect = reflectBase + reflectPerCap * att.base.cap;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+      if (isPlayer) skillUsed = true;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
       const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
@@ -566,12 +668,13 @@ const ForestDungeon = () => {
         let bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
         bonusDmg = applyBossOutgoingModifier(att, bonusDmg, turn);
         bonusDmg = applyBossIncomingModifier(def, bonusDmg, turn);
-        def.currentHP -= bonusDmg;
+        applyMageTowerDamage(bonusDmg, false);
         log.push(`${playerColor} ${healEffects.log.join(' ')}`);
       }
     }
 
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+      if (isPlayer) skillUsed = true;
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -579,6 +682,9 @@ const ForestDungeon = () => {
     const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
     const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
     const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+    if (isPlayer && (isMage || isWar || isArcher)) {
+      skillUsed = true;
+    }
 
     let mult = 1.0;
     if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
@@ -593,10 +699,13 @@ const ForestDungeon = () => {
     const baseHits = isArcher ? classConstants.archer.hitCount : 1;
     const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
     let wasCrit = false;
+    const forceCrit = isPlayer
+      && playerPassive?.id === 'obsidian_skin'
+      && att.currentHP <= att.maxHP * playerPassive.levelData.critThreshold;
 
     for (let i = 0; i < totalHits; i++) {
       const isBonusAttack = i >= baseHits;
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att);
+      const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
       const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
       let raw = 0;
       wasCrit = wasCrit || isCrit;
@@ -610,11 +719,8 @@ const ForestDungeon = () => {
           let extra = spellEffects.secondCastDamage;
           extra = applyBossOutgoingModifier(att, extra, turn);
           extra = applyBossIncomingModifier(def, extra, turn);
-          def.currentHP -= extra;
+          applyMageTowerDamage(extra, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
-          if (extra > 0) {
-            def.maso_taken = (def.maso_taken || 0) + extra;
-          }
         }
       } else if (isWar) {
         const ignore = classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerCap * att.base.cap;
@@ -655,24 +761,10 @@ const ForestDungeon = () => {
 
       raw = applyBossOutgoingModifier(att, raw, turn);
       raw = applyBossIncomingModifier(def, raw, turn);
-
-      if (def.dodge) {
-        def.dodge = false;
-        log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
-        raw = 0;
-      }
-
-      if (def.reflect && raw > 0) {
-        const back = Math.round(def.reflect * raw);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
-      def.currentHP -= raw;
-      if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
+      const inflicted = applyMageTowerDamage(raw, isCrit);
 
       if (!isMage) {
-        const attackEffects = onAttack(att.weaponState, att, def, raw);
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
         if (attackEffects.stunTarget) {
           Object.assign(def, applyMjollnirStun(def));
         }
@@ -687,18 +779,27 @@ const ForestDungeon = () => {
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, log, playerColor);
       } else if (def.currentHP <= 0) {
-        total += raw;
+        total += inflicted;
         break;
       }
 
-      total += raw;
+      total += inflicted;
       if (isArcher && !isBonusAttack) {
         const critText = isCrit ? ' CRITIQUE !' : '';
         const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
-        log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${raw} points de dégâts${critText}`);
+        log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${inflicted} points de dégâts${critText}`);
       } else if (isBonusAttack) {
-        log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${raw} points de dégâts`);
+        log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
       }
+    }
+
+    if (isPlayer && playerPassive?.id === 'elemental_fury' && skillUsed) {
+      const baseLightning = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
+      let lightningRaw = dmgPhys(baseLightning, def.base.def);
+      lightningRaw = applyBossOutgoingModifier(att, lightningRaw, turn);
+      lightningRaw = applyBossIncomingModifier(def, lightningRaw, turn);
+      const lightningDamage = applyMageTowerDamage(lightningRaw, false);
+      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
     }
 
     if (!isArcher && total > 0) {
@@ -778,6 +879,7 @@ const ForestDungeon = () => {
     const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
+    applyStartOfCombatPassives(p, b, logs, '[P1]');
     setCombatLog(logs);
 
     let turn = 1;
@@ -787,6 +889,10 @@ const ForestDungeon = () => {
       if (b?.ability?.type === 'unicorn_cycle') {
         const mult = turn % 2 === 1 ? '+15%' : '-15%';
         logs.push(`✨ ${b.name} alterne sa magie (${mult} dégâts infligés et reçus)`);
+      }
+      const playerUnicorn = getUnicornPactTurnData(getPassiveDetails(p.mageTowerPassive), turn);
+      if (playerUnicorn) {
+        logs.push(`🦄 Pacte de la Licorne — ${playerUnicorn.label}`);
       }
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 800));
@@ -799,7 +905,9 @@ const ForestDungeon = () => {
         && ((b.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
 
       let playerFirst;
-      if (playerHasPriority && !bossHasPriority) {
+      if (playerUnicorn) {
+        playerFirst = playerUnicorn.label === 'Tour A';
+      } else if (playerHasPriority && !bossHasPriority) {
         playerFirst = true;
       } else if (bossHasPriority && !playerHasPriority) {
         playerFirst = false;

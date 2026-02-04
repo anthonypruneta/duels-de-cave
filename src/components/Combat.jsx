@@ -114,6 +114,37 @@ const getPassiveDetails = (passive) => {
   return { ...base, level: passive.level, levelData };
 };
 
+const getUnicornPactTurnData = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
+  const isTurnA = turn % 2 === 1;
+  return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
+};
+
+const getAuraBonus = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
+  return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+};
+
+const applyStartOfCombatPassives = (attacker, defender, log, label) => {
+  const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
+  if (!passiveDetails) return;
+
+  if (passiveDetails.id === 'arcane_barrier') {
+    const shieldValue = Math.max(1, Math.round(attacker.maxHP * passiveDetails.levelData.shieldPercent));
+    attacker.shield = shieldValue;
+    log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
+  }
+
+  if (passiveDetails.id === 'mind_breach') {
+    const reduction = passiveDetails.levelData.defReduction;
+    defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
+    log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+  }
+
+  defender.spectralMarked = false;
+  defender.spectralMarkBonus = 0;
+};
+
 const Combat = () => {
   const navigate = useNavigate();
   // États pour les personnages disponibles
@@ -394,6 +425,9 @@ const Combat = () => {
       reflect: false,
       bleed_stacks: 0,
       maso_taken: 0,
+      shield: 0,
+      spectralMarked: false,
+      spectralMarkBonus: 0,
       stunned: false,
       stunnedTurns: 0,
       weaponState
@@ -409,10 +443,85 @@ const Combat = () => {
     log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
   };
 
-  const processPlayerAction = (att, def, log, isP1) => {
+  const processPlayerAction = (att, def, log, isP1, turn) => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
       const playerColor = isP1 ? '[P1]' : '[P2]';
+      const attackerPassive = getPassiveDetails(att.mageTowerPassive);
+      const defenderPassive = getPassiveDetails(def.mageTowerPassive);
+      const attackerUnicorn = getUnicornPactTurnData(attackerPassive, turn);
+      const defenderUnicorn = getUnicornPactTurnData(defenderPassive, turn);
+      const auraBonus = getAuraBonus(attackerPassive, turn);
+      let skillUsed = false;
+
+      const applyMageTowerDamage = (
+        attacker,
+        defender,
+        raw,
+        isCrit,
+        combatLog,
+        atkPassive,
+        defPassive,
+        atkUnicorn,
+        defUnicorn,
+        auraBoost
+      ) => {
+        let adjusted = raw;
+
+        if (atkUnicorn) {
+          adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
+        }
+        if (auraBoost) {
+          adjusted = Math.round(adjusted * (1 + auraBoost));
+        }
+        if (defender.spectralMarked && defender.spectralMarkBonus) {
+          adjusted = Math.round(adjusted * (1 + defender.spectralMarkBonus));
+        }
+        if (defUnicorn) {
+          adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
+        }
+        if (defPassive?.id === 'obsidian_skin' && isCrit) {
+          adjusted = Math.round(adjusted * (1 - defPassive.levelData.critReduction));
+        }
+
+        if (defender.dodge) {
+          defender.dodge = false;
+          combatLog.push(`${playerColor} 💨 ${defender.name} esquive habilement l'attaque !`);
+          return 0;
+        }
+
+        if (defender.shield > 0 && adjusted > 0) {
+          const absorbed = Math.min(defender.shield, adjusted);
+          defender.shield -= absorbed;
+          adjusted -= absorbed;
+          combatLog.push(`${playerColor} 🛡️ ${defender.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
+        }
+
+        if (defender.reflect && adjusted > 0) {
+          const back = Math.round(defender.reflect * adjusted);
+          attacker.currentHP -= back;
+          combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
+        }
+
+        if (adjusted > 0) {
+          defender.currentHP -= adjusted;
+          defender.maso_taken = (defender.maso_taken || 0) + adjusted;
+        }
+
+        if (atkPassive?.id === 'spectral_mark' && adjusted > 0 && !defender.spectralMarked) {
+          defender.spectralMarked = true;
+          defender.spectralMarkBonus = atkPassive.levelData.damageTakenBonus;
+          combatLog.push(`${playerColor} 🟣 ${defender.name} est marqué et subira +${Math.round(defender.spectralMarkBonus * 100)}% dégâts.`);
+        }
+
+        if (atkPassive?.id === 'essence_drain' && adjusted > 0) {
+          const heal = Math.max(1, Math.round(attacker.maxHP * atkPassive.levelData.healPercent));
+          attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
+          combatLog.push(`${playerColor} 🩸 ${attacker.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
+        }
+
+        return adjusted;
+      };
       if (att.stunnedTurns > 0) {
         att.stunnedTurns -= 1;
         if (att.stunnedTurns <= 0) {
@@ -427,7 +536,7 @@ const Combat = () => {
         att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
       }
 
-      const turnEffects = onTurnStart(att.weaponState, att, 0);
+      const turnEffects = onTurnStart(att.weaponState, att, turn);
       if (turnEffects.log.length > 0) {
         log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
       }
@@ -445,8 +554,8 @@ const Combat = () => {
         const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
         const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
         const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-        def.currentHP -= raw;
-        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${raw} points de dégâts`);
+        const inflicted = applyMageTowerDamage(att, def, raw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         }
@@ -454,13 +563,14 @@ const Combat = () => {
 
       if (att.class === 'Masochiste') {
         if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
+          skillUsed = true;
           const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
           const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
           const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
           att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
           att.maso_taken = 0;
-          def.currentHP -= dmg;
-          log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${dmg} points de dégâts et récupère ${healAmount} points de vie`);
+          const inflicted = applyMageTowerDamage(att, def, dmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+          log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, log, playerColor);
           }
@@ -477,12 +587,14 @@ const Combat = () => {
       }
 
       if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+        skillUsed = true;
         const { reflectBase, reflectPerCap } = classConstants.paladin;
         att.reflect = reflectBase + reflectPerCap * att.base.cap;
         log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
       }
 
       if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+        skillUsed = true;
         const miss = att.maxHP - att.currentHP;
         const { missingHpPercent, capScale } = classConstants.healer;
         const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
@@ -491,12 +603,13 @@ const Combat = () => {
         const healEffects = onHeal(att.weaponState, att, heal, def);
         if (healEffects.bonusDamage > 0) {
           const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-          def.currentHP -= bonusDmg;
+          applyMageTowerDamage(att, def, bonusDmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
           log.push(`${playerColor} ${healEffects.log.join(' ')}`);
         }
       }
 
       if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+        skillUsed = true;
         att.dodge = true;
         log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
       }
@@ -504,6 +617,7 @@ const Combat = () => {
       const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
       const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
       const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+      skillUsed = skillUsed || isMage || isWar || isArcher;
 
       let mult = 1.0;
       if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
@@ -518,9 +632,12 @@ const Combat = () => {
       let total = 0;
       let wasCrit = false;
 
+      const forceCrit = attackerPassive?.id === 'obsidian_skin'
+        && att.currentHP <= att.maxHP * attackerPassive.levelData.critThreshold;
+
       for (let i = 0; i < totalHits; i++) {
         const isBonusAttack = i >= baseHits;
-        const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att);
+        const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
         if (isCrit) wasCrit = true;
         let raw = 0;
         const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
@@ -532,11 +649,8 @@ const Combat = () => {
           if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
           const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
           if (spellEffects.doubleCast) {
-            def.currentHP -= spellEffects.secondCastDamage;
+            const secondCast = applyMageTowerDamage(att, def, spellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
             log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
-            if (spellEffects.secondCastDamage > 0) {
-              def.maso_taken = (def.maso_taken || 0) + spellEffects.secondCastDamage;
-            }
           }
         } else if (isWar) {
           const { ignoreBase, ignorePerCap } = classConstants.guerrier;
@@ -570,23 +684,10 @@ const Combat = () => {
           raw = modifyCritDamage(att.weaponState, critDamage);
         }
 
-        if (def.dodge) {
-          def.dodge = false;
-          log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
-          raw = 0;
-        }
-
-        if (def.reflect && raw > 0) {
-          const back = Math.round(def.reflect * raw);
-          att.currentHP -= back;
-          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-        }
-
-        def.currentHP -= raw;
-        if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
+        const inflicted = applyMageTowerDamage(att, def, raw, isCrit, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
 
         if (!isMage) {
-          const attackEffects = onAttack(att.weaponState, att, def, raw);
+          const attackEffects = onAttack(att.weaponState, att, def, inflicted);
           if (attackEffects.stunTarget) {
             Object.assign(def, applyMjollnirStun(def));
           }
@@ -601,18 +702,25 @@ const Combat = () => {
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
         } else if (def.currentHP <= 0) {
-          total += raw;
+          total += inflicted;
           break;
         }
 
-        total += raw;
+        total += inflicted;
         if (isArcher && !isBonusAttack) {
           const critText = isCrit ? ' CRITIQUE !' : '';
           const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
-          log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${raw} points de dégâts${critText}`);
+          log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${inflicted} points de dégâts${critText}`);
         } else if (isBonusAttack) {
-          log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${raw} points de dégâts`);
+          log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
         }
+      }
+
+      if (attackerPassive?.id === 'elemental_fury' && skillUsed) {
+        const baseLightning = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
+        const lightningRaw = dmgPhys(baseLightning, def.base.def);
+        const lightningDamage = applyMageTowerDamage(att, def, lightningRaw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+        log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
       }
 
       if (!isArcher && total > 0) {
@@ -659,6 +767,8 @@ const Combat = () => {
     const p2 = prepareForCombat(selectedChar2);
 
     const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
+    applyStartOfCombatPassives(p1, p2, logs, '[P1]');
+    applyStartOfCombatPassives(p2, p1, logs, '[P2]');
     setCombatLog(logs);
 
     let turn = 1;
@@ -666,6 +776,15 @@ const Combat = () => {
       logs.push(`--- Début du tour ${turn} ---`);
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 800));
+
+      const p1Unicorn = getUnicornPactTurnData(getPassiveDetails(p1.mageTowerPassive), turn);
+      const p2Unicorn = getUnicornPactTurnData(getPassiveDetails(p2.mageTowerPassive), turn);
+      if (p1Unicorn) {
+        logs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
+      }
+      if (p2Unicorn) {
+        logs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
+      }
 
       // Déterminer qui attaque en premier selon la vitesse + priorité d'arme
       const p1HasPriority = p1.weaponState?.isLegendary
@@ -676,7 +795,11 @@ const Combat = () => {
         && ((p2.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
 
       let first;
-      if (p1HasPriority && !p2HasPriority) {
+      if (p1Unicorn && !p2Unicorn) {
+        first = p1Unicorn.label === 'Tour A' ? p1 : p2;
+      } else if (p2Unicorn && !p1Unicorn) {
+        first = p2Unicorn.label === 'Tour A' ? p2 : p1;
+      } else if (p1HasPriority && !p2HasPriority) {
         first = p1;
       } else if (p2HasPriority && !p1HasPriority) {
         first = p2;
@@ -690,7 +813,7 @@ const Combat = () => {
       const log1 = [];
       setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: [] });
       await new Promise(r => setTimeout(r, 300));
-      processPlayerAction(first, second, log1, firstIsP1);
+      processPlayerAction(first, second, log1, firstIsP1, turn);
       setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: log1 });
       logs.push(...log1);
       setCombatLog([...logs]);
@@ -704,7 +827,7 @@ const Combat = () => {
         const log2 = [];
         setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: [] });
         await new Promise(r => setTimeout(r, 300));
-        processPlayerAction(second, first, log2, !firstIsP1);
+        processPlayerAction(second, first, log2, !firstIsP1, turn);
         setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: log2 });
         logs.push(...log2);
         setCombatLog([...logs]);
