@@ -6,6 +6,7 @@ import Combat from './components/Combat';
 import Dungeon from './components/Dungeon';
 import DungeonSelection from './components/DungeonSelection';
 import ForestDungeon from './components/ForestDungeon';
+import MageTower from './components/MageTower';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -53,6 +54,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <ForestDungeon />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mage-tower"
+            element={
+              <ProtectedRoute>
+                <MageTower />
               </ProtectedRoute>
             }
           />
