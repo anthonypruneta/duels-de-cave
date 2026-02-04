@@ -277,6 +277,23 @@ export const updateCharacterForestBoosts = async (userId, forestBoosts, level = 
   }
 };
 
+// Mettre à jour le passif de la tour du mage
+export const updateCharacterMageTowerPassive = async (userId, mageTowerPassive) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        mageTowerPassive: mageTowerPassive || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du passif tour du mage:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour l'arme équipée (stockée dans le personnage)
 export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   try {

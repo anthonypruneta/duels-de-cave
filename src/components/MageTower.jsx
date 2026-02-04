@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   getUserCharacter,
   updateCharacterEquippedWeapon,
-  updateCharacterForestBoosts,
+  updateCharacterMageTowerPassive,
   updateCharacterLevel
 } from '../services/characterService';
 import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
@@ -22,14 +22,18 @@ import {
   calcCritChance
 } from '../data/combatMechanics';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import {
-  FOREST_DIFFICULTY_COLORS,
-  getAllForestLevels,
-  getForestLevelByNumber,
-  createForestBossCombatant
-} from '../data/forestDungeons';
-import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } from '../utils/statPoints';
+  MAGE_TOWER_DIFFICULTY_COLORS,
+  getAllMageTowerLevels,
+  getMageTowerLevelByNumber,
+  createMageTowerBossCombatant
+} from '../data/mageTowerDungeons';
+import {
+  getMageTowerPassiveById,
+  getMageTowerPassiveLevel,
+  rollMageTowerPassive
+} from '../data/mageTowerPassives';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
   applyGungnirDebuff,
   applyMjollnirStun,
@@ -106,45 +110,6 @@ const getWeaponTooltipContent = (weapon) => {
   );
 };
 
-const getPassiveDetails = (passive) => {
-  if (!passive) return null;
-  const base = getMageTowerPassiveById(passive.id);
-  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
-  if (!base || !levelData) return null;
-  return { ...base, level: passive.level, levelData };
-};
-
-const getUnicornPactTurnData = (passiveDetails, turn) => {
-  if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
-  const isTurnA = turn % 2 === 1;
-  return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
-};
-
-const getAuraBonus = (passiveDetails, turn) => {
-  if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
-  return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
-};
-
-const applyStartOfCombatPassives = (playerChar, bossChar, log, label) => {
-  const passiveDetails = getPassiveDetails(playerChar.mageTowerPassive);
-  if (!passiveDetails) return;
-
-  if (passiveDetails.id === 'arcane_barrier') {
-    const shieldValue = Math.max(1, Math.round(playerChar.maxHP * passiveDetails.levelData.shieldPercent));
-    playerChar.shield = shieldValue;
-    log.push(`${label} 🛡️ Barrière arcanique: ${playerChar.name} gagne un bouclier de ${shieldValue} PV.`);
-  }
-
-  if (passiveDetails.id === 'mind_breach') {
-    const reduction = passiveDetails.levelData.defReduction;
-    bossChar.base.def = Math.max(0, Math.round(bossChar.base.def * (1 - reduction)));
-    log.push(`${label} 🧠 Brèche mentale: ${bossChar.name} perd ${Math.round(reduction * 100)}% de DEF.`);
-  }
-
-  bossChar.spectralMarked = false;
-  bossChar.spectralMarkBonus = 0;
-};
-
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
   return (
@@ -158,13 +123,14 @@ const Tooltip = ({ children, content }) => {
   );
 };
 
-const ForestDungeon = () => {
+const MageTower = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [character, setCharacter] = useState(null);
   const [equippedWeapon, setEquippedWeapon] = useState(null);
+  const [equippedPassive, setEquippedPassive] = useState(null);
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting, reward, victory, defeat
   const [currentLevel, setCurrentLevel] = useState(1);
   const [player, setPlayer] = useState(null);
@@ -180,22 +146,22 @@ const ForestDungeon = () => {
   const [volume, setVolume] = useState(0.35);
   const [isMuted, setIsMuted] = useState(false);
 
-  const ensureForestMusic = () => {
-    const forestMusic = document.getElementById('forest-music');
-    if (forestMusic) {
-      forestMusic.volume = volume;
-      forestMusic.muted = isMuted;
-      if (forestMusic.paused) {
-        forestMusic.play().catch(error => console.log('Autoplay bloqué:', error));
+  const ensureTowerMusic = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.volume = volume;
+      towerMusic.muted = isMuted;
+      if (towerMusic.paused) {
+        towerMusic.play().catch(error => console.log('Autoplay bloqué:', error));
       }
     }
   };
 
-  const stopForestMusic = () => {
-    const forestMusic = document.getElementById('forest-music');
-    if (forestMusic) {
-      forestMusic.pause();
-      forestMusic.currentTime = 0;
+  const stopTowerMusic = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.pause();
+      towerMusic.currentTime = 0;
     }
   };
 
@@ -215,6 +181,7 @@ const ForestDungeon = () => {
       if (characterData.level == null) {
         updateCharacterLevel(currentUser.uid, level);
       }
+      const mageTowerPassive = characterData.mageTowerPassive || null;
       const forestBoosts = { ...getEmptyStatBoosts(), ...(characterData.forestBoosts || {}) };
       let weaponId = characterData.equippedWeaponId || null;
       let weaponData = weaponId ? getWeaponById(weaponId) : null;
@@ -229,10 +196,12 @@ const ForestDungeon = () => {
       }
 
       setEquippedWeapon(weaponData);
+      setEquippedPassive(mageTowerPassive);
       setCharacter(normalizeCharacterBonuses({
         ...characterData,
         forestBoosts,
         level,
+        mageTowerPassive,
         equippedWeaponData: weaponData,
         equippedWeaponId: weaponId
       }));
@@ -254,16 +223,16 @@ const ForestDungeon = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [combatLog]);
 
-  const applyForestVolume = () => {
-    const forestMusic = document.getElementById('forest-music');
-    if (forestMusic) {
-      forestMusic.volume = volume;
-      forestMusic.muted = isMuted;
+  const applyTowerVolume = () => {
+    const towerMusic = document.getElementById('tower-music');
+    if (towerMusic) {
+      towerMusic.volume = volume;
+      towerMusic.muted = isMuted;
     }
   };
 
   useEffect(() => {
-    applyForestVolume();
+    applyTowerVolume();
   }, [volume, isMuted, gameState]);
 
   const handleVolumeChange = (event) => {
@@ -319,10 +288,10 @@ const ForestDungeon = () => {
 
   useEffect(() => {
     if (gameState === 'fighting' || gameState === 'reward') {
-      ensureForestMusic();
+      ensureTowerMusic();
     }
     if (gameState === 'victory' || gameState === 'defeat') {
-      stopForestMusic();
+      stopTowerMusic();
     }
   }, [gameState]);
 
@@ -472,8 +441,9 @@ const ForestDungeon = () => {
       bleed_stacks: 0,
       maso_taken: 0,
       shield: 0,
+      shieldExploded: false,
       spectralMarked: false,
-      spectralMarkBonus: 0,
+      boneGuardActive: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState
@@ -487,6 +457,8 @@ const ForestDungeon = () => {
     p.reflect = false;
     p.bleed_stacks = 0;
     p.maso_taken = 0;
+    p.shield = 0;
+    p.shieldExploded = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
@@ -499,16 +471,30 @@ const ForestDungeon = () => {
     log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
   };
 
-  const getUnicornMultiplier = (turn) => (turn % 2 === 1 ? 1.15 : 0.85);
-
-  const applyBossIncomingModifier = (defender, damage, turn) => {
-    if (defender?.ability?.type !== 'unicorn_cycle') return damage;
-    return Math.round(damage * getUnicornMultiplier(turn));
+  const getPassiveDetails = (passive) => {
+    if (!passive) return null;
+    const base = getMageTowerPassiveById(passive.id);
+    const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+    if (!base || !levelData) return null;
+    return { ...base, level: passive.level, levelData };
   };
 
-  const applyBossOutgoingModifier = (attacker, damage, turn) => {
-    if (attacker?.ability?.type !== 'unicorn_cycle') return damage;
-    return Math.round(damage * getUnicornMultiplier(turn));
+  const getUnicornPactTurnData = (passiveDetails, turn) => {
+    if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
+    const isTurnA = turn % 2 === 1;
+    return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
+  };
+
+  const getAuraBonus = (passiveDetails, turn) => {
+    if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
+    return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+  };
+
+  const applyBossIncomingModifier = (defender, damage) => {
+    if (defender?.ability?.type === 'bone_guard' && defender.boneGuardActive) {
+      return Math.round(damage * 0.7);
+    }
+    return damage;
   };
 
   const processPlayerAction = (att, def, log, isPlayer, turn) => {
@@ -521,7 +507,7 @@ const ForestDungeon = () => {
     const auraBonus = getAuraBonus(playerPassive, turn);
     let skillUsed = false;
 
-    const applyMageTowerDamage = (raw, isCrit) => {
+    const resolveDamage = (raw, isCrit) => {
       let adjusted = raw;
 
       if (isPlayer) {
@@ -534,6 +520,7 @@ const ForestDungeon = () => {
         if (def.spectralMarked && def.spectralMarkBonus) {
           adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
         }
+        adjusted = applyBossIncomingModifier(def, adjusted);
       } else if (unicornData) {
         adjusted = Math.round(adjusted * (1 + unicornData.incoming));
       }
@@ -548,38 +535,66 @@ const ForestDungeon = () => {
         return 0;
       }
 
-      if (def.shield > 0 && adjusted > 0) {
-        const absorbed = Math.min(def.shield, adjusted);
-        def.shield -= absorbed;
-        adjusted -= absorbed;
-        log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
-      }
-
       if (def.reflect && adjusted > 0) {
         const back = Math.round(def.reflect * adjusted);
         att.currentHP -= back;
         log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
       }
 
-      if (adjusted > 0) {
-        def.currentHP -= adjusted;
-        def.maso_taken = (def.maso_taken || 0) + adjusted;
+      let remaining = adjusted;
+      if (def.shield > 0 && remaining > 0) {
+        const absorbed = Math.min(def.shield, remaining);
+        def.shield -= absorbed;
+        remaining -= absorbed;
+        log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
+
+        if (def.ability?.type === 'lich_shield' && def.shield <= 0 && !def.shieldExploded) {
+          def.shieldExploded = true;
+          let explosionDamage = Math.max(1, Math.round(def.maxHP * 0.2));
+          if (unicornData) {
+            explosionDamage = Math.round(explosionDamage * (1 + unicornData.incoming));
+          }
+          if (playerChar.shield > 0 && explosionDamage > 0) {
+            const absorbedExplosion = Math.min(playerChar.shield, explosionDamage);
+            playerChar.shield -= absorbedExplosion;
+            explosionDamage -= absorbedExplosion;
+            log.push(`${playerColor} 🛡️ ${playerChar.name} absorbe ${absorbedExplosion} dégâts de l'explosion grâce au bouclier`);
+          }
+          if (explosionDamage > 0) {
+            playerChar.currentHP -= explosionDamage;
+            log.push(`${playerColor} 💥 Le bouclier de ${def.name} explose et inflige ${explosionDamage} points de dégâts à ${playerChar.name}`);
+            if (playerChar.currentHP <= 0 && playerChar.race === 'Mort-vivant' && !playerChar.undead) {
+              reviveUndead(playerChar, log, playerColor);
+            }
+          }
+        }
       }
 
-      if (isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
+      if (remaining > 0) {
+        def.currentHP -= remaining;
+        def.maso_taken = (def.maso_taken || 0) + remaining;
+      }
+
+      if (isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
         def.spectralMarked = true;
         def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
         log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
       }
 
-      if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
+      if (isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
         const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
       }
 
-      return adjusted;
+      if (def?.ability?.type === 'bone_guard' && !def.boneGuardActive && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.4) {
+        def.boneGuardActive = true;
+        log.push(`${playerColor} 💀 ${def.name} renforce sa carapace et réduit les dégâts reçus !`);
+      }
+
+      return remaining;
     };
+
     if (att.stunnedTurns > 0) {
       att.stunnedTurns -= 1;
       if (att.stunnedTurns <= 0) {
@@ -611,10 +626,8 @@ const ForestDungeon = () => {
     if (att.class === 'Demoniste') {
       const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
-      let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-      raw = applyBossOutgoingModifier(att, raw, turn);
-      raw = applyBossIncomingModifier(def, raw, turn);
-      const inflicted = applyMageTowerDamage(raw, false);
+      const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+      const inflicted = resolveDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, log, playerColor);
@@ -623,16 +636,13 @@ const ForestDungeon = () => {
 
     if (att.class === 'Masochiste') {
       if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
-        if (isPlayer) skillUsed = true;
+        skillUsed = skillUsed || isPlayer;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
-        let raw = dmg;
-        raw = applyBossOutgoingModifier(att, raw, turn);
-        raw = applyBossIncomingModifier(def, raw, turn);
-        const inflicted = applyMageTowerDamage(raw, false);
+        const inflicted = resolveDamage(dmg, false);
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, log, playerColor);
@@ -650,14 +660,14 @@ const ForestDungeon = () => {
     }
 
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
-      if (isPlayer) skillUsed = true;
+      skillUsed = skillUsed || isPlayer;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       att.reflect = reflectBase + reflectPerCap * att.base.cap;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
-      if (isPlayer) skillUsed = true;
+      skillUsed = skillUsed || isPlayer;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
       const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
@@ -665,16 +675,17 @@ const ForestDungeon = () => {
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
-        let bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-        bonusDmg = applyBossOutgoingModifier(att, bonusDmg, turn);
-        bonusDmg = applyBossIncomingModifier(def, bonusDmg, turn);
-        applyMageTowerDamage(bonusDmg, false);
+        const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+        const inflicted = resolveDamage(bonusDmg, false);
         log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+        if (inflicted > 0 && def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+          reviveUndead(def, log, playerColor);
+        }
       }
     }
 
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
-      if (isPlayer) skillUsed = true;
+      skillUsed = skillUsed || isPlayer;
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -682,6 +693,7 @@ const ForestDungeon = () => {
     const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
     const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
     const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+
     if (isPlayer && (isMage || isWar || isArcher)) {
       skillUsed = true;
     }
@@ -716,10 +728,8 @@ const ForestDungeon = () => {
         raw = dmgCap(atkSpell, def.base.rescap);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
-          let extra = spellEffects.secondCastDamage;
-          extra = applyBossOutgoingModifier(att, extra, turn);
-          extra = applyBossIncomingModifier(def, extra, turn);
-          applyMageTowerDamage(extra, false);
+          const extra = spellEffects.secondCastDamage;
+          const inflictedExtra = resolveDamage(extra, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
         }
       } else if (isWar) {
@@ -759,9 +769,7 @@ const ForestDungeon = () => {
         log.push(`${playerColor} 💢 ${att.name} libère sa rage et double ses dégâts !`);
       }
 
-      raw = applyBossOutgoingModifier(att, raw, turn);
-      raw = applyBossIncomingModifier(def, raw, turn);
-      const inflicted = applyMageTowerDamage(raw, isCrit);
+      const inflicted = resolveDamage(raw, isCrit);
 
       if (!isMage) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted);
@@ -793,13 +801,14 @@ const ForestDungeon = () => {
       }
     }
 
-    if (isPlayer && playerPassive?.id === 'elemental_fury' && skillUsed) {
+    if (isPlayer && skillUsed && playerPassive?.id === 'elemental_fury') {
       const baseLightning = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
-      let lightningRaw = dmgPhys(baseLightning, def.base.def);
-      lightningRaw = applyBossOutgoingModifier(att, lightningRaw, turn);
-      lightningRaw = applyBossIncomingModifier(def, lightningRaw, turn);
-      const lightningDamage = applyMageTowerDamage(lightningRaw, false);
+      const lightningRaw = dmgPhys(baseLightning, def.base.def);
+      const lightningDamage = resolveDamage(lightningRaw, false);
       log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        reviveUndead(def, log, playerColor);
+      }
     }
 
     if (!isArcher && total > 0) {
@@ -812,31 +821,33 @@ const ForestDungeon = () => {
         log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
       }
     }
-
-    if (def?.ability?.type === 'bear_rage' && !def.rageReady && !def.rageUsed && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.25) {
-      def.rageReady = true;
-      log.push(`${playerColor} 🐻 ${def.name} entre en rage et prépare un coup dévastateur !`);
-    }
   };
 
-  const rollForestRewards = (levelData) => {
-    const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
-    const pointsByStat = {};
+  const rollMageTowerPassiveReward = (level) => rollMageTowerPassive(level);
 
-    for (let i = 0; i < levelData.rewardRolls; i++) {
-      const stat = statsPool[Math.floor(Math.random() * statsPool.length)];
-      pointsByStat[stat] = (pointsByStat[stat] || 0) + 2;
+  const applyStartOfCombatEffects = (playerChar, bossChar, logs) => {
+    const passiveDetails = getPassiveDetails(playerChar.mageTowerPassive);
+
+    if (passiveDetails?.id === 'arcane_barrier') {
+      const shieldValue = Math.max(1, Math.round(playerChar.maxHP * passiveDetails.levelData.shieldPercent));
+      playerChar.shield = shieldValue;
+      logs.push(`🛡️ Barrière arcanique: ${playerChar.name} gagne un bouclier de ${shieldValue} PV.`);
     }
 
-    const gainsByStat = {};
-    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character.forestBoosts || {}) };
-    Object.entries(pointsByStat).forEach(([stat, points]) => {
-      const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, points);
-      updatedBoosts = updatedStats;
-      gainsByStat[stat] = (gainsByStat[stat] || 0) + delta;
-    });
+    if (passiveDetails?.id === 'mind_breach') {
+      const reduction = passiveDetails.levelData.defReduction;
+      const reducedDef = Math.max(0, Math.round(bossChar.base.def * (1 - reduction)));
+      bossChar.base.def = reducedDef;
+      logs.push(`🧠 Brèche mentale: ${bossChar.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+    }
 
-    return { updatedBoosts, gainsByStat };
+    if (bossChar?.ability?.type === 'lich_shield') {
+      bossChar.shield = Math.max(1, Math.round(bossChar.maxHP * 0.2));
+      logs.push(`🧟 Barrière macabre: ${bossChar.name} se protège avec ${bossChar.shield} points de bouclier.`);
+    }
+
+    bossChar.spectralMarked = false;
+    bossChar.spectralMarkBonus = 0;
   };
 
   const handleStartRun = async () => {
@@ -854,11 +865,16 @@ const ForestDungeon = () => {
     setCurrentAction(null);
     setRewardSummary(null);
     setIsSimulating(false);
-    ensureForestMusic();
+    ensureTowerMusic();
 
-    const levelData = getForestLevelByNumber(1);
-    const playerReady = prepareForCombat(character);
-    const bossReady = createForestBossCombatant(levelData.boss);
+    const levelData = getMageTowerLevelByNumber(1);
+    const playerReady = prepareForCombat({
+      ...character,
+      mageTowerPassive: equippedPassive,
+      equippedWeaponData: equippedWeapon,
+      equippedWeaponId: equippedWeapon?.id || null
+    });
+    const bossReady = createMageTowerBossCombatant(levelData.boss);
     if (bossReady) {
       bossReady.weaponState = initWeaponCombatState(bossReady, null);
       bossReady.stunned = false;
@@ -874,25 +890,22 @@ const ForestDungeon = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
-    ensureForestMusic();
+    ensureTowerMusic();
 
     const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
-    applyStartOfCombatPassives(p, b, logs, '[P1]');
+    applyStartOfCombatEffects(p, b, logs);
     setCombatLog(logs);
 
     let turn = 1;
 
     while (p.currentHP > 0 && b.currentHP > 0 && turn <= generalConstants.maxTurns) {
       logs.push(`--- Début du tour ${turn} ---`);
-      if (b?.ability?.type === 'unicorn_cycle') {
-        const mult = turn % 2 === 1 ? '+15%' : '-15%';
-        logs.push(`✨ ${b.name} alterne sa magie (${mult} dégâts infligés et reçus)`);
-      }
-      const playerUnicorn = getUnicornPactTurnData(getPassiveDetails(p.mageTowerPassive), turn);
-      if (playerUnicorn) {
-        logs.push(`🦄 Pacte de la Licorne — ${playerUnicorn.label}`);
+      const passiveDetails = getPassiveDetails(p.mageTowerPassive);
+      const unicornTurn = getUnicornPactTurnData(passiveDetails, turn);
+      if (unicornTurn) {
+        logs.push(`🦄 Pacte de la Licorne — ${unicornTurn.label} : ${p.name} agit ${unicornTurn.label === 'Tour A' ? 'en premier' : 'en second'}.`);
       }
       setCombatLog([...logs]);
       await new Promise(r => setTimeout(r, 800));
@@ -905,8 +918,8 @@ const ForestDungeon = () => {
         && ((b.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
 
       let playerFirst;
-      if (playerUnicorn) {
-        playerFirst = playerUnicorn.label === 'Tour A';
+      if (unicornTurn) {
+        playerFirst = unicornTurn.label === 'Tour A';
       } else if (playerHasPriority && !bossHasPriority) {
         playerFirst = true;
       } else if (bossHasPriority && !playerHasPriority) {
@@ -952,21 +965,26 @@ const ForestDungeon = () => {
       setCombatLog([...logs]);
       setCombatResult('victory');
 
-      const levelData = getForestLevelByNumber(currentLevel);
-      const rewardResult = rollForestRewards(levelData);
-      const levelGain = levelData.rewardRolls;
+      const droppedPassive = rollMageTowerPassiveReward(currentLevel);
+      let autoEquipped = false;
+      let updatedPassive = equippedPassive;
+      if (!equippedPassive && droppedPassive) {
+        updatedPassive = droppedPassive;
+        autoEquipped = true;
+        setEquippedPassive(droppedPassive);
+        updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+      }
       const updatedCharacter = {
         ...character,
-        level: (character.level ?? 1) + levelGain,
-        forestBoosts: rewardResult.updatedBoosts
+        mageTowerPassive: updatedPassive
       };
       setCharacter(updatedCharacter);
-      updateCharacterForestBoosts(currentUser.uid, rewardResult.updatedBoosts, updatedCharacter.level);
 
       const nextLevel = currentLevel + 1;
       setRewardSummary({
-        gainsByStat: rewardResult.gainsByStat,
-        hasNextLevel: nextLevel <= getAllForestLevels().length,
+        droppedPassive,
+        autoEquipped,
+        hasNextLevel: nextLevel <= getAllMageTowerLevels().length,
         nextLevel
       });
       setGameState('reward');
@@ -980,17 +998,18 @@ const ForestDungeon = () => {
     setIsSimulating(false);
   };
 
-  const handleRewardContinue = () => {
+  const handleRewardContinue = (passiveOverride = equippedPassive) => {
     if (!rewardSummary) return;
     if (rewardSummary.hasNextLevel) {
-      const nextLevelData = getForestLevelByNumber(rewardSummary.nextLevel);
+      const nextLevelData = getMageTowerLevelByNumber(rewardSummary.nextLevel);
       const refreshedPlayer = prepareForCombat({
         ...character,
+        mageTowerPassive: passiveOverride,
         equippedWeaponData: equippedWeapon,
         equippedWeaponId: equippedWeapon?.id || null
       });
       fullHealPlayer(refreshedPlayer);
-      const nextBoss = createForestBossCombatant(nextLevelData.boss);
+      const nextBoss = createMageTowerBossCombatant(nextLevelData.boss);
       if (nextBoss) {
         nextBoss.weaponState = initWeaponCombatState(nextBoss, null);
         nextBoss.stunned = false;
@@ -1011,8 +1030,22 @@ const ForestDungeon = () => {
     }
   };
 
+  const handlePassiveDecision = async (equipNew) => {
+    if (!rewardSummary) return;
+    const droppedPassive = rewardSummary.droppedPassive;
+    const nextPassive = equipNew && droppedPassive ? droppedPassive : equippedPassive;
+
+    if (equipNew && droppedPassive) {
+      setEquippedPassive(droppedPassive);
+      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
+    }
+
+    handleRewardContinue(nextPassive);
+  };
+
   const handleBackToLobby = () => {
-    stopForestMusic();
+    stopTowerMusic();
     setGameState('lobby');
     setCurrentLevel(1);
     setPlayer(null);
@@ -1081,7 +1114,6 @@ const ForestDungeon = () => {
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
     const weapon = char.equippedWeaponData;
-    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
@@ -1091,7 +1123,7 @@ const ForestDungeon = () => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Niveaux: +${forestBoosts[k]}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
       if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       if (k === 'auto') {
@@ -1124,6 +1156,7 @@ const ForestDungeon = () => {
     };
 
     const characterImage = char.characterImage || null;
+    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
 
     return (
       <div className="relative shadow-2xl overflow-visible">
@@ -1177,19 +1210,6 @@ const ForestDungeon = () => {
                   </Tooltip>
                 </div>
               )}
-              {passiveDetails && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{passiveDetails.icon}</span>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
-                      {passiveDetails.name} — Niveau {passiveDetails.level}
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {passiveDetails.levelData.description}
-                    </div>
-                  </div>
-                </div>
-              )}
               {races[char.race] && (
                 <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                   <span className="text-lg">{races[char.race].icon}</span>
@@ -1207,6 +1227,19 @@ const ForestDungeon = () => {
                   </div>
                 </div>
               )}
+              {passiveDetails && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">{passiveDetails.icon}</span>
+                  <div className="flex-1">
+                    <div className="text-amber-300 font-semibold mb-1">
+                      {passiveDetails.name} — Niveau {passiveDetails.level}
+                    </div>
+                    <div className="text-stone-400 text-[10px]">
+                      {passiveDetails.levelData.description}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1218,13 +1251,13 @@ const ForestDungeon = () => {
     if (!bossChar) return null;
     const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const levelData = getForestLevelByNumber(currentLevel);
+    const levelData = getMageTowerLevelByNumber(currentLevel);
     const bossImg = getBossImage(bossChar.imageFile);
 
     return (
       <div className="relative shadow-2xl overflow-visible">
-        <div className={`absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 ${FOREST_DIFFICULTY_COLORS[levelData?.difficulte] || 'text-stone-200'}`}>
-          Boss • {levelData?.difficulte || 'Forêt'}
+        <div className={`absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 ${MAGE_TOWER_DIFFICULTY_COLORS[levelData?.difficulte] || 'text-stone-200'}`}>
+          Boss • {levelData?.difficulte || 'Tour du Mage'}
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
@@ -1276,10 +1309,10 @@ const ForestDungeon = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <SoundControl />
-        <audio id="forest-music" loop>
-          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="text-amber-400 text-2xl">Chargement de la forêt...</div>
+        <div className="text-amber-400 text-2xl">Chargement de la tour...</div>
       </div>
     );
   }
@@ -1289,42 +1322,90 @@ const ForestDungeon = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <SoundControl />
-        <audio id="forest-music" loop>
-          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
         <div className="text-red-400 text-2xl">Aucun personnage trouvé.</div>
       </div>
     );
   }
 
-  const levels = getAllForestLevels();
+  const levels = getAllMageTowerLevels();
 
   if (gameState === 'reward' && rewardSummary) {
-    const labels = getStatLabels();
+    const droppedDetails = getPassiveDetails(rewardSummary.droppedPassive);
+    const equippedDetails = getPassiveDetails(equippedPassive);
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
         <SoundControl />
-        <audio id="forest-music" loop>
-          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
         <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
-          <div className="text-6xl mb-4">🌲</div>
+          <div className="text-6xl mb-4">🪄</div>
           <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
           <p className="text-stone-300 mb-6">
-            Gains :{' '}
-            {Object.entries(rewardSummary.gainsByStat).map(([stat, value], index) => (
-              <span key={stat} className="text-amber-200 font-semibold">
-                {labels[stat] || stat} +{value}{index < Object.keys(rewardSummary.gainsByStat).length - 1 ? ', ' : ''}
-              </span>
-            ))}
+            Vous trouvez un passif mystique pour la Tour du Mage.
           </p>
-          <button
-            onClick={handleRewardContinue}
-            className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
-          >
-            {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
-          </button>
+          {droppedDetails && (
+            <div className="bg-stone-900/60 border border-stone-600 p-4 mb-6">
+              <div className="text-4xl mb-2">{droppedDetails.icon}</div>
+              <div className="text-amber-300 font-semibold">
+                {droppedDetails.name} — Niveau {droppedDetails.level}
+              </div>
+              <div className="text-stone-400 text-sm mt-2">
+                {droppedDetails.levelData.description}
+              </div>
+            </div>
+          )}
+          {equippedDetails && !rewardSummary.autoEquipped && (
+            <div className="bg-stone-900/40 border border-stone-700 p-3 mb-6 text-left">
+              <div className="text-stone-300 text-xs uppercase mb-2">Passif actuel</div>
+              <div className="flex items-start gap-2">
+                <span className="text-xl">{equippedDetails.icon}</span>
+                <div>
+                  <div className="text-amber-200 text-sm font-semibold">
+                    {equippedDetails.name} — Niveau {equippedDetails.level}
+                  </div>
+                  <div className="text-stone-400 text-xs">
+                    {equippedDetails.levelData.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {rewardSummary.autoEquipped ? (
+            <>
+              <p className="text-emerald-300 mb-4 text-sm">
+                Aucun passif équipé : le nouveau passif est automatiquement équipé.
+              </p>
+              <button
+                onClick={handleRewardContinue}
+                className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
+              >
+                {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-stone-300 text-sm">Remplacer votre passif actuel ?</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => handlePassiveDecision(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 font-bold border border-amber-500"
+                >
+                  Oui
+                </button>
+                <button
+                  onClick={() => handlePassiveDecision(false)}
+                  className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 font-bold border border-stone-500"
+                >
+                  Non
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1335,8 +1416,8 @@ const ForestDungeon = () => {
       <div className="min-h-screen p-6">
         <Header />
         <SoundControl />
-        <audio id="forest-music" loop>
-          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
@@ -1344,7 +1425,7 @@ const ForestDungeon = () => {
             {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
           </h2>
           <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'La forêt vous renforce.' : 'Aucun gain cette fois-ci.'}
+            {gameState === 'victory' ? 'La Tour du Mage vous a mis à l’épreuve.' : 'Aucun gain cette fois-ci.'}
           </p>
           <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
             Retour
@@ -1355,18 +1436,18 @@ const ForestDungeon = () => {
   }
 
   if (gameState === 'fighting') {
-    const currentLevelData = getForestLevelByNumber(currentLevel);
+    const currentLevelData = getMageTowerLevelByNumber(currentLevel);
     return (
       <div className="min-h-screen p-6">
         <Header />
         <SoundControl />
-        <audio id="forest-music" loop>
-          <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+        <audio id="tower-music" loop>
+          <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-6xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">Forêt — Niveau {currentLevelData?.niveau}</h2>
+              <h2 className="text-4xl font-bold text-stone-200">Tour du Mage — Niveau {currentLevelData?.niveau}</h2>
             </div>
           </div>
 
@@ -1515,13 +1596,13 @@ const ForestDungeon = () => {
     <div className="min-h-screen p-6">
       <Header />
       <SoundControl />
-      <audio id="forest-music" loop>
-        <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+      <audio id="tower-music" loop>
+        <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
       <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">La Forêt</h2>
+              <h2 className="text-4xl font-bold text-stone-200">Tour du Mage</h2>
             </div>
           </div>
 
@@ -1532,11 +1613,11 @@ const ForestDungeon = () => {
               <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
                 <div className="text-3xl mb-2">{level.boss.icon}</div>
                 <p className="text-white font-bold">Niveau {level.niveau}</p>
-                <p className={`text-sm ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>
+                <p className={`text-sm ${MAGE_TOWER_DIFFICULTY_COLORS[level.difficulte]}`}>
                   {level.difficulte}
                 </p>
                 <p className="text-xs mt-1 text-amber-200">
-                  Gains: {level.rewardRolls} stats tirées
+                  Drop: passif niveau {level.niveau}
                 </p>
               </div>
             ))}
@@ -1557,7 +1638,7 @@ const ForestDungeon = () => {
             onClick={handleStartRun}
             className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl border border-amber-500"
           >
-            Entrer dans la forêt
+            Entrer dans la tour
           </button>
         </div>
       </div>
@@ -1565,4 +1646,4 @@ const ForestDungeon = () => {
   );
 };
 
-export default ForestDungeon;
+export default MageTower;
