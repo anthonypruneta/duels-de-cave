@@ -410,6 +410,8 @@ const CharacterCreation = () => {
     const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
     const passiveLevel = mageTowerPassive ? getMageTowerPassiveLevel(mageTowerPassive.id, mageTowerPassive.level) : null;
     const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
+    const awakeningInfo = races[existingCharacter.race]?.awakening || null;
+    const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const egideAtkBonus = weapon?.id === 'bouclier_legendaire'
       ? Math.round(
@@ -536,6 +538,19 @@ const CharacterCreation = () => {
                   ) : (
                     <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
                       Aucun passif de Tour du Mage équipé
+                    </div>
+                  )}
+                  {isAwakeningActive && (
+                    <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                      <span className="text-lg">✨</span>
+                      <div>
+                        <div className="font-semibold text-amber-200">
+                          Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
+                        </div>
+                        <div className="text-stone-400 text-[11px]">
+                          {awakeningInfo.description}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

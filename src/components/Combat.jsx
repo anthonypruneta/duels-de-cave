@@ -1054,6 +1054,8 @@ const Combat = () => {
     const forestBoosts = getForestBoosts(character);
     const weapon = character.equippedWeaponData;
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);
+    const awakeningInfo = races[character.race]?.awakening || null;
+    const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = character.baseWithoutWeapon || getBaseWithBoosts(character);
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
@@ -1151,6 +1153,19 @@ const Combat = () => {
                     </div>
                     <div className="text-stone-400 text-[10px]">
                       {passiveDetails.levelData.description}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {isAwakeningActive && (
+                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                  <span className="text-lg">✨</span>
+                  <div className="flex-1">
+                    <div className="text-amber-300 font-semibold mb-1">
+                      Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
+                    </div>
+                    <div className="text-stone-400 text-[10px]">
+                      {awakeningInfo.description}
                     </div>
                   </div>
                 </div>

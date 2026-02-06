@@ -6,6 +6,7 @@ export const races = {
     icon: '👥',
     awakening: {
       levelRequired: 100,
+      description: '+10% à toutes les stats',
       effect: {
         statMultipliers: {
           auto: 1.1,
@@ -23,6 +24,7 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
+      description: '+5% Auto, +5% Cap, +5 VIT, +20% crit, +30% dégâts crit',
       effect: {
         statMultipliers: {
           auto: 1.05,
@@ -41,6 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
+      description: 'Les 2 premières attaques subies infligent 50% dégâts',
       effect: {
         incomingHitMultiplier: 0.5,
         incomingHitCount: 2
@@ -52,6 +55,7 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
+      description: '+20% PV max, -10% dégâts subis',
       effect: {
         statMultipliers: {
           hp: 1.2
@@ -65,6 +69,7 @@ export const races = {
     icon: '🐲',
     awakening: {
       levelRequired: 100,
+      description: '+10% PV max, +15% ResC, +1% dégâts infligés par dégât reçu',
       effect: {
         statMultipliers: {
           hp: 1.1,
@@ -79,6 +84,7 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
+      description: 'Première mort: explosion 30% PV max + résurrection 25% PV max',
       effect: {
         explosionPercent: 0.3,
         revivePercent: 0.25,
@@ -91,6 +97,7 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
+      description: 'Chaque auto: +1 stack de saignement (0,5% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
         bleedPercentPerStack: 0.005
@@ -102,6 +109,7 @@ export const races = {
     icon: '🌿',
     awakening: {
       levelRequired: 100,
+      description: 'Regen 3% PV max/tour, +5% dégâts si PV > 80%',
       effect: {
         regenPercent: 0.03,
         highHpDamageBonus: 0.05,
