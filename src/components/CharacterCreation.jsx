@@ -10,6 +10,7 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -346,7 +347,8 @@ const CharacterCreation = () => {
       bonuses: rolledCharacter.bonuses,
       forestBoosts: getEmptyStatBoosts(),
       level: 1,
-      equippedWeaponId: null
+      equippedWeaponId: null,
+      mageTowerPassive: null
     };
   };
 
@@ -404,6 +406,12 @@ const CharacterCreation = () => {
     const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
     const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
     const weapon = equippedWeapon;
+    const mageTowerPassive = existingCharacter.mageTowerPassive || null;
+    const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
+    const passiveLevel = mageTowerPassive ? getMageTowerPassiveLevel(mageTowerPassive.id, mageTowerPassive.level) : null;
+    const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
+    const awakeningInfo = races[existingCharacter.race]?.awakening || null;
+    const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const egideAtkBonus = weapon?.id === 'bouclier_legendaire'
       ? Math.round(
@@ -485,7 +493,7 @@ const CharacterCreation = () => {
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
                   {weapon ? (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                    <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                       <Tooltip content={getWeaponTooltipContent(weapon)}>
                         <span className="flex items-center gap-2">
                           {getWeaponImage(weapon.imageFile) ? (
@@ -496,10 +504,53 @@ const CharacterCreation = () => {
                           <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                         </span>
                       </Tooltip>
+                      <div className="text-[11px] text-stone-400 space-y-1">
+                        <div>{weapon.description}</div>
+                        {weapon.effet && (
+                          <div className="text-amber-200">
+                            Effet: {weapon.effet.nom} — {weapon.effet.description}
+                          </div>
+                        )}
+                        {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                          <div className="text-stone-200">
+                            Stats: {formatWeaponStats(weapon)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
                       Aucune arme équipée
+                    </div>
+                  )}
+                  {passiveDetails ? (
+                    <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                      <span className="text-lg">{passiveDetails.icon}</span>
+                      <div>
+                        <div className="font-semibold text-amber-200">
+                          Passif: {passiveDetails.name} (Nv {passiveDetails.level})
+                        </div>
+                        <div className="text-stone-400 text-[11px]">
+                          {passiveDetails.levelData.description}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
+                      Aucun passif de Tour du Mage équipé
+                    </div>
+                  )}
+                  {isAwakeningActive && (
+                    <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                      <span className="text-lg">✨</span>
+                      <div>
+                        <div className="font-semibold text-amber-200">
+                          Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
+                        </div>
+                        <div className="text-stone-400 text-[11px]">
+                          {awakeningInfo.description}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
