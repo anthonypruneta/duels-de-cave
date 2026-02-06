@@ -59,7 +59,7 @@ const generateCharacter = (name) => {
     currentHP: base.hp, maxHP: base.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
     undead: false, dodge: false, reflect: false,
-    bleed_stacks: 0, maso_taken: 0
+    bleed_stacks: 0, maso_taken: 0, familiarStacks: 0
   };
 };
 
@@ -90,8 +90,9 @@ const processTurn = (p1, p2) => {
 
     // Demoniste - Familier
     if (att.class === 'Demoniste') {
-      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const stackBonus = stackPerAuto * (att.familiarStacks || 0);
+      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       def.currentHP -= raw;
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -207,6 +208,9 @@ const processTurn = (p1, p2) => {
       }
 
       def.currentHP -= raw;
+      if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher) {
+        att.familiarStacks = (att.familiarStacks || 0) + 1;
+      }
       if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
 
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
