@@ -5,18 +5,27 @@
 
 import { races } from '../src/data/races.js';
 import { classes } from '../src/data/classes.js';
+import { weapons, getWeaponById } from '../src/data/weapons.js';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel, rollMageTowerPassive } from '../src/data/mageTowerPassives.js';
 import {
   cooldowns,
   classConstants,
   raceConstants,
   generalConstants,
-  tiers15,
   dmgPhys,
   dmgCap,
   calcCritChance,
   getRaceBonus,
-  getClassBonus
+  getClassBonus,
+  weaponConstants,
+  healingClasses
 } from '../src/data/combatMechanics.js';
+
+const LEVEL_STAT_MULTIPLIER = 0.01;
+
+const tiers15 = (cap) => Math.floor(cap / 15);
+
+const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
@@ -40,196 +49,657 @@ const genStats = () => {
   return s;
 };
 
+const applyStatMultipliers = (stats, multipliers = {}) => {
+  const updated = { ...stats };
+  Object.entries(multipliers).forEach(([key, value]) => {
+    if (updated[key] != null) {
+      updated[key] = Math.round(updated[key] * value);
+    }
+  });
+  return updated;
+};
+
+const applyStatBonuses = (stats, bonuses = {}) => {
+  const updated = { ...stats };
+  Object.entries(bonuses).forEach(([key, value]) => {
+    if (updated[key] != null) {
+      updated[key] += value;
+    }
+  });
+  return updated;
+};
+
+const getAwakeningEffect = (raceName, level) => {
+  const awakening = races[raceName]?.awakening;
+  if (!awakening || level < awakening.levelRequired) return null;
+  return awakening.effect || null;
+};
+
+const applyLevelScaling = (stats, level) => {
+  const multiplier = 1 + Math.max(0, level - 1) * LEVEL_STAT_MULTIPLIER;
+  return applyStatMultipliers(stats, {
+    hp: multiplier,
+    auto: multiplier,
+    def: multiplier,
+    cap: multiplier,
+    rescap: multiplier,
+    spd: multiplier
+  });
+};
+
+const applyWeaponStats = (stats, weapon) => {
+  if (!weapon?.stats) return stats;
+  return applyStatBonuses(stats, weapon.stats);
+};
+
+const applyEgideBonus = (stats, weapon) => {
+  if (weapon?.id !== 'bouclier_legendaire') return stats;
+  const bonus = Math.round(stats.def * weaponConstants.egide.defToAtkPercent + stats.rescap * weaponConstants.egide.rescapToAtkPercent);
+  return { ...stats, auto: stats.auto + bonus };
+};
+
+const getPassiveDetails = (passive) => {
+  if (!passive) return null;
+  const base = getMageTowerPassiveById(passive.id);
+  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+  if (!base || !levelData) return null;
+  return { ...base, level: passive.level, levelData };
+};
+
+const getUnicornPactTurnData = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
+  const isTurnA = turn % 2 === 1;
+  return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
+};
+
+const getAuraBonus = (passiveDetails, turn) => {
+  if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
+  return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+};
+
+const getRandomWeapon = () => {
+  const pool = Object.values(weapons);
+  return pool[Math.floor(Math.random() * pool.length)] || null;
+};
+
 const generateCharacter = (name) => {
   const raceKeys = Object.keys(races);
   const classKeys = Object.keys(classes);
-  const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
-  const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+  const race = raceKeys[Math.floor(Math.random() * raceKeys.length)];
+  const charClass = classKeys[Math.floor(Math.random() * classKeys.length)];
   const raw = genStats();
   const rB = getRaceBonus(race);
   const cB = getClassBonus(charClass);
   const base = {
-    hp: raw.hp+rB.hp+cB.hp,
-    auto: raw.auto+rB.auto+cB.auto,
-    def: raw.def+rB.def+cB.def,
-    cap: raw.cap+rB.cap+cB.cap,
-    rescap: raw.rescap+rB.rescap+cB.rescap,
-    spd: raw.spd+rB.spd+cB.spd
+    hp: raw.hp + rB.hp + cB.hp,
+    auto: raw.auto + rB.auto + cB.auto,
+    def: raw.def + rB.def + cB.def,
+    cap: raw.cap + rB.cap + cB.cap,
+    rescap: raw.rescap + rB.rescap + cB.rescap,
+    spd: raw.spd + rB.spd + cB.spd
   };
+  const weapon = Math.random() < 0.6 ? getRandomWeapon() : null;
+  const passive = Math.random() < 0.5 ? rollMageTowerPassive(Math.ceil(Math.random() * 3)) : null;
   return {
-    name, race, class: charClass, base,
-    bonuses: { race: rB, class: cB },
-    currentHP: base.hp, maxHP: base.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
-    undead: false, dodge: false, reflect: false,
-    bleed_stacks: 0, maso_taken: 0
+    name,
+    race,
+    class: charClass,
+    base,
+    level: 1,
+    equippedWeaponId: weapon?.id || null,
+    mageTowerPassive: passive
   };
 };
 
-const reviveUndead = (target) => {
-  const revive = Math.max(1, Math.round(raceConstants.mortVivant.revivePercent * target.maxHP));
-  target.undead = true;
-  target.currentHP = revive;
+const buildCombatant = (character) => {
+  const level = character.level ?? 1;
+  const weapon = character.equippedWeaponId ? getWeaponById(character.equippedWeaponId) : null;
+  const awakening = getAwakeningEffect(character.race, level);
+  const passiveDetails = getPassiveDetails(character.mageTowerPassive);
+
+  let stats = character.base || character.stats;
+  if (!stats) {
+    stats = genStats();
+  }
+
+  if (character.applyBonuses) {
+    stats = applyStatBonuses(stats, getRaceBonus(character.race));
+    stats = applyStatBonuses(stats, getClassBonus(character.class));
+  }
+
+  stats = applyLevelScaling(stats, level);
+  stats = applyWeaponStats(stats, weapon);
+
+  if (awakening?.statMultipliers) {
+    stats = applyStatMultipliers(stats, awakening.statMultipliers);
+  }
+  if (awakening?.statBonuses) {
+    stats = applyStatBonuses(stats, awakening.statBonuses);
+  }
+
+  stats = applyEgideBonus(stats, weapon);
+
+  return {
+    name: character.name,
+    race: character.race,
+    class: character.class,
+    level,
+    stats,
+    maxHP: stats.hp,
+    currentHP: stats.hp,
+    passiveDetails,
+    awakening,
+    weapon,
+    weaponState: {
+      attackCount: 0,
+      spellCount: 0,
+      gungnirApplied: false
+    },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
+    dodge: false,
+    reflect: 0,
+    shield: 0,
+    spectralMarked: false,
+    spectralMarkBonus: 0,
+    bleedStacks: 0,
+    dragonkinStacks: 0,
+    masoTaken: 0,
+    undeadRevived: false,
+    awakeningRevived: false,
+    orcAwakeningHitsRemaining: awakening?.incomingHitCount || 0,
+    stunnedTurns: 0
+  };
 };
 
-const processTurn = (p1, p2) => {
-  const first = p1.base.spd >= p2.base.spd ? p1 : p2;
-  const second = first === p1 ? p2 : p1;
-
-  [first, second].forEach((att) => {
-    const def = att === first ? second : first;
-    if (att.currentHP <= 0 || def.currentHP <= 0) return;
-
-    att.reflect = false;
-    for (const k of Object.keys(cooldowns)) {
-      att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
+const applyStartOfCombatPassives = (p1, p2) => {
+  [p1, p2].forEach((attacker) => {
+    if (attacker.passiveDetails?.id === 'arcane_barrier') {
+      attacker.shield = Math.max(1, Math.round(attacker.maxHP * attacker.passiveDetails.levelData.shieldPercent));
     }
+  });
 
-    // Sylvari regen
-    if (att.race === 'Sylvari') {
-      const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
-      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+  if (p1.passiveDetails?.id === 'mind_breach') {
+    p2.stats.def = Math.max(0, Math.round(p2.stats.def * (1 - p1.passiveDetails.levelData.defReduction)));
+  }
+  if (p2.passiveDetails?.id === 'mind_breach') {
+    p1.stats.def = Math.max(0, Math.round(p1.stats.def * (1 - p2.passiveDetails.levelData.defReduction)));
+  }
+};
+
+const applyDirectDamage = (attacker, defender, amount) => {
+  let damage = amount;
+  if (defender.shield > 0) {
+    const absorbed = Math.min(defender.shield, damage);
+    defender.shield -= absorbed;
+    damage -= absorbed;
+  }
+  defender.currentHP -= damage;
+  if (damage > 0) {
+    defender.masoTaken += damage;
+    if (defender.awakening?.damageStackBonus) {
+      defender.dragonkinStacks += 1;
     }
+  }
+  if (defender.currentHP < 0) defender.currentHP = 0;
+};
 
-    // Demoniste familier
-    if (att.class === 'Demoniste') {
-      const t = tiers15(att.base.cap);
-      const { capBase, capPerTier, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerTier * t) * att.base.cap));
-      const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-      def.currentHP -= raw;
-      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def);
-      }
+const handleDeath = (defender, attacker) => {
+  if (defender.race !== 'Mort-vivant') return false;
+
+  if (defender.awakening?.reviveOnce && !defender.awakeningRevived) {
+    const explosion = Math.max(1, Math.round(defender.maxHP * defender.awakening.explosionPercent));
+    applyDirectDamage(defender, attacker, explosion);
+    defender.currentHP = Math.max(1, Math.round(defender.maxHP * defender.awakening.revivePercent));
+    defender.awakeningRevived = true;
+    return true;
+  }
+
+  if (!defender.undeadRevived) {
+    defender.currentHP = Math.max(1, Math.round(defender.maxHP * raceConstants.mortVivant.revivePercent));
+    defender.undeadRevived = true;
+    return true;
+  }
+
+  return false;
+};
+
+const getCritChance = (attacker) => {
+  let critChance = calcCritChance({ class: attacker.class, race: attacker.race, base: attacker.stats });
+  if (attacker.awakening?.critChanceBonus) {
+    critChance += attacker.awakening.critChanceBonus;
+  }
+  return critChance;
+};
+
+const getCritMultiplier = (attacker) => {
+  let multiplier = generalConstants.critMultiplier;
+  if (attacker.awakening?.critDamageBonus) {
+    multiplier += attacker.awakening.critDamageBonus;
+  }
+  if (attacker.weapon?.id === 'dague_legendaire') {
+    multiplier += weaponConstants.laevateinn.critDamageBonus;
+  }
+  return multiplier;
+};
+
+const applyDamage = (attacker, defender, rawDamage, isCrit, context) => {
+  let damage = rawDamage;
+
+  if (isCrit) {
+    damage = Math.round(damage * getCritMultiplier(attacker));
+    if (defender.passiveDetails?.id === 'obsidian_skin') {
+      damage = Math.round(damage * (1 - defender.passiveDetails.levelData.critReduction));
     }
+  }
 
-    // Masochiste renvoi
-    if (att.class === 'Masochiste') {
-      if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
-        const t = tiers15(att.base.cap);
-        const { returnBase, returnPerTier, healPercent } = classConstants.masochiste;
-        const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerTier * t)));
-        const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
-        att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
-        att.maso_taken = 0;
-        def.currentHP -= dmg;
-        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def);
-        }
-      }
+  if (attacker.passiveDetails?.id === 'spectral_mark' && !defender.spectralMarked) {
+    defender.spectralMarked = true;
+    defender.spectralMarkBonus = attacker.passiveDetails.levelData.damageTakenBonus;
+  }
+
+  let outgoingMultiplier = 1;
+  let incomingMultiplier = 1;
+
+  if (attacker.race === 'Orc' && attacker.currentHP < attacker.maxHP * raceConstants.orc.lowHpThreshold) {
+    outgoingMultiplier *= raceConstants.orc.damageBonus;
+  }
+
+  if (attacker.awakening?.highHpDamageBonus && attacker.currentHP > attacker.maxHP * attacker.awakening.highHpThreshold) {
+    outgoingMultiplier *= 1 + attacker.awakening.highHpDamageBonus;
+  }
+
+  if (attacker.passiveDetails?.id === 'aura_overload' && context.auraBonus) {
+    outgoingMultiplier *= 1 + context.auraBonus;
+  }
+
+  if (context.attackerUnicorn?.outgoing) {
+    outgoingMultiplier *= 1 + context.attackerUnicorn.outgoing;
+  }
+
+  if (attacker.awakening?.damageStackBonus && attacker.dragonkinStacks > 0) {
+    outgoingMultiplier *= 1 + attacker.dragonkinStacks * attacker.awakening.damageStackBonus;
+  }
+
+  if (context.turnEffects?.damageBonus) {
+    outgoingMultiplier *= 1 + context.turnEffects.damageBonus;
+  }
+
+  if (defender.spectralMarked && defender.spectralMarkBonus) {
+    incomingMultiplier *= 1 + defender.spectralMarkBonus;
+  }
+
+  if (context.defenderUnicorn?.incoming) {
+    incomingMultiplier *= 1 + context.defenderUnicorn.incoming;
+  }
+
+  if (defender.awakening?.damageTakenMultiplier) {
+    incomingMultiplier *= defender.awakening.damageTakenMultiplier;
+  }
+
+  if (defender.orcAwakeningHitsRemaining > 0) {
+    incomingMultiplier *= defender.awakening?.incomingHitMultiplier || 1;
+    defender.orcAwakeningHitsRemaining -= 1;
+  }
+
+  damage = Math.max(0, Math.round(damage * outgoingMultiplier * incomingMultiplier));
+
+  if (defender.shield > 0 && damage > 0) {
+    const absorbed = Math.min(defender.shield, damage);
+    defender.shield -= absorbed;
+    damage -= absorbed;
+  }
+
+  defender.currentHP -= damage;
+  if (damage > 0) {
+    defender.masoTaken += damage;
+    if (defender.awakening?.damageStackBonus) {
+      defender.dragonkinStacks += 1;
     }
+  }
 
-    // Lycan saignement
-    if (att.bleed_stacks > 0) {
-      const bleedDmg = Math.ceil(att.bleed_stacks / 3);
-      att.currentHP -= bleedDmg;
-      if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-        reviveUndead(att);
-      }
+  if (attacker.passiveDetails?.id === 'essence_drain' && damage > 0) {
+    const heal = Math.max(1, Math.round(attacker.maxHP * attacker.passiveDetails.levelData.healPercent));
+    attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
+  }
+
+  return damage;
+};
+
+const applyRegenAndDots = (combatant, opponent) => {
+  let regenPercent = 0;
+  if (combatant.race === 'Sylvari') {
+    regenPercent = Math.max(regenPercent, raceConstants.sylvari.regenPercent);
+  }
+  if (combatant.awakening?.regenPercent) {
+    regenPercent = Math.max(regenPercent, combatant.awakening.regenPercent);
+  }
+  if (combatant.weapon?.id === 'baton_legendaire' && !healingClasses.includes(combatant.class)) {
+    regenPercent = Math.max(regenPercent, weaponConstants.yggdrasil.regenPercent);
+  }
+  if (regenPercent > 0) {
+    const heal = Math.max(1, Math.round(combatant.maxHP * regenPercent));
+    combatant.currentHP = Math.min(combatant.maxHP, combatant.currentHP + heal);
+  }
+
+  if (combatant.bleedStacks > 0) {
+    let bleedDamage = Math.ceil(combatant.bleedStacks / raceConstants.lycan.bleedDivisor);
+    if (combatant.awakening?.bleedPercentPerStack) {
+      bleedDamage += Math.max(1, Math.round(combatant.maxHP * combatant.bleedStacks * combatant.awakening.bleedPercentPerStack));
     }
+    applyDirectDamage(opponent, combatant, bleedDamage);
+  }
+};
 
-    // Paladin riposte
-    if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
-      const { reflectBase, reflectPerTier } = classConstants.paladin;
-      att.reflect = reflectBase + reflectPerTier * tiers15(att.base.cap);
+const getTurnEffects = (combatant, turn) => {
+  const effects = {
+    damageBonus: 0,
+    priorityOverride: false,
+    bonusAttacks: 0,
+    bonusAttackDamage: 1,
+    guaranteedCrit: false
+  };
+
+  if (!combatant.weapon) return effects;
+
+  if (combatant.weapon.id === 'epee_legendaire' && turn % weaponConstants.zweihander.triggerEveryNTurns === 0) {
+    effects.damageBonus = weaponConstants.zweihander.damageBonus;
+    effects.priorityOverride = weaponConstants.zweihander.priorityOverride;
+  }
+
+  if (combatant.weapon.id === 'arc_legendaire' && turn % weaponConstants.arcCieux.triggerEveryNTurns === 0) {
+    effects.bonusAttacks = weaponConstants.arcCieux.bonusAttacks;
+    effects.bonusAttackDamage = weaponConstants.arcCieux.bonusAttackDamage;
+  }
+
+  if (combatant.weapon.id === 'dague_legendaire' && turn % weaponConstants.laevateinn.triggerEveryNTurns === 0) {
+    effects.guaranteedCrit = true;
+  }
+
+  return effects;
+};
+
+const onAttack = (attacker, defender) => {
+  attacker.weaponState.attackCount += 1;
+
+  if (attacker.weapon?.id === 'marteau_legendaire' && attacker.weaponState.attackCount % weaponConstants.mjollnir.triggerEveryNAttacks === 0) {
+    defender.stunnedTurns = Math.max(defender.stunnedTurns, weaponConstants.mjollnir.stunDuration);
+  }
+
+  if (attacker.weapon?.id === 'lance_legendaire' && !attacker.weaponState.gungnirApplied) {
+    defender.stats.auto = Math.max(1, Math.round(defender.stats.auto * (1 - weaponConstants.gungnir.atkReductionPercent)));
+    attacker.weaponState.gungnirApplied = true;
+  }
+};
+
+const onSpellCast = (attacker) => {
+  attacker.weaponState.spellCount += 1;
+  if (attacker.weapon?.id === 'tome_legendaire') {
+    if (weaponConstants.codexArchon.doubleCastTriggers.includes(attacker.weaponState.spellCount)) {
+      return weaponConstants.codexArchon.secondCastDamage;
     }
+  }
+  return null;
+};
 
-    // Healer soin
-    if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
-      const miss = att.maxHP - att.currentHP;
-      const { missingHpPercent, capBase, capPerTier } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap));
-      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+const applyClassEffects = (attacker, defender) => {
+  let skillUsed = false;
+  let damageInstances = [];
+  let healAmount = 0;
+
+  const isMage = attacker.class === 'Mage' && attacker.cd.mag === cooldowns.mag;
+  const isWar = attacker.class === 'Guerrier' && attacker.cd.war === cooldowns.war;
+  const isArcher = attacker.class === 'Archer' && attacker.cd.arc === cooldowns.arc;
+  const isDemon = attacker.class === 'Demoniste';
+  const isMaso = attacker.class === 'Masochiste' && attacker.cd.maso === cooldowns.maso && attacker.masoTaken > 0;
+  const isHeal = attacker.class === 'Healer' && attacker.cd.heal === cooldowns.heal;
+
+  if (attacker.class === 'Paladin' && attacker.cd.pal === cooldowns.pal) {
+    const { reflectBase, reflectPerCap } = classConstants.paladin;
+    attacker.reflect = reflectBase + reflectPerCap * tiers15(attacker.stats.cap);
+  }
+
+  if (attacker.class === 'Voleur' && attacker.cd.rog === cooldowns.rog) {
+    attacker.dodge = true;
+  }
+
+  if (isHeal) {
+    skillUsed = true;
+    const miss = attacker.maxHP - attacker.currentHP;
+    const { missingHpPercent, capScale } = classConstants.healer;
+    healAmount = Math.max(1, Math.round(missingHpPercent * miss + capScale * attacker.stats.cap));
+    attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + healAmount);
+    if (attacker.weapon?.id === 'baton_legendaire') {
+      const damage = Math.max(1, Math.round(healAmount * weaponConstants.yggdrasil.healDamagePercent));
+      damageInstances.push({ raw: damage, isSpell: false, isBonusAttack: false });
     }
+  }
 
-    // Voleur esquive
-    if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
-      att.dodge = true;
+  if (isMaso) {
+    skillUsed = true;
+    const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+    const dmg = Math.max(1, Math.round(attacker.masoTaken * (returnBase + returnPerCap * tiers15(attacker.stats.cap))));
+    const heal = Math.max(1, Math.round(attacker.masoTaken * healPercent));
+    attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
+    attacker.masoTaken = 0;
+    damageInstances.push({ raw: dmg, isSpell: false, isBonusAttack: false });
+  }
+
+  if (isDemon) {
+    skillUsed = true;
+    const { capBase, ignoreResist } = classConstants.demoniste;
+    const hit = Math.max(1, Math.round(capBase * attacker.stats.cap));
+    const raw = dmgCap(hit, defender.stats.rescap * (1 - ignoreResist));
+    damageInstances.push({ raw, isSpell: true, isBonusAttack: false });
+  }
+
+  if (isMage) {
+    skillUsed = true;
+    const { capBase, capPerCap } = classConstants.mage;
+    const atkSpell = Math.round(attacker.stats.auto + (capBase + capPerCap * attacker.stats.cap) * attacker.stats.cap);
+    const raw = dmgCap(atkSpell, defender.stats.rescap);
+    damageInstances.push({ raw, isSpell: true, isBonusAttack: false });
+
+    const doubleCast = onSpellCast(attacker);
+    if (doubleCast) {
+      damageInstances.push({ raw: Math.max(1, Math.round(raw * doubleCast)), isSpell: true, isBonusAttack: true });
     }
+  }
 
-    const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
-    const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
-    const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
-
-    // Orc bonus dégâts
-    let mult = 1.0;
-    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
-      mult = raceConstants.orc.damageBonus;
+  if (isWar) {
+    skillUsed = true;
+    const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+    const ignore = ignoreBase + ignorePerCap * attacker.stats.cap;
+    if (defender.stats.def <= defender.stats.rescap) {
+      const effDef = Math.max(0, Math.round(defender.stats.def * (1 - ignore)));
+      damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), effDef), isSpell: false, isBonusAttack: false });
+    } else {
+      const effRes = Math.max(0, Math.round(defender.stats.rescap * (1 - ignore)));
+      damageInstances.push({ raw: dmgCap(Math.round(attacker.stats.cap), effRes), isSpell: true, isBonusAttack: false });
     }
+  }
 
-    // Archer flèches multiples
-    const { arrowsBase, arrowsPerTier } = classConstants.archer;
-    let hits = isArcher ? arrowsBase + arrowsPerTier * tiers15(att.base.cap) : 1;
-
-    for (let i = 0; i < hits; i++) {
-      const isCrit = Math.random() < calcCritChance(att);
-      let raw = 0;
-
-      if (isMage) {
-        const { capBase, capPerTier } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerTier * tiers15(att.base.cap)) * att.base.cap * mult);
-        raw = dmgCap(atkSpell, def.base.rescap);
-      } else if (isWar) {
-        const { ignoreBase, ignorePerTier } = classConstants.guerrier;
-        const ignore = ignoreBase + ignorePerTier * tiers15(att.base.cap);
-        if (def.base.def <= def.base.rescap) {
-          const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
-          raw = dmgPhys(Math.round(att.base.auto * mult), effDef);
-        } else {
-          const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
-          raw = dmgCap(Math.round(att.base.cap * mult), effRes);
-        }
+  if (isArcher) {
+    skillUsed = true;
+    const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+    for (let i = 0; i < hitCount; i++) {
+      if (i === 0) {
+        damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), isSpell: false, isBonusAttack: false });
       } else {
-        raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
-        if (att.race === 'Lycan') {
-          def.bleed_stacks = (def.bleed_stacks || 0) + raceConstants.lycan.bleedPerHit;
-        }
+        const phys = dmgPhys(Math.round(attacker.stats.auto * hit2AutoMultiplier), defender.stats.def);
+        const cap = dmgCap(Math.round(attacker.stats.cap * hit2CapMultiplier), defender.stats.rescap);
+        damageInstances.push({ raw: phys + cap, isSpell: false, isBonusAttack: false });
       }
+    }
+  }
 
-      // Crit multiplier (x1.5 pour tous)
-      if (isCrit) {
-        raw = Math.round(raw * generalConstants.critMultiplier);
+  if (!skillUsed && damageInstances.length === 0) {
+    damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), isSpell: false, isBonusAttack: false });
+  }
+
+  return { damageInstances, skillUsed };
+};
+
+const resolveAttackerTurn = (attacker, defender, turn) => {
+  if (attacker.currentHP <= 0 || defender.currentHP <= 0) return;
+
+  applyRegenAndDots(attacker, defender);
+  if (attacker.currentHP <= 0) {
+    if (!handleDeath(attacker, defender)) {
+      return;
+    }
+  }
+
+  if (attacker.stunnedTurns > 0) {
+    attacker.stunnedTurns -= 1;
+    return;
+  }
+
+  Object.keys(cooldowns).forEach((key) => {
+    attacker.cd[key] = (attacker.cd[key] % cooldowns[key]) + 1;
+  });
+
+  const turnEffects = getTurnEffects(attacker, turn);
+  const attackerUnicorn = getUnicornPactTurnData(attacker.passiveDetails, turn);
+  const defenderUnicorn = getUnicornPactTurnData(defender.passiveDetails, turn);
+  const auraBonus = getAuraBonus(attacker.passiveDetails, turn);
+
+  const { damageInstances, skillUsed } = applyClassEffects(attacker, defender);
+
+  const hasGuaranteedCrit = turnEffects.guaranteedCrit || (attacker.passiveDetails?.id === 'obsidian_skin'
+    && attacker.currentHP <= attacker.maxHP * attacker.passiveDetails.levelData.critThreshold);
+
+  for (const instance of damageInstances) {
+    if (attacker.currentHP <= 0 || defender.currentHP <= 0) break;
+
+    if (defender.dodge) {
+      defender.dodge = false;
+      continue;
+    }
+
+    const isCrit = hasGuaranteedCrit ? true : Math.random() < getCritChance(attacker);
+    let raw = instance.raw;
+
+    const inflicted = applyDamage(attacker, defender, raw, isCrit, {
+      turn,
+      turnEffects,
+      attackerUnicorn,
+      defenderUnicorn,
+      auraBonus
+    });
+
+    if (inflicted > 0 && defender.reflect) {
+      const reflected = Math.round(defender.reflect * inflicted);
+      applyDirectDamage(defender, attacker, reflected);
+    }
+
+    if (!instance.isSpell) {
+      onAttack(attacker, defender);
+      if (attacker.race === 'Lycan') {
+        defender.bleedStacks += raceConstants.lycan.bleedPerHit;
       }
-
-      if (def.dodge) {
-        def.dodge = false;
-        raw = 0;
+      if (attacker.awakening?.bleedStacksPerHit) {
+        defender.bleedStacks += attacker.awakening.bleedStacksPerHit;
       }
+    }
 
-      if (def.reflect && raw > 0) {
-        const back = Math.round(def.reflect * raw);
-        att.currentHP -= back;
-      }
-
-      def.currentHP -= raw;
-      if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
-
-      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def);
-      } else if (def.currentHP <= 0) {
+    if (defender.currentHP <= 0) {
+      if (!handleDeath(defender, attacker)) {
         break;
       }
     }
-  });
+  }
+
+  if (attacker.passiveDetails?.id === 'elemental_fury' && skillUsed) {
+    const lightning = Math.max(1, Math.round(attacker.stats.auto * attacker.passiveDetails.levelData.lightningPercent));
+    applyDamage(attacker, defender, lightning, false, {
+      turn,
+      turnEffects,
+      attackerUnicorn,
+      defenderUnicorn,
+      auraBonus
+    });
+  }
+
+  if (turnEffects.bonusAttacks > 0) {
+    for (let i = 0; i < turnEffects.bonusAttacks; i++) {
+      if (defender.currentHP <= 0) break;
+      const raw = Math.max(1, Math.round(dmgPhys(attacker.stats.auto, defender.stats.def) * turnEffects.bonusAttackDamage));
+      applyDamage(attacker, defender, raw, false, {
+        turn,
+        turnEffects,
+        attackerUnicorn,
+        defenderUnicorn,
+        auraBonus
+      });
+    }
+  }
 };
 
-const simulateSingleCombat = () => {
-  const p1 = generateCharacter('P1');
-  const p2 = generateCharacter('P2');
+const getTurnOrder = (p1, p2, turn) => {
+  const p1TurnEffects = getTurnEffects(p1, turn);
+  const p2TurnEffects = getTurnEffects(p2, turn);
+  const p1Unicorn = getUnicornPactTurnData(p1.passiveDetails, turn);
+  const p2Unicorn = getUnicornPactTurnData(p2.passiveDetails, turn);
+
+  const p1Priority = p1.stats.spd + (p1TurnEffects.priorityOverride ? 10000 : 0) + (p1Unicorn?.label === 'Tour A' ? 5000 : 0);
+  const p2Priority = p2.stats.spd + (p2TurnEffects.priorityOverride ? 10000 : 0) + (p2Unicorn?.label === 'Tour A' ? 5000 : 0);
+
+  if (p1Priority === p2Priority) {
+    return Math.random() < 0.5 ? [p1, p2] : [p2, p1];
+  }
+  return p1Priority >= p2Priority ? [p1, p2] : [p2, p1];
+};
+
+const simulateCombat = (attackerInput, defenderInput, maxTurns = generalConstants.maxTurns) => {
+  const p1 = buildCombatant(attackerInput);
+  const p2 = buildCombatant(defenderInput);
+
+  applyStartOfCombatPassives(p1, p2);
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
-    processTurn(p1, p2);
-    turn++;
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
+    const [first, second] = getTurnOrder(p1, p2, turn);
+    const other = first === p1 ? p2 : p1;
+
+    resolveAttackerTurn(first, other, turn);
+    if (p1.currentHP <= 0 || p2.currentHP <= 0) break;
+
+    resolveAttackerTurn(other, first, turn);
+    turn += 1;
   }
 
   return {
     winner: p1.currentHP > 0 ? 'P1' : 'P2',
+    turns: Math.min(turn, maxTurns),
     p1Race: p1.race,
     p1Class: p1.class,
     p2Race: p2.race,
-    p2Class: p2.class,
-    turns: turn - 1
+    p2Class: p2.class
+  };
+};
+
+export const simulateMany = (attacker, defender, simulationsCount = 1000) => {
+  let p1Wins = 0;
+  let p2Wins = 0;
+  let totalTurns = 0;
+
+  for (let i = 0; i < simulationsCount; i++) {
+    const result = simulateCombat(clone(attacker), clone(defender));
+    totalTurns += result.turns;
+    if (result.winner === 'P1') {
+      p1Wins += 1;
+    } else {
+      p2Wins += 1;
+    }
+  }
+
+  return {
+    simulations: simulationsCount,
+    p1Wins,
+    p2Wins,
+    p1WinRate: p1Wins / simulationsCount,
+    p2WinRate: p2Wins / simulationsCount,
+    averageTurns: totalTurns / simulationsCount
   };
 };
 
@@ -253,7 +723,9 @@ const runSimulation = (numCombats = 1000) => {
   });
 
   for (let i = 0; i < numCombats; i++) {
-    const result = simulateSingleCombat();
+    const p1 = generateCharacter('P1');
+    const p2 = generateCharacter('P2');
+    const result = simulateCombat(p1, p2);
     results.push(result);
     totalTurns += result.turns;
 
@@ -326,5 +798,5 @@ const runSimulation = (numCombats = 1000) => {
 };
 
 // Lancer la simulation
-const numCombats = parseInt(process.argv[2]) || 1000;
+const numCombats = parseInt(process.argv[2], 10) || 1000;
 runSimulation(numCombats);
