@@ -43,10 +43,10 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 2 premières attaques subies infligent 50% dégâts',
+      description: 'Les 4 premières attaques subies infligent 40% dégâts',
       effect: {
-        incomingHitMultiplier: 0.5,
-        incomingHitCount: 2
+        incomingHitMultiplier: 0.4,
+        incomingHitCount: 4
       }
     }
   },
@@ -84,10 +84,10 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort: explosion 30% PV max + résurrection 25% PV max',
+      description: 'Première mort: explosion 10% PV max + résurrection 20% PV max',
       effect: {
-        explosionPercent: 0.3,
-        revivePercent: 0.25,
+        explosionPercent: 0.1,
+        revivePercent: 0.2,
         reviveOnce: true
       }
     }

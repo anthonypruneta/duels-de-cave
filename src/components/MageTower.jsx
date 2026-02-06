@@ -386,14 +386,15 @@ const MageTower = () => {
       }
 
       case 'Demoniste': {
-        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
         const familierPct = capBase + capPerCap * cap;
         const familierDmgTotal = Math.round(familierPct * cap);
         const ignoreResPct = Math.round(ignoreResist * 100);
+        const stackBonusPct = Math.round(stackPerAuto * 100);
         return (
           <>
             Chaque tour:{' '}
-            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | Ignore ${ignoreResPct}% ResC`}>
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable) | Ignore ${ignoreResPct}% ResC`}>
               <span className="text-green-400">{familierDmgTotal}</span>
             </Tooltip>
             {' '}dégâts (ignore {ignoreResPct}% ResC)
@@ -440,6 +441,7 @@ const MageTower = () => {
       reflect: false,
       bleed_stacks: 0,
       maso_taken: 0,
+      familiarStacks: 0,
       shield: 0,
       shieldExploded: false,
       spectralMarked: false,
@@ -457,6 +459,7 @@ const MageTower = () => {
     p.reflect = false;
     p.bleed_stacks = 0;
     p.maso_taken = 0;
+    p.familiarStacks = 0;
     p.shield = 0;
     p.shieldExploded = false;
     p.stunned = false;
@@ -624,8 +627,9 @@ const MageTower = () => {
     }
 
     if (att.class === 'Demoniste') {
-      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const stackBonus = stackPerAuto * (att.familiarStacks || 0);
+      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       const inflicted = resolveDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
@@ -770,6 +774,9 @@ const MageTower = () => {
       }
 
       const inflicted = resolveDamage(raw, isCrit);
+      if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
+        att.familiarStacks = (att.familiarStacks || 0) + 1;
+      }
 
       if (!isMage) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted);

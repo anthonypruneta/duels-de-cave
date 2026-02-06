@@ -189,14 +189,15 @@ const CharacterCreation = () => {
       }
 
       case 'Demoniste': {
-        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
         const familierPct = capBase + capPerCap * cap;
         const familierDmgTotal = Math.round(familierPct * cap);
         const ignoreResPct = Math.round(ignoreResist * 100);
+        const stackBonusPct = Math.round(stackPerAuto * 100);
         return (
           <>
             Chaque tour:{' '}
-            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | Ignore ${ignoreResPct}% ResC`}>
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable) | Ignore ${ignoreResPct}% ResC`}>
               <span className="text-green-400">{familierDmgTotal}</span>
             </Tooltip>
             {' '}dégâts (ignore {ignoreResPct}% ResC)
