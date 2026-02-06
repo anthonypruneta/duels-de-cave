@@ -19,8 +19,10 @@ import {
   weaponConstants,
   dmgPhys,
   dmgCap,
-  calcCritChance
+  calcCritChance,
+  getCritMultiplier
 } from '../data/combatMechanics';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import {
@@ -459,18 +461,22 @@ const ForestDungeon = () => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
+    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
     const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
-      base: baseWithWeapon,
-      baseWithoutWeapon: baseWithBoosts,
-      currentHP: baseWithWeapon.hp,
-      maxHP: baseWithWeapon.hp,
+      base: baseWithAwakening,
+      baseWithoutWeapon,
+      currentHP: baseWithAwakening.hp,
+      maxHP: baseWithAwakening.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
       undead: false,
       dodge: false,
       reflect: false,
       bleed_stacks: 0,
+      bleedPercentPerStack: 0,
       maso_taken: 0,
       familiarStacks: 0,
       shield: 0,
@@ -478,7 +484,8 @@ const ForestDungeon = () => {
       spectralMarkBonus: 0,
       stunned: false,
       stunnedTurns: 0,
-      weaponState
+      weaponState,
+      awakening: buildAwakeningState(awakeningEffect)
     };
   };
 
@@ -488,18 +495,59 @@ const ForestDungeon = () => {
     p.dodge = false;
     p.reflect = false;
     p.bleed_stacks = 0;
+    p.bleedPercentPerStack = 0;
     p.maso_taken = 0;
     p.familiarStacks = 0;
     p.stunned = false;
     p.stunnedTurns = 0;
+    if (p.awakening) {
+      p.awakening.incomingHitCountRemaining = p.awakening.incomingHitCount ?? 0;
+      p.awakening.damageTakenStacks = 0;
+    }
     p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
   };
 
-  const reviveUndead = (target, log, playerColor) => {
-    const revive = Math.max(1, Math.round(raceConstants.mortVivant.revivePercent * target.maxHP));
+  const reviveUndead = (target, attacker, log, playerColor) => {
+    const revivePercent = target.awakening?.revivePercent ?? raceConstants.mortVivant.revivePercent;
+    const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
+    const explosionPercent = target.awakening?.explosionPercent ?? 0;
+    if (attacker && explosionPercent > 0) {
+      let explosion = Math.max(1, Math.round(explosionPercent * target.maxHP));
+      if (attacker.awakening?.damageTakenMultiplier) {
+        explosion = Math.max(1, Math.round(explosion * attacker.awakening.damageTakenMultiplier));
+      }
+      attacker.currentHP -= explosion;
+      if (attacker.awakening?.damageStackBonus) {
+        attacker.awakening.damageTakenStacks += 1;
+      }
+      log.push(`${playerColor} 💥 L'éveil de ${target.name} explose et inflige ${explosion} dégâts à ${attacker.name}`);
+    }
     target.undead = true;
     target.currentHP = revive;
     log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
+  };
+
+  const applyIncomingAwakeningModifiers = (defender, damage) => {
+    let adjusted = damage;
+    if (defender.awakening?.incomingHitMultiplier && defender.awakening.incomingHitCountRemaining > 0) {
+      adjusted = Math.round(adjusted * defender.awakening.incomingHitMultiplier);
+      defender.awakening.incomingHitCountRemaining -= 1;
+    }
+    if (defender.awakening?.damageTakenMultiplier) {
+      adjusted = Math.round(adjusted * defender.awakening.damageTakenMultiplier);
+    }
+    return adjusted;
+  };
+
+  const applyOutgoingAwakeningBonus = (attacker, damage) => {
+    let adjusted = damage;
+    if (attacker.awakening?.highHpDamageBonus && attacker.currentHP > attacker.maxHP * (attacker.awakening.highHpThreshold ?? 1)) {
+      adjusted = Math.round(adjusted * (1 + attacker.awakening.highHpDamageBonus));
+    }
+    if (attacker.awakening?.damageStackBonus && attacker.awakening.damageTakenStacks > 0) {
+      adjusted = Math.round(adjusted * (1 + attacker.awakening.damageStackBonus * attacker.awakening.damageTakenStacks));
+    }
+    return adjusted;
   };
 
   const getUnicornMultiplier = (turn) => (turn % 2 === 1 ? 1.15 : 0.85);
@@ -525,7 +573,7 @@ const ForestDungeon = () => {
     let skillUsed = false;
 
     const applyMageTowerDamage = (raw, isCrit) => {
-      let adjusted = raw;
+      let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
         if (unicornData) {
@@ -544,6 +592,7 @@ const ForestDungeon = () => {
       if (!isPlayer && isCrit && playerPassive?.id === 'obsidian_skin') {
         adjusted = Math.round(adjusted * (1 - playerPassive.levelData.critReduction));
       }
+      adjusted = applyIncomingAwakeningModifiers(def, adjusted);
 
       if (def.dodge) {
         def.dodge = false;
@@ -567,6 +616,9 @@ const ForestDungeon = () => {
       if (adjusted > 0) {
         def.currentHP -= adjusted;
         def.maso_taken = (def.maso_taken || 0) + adjusted;
+        if (def.awakening?.damageStackBonus) {
+          def.awakening.damageTakenStacks += 1;
+        }
       }
 
       if (isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
@@ -606,7 +658,8 @@ const ForestDungeon = () => {
     }
 
     if (att.race === 'Sylvari') {
-      const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
+      const regenPercent = att.awakening?.regenPercent ?? raceConstants.sylvari.regenPercent;
+      const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
     }
@@ -621,7 +674,7 @@ const ForestDungeon = () => {
       const inflicted = applyMageTowerDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def, log, playerColor);
+        reviveUndead(def, att, log, playerColor);
       }
     }
 
@@ -639,17 +692,22 @@ const ForestDungeon = () => {
         const inflicted = applyMageTowerDamage(raw, false);
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, log, playerColor);
+          reviveUndead(def, att, log, playerColor);
         }
       }
     }
 
     if (att.bleed_stacks > 0) {
-      const bleedDmg = Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
+      let bleedDmg = att.bleedPercentPerStack
+        ? Math.max(1, Math.round(att.maxHP * att.bleedPercentPerStack * att.bleed_stacks))
+        : Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
+      if (att.awakening?.damageTakenMultiplier) {
+        bleedDmg = Math.max(1, Math.round(bleedDmg * att.awakening.damageTakenMultiplier));
+      }
       att.currentHP -= bleedDmg;
       log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
       if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-        reviveUndead(att, log, playerColor);
+        reviveUndead(att, def, log, playerColor);
       }
     }
 
@@ -747,12 +805,16 @@ const ForestDungeon = () => {
       } else {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
         if (att.race === 'Lycan') {
-          def.bleed_stacks = (def.bleed_stacks || 0) + raceConstants.lycan.bleedPerHit;
+          const bleedStacks = att.awakening?.bleedStacksPerHit ?? raceConstants.lycan.bleedPerHit;
+          def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+          if (att.awakening?.bleedPercentPerStack) {
+            def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
+          }
         }
       }
 
       if (isCrit) {
-        const critDamage = Math.round(raw * generalConstants.critMultiplier);
+        const critDamage = Math.round(raw * getCritMultiplier(att));
         raw = modifyCritDamage(att.weaponState, critDamage);
       }
 
@@ -784,7 +846,7 @@ const ForestDungeon = () => {
       }
 
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def, log, playerColor);
+        reviveUndead(def, att, log, playerColor);
       } else if (def.currentHP <= 0) {
         total += inflicted;
         break;
