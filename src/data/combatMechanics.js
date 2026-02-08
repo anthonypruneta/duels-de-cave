@@ -50,7 +50,7 @@ export const classConstants = {
   masochiste: {
     returnBase: 0.15,      // 15% des dégâts accumulés
     returnPerCap: 0.02,    // +2% par point de Cap
-    healPercent: 0.10      // Heal 10% des dégâts encaissés
+    healPercent: 0.50      // Heal 50% des dégâts encaissés
   }
 };
 
