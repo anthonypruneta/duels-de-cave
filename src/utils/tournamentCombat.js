@@ -1,6 +1,7 @@
 /**
  * Simulation de combat PvP pour le tournoi
  * Réplique fidèle du moteur de Combat.jsx en version synchrone
+ * Retourne des "steps" avec snapshots HP pour l'animation client
  */
 
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -392,26 +393,36 @@ function processPlayerAction(att, def, log, isP1, turn) {
 }
 
 // ============================================================================
-// SIMULATION COMPLÈTE (synchrone)
+// SIMULATION COMPLÈTE (synchrone) — avec steps pour animation
 // ============================================================================
 
 export function simulerMatch(char1, char2) {
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);
 
-  const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
-  applyStartOfCombatPassives(p1, p2, logs, '[P1]');
-  applyStartOfCombatPassives(p2, p1, logs, '[P2]');
+  const allLogs = [];
+  const steps = [];
+
+  // Phase intro
+  const introLogs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
+  applyStartOfCombatPassives(p1, p2, introLogs, '[P1]');
+  applyStartOfCombatPassives(p2, p1, introLogs, '[P2]');
+  allLogs.push(...introLogs);
+  steps.push({ phase: 'intro', logs: introLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
 
   let turn = 1;
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
-    logs.push(`--- Début du tour ${turn} ---`);
-
+    // Turn start
+    const turnStartLogs = [`--- Début du tour ${turn} ---`];
     const p1Unicorn = getUnicornPactTurnData(getPassiveDetails(p1.mageTowerPassive), turn);
     const p2Unicorn = getUnicornPactTurnData(getPassiveDetails(p2.mageTowerPassive), turn);
-    if (p1Unicorn) logs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
-    if (p2Unicorn) logs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
+    if (p1Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
+    if (p2Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
 
+    allLogs.push(...turnStartLogs);
+    steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
+
+    // Determine order
     const p1HasPriority = p1.weaponState?.isLegendary
       && p1.weaponState.weaponId === 'epee_legendaire'
       && ((p1.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
@@ -434,10 +445,18 @@ export function simulerMatch(char1, char2) {
     const second = first === p1 ? p2 : p1;
     const firstIsP1 = first === p1;
 
-    processPlayerAction(first, second, logs, firstIsP1, turn);
+    // First player action
+    const firstActionLogs = [];
+    processPlayerAction(first, second, firstActionLogs, firstIsP1, turn);
+    allLogs.push(...firstActionLogs);
+    steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
 
+    // Second player action
     if (p1.currentHP > 0 && p2.currentHP > 0) {
-      processPlayerAction(second, first, logs, !firstIsP1, turn);
+      const secondActionLogs = [];
+      processPlayerAction(second, first, secondActionLogs, !firstIsP1, turn);
+      allLogs.push(...secondActionLogs);
+      steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
     }
 
     turn++;
@@ -446,10 +465,15 @@ export function simulerMatch(char1, char2) {
   const winnerIsP1 = p1.currentHP > 0;
   const winner = winnerIsP1 ? p1 : p2;
   const loser = winnerIsP1 ? p2 : p1;
-  logs.push(`🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`);
+  const victoryLog = `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
+  allLogs.push(victoryLog);
+  steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP });
 
   return {
-    combatLog: logs,
+    combatLog: allLogs,
+    steps,
+    p1MaxHP: p1.maxHP,
+    p2MaxHP: p2.maxHP,
     winnerId: winner.userId || winner.id,
     winnerNom: winner.name,
     loserId: loser.userId || loser.id,

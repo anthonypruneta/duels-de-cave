@@ -1,5 +1,6 @@
 /**
  * Service Firestore pour le système de tournoi
+ * Les matchs sont simulés 1 par 1 en direct (pas de pré-simulation)
  */
 
 import { db } from '../firebase/config';
@@ -111,7 +112,43 @@ export async function creerTournoi() {
 }
 
 // ============================================================================
-// LANCER LE TOURNOI (pré-simuler tous les matchs)
+// SIMULER UN MATCH UNIQUE ET STOCKER LE RÉSULTAT
+// ============================================================================
+
+function simulerUnMatch(matches, participants, matchId) {
+  const match = matches[matchId];
+  if (!match || match.statut === 'bye' || match.statut === 'termine') return null;
+
+  const p1Data = participants[match.p1];
+  const p2Data = participants[match.p2];
+  if (!p1Data || !p2Data) return null;
+
+  const result = simulerMatch(p1Data, p2Data);
+  resoudreMatch(matches, matchId, result.winnerId, result.loserId);
+
+  const annonceDebut = annonceDebutMatch(p1Data.nom, p2Data.nom, match.bracket, match.roundLabel);
+  const annonceFin = annonceFinMatch(result.winnerNom, result.loserNom);
+
+  return {
+    combatLogData: {
+      combatLog: result.combatLog,
+      steps: result.steps,
+      p1MaxHP: result.p1MaxHP,
+      p2MaxHP: result.p2MaxHP,
+      annonceDebut,
+      annonceFin,
+      p1Nom: p1Data.nom,
+      p2Nom: p2Data.nom,
+      winnerNom: result.winnerNom,
+      loserNom: result.loserNom,
+    },
+    winnerId: result.winnerId,
+    loserId: result.loserId,
+  };
+}
+
+// ============================================================================
+// LANCER LE TOURNOI (simule uniquement le premier match)
 // ============================================================================
 
 export async function lancerTournoi() {
@@ -123,83 +160,23 @@ export async function lancerTournoi() {
     if (tournoi.statut !== 'preparation') return { success: false, error: 'Le tournoi a déjà été lancé' };
 
     const { matches, matchOrder, participants } = tournoi;
-    const combatLogs = {};
+    const firstMatchId = matchOrder[0];
 
-    // Simuler tous les matchs dans l'ordre
-    for (const matchId of matchOrder) {
-      const match = matches[matchId];
-      if (!match || match.statut === 'bye' || match.statut === 'termine') continue;
+    // Simuler le premier match uniquement
+    const result = simulerUnMatch(matches, participants, firstMatchId);
+    if (!result) return { success: false, error: 'Impossible de simuler le premier match' };
 
-      const p1Data = participants[match.p1];
-      const p2Data = participants[match.p2];
-
-      if (!p1Data || !p2Data) continue;
-
-      // Simuler le combat
-      const result = simulerMatch(p1Data, p2Data);
-
-      // Résoudre le match dans le bracket
-      resoudreMatch(matches, matchId, result.winnerId, result.loserId);
-
-      // Générer les annonces
-      const p1Nom = p1Data.nom;
-      const p2Nom = p2Data.nom;
-      const annonceDebut = annonceDebutMatch(p1Nom, p2Nom, match.bracket, match.roundLabel);
-      const annonceFin = annonceFinMatch(result.winnerNom, result.loserNom);
-
-      // Stocker le combat log
-      combatLogs[matchId] = {
-        combatLog: result.combatLog,
-        annonceDebut,
-        annonceFin,
-        p1Nom,
-        p2Nom,
-        winnerNom: result.winnerNom,
-        loserNom: result.loserNom,
-      };
-
-      // Si un GFR a été créé, le simuler aussi
-      if (matchId === 'GF' && matches['GFR'] && matches['GFR'].statut === 'en_attente') {
-        // GFR doit être simulé
-        matchOrder.push('GFR');
-      }
-    }
-
-    // Déterminer le champion
-    const gfrMatch = matches['GFR'];
-    const gfMatch = matches['GF'];
-    let championId;
-    if (gfrMatch && gfrMatch.winnerId) {
-      championId = gfrMatch.winnerId;
-    } else {
-      championId = gfMatch.winnerId;
-    }
-
-    const championData = tournoi.participantsList.find(p => p.userId === championId);
-    const champion = championData ? {
-      userId: championData.userId,
-      nom: championData.nom,
-      race: championData.race,
-      classe: championData.classe,
-      characterImage: championData.characterImage
-    } : null;
+    // Stocker le combat log
+    await setDoc(doc(db, 'tournaments', 'current', 'combatLogs', firstMatchId), result.combatLogData);
 
     // Mettre à jour le tournoi
     await updateDoc(doc(db, 'tournaments', 'current'), {
       statut: 'en_cours',
       matches,
-      matchOrder,
       matchActuel: 0,
-      champion,
-      annonceChampion: champion ? annonceChampion(champion.nom) : null,
     });
 
-    // Stocker les combat logs dans une sous-collection
-    for (const [matchId, logData] of Object.entries(combatLogs)) {
-      await setDoc(doc(db, 'tournaments', 'current', 'combatLogs', matchId), logData);
-    }
-
-    return { success: true, champion };
+    return { success: true };
   } catch (error) {
     console.error('Erreur lancement tournoi:', error);
     return { success: false, error: error.message };
@@ -207,7 +184,7 @@ export async function lancerTournoi() {
 }
 
 // ============================================================================
-// AVANCER AU MATCH SUIVANT
+// AVANCER AU MATCH SUIVANT (simule le prochain match)
 // ============================================================================
 
 export async function avancerMatch() {
@@ -216,20 +193,93 @@ export async function avancerMatch() {
     if (!tournoiDoc.exists()) return { success: false, error: 'Aucun tournoi trouvé' };
 
     const tournoi = tournoiDoc.data();
+    const { matches, participants, participantsList } = tournoi;
+    let matchOrder = [...tournoi.matchOrder];
     const nextIndex = (tournoi.matchActuel ?? -1) + 1;
 
-    if (nextIndex >= tournoi.matchOrder.length) {
-      // Tournoi terminé - passer au statut termine
-      await updateDoc(doc(db, 'tournaments', 'current'), {
-        statut: 'termine',
-        matchActuel: nextIndex
-      });
-      return { success: true, termine: true };
+    // Vérifier si un GFR a été créé et doit être ajouté
+    if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
+      matchOrder.push('GFR');
     }
 
-    await updateDoc(doc(db, 'tournaments', 'current'), {
-      matchActuel: nextIndex
-    });
+    // Si on a dépassé tous les matchs → tournoi terminé
+    if (nextIndex >= matchOrder.length) {
+      const gfrMatch = matches['GFR'];
+      const gfMatch = matches['GF'];
+      let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
+      const championData = participantsList.find(p => p.userId === championId);
+      const champion = championData ? {
+        userId: championData.userId,
+        nom: championData.nom,
+        race: championData.race,
+        classe: championData.classe,
+        characterImage: championData.characterImage
+      } : null;
+
+      await updateDoc(doc(db, 'tournaments', 'current'), {
+        statut: 'termine',
+        matchActuel: nextIndex,
+        matchOrder,
+        champion,
+        annonceChampion: champion ? annonceChampion(champion.nom) : null,
+      });
+      return { success: true, termine: true, champion };
+    }
+
+    const nextMatchId = matchOrder[nextIndex];
+
+    // Simuler le prochain match
+    const result = simulerUnMatch(matches, participants, nextMatchId);
+
+    if (!result) {
+      // Match bye ou erreur → passer au suivant
+      await updateDoc(doc(db, 'tournaments', 'current'), {
+        matchActuel: nextIndex,
+        matchOrder,
+        matches,
+      });
+      return { success: true, termine: false, matchIndex: nextIndex, skipped: true };
+    }
+
+    // Stocker le combat log
+    await setDoc(doc(db, 'tournaments', 'current', 'combatLogs', nextMatchId), result.combatLogData);
+
+    // Préparer la mise à jour
+    let updateData = {
+      matchActuel: nextIndex,
+      matches,
+      matchOrder,
+    };
+
+    // Vérifier si c'est le dernier match (pour déterminer le champion)
+    // Mais un GFR peut encore être créé par le GF
+    const isLastInOrder = nextIndex >= matchOrder.length - 1;
+    if (isLastInOrder) {
+      // Vérifier si GFR a été créé par la résolution du GF
+      if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
+        matchOrder.push('GFR');
+        updateData.matchOrder = matchOrder;
+        // Pas encore terminé, le GFR doit être joué
+      } else {
+        // Déterminer le champion
+        const gfrMatch = matches['GFR'];
+        const gfMatch = matches['GF'];
+        let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
+        const championData = participantsList.find(p => p.userId === championId);
+        if (championData) {
+          updateData.champion = {
+            userId: championData.userId,
+            nom: championData.nom,
+            race: championData.race,
+            classe: championData.classe,
+            characterImage: championData.characterImage
+          };
+          updateData.annonceChampion = annonceChampion(championData.nom);
+        }
+      }
+    }
+
+    await updateDoc(doc(db, 'tournaments', 'current'), updateData);
 
     return { success: true, termine: false, matchIndex: nextIndex };
   } catch (error) {
