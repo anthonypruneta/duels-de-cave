@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage } from '../services/characterService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
+import { simulerTournoiTest } from '../services/tournamentService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 
@@ -27,6 +28,10 @@ const Admin = () => {
   const [annonceMention, setAnnonceMention] = useState(false);
   const [annonceEnvoi, setAnnonceEnvoi] = useState(false);
   const [annonceSucces, setAnnonceSucces] = useState(false);
+
+  // États pour la simulation de tournoi
+  const [simulationLoading, setSimulationLoading] = useState(false);
+  const [simulationResult, setSimulationResult] = useState(null);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -321,6 +326,15 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     setAnnonceEnvoi(false);
   };
 
+  // Simulation de tournoi test
+  const handleSimulerTournoi = async () => {
+    setSimulationLoading(true);
+    setSimulationResult(null);
+    const result = await simulerTournoiTest();
+    setSimulationResult(result);
+    setSimulationLoading(false);
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -409,6 +423,65 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               {annonceEnvoi ? '⏳ Envoi en cours...' : annonceSucces ? '✅ Envoyé !' : '📤 Envoyer sur Discord'}
             </button>
           </div>
+        </div>
+
+        {/* Section Simulation Tournoi */}
+        <div className="bg-stone-900/70 border-2 border-amber-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-amber-300 mb-4">🏆 Simulation de Tournoi</h2>
+          <p className="text-stone-400 text-sm mb-4">Simule un tournoi complet avec tous les personnages disponibles. Aucune donnée n'est sauvegardée, pas d'annonce Discord.</p>
+
+          <button
+            onClick={handleSimulerTournoi}
+            disabled={simulationLoading}
+            className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition mb-4"
+          >
+            {simulationLoading ? '⏳ Simulation en cours...' : '🎲 Simuler un tournoi'}
+          </button>
+
+          {simulationResult && !simulationResult.success && (
+            <div className="bg-red-900/50 border border-red-500 rounded-lg p-4">
+              <p className="text-red-300">{simulationResult.error}</p>
+            </div>
+          )}
+
+          {simulationResult && simulationResult.success && (
+            <div className="space-y-4">
+              {/* Champion */}
+              <div className="bg-gradient-to-r from-yellow-900/50 via-amber-800/50 to-yellow-900/50 border-2 border-yellow-500 p-6 rounded-xl text-center">
+                <div className="text-4xl mb-2">👑</div>
+                {simulationResult.champion?.characterImage && (
+                  <img src={simulationResult.champion.characterImage} alt={simulationResult.champion.nom} className="w-24 h-auto mx-auto mb-2 object-contain" />
+                )}
+                <h3 className="text-2xl font-bold text-yellow-300">{simulationResult.champion?.nom}</h3>
+                <p className="text-amber-300 text-sm">{simulationResult.champion?.race} • {simulationResult.champion?.classe}</p>
+                <p className="text-stone-400 text-xs mt-2">
+                  {simulationResult.nbParticipants} participants • {simulationResult.nbMatchs} matchs joués
+                </p>
+              </div>
+
+              {/* Liste des matchs */}
+              <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4 max-h-[400px] overflow-y-auto">
+                <h4 className="text-stone-300 font-bold mb-3">Résultats des matchs</h4>
+                <div className="space-y-2">
+                  {simulationResult.resultatsMatchs.map((m, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm bg-stone-900/50 p-2 rounded border border-stone-700">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        m.bracket === 'winners' ? 'bg-amber-900/50 text-amber-300' :
+                        m.bracket === 'losers' ? 'bg-red-900/50 text-red-300' :
+                        'bg-yellow-900/50 text-yellow-300'
+                      }`}>
+                        {m.roundLabel}
+                      </span>
+                      <span className={m.winnerNom === m.p1Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p1Nom}</span>
+                      <span className="text-stone-600">vs</span>
+                      <span className={m.winnerNom === m.p2Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p2Nom}</span>
+                      <span className="text-stone-500 text-xs ml-auto">{m.nbTours} tours</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Canvas caché pour le traitement */}

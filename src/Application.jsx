@@ -7,6 +7,9 @@ import Dungeon from './components/Dungeon';
 import DungeonSelection from './components/DungeonSelection';
 import ForestDungeon from './components/ForestDungeon';
 import MageTower from './components/MageTower';
+import Tournament from './components/Tournament';
+import HallOfFame from './components/HallOfFame';
+import MesAnciensPersonnages from './components/MesAnciensPersonnages';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -62,6 +65,30 @@ function Application() {
             element={
               <ProtectedRoute>
                 <MageTower />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tournament"
+            element={
+              <ProtectedRoute>
+                <Tournament />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hall-of-fame"
+            element={
+              <ProtectedRoute>
+                <HallOfFame />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mes-anciens-personnages"
+            element={
+              <ProtectedRoute>
+                <MesAnciensPersonnages />
               </ProtectedRoute>
             }
           />
