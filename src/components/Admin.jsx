@@ -33,6 +33,9 @@ const Admin = () => {
   const [simulationLoading, setSimulationLoading] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
 
+  // Onglet actif/désactivé
+  const [adminTab, setAdminTab] = useState('actifs');
+
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -385,7 +388,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h1 className="text-5xl font-bold mb-4 text-stone-300">🎯 Backoffice Admin</h1>
             <p className="text-stone-400 text-lg">
-              {characters.length} personnage{characters.length > 1 ? 's' : ''} créé{characters.length > 1 ? 's' : ''}
+              {characters.filter(c => !c.disabled).length} actif{characters.filter(c => !c.disabled).length > 1 ? 's' : ''} • {characters.filter(c => c.disabled).length} désactivé{characters.filter(c => c.disabled).length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -503,96 +506,125 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {/* Canvas caché pour le traitement */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-        {characters.length === 0 ? (
-          <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
-            <p className="text-gray-400 text-xl">Aucun personnage créé pour le moment</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {characters.map((char) => (
-              <div
-                key={char.id}
-                className={`bg-stone-800/90 rounded-xl p-6 border-2 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer ${
-                  char.disabled ? 'border-red-600 opacity-60' : 'border-amber-600'
-                }`}
-                onClick={() => handleSelectCharacter(char)}
-              >
-                {/* Image du personnage si elle existe */}
-                {char.characterImage && (
-                  <div className="mb-4 -mx-2 -mt-2">
-                    <img
-                      src={char.characterImage}
-                      alt={char.name}
-                      className="w-full object-contain rounded-t-lg bg-stone-900"
-                      style={{ maxHeight: '280px' }}
-                    />
-                  </div>
-                )}
+        {/* Onglets Actifs / Désactivés */}
+        {(() => {
+          const activeChars = characters.filter(c => !c.disabled);
+          const disabledChars = characters.filter(c => c.disabled);
+          const displayedChars = adminTab === 'actifs' ? activeChars : disabledChars;
 
-                {/* Badge désactivé */}
-                {char.disabled && (
-                  <div className="bg-red-900/70 border border-red-500 rounded-lg px-3 py-1 mb-3 text-center">
-                    <span className="text-red-300 text-sm font-bold">🚫 Désactivé</span>
-                  </div>
-                )}
-
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-4xl">{races[char.race] || '❓'}</span>
-                    <span className="text-4xl">{classes[char.class] || '❓'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {char.characterImage && <span className="text-green-400 text-xs">🖼️</span>}
-                    <span className="text-amber-400 text-xs">
-                      {char.gender === 'male' ? '👨' : '👩'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Nom */}
-                <h3 className="text-2xl font-bold text-white mb-2">{char.name}</h3>
-                <p className="text-amber-300 text-sm mb-4">
-                  {char.race} • {char.class}
-                </p>
-
-                {/* Stats */}
-                <div className="bg-stone-900/50 rounded-lg p-3 mb-4 text-xs">
-                  <div className="grid grid-cols-2 gap-2 text-gray-300">
-                    <div>HP: <span className="text-white font-bold">{char.base.hp}</span></div>
-                    <div>VIT: <span className="text-white font-bold">{char.base.spd}</span></div>
-                    <div>Auto: <span className="text-white font-bold">{char.base.auto}</span></div>
-                    <div>Déf: <span className="text-white font-bold">{char.base.def}</span></div>
-                    <div>Cap: <span className="text-white font-bold">{char.base.cap}</span></div>
-                    <div>ResC: <span className="text-white font-bold">{char.base.rescap}</span></div>
-                  </div>
-                </div>
-
-                {/* Mot-clé */}
-                <div className="bg-amber-900/30 rounded-lg p-2 mb-3">
-                  <p className="text-xs text-gray-400">Mot-clé:</p>
-                  <p className="text-amber-300 font-bold">{char.keyword}</p>
-                </div>
-
-                {/* Date */}
-                <p className="text-xs text-gray-500">
-                  Créé le: {formatDate(char.createdAt)}
-                </p>
-
-                {/* Bouton détails */}
+          return (
+            <>
+              <div className="flex gap-2 mb-6">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectCharacter(char);
-                  }}
-                  className="mt-4 w-full bg-amber-600 hover:bg-amber-500 text-white py-2 rounded transition"
+                  onClick={() => setAdminTab('actifs')}
+                  className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
+                    adminTab === 'actifs'
+                      ? 'bg-amber-600 border-amber-400 text-white'
+                      : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
+                  }`}
                 >
-                  {char.characterImage ? 'Modifier l\'image' : 'Ajouter une image'}
+                  Actifs ({activeChars.length})
+                </button>
+                <button
+                  onClick={() => setAdminTab('desactives')}
+                  className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
+                    adminTab === 'desactives'
+                      ? 'bg-red-600 border-red-400 text-white'
+                      : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
+                  }`}
+                >
+                  Désactivés ({disabledChars.length})
                 </button>
               </div>
-            ))}
-          </div>
-        )}
+
+              {displayedChars.length === 0 ? (
+                <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
+                  <p className="text-gray-400 text-xl">
+                    {adminTab === 'actifs' ? 'Aucun personnage actif' : 'Aucun personnage désactivé'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedChars.map((char) => (
+                    <div
+                      key={char.id}
+                      className={`bg-stone-800/90 rounded-xl p-6 border-2 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer ${
+                        char.disabled ? 'border-red-600' : 'border-amber-600'
+                      }`}
+                      onClick={() => handleSelectCharacter(char)}
+                    >
+                      {/* Image du personnage si elle existe */}
+                      {char.characterImage && (
+                        <div className="mb-4 -mx-2 -mt-2">
+                          <img
+                            src={char.characterImage}
+                            alt={char.name}
+                            className="w-full object-contain rounded-t-lg bg-stone-900"
+                            style={{ maxHeight: '280px' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-4xl">{races[char.race] || '❓'}</span>
+                          <span className="text-4xl">{classes[char.class] || '❓'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {char.characterImage && <span className="text-green-400 text-xs">🖼️</span>}
+                          <span className="text-amber-400 text-xs">
+                            {char.gender === 'male' ? '👨' : '👩'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Nom */}
+                      <h3 className="text-2xl font-bold text-white mb-2">{char.name}</h3>
+                      <p className="text-amber-300 text-sm mb-4">
+                        {char.race} • {char.class}
+                      </p>
+
+                      {/* Stats */}
+                      <div className="bg-stone-900/50 rounded-lg p-3 mb-4 text-xs">
+                        <div className="grid grid-cols-2 gap-2 text-gray-300">
+                          <div>HP: <span className="text-white font-bold">{char.base.hp}</span></div>
+                          <div>VIT: <span className="text-white font-bold">{char.base.spd}</span></div>
+                          <div>Auto: <span className="text-white font-bold">{char.base.auto}</span></div>
+                          <div>Déf: <span className="text-white font-bold">{char.base.def}</span></div>
+                          <div>Cap: <span className="text-white font-bold">{char.base.cap}</span></div>
+                          <div>ResC: <span className="text-white font-bold">{char.base.rescap}</span></div>
+                        </div>
+                      </div>
+
+                      {/* Mot-clé */}
+                      <div className="bg-amber-900/30 rounded-lg p-2 mb-3">
+                        <p className="text-xs text-gray-400">Mot-clé:</p>
+                        <p className="text-amber-300 font-bold">{char.keyword}</p>
+                      </div>
+
+                      {/* Date */}
+                      <p className="text-xs text-gray-500">
+                        Créé le: {formatDate(char.createdAt)}
+                      </p>
+
+                      {/* Bouton détails */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectCharacter(char);
+                        }}
+                        className="mt-4 w-full bg-amber-600 hover:bg-amber-500 text-white py-2 rounded transition"
+                      >
+                        {char.characterImage ? 'Modifier l\'image' : 'Ajouter une image'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Bouton retour */}
         <div className="mt-8 text-center">

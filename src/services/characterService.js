@@ -311,6 +311,43 @@ export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   }
 };
 
+// Récupérer les personnages désactivés d'un utilisateur
+export const getDisabledCharacters = async (userId) => {
+  try {
+    const result = await retryOperation(async () => {
+      const q = query(
+        collection(db, 'characters'),
+        where('userId', '==', userId),
+        where('disabled', '==', true)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Erreur récupération personnages désactivés:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Récupérer TOUS les personnages désactivés (admin)
+export const getAllDisabledCharacters = async () => {
+  try {
+    const result = await retryOperation(async () => {
+      const q = query(
+        collection(db, 'characters'),
+        where('disabled', '==', true)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Erreur récupération personnages désactivés:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Activer/désactiver un personnage (admin)
 export const toggleCharacterDisabled = async (userId, disabled) => {
   try {
