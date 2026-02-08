@@ -358,6 +358,31 @@ export const unequipWeapon = async (userId) => {
 };
 
 // ============================================================================
+// RÉINITIALISER L'ARME ÉQUIPÉE (création d'un nouveau personnage)
+// ============================================================================
+export const clearEquippedWeapon = async (userId) => {
+  try {
+    console.log('🔄 Réinitialisation arme équipée:', userId);
+
+    await retryOperation(async () => {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      await setDoc(progressRef, {
+        equippedWeapon: null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+
+    await updateCharacterEquippedWeapon(userId, null);
+
+    console.log('✅ Arme équipée réinitialisée');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Erreur réinitialisation arme équipée:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
 // RÉCUPÉRER L'ARME ÉQUIPÉE D'UN JOUEUR
 // ============================================================================
 export const getEquippedWeapon = async (userId) => {
