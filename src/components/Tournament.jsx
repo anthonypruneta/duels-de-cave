@@ -9,6 +9,63 @@ import {
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
+// ============================================================================
+// UTILS HORAIRES PARIS
+// ============================================================================
+
+function getParisNow() {
+  const str = new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' });
+  return new Date(str);
+}
+
+function getNextSaturday18h() {
+  const now = getParisNow();
+  const day = now.getDay(); // 0=dim, 6=sam
+  let daysUntil = (6 - day + 7) % 7;
+  // Si on est samedi mais après 19h → prochain samedi
+  if (daysUntil === 0 && now.getHours() >= 19) {
+    daysUntil = 7;
+  }
+  const target = new Date(now);
+  target.setDate(target.getDate() + daysUntil);
+  target.setHours(18, 0, 0, 0);
+  return target;
+}
+
+function getSchedulePhase() {
+  const now = getParisNow();
+  const day = now.getDay();
+  const hour = now.getHours();
+
+  if (day === 6) {
+    if (hour >= 19) return 'combat'; // samedi 19h+
+    if (hour >= 18) return 'annonce'; // samedi 18h-19h
+  }
+  return 'attente'; // pas encore samedi 18h
+}
+
+function formatCountdown(targetDate) {
+  const now = getParisNow();
+  const diff = targetDate.getTime() - now.getTime();
+  if (diff <= 0) return null;
+
+  const jours = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const heures = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const secondes = Math.floor((diff / 1000) % 60);
+
+  const parts = [];
+  if (jours > 0) parts.push(`${jours}j`);
+  parts.push(`${String(heures).padStart(2, '0')}h`);
+  parts.push(`${String(minutes).padStart(2, '0')}m`);
+  parts.push(`${String(secondes).padStart(2, '0')}s`);
+  return parts.join(' ');
+}
+
+// ============================================================================
+// COMPOSANT
+// ============================================================================
+
 const Tournament = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -23,10 +80,17 @@ const Tournament = () => {
   const [replayMatchId, setReplayMatchId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Schedule
+  const [countdown, setCountdown] = useState('');
+  const [phase, setPhase] = useState('attente');
+  const autoCreatedRef = useRef(false);
+  const autoLaunchedRef = useRef(false);
+
   const logEndRef = useRef(null);
   const animationRef = useRef(null);
   const lastAnimatedMatch = useRef(-1);
 
+  // Listener tournoi
   useEffect(() => {
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
@@ -34,6 +98,53 @@ const Tournament = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Timer countdown + auto-triggers
+  useEffect(() => {
+    const tick = () => {
+      const currentPhase = getSchedulePhase();
+      setPhase(currentPhase);
+
+      if (currentPhase === 'attente') {
+        const target = getNextSaturday18h();
+        setCountdown(formatCountdown(target) || '');
+      } else {
+        setCountdown('');
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-création à 18h (admin uniquement)
+  useEffect(() => {
+    if (!isAdmin || autoCreatedRef.current || tournoi || loading) return;
+    if (phase === 'annonce' || phase === 'combat') {
+      autoCreatedRef.current = true;
+      (async () => {
+        setActionLoading(true);
+        const result = await creerTournoi();
+        if (!result.success) console.error('Auto-création échouée:', result.error);
+        setActionLoading(false);
+      })();
+    }
+  }, [phase, isAdmin, tournoi, loading]);
+
+  // Auto-lancement à 19h (admin uniquement)
+  useEffect(() => {
+    if (!isAdmin || autoLaunchedRef.current || !tournoi || loading) return;
+    if (phase === 'combat' && tournoi.statut === 'preparation') {
+      autoLaunchedRef.current = true;
+      (async () => {
+        setActionLoading(true);
+        const result = await lancerTournoi();
+        if (!result.success) console.error('Auto-lancement échoué:', result.error);
+        setActionLoading(false);
+      })();
+    }
+  }, [phase, isAdmin, tournoi, loading]);
 
   // Auto-scroll du combat log
   useEffect(() => {
@@ -55,7 +166,6 @@ const Tournament = () => {
   const animerMatch = async (matchId) => {
     if (!matchId || isAnimating) return;
 
-    // Annuler une animation précédente
     if (animationRef.current) {
       animationRef.current.cancelled = true;
     }
@@ -75,14 +185,12 @@ const Tournament = () => {
 
     const logData = result.data;
 
-    // Annonce de début
     setAnnonceActuelle(logData.annonceDebut);
     await delay(3000);
     if (token.cancelled) return;
 
     setAnnonceActuelle('');
 
-    // Animer tour par tour
     for (let i = 0; i < logData.combatLog.length; i++) {
       if (token.cancelled) return;
       const line = logData.combatLog[i];
@@ -91,7 +199,6 @@ const Tournament = () => {
       await delay(isNewTurn ? 800 : 350);
     }
 
-    // Annonce de fin
     if (!token.cancelled) {
       setAnnonceActuelle(logData.annonceFin);
       setIsAnimating(false);
@@ -110,21 +217,6 @@ const Tournament = () => {
   // ============================================================================
   // ADMIN ACTIONS
   // ============================================================================
-
-  const handleCreerTournoi = async () => {
-    setActionLoading(true);
-    const result = await creerTournoi();
-    if (!result.success) alert('Erreur: ' + result.error);
-    setActionLoading(false);
-  };
-
-  const handleLancerTournoi = async () => {
-    if (!window.confirm('Lancer le tournoi ? Tous les matchs seront simulés.')) return;
-    setActionLoading(true);
-    const result = await lancerTournoi();
-    if (!result.success) alert('Erreur: ' + result.error);
-    setActionLoading(false);
-  };
 
   const handleMatchSuivant = async () => {
     setActionLoading(true);
@@ -176,13 +268,13 @@ const Tournament = () => {
       } else if (part) {
         const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
         let lastIndex = 0;
-        let match;
-        while ((match = numRegex.exec(part)) !== null) {
-          if (match.index > lastIndex) parts.push(part.slice(lastIndex, match.index));
-          const isHeal = match[2].toLowerCase().includes('vie');
-          parts.push(<span key={key++} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{match[1]}</span>);
-          parts.push(` ${match[2]}`);
-          lastIndex = match.index + match[0].length;
+        let numMatch;
+        while ((numMatch = numRegex.exec(part)) !== null) {
+          if (numMatch.index > lastIndex) parts.push(part.slice(lastIndex, numMatch.index));
+          const isHeal = numMatch[2].toLowerCase().includes('vie');
+          parts.push(<span key={key++} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{numMatch[1]}</span>);
+          parts.push(` ${numMatch[2]}`);
+          lastIndex = numMatch.index + numMatch[0].length;
         }
         if (lastIndex < part.length) parts.push(part.slice(lastIndex));
       }
@@ -237,7 +329,6 @@ const Tournament = () => {
   const renderBracket = () => {
     if (!tournoi || !tournoi.matches) return null;
 
-    // Grouper les matchs par bracket et round
     const winnersRounds = {};
     const losersRounds = {};
     let hasGF = false;
@@ -260,7 +351,6 @@ const Tournament = () => {
 
     return (
       <div className="space-y-6">
-        {/* Winners Bracket */}
         <div>
           <h3 className="text-amber-400 font-bold mb-2">🏆 Winners Bracket</h3>
           <div className="flex gap-4 overflow-x-auto pb-2">
@@ -272,7 +362,6 @@ const Tournament = () => {
           </div>
         </div>
 
-        {/* Losers Bracket */}
         {Object.keys(losersRounds).length > 0 && (
           <div>
             <h3 className="text-red-400 font-bold mb-2">💀 Losers Bracket</h3>
@@ -286,7 +375,6 @@ const Tournament = () => {
           </div>
         )}
 
-        {/* Grand Final */}
         {hasGF && (
           <div>
             <h3 className="text-yellow-300 font-bold mb-2">👑 Grande Finale</h3>
@@ -393,7 +481,9 @@ const Tournament = () => {
     );
   }
 
-  // Pas de tournoi en cours
+  // ============================================================================
+  // PAS DE TOURNOI → COUNTDOWN ou EN ATTENTE DE CRÉATION
+  // ============================================================================
   if (!tournoi) {
     return (
       <div className="min-h-screen p-6">
@@ -402,22 +492,26 @@ const Tournament = () => {
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
             <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi du Samedi</h1>
           </div>
-          <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
-            <p className="text-stone-300 text-xl mb-4">Aucun tournoi en cours</p>
-            <p className="text-stone-500">Le prochain tournoi sera annoncé bientôt !</p>
-          </div>
-          {isAdmin && (
-            <div className="mt-8 bg-stone-900 border border-red-600 p-6 rounded-xl">
-              <h3 className="text-red-400 font-bold mb-4">Admin</h3>
-              <button
-                onClick={handleCreerTournoi}
-                disabled={actionLoading}
-                className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
-              >
-                {actionLoading ? '⏳ Création...' : '🏟️ Créer un tournoi'}
-              </button>
+
+          {phase === 'attente' && countdown && (
+            <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
+              <p className="text-stone-300 text-xl mb-6">Prochain tournoi dans</p>
+              <div className="text-5xl md:text-6xl font-bold text-amber-400 font-mono tracking-wider mb-6">
+                {countdown}
+              </div>
+              <p className="text-stone-500">Samedi à 18h — Annonce des duels</p>
+              <p className="text-stone-500">Samedi à 19h — Début des combats</p>
             </div>
           )}
+
+          {(phase === 'annonce' || phase === 'combat') && (
+            <div className="bg-stone-800/90 p-8 border-2 border-amber-500 rounded-xl">
+              <div className="text-4xl mb-4 animate-pulse">⏳</div>
+              <p className="text-amber-300 text-xl font-bold">Préparation du tournoi en cours...</p>
+              <p className="text-stone-400 mt-2">Les duels seront annoncés dans un instant</p>
+            </div>
+          )}
+
           <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
             ← Retour
           </button>
@@ -426,7 +520,9 @@ const Tournament = () => {
     );
   }
 
-  // Tournoi en préparation
+  // ============================================================================
+  // TOURNOI EN PRÉPARATION (18h-19h: bracket visible, attente du lancement)
+  // ============================================================================
   if (tournoi.statut === 'preparation') {
     return (
       <div className="min-h-screen p-6">
@@ -434,9 +530,15 @@ const Tournament = () => {
         <div className="max-w-4xl mx-auto pt-20">
           <div className="text-center mb-8">
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
-              <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi en préparation</h1>
-              <p className="text-stone-400 mt-2">{tournoi.participantsList?.length || 0} participants inscrits</p>
+              <h1 className="text-4xl font-bold text-amber-400">🏟️ Les duels sont annoncés !</h1>
+              <p className="text-stone-400 mt-2">{tournoi.participantsList?.length || 0} combattants • Début à 19h</p>
             </div>
+          </div>
+
+          {/* Bracket en préparation */}
+          <div className="bg-stone-800/90 border border-stone-600 p-4 rounded-xl mb-8 overflow-x-auto">
+            <h2 className="text-xl font-bold text-stone-200 mb-4">📊 Arbre du tournoi</h2>
+            {renderBracket()}
           </div>
 
           {/* Liste des participants */}
@@ -455,15 +557,22 @@ const Tournament = () => {
             </div>
           </div>
 
+          {/* Admin: lancement manuel si besoin */}
           {isAdmin && (
             <div className="text-center bg-stone-900 border border-red-600 p-6 rounded-xl">
               <h3 className="text-red-400 font-bold mb-4">Admin</h3>
+              <p className="text-stone-500 text-sm mb-4">Le tournoi se lance automatiquement à 19h. Bouton de secours :</p>
               <button
-                onClick={handleLancerTournoi}
+                onClick={async () => {
+                  setActionLoading(true);
+                  const result = await lancerTournoi();
+                  if (!result.success) alert('Erreur: ' + result.error);
+                  setActionLoading(false);
+                }}
                 disabled={actionLoading}
                 className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-12 py-4 font-bold text-xl rounded-lg transition"
               >
-                {actionLoading ? '⏳ Simulation en cours...' : '🚀 LANCER LE TOURNOI'}
+                {actionLoading ? '⏳ Simulation en cours...' : '🚀 LANCER MANUELLEMENT'}
               </button>
             </div>
           )}
@@ -472,7 +581,9 @@ const Tournament = () => {
     );
   }
 
-  // Tournoi en cours ou terminé
+  // ============================================================================
+  // TOURNOI EN COURS OU TERMINÉ
+  // ============================================================================
   const isTournoiTermine = tournoi.statut === 'termine' || (tournoi.matchActuel >= tournoi.matchOrder.length);
   const matchProgress = tournoi.matchActuel >= 0
     ? `Match ${Math.min(tournoi.matchActuel + 1, tournoi.matchOrder.length)} / ${tournoi.matchOrder.length}`
@@ -517,13 +628,11 @@ const Tournament = () => {
 
         {/* Layout principal: Bracket + Match Viewer */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Bracket */}
           <div className="lg:w-1/2 bg-stone-800/90 border border-stone-600 p-4 rounded-xl overflow-x-auto">
             <h2 className="text-xl font-bold text-stone-200 mb-4">📊 Bracket</h2>
             {renderBracket()}
           </div>
 
-          {/* Match Viewer */}
           <div className="lg:w-1/2">
             {renderMatchViewer()}
           </div>
