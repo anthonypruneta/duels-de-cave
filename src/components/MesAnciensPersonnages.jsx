@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getArchivedCharacters } from '../services/tournamentService';
 import { getDisabledCharacters } from '../services/characterService';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 
 const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
@@ -75,7 +77,10 @@ const MesAnciensPersonnages = () => {
                   {char.tournamentChampion && <span className="text-yellow-400">👑</span>}
                   {char.source === 'disabled' && <span className="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">Désactivé</span>}
                 </div>
-                <p className="text-amber-300 text-sm">{char.race} • {char.class}</p>
+                <p className="text-amber-300 text-sm">
+                  {char.race} • {char.class}
+                  {(char.level ?? 1) > 1 && <span className="text-stone-400 ml-2">Niv. {char.level}</span>}
+                </p>
 
                 <div className="bg-stone-900/50 rounded-lg p-3 mt-3 text-xs">
                   <div className="grid grid-cols-3 gap-2 text-stone-400">
@@ -87,6 +92,48 @@ const MesAnciensPersonnages = () => {
                     <div>VIT: <span className="text-white font-bold">{char.base?.spd}</span></div>
                   </div>
                 </div>
+
+                {/* Arme équipée */}
+                {char.equippedWeaponId && (() => {
+                  const weapon = getWeaponById(char.equippedWeaponId);
+                  if (!weapon) return null;
+                  return (
+                    <div className="bg-stone-900/50 rounded-lg p-2 mt-2 text-xs border border-stone-700">
+                      <span className="text-stone-500">Arme: </span>
+                      <span className={RARITY_COLORS[weapon.rarete] || 'text-white'}>
+                        {weapon.icon} {weapon.nom}
+                      </span>
+                    </div>
+                  );
+                })()}
+
+                {/* Passif tour du mage */}
+                {char.mageTowerPassive && (() => {
+                  const passive = getMageTowerPassiveById(char.mageTowerPassive.id);
+                  const passiveLevel = passive ? getMageTowerPassiveLevel(char.mageTowerPassive.id, char.mageTowerPassive.level) : null;
+                  if (!passive) return null;
+                  return (
+                    <div className="bg-stone-900/50 rounded-lg p-2 mt-2 text-xs border border-purple-900/50">
+                      <span className="text-stone-500">Passif: </span>
+                      <span className="text-purple-300">
+                        {passive.icon} {passive.name} (Niv. {char.mageTowerPassive.level})
+                      </span>
+                      {passiveLevel && (
+                        <p className="text-stone-500 mt-1">{passiveLevel.description}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Boosts forêt */}
+                {char.forestBoosts && Object.values(char.forestBoosts).some(v => v > 0) && (
+                  <div className="bg-stone-900/50 rounded-lg p-2 mt-2 text-xs border border-green-900/50">
+                    <span className="text-stone-500">Boosts forêt: </span>
+                    <span className="text-green-300">
+                      {Object.entries(char.forestBoosts).filter(([, v]) => v > 0).map(([stat, v]) => `${stat.toUpperCase()} +${v}`).join(' • ')}
+                    </span>
+                  </div>
+                )}
 
                 {char.archivedAt && (
                   <p className="text-stone-600 text-xs mt-2">
