@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
+import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -93,6 +94,9 @@ const CharacterCreation = () => {
   const [formData, setFormData] = useState({ name: '', gender: '', keyword: '' });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasTripleRoll, setHasTripleRoll] = useState(false);
+  const [rollsRemaining, setRollsRemaining] = useState(0);
+  const [allRolls, setAllRolls] = useState([]);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -262,6 +266,12 @@ const CharacterCreation = () => {
         if (!canCreateResult.canCreate && canCreateResult.daysRemaining) {
           setDaysRemaining(canCreateResult.daysRemaining);
         }
+        // Vérifier la récompense triple roll
+        const tripleRoll = await checkTripleRoll(currentUser.uid);
+        if (tripleRoll) {
+          setHasTripleRoll(true);
+          setRollsRemaining(3);
+        }
       }
 
       setLoading(false);
@@ -318,22 +328,58 @@ const CharacterCreation = () => {
 
   // Roll aléatoire de race/classe/stats (étape 1)
   const rollCharacter = () => {
-    const raceKeys = Object.keys(races);
-    const classKeys = Object.keys(classes);
-    const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
-    const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
-    const raw = genStats();
-    const rB = raceBonus(race);
-    const cB = classBonus(charClass);
-    const base = {
-      hp: raw.hp+rB.hp+cB.hp,
-      auto: raw.auto+rB.auto+cB.auto,
-      def: raw.def+rB.def+cB.def,
-      cap: raw.cap+rB.cap+cB.cap,
-      rescap: raw.rescap+rB.rescap+cB.rescap,
-      spd: raw.spd+rB.spd+cB.spd
-    };
-    setRolledCharacter({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+    if (hasTripleRoll) {
+      // Triple roll: générer 3 personnages d'un coup
+      const rolls = [];
+      for (let i = 0; i < 3; i++) {
+        const raceKeys = Object.keys(races);
+        const classKeys = Object.keys(classes);
+        const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
+        const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+        const raw = genStats();
+        const rB = raceBonus(race);
+        const cB = classBonus(charClass);
+        const base = {
+          hp: raw.hp+rB.hp+cB.hp,
+          auto: raw.auto+rB.auto+cB.auto,
+          def: raw.def+rB.def+cB.def,
+          cap: raw.cap+rB.cap+cB.cap,
+          rescap: raw.rescap+rB.rescap+cB.rescap,
+          spd: raw.spd+rB.spd+cB.spd
+        };
+        rolls.push({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+      }
+      setAllRolls(rolls);
+      setRolledCharacter(null); // Attendre le choix
+      setRollsRemaining(0);
+    } else {
+      const raceKeys = Object.keys(races);
+      const classKeys = Object.keys(classes);
+      const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
+      const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+      const raw = genStats();
+      const rB = raceBonus(race);
+      const cB = classBonus(charClass);
+      const base = {
+        hp: raw.hp+rB.hp+cB.hp,
+        auto: raw.auto+rB.auto+cB.auto,
+        def: raw.def+rB.def+cB.def,
+        cap: raw.cap+rB.cap+cB.cap,
+        rescap: raw.rescap+rB.rescap+cB.rescap,
+        spd: raw.spd+rB.spd+cB.spd
+      };
+      setRolledCharacter({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+    }
+  };
+
+  const selectTripleRollChoice = async (roll) => {
+    setRolledCharacter(roll);
+    setAllRolls([]);
+    setHasTripleRoll(false);
+    // Consommer la récompense triple roll
+    if (currentUser) {
+      await consumeTripleRoll(currentUser.uid);
+    }
   };
 
   // Générer le personnage final avec nom/sexe/mot-clé (étape 2)
@@ -646,16 +692,22 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          {!rolledCharacter ? (
+          {!rolledCharacter && allRolls.length === 0 ? (
             /* Avant le roll: gros bouton central */
             <div className="max-w-2xl mx-auto">
               <div className="bg-stone-800/90 rounded-2xl p-12 border-4 border-amber-600 shadow-2xl text-center">
                 <div className="text-8xl mb-8">🎲</div>
+                {hasTripleRoll && (
+                  <div className="bg-yellow-900/50 border-2 border-yellow-500 rounded-xl p-4 mb-6">
+                    <p className="text-yellow-300 font-bold text-lg">👑 Récompense Champion!</p>
+                    <p className="text-yellow-200 text-sm">Tu as gagné le droit de choisir parmi 3 rolls!</p>
+                  </div>
+                )}
                 <button
                   onClick={rollCharacter}
                   className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-8 py-6 rounded-lg font-bold text-2xl shadow-lg border-2 border-amber-400 transition-all transform hover:scale-105"
                 >
-                  🎲 ROLL MON PERSONNAGE 🎲
+                  {hasTripleRoll ? '👑 ROLL x3 MON PERSONNAGE 👑' : '🎲 ROLL MON PERSONNAGE 🎲'}
                 </button>
                 <p className="text-gray-400 mt-4 text-sm">Race et classe seront générées aléatoirement</p>
               </div>
@@ -691,6 +743,39 @@ const CharacterCreation = () => {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          ) : allRolls.length > 0 ? (
+            /* Triple roll: choisir parmi 3 personnages */
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-6">
+                <p className="text-yellow-300 font-bold text-xl">👑 Choisis ton personnage parmi les 3 rolls!</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {allRolls.map((roll, idx) => (
+                  <div key={idx} className="bg-stone-800/90 rounded-2xl p-5 border-4 border-yellow-600 shadow-2xl hover:border-yellow-400 transition-all cursor-pointer" onClick={() => selectTripleRollChoice(roll)}>
+                    <div className="text-center mb-4">
+                      <h3 className="text-xl font-bold text-amber-400">
+                        {races[roll.race].icon} {roll.race} • {classes[roll.class].icon} {roll.class}
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      {['hp','auto','def','cap','rescap','spd'].map(stat => (
+                        <div key={stat} className="bg-stone-900/50 rounded p-2 border border-stone-700 text-center">
+                          <div className="text-gray-400 text-xs">{STAT_LABELS[stat]}</div>
+                          <div className="text-white font-bold text-lg">{roll.base[stat]}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-stone-400 mb-1">{races[roll.race].bonus}</div>
+                      <div className="text-sm text-amber-300">{classes[roll.class].ability}</div>
+                    </div>
+                    <button className="w-full mt-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-stone-900 px-4 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-yellow-400 transition-all">
+                      Choisir
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
@@ -765,14 +850,8 @@ const CharacterCreation = () => {
                   <div className="text-gray-300 text-xs">{getCalculatedDescription(rolledCharacter.class, rolledCharacter.base.cap, rolledCharacter.base.auto)}</div>
                 </div>
 
-                {/* Boutons */}
+                {/* Bouton */}
                 <div className="flex gap-4">
-                  <button
-                    onClick={rollCharacter}
-                    className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-4 rounded-lg font-bold text-lg shadow-lg border-2 border-gray-500 transition-all"
-                  >
-                    🎲 Re-roll
-                  </button>
                   <button
                     onClick={() => setStep(2)}
                     className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-6 py-4 rounded-lg font-bold text-lg shadow-lg border-2 border-amber-400 transition-all"

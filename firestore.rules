@@ -33,5 +33,49 @@ service cloud.firestore {
       // Écriture : L'utilisateur peut créer/modifier sa propre progression
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Règles pour le tournoi
+    match /tournaments/{tournamentId} {
+      // Lecture : Tous les utilisateurs connectés
+      allow read: if request.auth != null;
+
+      // Écriture : Admin uniquement
+      allow write: if request.auth != null &&
+                      request.auth.token.email == 'antho.pruneta@gmail.com';
+
+      // Sous-collection combatLogs
+      match /combatLogs/{matchId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+                        request.auth.token.email == 'antho.pruneta@gmail.com';
+      }
+    }
+
+    // Règles pour le Hall of Fame
+    match /hallOfFame/{entryId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                      request.auth.token.email == 'antho.pruneta@gmail.com';
+    }
+
+    // Règles pour les personnages archivés
+    match /archivedCharacters/{charId} {
+      // Lecture : L'utilisateur peut lire ses propres archives + admin
+      allow read: if request.auth != null;
+      // Écriture : Admin uniquement (via terminerTournoi)
+      allow write: if request.auth != null &&
+                      request.auth.token.email == 'antho.pruneta@gmail.com';
+    }
+
+    // Règles pour les récompenses de tournoi
+    match /tournamentRewards/{userId} {
+      // Lecture : L'utilisateur peut lire sa propre récompense
+      allow read: if request.auth != null &&
+                     (request.auth.uid == userId ||
+                      request.auth.token.email == 'antho.pruneta@gmail.com');
+      // Écriture : Admin uniquement
+      allow write: if request.auth != null &&
+                      request.auth.token.email == 'antho.pruneta@gmail.com';
+    }
   }
 }

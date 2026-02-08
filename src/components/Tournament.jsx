@@ -1,0 +1,580 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Header from './Header';
+import {
+  onTournoiUpdate, getCombatLog, creerTournoi, lancerTournoi,
+  avancerMatch, terminerTournoi
+} from '../services/tournamentService';
+
+const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
+
+const Tournament = () => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const isAdmin = currentUser?.email === ADMIN_EMAIL;
+
+  const [tournoi, setTournoi] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [combatLog, setCombatLog] = useState([]);
+  const [annonceActuelle, setAnnonceActuelle] = useState('');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [matchEnCours, setMatchEnCours] = useState(null);
+  const [replayMatchId, setReplayMatchId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const logEndRef = useRef(null);
+  const animationRef = useRef(null);
+  const lastAnimatedMatch = useRef(-1);
+
+  useEffect(() => {
+    const unsubscribe = onTournoiUpdate((data) => {
+      setTournoi(data);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Auto-scroll du combat log
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 768px)').matches) {
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [combatLog]);
+
+  // Animer le match quand matchActuel change
+  useEffect(() => {
+    if (!tournoi || tournoi.statut !== 'en_cours') return;
+    if (tournoi.matchActuel < 0) return;
+    if (tournoi.matchActuel === lastAnimatedMatch.current) return;
+
+    lastAnimatedMatch.current = tournoi.matchActuel;
+    animerMatch(tournoi.matchOrder[tournoi.matchActuel]);
+  }, [tournoi?.matchActuel]);
+
+  const animerMatch = async (matchId) => {
+    if (!matchId || isAnimating) return;
+
+    // Annuler une animation précédente
+    if (animationRef.current) {
+      animationRef.current.cancelled = true;
+    }
+    const token = { cancelled: false };
+    animationRef.current = token;
+
+    setIsAnimating(true);
+    setCombatLog([]);
+    setMatchEnCours(matchId);
+    setReplayMatchId(null);
+
+    const result = await getCombatLog(matchId);
+    if (!result.success || token.cancelled) {
+      setIsAnimating(false);
+      return;
+    }
+
+    const logData = result.data;
+
+    // Annonce de début
+    setAnnonceActuelle(logData.annonceDebut);
+    await delay(3000);
+    if (token.cancelled) return;
+
+    setAnnonceActuelle('');
+
+    // Animer tour par tour
+    for (let i = 0; i < logData.combatLog.length; i++) {
+      if (token.cancelled) return;
+      const line = logData.combatLog[i];
+      setCombatLog(prev => [...prev, line]);
+      const isNewTurn = line.includes('---');
+      await delay(isNewTurn ? 800 : 350);
+    }
+
+    // Annonce de fin
+    if (!token.cancelled) {
+      setAnnonceActuelle(logData.annonceFin);
+      setIsAnimating(false);
+    }
+  };
+
+  const rejouerMatch = async (matchId) => {
+    if (animationRef.current) {
+      animationRef.current.cancelled = true;
+    }
+    setReplayMatchId(matchId);
+    setMatchEnCours(matchId);
+    await animerMatch(matchId);
+  };
+
+  // ============================================================================
+  // ADMIN ACTIONS
+  // ============================================================================
+
+  const handleCreerTournoi = async () => {
+    setActionLoading(true);
+    const result = await creerTournoi();
+    if (!result.success) alert('Erreur: ' + result.error);
+    setActionLoading(false);
+  };
+
+  const handleLancerTournoi = async () => {
+    if (!window.confirm('Lancer le tournoi ? Tous les matchs seront simulés.')) return;
+    setActionLoading(true);
+    const result = await lancerTournoi();
+    if (!result.success) alert('Erreur: ' + result.error);
+    setActionLoading(false);
+  };
+
+  const handleMatchSuivant = async () => {
+    setActionLoading(true);
+    setCombatLog([]);
+    setAnnonceActuelle('');
+    const result = await avancerMatch();
+    if (!result.success) alert('Erreur: ' + result.error);
+    if (result.termine && tournoi?.champion) {
+      setAnnonceActuelle(tournoi.annonceChampion || `🏆 ${tournoi.champion.nom} EST LE CHAMPION !!!`);
+    }
+    setActionLoading(false);
+  };
+
+  const handleTerminerTournoi = async () => {
+    if (!window.confirm('Terminer le tournoi ? Tous les personnages seront archivés.')) return;
+    setActionLoading(true);
+    const result = await terminerTournoi();
+    if (!result.success) alert('Erreur: ' + result.error);
+    else alert('Tournoi terminé ! Personnages archivés, champion récompensé.');
+    setActionLoading(false);
+  };
+
+  // ============================================================================
+  // FORMAT COMBAT LOG
+  // ============================================================================
+
+  const formatLogMessage = (text) => {
+    if (!matchEnCours || !tournoi) return text;
+    const match = tournoi.matches[matchEnCours];
+    if (!match) return text;
+
+    const p1Data = tournoi.participants[match.p1];
+    const p2Data = tournoi.participants[match.p2];
+    if (!p1Data || !p2Data) return text;
+
+    const p1Name = p1Data.nom;
+    const p2Name = p2Data.nom;
+
+    const parts = [];
+    const nameRegex = new RegExp(`(${escapeRegex(p1Name)}|${escapeRegex(p2Name)})`, 'g');
+    const nameParts = text.split(nameRegex);
+    let key = 0;
+
+    nameParts.forEach((part) => {
+      if (part === p1Name) {
+        parts.push(<span key={key++} className="font-bold text-blue-400">{part}</span>);
+      } else if (part === p2Name) {
+        parts.push(<span key={key++} className="font-bold text-purple-400">{part}</span>);
+      } else if (part) {
+        const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+        let lastIndex = 0;
+        let match;
+        while ((match = numRegex.exec(part)) !== null) {
+          if (match.index > lastIndex) parts.push(part.slice(lastIndex, match.index));
+          const isHeal = match[2].toLowerCase().includes('vie');
+          parts.push(<span key={key++} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{match[1]}</span>);
+          parts.push(` ${match[2]}`);
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < part.length) parts.push(part.slice(lastIndex));
+      }
+    });
+
+    return parts;
+  };
+
+  // ============================================================================
+  // RENDER BRACKET
+  // ============================================================================
+
+  const renderBracketMatch = (matchId) => {
+    if (!tournoi) return null;
+    const match = tournoi.matches[matchId];
+    if (!match) return null;
+
+    const p1 = match.p1 && match.p1 !== 'BYE' ? tournoi.participants[match.p1] : null;
+    const p2 = match.p2 && match.p2 !== 'BYE' ? tournoi.participants[match.p2] : null;
+    const isCurrentMatch = tournoi.matchOrder[tournoi.matchActuel] === matchId;
+    const isTermine = match.statut === 'termine';
+    const isBye = match.statut === 'bye';
+
+    if (isBye) return null;
+
+    const borderClass = isCurrentMatch ? 'border-amber-400 bg-amber-900/20' :
+      isTermine ? 'border-stone-600 bg-stone-800/50' : 'border-stone-700 bg-stone-900/30';
+
+    return (
+      <div
+        key={matchId}
+        className={`border ${borderClass} p-2 text-xs cursor-pointer hover:border-amber-500 transition mb-2`}
+        onClick={() => isTermine && rejouerMatch(matchId)}
+        title={isTermine ? 'Cliquer pour revoir' : ''}
+      >
+        <div className="text-stone-500 text-[10px] mb-1">{match.roundLabel}</div>
+        <div className={`flex justify-between items-center ${match.winnerId === match.p1 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
+          <span>{p1 ? p1.nom : '?'}</span>
+          {match.winnerId === match.p1 && <span className="text-green-400 text-[10px]">W</span>}
+        </div>
+        <div className="text-stone-600 text-center text-[10px]">vs</div>
+        <div className={`flex justify-between items-center ${match.winnerId === match.p2 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
+          <span>{p2 ? p2.nom : '?'}</span>
+          {match.winnerId === match.p2 && <span className="text-green-400 text-[10px]">W</span>}
+        </div>
+        {isCurrentMatch && <div className="text-amber-400 text-center text-[10px] mt-1 animate-pulse">EN COURS</div>}
+        {isTermine && <div className="text-stone-500 text-center text-[10px] mt-1">Terminé - Cliquer pour revoir</div>}
+      </div>
+    );
+  };
+
+  const renderBracket = () => {
+    if (!tournoi || !tournoi.matches) return null;
+
+    // Grouper les matchs par bracket et round
+    const winnersRounds = {};
+    const losersRounds = {};
+    let hasGF = false;
+    let hasGFR = false;
+
+    for (const [id, match] of Object.entries(tournoi.matches)) {
+      if (match.statut === 'bye') continue;
+      if (match.bracket === 'winners') {
+        if (!winnersRounds[match.round]) winnersRounds[match.round] = [];
+        winnersRounds[match.round].push(id);
+      } else if (match.bracket === 'losers') {
+        if (!losersRounds[match.round]) losersRounds[match.round] = [];
+        losersRounds[match.round].push(id);
+      } else if (match.bracket === 'grand_final') {
+        hasGF = true;
+      } else if (match.bracket === 'grand_final_reset') {
+        hasGFR = true;
+      }
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Winners Bracket */}
+        <div>
+          <h3 className="text-amber-400 font-bold mb-2">🏆 Winners Bracket</h3>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {Object.keys(winnersRounds).sort((a, b) => a - b).map(round => (
+              <div key={`wr-${round}`} className="min-w-[160px]">
+                {winnersRounds[round].sort().map(id => renderBracketMatch(id))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Losers Bracket */}
+        {Object.keys(losersRounds).length > 0 && (
+          <div>
+            <h3 className="text-red-400 font-bold mb-2">💀 Losers Bracket</h3>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {Object.keys(losersRounds).sort((a, b) => a - b).map(round => (
+                <div key={`lr-${round}`} className="min-w-[160px]">
+                  {losersRounds[round].sort().map(id => renderBracketMatch(id))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Grand Final */}
+        {hasGF && (
+          <div>
+            <h3 className="text-yellow-300 font-bold mb-2">👑 Grande Finale</h3>
+            <div className="max-w-[200px]">
+              {renderBracketMatch('GF')}
+              {hasGFR && renderBracketMatch('GFR')}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // RENDER MATCH VIEWER
+  // ============================================================================
+
+  const renderMatchViewer = () => {
+    if (!matchEnCours) return null;
+
+    return (
+      <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[500px] md:h-[600px]">
+        <div className="bg-stone-900 p-3 border-b border-stone-600">
+          <h2 className="text-lg font-bold text-stone-200 text-center">
+            ⚔️ {replayMatchId ? 'Replay' : 'Combat en direct'}
+          </h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+          {combatLog.length === 0 && !isAnimating ? (
+            <p className="text-stone-500 italic text-center py-8 text-sm">En attente du prochain match...</p>
+          ) : (
+            <>
+              {combatLog.map((log, idx) => {
+                const isP1 = log.startsWith('[P1]');
+                const isP2 = log.startsWith('[P2]');
+                const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                if (!isP1 && !isP2) {
+                  if (log.includes('🏆')) {
+                    return (
+                      <div key={idx} className="flex justify-center my-4">
+                        <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-base shadow-lg border border-stone-400">
+                          {cleanLog}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (log.includes('---')) {
+                    return (
+                      <div key={idx} className="flex justify-center my-3">
+                        <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                          {cleanLog}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className="flex justify-center">
+                      <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                    </div>
+                  );
+                }
+
+                if (isP1) {
+                  return (
+                    <div key={idx} className="flex justify-start">
+                      <div className="max-w-[85%]">
+                        <div className="bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500">
+                          <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={idx} className="flex justify-end">
+                    <div className="max-w-[85%]">
+                      <div className="bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500">
+                        <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={logEndRef} />
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Header />
+        <div className="text-amber-400 text-2xl">Chargement du tournoi...</div>
+      </div>
+    );
+  }
+
+  // Pas de tournoi en cours
+  if (!tournoi) {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <div className="max-w-2xl mx-auto pt-20 text-center">
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
+            <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi du Samedi</h1>
+          </div>
+          <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
+            <p className="text-stone-300 text-xl mb-4">Aucun tournoi en cours</p>
+            <p className="text-stone-500">Le prochain tournoi sera annoncé bientôt !</p>
+          </div>
+          {isAdmin && (
+            <div className="mt-8 bg-stone-900 border border-red-600 p-6 rounded-xl">
+              <h3 className="text-red-400 font-bold mb-4">Admin</h3>
+              <button
+                onClick={handleCreerTournoi}
+                disabled={actionLoading}
+                className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
+              >
+                {actionLoading ? '⏳ Création...' : '🏟️ Créer un tournoi'}
+              </button>
+            </div>
+          )}
+          <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+            ← Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Tournoi en préparation
+  if (tournoi.statut === 'preparation') {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <div className="max-w-4xl mx-auto pt-20">
+          <div className="text-center mb-8">
+            <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+              <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi en préparation</h1>
+              <p className="text-stone-400 mt-2">{tournoi.participantsList?.length || 0} participants inscrits</p>
+            </div>
+          </div>
+
+          {/* Liste des participants */}
+          <div className="bg-stone-800 border border-stone-600 p-6 rounded-xl mb-8">
+            <h2 className="text-xl font-bold text-amber-300 mb-4">Participants</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {tournoi.participantsList?.map(p => (
+                <div key={p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
+                  {p.characterImage && (
+                    <img src={p.characterImage} alt={p.nom} className="w-16 h-auto mx-auto mb-2 object-contain" />
+                  )}
+                  <p className="text-white font-bold text-sm">{p.nom}</p>
+                  <p className="text-stone-400 text-xs">{p.race} • {p.classe}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {isAdmin && (
+            <div className="text-center bg-stone-900 border border-red-600 p-6 rounded-xl">
+              <h3 className="text-red-400 font-bold mb-4">Admin</h3>
+              <button
+                onClick={handleLancerTournoi}
+                disabled={actionLoading}
+                className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-12 py-4 font-bold text-xl rounded-lg transition"
+              >
+                {actionLoading ? '⏳ Simulation en cours...' : '🚀 LANCER LE TOURNOI'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Tournoi en cours ou terminé
+  const isTournoiTermine = tournoi.statut === 'termine' || (tournoi.matchActuel >= tournoi.matchOrder.length);
+  const matchProgress = tournoi.matchActuel >= 0
+    ? `Match ${Math.min(tournoi.matchActuel + 1, tournoi.matchOrder.length)} / ${tournoi.matchOrder.length}`
+    : '';
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <Header />
+      <div className="max-w-[1600px] mx-auto pt-16">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
+            <h1 className="text-3xl md:text-4xl font-bold text-amber-400">
+              🏟️ {isTournoiTermine ? 'Tournoi Terminé' : 'Tournoi en cours'}
+            </h1>
+            {matchProgress && <p className="text-stone-400 mt-1">{matchProgress}</p>}
+          </div>
+        </div>
+
+        {/* Annonce DBZ */}
+        {annonceActuelle && (
+          <div className="mb-6 bg-gradient-to-r from-red-900/80 via-amber-900/80 to-red-900/80 border-2 border-amber-500 p-6 text-center animate-pulse rounded-xl">
+            <p className="text-amber-200 font-bold text-lg md:text-xl whitespace-pre-line">
+              📢 {annonceActuelle}
+            </p>
+          </div>
+        )}
+
+        {/* Champion */}
+        {isTournoiTermine && tournoi.champion && (
+          <div className="mb-6 bg-gradient-to-r from-yellow-900/50 via-amber-800/50 to-yellow-900/50 border-2 border-yellow-500 p-8 text-center rounded-xl">
+            <div className="text-6xl mb-4">👑</div>
+            {tournoi.champion.characterImage && (
+              <img src={tournoi.champion.characterImage} alt={tournoi.champion.nom} className="w-32 h-auto mx-auto mb-4 object-contain" />
+            )}
+            <h2 className="text-3xl font-bold text-yellow-300">{tournoi.champion.nom}</h2>
+            <p className="text-amber-300">{tournoi.champion.race} • {tournoi.champion.classe}</p>
+            <p className="text-yellow-400 font-bold mt-2">CHAMPION DU TOURNOI</p>
+            <p className="text-stone-400 text-sm mt-1">Récompense: 3 rolls pour le prochain personnage</p>
+          </div>
+        )}
+
+        {/* Layout principal: Bracket + Match Viewer */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Bracket */}
+          <div className="lg:w-1/2 bg-stone-800/90 border border-stone-600 p-4 rounded-xl overflow-x-auto">
+            <h2 className="text-xl font-bold text-stone-200 mb-4">📊 Bracket</h2>
+            {renderBracket()}
+          </div>
+
+          {/* Match Viewer */}
+          <div className="lg:w-1/2">
+            {renderMatchViewer()}
+          </div>
+        </div>
+
+        {/* Admin Controls */}
+        {isAdmin && !isTournoiTermine && (
+          <div className="mt-6 bg-stone-900 border border-red-600 p-4 rounded-xl flex flex-wrap gap-4 justify-center">
+            <button
+              onClick={handleMatchSuivant}
+              disabled={actionLoading || isAnimating}
+              className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
+            >
+              {actionLoading ? '⏳...' : '⏭️ Match suivant'}
+            </button>
+          </div>
+        )}
+
+        {isAdmin && isTournoiTermine && (
+          <div className="mt-6 bg-stone-900 border border-red-600 p-4 rounded-xl flex flex-wrap gap-4 justify-center">
+            <button
+              onClick={handleTerminerTournoi}
+              disabled={actionLoading}
+              className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
+            >
+              {actionLoading ? '⏳...' : '🏁 Archiver & Terminer le tournoi'}
+            </button>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="mt-6 text-center">
+          <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+            ← Retour
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// UTILS
+// ============================================================================
+
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export default Tournament;
