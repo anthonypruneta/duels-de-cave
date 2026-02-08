@@ -22,27 +22,27 @@ export const classConstants = {
   },
   voleur: {
     spdBonus: 5,
-    critPerCap: 0.01       // +1% crit par point de Cap
+    critPerCap: 0.008      // +0,8% crit par point de Cap
   },
   paladin: {
-    reflectBase: 0.35,     // 35% renvoi de base
+    reflectBase: 0.32,     // 32% renvoi de base
     reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.15, // 15% des PV manquants
-    capScale: 0.35          // 35% de la Cap
+    missingHpPercent: 0.18, // 18% des PV manquants
+    capScale: 0.40          // 40% de la Cap
   },
   archer: {
     hitCount: 2,
-    hit2AutoMultiplier: 1.20,
-    hit2CapMultiplier: 0.20
+    hit2AutoMultiplier: 1.15,
+    hit2CapMultiplier: 0.18
   },
   mage: {
-    capBase: 0.43,         // 43% de Cap de base
+    capBase: 0.50,         // 50% de Cap de base
     capPerCap: 0
   },
   demoniste: {
-    capBase: 0.70,         // 70% de Cap de base (pour calcul dégâts)
+    capBase: 0.75,         // 75% de Cap de base (pour calcul dégâts)
     capPerCap: 0,
     ignoreResist: 1.0,     // Ignore 100% de la ResC
     stackPerAuto: 0.03     // +3% de Cap par auto du Demoniste (cumulable)
@@ -50,7 +50,7 @@ export const classConstants = {
   masochiste: {
     returnBase: 0.15,      // 15% des dégâts accumulés
     returnPerCap: 0.02,    // +2% par point de Cap
-    healPercent: 0.40      // Heal 40% des dégâts encaissés
+    healPercent: 0.35      // Heal 35% des dégâts encaissés
   }
 };
 
