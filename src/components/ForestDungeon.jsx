@@ -628,7 +628,7 @@ const ForestDungeon = () => {
       }
 
       if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
-        const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
+        const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
       }
@@ -894,7 +894,7 @@ const ForestDungeon = () => {
 
     for (let i = 0; i < levelData.rewardRolls; i++) {
       const stat = statsPool[Math.floor(Math.random() * statsPool.length)];
-      pointsByStat[stat] = (pointsByStat[stat] || 0) + 2;
+      pointsByStat[stat] = (pointsByStat[stat] || 0) + 1;
     }
 
     const gainsByStat = {};

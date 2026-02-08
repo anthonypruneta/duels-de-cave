@@ -631,7 +631,7 @@ const Dungeon = () => {
       }
 
       if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
-        const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
+        const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
       }

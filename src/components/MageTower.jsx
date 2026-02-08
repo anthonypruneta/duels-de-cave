@@ -641,7 +641,7 @@ const MageTower = () => {
       }
 
       if (isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
-        const heal = Math.max(1, Math.round(att.maxHP * playerPassive.levelData.healPercent));
+        const heal = Math.max(1, Math.round(remaining * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
       }

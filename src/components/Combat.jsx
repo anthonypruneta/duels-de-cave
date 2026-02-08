@@ -565,7 +565,7 @@ const Combat = () => {
         }
 
         if (atkPassive?.id === 'essence_drain' && adjusted > 0) {
-          const heal = Math.max(1, Math.round(attacker.maxHP * atkPassive.levelData.healPercent));
+          const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent));
           attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
           combatLog.push(`${playerColor} 🩸 ${attacker.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
         }

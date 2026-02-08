@@ -358,7 +358,7 @@ const applyDamage = (attacker, defender, rawDamage, isCrit, context) => {
   }
 
   if (attacker.passiveDetails?.id === 'essence_drain' && damage > 0) {
-    const heal = Math.max(1, Math.round(attacker.maxHP * attacker.passiveDetails.levelData.healPercent));
+    const heal = Math.max(1, Math.round(damage * attacker.passiveDetails.levelData.healPercent));
     attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
   }
 

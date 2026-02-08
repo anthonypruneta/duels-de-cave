@@ -42,10 +42,10 @@ export const classConstants = {
     capPerCap: 0
   },
   demoniste: {
-    capBase: 0.38,         // 38% de Cap de base (pour calcul dégâts)
+    capBase: 0.50,         // 50% de Cap de base (pour calcul dégâts)
     capPerCap: 0,
-    ignoreResist: 0.70,    // Ignore 70% de la ResC
-    stackPerAuto: 0.02     // +2% de Cap par auto du Demoniste (cumulable)
+    ignoreResist: 1.0,     // Ignore 100% de la ResC
+    stackPerAuto: 0.03     // +3% de Cap par auto du Demoniste (cumulable)
   },
   masochiste: {
     returnBase: 0.15,      // 15% des dégâts accumulés
