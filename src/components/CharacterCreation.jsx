@@ -239,7 +239,7 @@ const CharacterCreation = () => {
       setLoading(true);
       const { success, data } = await getUserCharacter(currentUser.uid);
 
-      if (success && data) {
+      if (success && data && !data.disabled) {
         const normalized = normalizeCharacterBonuses(data);
         const level = normalized.level ?? 1;
         if (normalized.level == null) {
