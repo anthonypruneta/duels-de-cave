@@ -97,10 +97,10 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (0,5% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (0,75% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.005
+        bleedPercentPerStack: 0.0075
       }
     }
   },
