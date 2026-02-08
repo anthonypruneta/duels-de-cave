@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
@@ -266,6 +266,23 @@ const CharacterCreation = () => {
         if (!canCreateResult.canCreate && canCreateResult.daysRemaining) {
           setDaysRemaining(canCreateResult.daysRemaining);
         }
+
+        // Vérifier s'il y a un roll en attente (lock anti-refresh)
+        if (canCreateResult.canCreate) {
+          const pendingResult = await getPendingRoll(currentUser.uid);
+          if (pendingResult.success && pendingResult.data) {
+            const pending = pendingResult.data;
+            if (pending.type === 'triple' && pending.rolls) {
+              setAllRolls(pending.rolls);
+              setHasTripleRoll(true);
+            } else if (pending.type === 'single' && pending.roll) {
+              setRolledCharacter(pending.roll);
+            }
+            // Ne pas vérifier triple roll si un pending existe déjà
+            return;
+          }
+        }
+
         // Vérifier la récompense triple roll
         const tripleRoll = await checkTripleRoll(currentUser.uid);
         if (tripleRoll) {
@@ -327,7 +344,7 @@ const CharacterCreation = () => {
   const classBonus = (clazz) => getClassBonus(clazz);
 
   // Roll aléatoire de race/classe/stats (étape 1)
-  const rollCharacter = () => {
+  const rollCharacter = async () => {
     if (hasTripleRoll) {
       // Triple roll: générer 3 personnages d'un coup
       const rolls = [];
@@ -350,8 +367,12 @@ const CharacterCreation = () => {
         rolls.push({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
       }
       setAllRolls(rolls);
-      setRolledCharacter(null); // Attendre le choix
+      setRolledCharacter(null);
       setRollsRemaining(0);
+      // Sauvegarder les 3 rolls en Firestore
+      if (currentUser) {
+        await savePendingRoll(currentUser.uid, { type: 'triple', rolls });
+      }
     } else {
       const raceKeys = Object.keys(races);
       const classKeys = Object.keys(classes);
@@ -368,7 +389,12 @@ const CharacterCreation = () => {
         rescap: raw.rescap+rB.rescap+cB.rescap,
         spd: raw.spd+rB.spd+cB.spd
       };
-      setRolledCharacter({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+      const rolled = { race, class: charClass, base, bonuses: {race:rB,class:cB} };
+      setRolledCharacter(rolled);
+      // Sauvegarder le roll en Firestore
+      if (currentUser) {
+        await savePendingRoll(currentUser.uid, { type: 'single', roll: rolled });
+      }
     }
   };
 
@@ -376,9 +402,11 @@ const CharacterCreation = () => {
     setRolledCharacter(roll);
     setAllRolls([]);
     setHasTripleRoll(false);
-    // Consommer la récompense triple roll
     if (currentUser) {
+      // Consommer la récompense triple roll
       await consumeTripleRoll(currentUser.uid);
+      // Mettre à jour le pending roll avec le choix final
+      await savePendingRoll(currentUser.uid, { type: 'single', roll });
     }
   };
 
@@ -420,6 +448,8 @@ const CharacterCreation = () => {
       const result = await saveCharacter(currentUser.uid, newChar);
 
       if (result.success) {
+        // Supprimer le pending roll
+        await deletePendingRoll(currentUser.uid);
         setExistingCharacter(newChar);
         setCanCreate(false);
       } else {
