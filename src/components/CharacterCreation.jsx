@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll } from '../services/characterService';
-import { clearEquippedWeapon, getEquippedWeapon } from '../services/dungeonService';
+import { clearEquippedWeapon } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -249,14 +249,8 @@ const CharacterCreation = () => {
           ...normalized,
           level
         });
-        let weaponId = normalized.equippedWeaponId || null;
-        let weaponData = weaponId ? getWeaponById(weaponId) : null;
-        if (!weaponData) {
-          const weaponResult = await getEquippedWeapon(currentUser.uid);
-          if (weaponResult.success) {
-            weaponData = weaponResult.weapon;
-          }
-        }
+        const weaponId = normalized.equippedWeaponId || null;
+        const weaponData = weaponId ? getWeaponById(weaponId) : null;
         setEquippedWeapon(weaponData);
         setCanCreate(false);
       } else {
