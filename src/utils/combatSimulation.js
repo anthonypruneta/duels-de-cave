@@ -11,9 +11,11 @@ import {
   dmgPhys,
   dmgCap,
   calcCritChance,
+  getCritMultiplier,
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics.js';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
@@ -37,36 +39,74 @@ const genStats = () => {
   return s;
 };
 
-const generateCharacter = (name) => {
+const generateCharacter = (name, level = 1) => {
   const raceKeys = Object.keys(races);
   const classKeys = Object.keys(classes);
   const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
   const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+  const awakeningEffect = getAwakeningEffect(race, level);
   const raw = genStats();
   const rB = getRaceBonus(race);
   const cB = getClassBonus(charClass);
-  const base = {
+  const base = applyAwakeningToBase({
     hp: raw.hp+rB.hp+cB.hp,
     auto: raw.auto+rB.auto+cB.auto,
     def: raw.def+rB.def+cB.def,
     cap: raw.cap+rB.cap+cB.cap,
     rescap: raw.rescap+rB.rescap+cB.rescap,
     spd: raw.spd+rB.spd+cB.spd
-  };
+  }, awakeningEffect);
   return {
-    name, race, class: charClass, base,
+    name, race, class: charClass, base, level,
     bonuses: { race: rB, class: cB },
     currentHP: base.hp, maxHP: base.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
     undead: false, dodge: false, reflect: false,
-    bleed_stacks: 0, maso_taken: 0
+    bleed_stacks: 0, bleedPercentPerStack: 0,
+    maso_taken: 0, familiarStacks: 0,
+    awakening: buildAwakeningState(awakeningEffect)
   };
 };
 
-const reviveUndead = (target) => {
-  const revive = Math.max(1, Math.round(raceConstants.mortVivant.revivePercent * target.maxHP));
+const reviveUndead = (target, attacker) => {
+  const revivePercent = target.awakening?.revivePercent ?? raceConstants.mortVivant.revivePercent;
+  const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
+  const explosionPercent = target.awakening?.explosionPercent ?? 0;
+  if (attacker && explosionPercent > 0) {
+    let explosion = Math.max(1, Math.round(explosionPercent * target.maxHP));
+    if (attacker.awakening?.damageTakenMultiplier) {
+      explosion = Math.max(1, Math.round(explosion * attacker.awakening.damageTakenMultiplier));
+    }
+    attacker.currentHP -= explosion;
+    if (attacker.awakening?.damageStackBonus) {
+      attacker.awakening.damageTakenStacks += 1;
+    }
+  }
   target.undead = true;
   target.currentHP = revive;
+};
+
+const applyIncomingAwakeningModifiers = (defender, damage) => {
+  let adjusted = damage;
+  if (defender.awakening?.incomingHitMultiplier && defender.awakening.incomingHitCountRemaining > 0) {
+    adjusted = Math.round(adjusted * defender.awakening.incomingHitMultiplier);
+    defender.awakening.incomingHitCountRemaining -= 1;
+  }
+  if (defender.awakening?.damageTakenMultiplier) {
+    adjusted = Math.round(adjusted * defender.awakening.damageTakenMultiplier);
+  }
+  return adjusted;
+};
+
+const applyOutgoingAwakeningMultiplier = (attacker, baseMultiplier) => {
+  let mult = baseMultiplier;
+  if (attacker.awakening?.highHpDamageBonus && attacker.currentHP > attacker.maxHP * (attacker.awakening.highHpThreshold ?? 1)) {
+    mult *= 1 + attacker.awakening.highHpDamageBonus;
+  }
+  if (attacker.awakening?.damageStackBonus && attacker.awakening.damageTakenStacks > 0) {
+    mult *= 1 + attacker.awakening.damageStackBonus * attacker.awakening.damageTakenStacks;
+  }
+  return mult;
 };
 
 const processTurn = (p1, p2) => {
@@ -84,18 +124,24 @@ const processTurn = (p1, p2) => {
 
     // Sylvari - Régénération
     if (att.race === 'Sylvari') {
-      const heal = Math.max(1, Math.round(att.maxHP * raceConstants.sylvari.regenPercent));
+      const regenPercent = att.awakening?.regenPercent ?? raceConstants.sylvari.regenPercent;
+      const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
     // Demoniste - Familier
     if (att.class === 'Demoniste') {
-      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap) * att.base.cap));
-      const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const stackBonus = stackPerAuto * (att.familiarStacks || 0);
+      const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
+      let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+      raw = applyIncomingAwakeningModifiers(def, raw);
       def.currentHP -= raw;
+      if (raw > 0 && def.awakening?.damageStackBonus) {
+        def.awakening.damageTakenStacks += 1;
+      }
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def);
+        reviveUndead(def, att);
       }
     }
 
@@ -109,17 +155,22 @@ const processTurn = (p1, p2) => {
         att.maso_taken = 0;
         def.currentHP -= dmg;
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def);
+          reviveUndead(def, att);
         }
       }
     }
 
     // Lycan - Saignement
     if (att.bleed_stacks > 0) {
-      const bleedDmg = Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
+      let bleedDmg = att.bleedPercentPerStack
+        ? Math.max(1, Math.round(att.maxHP * att.bleedPercentPerStack * att.bleed_stacks))
+        : Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
+      if (att.awakening?.damageTakenMultiplier) {
+        bleedDmg = Math.max(1, Math.round(bleedDmg * att.awakening.damageTakenMultiplier));
+      }
       att.currentHP -= bleedDmg;
       if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-        reviveUndead(att);
+        reviveUndead(att, def);
       }
     }
 
@@ -151,6 +202,7 @@ const processTurn = (p1, p2) => {
     if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
       mult = raceConstants.orc.damageBonus;
     }
+    mult = applyOutgoingAwakeningMultiplier(att, mult);
 
     // Archer - Tirs multiples
     const hits = isArcher ? classConstants.archer.hitCount : 1;
@@ -188,11 +240,15 @@ const processTurn = (p1, p2) => {
         // Attaque normale
         raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
         if (att.race === 'Lycan') {
-          def.bleed_stacks = (def.bleed_stacks || 0) + raceConstants.lycan.bleedPerHit;
+          const bleedStacks = att.awakening?.bleedStacksPerHit ?? raceConstants.lycan.bleedPerHit;
+          def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+          if (att.awakening?.bleedPercentPerStack) {
+            def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
+          }
         }
       }
 
-      if (isCrit) raw = Math.round(raw * generalConstants.critMultiplier);
+      if (isCrit) raw = Math.round(raw * getCritMultiplier(att));
 
       // Esquive
       if (def.dodge) {
@@ -206,11 +262,18 @@ const processTurn = (p1, p2) => {
         att.currentHP -= back;
       }
 
+      raw = applyIncomingAwakeningModifiers(def, raw);
       def.currentHP -= raw;
+      if (raw > 0 && def.awakening?.damageStackBonus) {
+        def.awakening.damageTakenStacks += 1;
+      }
+      if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher) {
+        att.familiarStacks = (att.familiarStacks || 0) + 1;
+      }
       if (raw > 0) def.maso_taken = (def.maso_taken || 0) + raw;
 
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-        reviveUndead(def);
+        reviveUndead(def, att);
       } else if (def.currentHP <= 0) {
         break;
       }

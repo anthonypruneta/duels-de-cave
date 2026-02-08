@@ -62,15 +62,15 @@ export const MAGE_TOWER_PASSIVES = [
     icon: '🩸',
     levels: {
       1: {
-        description: 'Chaque attaque soigne 3% des PV max.',
+        description: 'Chaque attaque soigne 3% des dégâts infligés.',
         healPercent: 0.03
       },
       2: {
-        description: 'Chaque attaque soigne 5% des PV max.',
+        description: 'Chaque attaque soigne 5% des dégâts infligés.',
         healPercent: 0.05
       },
       3: {
-        description: 'Chaque attaque soigne 8% des PV max.',
+        description: 'Chaque attaque soigne 8% des dégâts infligés.',
         healPercent: 0.08
       }
     }

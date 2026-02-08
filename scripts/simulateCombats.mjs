@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Script de simulation pour tester l'équilibrage
-// Usage: node scripts/simulateCombats.mjs [nombre]
+// Usage: node scripts/simulateCombats.mjs [nombre] [niveau]
 
 import { races } from '../src/data/races.js';
 import { classes } from '../src/data/classes.js';
@@ -122,7 +122,7 @@ const getRandomWeapon = () => {
   return pool[Math.floor(Math.random() * pool.length)] || null;
 };
 
-const generateCharacter = (name) => {
+const generateCharacter = (name, level = 1) => {
   const raceKeys = Object.keys(races);
   const classKeys = Object.keys(classes);
   const race = raceKeys[Math.floor(Math.random() * raceKeys.length)];
@@ -145,7 +145,7 @@ const generateCharacter = (name) => {
     race,
     class: charClass,
     base,
-    level: 1,
+    level,
     equippedWeaponId: weapon?.id || null,
     mageTowerPassive: passive
   };
@@ -358,7 +358,7 @@ const applyDamage = (attacker, defender, rawDamage, isCrit, context) => {
   }
 
   if (attacker.passiveDetails?.id === 'essence_drain' && damage > 0) {
-    const heal = Math.max(1, Math.round(attacker.maxHP * attacker.passiveDetails.levelData.healPercent));
+    const heal = Math.max(1, Math.round(damage * attacker.passiveDetails.levelData.healPercent));
     attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
   }
 
@@ -703,8 +703,8 @@ export const simulateMany = (attacker, defender, simulationsCount = 1000) => {
   };
 };
 
-const runSimulation = (numCombats = 1000) => {
-  console.log(`\n🎮 Simulation de ${numCombats} combats...\n`);
+const runSimulation = (numCombats = 1000, level = 1) => {
+  console.log(`\n🎮 Simulation de ${numCombats} combats (niveau ${level})...\n`);
 
   const results = [];
   const raceWins = {};
@@ -723,8 +723,8 @@ const runSimulation = (numCombats = 1000) => {
   });
 
   for (let i = 0; i < numCombats; i++) {
-    const p1 = generateCharacter('P1');
-    const p2 = generateCharacter('P2');
+    const p1 = generateCharacter('P1', level);
+    const p2 = generateCharacter('P2', level);
     const result = simulateCombat(p1, p2);
     results.push(result);
     totalTurns += result.turns;
@@ -799,4 +799,5 @@ const runSimulation = (numCombats = 1000) => {
 
 // Lancer la simulation
 const numCombats = parseInt(process.argv[2], 10) || 1000;
-runSimulation(numCombats);
+const level = parseInt(process.argv[3], 10) || 1;
+runSimulation(numCombats, level);

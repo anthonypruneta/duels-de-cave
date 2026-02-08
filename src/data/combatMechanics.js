@@ -42,9 +42,10 @@ export const classConstants = {
     capPerCap: 0
   },
   demoniste: {
-    capBase: 0.28,         // 28% de Cap de base (pour calcul dégâts)
+    capBase: 0.50,         // 50% de Cap de base (pour calcul dégâts)
     capPerCap: 0,
-    ignoreResist: 0.60     // Ignore 60% de la ResC
+    ignoreResist: 1.0,     // Ignore 100% de la ResC
+    stackPerAuto: 0.03     // +3% de Cap par auto du Demoniste (cumulable)
   },
   masochiste: {
     returnBase: 0.15,      // 15% des dégâts accumulés
@@ -81,7 +82,13 @@ export const calcCritChance = (attacker) => {
   let c = generalConstants.baseCritChance;
   if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
   if (attacker.race === 'Elfe') c += raceConstants.elfe.critBonus;
+  if (attacker?.awakening?.critChanceBonus) c += attacker.awakening.critChanceBonus;
   return c;
+};
+
+export const getCritMultiplier = (attacker) => {
+  const bonus = attacker?.awakening?.critDamageBonus ?? 0;
+  return generalConstants.critMultiplier * (1 + bonus);
 };
 
 // Bonus de stats par race
