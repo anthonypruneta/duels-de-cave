@@ -82,7 +82,13 @@ export const calcCritChance = (attacker) => {
   let c = generalConstants.baseCritChance;
   if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
   if (attacker.race === 'Elfe') c += raceConstants.elfe.critBonus;
+  if (attacker?.awakening?.critChanceBonus) c += attacker.awakening.critChanceBonus;
   return c;
+};
+
+export const getCritMultiplier = (attacker) => {
+  const bonus = attacker?.awakening?.critDamageBonus ?? 0;
+  return generalConstants.critMultiplier * (1 + bonus);
 };
 
 // Bonus de stats par race
