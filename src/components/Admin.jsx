@@ -32,6 +32,7 @@ const Admin = () => {
   // États pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
@@ -483,7 +484,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 <h4 className="text-stone-300 font-bold mb-3">Résultats des matchs</h4>
                 <div className="space-y-2">
                   {simulationResult.resultatsMatchs.map((m, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm bg-stone-900/50 p-2 rounded border border-stone-700">
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 text-sm bg-stone-900/50 p-2 rounded border border-stone-700 cursor-pointer hover:border-amber-500 hover:bg-stone-800/80 transition"
+                      onClick={() => setSelectedMatch(m)}
+                    >
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         m.bracket === 'winners' ? 'bg-amber-900/50 text-amber-300' :
                         m.bracket === 'losers' ? 'bg-red-900/50 text-red-300' :
@@ -494,7 +499,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       <span className={m.winnerNom === m.p1Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p1Nom}</span>
                       <span className="text-stone-600">vs</span>
                       <span className={m.winnerNom === m.p2Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p2Nom}</span>
-                      <span className="text-stone-500 text-xs ml-auto">{m.nbTours} tours</span>
+                      <span className="text-stone-500 text-xs ml-auto">🔍 {m.nbTours} tours</span>
                     </div>
                   ))}
                 </div>
@@ -858,6 +863,96 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             {/* User ID */}
             <div className="text-xs text-gray-500 text-center">
               User ID: {selectedCharacter.userId}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal combat log simulation */}
+      {selectedMatch && (
+        <div
+          className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedMatch(null)}
+        >
+          <div
+            className="bg-stone-800 rounded-2xl border-4 border-amber-600 max-w-2xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-stone-900 p-4 rounded-t-xl border-b border-stone-600 flex items-center justify-between">
+              <div>
+                <div className="text-xs text-stone-500 mb-1">{selectedMatch.roundLabel}</div>
+                <h2 className="text-lg font-bold text-white">
+                  <span className="text-blue-400">{selectedMatch.p1Nom}</span>
+                  <span className="text-stone-500 mx-2">vs</span>
+                  <span className="text-purple-400">{selectedMatch.p2Nom}</span>
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedMatch(null)}
+                className="text-gray-400 hover:text-white text-3xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Combat log */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {selectedMatch.combatLog.map((log, idx) => {
+                const isP1 = log.startsWith('[P1]');
+                const isP2 = log.startsWith('[P2]');
+                const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                if (!isP1 && !isP2) {
+                  if (log.includes('🏆')) {
+                    return (
+                      <div key={idx} className="flex justify-center my-4">
+                        <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-base shadow-lg border border-stone-400 rounded">
+                          {cleanLog}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (log.includes('---')) {
+                    return (
+                      <div key={idx} className="flex justify-center my-3">
+                        <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500 rounded">
+                          {cleanLog}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={idx} className="flex justify-center">
+                      <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                    </div>
+                  );
+                }
+
+                if (isP1) {
+                  return (
+                    <div key={idx} className="flex justify-start">
+                      <div className="max-w-[85%] bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500 rounded">
+                        <div className="text-xs md:text-sm">{cleanLog}</div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={idx} className="flex justify-end">
+                    <div className="max-w-[85%] bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500 rounded">
+                      <div className="text-xs md:text-sm">{cleanLog}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-stone-900 p-3 rounded-b-xl border-t border-stone-600 text-center">
+              <span className="text-green-400 font-bold">🏆 {selectedMatch.winnerNom}</span>
+              <span className="text-stone-500 text-sm ml-2">remporte le match en {selectedMatch.nbTours} tours</span>
             </div>
           </div>
         </div>

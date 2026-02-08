@@ -311,6 +311,54 @@ export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   }
 };
 
+// Sauvegarder un roll en attente (lock race/classe/stats)
+export const savePendingRoll = async (userId, rollData) => {
+  try {
+    await retryOperation(async () => {
+      const rollRef = doc(db, 'pendingRolls', userId);
+      await setDoc(rollRef, {
+        ...rollData,
+        userId,
+        rolledAt: Timestamp.now()
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur sauvegarde pending roll:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Récupérer un roll en attente
+export const getPendingRoll = async (userId) => {
+  try {
+    const result = await retryOperation(async () => {
+      const rollRef = doc(db, 'pendingRolls', userId);
+      return await getDoc(rollRef);
+    });
+    if (result.exists()) {
+      return { success: true, data: result.data() };
+    }
+    return { success: true, data: null };
+  } catch (error) {
+    console.error('Erreur récupération pending roll:', error);
+    return { success: false, data: null };
+  }
+};
+
+// Supprimer un roll en attente
+export const deletePendingRoll = async (userId) => {
+  try {
+    await retryOperation(async () => {
+      await deleteDoc(doc(db, 'pendingRolls', userId));
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur suppression pending roll:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Récupérer les personnages désactivés d'un utilisateur
 export const getDisabledCharacters = async (userId) => {
   try {
