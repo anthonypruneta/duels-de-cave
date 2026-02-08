@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import {
@@ -198,6 +198,9 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
 const Tournament = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSimulation = searchParams.get('mode') === 'simulation';
+  const docId = isSimulation ? 'simulation' : 'current';
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
   // Tournoi state
@@ -308,9 +311,9 @@ const Tournament = () => {
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
       setLoading(false);
-    });
+    }, docId);
     return () => unsubscribe();
-  }, []);
+  }, [docId]);
 
   // Timer countdown + phase
   useEffect(() => {
@@ -329,27 +332,29 @@ const Tournament = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-création à 18h (admin)
+  // Auto-création à 18h (admin) — pas en simulation
   useEffect(() => {
+    if (isSimulation) return;
     if (!isAdmin || autoCreatedRef.current || tournoi || loading) return;
     if (phase === 'annonce' || phase === 'combat') {
       autoCreatedRef.current = true;
       (async () => {
         setActionLoading(true);
-        await creerTournoi();
+        await creerTournoi(docId);
         setActionLoading(false);
       })();
     }
   }, [phase, isAdmin, tournoi, loading]);
 
-  // Auto-lancement à 19h (admin)
+  // Auto-lancement à 19h (admin) — pas en simulation
   useEffect(() => {
+    if (isSimulation) return;
     if (!isAdmin || autoLaunchedRef.current || !tournoi || loading) return;
     if (phase === 'combat' && tournoi.statut === 'preparation') {
       autoLaunchedRef.current = true;
       (async () => {
         setActionLoading(true);
-        await lancerTournoi();
+        await lancerTournoi(docId);
         setActionLoading(false);
       })();
     }
@@ -416,7 +421,7 @@ const Tournament = () => {
     }
 
     // Charger le combat log
-    const result = await getCombatLog(matchId);
+    const result = await getCombatLog(matchId, docId);
     if (!result.success || token.cancelled) {
       setIsAnimating(false);
       return;
@@ -501,10 +506,10 @@ const Tournament = () => {
     if (isAdmin && !replayMatchId) {
       autoAdvanceRef.current = setTimeout(async () => {
         autoAdvanceRef.current = null;
-        const advResult = await avancerMatch();
+        const advResult = await avancerMatch(docId);
         if (advResult.skipped) {
           // Match bye, avancer encore
-          await avancerMatch();
+          await avancerMatch(docId);
         }
       }, 8000);
     }
@@ -530,10 +535,10 @@ const Tournament = () => {
       autoAdvanceRef.current = null;
     }
     setActionLoading(true);
-    const result = await avancerMatch();
+    const result = await avancerMatch(docId);
     if (!result.success) alert('Erreur: ' + result.error);
     if (result.skipped) {
-      await avancerMatch();
+      await avancerMatch(docId);
     }
     if (result.termine && tournoi?.champion) {
       setAnnonceActuelle(tournoi.annonceChampion || `🏆 ${tournoi.champion.nom} EST LE CHAMPION !!!`);
@@ -542,9 +547,16 @@ const Tournament = () => {
   };
 
   const handleTerminerTournoi = async () => {
+    if (isSimulation) {
+      setActionLoading(true);
+      await terminerTournoi(docId);
+      setActionLoading(false);
+      navigate('/admin');
+      return;
+    }
     if (!window.confirm('Terminer le tournoi ? Tous les personnages seront archivés.')) return;
     setActionLoading(true);
-    const result = await terminerTournoi();
+    const result = await terminerTournoi(docId);
     if (!result.success) alert('Erreur: ' + result.error);
     else alert('Tournoi terminé ! Personnages archivés, champion récompensé.');
     setActionLoading(false);
@@ -841,32 +853,49 @@ const Tournament = () => {
       <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
-            <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi du Samedi</h1>
-          </div>
-
-          {phase === 'attente' && countdown && (
-            <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
-              <p className="text-stone-300 text-xl mb-6">Prochain tournoi dans</p>
-              <div className="text-5xl md:text-6xl font-bold text-amber-400 font-mono tracking-wider mb-6">
-                {countdown}
+          {isSimulation ? (
+            <>
+              <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
+                <h1 className="text-4xl font-bold text-amber-400">🎲 Simulation de Tournoi</h1>
               </div>
-              <p className="text-stone-500">Samedi à 18h — Annonce des duels</p>
-              <p className="text-stone-500">Samedi à 19h — Début des combats</p>
-            </div>
-          )}
+              <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
+                <p className="text-stone-300 text-xl">Aucune simulation en cours</p>
+                <p className="text-stone-500 mt-2">Lancez une simulation depuis le panel admin</p>
+              </div>
+              <button onClick={() => navigate('/admin')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+                ← Retour à l'admin
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
+                <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi du Samedi</h1>
+              </div>
 
-          {(phase === 'annonce' || phase === 'combat') && (
-            <div className="bg-stone-800/90 p-8 border-2 border-amber-500 rounded-xl">
-              <div className="text-4xl mb-4 animate-pulse">⏳</div>
-              <p className="text-amber-300 text-xl font-bold">Préparation du tournoi en cours...</p>
-              <p className="text-stone-400 mt-2">Les duels seront annoncés dans un instant</p>
-            </div>
-          )}
+              {phase === 'attente' && countdown && (
+                <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
+                  <p className="text-stone-300 text-xl mb-6">Prochain tournoi dans</p>
+                  <div className="text-5xl md:text-6xl font-bold text-amber-400 font-mono tracking-wider mb-6">
+                    {countdown}
+                  </div>
+                  <p className="text-stone-500">Samedi à 18h — Annonce des duels</p>
+                  <p className="text-stone-500">Samedi à 19h — Début des combats</p>
+                </div>
+              )}
 
-          <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
-            ← Retour
-          </button>
+              {(phase === 'annonce' || phase === 'combat') && (
+                <div className="bg-stone-800/90 p-8 border-2 border-amber-500 rounded-xl">
+                  <div className="text-4xl mb-4 animate-pulse">⏳</div>
+                  <p className="text-amber-300 text-xl font-bold">Préparation du tournoi en cours...</p>
+                  <p className="text-stone-400 mt-2">Les duels seront annoncés dans un instant</p>
+                </div>
+              )}
+
+              <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+                ← Retour
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -882,8 +911,12 @@ const Tournament = () => {
         <div className="max-w-4xl mx-auto pt-20">
           <div className="text-center mb-8">
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
-              <h1 className="text-4xl font-bold text-amber-400">🏟️ Les duels sont annoncés !</h1>
-              <p className="text-stone-400 mt-2">{tournoi.participantsList?.length || 0} combattants • Début à 19h</p>
+              <h1 className="text-4xl font-bold text-amber-400">
+                {isSimulation ? '🎲 Simulation — Les duels sont prêts !' : '🏟️ Les duels sont annoncés !'}
+              </h1>
+              <p className="text-stone-400 mt-2">
+                {tournoi.participantsList?.length || 0} combattants{isSimulation ? '' : ' • Début à 19h'}
+              </p>
             </div>
           </div>
 
@@ -914,7 +947,7 @@ const Tournament = () => {
               <button
                 onClick={async () => {
                   setActionLoading(true);
-                  await lancerTournoi();
+                  await lancerTournoi(docId);
                   setActionLoading(false);
                 }}
                 disabled={actionLoading}
@@ -955,7 +988,9 @@ const Tournament = () => {
         <div className="text-center mb-6">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h1 className="text-3xl md:text-4xl font-bold text-amber-400">
-              🏟️ {isTournoiTermine ? 'Tournoi Terminé' : 'Tournoi en direct'}
+              {isSimulation ? '🎲' : '🏟️'} {isTournoiTermine
+                ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
+                : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
             </h1>
             {matchProgress && <p className="text-stone-400 mt-1">{matchProgress}</p>}
           </div>
@@ -979,8 +1014,8 @@ const Tournament = () => {
             )}
             <h2 className="text-3xl font-bold text-yellow-300">{tournoi.champion.nom}</h2>
             <p className="text-amber-300">{tournoi.champion.race} • {tournoi.champion.classe}</p>
-            <p className="text-yellow-400 font-bold mt-2">CHAMPION DU TOURNOI</p>
-            <p className="text-stone-400 text-sm mt-1">Récompense: 3 rolls pour le prochain personnage</p>
+            <p className="text-yellow-400 font-bold mt-2">{isSimulation ? 'CHAMPION DE LA SIMULATION' : 'CHAMPION DU TOURNOI'}</p>
+            {!isSimulation && <p className="text-stone-400 text-sm mt-1">Récompense: 3 rolls pour le prochain personnage</p>}
           </div>
         )}
 
@@ -1020,16 +1055,36 @@ const Tournament = () => {
             <button
               onClick={handleTerminerTournoi}
               disabled={actionLoading}
-              className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
+              className={`${isSimulation ? 'bg-stone-600 hover:bg-stone-500' : 'bg-red-600 hover:bg-red-500'} disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition`}
             >
-              {actionLoading ? '⏳...' : '🏁 Archiver & Terminer'}
+              {actionLoading ? '⏳...' : isSimulation ? '← Quitter la simulation' : '🏁 Archiver & Terminer'}
+            </button>
+          </div>
+        )}
+
+        {/* Bouton quitter simulation (toujours visible en simulation) */}
+        {isSimulation && !isTournoiTermine && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={async () => {
+                if (animationRef.current) animationRef.current.cancelled = true;
+                if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
+                setActionLoading(true);
+                await terminerTournoi(docId);
+                setActionLoading(false);
+                navigate('/admin');
+              }}
+              disabled={actionLoading}
+              className="bg-stone-600 hover:bg-stone-500 disabled:bg-stone-700 text-white px-6 py-2 rounded-lg transition"
+            >
+              {actionLoading ? '⏳...' : '← Quitter la simulation'}
             </button>
           </div>
         )}
 
         {/* Navigation */}
         <div className="mt-6 text-center">
-          <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+          <button onClick={() => navigate(isSimulation ? '/admin' : '/')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
             ← Retour
           </button>
         </div>

@@ -52,7 +52,7 @@ async function chargerParticipants() {
 // CRÉER UN TOURNOI
 // ============================================================================
 
-export async function creerTournoi() {
+export async function creerTournoi(docId = 'current') {
   try {
     const participants = await chargerParticipants();
     if (participants.length < 2) {
@@ -102,7 +102,7 @@ export async function creerTournoi() {
       annonceIntro: annonceDebutTournoi(participants.length),
     };
 
-    await setDoc(doc(db, 'tournaments', 'current'), tournoi);
+    await setDoc(doc(db, 'tournaments', docId), tournoi);
 
     return { success: true, nbParticipants: participants.length };
   } catch (error) {
@@ -151,9 +151,9 @@ function simulerUnMatch(matches, participants, matchId) {
 // LANCER LE TOURNOI (simule uniquement le premier match)
 // ============================================================================
 
-export async function lancerTournoi() {
+export async function lancerTournoi(docId = 'current') {
   try {
-    const tournoiDoc = await getDoc(doc(db, 'tournaments', 'current'));
+    const tournoiDoc = await getDoc(doc(db, 'tournaments', docId));
     if (!tournoiDoc.exists()) return { success: false, error: 'Aucun tournoi trouvé' };
 
     const tournoi = tournoiDoc.data();
@@ -167,10 +167,10 @@ export async function lancerTournoi() {
     if (!result) return { success: false, error: 'Impossible de simuler le premier match' };
 
     // Stocker le combat log
-    await setDoc(doc(db, 'tournaments', 'current', 'combatLogs', firstMatchId), result.combatLogData);
+    await setDoc(doc(db, 'tournaments', docId, 'combatLogs', firstMatchId), result.combatLogData);
 
     // Mettre à jour le tournoi
-    await updateDoc(doc(db, 'tournaments', 'current'), {
+    await updateDoc(doc(db, 'tournaments', docId), {
       statut: 'en_cours',
       matches,
       matchActuel: 0,
@@ -187,9 +187,9 @@ export async function lancerTournoi() {
 // AVANCER AU MATCH SUIVANT (simule le prochain match)
 // ============================================================================
 
-export async function avancerMatch() {
+export async function avancerMatch(docId = 'current') {
   try {
-    const tournoiDoc = await getDoc(doc(db, 'tournaments', 'current'));
+    const tournoiDoc = await getDoc(doc(db, 'tournaments', docId));
     if (!tournoiDoc.exists()) return { success: false, error: 'Aucun tournoi trouvé' };
 
     const tournoi = tournoiDoc.data();
@@ -216,7 +216,7 @@ export async function avancerMatch() {
         characterImage: championData.characterImage
       } : null;
 
-      await updateDoc(doc(db, 'tournaments', 'current'), {
+      await updateDoc(doc(db, 'tournaments', docId), {
         statut: 'termine',
         matchActuel: nextIndex,
         matchOrder,
@@ -233,7 +233,7 @@ export async function avancerMatch() {
 
     if (!result) {
       // Match bye ou erreur → passer au suivant
-      await updateDoc(doc(db, 'tournaments', 'current'), {
+      await updateDoc(doc(db, 'tournaments', docId), {
         matchActuel: nextIndex,
         matchOrder,
         matches,
@@ -242,7 +242,7 @@ export async function avancerMatch() {
     }
 
     // Stocker le combat log
-    await setDoc(doc(db, 'tournaments', 'current', 'combatLogs', nextMatchId), result.combatLogData);
+    await setDoc(doc(db, 'tournaments', docId, 'combatLogs', nextMatchId), result.combatLogData);
 
     // Préparer la mise à jour
     let updateData = {
@@ -279,7 +279,7 @@ export async function avancerMatch() {
       }
     }
 
-    await updateDoc(doc(db, 'tournaments', 'current'), updateData);
+    await updateDoc(doc(db, 'tournaments', docId), updateData);
 
     return { success: true, termine: false, matchIndex: nextIndex };
   } catch (error) {
@@ -291,9 +291,9 @@ export async function avancerMatch() {
 // RÉCUPÉRER LE COMBAT LOG D'UN MATCH
 // ============================================================================
 
-export async function getCombatLog(matchId) {
+export async function getCombatLog(matchId, docId = 'current') {
   try {
-    const logDoc = await getDoc(doc(db, 'tournaments', 'current', 'combatLogs', matchId));
+    const logDoc = await getDoc(doc(db, 'tournaments', docId, 'combatLogs', matchId));
     if (!logDoc.exists()) return { success: false, error: 'Combat log non trouvé' };
     return { success: true, data: logDoc.data() };
   } catch (error) {
@@ -305,8 +305,8 @@ export async function getCombatLog(matchId) {
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
-export function onTournoiUpdate(callback) {
-  return onSnapshot(doc(db, 'tournaments', 'current'), (snapshot) => {
+export function onTournoiUpdate(callback, docId = 'current') {
+  return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     } else {
@@ -321,9 +321,19 @@ export function onTournoiUpdate(callback) {
 // TERMINER LE TOURNOI (archiver personnages + hall of fame)
 // ============================================================================
 
-export async function terminerTournoi() {
+export async function terminerTournoi(docId = 'current') {
   try {
-    const tournoiDoc = await getDoc(doc(db, 'tournaments', 'current'));
+    // Pour les simulations, juste supprimer le document et les logs
+    if (docId !== 'current') {
+      const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
+      for (const logDoc of logsSnapshot.docs) {
+        await deleteDoc(logDoc.ref);
+      }
+      await deleteDoc(doc(db, 'tournaments', docId));
+      return { success: true };
+    }
+
+    const tournoiDoc = await getDoc(doc(db, 'tournaments', docId));
     if (!tournoiDoc.exists()) return { success: false, error: 'Aucun tournoi trouvé' };
 
     const tournoi = tournoiDoc.data();

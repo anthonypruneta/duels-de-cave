@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacterDisabled } from '../services/characterService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
-import { simulerTournoiTest } from '../services/tournamentService';
+import { creerTournoi, lancerTournoi } from '../services/tournamentService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 
@@ -29,10 +29,8 @@ const Admin = () => {
   const [annonceEnvoi, setAnnonceEnvoi] = useState(false);
   const [annonceSucces, setAnnonceSucces] = useState(false);
 
-  // États pour la simulation de tournoi
+  // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
-  const [simulationResult, setSimulationResult] = useState(null);
-  const [selectedMatch, setSelectedMatch] = useState(null);
 
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
@@ -330,13 +328,23 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     setAnnonceEnvoi(false);
   };
 
-  // Simulation de tournoi test
+  // Simulation de tournoi en direct
   const handleSimulerTournoi = async () => {
     setSimulationLoading(true);
-    setSimulationResult(null);
-    const result = await simulerTournoiTest();
-    setSimulationResult(result);
+    const createResult = await creerTournoi('simulation');
+    if (!createResult.success) {
+      alert('Erreur création simulation: ' + createResult.error);
+      setSimulationLoading(false);
+      return;
+    }
+    const launchResult = await lancerTournoi('simulation');
+    if (!launchResult.success) {
+      alert('Erreur lancement simulation: ' + launchResult.error);
+      setSimulationLoading(false);
+      return;
+    }
     setSimulationLoading(false);
+    navigate('/tournament?mode=simulation');
   };
 
   // Activer/désactiver un personnage
@@ -448,64 +456,15 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {/* Section Simulation Tournoi */}
         <div className="bg-stone-900/70 border-2 border-amber-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-amber-300 mb-4">🏆 Simulation de Tournoi</h2>
-          <p className="text-stone-400 text-sm mb-4">Simule un tournoi complet avec tous les personnages disponibles. Aucune donnée n'est sauvegardée, pas d'annonce Discord.</p>
+          <p className="text-stone-400 text-sm mb-4">Lance une simulation en direct avec tous les personnages. Même vue que le vrai tournoi : combats 1 par 1, musique, animations. Aucune donnée n'est sauvegardée, pas d'annonce Discord.</p>
 
           <button
             onClick={handleSimulerTournoi}
             disabled={simulationLoading}
-            className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition mb-4"
+            className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
           >
-            {simulationLoading ? '⏳ Simulation en cours...' : '🎲 Simuler un tournoi'}
+            {simulationLoading ? '⏳ Préparation...' : '🎲 Lancer une simulation en direct'}
           </button>
-
-          {simulationResult && !simulationResult.success && (
-            <div className="bg-red-900/50 border border-red-500 rounded-lg p-4">
-              <p className="text-red-300">{simulationResult.error}</p>
-            </div>
-          )}
-
-          {simulationResult && simulationResult.success && (
-            <div className="space-y-4">
-              {/* Champion */}
-              <div className="bg-gradient-to-r from-yellow-900/50 via-amber-800/50 to-yellow-900/50 border-2 border-yellow-500 p-6 rounded-xl text-center">
-                <div className="text-4xl mb-2">👑</div>
-                {simulationResult.champion?.characterImage && (
-                  <img src={simulationResult.champion.characterImage} alt={simulationResult.champion.nom} className="w-24 h-auto mx-auto mb-2 object-contain" />
-                )}
-                <h3 className="text-2xl font-bold text-yellow-300">{simulationResult.champion?.nom}</h3>
-                <p className="text-amber-300 text-sm">{simulationResult.champion?.race} • {simulationResult.champion?.classe}</p>
-                <p className="text-stone-400 text-xs mt-2">
-                  {simulationResult.nbParticipants} participants • {simulationResult.nbMatchs} matchs joués
-                </p>
-              </div>
-
-              {/* Liste des matchs */}
-              <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-                <h4 className="text-stone-300 font-bold mb-3">Résultats des matchs</h4>
-                <div className="space-y-2">
-                  {simulationResult.resultatsMatchs.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-2 text-sm bg-stone-900/50 p-2 rounded border border-stone-700 cursor-pointer hover:border-amber-500 hover:bg-stone-800/80 transition"
-                      onClick={() => setSelectedMatch(m)}
-                    >
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        m.bracket === 'winners' ? 'bg-amber-900/50 text-amber-300' :
-                        m.bracket === 'losers' ? 'bg-red-900/50 text-red-300' :
-                        'bg-yellow-900/50 text-yellow-300'
-                      }`}>
-                        {m.roundLabel}
-                      </span>
-                      <span className={m.winnerNom === m.p1Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p1Nom}</span>
-                      <span className="text-stone-600">vs</span>
-                      <span className={m.winnerNom === m.p2Nom ? 'text-green-400 font-bold' : 'text-stone-400'}>{m.p2Nom}</span>
-                      <span className="text-stone-500 text-xs ml-auto">🔍 {m.nbTours} tours</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Canvas caché pour le traitement */}
@@ -868,95 +827,6 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         </div>
       )}
 
-      {/* Modal combat log simulation */}
-      {selectedMatch && (
-        <div
-          className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedMatch(null)}
-        >
-          <div
-            className="bg-stone-800 rounded-2xl border-4 border-amber-600 max-w-2xl w-full max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="bg-stone-900 p-4 rounded-t-xl border-b border-stone-600 flex items-center justify-between">
-              <div>
-                <div className="text-xs text-stone-500 mb-1">{selectedMatch.roundLabel}</div>
-                <h2 className="text-lg font-bold text-white">
-                  <span className="text-blue-400">{selectedMatch.p1Nom}</span>
-                  <span className="text-stone-500 mx-2">vs</span>
-                  <span className="text-purple-400">{selectedMatch.p2Nom}</span>
-                </h2>
-              </div>
-              <button
-                onClick={() => setSelectedMatch(null)}
-                className="text-gray-400 hover:text-white text-3xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Combat log */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {selectedMatch.combatLog.map((log, idx) => {
-                const isP1 = log.startsWith('[P1]');
-                const isP2 = log.startsWith('[P2]');
-                const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                if (!isP1 && !isP2) {
-                  if (log.includes('🏆')) {
-                    return (
-                      <div key={idx} className="flex justify-center my-4">
-                        <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-base shadow-lg border border-stone-400 rounded">
-                          {cleanLog}
-                        </div>
-                      </div>
-                    );
-                  }
-                  if (log.includes('---')) {
-                    return (
-                      <div key={idx} className="flex justify-center my-3">
-                        <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500 rounded">
-                          {cleanLog}
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={idx} className="flex justify-center">
-                      <div className="text-stone-400 text-sm italic">{cleanLog}</div>
-                    </div>
-                  );
-                }
-
-                if (isP1) {
-                  return (
-                    <div key={idx} className="flex justify-start">
-                      <div className="max-w-[85%] bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500 rounded">
-                        <div className="text-xs md:text-sm">{cleanLog}</div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={idx} className="flex justify-end">
-                    <div className="max-w-[85%] bg-stone-700 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500 rounded">
-                      <div className="text-xs md:text-sm">{cleanLog}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer */}
-            <div className="bg-stone-900 p-3 rounded-b-xl border-t border-stone-600 text-center">
-              <span className="text-green-400 font-bold">🏆 {selectedMatch.winnerNom}</span>
-              <span className="text-stone-500 text-sm ml-2">remporte le match en {selectedMatch.nbTours} tours</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
