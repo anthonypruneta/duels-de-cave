@@ -14,7 +14,7 @@ export const MAGE_TOWER_LEVELS = [
       id: 'rat',
       nom: 'Rat',
       icon: '🐀',
-      imageFile: null,
+      imageFile: 'rat.png',
       stats: { hp: 130, auto: 15, def: 15, rescap: 15, spd: 15, cap: 15 },
       ability: null
     }
@@ -28,7 +28,7 @@ export const MAGE_TOWER_LEVELS = [
       id: 'skeleton_golem',
       nom: 'Golem squelettique',
       icon: '💀',
-      imageFile: null,
+      imageFile: 'golem.png',
       stats: { hp: 180, auto: 25, def: 25, rescap: 25, spd: 25, cap: 25 },
       ability: {
         type: 'bone_guard',
@@ -46,7 +46,7 @@ export const MAGE_TOWER_LEVELS = [
       id: 'lich',
       nom: 'Liche',
       icon: '🧟',
-      imageFile: null,
+      imageFile: 'liche.png',
       stats: { hp: 230, auto: 30, def: 30, rescap: 30, spd: 30, cap: 30 },
       ability: {
         type: 'lich_shield',
