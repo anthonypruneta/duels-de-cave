@@ -425,6 +425,7 @@ export async function simulerTournoiTest() {
         winnerNom: result.winnerNom,
         loserNom: result.loserNom,
         nbTours: result.combatLog.filter(l => l.includes('---')).length,
+        combatLog: result.combatLog,
       });
 
       // Si GFR créé, l'ajouter dans l'ordre
