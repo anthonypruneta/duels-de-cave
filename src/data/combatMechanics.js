@@ -25,7 +25,7 @@ export const classConstants = {
     critPerCap: 0.01       // +1% crit par point de Cap
   },
   paladin: {
-    reflectBase: 0.40,     // 40% renvoi de base
+    reflectBase: 0.35,     // 35% renvoi de base
     reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
@@ -34,8 +34,8 @@ export const classConstants = {
   },
   archer: {
     hitCount: 2,
-    hit2AutoMultiplier: 1.30,
-    hit2CapMultiplier: 0.25
+    hit2AutoMultiplier: 1.20,
+    hit2CapMultiplier: 0.20
   },
   mage: {
     capBase: 0.43,         // 43% de Cap de base
