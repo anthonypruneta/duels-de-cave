@@ -311,6 +311,23 @@ export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   }
 };
 
+// Activer/désactiver un personnage (admin)
+export const toggleCharacterDisabled = async (userId, disabled) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        disabled: !!disabled,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors du changement de statut:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour le niveau du personnage
 export const updateCharacterLevel = async (userId, level) => {
   try {

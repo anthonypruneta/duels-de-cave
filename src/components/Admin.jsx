@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacterDisabled } from '../services/characterService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { simulerTournoiTest } from '../services/tournamentService';
 import Header from './Header';
@@ -335,6 +335,22 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     setSimulationLoading(false);
   };
 
+  // Activer/désactiver un personnage
+  const handleToggleDisabled = async (char) => {
+    const newState = !char.disabled;
+    const result = await toggleCharacterDisabled(char.id, newState);
+    if (result.success) {
+      setCharacters(prev => prev.map(c =>
+        c.id === char.id ? { ...c, disabled: newState } : c
+      ));
+      if (selectedCharacter?.id === char.id) {
+        setSelectedCharacter({ ...selectedCharacter, disabled: newState });
+      }
+    } else {
+      alert('Erreur: ' + result.error);
+    }
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -496,7 +512,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             {characters.map((char) => (
               <div
                 key={char.id}
-                className="bg-stone-800/90 rounded-xl p-6 border-2 border-amber-600 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer"
+                className={`bg-stone-800/90 rounded-xl p-6 border-2 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer ${
+                  char.disabled ? 'border-red-600 opacity-60' : 'border-amber-600'
+                }`}
                 onClick={() => handleSelectCharacter(char)}
               >
                 {/* Image du personnage si elle existe */}
@@ -508,6 +526,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       className="w-full object-contain rounded-t-lg bg-stone-900"
                       style={{ maxHeight: '280px' }}
                     />
+                  </div>
+                )}
+
+                {/* Badge désactivé */}
+                {char.disabled && (
+                  <div className="bg-red-900/70 border border-red-500 rounded-lg px-3 py-1 mb-3 text-center">
+                    <span className="text-red-300 text-sm font-bold">🚫 Désactivé</span>
                   </div>
                 )}
 
@@ -776,6 +801,18 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 </div>
               )}
             </div>
+
+            {/* Bouton activer/désactiver */}
+            <button
+              onClick={() => handleToggleDisabled(selectedCharacter)}
+              className={`w-full py-3 rounded-lg font-bold transition mb-4 ${
+                selectedCharacter.disabled
+                  ? 'bg-green-600 hover:bg-green-500 text-white'
+                  : 'bg-orange-600 hover:bg-orange-500 text-white'
+              }`}
+            >
+              {selectedCharacter.disabled ? '✅ Réactiver ce personnage' : '🚫 Désactiver ce personnage'}
+            </button>
 
             {/* Bouton suppression */}
             <button
