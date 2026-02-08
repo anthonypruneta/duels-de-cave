@@ -367,3 +367,87 @@ export async function consumeTripleRoll(userId) {
     return { success: false, error: error.message };
   }
 }
+
+// ============================================================================
+// SIMULATION DE TEST (aucune écriture Firestore, pas de Discord)
+// ============================================================================
+
+export async function simulerTournoiTest() {
+  try {
+    const participants = await chargerParticipants();
+    if (participants.length < 2) {
+      return { success: false, error: 'Il faut au moins 2 personnages pour simuler un tournoi' };
+    }
+
+    const participantIds = participants.map(p => p.userId || p.id);
+    const { matches, matchOrder } = genererBracket(participantIds);
+
+    const participantsMap = {};
+    for (const p of participants) {
+      const id = p.userId || p.id;
+      participantsMap[id] = {
+        userId: id,
+        nom: p.name,
+        race: p.race,
+        classe: p.class,
+        characterImage: p.characterImage || null,
+        base: p.base,
+        bonuses: p.bonuses,
+        level: p.level ?? 1,
+        equippedWeaponId: p.equippedWeaponId || null,
+        equippedWeaponData: p.equippedWeaponData || null,
+        mageTowerPassive: p.mageTowerPassive || null,
+        forestBoosts: p.forestBoosts || null,
+        name: p.name,
+        class: p.class
+      };
+    }
+
+    const resultatsMatchs = [];
+
+    for (const matchId of matchOrder) {
+      const match = matches[matchId];
+      if (!match || match.statut === 'bye' || match.statut === 'termine') continue;
+
+      const p1Data = participantsMap[match.p1];
+      const p2Data = participantsMap[match.p2];
+      if (!p1Data || !p2Data) continue;
+
+      const result = simulerMatch(p1Data, p2Data);
+      resoudreMatch(matches, matchId, result.winnerId, result.loserId);
+
+      resultatsMatchs.push({
+        matchId,
+        roundLabel: match.roundLabel,
+        bracket: match.bracket,
+        p1Nom: p1Data.nom,
+        p2Nom: p2Data.nom,
+        winnerNom: result.winnerNom,
+        loserNom: result.loserNom,
+        nbTours: result.combatLog.filter(l => l.includes('---')).length,
+      });
+
+      // Si GFR créé, l'ajouter dans l'ordre
+      if (matchId === 'GF' && matches['GFR'] && matches['GFR'].statut === 'en_attente') {
+        matchOrder.push('GFR');
+      }
+    }
+
+    // Déterminer le champion
+    const gfrMatch = matches['GFR'];
+    const gfMatch = matches['GF'];
+    let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
+    const championData = participantsMap[championId];
+
+    return {
+      success: true,
+      champion: championData ? { nom: championData.nom, race: championData.race, classe: championData.classe, characterImage: championData.characterImage } : null,
+      nbParticipants: participants.length,
+      nbMatchs: resultatsMatchs.length,
+      resultatsMatchs,
+    };
+  } catch (error) {
+    console.error('Erreur simulation test:', error);
+    return { success: false, error: error.message };
+  }
+}
