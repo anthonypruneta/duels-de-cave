@@ -77,7 +77,7 @@ export const dungeonLevels = {
     dropRarity: RARITY.RARE,
     icon: '🏚️',
     bossIcon: '🗡️',
-    bossStatModifier: 1.0,
+    bossStatModifier: 1.15,
   },
 
   niveau_3: {
@@ -92,7 +92,7 @@ export const dungeonLevels = {
     icon: '🐉',
     bossIcon: '🐲',
     // Stats supérieures au joueur
-    bossStatModifier: 1.5, // 150% des stats du joueur
+    bossStatModifier: 1.7, // 170% des stats du joueur
   },
 };
 
