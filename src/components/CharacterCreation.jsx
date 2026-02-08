@@ -279,6 +279,7 @@ const CharacterCreation = () => {
               setRolledCharacter(pending.roll);
             }
             // Ne pas vérifier triple roll si un pending existe déjà
+            setLoading(false);
             return;
           }
         }
