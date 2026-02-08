@@ -9,5 +9,5 @@ export const classes = {
   'Archer': { ability: 'Double tir (CD: 3 tours)', description: 'Deux tirs : le premier inflige 100% de votre attaque. Le second inflige 130% de votre attaque + 25% de votre Cap (opposé à la RésCap).', icon: '🏹' },
   'Mage': { ability: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige votre attaque de base + 43% de votre Cap (vs RésCap).', icon: '🔮' },
   'Demoniste': { ability: 'Attaque du familier (Passif)', description: 'Chaque tour, votre familier inflige 50% de votre Cap et ignore totalement la RésCap ennemie. Chaque auto augmente ces dégâts de 3% de Cap (cumulable).', icon: '💠' },
-  'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% des dégâts accumulés + 2% de votre Cap. Se soigne de 10% des dégâts accumulés.', icon: '🩸' }
+  'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% des dégâts accumulés + 2% de votre Cap. Se soigne de 50% des dégâts accumulés.', icon: '🩸' }
 };
