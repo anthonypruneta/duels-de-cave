@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll } from '../services/characterService';
-import { getEquippedWeapon } from '../services/dungeonService';
+import { clearEquippedWeapon, getEquippedWeapon } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -279,6 +279,7 @@ const CharacterCreation = () => {
               setRolledCharacter(pending.roll);
             }
             // Ne pas vérifier triple roll si un pending existe déjà
+            setLoading(false);
             return;
           }
         }
@@ -450,7 +451,9 @@ const CharacterCreation = () => {
       if (result.success) {
         // Supprimer le pending roll
         await deletePendingRoll(currentUser.uid);
+        await clearEquippedWeapon(currentUser.uid);
         setExistingCharacter(newChar);
+        setEquippedWeapon(null);
         setCanCreate(false);
       } else {
         setErrors({ submit: 'Erreur lors de la sauvegarde' });
