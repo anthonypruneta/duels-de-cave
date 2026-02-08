@@ -49,17 +49,6 @@ const DungeonSelection = () => {
           </div>
         </div>
 
-        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 text-center">
-          <p className="text-amber-300 font-bold">✨ Nouveau donjon disponible</p>
-          <p className="text-stone-300 text-sm mb-4">Tentez la Tour du Mage pour récupérer des passifs mystiques.</p>
-          <button
-            onClick={() => navigate('/mage-tower')}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-          >
-            Entrer dans la Tour du Mage
-          </button>
-        </div>
-
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
           <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">Choisis ton aventure</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
