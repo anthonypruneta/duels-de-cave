@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage } from '../services/characterService';
+import { envoyerAnnonceDiscord } from '../services/discordService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 
@@ -19,6 +20,13 @@ const Admin = () => {
   const [savingImage, setSavingImage] = useState(false);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // États pour les annonces Discord
+  const [annonceTitre, setAnnonceTitre] = useState('');
+  const [annonceMessage, setAnnonceMessage] = useState('');
+  const [annonceMention, setAnnonceMention] = useState(false);
+  const [annonceEnvoi, setAnnonceEnvoi] = useState(false);
+  const [annonceSucces, setAnnonceSucces] = useState(false);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -288,6 +296,31 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  // Envoi d'annonce Discord
+  const handleEnvoyerAnnonce = async () => {
+    if (!annonceTitre.trim() || !annonceMessage.trim()) return;
+
+    setAnnonceEnvoi(true);
+    setAnnonceSucces(false);
+
+    try {
+      await envoyerAnnonceDiscord({
+        titre: annonceTitre.trim(),
+        message: annonceMessage.trim(),
+        mentionEveryone: annonceMention
+      });
+      setAnnonceSucces(true);
+      setAnnonceTitre('');
+      setAnnonceMessage('');
+      setAnnonceMention(false);
+      setTimeout(() => setAnnonceSucces(false), 3000);
+    } catch (err) {
+      alert('Erreur envoi Discord: ' + err.message);
+    }
+
+    setAnnonceEnvoi(false);
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -324,6 +357,57 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             <p className="text-stone-400 text-lg">
               {characters.length} personnage{characters.length > 1 ? 's' : ''} créé{characters.length > 1 ? 's' : ''}
             </p>
+          </div>
+        </div>
+
+        {/* Section Annonces Discord */}
+        <div className="bg-stone-900/70 border-2 border-indigo-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-indigo-300 mb-4">📢 Annonce Discord</h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-stone-400 text-sm block mb-1">Titre</label>
+              <input
+                type="text"
+                value={annonceTitre}
+                onChange={(e) => setAnnonceTitre(e.target.value)}
+                placeholder="Ex: Mise à jour v2.0"
+                className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-indigo-400 focus:outline-none"
+                maxLength={256}
+              />
+            </div>
+
+            <div>
+              <label className="text-stone-400 text-sm block mb-1">Message</label>
+              <textarea
+                value={annonceMessage}
+                onChange={(e) => setAnnonceMessage(e.target.value)}
+                placeholder="Contenu de l'annonce..."
+                rows={4}
+                className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-indigo-400 focus:outline-none resize-none"
+                maxLength={4096}
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={annonceMention}
+                  onChange={(e) => setAnnonceMention(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-500"
+                />
+                <span className="text-stone-300 text-sm">Mentionner @everyone</span>
+              </label>
+            </div>
+
+            <button
+              onClick={handleEnvoyerAnnonce}
+              disabled={annonceEnvoi || !annonceTitre.trim() || !annonceMessage.trim()}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
+            >
+              {annonceEnvoi ? '⏳ Envoi en cours...' : annonceSucces ? '✅ Envoyé !' : '📤 Envoyer sur Discord'}
+            </button>
           </div>
         </div>
 
