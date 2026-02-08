@@ -1,5 +1,6 @@
 import {
   collection,
+  addDoc,
   doc,
   setDoc,
   getDoc,
@@ -59,6 +60,17 @@ export const saveCharacter = async (userId, characterData) => {
   try {
     const result = await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
+      const existingSnap = await getDoc(characterRef);
+      if (existingSnap.exists()) {
+        const existingData = existingSnap.data();
+        if (!existingData.disabled) {
+          await addDoc(collection(db, 'characters'), {
+            ...existingData,
+            disabled: true,
+            disabledAt: Timestamp.now()
+          });
+        }
+      }
       const data = {
         ...characterData,
         userId,
