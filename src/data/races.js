@@ -55,12 +55,12 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+20% PV max, -10% dégâts subis',
+      description: '+15% PV max, -5% dégâts subis',
       effect: {
         statMultipliers: {
-          hp: 1.2
+          hp: 1.15
         },
-        damageTakenMultiplier: 0.9
+        damageTakenMultiplier: 0.95
       }
     }
   },
@@ -97,10 +97,10 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1% PV max par tour)',
+      description: 'Chaque auto: +2 stacks de saignement (1.2% PV max par tour)',
       effect: {
-        bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.01
+        bleedStacksPerHit: 2,
+        bleedPercentPerStack: 0.012
       }
     }
   },
