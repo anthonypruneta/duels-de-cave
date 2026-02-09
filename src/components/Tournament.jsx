@@ -479,6 +479,7 @@ const Tournament = () => {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Refs
+  const logContainerRef = useRef(null);
   const logEndRef = useRef(null);
   const animationRef = useRef(null);
   const lastAnimatedMatch = useRef(-1);
@@ -602,10 +603,10 @@ const Tournament = () => {
     }
   }, [phase, isAdmin, tournoi, loading]);
 
-  // Auto-scroll du combat log
+  // Auto-scroll du combat log (scroll le conteneur uniquement, pas la page)
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 768px)').matches) {
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [combatLog]);
 
@@ -995,7 +996,7 @@ const Tournament = () => {
                 ⚔️ {replayMatchId ? 'Replay' : 'Combat en direct'}
               </h2>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
               {combatLog.length === 0 && !isAnimating ? (
                 <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">
                   En attente du combat...
