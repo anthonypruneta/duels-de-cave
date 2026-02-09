@@ -7,6 +7,7 @@ import { races } from '../src/data/races.js';
 import { classes } from '../src/data/classes.js';
 import { weapons, getWeaponById } from '../src/data/weapons.js';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, rollMageTowerPassive } from '../src/data/mageTowerPassives.js';
+import { simulerMatch } from '../src/utils/tournamentCombat.js';
 import {
   cooldowns,
   classConstants,
@@ -650,27 +651,14 @@ const getTurnOrder = (p1, p2, turn) => {
   return p1Priority >= p2Priority ? [p1, p2] : [p2, p1];
 };
 
-const simulateCombat = (attackerInput, defenderInput, maxTurns = generalConstants.maxTurns) => {
-  const p1 = buildCombatant(attackerInput);
-  const p2 = buildCombatant(defenderInput);
-
-  applyStartOfCombatPassives(p1, p2);
-
-  let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
-    const [first, second] = getTurnOrder(p1, p2, turn);
-    const other = first === p1 ? p2 : p1;
-
-    resolveAttackerTurn(first, other, turn);
-    if (p1.currentHP <= 0 || p2.currentHP <= 0) break;
-
-    resolveAttackerTurn(other, first, turn);
-    turn += 1;
-  }
-
+const simulateCombat = (attackerInput, defenderInput) => {
+  const p1 = { ...attackerInput, id: 'P1', userId: 'P1', name: attackerInput.name ?? 'P1' };
+  const p2 = { ...defenderInput, id: 'P2', userId: 'P2', name: defenderInput.name ?? 'P2' };
+  const { steps, winnerId } = simulerMatch(p1, p2);
+  const turns = steps.filter((step) => step.phase === 'turn_start').length;
   return {
-    winner: p1.currentHP > 0 ? 'P1' : 'P2',
-    turns: Math.min(turn, maxTurns),
+    winner: winnerId === 'P1' ? 'P1' : 'P2',
+    turns,
     p1Race: p1.race,
     p1Class: p1.class,
     p2Race: p2.race,
