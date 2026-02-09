@@ -29,8 +29,8 @@ export const classConstants = {
     reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.18, // 18% des PV manquants
-    capScale: 0.40          // 40% de la Cap
+    missingHpPercent: 0.20, // 20% des PV manquants
+    capScale: 0.45          // 45% de la Cap
   },
   archer: {
     hitCount: 2,
