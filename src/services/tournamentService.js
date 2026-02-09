@@ -12,7 +12,7 @@ import { getAllCharacters } from './characterService';
 import { getEquippedWeapon } from './dungeonService';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById } from '../data/weapons';
-import { genererBracket, resoudreMatch, getParticipantNom } from '../utils/tournamentBracket';
+import { genererBracket, resoudreMatch, autoResolveByes, getParticipantNom } from '../utils/tournamentBracket';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
 
@@ -119,6 +119,32 @@ function simulerUnMatch(matches, participants, matchId) {
   const match = matches[matchId];
   if (!match || match.statut === 'bye' || match.statut === 'termine') return null;
 
+  // Vérifier si un participant est BYE ou manquant
+  const p1IsBye = !match.p1 || match.p1 === 'BYE';
+  const p2IsBye = !match.p2 || match.p2 === 'BYE';
+
+  if (p1IsBye || p2IsBye) {
+    if (p1IsBye && p2IsBye) {
+      match.statut = 'bye';
+      match.winnerId = 'BYE';
+      match.loserId = 'BYE';
+      if (match.winnerGoesTo) {
+        const next = matches[match.winnerGoesTo.matchId];
+        if (next) next[match.winnerGoesTo.slot] = 'BYE';
+      }
+      if (match.loserGoesTo) {
+        const next = matches[match.loserGoesTo.matchId];
+        if (next) next[match.loserGoesTo.slot] = 'BYE';
+      }
+    } else {
+      const winnerId = p1IsBye ? match.p2 : match.p1;
+      resoudreMatch(matches, matchId, winnerId, 'BYE');
+      match.statut = 'bye';
+    }
+    autoResolveByes(matches);
+    return null;
+  }
+
   const p1Data = participants[match.p1];
   const p2Data = participants[match.p2];
   if (!p1Data || !p2Data) return null;
@@ -160,11 +186,20 @@ export async function lancerTournoi(docId = 'current') {
     if (tournoi.statut !== 'preparation') return { success: false, error: 'Le tournoi a déjà été lancé' };
 
     const { matches, matchOrder, participants } = tournoi;
-    const firstMatchId = matchOrder[0];
 
-    // Simuler le premier match uniquement
-    const result = simulerUnMatch(matches, participants, firstMatchId);
-    if (!result) return { success: false, error: 'Impossible de simuler le premier match' };
+    // Trouver le premier match jouable (sauter les BYE)
+    let firstIndex = 0;
+    let result = null;
+    let firstMatchId = null;
+
+    while (firstIndex < matchOrder.length) {
+      firstMatchId = matchOrder[firstIndex];
+      result = simulerUnMatch(matches, participants, firstMatchId);
+      if (result) break;
+      firstIndex++;
+    }
+
+    if (!result) return { success: false, error: 'Aucun match jouable trouvé' };
 
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', firstMatchId), result.combatLogData);
@@ -173,7 +208,8 @@ export async function lancerTournoi(docId = 'current') {
     await updateDoc(doc(db, 'tournaments', docId), {
       statut: 'en_cours',
       matches,
-      matchActuel: 0,
+      matchOrder,
+      matchActuel: firstIndex,
     });
 
     return { success: true };
@@ -195,15 +231,37 @@ export async function avancerMatch(docId = 'current') {
     const tournoi = tournoiDoc.data();
     const { matches, participants, participantsList } = tournoi;
     let matchOrder = [...tournoi.matchOrder];
-    const nextIndex = (tournoi.matchActuel ?? -1) + 1;
+    let nextIndex = (tournoi.matchActuel ?? -1) + 1;
 
     // Vérifier si un GFR a été créé et doit être ajouté
     if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
       matchOrder.push('GFR');
     }
 
-    // Si on a dépassé tous les matchs → tournoi terminé
-    if (nextIndex >= matchOrder.length) {
+    // Trouver le prochain match jouable (sauter les BYE/termine)
+    let result = null;
+    let nextMatchId = null;
+
+    while (nextIndex < matchOrder.length) {
+      nextMatchId = matchOrder[nextIndex];
+      result = simulerUnMatch(matches, participants, nextMatchId);
+      if (result) break;
+      nextIndex++;
+    }
+
+    // Si plus de matchs jouables → tournoi terminé
+    if (!result) {
+      // Vérifier GFR créé entre-temps
+      if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
+        matchOrder.push('GFR');
+        // Essayer de jouer le GFR
+        nextIndex = matchOrder.length - 1;
+        nextMatchId = 'GFR';
+        result = simulerUnMatch(matches, participants, nextMatchId);
+      }
+    }
+
+    if (!result) {
       const gfrMatch = matches['GFR'];
       const gfMatch = matches['GF'];
       let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
@@ -220,25 +278,11 @@ export async function avancerMatch(docId = 'current') {
         statut: 'termine',
         matchActuel: nextIndex,
         matchOrder,
+        matches,
         champion,
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
       return { success: true, termine: true, champion };
-    }
-
-    const nextMatchId = matchOrder[nextIndex];
-
-    // Simuler le prochain match
-    const result = simulerUnMatch(matches, participants, nextMatchId);
-
-    if (!result) {
-      // Match bye ou erreur → passer au suivant
-      await updateDoc(doc(db, 'tournaments', docId), {
-        matchActuel: nextIndex,
-        matchOrder,
-        matches,
-      });
-      return { success: true, termine: false, matchIndex: nextIndex, skipped: true };
     }
 
     // Stocker le combat log
@@ -251,15 +295,21 @@ export async function avancerMatch(docId = 'current') {
       matchOrder,
     };
 
-    // Vérifier si c'est le dernier match (pour déterminer le champion)
-    // Mais un GFR peut encore être créé par le GF
-    const isLastInOrder = nextIndex >= matchOrder.length - 1;
-    if (isLastInOrder) {
+    // Vérifier si c'est le dernier match jouable
+    let hasMorePlayableMatches = false;
+    for (let i = nextIndex + 1; i < matchOrder.length; i++) {
+      const m = matches[matchOrder[i]];
+      if (m && m.statut !== 'bye' && m.statut !== 'termine') {
+        hasMorePlayableMatches = true;
+        break;
+      }
+    }
+
+    if (!hasMorePlayableMatches) {
       // Vérifier si GFR a été créé par la résolution du GF
       if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
         matchOrder.push('GFR');
         updateData.matchOrder = matchOrder;
-        // Pas encore terminé, le GFR doit être joué
       } else {
         // Déterminer le champion
         const gfrMatch = matches['GFR'];
