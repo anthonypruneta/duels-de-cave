@@ -10,6 +10,10 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
+import { classConstants } from '../data/combatMechanics';
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
@@ -78,6 +82,192 @@ function escapeRegex(str) {
 }
 
 // ============================================================================
+// HELPERS UI (mêmes que Combat.jsx)
+// ============================================================================
+
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
+
+const Tooltip = ({ children, content }) => (
+  <span className="relative group cursor-help">
+    {children}
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+      {content}
+      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
+    </span>
+  </span>
+);
+
+const STAT_LABELS = { hp: 'HP', auto: 'Auto', def: 'Déf', cap: 'Cap', rescap: 'ResC', spd: 'VIT' };
+
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && (
+        <span className="block text-amber-200">
+          Effet: {weapon.effet.nom} — {weapon.effet.description}
+        </span>
+      )}
+      {stats && (
+        <span className="block text-stone-200">
+          Stats: {stats}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const getCalculatedDescription = (className, cap, auto) => {
+  switch(className) {
+    case 'Guerrier': {
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
+      const ignoreBasePct = Math.round(ignoreBase * 100);
+      const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
+      const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
+      return (
+        <>
+          +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+          <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+            <span className="text-green-400">{ignoreTotalPct}%</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Voleur': {
+      const { spdBonus, critPerCap } = classConstants.voleur;
+      const critBonusPct = Math.round(critPerCap * cap * 100);
+      return (
+        <>
+          +{spdBonus} VIT | Esquive 1 coup
+          <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+            <span className="text-green-400"> | +{critBonusPct}% crit</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Paladin': {
+      const { reflectBase, reflectPerCap } = classConstants.paladin;
+      const reflectBasePct = Math.round(reflectBase * 100);
+      const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+      const reflectTotalPct = reflectBasePct + reflectBonusPct;
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+            <span className="text-green-400">{reflectTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts reçus
+        </>
+      );
+    }
+    case 'Healer': {
+      const { missingHpPercent, capScale } = classConstants.healer;
+      const missingPct = Math.round(missingHpPercent * 100);
+      const healValue = Math.round(capScale * cap);
+      return (
+        <>
+          Heal {missingPct}% PV manquants +{' '}
+          <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+            <span className="text-green-400">{healValue}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Archer': {
+      const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+      const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+      const hit2Cap = Math.round(hit2CapMultiplier * cap);
+      return (
+        <>
+          2 attaques: 1 tir normal +{' '}
+          <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Mage': {
+      const { capBase, capPerCap } = classConstants.mage;
+      const magicPct = capBase + capPerCap * cap;
+      const magicDmg = Math.round(magicPct * cap);
+      return (
+        <>
+          Dégâts = Auto +{' '}
+          <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+            <span className="text-green-400">{auto + magicDmg}</span>
+          </Tooltip>
+          {' '}(vs ResC)
+        </>
+      );
+    }
+    case 'Demoniste': {
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const familierPct = capBase + capPerCap * cap;
+      const familierDmgTotal = Math.round(familierPct * cap);
+      const ignoreResistPct = Math.round(ignoreResist * 100);
+      const stackBonusPct = Math.round(stackPerAuto * 100);
+      return (
+        <>
+          Familier:{' '}
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+            <span className="text-green-400">{familierDmgTotal}</span>
+          </Tooltip>
+          {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+        </>
+      );
+    }
+    case 'Masochiste': {
+      const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+      const returnBasePct = Math.round(returnBase * 100);
+      const returnBonusPct = Math.round(returnPerCap * cap * 100);
+      const returnTotalPct = returnBasePct + returnBonusPct;
+      const healPct = Math.round(healPercent * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+            <span className="text-green-400">{returnTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts accumulés & heal {healPct}%
+        </>
+      );
+    }
+    default:
+      return classes[className]?.description || '';
+  }
+};
+
+// ============================================================================
 // CARTE PERSONNAGE TOURNOI (même style que Combat.jsx)
 // ============================================================================
 
@@ -103,6 +293,50 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
   const awakeningInfo = raceData?.awakening || null;
   const isAwakeningActive = awakeningInfo && (participant.level ?? 1) >= awakeningInfo.levelRequired;
 
+  // Pipeline de stats (même calcul que Combat.jsx)
+  const raceB = participant.bonuses?.race || {};
+  const classB = participant.bonuses?.class || {};
+  const forestBoosts = getForestBoosts(participant);
+  const baseWithBoosts = applyStatBoosts(participant.base, forestBoosts);
+  const awakeningEffect = getAwakeningEffect(participant.race, participant.level ?? 1);
+  const baseStats = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
+  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, pClass) : baseStats;
+  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+  const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+  const tooltipContent = (k) => {
+    const parts = [`Base: ${baseWithoutBonus(k)}`];
+    if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+    if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+    if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+    const weaponDelta = weapon?.stats?.[k] ?? 0;
+    if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+    if (k === 'auto') {
+      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+    }
+    return parts.join(' | ');
+  };
+
+  const StatWithTooltip = ({ statKey, label }) => {
+    const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+    const passiveAutoBonus = statKey === 'auto'
+      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+      : 0;
+    const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
+    const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+    const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
+    const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
+    return hasBonus ? (
+      <Tooltip content={tooltipContent(statKey)}>
+        <span className={labelClass}>
+          {label}: {displayValue}
+        </span>
+      </Tooltip>
+    ) : (
+      <span>{label}: {displayValue}</span>
+    );
+  };
+
   return (
     <div className="relative shadow-2xl overflow-visible">
       <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 whitespace-nowrap">
@@ -124,8 +358,8 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
         <div className="bg-stone-800 p-4 border-t border-stone-600">
           <div className="mb-3">
             <div className="flex justify-between text-sm text-white mb-2">
-              <span>HP: {participant.base?.hp}</span>
-              <span>VIT: {participant.base?.spd}</span>
+              <StatWithTooltip statKey="hp" label="HP" />
+              <StatWithTooltip statKey="spd" label="VIT" />
             </div>
             <div className="text-xs text-stone-400 mb-2">{pName} — PV {Math.max(0, currentHP)}/{maxHP}</div>
             <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
@@ -133,16 +367,24 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-            <div className="text-stone-400">Auto: <span className="text-white">{participant.base?.auto}</span></div>
-            <div className="text-stone-400">Déf: <span className="text-white">{participant.base?.def}</span></div>
-            <div className="text-stone-400">Cap: <span className="text-white">{participant.base?.cap}</span></div>
-            <div className="text-stone-400">ResC: <span className="text-white">{participant.base?.rescap}</span></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
           </div>
           <div className="space-y-2">
             {weapon && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-xl">{weapon.icon}</span>
-                <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                <Tooltip content={getWeaponTooltipContent(weapon)}>
+                  <span className="flex items-center gap-2">
+                    {getWeaponImage(weapon.imageFile) ? (
+                      <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                    ) : (
+                      <span className="text-xl">{weapon.icon}</span>
+                    )}
+                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                  </span>
+                </Tooltip>
               </div>
             )}
             {passiveDetails && (
@@ -163,7 +405,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
                 <span className="text-lg">✨</span>
                 <div className="flex-1">
                   <div className="text-amber-300 font-semibold mb-1">
-                    Éveil racial (Niv {awakeningInfo.levelRequired}+)
+                    Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
                   </div>
                   <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
                 </div>
@@ -180,7 +422,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
                 <span className="text-lg">{classData.icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classData.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{classData.description}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             )}
