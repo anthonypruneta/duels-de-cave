@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -6,6 +6,31 @@ function Header() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // Masquer si déjà installé
+    window.addEventListener('appinstalled', () => setInstallPrompt(null));
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -42,9 +67,18 @@ function Header() {
         ))}
       </div>
       <div className="flex items-center gap-4">
+        {installPrompt && (
+          <button
+            onClick={handleInstall}
+            title="Installer l'application"
+            className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded border border-amber-400 transition text-sm font-bold animate-pulse"
+          >
+            📲 Installer
+          </button>
+        )}
         {currentUser && (
           <>
-            <span className="text-amber-300 text-sm">
+            <span className="text-amber-300 text-sm hidden md:inline">
               {currentUser.email}
             </span>
             <button
