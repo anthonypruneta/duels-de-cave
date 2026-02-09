@@ -16,41 +16,41 @@ export const cooldowns = {
 // Constantes des classes (valeurs réelles utilisées dans le combat)
 export const classConstants = {
   guerrier: {
-    autoBonus: 3,
+    autoBonus: 4,
     ignoreBase: 0.10,      // 10% ignore résistance de base
     ignorePerCap: 0.01     // +1% par point de Cap
   },
   voleur: {
     spdBonus: 5,
-    critPerCap: 0.008      // +0,8% crit par point de Cap
+    critPerCap: 0.012      // +1.2% crit par point de Cap
   },
   paladin: {
-    reflectBase: 0.32,     // 32% renvoi de base
+    reflectBase: 0.4,      // 40% renvoi de base
     reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.18, // 18% des PV manquants
-    capScale: 0.40          // 40% de la Cap
+    missingHpPercent: 0.22, // 22% des PV manquants
+    capScale: 0.5           // 50% de la Cap
   },
   archer: {
     hitCount: 2,
-    hit2AutoMultiplier: 1.15,
-    hit2CapMultiplier: 0.18
+    hit2AutoMultiplier: 1.2,
+    hit2CapMultiplier: 0.2
   },
   mage: {
-    capBase: 0.50,         // 50% de Cap de base
+    capBase: 0.65,         // 65% de Cap de base
     capPerCap: 0
   },
   demoniste: {
-    capBase: 0.75,         // 75% de Cap de base (pour calcul dégâts)
+    capBase: 0.45,         // 45% de Cap de base (pour calcul dégâts)
     capPerCap: 0,
-    ignoreResist: 1.0,     // Ignore 100% de la ResC
-    stackPerAuto: 0.03     // +3% de Cap par auto du Demoniste (cumulable)
+    ignoreResist: 0.5,     // Ignore 50% de la ResC
+    stackPerAuto: 0.008    // +0.8% de Cap par auto du Demoniste (cumulable)
   },
   masochiste: {
-    returnBase: 0.15,      // 15% des dégâts accumulés
-    returnPerCap: 0.02,    // +2% par point de Cap
-    healPercent: 0.35      // Heal 35% des dégâts encaissés
+    returnBase: 0.09,      // 9% des dégâts accumulés
+    returnPerCap: 0.008,   // +0.8% par point de Cap
+    healPercent: 0.22      // Heal 22% des dégâts encaissés
   }
 };
 
@@ -62,7 +62,7 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1, bleedDivisor: 3 },
+  lycan: { bleedPerHit: 1, bleedDivisor: 4 },
   sylvari: { regenPercent: 0.02 }
 };
 
