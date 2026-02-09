@@ -749,11 +749,7 @@ const Tournament = () => {
     if (isAdmin && !replayMatchId) {
       autoAdvanceRef.current = setTimeout(async () => {
         autoAdvanceRef.current = null;
-        const advResult = await avancerMatch(docId);
-        if (advResult.skipped) {
-          // Match bye, avancer encore
-          await avancerMatch(docId);
-        }
+        await avancerMatch(docId);
       }, 8000);
     }
   };
@@ -780,9 +776,6 @@ const Tournament = () => {
     setActionLoading(true);
     const result = await avancerMatch(docId);
     if (!result.success) alert('Erreur: ' + result.error);
-    if (result.skipped) {
-      await avancerMatch(docId);
-    }
     if (result.termine && tournoi?.champion) {
       setAnnonceActuelle(tournoi.annonceChampion || `🏆 ${tournoi.champion.nom} EST LE CHAMPION !!!`);
     }
