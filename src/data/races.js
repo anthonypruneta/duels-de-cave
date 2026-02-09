@@ -99,8 +99,8 @@ export const races = {
       levelRequired: 100,
       description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
       effect: {
-        bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.01
+        bleedStacksPerHit: 3,
+        bleedPercentPerStack: 0.014
       }
     }
   },

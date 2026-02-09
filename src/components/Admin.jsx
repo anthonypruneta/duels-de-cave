@@ -28,6 +28,8 @@ const Admin = () => {
   const [annonceMention, setAnnonceMention] = useState(false);
   const [annonceEnvoi, setAnnonceEnvoi] = useState(false);
   const [annonceSucces, setAnnonceSucces] = useState(false);
+  const [annonceImage, setAnnonceImage] = useState(null);
+  const [annonceImagePreview, setAnnonceImagePreview] = useState(null);
 
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
@@ -303,6 +305,36 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  // Gestion image collée pour Discord
+  const handlePasteImage = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        setAnnonceImage(blob);
+        setAnnonceImagePreview(URL.createObjectURL(blob));
+        return;
+      }
+    }
+  };
+
+  const handleDropImage = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setAnnonceImage(file);
+      setAnnonceImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const supprimerAnnonceImage = () => {
+    if (annonceImagePreview) URL.revokeObjectURL(annonceImagePreview);
+    setAnnonceImage(null);
+    setAnnonceImagePreview(null);
+  };
+
   // Envoi d'annonce Discord
   const handleEnvoyerAnnonce = async () => {
     if (!annonceTitre.trim() || !annonceMessage.trim()) return;
@@ -314,12 +346,14 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       await envoyerAnnonceDiscord({
         titre: annonceTitre.trim(),
         message: annonceMessage.trim(),
-        mentionEveryone: annonceMention
+        mentionEveryone: annonceMention,
+        imageBlob: annonceImage
       });
       setAnnonceSucces(true);
       setAnnonceTitre('');
       setAnnonceMessage('');
       setAnnonceMention(false);
+      supprimerAnnonceImage();
       setTimeout(() => setAnnonceSucces(false), 3000);
     } catch (err) {
       alert('Erreur envoi Discord: ' + err.message);
@@ -424,11 +458,37 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               <textarea
                 value={annonceMessage}
                 onChange={(e) => setAnnonceMessage(e.target.value)}
-                placeholder="Contenu de l'annonce..."
+                onPaste={handlePasteImage}
+                placeholder="Contenu de l'annonce... (Ctrl+V pour coller une image)"
                 rows={4}
                 className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-indigo-400 focus:outline-none resize-none"
                 maxLength={4096}
               />
+            </div>
+
+            {/* Zone image : collage, drag & drop, ou preview */}
+            <div
+              onPaste={handlePasteImage}
+              onDrop={handleDropImage}
+              onDragOver={(e) => e.preventDefault()}
+              className={`border-2 border-dashed rounded-lg p-4 text-center transition ${annonceImagePreview ? 'border-indigo-400 bg-indigo-900/20' : 'border-stone-600 hover:border-stone-500'}`}
+            >
+              {annonceImagePreview ? (
+                <div className="relative inline-block">
+                  <img src={annonceImagePreview} alt="Preview" className="max-h-48 rounded-lg mx-auto" />
+                  <button
+                    onClick={supprimerAnnonceImage}
+                    className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white w-6 h-6 rounded-full text-sm font-bold leading-none"
+                  >
+                    ×
+                  </button>
+                  <p className="text-indigo-300 text-xs mt-2">Image jointe</p>
+                </div>
+              ) : (
+                <p className="text-stone-500 text-sm">
+                  📷 Coller une image (Ctrl+V) ou glisser-déposer ici
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
