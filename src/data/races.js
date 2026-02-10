@@ -43,9 +43,9 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 4 premières attaques subies infligent 40% dégâts',
+      description: 'Les 4 premières attaques subies infligent 33% dégâts',
       effect: {
-        incomingHitMultiplier: 0.4,
+        incomingHitMultiplier: 0.33,
         incomingHitCount: 4
       }
     }
@@ -100,7 +100,11 @@ export const races = {
       description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.01
+        statMultipliers: {
+          spd: 1.12,
+          auto: 1.10
+        },
+        bleedPercentPerStack: 0.028
       }
     }
   },
@@ -109,10 +113,10 @@ export const races = {
     icon: '🌿',
     awakening: {
       levelRequired: 100,
-      description: 'Regen 3% PV max/tour, +5% dégâts si PV > 80%',
+      description: 'Regen 3,5% PV max/tour, +8% dégâts si PV > 80%',
       effect: {
-        regenPercent: 0.03,
-        highHpDamageBonus: 0.05,
+        regenPercent: 0.035,
+        highHpDamageBonus: 0.08,
         highHpThreshold: 0.8
       }
     }

@@ -8,3 +8,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Application />
   </React.StrictMode>,
 )
+
+// Enregistrer le service worker pour la PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
