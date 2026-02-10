@@ -587,12 +587,6 @@ const MageTower = () => {
         return 0;
       }
 
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
       let remaining = adjusted;
       if (def.shield > 0 && remaining > 0) {
         const absorbed = Math.min(def.shield, remaining);
@@ -631,6 +625,12 @@ const MageTower = () => {
         def.maso_taken = (def.maso_taken || 0) + remaining;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * remaining);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
       }
 

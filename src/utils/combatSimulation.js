@@ -256,16 +256,15 @@ const processTurn = (p1, p2) => {
         raw = 0;
       }
 
-      // Riposte Paladin
-      if (def.reflect && raw > 0) {
-        const back = Math.round(def.reflect * raw);
-        att.currentHP -= back;
-      }
-
       raw = applyIncomingAwakeningModifiers(def, raw);
       def.currentHP -= raw;
       if (raw > 0 && def.awakening?.damageStackBonus) {
         def.awakening.damageTakenStacks += 1;
+      }
+      // Riposte Paladin (après avoir encaissé les dégâts)
+      if (def.reflect && raw > 0 && def.currentHP > 0) {
+        const back = Math.round(def.reflect * raw);
+        att.currentHP -= back;
       }
       if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher) {
         att.familiarStacks = (att.familiarStacks || 0) + 1;
