@@ -24,7 +24,7 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '+5% Auto, +5% Cap, +5 VIT, +10% crit, +20% dégâts crit',
+      description: '+3% Auto, +3% Cap, +3 VIT, +12% crit, +15% dégâts crit',
       effect: {
         statMultipliers: {
           auto: 1.03,
@@ -33,13 +33,13 @@ export const races = {
         statBonuses: {
           spd: 3
         },
-        critChanceBonus: 0.10,
-        critDamageBonus: 0.2
+        critChanceBonus: 0.12,
+        critDamageBonus: 0.15
       }
     }
   },
   'Orc': {
-    bonus: 'Sous 50% PV: +25% dégâts',
+    bonus: 'Sous 50% PV: +22% dégâts',
     icon: '🪓',
     awakening: {
       levelRequired: 100,
@@ -55,12 +55,12 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+15% PV max, -8% dégâts subis',
+      description: '+15% PV max, -5% dégâts subis',
       effect: {
         statMultipliers: {
           hp: 1.15
         },
-        damageTakenMultiplier: 0.92
+        damageTakenMultiplier: 0.95
       }
     }
   },
@@ -84,10 +84,10 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort: explosion 6% PV max + résurrection 15% PV max',
+      description: 'Première mort: explosion 9% PV max + résurrection 20% PV max',
       effect: {
-        explosionPercent: 0.06,
-        revivePercent: 0.15,
+        explosionPercent: 0.09,
+        revivePercent: 0.2,
         reviveOnce: true
       }
     }
@@ -97,7 +97,7 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (2,8% PV max par tour) + 12% VIT + 10% Auto',
+      description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
         statMultipliers: {
