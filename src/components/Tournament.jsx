@@ -882,8 +882,20 @@ const Tournament = () => {
     const match = tournoi.matches[matchId];
     if (!match) return null;
 
-    const p1 = match.p1 && match.p1 !== 'BYE' ? tournoi.participants[match.p1] : null;
-    const p2 = match.p2 && match.p2 !== 'BYE' ? tournoi.participants[match.p2] : null;
+    const isCurrentAnimatedMatch = isAnimating && matchEnCours === tournoi.matchOrder[tournoi.matchActuel] && !winner;
+    const currentAnimatedMatch = isCurrentAnimatedMatch ? tournoi.matches[matchEnCours] : null;
+
+    const shouldHidePropagatedParticipant = (participantId) => {
+      if (!participantId || participantId === 'BYE' || !currentAnimatedMatch) return false;
+      if (matchId === matchEnCours) return false;
+      return participantId === currentAnimatedMatch.winnerId || participantId === currentAnimatedMatch.loserId;
+    };
+
+    const displayedP1Id = shouldHidePropagatedParticipant(match.p1) ? null : match.p1;
+    const displayedP2Id = shouldHidePropagatedParticipant(match.p2) ? null : match.p2;
+
+    const p1 = displayedP1Id && displayedP1Id !== 'BYE' ? tournoi.participants[displayedP1Id] : null;
+    const p2 = displayedP2Id && displayedP2Id !== 'BYE' ? tournoi.participants[displayedP2Id] : null;
     const isCurrentMatch = tournoi.matchOrder[tournoi.matchActuel] === matchId;
     const isTermine = match.statut === 'termine';
     const isBye = match.statut === 'bye';
