@@ -314,15 +314,10 @@ export async function avancerMatch(docId = 'current') {
       matchOrder,
     };
 
-    // Vérifier si c'est le dernier match jouable
-    let hasMorePlayableMatches = false;
-    for (let i = nextIndex + 1; i < matchOrder.length; i++) {
-      const m = matches[matchOrder[i]];
-      if (m && m.statut !== 'bye' && m.statut !== 'termine') {
-        hasMorePlayableMatches = true;
-        break;
-      }
-    }
+    // Vérifier si d'autres matchs réellement jouables existent
+    const hasMorePlayableMatches = Boolean(
+      trouverProchainMatchJouable(matches, matchOrder, nextIndex + 1)
+    );
 
     if (!hasMorePlayableMatches) {
       // Vérifier si GFR a été créé par la résolution du GF
