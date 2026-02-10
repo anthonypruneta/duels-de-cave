@@ -856,8 +856,9 @@ const Tournament = () => {
     const isCurrentMatch = tournoi.matchOrder[tournoi.matchActuel] === matchId;
     const isTermine = match.statut === 'termine';
     const isBye = match.statut === 'bye';
+    const hasAnyParticipant = Boolean(p1 || p2 || match.winnerId || match.loserId);
 
-    if (isBye) return null;
+    if (isBye || !hasAnyParticipant) return null;
 
     const borderClass = isCurrentMatch ? 'border-amber-400 bg-amber-900/20' :
       isTermine ? 'border-stone-600 bg-stone-800/50' : 'border-stone-700 bg-stone-900/30';
@@ -893,8 +894,17 @@ const Tournament = () => {
     let hasGF = false;
     let hasGFR = false;
 
+    const shouldDisplayMatch = (match) => {
+      if (!match || match.statut === 'bye') return false;
+      const hasP1 = Boolean(match.p1 && match.p1 !== 'BYE');
+      const hasP2 = Boolean(match.p2 && match.p2 !== 'BYE');
+      const hasWinner = Boolean(match.winnerId && match.winnerId !== 'BYE');
+      const hasLoser = Boolean(match.loserId && match.loserId !== 'BYE');
+      return hasP1 || hasP2 || hasWinner || hasLoser;
+    };
+
     for (const [id, match] of Object.entries(tournoi.matches)) {
-      if (match.statut === 'bye') continue;
+      if (!shouldDisplayMatch(match)) continue;
       if (match.bracket === 'winners') {
         if (!winnersRounds[match.round]) winnersRounds[match.round] = [];
         winnersRounds[match.round].push(id);
