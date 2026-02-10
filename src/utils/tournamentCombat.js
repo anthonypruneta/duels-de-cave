@@ -4,17 +4,17 @@
  * Retourne des "steps" avec snapshots HP pour l'animation client
  */
 
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
-import { applyStatBoosts } from './statPoints';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
+import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart
-} from './weaponEffects';
+} from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier
-} from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening';
+} from '../data/combatMechanics.js';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
 
 // ============================================================================
 // HELPERS
