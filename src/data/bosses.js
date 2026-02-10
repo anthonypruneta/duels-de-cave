@@ -78,7 +78,7 @@ export const bosses = {
 
   // =========================================================================
   // BOSS NIVEAU 3 - DRAGON (Très Difficile)
-  // Stats: 30 partout, 200 HP
+  // Stats: 35 partout, 280 HP
   // Capacité: Sort tous les 5 tours avec +50% dégâts
   // =========================================================================
   dragon: {
@@ -90,12 +90,12 @@ export const bosses = {
 
     // Stats fixes
     baseStats: {
-      hp: 200,
-      auto: 30,
-      def: 30,
-      cap: 30,
-      rescap: 30,
-      spd: 30,
+      hp: 280,
+      auto: 35,
+      def: 35,
+      cap: 35,
+      rescap: 35,
+      spd: 35,
     },
 
     // Capacité spéciale du boss

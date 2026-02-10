@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll } from '../services/characterService';
-import { clearEquippedWeapon } from '../services/dungeonService';
+import { clearEquippedWeapon, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -97,6 +97,7 @@ const CharacterCreation = () => {
   const [hasTripleRoll, setHasTripleRoll] = useState(false);
   const [rollsRemaining, setRollsRemaining] = useState(0);
   const [allRolls, setAllRolls] = useState([]);
+  const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -291,6 +292,58 @@ const CharacterCreation = () => {
 
     loadCharacter();
   }, [currentUser]);
+
+  useEffect(() => {
+    const loadDungeonGrantPopup = async () => {
+      if (!currentUser?.uid) return;
+
+      const result = await getLatestDungeonRunsGrant();
+      if (!result.success || !result.data?.grantId) return;
+
+      const storageKey = `dungeonGrantSeen:${currentUser.uid}`;
+      const lastSeenGrantId = localStorage.getItem(storageKey);
+
+      if (lastSeenGrantId !== result.data.grantId) {
+        setDungeonGrantPopup(result.data);
+      }
+    };
+
+    loadDungeonGrantPopup();
+  }, [currentUser]);
+
+  const closeDungeonGrantPopup = () => {
+    if (!currentUser?.uid || !dungeonGrantPopup?.grantId) {
+      setDungeonGrantPopup(null);
+      return;
+    }
+
+    localStorage.setItem(`dungeonGrantSeen:${currentUser.uid}`, dungeonGrantPopup.grantId);
+    setDungeonGrantPopup(null);
+  };
+
+  const renderDungeonGrantPopup = () => {
+    if (!dungeonGrantPopup) return null;
+
+    return (
+      <div className="fixed inset-0 z-[70] bg-black/75 flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-stone-900 border-2 border-cyan-500 rounded-xl p-6 shadow-2xl">
+          <h3 className="text-2xl font-bold text-cyan-300 mb-3">🎁 Bonus Donjon reçu !</h3>
+          <p className="text-stone-200 mb-2">
+            L'admin vous a offert <span className="text-cyan-300 font-bold">{dungeonGrantPopup.attemptsGranted} essai{dungeonGrantPopup.attemptsGranted > 1 ? 's' : ''}</span> de donjon.
+          </p>
+          <div className="bg-stone-800 border border-stone-600 rounded-lg p-4 mb-5">
+            <p className="text-stone-300 whitespace-pre-wrap">{dungeonGrantPopup.message}</p>
+          </div>
+          <button
+            onClick={closeDungeonGrantPopup}
+            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold transition"
+          >
+            Compris
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const genStats = () => {
     const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
@@ -676,6 +729,7 @@ const CharacterCreation = () => {
             </p>
           </div>
         </div>
+      {renderDungeonGrantPopup()}
       </div>
     );
   }
@@ -702,6 +756,7 @@ const CharacterCreation = () => {
             </p>
           </div>
         </div>
+      {renderDungeonGrantPopup()}
       </div>
     );
   }
@@ -890,6 +945,7 @@ const CharacterCreation = () => {
             </div>
           )}
         </div>
+      {renderDungeonGrantPopup()}
       </div>
     );
   }
@@ -1041,6 +1097,7 @@ const CharacterCreation = () => {
           </button>
         </div>
       </div>
+      {renderDungeonGrantPopup()}
     </div>
   );
 };

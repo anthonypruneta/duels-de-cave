@@ -9,12 +9,16 @@
  */
 
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  increment,
   setDoc,
   updateDoc,
   deleteDoc,
-  Timestamp
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import {
@@ -488,6 +492,96 @@ export const getPlayerDungeonSummary = async (userId) => {
     };
   } catch (error) {
     console.error('❌ Erreur résumé joueur:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
+// ADMIN - AJOUTER DES ESSAIS DE DONJON À TOUT LE MONDE + MESSAGE GLOBAL
+// ============================================================================
+export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEmail }) => {
+  try {
+    const parsedAttempts = Number(attempts);
+    if (!Number.isFinite(parsedAttempts) || parsedAttempts <= 0) {
+      return { success: false, error: 'Nombre d\'essais invalide' };
+    }
+
+    const cleanMessage = (message || '').trim();
+    if (!cleanMessage) {
+      return { success: false, error: 'Le message est obligatoire' };
+    }
+
+    const result = await retryOperation(async () => {
+      const now = Timestamp.now();
+      const resetAnchor = Timestamp.fromDate(getResetAnchor(new Date()));
+      const grantId = `grant_${Date.now()}`;
+
+      const charactersSnap = await getDocs(collection(db, 'characters'));
+      const playerIds = charactersSnap.docs.map((charDoc) => charDoc.id);
+
+      const chunkSize = 400;
+      for (let i = 0; i < playerIds.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        const chunk = playerIds.slice(i, i + chunkSize);
+
+        chunk.forEach((userId) => {
+          const progressRef = doc(db, 'dungeonProgress', userId);
+          batch.set(progressRef, {
+            userId,
+            runsAvailable: increment(parsedAttempts),
+            lastCreditDate: resetAnchor,
+            updatedAt: now,
+            createdAt: now,
+            runsToday: 0,
+            totalRuns: 0,
+            bestRun: 0,
+            totalBossKills: 0,
+            equippedWeapon: null,
+            lastRunDate: null
+          }, { merge: true });
+        });
+
+        await batch.commit();
+      }
+
+      await setDoc(doc(db, 'adminBroadcasts', 'dungeonRunsGrant'), {
+        grantId,
+        attemptsGranted: parsedAttempts,
+        message: cleanMessage,
+        createdAt: now,
+        createdBy: adminEmail || 'admin'
+      });
+
+      return { affectedPlayers: playerIds.length, grantId };
+    });
+
+    return {
+      success: true,
+      affectedPlayers: result.affectedPlayers,
+      grantId: result.grantId,
+      attemptsGranted: parsedAttempts,
+      message: cleanMessage
+    };
+  } catch (error) {
+    console.error('❌ Erreur ajout global d\'essais donjon:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getLatestDungeonRunsGrant = async () => {
+  try {
+    const result = await retryOperation(async () => {
+      const grantRef = doc(db, 'adminBroadcasts', 'dungeonRunsGrant');
+      return await getDoc(grantRef);
+    });
+
+    if (!result.exists()) {
+      return { success: true, data: null };
+    }
+
+    return { success: true, data: result.data() };
+  } catch (error) {
+    console.error('❌ Erreur récupération du dernier grant donjon:', error);
     return { success: false, error: error.message };
   }
 };
