@@ -544,17 +544,17 @@ const Combat = () => {
           combatLog.push(`${playerColor} 🛡️ ${defender.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
         }
 
-        if (defender.reflect && adjusted > 0) {
-          const back = Math.round(defender.reflect * adjusted);
-          attacker.currentHP -= back;
-          combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
-        }
-
         if (adjusted > 0) {
           defender.currentHP -= adjusted;
           defender.maso_taken = (defender.maso_taken || 0) + adjusted;
           if (defender.awakening?.damageStackBonus) {
             defender.awakening.damageTakenStacks += 1;
+          }
+
+          if (defender.reflect && defender.currentHP > 0) {
+            const back = Math.round(defender.reflect * adjusted);
+            attacker.currentHP -= back;
+            combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
           }
         }
 
