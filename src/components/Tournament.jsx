@@ -888,6 +888,9 @@ const Tournament = () => {
     const shouldHidePropagatedParticipant = (participantId) => {
       if (!participantId || participantId === 'BYE' || !currentAnimatedMatch) return false;
       if (matchId === matchEnCours) return false;
+      // Ne masquer que les matchs pas encore terminés pour conserver
+      // l'historique visuel des duels déjà joués dans le bracket.
+      if (match.statut === 'termine') return false;
       return participantId === currentAnimatedMatch.winnerId || participantId === currentAnimatedMatch.loserId;
     };
 
