@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacterDisabled } from '../services/characterService';
+import { grantDungeonRunsToAllPlayers } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi } from '../services/tournamentService';
 import Header from './Header';
@@ -28,6 +29,11 @@ const Admin = () => {
   const [annonceMention, setAnnonceMention] = useState(false);
   const [annonceEnvoi, setAnnonceEnvoi] = useState(false);
   const [annonceSucces, setAnnonceSucces] = useState(false);
+
+  // États pour ajout global d'essais de donjon
+  const [dungeonAttemptsToGrant, setDungeonAttemptsToGrant] = useState(1);
+  const [dungeonGrantMessage, setDungeonGrantMessage] = useState('');
+  const [dungeonGrantLoading, setDungeonGrantLoading] = useState(false);
 
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
@@ -347,6 +353,41 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     navigate('/tournament?mode=simulation');
   };
 
+  const handleGrantDungeonRuns = async () => {
+    const attempts = Number(dungeonAttemptsToGrant);
+    const message = dungeonGrantMessage.trim();
+
+    if (!Number.isFinite(attempts) || attempts <= 0) {
+      alert('Le nombre d\'essais doit être supérieur à 0.');
+      return;
+    }
+
+    if (!message) {
+      alert('Le message est obligatoire.');
+      return;
+    }
+
+    const confirmMessage = `Ajouter ${attempts} essai${attempts > 1 ? 's' : ''} de donjon à tous les joueurs ?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setDungeonGrantLoading(true);
+    const result = await grantDungeonRunsToAllPlayers({
+      attempts,
+      message,
+      adminEmail: currentUser?.email || null
+    });
+
+    if (result.success) {
+      alert(`✅ ${attempts} essai${attempts > 1 ? 's' : ''} ajouté${attempts > 1 ? 's' : ''} à ${result.affectedPlayers} joueur${result.affectedPlayers > 1 ? 's' : ''}.`);
+      setDungeonGrantMessage('');
+      setDungeonAttemptsToGrant(1);
+    } else {
+      alert('Erreur lors de l\'ajout global: ' + result.error);
+    }
+
+    setDungeonGrantLoading(false);
+  };
+
   // Activer/désactiver un personnage
   const handleToggleDisabled = async (char) => {
     const newState = !char.disabled;
@@ -449,6 +490,48 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
             >
               {annonceEnvoi ? '⏳ Envoi en cours...' : annonceSucces ? '✅ Envoyé !' : '📤 Envoyer sur Discord'}
+            </button>
+          </div>
+        </div>
+
+        {/* Section Donjon - cadeau global */}
+        <div className="bg-stone-900/70 border-2 border-cyan-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-cyan-300 mb-4">🏰 Bonus Donjon Global</h2>
+          <p className="text-stone-400 text-sm mb-4">
+            Ajoute des essais de donjon à tous les joueurs et affiche une pop-up d'information sur leur page d'accueil.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-stone-400 text-sm block mb-1">Nombre d'essais à ajouter</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={dungeonAttemptsToGrant}
+                onChange={(e) => setDungeonAttemptsToGrant(e.target.value)}
+                className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-cyan-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-stone-400 text-sm block mb-1">Message affiché dans la pop-up</label>
+              <textarea
+                value={dungeonGrantMessage}
+                onChange={(e) => setDungeonGrantMessage(e.target.value)}
+                placeholder="Ex: Maintenance terminée, vous recevez 3 essais bonus. Bon courage !"
+                rows={3}
+                maxLength={500}
+                className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-cyan-400 focus:outline-none resize-none"
+              />
+            </div>
+
+            <button
+              onClick={handleGrantDungeonRuns}
+              disabled={dungeonGrantLoading || !String(dungeonAttemptsToGrant).trim() || !dungeonGrantMessage.trim()}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
+            >
+              {dungeonGrantLoading ? '⏳ Attribution en cours...' : '🎁 Ajouter les essais à tous les joueurs'}
             </button>
           </div>
         </div>
