@@ -27,11 +27,11 @@ export const races = {
       description: '+5% Auto, +5% Cap, +5 VIT, +10% crit, +20% dégâts crit',
       effect: {
         statMultipliers: {
-          auto: 1.05,
-          cap: 1.05
+          auto: 1.03,
+          cap: 1.03
         },
         statBonuses: {
-          spd: 5
+          spd: 3
         },
         critChanceBonus: 0.10,
         critDamageBonus: 0.2

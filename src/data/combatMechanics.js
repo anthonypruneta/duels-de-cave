@@ -16,7 +16,7 @@ export const cooldowns = {
 // Constantes des classes (valeurs réelles utilisées dans le combat)
 export const classConstants = {
   guerrier: {
-    autoBonus: 3,
+    autoBonus: 4,
     ignoreBase: 0.10,      // 10% ignore résistance de base
     ignorePerCap: 0.008    // +0,8% par point de Cap
   },
@@ -62,7 +62,7 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1, bleedDivisor: 3 },
+  lycan: { bleedPerHit: 1, bleedDivisor: 4 },
   sylvari: { regenPercent: 0.02 }
 };
 

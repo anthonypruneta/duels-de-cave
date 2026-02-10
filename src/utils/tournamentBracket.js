@@ -17,6 +17,55 @@ function nextPowerOf2(n) {
   return p;
 }
 
+// ============================================================================
+// AUTO-RÉSOUDRE LES BYES (réutilisable)
+// ============================================================================
+
+export function autoResolveByes(matches) {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const match of Object.values(matches)) {
+      if (match.statut !== 'en_attente') continue;
+      if (match.p1 === null || match.p2 === null) continue;
+
+      const p1Bye = match.p1 === 'BYE';
+      const p2Bye = match.p2 === 'BYE';
+
+      if (p1Bye && p2Bye) {
+        match.statut = 'bye';
+        match.winnerId = 'BYE';
+        match.loserId = 'BYE';
+        // Propager le winner BYE
+        if (match.winnerGoesTo) {
+          const next = matches[match.winnerGoesTo.matchId];
+          if (next) next[match.winnerGoesTo.slot] = 'BYE';
+        }
+        // Propager le loser BYE
+        if (match.loserGoesTo) {
+          const next = matches[match.loserGoesTo.matchId];
+          if (next) next[match.loserGoesTo.slot] = 'BYE';
+        }
+        changed = true;
+      } else if (p1Bye || p2Bye) {
+        const winner = p1Bye ? match.p2 : match.p1;
+        match.winnerId = winner;
+        match.loserId = 'BYE';
+        match.statut = 'bye';
+        if (match.winnerGoesTo) {
+          const next = matches[match.winnerGoesTo.matchId];
+          if (next) next[match.winnerGoesTo.slot] = winner;
+        }
+        if (match.loserGoesTo) {
+          const next = matches[match.loserGoesTo.matchId];
+          if (next) next[match.loserGoesTo.slot] = 'BYE';
+        }
+        changed = true;
+      }
+    }
+  }
+}
+
 export function genererBracket(participantIds) {
   if (participantIds.length < 2) throw new Error('Il faut au moins 2 participants');
 
@@ -197,44 +246,8 @@ export function genererBracket(participantIds) {
 
   // Grand Final Reset (créé à la demande dans resoudreMatch)
 
-  // ============================================================================
-  // AUTO-RÉSOUDRE LES BYES
-  // ============================================================================
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const match of Object.values(matches)) {
-      if (match.statut !== 'en_attente') continue;
-      if (match.p1 === null || match.p2 === null) continue;
-
-      const p1Bye = match.p1 === 'BYE';
-      const p2Bye = match.p2 === 'BYE';
-
-      if (p1Bye && p2Bye) {
-        match.statut = 'bye';
-        match.winnerId = 'BYE';
-        changed = true;
-      } else if (p1Bye || p2Bye) {
-        const winner = p1Bye ? match.p2 : match.p1;
-        const loser = 'BYE';
-        match.winnerId = winner;
-        match.loserId = loser;
-        match.statut = 'bye';
-
-        // Propager le winner
-        if (match.winnerGoesTo) {
-          const next = matches[match.winnerGoesTo.matchId];
-          if (next) next[match.winnerGoesTo.slot] = winner;
-        }
-        // Propager le loser (BYE)
-        if (match.loserGoesTo) {
-          const next = matches[match.loserGoesTo.matchId];
-          if (next) next[match.loserGoesTo.slot] = 'BYE';
-        }
-        changed = true;
-      }
-    }
-  }
+  // Auto-résoudre les BYE
+  autoResolveByes(matches);
 
   // ============================================================================
   // ORDRE DES MATCHS
@@ -296,8 +309,8 @@ export function resoudreMatch(matches, matchId, winnerId, loserId) {
     if (next) next[match.winnerGoesTo.slot] = winnerId;
   }
 
-  // Propager le loser
-  if (match.loserGoesTo && loserId !== 'BYE') {
+  // Propager le loser (y compris BYE pour remplir les slots du losers bracket)
+  if (match.loserGoesTo) {
     const next = matches[match.loserGoesTo.matchId];
     if (next) next[match.loserGoesTo.slot] = loserId;
   }
@@ -319,6 +332,9 @@ export function resoudreMatch(matches, matchId, winnerId, loserId) {
       loserGoesTo: null
     };
   }
+
+  // Auto-résoudre les matchs BYE créés par la propagation
+  autoResolveByes(matches);
 
   return matches;
 }
