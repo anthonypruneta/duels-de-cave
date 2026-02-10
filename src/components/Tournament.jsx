@@ -646,6 +646,13 @@ const Tournament = () => {
     const token = { cancelled: false };
     animationRef.current = token;
 
+    const stopAnimation = () => {
+      if (animationRef.current === token) {
+        animationRef.current = null;
+      }
+      setIsAnimating(false);
+    };
+
     setIsAnimating(true);
     setCombatLog([]);
     setMatchEnCours(matchId);
@@ -666,7 +673,7 @@ const Tournament = () => {
     // Charger le combat log
     const result = await getCombatLog(matchId, docId);
     if (!result.success || token.cancelled) {
-      setIsAnimating(false);
+      stopAnimation();
       return;
     }
 
@@ -679,17 +686,26 @@ const Tournament = () => {
     // Annonce de début
     setAnnonceActuelle(logData.annonceDebut);
     await delay(3000);
-    if (token.cancelled) return;
+    if (token.cancelled) {
+      stopAnimation();
+      return;
+    }
     setAnnonceActuelle('');
 
     // Jouer les steps un par un
     if (logData.steps && logData.steps.length > 0) {
       for (const step of logData.steps) {
-        if (token.cancelled) return;
+        if (token.cancelled) {
+          stopAnimation();
+          return;
+        }
 
         if (step.phase === 'intro') {
           for (const line of step.logs) {
-            if (token.cancelled) return;
+            if (token.cancelled) {
+              stopAnimation();
+              return;
+            }
             setCombatLog(prev => [...prev, line]);
             await delay(300);
           }
@@ -698,13 +714,19 @@ const Tournament = () => {
           await delay(500);
         } else if (step.phase === 'turn_start') {
           for (const line of step.logs) {
-            if (token.cancelled) return;
+            if (token.cancelled) {
+              stopAnimation();
+              return;
+            }
             setCombatLog(prev => [...prev, line]);
           }
           await delay(800);
         } else if (step.phase === 'action') {
           for (const line of step.logs) {
-            if (token.cancelled) return;
+            if (token.cancelled) {
+              stopAnimation();
+              return;
+            }
             setCombatLog(prev => [...prev, line]);
           }
           setP1HP(step.p1HP);
@@ -712,7 +734,10 @@ const Tournament = () => {
           await delay(2000);
         } else if (step.phase === 'victory') {
           for (const line of step.logs) {
-            if (token.cancelled) return;
+            if (token.cancelled) {
+              stopAnimation();
+              return;
+            }
             setCombatLog(prev => [...prev, line]);
           }
           setP1HP(step.p1HP);
@@ -722,7 +747,10 @@ const Tournament = () => {
     } else {
       // Fallback: affichage ligne par ligne (ancien format sans steps)
       for (let i = 0; i < logData.combatLog.length; i++) {
-        if (token.cancelled) return;
+        if (token.cancelled) {
+          stopAnimation();
+          return;
+        }
         const line = logData.combatLog[i];
         setCombatLog(prev => [...prev, line]);
         const isNewTurn = line.includes('---');
@@ -730,12 +758,15 @@ const Tournament = () => {
       }
     }
 
-    if (token.cancelled) return;
+    if (token.cancelled) {
+      stopAnimation();
+      return;
+    }
 
     // Victoire
     setWinner(logData.winnerNom);
     setAnnonceActuelle(logData.annonceFin);
-    setIsAnimating(false);
+    stopAnimation();
 
     // Arrêter musique combat, jouer victoire
     if (combatMusic) combatMusic.pause();
@@ -856,8 +887,11 @@ const Tournament = () => {
     const isCurrentMatch = tournoi.matchOrder[tournoi.matchActuel] === matchId;
     const isTermine = match.statut === 'termine';
     const isBye = match.statut === 'bye';
+    const hasAnyParticipant = Boolean(p1 || p2 || match.winnerId || match.loserId);
+    const isAnimatingCurrentMatch = matchId === matchEnCours && !winner;
+    const showWinner = isTermine && !isAnimatingCurrentMatch;
 
-    if (isBye) return null;
+    if (isBye || !hasAnyParticipant) return null;
 
     const borderClass = isCurrentMatch ? 'border-amber-400 bg-amber-900/20' :
       isTermine ? 'border-stone-600 bg-stone-800/50' : 'border-stone-700 bg-stone-900/30';
@@ -870,14 +904,14 @@ const Tournament = () => {
         title={isTermine ? 'Cliquer pour revoir' : ''}
       >
         <div className="text-stone-500 text-[10px] mb-1">{match.roundLabel}</div>
-        <div className={`flex justify-between items-center ${match.winnerId === match.p1 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
+        <div className={`flex justify-between items-center ${showWinner && match.winnerId === match.p1 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
           <span>{p1 ? p1.nom : '?'}</span>
-          {match.winnerId === match.p1 && <span className="text-green-400 text-[10px]">W</span>}
+          {showWinner && match.winnerId === match.p1 && <span className="text-green-400 text-[10px]">W</span>}
         </div>
         <div className="text-stone-600 text-center text-[10px]">vs</div>
-        <div className={`flex justify-between items-center ${match.winnerId === match.p2 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
+        <div className={`flex justify-between items-center ${showWinner && match.winnerId === match.p2 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
           <span>{p2 ? p2.nom : '?'}</span>
-          {match.winnerId === match.p2 && <span className="text-green-400 text-[10px]">W</span>}
+          {showWinner && match.winnerId === match.p2 && <span className="text-green-400 text-[10px]">W</span>}
         </div>
         {isCurrentMatch && <div className="text-amber-400 text-center text-[10px] mt-1 animate-pulse">EN COURS</div>}
         {isTermine && <div className="text-stone-500 text-center text-[10px] mt-1">Cliquer pour revoir</div>}
@@ -893,8 +927,22 @@ const Tournament = () => {
     let hasGF = false;
     let hasGFR = false;
 
+    const shouldDisplayMatch = (match) => {
+      if (!match || match.statut === 'bye') return false;
+      const hasP1 = Boolean(match.p1 && match.p1 !== 'BYE');
+      const hasP2 = Boolean(match.p2 && match.p2 !== 'BYE');
+      const hasWinner = Boolean(match.winnerId && match.winnerId !== 'BYE');
+      const hasLoser = Boolean(match.loserId && match.loserId !== 'BYE');
+
+      // Éviter l'affichage des matchs fantômes ('?' vs '?') qui peuvent exister
+      // temporairement pendant le remplissage des tableaux.
+      if (!hasP1 && !hasP2) return false;
+
+      return hasP1 || hasP2 || hasWinner || hasLoser;
+    };
+
     for (const [id, match] of Object.entries(tournoi.matches)) {
-      if (match.statut === 'bye') continue;
+      if (!shouldDisplayMatch(match)) continue;
       if (match.bracket === 'winners') {
         if (!winnersRounds[match.round]) winnersRounds[match.round] = [];
         winnersRounds[match.round].push(id);

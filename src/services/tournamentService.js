@@ -173,6 +173,33 @@ function simulerUnMatch(matches, participants, matchId) {
   };
 }
 
+function isMatchPlayable(match) {
+  if (!match || match.statut === 'bye' || match.statut === 'termine') return false;
+  if (!match.p1 || !match.p2) return false;
+  if (match.p1 === 'BYE' || match.p2 === 'BYE') return false;
+  return true;
+}
+
+function trouverProchainMatchJouable(matches, matchOrder, startIndex = 0) {
+  for (let i = Math.max(0, startIndex); i < matchOrder.length; i++) {
+    const matchId = matchOrder[i];
+    if (isMatchPlayable(matches[matchId])) {
+      return { index: i, matchId };
+    }
+  }
+
+  // Si rien après startIndex, on repart du début pour récupérer les matchs
+  // qui n'étaient pas encore prêts lors d'un passage précédent.
+  for (let i = 0; i < Math.max(0, startIndex); i++) {
+    const matchId = matchOrder[i];
+    if (isMatchPlayable(matches[matchId])) {
+      return { index: i, matchId };
+    }
+  }
+
+  return null;
+}
+
 // ============================================================================
 // LANCER LE TOURNOI (simule uniquement le premier match)
 // ============================================================================
@@ -187,18 +214,11 @@ export async function lancerTournoi(docId = 'current') {
 
     const { matches, matchOrder, participants } = tournoi;
 
-    // Trouver le premier match jouable (sauter les BYE)
-    let firstIndex = 0;
-    let result = null;
-    let firstMatchId = null;
+    const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, 0);
+    if (!prochainMatch) return { success: false, error: 'Aucun match jouable trouvé' };
 
-    while (firstIndex < matchOrder.length) {
-      firstMatchId = matchOrder[firstIndex];
-      result = simulerUnMatch(matches, participants, firstMatchId);
-      if (result) break;
-      firstIndex++;
-    }
-
+    const { index: firstIndex, matchId: firstMatchId } = prochainMatch;
+    const result = simulerUnMatch(matches, participants, firstMatchId);
     if (!result) return { success: false, error: 'Aucun match jouable trouvé' };
 
     // Stocker le combat log
@@ -238,15 +258,14 @@ export async function avancerMatch(docId = 'current') {
       matchOrder.push('GFR');
     }
 
-    // Trouver le prochain match jouable (sauter les BYE/termine)
+    const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, nextIndex);
     let result = null;
     let nextMatchId = null;
 
-    while (nextIndex < matchOrder.length) {
-      nextMatchId = matchOrder[nextIndex];
+    if (prochainMatch) {
+      nextIndex = prochainMatch.index;
+      nextMatchId = prochainMatch.matchId;
       result = simulerUnMatch(matches, participants, nextMatchId);
-      if (result) break;
-      nextIndex++;
     }
 
     // Si plus de matchs jouables → tournoi terminé
@@ -295,15 +314,10 @@ export async function avancerMatch(docId = 'current') {
       matchOrder,
     };
 
-    // Vérifier si c'est le dernier match jouable
-    let hasMorePlayableMatches = false;
-    for (let i = nextIndex + 1; i < matchOrder.length; i++) {
-      const m = matches[matchOrder[i]];
-      if (m && m.statut !== 'bye' && m.statut !== 'termine') {
-        hasMorePlayableMatches = true;
-        break;
-      }
-    }
+    // Vérifier si d'autres matchs réellement jouables existent
+    const hasMorePlayableMatches = Boolean(
+      trouverProchainMatchJouable(matches, matchOrder, nextIndex + 1)
+    );
 
     if (!hasMorePlayableMatches) {
       // Vérifier si GFR a été créé par la résolution du GF
@@ -515,13 +529,19 @@ export async function simulerTournoiTest() {
 
     const resultatsMatchs = [];
 
-    for (const matchId of matchOrder) {
-      const match = matches[matchId];
-      if (!match || match.statut === 'bye' || match.statut === 'termine') continue;
+    let startIndex = 0;
+    while (true) {
+      const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, startIndex);
+      if (!prochainMatch) break;
 
+      const { index, matchId } = prochainMatch;
+      const match = matches[matchId];
       const p1Data = participantsMap[match.p1];
       const p2Data = participantsMap[match.p2];
-      if (!p1Data || !p2Data) continue;
+      if (!p1Data || !p2Data) {
+        startIndex = index + 1;
+        continue;
+      }
 
       const result = simulerMatch(p1Data, p2Data);
       resoudreMatch(matches, matchId, result.winnerId, result.loserId);
@@ -539,9 +559,11 @@ export async function simulerTournoiTest() {
       });
 
       // Si GFR créé, l'ajouter dans l'ordre
-      if (matchId === 'GF' && matches['GFR'] && matches['GFR'].statut === 'en_attente') {
+      if (matchId === 'GF' && matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
         matchOrder.push('GFR');
       }
+
+      startIndex = index + 1;
     }
 
     // Déterminer le champion
