@@ -24,17 +24,17 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '+4% Auto, +4% Cap, +4 VIT, +15% crit, +20% dégâts crit',
+      description: '+3% Auto, +3% Cap, +3 VIT, +12% crit, +15% dégâts crit',
       effect: {
         statMultipliers: {
-          auto: 1.04,
-          cap: 1.04
+          auto: 1.03,
+          cap: 1.03
         },
         statBonuses: {
-          spd: 4
+          spd: 3
         },
-        critChanceBonus: 0.15,
-        critDamageBonus: 0.2
+        critChanceBonus: 0.12,
+        critDamageBonus: 0.15
       }
     }
   },
@@ -84,10 +84,10 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort: explosion 7% PV max + résurrection 15% PV max',
+      description: 'Première mort: explosion 9% PV max + résurrection 20% PV max',
       effect: {
-        explosionPercent: 0.07,
-        revivePercent: 0.15,
+        explosionPercent: 0.09,
+        revivePercent: 0.2,
         reviveOnce: true
       }
     }
@@ -97,7 +97,7 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +3 stacks de saignement (1.4% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
       effect: {
         bleedStacksPerHit: 3,
         bleedPercentPerStack: 0.014
