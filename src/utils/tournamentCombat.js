@@ -272,6 +272,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+    const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+    if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+      att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+      log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+      log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+    }
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
