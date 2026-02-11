@@ -452,6 +452,7 @@ const MageTower = () => {
       shieldExploded: false,
       spectralMarked: false,
       boneGuardActive: false,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -470,6 +471,7 @@ const MageTower = () => {
     p.familiarStacks = 0;
     p.shield = 0;
     p.shieldExploded = false;
+    p.firstSpellCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -556,6 +558,12 @@ const MageTower = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
+    const consumeAuraSpellCapMultiplier = () => {
+      if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1.2;
+    };
     let skillUsed = false;
 
     const resolveDamage = (raw, isCrit) => {
@@ -585,12 +593,6 @@ const MageTower = () => {
         def.dodge = false;
         log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
         return 0;
-      }
-
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
       }
 
       let remaining = adjusted;
@@ -631,6 +633,12 @@ const MageTower = () => {
         def.maso_taken = (def.maso_taken || 0) + remaining;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * remaining);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
       }
 
@@ -736,7 +744,8 @@ const MageTower = () => {
       skillUsed = skillUsed || isPlayer;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
       const healEffects = onHeal(att.weaponState, att, heal, def);
@@ -790,7 +799,9 @@ const MageTower = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
