@@ -64,6 +64,7 @@ const generateCharacter = (name, level = 1) => {
     undead: false, dodge: false, reflect: false,
     bleed_stacks: 0, bleedPercentPerStack: 0,
     maso_taken: 0, familiarStacks: 0,
+    firstSpellCapBoostUsed: false,
     awakening: buildAwakeningState(awakeningEffect)
   };
 };
@@ -118,6 +119,12 @@ const processTurn = (p1, p2) => {
     if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
     att.reflect = false;
+    const consumeAuraSpellCapMultiplier = () => {
+      if (att.mageTowerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1.2;
+    };
     for (const k of Object.keys(cooldowns)) {
       att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
     }
@@ -184,7 +191,8 @@ const processTurn = (p1, p2) => {
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     }
 
@@ -214,7 +222,9 @@ const processTurn = (p1, p2) => {
       if (isMage) {
         // Mage - Sort magique
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerCap * att.base.cap) * att.base.cap * mult);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * mult + (capBase + capPerCap * scaledCap) * scaledCap * mult);
         raw = dmgCap(atkSpell, def.base.rescap);
       } else if (isWar) {
         // Guerrier - Frappe pénétrante
