@@ -144,18 +144,21 @@ export const MAGE_TOWER_PASSIVES = [
     icon: '✨',
     levels: {
       1: {
-        description: 'Tours 1–2 : +20% dégâts. Premier sort du combat : +20% CAP.',
-        damageBonus: 0.2,
+        description: 'Tours 1–2 : +5% dégâts. Premier sort du combat : +5% CAP.',
+        damageBonus: 0.05,
+        spellCapBonus: 0.05,
         turns: 2
       },
       2: {
-        description: 'Tours 1–2 : +20% dégâts. Premier sort du combat : +20% CAP.',
-        damageBonus: 0.2,
+        description: 'Tours 1–2 : +10% dégâts. Premier sort du combat : +10% CAP.',
+        damageBonus: 0.1,
+        spellCapBonus: 0.1,
         turns: 2
       },
       3: {
         description: 'Tours 1–2 : +20% dégâts. Premier sort du combat : +20% CAP.',
         damageBonus: 0.2,
+        spellCapBonus: 0.2,
         turns: 2
       }
     }

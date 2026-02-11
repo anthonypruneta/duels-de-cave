@@ -15,6 +15,7 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics.js';
+import { getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
 
 const genStats = () => {
@@ -123,7 +124,8 @@ const processTurn = (p1, p2) => {
       if (att.mageTowerPassive?.id !== 'aura_overload') return 1;
       if (att.firstSpellCapBoostUsed) return 1;
       att.firstSpellCapBoostUsed = true;
-      return 1.2;
+      const levelData = getMageTowerPassiveLevel('aura_overload', att.mageTowerPassive?.level ?? 1);
+      return 1 + (levelData?.spellCapBonus ?? 0);
     };
     for (const k of Object.keys(cooldowns)) {
       att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;

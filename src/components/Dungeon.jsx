@@ -579,7 +579,7 @@ const Dungeon = () => {
       if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
       if (att.firstSpellCapBoostUsed) return 1;
       att.firstSpellCapBoostUsed = true;
-      return 1.2;
+      return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
     };
     let skillUsed = false;
 
