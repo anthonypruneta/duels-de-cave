@@ -483,6 +483,7 @@ const Dungeon = () => {
       shield: 0,
       spectralMarked: false,
       spectralMarkBonus: 0,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -503,6 +504,7 @@ const Dungeon = () => {
     p.shield = 0;
     p.spectralMarked = false;
     p.spectralMarkBonus = 0;
+    p.firstSpellCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -573,6 +575,12 @@ const Dungeon = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
+    const consumeAuraSpellCapMultiplier = () => {
+      if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
+    };
     let skillUsed = false;
 
     const applyMageTowerDamage = (raw, isCrit) => {
@@ -610,17 +618,17 @@ const Dungeon = () => {
         log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
       }
 
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
       if (adjusted > 0) {
         def.currentHP -= adjusted;
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * adjusted);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
       }
 
@@ -725,9 +733,16 @@ const Dungeon = () => {
       if (isPlayer) skillUsed = true;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+      const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+      if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+        log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+        log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+      }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -803,7 +818,9 @@ const Dungeon = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
