@@ -610,17 +610,17 @@ const Dungeon = () => {
         log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
       }
 
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
       if (adjusted > 0) {
         def.currentHP -= adjusted;
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * adjusted);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
       }
 
