@@ -140,7 +140,7 @@ export const getClassBonus = (charClass) => {
 export const weaponConstants = {
   // Branche d'Yggdrasil (Bâton légendaire)
   yggdrasil: {
-    healDamagePercent: 0.5,    // 50% des soins en dégâts
+    healDamagePercent: 0.5,    // 50% des soins en dégâts bonus (le soin reste)
     regenPercent: 0.03,        // 3% HP max par tour (si pas de heal)
   },
 
