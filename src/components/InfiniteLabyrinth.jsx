@@ -240,12 +240,9 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellA
       ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
       : 0;
     const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
-    const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-    const totalDelta = totalBonus(statKey) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
     return (
       <Tooltip content={tooltipContent(statKey)}>
         <span className="text-green-400 font-bold">{label}: {displayValue}</span>
-        {hasBonus && <span className="ml-1 text-xs text-amber-300">({totalDelta > 0 ? `+${totalDelta}` : totalDelta})</span>}
       </Tooltip>
     );
   };
