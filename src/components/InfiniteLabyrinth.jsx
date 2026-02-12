@@ -246,6 +246,9 @@ const InfiniteLabyrinth = () => {
   const replayTokenRef = useRef(null);
   const autoRunTokenRef = useRef(null);
   const logContainerRef = useRef(null);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
+  const [isMuted, setIsMuted] = useState(false);
 
   const currentFloor = progress?.currentFloor || 1;
   const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
@@ -276,6 +279,79 @@ const InfiniteLabyrinth = () => {
     if (!logContainerRef.current) return;
     logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [replayLogs]);
+
+  const applyCombatVolume = () => {
+    const labyrinthMusic = document.getElementById('labyrinth-music');
+    const victoryMusic = document.getElementById('labyrinth-victory-music');
+    [labyrinthMusic, victoryMusic].forEach((audio) => {
+      if (audio) {
+        audio.volume = volume;
+        audio.muted = isMuted;
+      }
+    });
+  };
+
+  useEffect(() => {
+    applyCombatVolume();
+  }, [volume, isMuted]);
+
+  const handleVolumeChange = (event) => {
+    const nextVolume = Number(event.target.value);
+    setVolume(nextVolume);
+    setIsMuted(nextVolume === 0);
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
+    if (isMuted && volume === 0) setVolume(0.05);
+  };
+
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={toggleMute} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={handleVolumeChange} className="w-full accent-amber-500" />
+            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const startFightMusic = () => {
+    const labyrinthMusic = document.getElementById('labyrinth-music');
+    const victoryMusic = document.getElementById('labyrinth-victory-music');
+    if (victoryMusic) victoryMusic.pause();
+    if (labyrinthMusic) {
+      labyrinthMusic.currentTime = 0;
+      labyrinthMusic.volume = volume;
+      labyrinthMusic.muted = isMuted;
+      labyrinthMusic.play().catch(() => {});
+    }
+  };
+
+  const stopFightMusic = ({ playVictory = false } = {}) => {
+    const labyrinthMusic = document.getElementById('labyrinth-music');
+    const victoryMusic = document.getElementById('labyrinth-victory-music');
+    if (labyrinthMusic) labyrinthMusic.pause();
+    if (playVictory && victoryMusic) {
+      victoryMusic.currentTime = 0;
+      victoryMusic.volume = volume;
+      victoryMusic.muted = isMuted;
+      victoryMusic.play().catch(() => {});
+    }
+  };
 
   const delayReplay = (ms) => new Promise((resolve) => {
     replayTimeoutRef.current = setTimeout(resolve, ms);
@@ -314,14 +390,20 @@ const InfiniteLabyrinth = () => {
     if (steps.length > 0) {
       for (const step of steps) {
         if (token.cancelled) return;
+
         for (const line of (step.logs || [])) {
           if (token.cancelled) return;
           setReplayLogs((prev) => [...prev, line]);
-          await delayReplay(step.phase === 'victory' ? 170 : 240);
+          await delayReplay(300);
         }
+
         setReplayP1HP(step.p1HP ?? 0);
         setReplayP2HP(step.p2HP ?? 0);
-        await delayReplay(step.phase === 'action' ? 560 : 300);
+
+        if (step.phase === 'turnStart') await delayReplay(800);
+        else if (step.phase === 'action') await delayReplay(2000);
+        else if (step.phase === 'victory') await delayReplay(300);
+        else await delayReplay(300);
       }
     } else {
       for (const line of (data.combatLog || [])) {
@@ -337,6 +419,8 @@ const InfiniteLabyrinth = () => {
     if (result.rewardGranted) {
       setReplayLogs((prev) => [...prev, '🎁 Boss vaincu: +5 essais de donjon ajoutés.']);
     }
+
+    stopFightMusic({ playVictory: result.didWin });
     setIsAnimatingFight(false);
   };
 
@@ -394,6 +478,7 @@ const InfiniteLabyrinth = () => {
     if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
     if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
     if (autoRunTokenRef.current) autoRunTokenRef.current.cancelled = true;
+    stopFightMusic();
   }, []);
 
   const handleStartCurrentFloorFight = async () => {
@@ -407,6 +492,7 @@ const InfiniteLabyrinth = () => {
     autoRunTokenRef.current = token;
 
     try {
+      startFightMusic();
       while (!token.cancelled) {
         const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
         if (!result.success) {
@@ -417,6 +503,7 @@ const InfiniteLabyrinth = () => {
         setProgress(result.progress);
         setDisplayEnemyFloor(result.floor || null);
         await playReplay(result);
+        setDisplayEnemyFloor(null);
         if (token.cancelled) break;
 
         if (!result.didWin) break;
@@ -426,12 +513,21 @@ const InfiniteLabyrinth = () => {
       autoRunTokenRef.current = null;
       setIsAutoRunActive(false);
       setLoading(false);
+      stopFightMusic();
     }
   };
 
   return (
     <div className="min-h-screen p-6">
+      <audio id="labyrinth-music" loop>
+        <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
+        <source src="/assets/music/labyrinthe.mp3" type="audio/mpeg" />
+      </audio>
+      <audio id="labyrinth-victory-music">
+        <source src="/assets/music/victory.mp3" type="audio/mpeg" />
+      </audio>
       <Header />
+      <SoundControl />
       <div className="max-w-[1800px] mx-auto pt-16">
         <div className="flex justify-center mb-8">
           <div className="bg-stone-800 border border-stone-600 px-8 py-3">
@@ -448,6 +544,13 @@ const InfiniteLabyrinth = () => {
             className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
           >
             ▶️ {loading ? 'Combats en cours...' : 'Lancer le combat'}
+          </button>
+          <button
+            onClick={stopAutoRun}
+            disabled={!isAutoRunActive}
+            className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-red-500"
+          >
+            ⏹️ Stop
           </button>
           <button
             onClick={() => navigate('/')}
