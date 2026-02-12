@@ -30,6 +30,7 @@ const Admin = () => {
   const [savingImage, setSavingImage] = useState(false);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const labyrinthAudioRef = useRef(null);
 
   // États pour les annonces Discord
   const [annonceTitre, setAnnonceTitre] = useState('');
@@ -59,6 +60,7 @@ const Admin = () => {
   const [labyrinthCombatResult, setLabyrinthCombatResult] = useState(null);
   const [labyrinthCombatLogs, setLabyrinthCombatLogs] = useState([]);
   const [labyrinthError, setLabyrinthError] = useState('');
+  const [labyrinthMusicEnabled, setLabyrinthMusicEnabled] = useState(false);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -130,6 +132,14 @@ const Admin = () => {
     };
     bootstrapLabyrinth();
   }, [currentUser?.uid]);
+
+  useEffect(() => () => {
+    const audio = labyrinthAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, []);
 
   const handleDelete = async (userId, characterName) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le personnage "${characterName}" ?`)) {
@@ -546,6 +556,26 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  const handleToggleLabyrinthMusic = async () => {
+    const audio = labyrinthAudioRef.current;
+    if (!audio) return;
+
+    if (labyrinthMusicEnabled) {
+      audio.pause();
+      setLabyrinthMusicEnabled(false);
+      return;
+    }
+
+    audio.volume = 0.35;
+    audio.loop = true;
+    try {
+      await audio.play();
+      setLabyrinthMusicEnabled(true);
+    } catch (error) {
+      setLabyrinthError('Impossible de lancer la musique Labyrinthe (autoplay bloqué par le navigateur).');
+    }
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -705,11 +735,18 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         </div>
 
         <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
+          <audio ref={labyrinthAudioRef} loop>
+            <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
+            <source src="/assets/music/labyrinthe.mp3" type="audio/mpeg" />
+          </audio>
           <h2 className="text-2xl font-bold text-fuchsia-300 mb-2">🌀 Labyrinthe Infini (Admin uniquement)</h2>
           <p className="text-stone-400 text-sm mb-4">Mode en test: aucune reward active et aucune exposition côté joueurs.</p>
           {labyrinthError && <p className="text-red-300 text-sm mb-4">⚠️ {labyrinthError}</p>}
 
           <div className="flex flex-wrap gap-3 mb-4">
+            <button onClick={handleToggleLabyrinthMusic} className="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 rounded-lg font-bold">
+              {labyrinthMusicEnabled ? '⏸️ Couper musique Labyrinthe' : '🎵 Lancer musique Labyrinthe'}
+            </button>
             <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
             <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (moi uniquement)</button>
             <button onClick={() => handleLaunchLabyrinthCombat(labyrinthProgress?.currentFloor || 1)} disabled={labyrinthLoading} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Combat au currentFloor</button>
