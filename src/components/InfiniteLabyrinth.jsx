@@ -376,6 +376,49 @@ const InfiniteLabyrinth = () => {
   const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
   const shownEnemyFloor = displayEnemyFloor || defaultEnemyFloor;
 
+  const formatLogMessage = (text) => {
+    const pName = playerCharacter?.name;
+    const eName = enemyCharacter?.name;
+    if (!pName || !eName) return text;
+
+    const escapedPName = pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedEName = eName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameRegex = new RegExp(`(${escapedPName}|${escapedEName})`, 'g');
+
+    const parts = [];
+    let key = 0;
+    text.split(nameRegex).forEach((part) => {
+      if (!part) return;
+      if (part === pName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        return;
+      }
+      if (part === eName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-purple-400">{part}</span>);
+        return;
+      }
+
+      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+      let lastIndex = 0;
+      let match;
+      while ((match = numRegex.exec(part)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(part.slice(lastIndex, match.index));
+        }
+        const isHeal = match[2].toLowerCase().includes('vie');
+        const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
+        parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
+        parts.push(` ${match[2]}`);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < part.length) {
+        parts.push(part.slice(lastIndex));
+      }
+    });
+
+    return parts;
+  };
+
   const enemyCharacter = useMemo(() => {
     if (!shownEnemyFloor) return null;
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
@@ -706,15 +749,21 @@ const InfiniteLabyrinth = () => {
                       if (log.includes('🏆')) {
                         return <div key={idx} className="flex justify-center my-4"><div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div></div>;
                       }
-                      if (log.includes('---')) {
+                      if (log.includes('💀')) {
+                        return <div key={idx} className="flex justify-center my-4"><div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('💚')) {
+                        return <div key={idx} className="flex justify-center my-3"><div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('---') || log.includes('⚔️')) {
                         return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div></div>;
                       }
                       return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-sm italic">{cleanLog}</div></div>;
                     }
                     if (isP1) {
-                      return <div key={idx} className="flex justify-start"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                      return <div key={idx} className="flex justify-start"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                     }
-                    return <div key={idx} className="flex justify-end"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                    return <div key={idx} className="flex justify-end"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                   })
                 )}
               </div>
