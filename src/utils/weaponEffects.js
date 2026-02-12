@@ -226,6 +226,7 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
   const effects = {
     doubleCast: false,
     secondCastDamage: 0,
+    secondCastHeal: 0,
     log: []
   };
 
@@ -236,11 +237,17 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
 
   switch (weaponState.weaponId) {
     case 'tome_legendaire': {
-      // Codex Archon: au 2e et 6e sort, double-cast
+      // Codex Archon: au 2e et 4e sort, double-cast
       if (weaponConstants.codexArchon.doubleCastTriggers.includes(spellCount)) {
         effects.doubleCast = true;
-        effects.secondCastDamage = Math.round(damage * weaponConstants.codexArchon.secondCastDamage);
-        effects.log.push(`📜 Codex Archon: Arcane Majeure - Double-cast ! (${effects.secondCastDamage} dégâts bonus)`);
+        const secondCastValue = Math.round(damage * weaponConstants.codexArchon.secondCastDamage);
+        if (spellType === 'heal') {
+          effects.secondCastHeal = secondCastValue;
+          effects.log.push(`📜 Codex Archon: Arcane Majeure - Double-cast ! (${effects.secondCastHeal} soins bonus)`);
+        } else {
+          effects.secondCastDamage = secondCastValue;
+          effects.log.push(`📜 Codex Archon: Arcane Majeure - Double-cast ! (${effects.secondCastDamage} dégâts bonus)`);
+        }
       }
       break;
     }
@@ -266,10 +273,10 @@ export function onHeal(weaponState, healer, healAmount, target) {
 
   switch (weaponState.weaponId) {
     case 'baton_legendaire': {
-      // Branche d'Yggdrasil: soins infligent 50% dégâts (si classe heal)
+      // Branche d'Yggdrasil: le soin est conservé ET inflige 50% en dégâts bonus (si classe heal)
       if (healer.base._yggdrasilHealDamage) {
         effects.bonusDamage = Math.round(healAmount * weaponConstants.yggdrasil.healDamagePercent);
-        effects.log.push(`🌳 Branche d'Yggdrasil: Le soin inflige ${effects.bonusDamage} dégâts`);
+        effects.log.push(`🌳 Branche d'Yggdrasil: Le soin est conservé et inflige ${effects.bonusDamage} dégâts bonus`);
       }
       break;
     }
