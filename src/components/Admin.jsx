@@ -5,6 +5,14 @@ import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacte
 import { grantDungeonRunsToAllPlayers } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi } from '../services/tournamentService';
+import {
+  ensureWeeklyInfiniteLabyrinth,
+  generateWeeklyInfiniteLabyrinth,
+  getCurrentWeekId,
+  getUserLabyrinthProgress,
+  launchLabyrinthCombat,
+  resetUserLabyrinthProgress
+} from '../services/infiniteLabyrinthService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 
@@ -42,6 +50,14 @@ const Admin = () => {
 
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
+
+  const [labyrinthWeekId, setLabyrinthWeekId] = useState(getCurrentWeekId());
+  const [labyrinthData, setLabyrinthData] = useState(null);
+  const [labyrinthProgress, setLabyrinthProgress] = useState(null);
+  const [labyrinthLoading, setLabyrinthLoading] = useState(false);
+  const [selectedLabFloor, setSelectedLabFloor] = useState(1);
+  const [labyrinthCombatResult, setLabyrinthCombatResult] = useState(null);
+  const [labyrinthCombatLogs, setLabyrinthCombatLogs] = useState([]);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -87,6 +103,24 @@ const Admin = () => {
   useEffect(() => {
     loadCharacters();
   }, []);
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const bootstrapLabyrinth = async () => {
+      setLabyrinthLoading(true);
+      const weekId = getCurrentWeekId();
+      setLabyrinthWeekId(weekId);
+      const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(weekId);
+      const progressResult = await getUserLabyrinthProgress(currentUser.uid, weekId);
+      if (labyrinthResult.success) setLabyrinthData(labyrinthResult.data);
+      if (progressResult.success) {
+        setLabyrinthProgress(progressResult.data);
+        setSelectedLabFloor(progressResult.data.currentFloor || 1);
+      }
+      setLabyrinthLoading(false);
+    };
+    bootstrapLabyrinth();
+  }, [currentUser?.uid]);
 
   const handleDelete = async (userId, characterName) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le personnage "${characterName}" ?`)) {
@@ -438,6 +472,58 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  const handleGenerateLabyrinth = async () => {
+    setLabyrinthLoading(true);
+    const weekId = getCurrentWeekId();
+    const generated = await generateWeeklyInfiniteLabyrinth(weekId);
+    if (generated.success) {
+      setLabyrinthWeekId(weekId);
+      setLabyrinthData(generated.labyrinth);
+      alert('✅ Labyrinthe infini hebdomadaire généré.');
+    } else {
+      alert('❌ Erreur génération labyrinthe.');
+    }
+    setLabyrinthLoading(false);
+  };
+
+  const handleResetMyLabyrinthProgress = async () => {
+    if (!currentUser?.uid) return;
+    setLabyrinthLoading(true);
+    const weekId = labyrinthWeekId || getCurrentWeekId();
+    const reset = await resetUserLabyrinthProgress(currentUser.uid, weekId);
+    if (reset.success) {
+      const progress = await getUserLabyrinthProgress(currentUser.uid, weekId);
+      if (progress.success) {
+        setLabyrinthProgress(progress.data);
+        setSelectedLabFloor(progress.data.currentFloor || 1);
+      }
+      setLabyrinthCombatResult(null);
+      setLabyrinthCombatLogs([]);
+      alert('✅ Progression labyrinthe réinitialisée (votre compte).');
+    }
+    setLabyrinthLoading(false);
+  };
+
+  const handleLaunchLabyrinthCombat = async (floorOverride = null) => {
+    if (!currentUser?.uid) return;
+    setLabyrinthLoading(true);
+    const result = await launchLabyrinthCombat({
+      userId: currentUser.uid,
+      floorNumber: floorOverride || Number(selectedLabFloor),
+      weekId: labyrinthWeekId
+    });
+    if (!result.success) {
+      alert('Erreur combat labyrinthe: ' + result.error);
+      setLabyrinthLoading(false);
+      return;
+    }
+    setLabyrinthCombatResult(result);
+    setLabyrinthCombatLogs(result.result.combatLog || []);
+    setLabyrinthProgress(result.progress);
+    setSelectedLabFloor(result.progress.currentFloor || 1);
+    setLabyrinthLoading(false);
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -593,6 +679,49 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             >
               {dungeonGrantLoading ? '⏳ Attribution en cours...' : '🎁 Ajouter les essais à tous les joueurs'}
             </button>
+          </div>
+        </div>
+
+        <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-fuchsia-300 mb-2">🌀 Labyrinthe Infini (Admin uniquement)</h2>
+          <p className="text-stone-400 text-sm mb-4">Mode en test: aucune reward active et aucune exposition côté joueurs.</p>
+
+          <div className="flex flex-wrap gap-3 mb-4">
+            <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
+            <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (moi uniquement)</button>
+            <button onClick={() => handleLaunchLabyrinthCombat(labyrinthProgress?.currentFloor || 1)} disabled={labyrinthLoading} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Combat au currentFloor</button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 mb-4 text-sm">
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">WeekId</p><p className="text-white font-bold">{labyrinthWeekId}</p></div>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">Current floor</p><p className="text-white font-bold">{labyrinthProgress?.currentFloor ?? 1}</p></div>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">Boss vaincus</p><p className="text-white font-bold">{labyrinthProgress?.bossesDefeated ?? 0}</p></div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <input type="number" min={1} max={100} value={selectedLabFloor} onChange={(e) => setSelectedLabFloor(e.target.value)} className="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white w-32" />
+            <button onClick={() => handleLaunchLabyrinthCombat(Number(selectedLabFloor))} disabled={labyrinthLoading} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Lancer combat à l'étage choisi</button>
+          </div>
+
+          {labyrinthCombatResult && <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 mb-4 text-sm"><p className="text-white font-bold">Résultat étage {labyrinthCombatResult.floor.floorNumber}: {labyrinthCombatResult.didWin ? '🏆 Victoire' : '💀 Défaite'}</p></div>}
+
+          {labyrinthCombatLogs.length > 0 && <div className="bg-black/50 border border-stone-700 rounded-lg p-3 mb-4 max-h-56 overflow-y-auto text-xs font-mono text-stone-300">{labyrinthCombatLogs.map((log, idx) => <div key={`lab-log-${idx}`}>{log}</div>)}</div>}
+
+          <div className="max-h-80 overflow-y-auto border border-stone-700 rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 sticky top-0"><tr className="text-stone-300 text-left"><th className="px-2 py-2">Étage</th><th className="px-2 py-2">Type</th><th className="px-2 py-2">Nom</th><th className="px-2 py-2">Image</th><th className="px-2 py-2">Kit boss</th></tr></thead>
+              <tbody>
+                {(labyrinthData?.floors || []).map((floor) => (
+                  <tr key={floor.floorNumber} className="border-t border-stone-800">
+                    <td className="px-2 py-2 text-white">{floor.floorNumber}</td>
+                    <td className="px-2 py-2 text-stone-300">{floor.type}</td>
+                    <td className="px-2 py-2 text-stone-200">{floor.enemyName}</td>
+                    <td className="px-2 py-2"><img src={floor.imagePath} alt={floor.enemyName} className="w-10 h-10 object-contain" /></td>
+                    <td className="px-2 py-2 text-stone-300">{floor.bossKit ? JSON.stringify(floor.bossKit) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 

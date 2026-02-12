@@ -1,0 +1,341 @@
+import { db } from '../firebase/config';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { getWeaponsByRarity, RARITY } from '../data/weapons';
+import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { getEquippedWeapon } from './dungeonService';
+
+const FLOOR_COUNT = 100;
+const BOSS_FLOOR_STEP = 10;
+
+const MOB_IMAGES = import.meta.glob('../assets/labyrinthe/mobs/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+const BOSS_IMAGES = import.meta.glob('../assets/labyrinthe/bosses/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
+const BASE_DUNGEON_LEVEL_1_STATS = {
+  hp: 120,
+  auto: 15,
+  def: 15,
+  cap: 15,
+  rescap: 15,
+  spd: 15
+};
+
+const LEGENDARY_WEAPONS = getWeaponsByRarity(RARITY.LEGENDAIRE);
+const SPELL_POOL = [
+  { id: 'war', class: 'Guerrier', name: 'Frappe pénétrante' },
+  { id: 'rog', class: 'Voleur', name: 'Esquive' },
+  { id: 'pal', class: 'Paladin', name: 'Riposte' },
+  { id: 'heal', class: 'Healer', name: 'Soin puissant' },
+  { id: 'arc', class: 'Archer', name: 'Tir multiple' },
+  { id: 'mag', class: 'Mage', name: 'Sort magique' },
+  { id: 'dem', class: 'Demoniste', name: 'Invocation familière' },
+  { id: 'maso', class: 'Masochiste', name: 'Renvoi sanguin' }
+];
+
+const BOSS_MULTIPLIER = {
+  hp: 1.4,
+  otherStats: 1.15
+};
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i += 1) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function hash() {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+
+function mulberry32(seed) {
+  return function rng() {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function createSeededRng(seedString) {
+  const seedFactory = xmur3(seedString);
+  return mulberry32(seedFactory());
+}
+
+function pickSeeded(list, rng) {
+  const idx = Math.floor(rng() * list.length);
+  return list[clamp(idx, 0, list.length - 1)];
+}
+
+function getImageEntries(globResult) {
+  return Object.entries(globResult)
+    .map(([sourcePath, imagePath]) => ({ sourcePath, imagePath }))
+    .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+}
+
+export function getEnemyNameFromFilename(path) {
+  if (!path) return 'inconnu';
+  const filename = path.split('/').pop() || path;
+  return filename.replace(/\.[^/.]+$/, '');
+}
+
+export function getCurrentWeekId(referenceDate = new Date()) {
+  const date = new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+export function getLabyrinthPhase(floorNumber) {
+  if (floorNumber <= 40) return 1;
+  if (floorNumber <= 70) return 2;
+  return 3;
+}
+
+export function computeLabyrinthStats(baseStats, floorNumber) {
+  const phase = getLabyrinthPhase(floorNumber);
+  const floorInPhase = phase === 1 ? floorNumber - 1 : phase === 2 ? floorNumber - 41 : floorNumber - 71;
+
+  let multiplier;
+  if (phase === 1) {
+    multiplier = 1 + floorInPhase * 0.018;
+  } else if (phase === 2) {
+    multiplier = 1.72 + floorInPhase * 0.032;
+  } else {
+    multiplier = 2.68 + floorInPhase * 0.06;
+  }
+
+  return {
+    hp: Math.round(baseStats.hp * multiplier),
+    auto: Math.round(baseStats.auto * multiplier),
+    def: Math.round(baseStats.def * multiplier),
+    cap: Math.round(baseStats.cap * multiplier),
+    rescap: Math.round(baseStats.rescap * multiplier),
+    spd: Math.round(baseStats.spd * multiplier)
+  };
+}
+
+function computeBossStats(stats) {
+  return {
+    hp: Math.round(stats.hp * BOSS_MULTIPLIER.hp),
+    auto: Math.round(stats.auto * BOSS_MULTIPLIER.otherStats),
+    def: Math.round(stats.def * BOSS_MULTIPLIER.otherStats),
+    cap: Math.round(stats.cap * BOSS_MULTIPLIER.otherStats),
+    rescap: Math.round(stats.rescap * BOSS_MULTIPLIER.otherStats),
+    spd: Math.round(stats.spd * BOSS_MULTIPLIER.otherStats)
+  };
+}
+
+function pickBossKit(phase, rng) {
+  const passiveLevel = phase;
+  const passive = pickSeeded(MAGE_TOWER_PASSIVES, rng);
+
+  if (phase === 1) {
+    return {
+      passiveId: passive.id,
+      passiveLevel
+    };
+  }
+
+  const spell = pickSeeded(SPELL_POOL, rng);
+
+  if (phase === 2) {
+    return {
+      spellId: spell.id,
+      spellClass: spell.class,
+      passiveId: passive.id,
+      passiveLevel
+    };
+  }
+
+  const weapon = pickSeeded(LEGENDARY_WEAPONS, rng);
+  return {
+    spellId: spell.id,
+    spellClass: spell.class,
+    passiveId: passive.id,
+    passiveLevel,
+    weaponId: weapon.id
+  };
+}
+
+export function buildInfiniteLabyrinth(weekId) {
+  const mobs = getImageEntries(MOB_IMAGES);
+  const bosses = getImageEntries(BOSS_IMAGES);
+  if (!mobs.length || !bosses.length) {
+    throw new Error('Assets labyrinthe manquants: ajoutez des images dans src/assets/labyrinthe/mobs et bosses.');
+  }
+
+  const seed = `infinite-labyrinth-${weekId}`;
+  const rng = createSeededRng(seed);
+
+  const floors = Array.from({ length: FLOOR_COUNT }, (_, idx) => {
+    const floorNumber = idx + 1;
+    const type = floorNumber % BOSS_FLOOR_STEP === 0 ? 'boss' : 'normal';
+    const phase = getLabyrinthPhase(floorNumber);
+    const picked = type === 'boss' ? pickSeeded(bosses, rng) : pickSeeded(mobs, rng);
+
+    const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
+    const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
+    const bossKit = type === 'boss' ? pickBossKit(phase, rng) : null;
+
+    return {
+      floorNumber,
+      type,
+      phase,
+      enemyName: getEnemyNameFromFilename(picked.sourcePath),
+      imagePath: picked.imagePath,
+      stats: finalStats,
+      bossKit
+    };
+  });
+
+  return {
+    weekId,
+    seed,
+    generatedAt: new Date().toISOString(),
+    floors,
+    rewardsEnabled: false
+  };
+}
+
+export async function generateWeeklyInfiniteLabyrinth(forceWeekId = null) {
+  const weekId = forceWeekId || getCurrentWeekId();
+  const labyrinth = buildInfiniteLabyrinth(weekId);
+  await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
+    ...labyrinth,
+    generatedAt: serverTimestamp()
+  }, { merge: true });
+  return { success: true, weekId, labyrinth };
+}
+
+export async function getWeeklyInfiniteLabyrinth(weekId = null) {
+  const resolvedWeekId = weekId || getCurrentWeekId();
+  const snap = await getDoc(doc(db, 'weeklyInfiniteLabyrinths', resolvedWeekId));
+  if (!snap.exists()) return { success: false, error: 'Labyrinthe hebdo introuvable', weekId: resolvedWeekId };
+  return { success: true, data: snap.data(), weekId: resolvedWeekId };
+}
+
+export async function ensureWeeklyInfiniteLabyrinth(weekId = null) {
+  const existing = await getWeeklyInfiniteLabyrinth(weekId);
+  if (existing.success) return existing;
+  const created = await generateWeeklyInfiniteLabyrinth(existing.weekId);
+  return { success: true, data: created.labyrinth, weekId: created.weekId };
+}
+
+export async function getUserLabyrinthProgress(userId, weekId = null) {
+  const resolvedWeekId = weekId || getCurrentWeekId();
+  const progressRef = doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId);
+  const snap = await getDoc(progressRef);
+  if (!snap.exists()) {
+    return {
+      success: true,
+      data: {
+        currentFloor: 1,
+        highestClearedFloor: 0,
+        bossesDefeated: 0
+      },
+      weekId: resolvedWeekId
+    };
+  }
+  return { success: true, data: snap.data(), weekId: resolvedWeekId };
+}
+
+export async function resetUserLabyrinthProgress(userId, weekId = null) {
+  const resolvedWeekId = weekId || getCurrentWeekId();
+  const payload = {
+    currentFloor: 1,
+    highestClearedFloor: 0,
+    bossesDefeated: 0,
+    updatedAt: serverTimestamp()
+  };
+  await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), payload, { merge: true });
+  return { success: true, weekId: resolvedWeekId };
+}
+
+async function getPreparedUserCharacter(userId) {
+  const charSnap = await getDoc(doc(db, 'characters', userId));
+  if (!charSnap.exists()) return null;
+  const data = charSnap.data();
+  let weaponId = data.equippedWeaponId || null;
+  if (!weaponId) {
+    const weaponResult = await getEquippedWeapon(userId);
+    weaponId = weaponResult.success ? weaponResult.weapon?.id || null : null;
+  }
+  return preparerCombattant(normalizeCharacterBonuses({
+    ...data,
+    userId,
+    level: data.level ?? 1,
+    equippedWeaponId: weaponId
+  }));
+}
+
+function buildFloorEnemy(floor) {
+  const passive = floor.bossKit?.passiveId ? getMageTowerPassiveById(floor.bossKit.passiveId) : null;
+  const race = 'Humain';
+  const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
+
+  return preparerCombattant({
+    name: floor.enemyName,
+    race,
+    class: enemyClass,
+    level: 1,
+    base: floor.stats,
+    bonuses: { race: {}, class: {} },
+    mageTowerPassive: floor.bossKit?.passiveId ? {
+      id: floor.bossKit.passiveId,
+      level: floor.bossKit.passiveLevel || 1
+    } : null,
+    equippedWeaponId: floor.bossKit?.weaponId || null
+  });
+}
+
+export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId = null }) {
+  const resolvedWeekId = weekId || getCurrentWeekId();
+  const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
+  const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
+  const char = await getPreparedUserCharacter(userId);
+
+  if (!char) {
+    return { success: false, error: 'Personnage introuvable pour ce joueur.' };
+  }
+
+  const selectedFloor = floorNumber || progressResult.data.currentFloor || 1;
+  const floor = labyrinthResult.data.floors.find((f) => f.floorNumber === Number(selectedFloor));
+  if (!floor) return { success: false, error: 'Étage invalide.' };
+
+  const enemy = buildFloorEnemy(floor);
+  const result = simulerMatch(char, enemy);
+  const didWin = result.winnerId === (char.userId || userId);
+
+  const updatedProgress = { ...progressResult.data };
+  if (didWin) {
+    updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
+    updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
+    if (floor.type === 'boss') {
+      updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
+    }
+  } else {
+    updatedProgress.currentFloor = floor.floorNumber;
+  }
+
+  await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), {
+    ...updatedProgress,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
+  return {
+    success: true,
+    weekId: resolvedWeekId,
+    floor,
+    result,
+    didWin,
+    progress: updatedProgress
+  };
+}
