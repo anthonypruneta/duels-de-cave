@@ -450,6 +450,45 @@ export const resetDungeonRuns = async (userId) => {
   }
 };
 
+
+export const markDungeonCompleted = async (userId, dungeonKey) => {
+  try {
+    if (!userId || !dungeonKey) return { success: false, error: 'Paramètres invalides' };
+
+    await retryOperation(async () => {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      try {
+        await updateDoc(progressRef, {
+          [`dungeonCompletions.${dungeonKey}`]: true,
+          updatedAt: Timestamp.now()
+        });
+      } catch {
+        await setDoc(progressRef, {
+          userId,
+          dungeonCompletions: {
+            [dungeonKey]: true
+          },
+          updatedAt: Timestamp.now(),
+          createdAt: Timestamp.now(),
+          runsToday: 0,
+          runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
+          totalRuns: 0,
+          bestRun: 0,
+          totalBossKills: 0,
+          equippedWeapon: null,
+          lastRunDate: null,
+          lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date()))
+        }, { merge: true });
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Erreur marquage donjon terminé:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // ============================================================================
 // OBTENIR LE RÉSUMÉ COMPLET D'UN JOUEUR (progression + arme)
 // ============================================================================
