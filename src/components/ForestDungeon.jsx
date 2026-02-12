@@ -7,7 +7,7 @@ import {
   updateCharacterForestBoosts,
   updateCharacterLevel
 } from '../services/characterService';
-import { getEquippedWeapon, getDungeonProgress, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
+import { getEquippedWeapon, getDungeonProgress, getPlayerDungeonSummary, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -177,6 +177,7 @@ const ForestDungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [dungeonSummary, setDungeonSummary] = useState(null);
   const [canInstantFinish, setCanInstantFinish] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
@@ -234,8 +235,14 @@ const ForestDungeon = () => {
 
       const progressResult = await getDungeonProgress(currentUser.uid);
       const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.forest;
+      const inferredFromBoosts = Object.values(forestBoosts).some((value) => value > 0);
 
-      setCanInstantFinish(Boolean(completionFlag));
+      const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+      if (summaryResult.success) {
+        setDungeonSummary(summaryResult.data);
+      }
+
+      setCanInstantFinish(Boolean(completionFlag || inferredFromBoosts));
       setEquippedWeapon(weaponData);
       setCharacter(normalizeCharacterBonuses({
         ...characterData,
@@ -993,6 +1000,11 @@ const ForestDungeon = () => {
     setCanInstantFinish(true);
     setCharacter((prev) => prev ? { ...prev, level: updatedLevel, forestBoosts: updatedBoosts } : prev);
 
+    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+    if (summaryResult.success) {
+      setDungeonSummary(summaryResult.data);
+    }
+
     const labels = getStatLabels();
     const gainsText = Object.entries(totalGainsByStat)
       .map(([stat, value]) => `${labels[stat] || stat.toUpperCase()} +${value}`)
@@ -1674,6 +1686,22 @@ const ForestDungeon = () => {
             </div>
           </div>
 
+        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
+          <div>
+            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
+            <p className="text-white text-2xl">
+              {dungeonSummary?.runsRemaining || 0}
+            </p>
+            <p className="text-stone-400 text-sm">+10 par jour (reset à midi)</p>
+          </div>
+          <div className="text-right">
+            <p className="text-gray-400 text-sm">Fin instantanée</p>
+            <p className="text-amber-400 font-bold">
+              {canInstantFinish ? 'Débloquée' : 'À débloquer'}
+            </p>
+          </div>
+        </div>
+
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
           <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
           <div className="grid grid-cols-3 gap-4">
@@ -1710,14 +1738,24 @@ const ForestDungeon = () => {
           </button>
           <button
             onClick={handleStartRun}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl border border-amber-500"
+            disabled={!dungeonSummary?.runsRemaining}
+            className={`px-12 py-4 font-bold text-xl ${
+              dungeonSummary?.runsRemaining > 0
+                ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
+                : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+            }`}
           >
-            Entrer dans la forêt
+            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la forêt' : 'Plus de runs'}
           </button>
           {canInstantFinish && (
             <button
               onClick={handleInstantFinishRun}
-              className="bg-emerald-700 hover:bg-emerald-600 text-white px-8 py-4 font-bold border border-emerald-500"
+              disabled={!dungeonSummary?.runsRemaining}
+              className={`px-8 py-4 font-bold border ${
+                dungeonSummary?.runsRemaining > 0
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
+              }`}
             >
               ⚡ Terminer instantanément
             </button>
