@@ -2,39 +2,38 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper admin
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.token.email == 'antho.pruneta@gmail.com';
+    }
+
     // Règles pour la collection 'characters'
     match /characters/{userId} {
-      // Lecture : L'utilisateur peut lire son propre personnage ou tout admin
-      allow read: if request.auth != null &&
-                     (request.auth.uid == userId ||
-                      request.auth.token.email == 'antho.pruneta@gmail.com');
+      // Lecture : Tous les utilisateurs connectés peuvent voir les personnages
+      // (nécessaire pour le combat et voir les adversaires)
+      allow read: if request.auth != null;
 
       // Écriture : L'utilisateur peut créer/modifier son propre personnage
       allow write: if request.auth != null && request.auth.uid == userId;
 
-      // Suppression : Seulement les admins
-      allow delete: if request.auth != null &&
-                       request.auth.token.email == 'antho.pruneta@gmail.com';
-    }
+      // Mise à jour image : Seulement les admins
+      allow update: if isAdmin();
 
-    // Règle pour permettre aux admins de lister tous les personnages
-    match /characters/{document=**} {
-      allow read: if request.auth != null &&
-                     request.auth.token.email == 'antho.pruneta@gmail.com';
+      // Suppression : Seulement les admins
+      allow delete: if isAdmin();
     }
 
     // Règles pour la collection 'dungeonProgress'
     match /dungeonProgress/{userId} {
-      // Lecture : L'utilisateur peut lire sa propre progression ou tout admin
+      // Lecture : joueur lui-même ou admin
       allow read: if request.auth != null &&
-                     (request.auth.uid == userId ||
-                      request.auth.token.email == 'antho.pruneta@gmail.com');
+                     (request.auth.uid == userId || isAdmin());
 
-      // Écriture : L'utilisateur peut créer/modifier sa propre progression
-      // OU admin (nécessaire pour l'attribution globale d'essais)
+      // Écriture : joueur lui-même OU admin
+      // (important pour l'ajout global d'essais)
       allow write: if request.auth != null &&
-                      (request.auth.uid == userId ||
-                       request.auth.token.email == 'antho.pruneta@gmail.com');
+                      (request.auth.uid == userId || isAdmin());
     }
 
     // Broadcasts admin (pop-up d'annonce globale)
@@ -42,41 +41,7 @@ service cloud.firestore {
       // Lecture : tous les utilisateurs connectés (pour afficher la pop-up)
       allow read: if request.auth != null;
       // Écriture : admin uniquement
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
-    }
-
-    // Règles pour le tournoi
-    match /tournaments/{tournamentId} {
-      // Lecture : Tous les utilisateurs connectés
-      allow read: if request.auth != null;
-
-      // Écriture : Admin uniquement
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
-
-      // Sous-collection combatLogs
-      match /combatLogs/{matchId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null &&
-                        request.auth.token.email == 'antho.pruneta@gmail.com';
-      }
-    }
-
-    // Règles pour le Hall of Fame
-    match /hallOfFame/{entryId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
-    }
-
-    // Règles pour les personnages archivés
-    match /archivedCharacters/{charId} {
-      // Lecture : L'utilisateur peut lire ses propres archives + admin
-      allow read: if request.auth != null;
-      // Écriture : Admin uniquement (via terminerTournoi)
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
+      allow write: if isAdmin();
     }
 
     // Règles pour les rolls en attente (lock du roll)
@@ -85,15 +50,55 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Règles pour le tournoi
+    match /tournaments/{tournamentId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+
+      // Sous-collection combatLogs
+      match /combatLogs/{matchId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+    }
+
+    // Règles pour le Hall of Fame
+    match /hallOfFame/{entryId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Règles pour les personnages archivés
+    match /archivedCharacters/{charId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Règles pour les récompenses de tournoi
     match /tournamentRewards/{userId} {
-      // Lecture : L'utilisateur peut lire sa propre récompense
       allow read: if request.auth != null &&
-                     (request.auth.uid == userId ||
-                      request.auth.token.email == 'antho.pruneta@gmail.com');
-      // Écriture : Admin uniquement
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
+                     (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Labyrinthe infini hebdomadaire (admin only en écriture)
+    match /weeklyInfiniteLabyrinths/{weekId} {
+      // Lecture: utilisateurs connectés (utile pour affichage admin/test)
+      allow read: if request.auth != null;
+      // Écriture: admin uniquement
+      allow write: if isAdmin();
+    }
+
+    // Progression Labyrinthe par joueur et par semaine
+    // Structure: userLabyrinthProgress/{userId}/weeks/{weekId}
+    match /userLabyrinthProgress/{userId} {
+      allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
+
+      match /weeks/{weekId} {
+        allow read, write: if request.auth != null &&
+                             (request.auth.uid == userId || isAdmin());
+      }
     }
   }
 }
