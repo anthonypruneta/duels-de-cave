@@ -516,7 +516,8 @@ const Combat = () => {
         defPassive,
         atkUnicorn,
         defUnicorn,
-        auraBoost
+        auraBoost,
+        applyOnHitPassives = true
       ) => {
         let adjusted = raw;
 
@@ -565,13 +566,13 @@ const Combat = () => {
           }
         }
 
-        if (atkPassive?.id === 'spectral_mark' && adjusted > 0 && !defender.spectralMarked) {
+        if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !defender.spectralMarked) {
           defender.spectralMarked = true;
           defender.spectralMarkBonus = atkPassive.levelData.damageTakenBonus;
           combatLog.push(`${playerColor} 🟣 ${defender.name} est marqué et subira +${Math.round(defender.spectralMarkBonus * 100)}% dégâts.`);
         }
 
-        if (atkPassive?.id === 'essence_drain' && adjusted > 0) {
+        if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
           const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent));
           attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
           combatLog.push(`${playerColor} 🩸 ${attacker.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
@@ -631,7 +632,7 @@ const Combat = () => {
           const inflicted = applyMageTowerDamage(att, def, dmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
           const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
           if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-            applyMageTowerDamage(att, def, masoSpellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+            applyMageTowerDamage(att, def, masoSpellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
             log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
           }
           log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
@@ -727,7 +728,7 @@ const Combat = () => {
           if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
           const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
           if (spellEffects.doubleCast) {
-            const secondCast = applyMageTowerDamage(att, def, spellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+            const secondCast = applyMageTowerDamage(att, def, spellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
             log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
           }
         } else if (isWar) {

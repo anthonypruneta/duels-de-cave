@@ -578,7 +578,7 @@ const MageTower = () => {
     };
     let skillUsed = false;
 
-    const resolveDamage = (raw, isCrit) => {
+    const resolveDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
@@ -654,13 +654,13 @@ const MageTower = () => {
         }
       }
 
-      if (isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
+      if (applyOnHitPassives && isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
         def.spectralMarked = true;
         def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
         log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
       }
 
-      if (isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
+      if (applyOnHitPassives && isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
         const heal = Math.max(1, Math.round(remaining * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
@@ -726,7 +726,7 @@ const MageTower = () => {
         const inflicted = resolveDamage(dmg, false);
         const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
         if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-          resolveDamage(masoSpellEffects.secondCastDamage, false);
+          resolveDamage(masoSpellEffects.secondCastDamage, false, false);
           log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
         }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
@@ -829,7 +829,7 @@ const MageTower = () => {
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
           const extra = spellEffects.secondCastDamage;
-          const inflictedExtra = resolveDamage(extra, false);
+          const inflictedExtra = resolveDamage(extra, false, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
         }
       } else if (isWar) {

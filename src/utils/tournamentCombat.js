@@ -138,7 +138,7 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
   return adjusted;
 }
 
-function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost) {
+function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true) {
   let adjusted = raw;
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
@@ -170,12 +170,12 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
     }
   }
-  if (atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
+  if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
     def.spectralMarked = true;
     def.spectralMarkBonus = atkPassive.levelData.damageTakenBonus;
     log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
   }
-  if (atkPassive?.id === 'essence_drain' && adjusted > 0) {
+  if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
     const heal = Math.max(1, Math.round(att.maxHP * atkPassive.levelData.healPercent));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
@@ -244,7 +244,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const inflicted = applyDamage(att, def, dmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
       const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
       if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-        applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+        applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
         log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
       }
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
@@ -329,7 +329,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
       if (spellEffects.doubleCast) {
-        applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+        applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
         log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
       }
     } else if (isWar) {

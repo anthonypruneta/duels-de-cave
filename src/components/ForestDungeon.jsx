@@ -592,7 +592,7 @@ const ForestDungeon = () => {
     };
     let skillUsed = false;
 
-    const applyMageTowerDamage = (raw, isCrit) => {
+    const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
@@ -641,13 +641,13 @@ const ForestDungeon = () => {
         }
       }
 
-      if (isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
+      if (applyOnHitPassives && isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
         def.spectralMarked = true;
         def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
         log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
       }
 
-      if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
+      if (applyOnHitPassives && isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
         const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
@@ -712,7 +712,7 @@ const ForestDungeon = () => {
         const inflicted = applyMageTowerDamage(raw, false);
         const masoSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'maso');
         if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false);
+          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false, false);
           log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
         }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
@@ -815,7 +815,7 @@ const ForestDungeon = () => {
           let extra = spellEffects.secondCastDamage;
           extra = applyBossOutgoingModifier(att, extra, turn);
           extra = applyBossIncomingModifier(def, extra, turn);
-          applyMageTowerDamage(extra, false);
+          applyMageTowerDamage(extra, false, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
         }
       } else if (isWar) {
