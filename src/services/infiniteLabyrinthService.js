@@ -89,6 +89,55 @@ function getImageEntries(globResult) {
     .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
 }
 
+
+function getFloorImageEntriesByType(type) {
+  return type === 'boss' ? getImageEntries(BOSS_IMAGES) : getImageEntries(MOB_IMAGES);
+}
+
+function normalizeAssetName(raw = '') {
+  return raw
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function getNameFromImagePath(path) {
+  if (!path) return '';
+  const filename = decodeURIComponent((path.split('/').pop() || '').trim());
+  const withoutExt = filename.replace(/\.[^/.]+$/, '');
+  return withoutExt.replace(/-[A-Za-z0-9_-]{6,}$/u, '');
+}
+
+export function resolveLabyrinthFloorImagePath(floor) {
+  if (!floor) return null;
+
+  const candidates = getFloorImageEntriesByType(floor.type);
+  if (!candidates.length) return floor.imagePath || null;
+
+  const bySourcePath = floor.imageSourcePath
+    ? candidates.find((entry) => entry.sourcePath === floor.imageSourcePath)
+    : null;
+  if (bySourcePath) return bySourcePath.imagePath;
+
+  const currentImagePaths = new Set(candidates.map((entry) => entry.imagePath));
+  if (floor.imagePath && currentImagePaths.has(floor.imagePath)) return floor.imagePath;
+
+  const expectedName = normalizeAssetName(floor.enemyName || getNameFromImagePath(floor.imagePath));
+  if (expectedName) {
+    const byEnemyName = candidates.find((entry) => normalizeAssetName(getEnemyNameFromFilename(entry.sourcePath)) === expectedName);
+    if (byEnemyName) return byEnemyName.imagePath;
+  }
+
+  const legacyName = normalizeAssetName(getNameFromImagePath(floor.imagePath));
+  if (legacyName) {
+    const byLegacyName = candidates.find((entry) => normalizeAssetName(getNameFromImagePath(entry.sourcePath)) === legacyName);
+    if (byLegacyName) return byLegacyName.imagePath;
+  }
+
+  return floor.imagePath || null;
+}
+
 async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
   const progressRef = doc(db, 'dungeonProgress', userId);
   await setDoc(progressRef, {
@@ -222,6 +271,7 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
       phase,
       enemyName: getEnemyNameFromFilename(picked.sourcePath),
       imagePath: picked.imagePath,
+      imageSourcePath: picked.sourcePath,
       stats: finalStats,
       bossKit
     };
