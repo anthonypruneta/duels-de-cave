@@ -37,11 +37,6 @@ const Admin = () => {
   const [dungeonGrantMessage, setDungeonGrantMessage] = useState('');
   const [dungeonGrantLoading, setDungeonGrantLoading] = useState(false);
 
-  // États pour ajout global d'essais de donjon
-  const [dungeonAttemptsToGrant, setDungeonAttemptsToGrant] = useState(1);
-  const [dungeonGrantMessage, setDungeonGrantMessage] = useState('');
-  const [dungeonGrantLoading, setDungeonGrantLoading] = useState(false);
-
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
 
