@@ -6,7 +6,8 @@ import {
   ensureWeeklyInfiniteLabyrinth,
   getCurrentWeekId,
   getUserLabyrinthProgress,
-  launchLabyrinthCombat
+  launchLabyrinthCombat,
+  resolveLabyrinthFloorImagePath
 } from '../services/infiniteLabyrinthService';
 import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
@@ -434,7 +435,7 @@ const InfiniteLabyrinth = () => {
         ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
         : null,
       equippedWeaponData: weapon,
-      characterImage: shownEnemyFloor.imagePath,
+      characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
       currentHP: replayP2HP || shownEnemyFloor.stats.hp,
       maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp
     };
