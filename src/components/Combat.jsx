@@ -166,8 +166,8 @@ const Combat = () => {
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.3);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const shouldAutoScrollLog = () => {
@@ -204,7 +204,7 @@ const Combat = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.3);
+      setVolume(0.05);
     }
   };
 
@@ -844,7 +844,7 @@ const Combat = () => {
     const victoryMusic = document.getElementById('victory-music');
     if (combatMusic) {
       combatMusic.currentTime = 0;
-      combatMusic.volume = 0.3;
+      combatMusic.volume = volume;
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
@@ -936,7 +936,7 @@ const Combat = () => {
     if (combatMusic) combatMusic.pause();
     if (victoryMusic) {
       victoryMusic.currentTime = 0;
-      victoryMusic.volume = 0.4;
+      victoryMusic.volume = volume;
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
   };

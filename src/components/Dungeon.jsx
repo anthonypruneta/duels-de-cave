@@ -194,8 +194,8 @@ const Dungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.35);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const ensureDungeonMusic = () => {
@@ -255,7 +255,7 @@ const Dungeon = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.35);
+      setVolume(0.05);
     }
   };
 

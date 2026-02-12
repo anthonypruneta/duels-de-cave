@@ -147,8 +147,8 @@ const MageTower = () => {
   const [canInstantFinish, setCanInstantFinish] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.35);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const ensureTowerMusic = () => {
@@ -258,7 +258,7 @@ const MageTower = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.35);
+      setVolume(0.05);
     }
   };
 

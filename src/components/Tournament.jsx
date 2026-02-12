@@ -462,8 +462,8 @@ const Tournament = () => {
   const [replayMatchId, setReplayMatchId] = useState(null);
 
   // Sound
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.3);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   // Schedule
@@ -512,7 +512,7 @@ const Tournament = () => {
 
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
-    if (isMuted && volume === 0) setVolume(0.3);
+    if (isMuted && volume === 0) setVolume(0.05);
   };
 
   const SoundControl = () => (
