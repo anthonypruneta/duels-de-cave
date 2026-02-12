@@ -7,7 +7,7 @@ import {
   updateCharacterForestBoosts,
   updateCharacterLevel
 } from '../services/characterService';
-import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
+import { getEquippedWeapon, getDungeonProgress, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -177,6 +177,8 @@ const ForestDungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [canInstantFinish, setCanInstantFinish] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(true);
   const [volume, setVolume] = useState(0.35);
@@ -230,6 +232,10 @@ const ForestDungeon = () => {
         }
       }
 
+      const progressResult = await getDungeonProgress(currentUser.uid);
+      const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.forest;
+
+      setCanInstantFinish(Boolean(completionFlag));
       setEquippedWeapon(weaponData);
       setCharacter(normalizeCharacterBonuses({
         ...characterData,
@@ -482,6 +488,7 @@ const ForestDungeon = () => {
       shield: 0,
       spectralMarked: false,
       spectralMarkBonus: 0,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -498,6 +505,7 @@ const ForestDungeon = () => {
     p.bleedPercentPerStack = 0;
     p.maso_taken = 0;
     p.familiarStacks = 0;
+    p.firstSpellCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -570,6 +578,12 @@ const ForestDungeon = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
+    const consumeAuraSpellCapMultiplier = () => {
+      if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
+    };
     let skillUsed = false;
 
     const applyMageTowerDamage = (raw, isCrit) => {
@@ -607,17 +621,17 @@ const ForestDungeon = () => {
         log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
       }
 
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
       if (adjusted > 0) {
         def.currentHP -= adjusted;
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * adjusted);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         }
       }
 
@@ -722,9 +736,16 @@ const ForestDungeon = () => {
       if (isPlayer) skillUsed = true;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+      const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+      if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+        log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+        log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+      }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
         let bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -774,7 +795,9 @@ const ForestDungeon = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
@@ -888,7 +911,7 @@ const ForestDungeon = () => {
     }
   };
 
-  const rollForestRewards = (levelData) => {
+  const rollForestRewards = (levelData, baseBoosts = character.forestBoosts) => {
     const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
     const pointsByStat = {};
 
@@ -898,7 +921,7 @@ const ForestDungeon = () => {
     }
 
     const gainsByStat = {};
-    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character.forestBoosts || {}) };
+    let updatedBoosts = { ...getEmptyStatBoosts(), ...(baseBoosts || {}) };
     Object.entries(pointsByStat).forEach(([stat, points]) => {
       const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, points);
       updatedBoosts = updatedStats;
@@ -910,6 +933,7 @@ const ForestDungeon = () => {
 
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -937,6 +961,43 @@ const ForestDungeon = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
+    const totalGainsByStat = {};
+    let totalLevelGain = 0;
+
+    for (const levelData of getAllForestLevels()) {
+      const rewardResult = rollForestRewards(levelData, updatedBoosts);
+      updatedBoosts = rewardResult.updatedBoosts;
+      totalLevelGain += levelData.rewardRolls;
+      Object.entries(rewardResult.gainsByStat).forEach(([stat, value]) => {
+        totalGainsByStat[stat] = (totalGainsByStat[stat] || 0) + value;
+      });
+    }
+
+    const updatedLevel = (character?.level ?? 1) + totalLevelGain;
+    await updateCharacterForestBoosts(currentUser.uid, updatedBoosts, updatedLevel);
+    await markDungeonCompleted(currentUser.uid, 'forest');
+
+    setCanInstantFinish(true);
+    setCharacter((prev) => prev ? { ...prev, level: updatedLevel, forestBoosts: updatedBoosts } : prev);
+
+    const labels = getStatLabels();
+    const gainsText = Object.entries(totalGainsByStat)
+      .map(([stat, value]) => `${labels[stat] || stat.toUpperCase()} +${value}`)
+      .join(' • ');
+    setInstantMessage(`✅ Run instantanée terminée : ${gainsText || 'boosts appliqués'}.`);
   };
 
   const simulateCombat = async () => {
@@ -1033,6 +1094,10 @@ const ForestDungeon = () => {
       updateCharacterForestBoosts(currentUser.uid, rewardResult.updatedBoosts, updatedCharacter.level);
 
       const nextLevel = currentLevel + 1;
+      if (nextLevel > getAllForestLevels().length) {
+        await markDungeonCompleted(currentUser.uid, 'forest');
+        setCanInstantFinish(true);
+      }
       setRewardSummary({
         gainsByStat: rewardResult.gainsByStat,
         hasNextLevel: nextLevel <= getAllForestLevels().length,
@@ -1627,6 +1692,12 @@ const ForestDungeon = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1643,6 +1714,14 @@ const ForestDungeon = () => {
           >
             Entrer dans la forêt
           </button>
+          {canInstantFinish && (
+            <button
+              onClick={handleInstantFinishRun}
+              className="bg-emerald-700 hover:bg-emerald-600 text-white px-8 py-4 font-bold border border-emerald-500"
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
       </div>
     </div>
