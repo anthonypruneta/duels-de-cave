@@ -83,6 +83,7 @@ export function preparerCombattant(char) {
     shield: 0,
     spectralMarked: false,
     spectralMarkBonus: 0,
+    firstSpellCapBoostUsed: false,
     stunned: false,
     stunnedTurns: 0,
     weaponState,
@@ -158,15 +159,16 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     adjusted -= absorbed;
     log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
   }
-  if (def.reflect && adjusted > 0) {
-    const back = Math.round(def.reflect * adjusted);
-    att.currentHP -= back;
-    log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-  }
   if (adjusted > 0) {
     def.currentHP -= adjusted;
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+
+    if (def.reflect && def.currentHP > 0) {
+      const back = Math.round(def.reflect * adjusted);
+      att.currentHP -= back;
+      log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+    }
   }
   if (atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
     def.spectralMarked = true;
@@ -190,6 +192,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const attackerUnicorn = getUnicornPactTurnData(attackerPassive, turn);
   const defenderUnicorn = getUnicornPactTurnData(defenderPassive, turn);
   const auraBonus = getAuraBonus(attackerPassive, turn);
+  const consumeAuraSpellCapMultiplier = () => {
+    if (attackerPassive?.id !== 'aura_overload') return 1;
+    if (att.firstSpellCapBoostUsed) return 1;
+    att.firstSpellCapBoostUsed = true;
+    return 1 + (attackerPassive?.levelData?.spellCapBonus ?? 0);
+  };
   let skillUsed = false;
 
   if (att.stunnedTurns > 0) {
@@ -234,6 +242,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       att.maso_taken = 0;
       const inflicted = applyDamage(att, def, dmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+      const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+      if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+        applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+        log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+      }
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
     }
@@ -260,9 +273,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
-    const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+    const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+    const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+    const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+    if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+      att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+      log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+      log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+    }
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -302,7 +322,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     if (isMage) {
       const { capBase, capPerCap } = classConstants.mage;
-      const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const scaledCap = att.base.cap * spellCapMultiplier;
+      const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
       raw = dmgCap(atkSpell, def.base.rescap);
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');

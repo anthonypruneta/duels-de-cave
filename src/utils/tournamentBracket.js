@@ -17,6 +17,29 @@ function nextPowerOf2(n) {
   return p;
 }
 
+function buildFirstRoundPairs(participants, pairCount) {
+  const pairs = Array.from({ length: pairCount }, () => [null, null]);
+
+  // 1) Distribuer un participant par match pour éviter les matchs BYE vs BYE
+  // au maximum dès le premier tour.
+  let index = 0;
+  while (index < participants.length && index < pairCount) {
+    pairs[index][0] = participants[index];
+    index++;
+  }
+
+  // 2) Remplir les slots restants avec les participants restants.
+  let secondSlotMatch = 0;
+  while (index < participants.length) {
+    pairs[secondSlotMatch][1] = participants[index];
+    secondSlotMatch++;
+    index++;
+  }
+
+  // 3) Les slots vides deviennent des BYE.
+  return pairs.map(([p1, p2]) => [p1 || 'BYE', p2 || 'BYE']);
+}
+
 // ============================================================================
 // AUTO-RÉSOUDRE LES BYES (réutilisable)
 // ============================================================================
@@ -73,10 +96,6 @@ export function genererBracket(participantIds) {
   const size = nextPowerOf2(shuffled.length);
   const n = Math.log2(size); // nombre de rounds WB
 
-  // Pad avec des BYE
-  const seeded = [...shuffled];
-  while (seeded.length < size) seeded.push('BYE');
-
   const matches = {};
 
   // ============================================================================
@@ -105,9 +124,10 @@ export function genererBracket(participantIds) {
 
   // Seed le premier round WB
   const r0Count = size / 2;
+  const firstRoundPairs = buildFirstRoundPairs(shuffled, r0Count);
   for (let m = 0; m < r0Count; m++) {
-    matches[`W-0-${m}`].p1 = seeded[m * 2];
-    matches[`W-0-${m}`].p2 = seeded[m * 2 + 1];
+    matches[`W-0-${m}`].p1 = firstRoundPairs[m][0];
+    matches[`W-0-${m}`].p2 = firstRoundPairs[m][1];
   }
 
   // Routing WB : winner → WB round suivant
