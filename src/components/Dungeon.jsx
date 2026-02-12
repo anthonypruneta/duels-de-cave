@@ -6,7 +6,8 @@ import {
   getPlayerDungeonSummary,
   startDungeonRun,
   endDungeonRun,
-  handleLootChoice
+  handleLootChoice,
+  markDungeonCompleted
 } from '../services/dungeonService';
 import {
   getAllDungeonLevels,
@@ -183,6 +184,7 @@ const Dungeon = () => {
   const [lootWeapon, setLootWeapon] = useState(null);
   const [error, setError] = useState(null);
   const [autoEquipDone, setAutoEquipDone] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
 
   // États de combat (même pattern que Combat.jsx)
   const [player, setPlayer] = useState(null);
@@ -923,6 +925,7 @@ const Dungeon = () => {
   // Démarrer une run
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -950,6 +953,33 @@ const Dungeon = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    const endResult = await endDungeonRun(currentUser.uid, DUNGEON_CONSTANTS.TOTAL_LEVELS);
+    if (!endResult.success || !endResult.lootWeapon) {
+      setError(endResult.error || 'Impossible de terminer instantanément cette run.');
+      return;
+    }
+
+    await handleLootChoice(currentUser.uid, endResult.lootWeapon.id, true);
+    await markDungeonCompleted(currentUser.uid, 'cave');
+
+    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+    if (summaryResult.success) {
+      setDungeonSummary(summaryResult.data);
+    }
+
+    setInstantMessage(`✅ Run instantanée terminée : ${endResult.lootWeapon.nom} équipée.`);
   };
 
   // Lancer le combat (timing identique à Combat.jsx)
@@ -1066,6 +1096,9 @@ const Dungeon = () => {
         stopDungeonMusic();
         await new Promise(r => setTimeout(r, 1500));
         const result = await endDungeonRun(currentUser.uid, newHighest);
+        if (result.success) {
+          await markDungeonCompleted(currentUser.uid, 'cave');
+        }
         if (result.success && result.lootWeapon) {
           setLootWeapon(result.lootWeapon);
           setGameState('loot');
@@ -1850,6 +1883,12 @@ const Dungeon = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1871,6 +1910,19 @@ const Dungeon = () => {
           >
             {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la grotte' : 'Plus de runs'}
           </button>
+          {(dungeonSummary?.bestRun || 0) >= DUNGEON_CONSTANTS.TOTAL_LEVELS && (
+            <button
+              onClick={handleInstantFinishRun}
+              disabled={!dungeonSummary?.runsRemaining}
+              className={`px-8 py-4 font-bold border ${
+                dungeonSummary?.runsRemaining > 0
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
+              }`}
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
 
         <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">

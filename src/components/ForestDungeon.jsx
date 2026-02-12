@@ -7,7 +7,7 @@ import {
   updateCharacterForestBoosts,
   updateCharacterLevel
 } from '../services/characterService';
-import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
+import { getEquippedWeapon, getDungeonProgress, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -177,6 +177,8 @@ const ForestDungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [canInstantFinish, setCanInstantFinish] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(true);
   const [volume, setVolume] = useState(0.35);
@@ -230,6 +232,10 @@ const ForestDungeon = () => {
         }
       }
 
+      const progressResult = await getDungeonProgress(currentUser.uid);
+      const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.forest;
+
+      setCanInstantFinish(Boolean(completionFlag));
       setEquippedWeapon(weaponData);
       setCharacter(normalizeCharacterBonuses({
         ...characterData,
@@ -905,7 +911,7 @@ const ForestDungeon = () => {
     }
   };
 
-  const rollForestRewards = (levelData) => {
+  const rollForestRewards = (levelData, baseBoosts = character.forestBoosts) => {
     const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
     const pointsByStat = {};
 
@@ -915,7 +921,7 @@ const ForestDungeon = () => {
     }
 
     const gainsByStat = {};
-    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character.forestBoosts || {}) };
+    let updatedBoosts = { ...getEmptyStatBoosts(), ...(baseBoosts || {}) };
     Object.entries(pointsByStat).forEach(([stat, points]) => {
       const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, points);
       updatedBoosts = updatedStats;
@@ -927,6 +933,7 @@ const ForestDungeon = () => {
 
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -954,6 +961,43 @@ const ForestDungeon = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
+    const totalGainsByStat = {};
+    let totalLevelGain = 0;
+
+    for (const levelData of getAllForestLevels()) {
+      const rewardResult = rollForestRewards(levelData, updatedBoosts);
+      updatedBoosts = rewardResult.updatedBoosts;
+      totalLevelGain += levelData.rewardRolls;
+      Object.entries(rewardResult.gainsByStat).forEach(([stat, value]) => {
+        totalGainsByStat[stat] = (totalGainsByStat[stat] || 0) + value;
+      });
+    }
+
+    const updatedLevel = (character?.level ?? 1) + totalLevelGain;
+    await updateCharacterForestBoosts(currentUser.uid, updatedBoosts, updatedLevel);
+    await markDungeonCompleted(currentUser.uid, 'forest');
+
+    setCanInstantFinish(true);
+    setCharacter((prev) => prev ? { ...prev, level: updatedLevel, forestBoosts: updatedBoosts } : prev);
+
+    const labels = getStatLabels();
+    const gainsText = Object.entries(totalGainsByStat)
+      .map(([stat, value]) => `${labels[stat] || stat.toUpperCase()} +${value}`)
+      .join(' • ');
+    setInstantMessage(`✅ Run instantanée terminée : ${gainsText || 'boosts appliqués'}.`);
   };
 
   const simulateCombat = async () => {
@@ -1050,6 +1094,10 @@ const ForestDungeon = () => {
       updateCharacterForestBoosts(currentUser.uid, rewardResult.updatedBoosts, updatedCharacter.level);
 
       const nextLevel = currentLevel + 1;
+      if (nextLevel > getAllForestLevels().length) {
+        await markDungeonCompleted(currentUser.uid, 'forest');
+        setCanInstantFinish(true);
+      }
       setRewardSummary({
         gainsByStat: rewardResult.gainsByStat,
         hasNextLevel: nextLevel <= getAllForestLevels().length,
@@ -1644,6 +1692,12 @@ const ForestDungeon = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1660,6 +1714,14 @@ const ForestDungeon = () => {
           >
             Entrer dans la forêt
           </button>
+          {canInstantFinish && (
+            <button
+              onClick={handleInstantFinishRun}
+              className="bg-emerald-700 hover:bg-emerald-600 text-white px-8 py-4 font-bold border border-emerald-500"
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
       </div>
     </div>

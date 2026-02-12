@@ -7,7 +7,7 @@ import {
   updateCharacterMageTowerPassive,
   updateCharacterLevel
 } from '../services/characterService';
-import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
+import { getEquippedWeapon, getDungeonProgress, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -143,6 +143,8 @@ const MageTower = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [canInstantFinish, setCanInstantFinish] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(true);
   const [volume, setVolume] = useState(0.35);
@@ -197,6 +199,11 @@ const MageTower = () => {
         }
       }
 
+      const progressResult = await getDungeonProgress(currentUser.uid);
+      const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.mageTower;
+      const inferredFromPassive = (mageTowerPassive?.level || 0) >= 3;
+
+      setCanInstantFinish(Boolean(completionFlag || inferredFromPassive));
       setEquippedWeapon(weaponData);
       setEquippedPassive(mageTowerPassive);
       setCharacter(normalizeCharacterBonuses({
@@ -942,6 +949,7 @@ const MageTower = () => {
 
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -974,6 +982,26 @@ const MageTower = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    const droppedPassive = rollMageTowerPassiveReward(3);
+    await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+    await markDungeonCompleted(currentUser.uid, 'mageTower');
+
+    setEquippedPassive(droppedPassive);
+    setCanInstantFinish(true);
+    setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
+    setInstantMessage(`✅ Run instantanée terminée : ${droppedPassive?.name || 'passif niveau 3'} obtenu.`);
   };
 
   const simulateCombat = async () => {
@@ -1071,6 +1099,10 @@ const MageTower = () => {
       setCharacter(updatedCharacter);
 
       const nextLevel = currentLevel + 1;
+      if (nextLevel > getAllMageTowerLevels().length) {
+        await markDungeonCompleted(currentUser.uid, 'mageTower');
+        setCanInstantFinish(true);
+      }
       setRewardSummary({
         droppedPassive,
         autoEquipped,
@@ -1729,6 +1761,12 @@ const MageTower = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1745,6 +1783,14 @@ const MageTower = () => {
           >
             Entrer dans la tour
           </button>
+          {canInstantFinish && (
+            <button
+              onClick={handleInstantFinishRun}
+              className="bg-emerald-700 hover:bg-emerald-600 text-white px-8 py-4 font-bold border border-emerald-500"
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
       </div>
     </div>
