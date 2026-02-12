@@ -61,6 +61,7 @@ const Admin = () => {
   const [labyrinthCombatLogs, setLabyrinthCombatLogs] = useState([]);
   const [labyrinthError, setLabyrinthError] = useState('');
   const [labyrinthMusicEnabled, setLabyrinthMusicEnabled] = useState(false);
+  const [selectedLabUserId, setSelectedLabUserId] = useState('');
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -116,15 +117,10 @@ const Admin = () => {
         const weekId = getCurrentWeekId();
         setLabyrinthWeekId(weekId);
         const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(weekId);
-        const progressResult = await getUserLabyrinthProgress(currentUser.uid, weekId);
         if (labyrinthResult.success) {
           setLabyrinthData(labyrinthResult.data);
         } else {
           setLabyrinthError(labyrinthResult.error || 'Impossible de charger le Labyrinthe Infini.');
-        }
-        if (progressResult.success) {
-          setLabyrinthProgress(progressResult.data);
-          setSelectedLabFloor(progressResult.data.currentFloor || 1);
         }
       } finally {
         setLabyrinthLoading(false);
@@ -132,6 +128,47 @@ const Admin = () => {
     };
     bootstrapLabyrinth();
   }, [currentUser?.uid]);
+
+  useEffect(() => {
+    if (!currentUser?.uid || selectedLabUserId) return;
+    const ownCharacter = characters.find((char) => char.id === currentUser.uid);
+    if (ownCharacter?.id) {
+      setSelectedLabUserId(ownCharacter.id);
+      return;
+    }
+    if (currentUser.uid) {
+      setSelectedLabUserId(currentUser.uid);
+      return;
+    }
+    if (characters.length > 0) {
+      setSelectedLabUserId(characters[0].id);
+    }
+  }, [characters, currentUser?.uid, selectedLabUserId]);
+
+  useEffect(() => {
+    if (!selectedLabUserId) return;
+
+    const loadProgress = async () => {
+      setLabyrinthLoading(true);
+      setLabyrinthError('');
+      try {
+        const weekId = labyrinthWeekId || getCurrentWeekId();
+        const progressResult = await getUserLabyrinthProgress(selectedLabUserId, weekId);
+        if (progressResult.success) {
+          setLabyrinthProgress(progressResult.data);
+          setSelectedLabFloor(progressResult.data.currentFloor || 1);
+          setLabyrinthCombatResult(null);
+          setLabyrinthCombatLogs([]);
+        } else {
+          setLabyrinthError(progressResult.error || 'Impossible de charger la progression du joueur sélectionné.');
+        }
+      } finally {
+        setLabyrinthLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, [labyrinthWeekId, selectedLabUserId]);
 
   useEffect(() => () => {
     const audio = labyrinthAudioRef.current;
@@ -511,21 +548,21 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
   };
 
   const handleResetMyLabyrinthProgress = async () => {
-    if (!currentUser?.uid) return;
+    if (!selectedLabUserId) return;
     setLabyrinthLoading(true);
     setLabyrinthError('');
     try {
       const weekId = labyrinthWeekId || getCurrentWeekId();
-      const reset = await resetUserLabyrinthProgress(currentUser.uid, weekId);
+      const reset = await resetUserLabyrinthProgress(selectedLabUserId, weekId);
       if (reset.success) {
-        const progress = await getUserLabyrinthProgress(currentUser.uid, weekId);
+        const progress = await getUserLabyrinthProgress(selectedLabUserId, weekId);
         if (progress.success) {
           setLabyrinthProgress(progress.data);
           setSelectedLabFloor(progress.data.currentFloor || 1);
         }
         setLabyrinthCombatResult(null);
         setLabyrinthCombatLogs([]);
-        alert('✅ Progression labyrinthe réinitialisée (votre compte).');
+        alert('✅ Progression labyrinthe réinitialisée pour le personnage sélectionné.');
       }
     } finally {
       setLabyrinthLoading(false);
@@ -533,12 +570,12 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
   };
 
   const handleLaunchLabyrinthCombat = async (floorOverride = null) => {
-    if (!currentUser?.uid) return;
+    if (!selectedLabUserId) return;
     setLabyrinthLoading(true);
     setLabyrinthError('');
     try {
       const result = await launchLabyrinthCombat({
-        userId: currentUser.uid,
+        userId: selectedLabUserId,
         floorNumber: floorOverride || Number(selectedLabFloor),
         weekId: labyrinthWeekId
       });
@@ -555,6 +592,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       setLabyrinthLoading(false);
     }
   };
+
+  const selectedLabCharacter = characters.find((char) => char.id === selectedLabUserId) || null;
 
   const handleToggleLabyrinthMusic = async () => {
     const audio = labyrinthAudioRef.current;
@@ -743,12 +782,33 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           <p className="text-stone-400 text-sm mb-4">Mode en test: aucune reward active et aucune exposition côté joueurs.</p>
           {labyrinthError && <p className="text-red-300 text-sm mb-4">⚠️ {labyrinthError}</p>}
 
+          <div className="mb-4">
+            <label className="text-stone-400 text-sm block mb-2">Personnage de test Labyrinthe</label>
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <select
+                value={selectedLabUserId}
+                onChange={(e) => setSelectedLabUserId(e.target.value)}
+                className="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white w-full md:w-auto md:min-w-[320px]"
+              >
+                <option value="">Sélectionner un personnage</option>
+                {characters.map((char) => (
+                  <option key={char.id} value={char.id}>
+                    {char.name} • {char.race} {char.class} {char.disabled ? '(désactivé)' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="text-stone-300 text-xs">
+                {selectedLabCharacter ? `UID: ${selectedLabCharacter.id}` : 'Aucun personnage sélectionné'}
+              </span>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3 mb-4">
             <button onClick={handleToggleLabyrinthMusic} className="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 rounded-lg font-bold">
               {labyrinthMusicEnabled ? '⏸️ Couper musique Labyrinthe' : '🎵 Lancer musique Labyrinthe'}
             </button>
             <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
-            <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (moi uniquement)</button>
+            <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (perso sélectionné)</button>
             <button onClick={() => handleLaunchLabyrinthCombat(labyrinthProgress?.currentFloor || 1)} disabled={labyrinthLoading} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Combat au currentFloor</button>
           </div>
 
