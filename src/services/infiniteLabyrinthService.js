@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
@@ -89,6 +89,15 @@ function getImageEntries(globResult) {
     .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
 }
 
+async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
+  const progressRef = doc(db, 'dungeonProgress', userId);
+  await setDoc(progressRef, {
+    userId,
+    runsAvailable: increment(attempts),
+    updatedAt: Timestamp.now()
+  }, { merge: true });
+}
+
 export function getEnemyNameFromFilename(path) {
   if (!path) return 'inconnu';
   const filename = path.split('/').pop() || path;
@@ -120,7 +129,13 @@ export function computeLabyrinthStats(baseStats, floorNumber) {
   } else if (phase === 2) {
     multiplier = 1.72 + floorInPhase * 0.032;
   } else {
-    multiplier = 2.68 + floorInPhase * 0.06;
+    // Phase hard (71-100): montée plus agressive pour que 70/80/90/100 soient réellement exigeants
+    // Exemple: 71 ≈ 2.92x, 80 ≈ 3.50x, 90 ≈ 4.40x, 100 ≈ 5.50x
+    multiplier = 2.92 + floorInPhase * 0.086;
+    if (floorNumber >= 90) {
+      // Palier final: accentuer le mur de difficulté sur les 10 derniers étages
+      multiplier *= 1.12;
+    }
   }
 
   return {
@@ -363,11 +378,15 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
   const didWin = result.winnerId === (char.userId || userId);
 
   const updatedProgress = { ...progressResult.data };
+  let rewardGranted = false;
+
   if (didWin) {
     updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
     updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
     if (floor.type === 'boss') {
       updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
+      await grantDungeonRunsForLabyrinthBoss(userId, 5);
+      rewardGranted = true;
     }
   } else {
     updatedProgress.currentFloor = floor.floorNumber;
@@ -384,6 +403,7 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
     floor,
     result,
     didWin,
-    progress: updatedProgress
+    progress: updatedProgress,
+    rewardGranted
   };
 }
