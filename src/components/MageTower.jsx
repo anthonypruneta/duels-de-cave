@@ -7,7 +7,7 @@ import {
   updateCharacterMageTowerPassive,
   updateCharacterLevel
 } from '../services/characterService';
-import { getEquippedWeapon, startDungeonRun } from '../services/dungeonService';
+import { getEquippedWeapon, getDungeonProgress, getPlayerDungeonSummary, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -143,9 +143,12 @@ const MageTower = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [dungeonSummary, setDungeonSummary] = useState(null);
+  const [canInstantFinish, setCanInstantFinish] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.35);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const ensureTowerMusic = () => {
@@ -197,6 +200,15 @@ const MageTower = () => {
         }
       }
 
+      const progressResult = await getDungeonProgress(currentUser.uid);
+      const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.mageTower;
+
+      const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+      if (summaryResult.success) {
+        setDungeonSummary(summaryResult.data);
+      }
+
+      setCanInstantFinish(Boolean(completionFlag));
       setEquippedWeapon(weaponData);
       setEquippedPassive(mageTowerPassive);
       setCharacter(normalizeCharacterBonuses({
@@ -246,7 +258,7 @@ const MageTower = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.35);
+      setVolume(0.05);
     }
   };
 
@@ -452,6 +464,7 @@ const MageTower = () => {
       shieldExploded: false,
       spectralMarked: false,
       boneGuardActive: false,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -470,6 +483,7 @@ const MageTower = () => {
     p.familiarStacks = 0;
     p.shield = 0;
     p.shieldExploded = false;
+    p.firstSpellCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -556,9 +570,15 @@ const MageTower = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
+    const consumeAuraSpellCapMultiplier = () => {
+      if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
+    };
     let skillUsed = false;
 
-    const resolveDamage = (raw, isCrit) => {
+    const resolveDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
@@ -585,12 +605,6 @@ const MageTower = () => {
         def.dodge = false;
         log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
         return 0;
-      }
-
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
       }
 
       let remaining = adjusted;
@@ -632,15 +646,21 @@ const MageTower = () => {
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
         }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * remaining);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+        }
       }
 
-      if (isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
+      if (applyOnHitPassives && isPlayer && remaining > 0 && playerPassive?.id === 'spectral_mark' && !def.spectralMarked) {
         def.spectralMarked = true;
         def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
         log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
       }
 
-      if (isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
+      if (applyOnHitPassives && isPlayer && remaining > 0 && playerPassive?.id === 'essence_drain') {
         const heal = Math.max(1, Math.round(remaining * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
@@ -704,6 +724,11 @@ const MageTower = () => {
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         const inflicted = resolveDamage(dmg, false);
+        const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+        if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+          resolveDamage(masoSpellEffects.secondCastDamage, false, false);
+          log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+        }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);
@@ -736,9 +761,16 @@ const MageTower = () => {
       skillUsed = skillUsed || isPlayer;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+      const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+      if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+        log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+        log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+      }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -790,12 +822,14 @@ const MageTower = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast) {
           const extra = spellEffects.secondCastDamage;
-          const inflictedExtra = resolveDamage(extra, false);
+          const inflictedExtra = resolveDamage(extra, false, false);
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
         }
       } else if (isWar) {
@@ -925,6 +959,7 @@ const MageTower = () => {
 
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -957,6 +992,42 @@ const MageTower = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    const droppedPassive = rollMageTowerPassiveReward(3);
+    await markDungeonCompleted(currentUser.uid, 'mageTower');
+
+    let autoEquipped = false;
+    if (!equippedPassive && droppedPassive) {
+      autoEquipped = true;
+      setEquippedPassive(droppedPassive);
+      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
+      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+    }
+
+    setCanInstantFinish(true);
+    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+    if (summaryResult.success) {
+      setDungeonSummary(summaryResult.data);
+    }
+
+    setRewardSummary({
+      droppedPassive,
+      autoEquipped,
+      hasNextLevel: false,
+      nextLevel: 4
+    });
+    setGameState('reward');
   };
 
   const simulateCombat = async () => {
@@ -1054,6 +1125,10 @@ const MageTower = () => {
       setCharacter(updatedCharacter);
 
       const nextLevel = currentLevel + 1;
+      if (nextLevel > getAllMageTowerLevels().length) {
+        await markDungeonCompleted(currentUser.uid, 'mageTower');
+        setCanInstantFinish(true);
+      }
       setRewardSummary({
         droppedPassive,
         autoEquipped,
@@ -1694,6 +1769,22 @@ const MageTower = () => {
             </div>
           </div>
 
+        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
+          <div>
+            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
+            <p className="text-white text-2xl">
+              {dungeonSummary?.runsRemaining || 0}
+            </p>
+            <p className="text-stone-400 text-sm">+10 par jour (reset à midi)</p>
+          </div>
+          <div className="text-right">
+            <p className="text-gray-400 text-sm">Fin instantanée</p>
+            <p className="text-amber-400 font-bold">
+              {canInstantFinish ? 'Débloquée' : 'À débloquer'}
+            </p>
+          </div>
+        </div>
+
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
           <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
           <div className="grid grid-cols-3 gap-4">
@@ -1712,6 +1803,12 @@ const MageTower = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1724,10 +1821,28 @@ const MageTower = () => {
           </button>
           <button
             onClick={handleStartRun}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl border border-amber-500"
+            disabled={!dungeonSummary?.runsRemaining}
+            className={`px-12 py-4 font-bold text-xl ${
+              dungeonSummary?.runsRemaining > 0
+                ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
+                : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+            }`}
           >
-            Entrer dans la tour
+            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la tour' : 'Plus de runs'}
           </button>
+          {canInstantFinish && (
+            <button
+              onClick={handleInstantFinishRun}
+              disabled={!dungeonSummary?.runsRemaining}
+              className={`px-8 py-4 font-bold border ${
+                dungeonSummary?.runsRemaining > 0
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
+              }`}
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
       </div>
     </div>
