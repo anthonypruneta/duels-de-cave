@@ -11,7 +11,8 @@ import {
   getCurrentWeekId,
   getUserLabyrinthProgress,
   launchLabyrinthCombat,
-  resetUserLabyrinthProgress
+  resetUserLabyrinthProgress,
+  resetWeeklyInfiniteLabyrinthEnemyPool
 } from '../services/infiniteLabyrinthService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
@@ -547,6 +548,27 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  const handleResetLabyrinthEnemyPool = async () => {
+    setLabyrinthLoading(true);
+    setLabyrinthError('');
+    try {
+      const weekId = labyrinthWeekId || getCurrentWeekId();
+      const resetPoolResult = await resetWeeklyInfiniteLabyrinthEnemyPool(weekId);
+      if (resetPoolResult.success) {
+        setLabyrinthData(resetPoolResult.labyrinth);
+        setLabyrinthWeekId(weekId);
+        setLabyrinthCombatResult(null);
+        setLabyrinthCombatLogs([]);
+        alert("✅ Pool d'ennemis du labyrinthe régénéré (boss uniques reroll).");
+      } else {
+        setLabyrinthError(resetPoolResult.error || 'Erreur reset pool ennemis.');
+        alert('❌ ' + (resetPoolResult.error || 'Erreur reset pool ennemis.'));
+      }
+    } finally {
+      setLabyrinthLoading(false);
+    }
+  };
+
   const handleResetMyLabyrinthProgress = async () => {
     if (!selectedLabUserId) return;
     setLabyrinthLoading(true);
@@ -808,6 +830,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               {labyrinthMusicEnabled ? '⏸️ Couper musique Labyrinthe' : '🎵 Lancer musique Labyrinthe'}
             </button>
             <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
+            <button onClick={handleResetLabyrinthEnemyPool} disabled={labyrinthLoading} className="bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset pool ennemis (reroll semaine)</button>
             <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (perso sélectionné)</button>
             <button onClick={() => handleLaunchLabyrinthCombat(labyrinthProgress?.currentFloor || 1)} disabled={labyrinthLoading} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Combat au currentFloor</button>
           </div>
