@@ -30,9 +30,11 @@ const InfiniteLabyrinth = () => {
   const [replayWinner, setReplayWinner] = useState('');
   const [replayP1Name, setReplayP1Name] = useState('Vous');
   const [replayP2Name, setReplayP2Name] = useState('Ennemi');
+  const [isAutoRunActive, setIsAutoRunActive] = useState(false);
 
   const replayTokenRef = useRef(null);
   const replayTimeoutRef = useRef(null);
+  const autoRunTokenRef = useRef(null);
 
   const currentFloor = progress?.currentFloor || 1;
   const currentFloorData = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
@@ -49,6 +51,14 @@ const InfiniteLabyrinth = () => {
     }
     setIsReplayAnimating(false);
     setIsReplayOpen(false);
+  };
+
+  const stopAutoRun = () => {
+    if (autoRunTokenRef.current) {
+      autoRunTokenRef.current.cancelled = true;
+      autoRunTokenRef.current = null;
+    }
+    setIsAutoRunActive(false);
   };
 
   const playReplay = async (result) => {
@@ -133,25 +143,48 @@ const InfiniteLabyrinth = () => {
   useEffect(() => () => {
     if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
     if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
+    if (autoRunTokenRef.current) autoRunTokenRef.current.cancelled = true;
   }, []);
 
   const handleStartCurrentFloorFight = async () => {
     if (!currentUser?.uid) return;
+    if (isAutoRunActive) return;
     setLoading(true);
     setError('');
+    setIsAutoRunActive(true);
+
+    const token = { cancelled: false };
+    autoRunTokenRef.current = token;
+
     try {
-      const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
-      if (!result.success) {
-        setError(result.error || 'Combat impossible.');
-        return;
+      while (!token.cancelled) {
+        const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
+        if (!result.success) {
+          setError(result.error || 'Combat impossible.');
+          break;
+        }
+
+        setCombatResult(result);
+        setProgress(result.progress);
+
+        if (result.rewardGranted) {
+          setReplayLogs((prev) => [...prev, '🎁 Boss vaincu: +5 essais de donjon.']);
+        }
+
+        await playReplay(result);
+        if (token.cancelled) break;
+
+        if (!result.didWin) {
+          break;
+        }
+
+        if ((result.progress?.currentFloor || 1) > 100) {
+          break;
+        }
       }
-      setCombatResult(result);
-      setProgress(result.progress);
-      if (result.rewardGranted) {
-        alert('🎁 Boss vaincu ! +5 essais de donjon ajoutés.');
-      }
-      playReplay(result);
     } finally {
+      autoRunTokenRef.current = null;
+      setIsAutoRunActive(false);
       setLoading(false);
     }
   };
@@ -185,10 +218,17 @@ const InfiniteLabyrinth = () => {
 
           <div className="mt-4 flex gap-3">
             <button onClick={handleStartCurrentFloorFight} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-5 py-3 rounded-lg font-bold">
-              {loading ? '⏳ Combat...' : `⚔️ Lancer le combat (étage ${currentFloor})`}
+              {loading ? '⏳ Combats enchaînés...' : `⚔️ Lancer les combats (depuis étage ${currentFloor})`}
+            </button>
+            <button onClick={stopAutoRun} disabled={!isAutoRunActive} className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-3 rounded-lg font-bold">
+              ⏹️ Stop enchaînement
             </button>
             <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-white px-5 py-3 rounded-lg font-bold">← Retour</button>
           </div>
+
+          {isAutoRunActive && (
+            <p className="mt-3 text-amber-300 text-sm">Les combats s'enchaînent automatiquement jusqu'à défaite, stop manuel, ou étage 100.</p>
+          )}
 
           {combatResult && (
             <div className="mt-4 bg-stone-800/50 rounded p-3 border border-stone-700 text-sm">
