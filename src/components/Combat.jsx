@@ -166,8 +166,8 @@ const Combat = () => {
   const [winner, setWinner] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.3);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const shouldAutoScrollLog = () => {
@@ -204,7 +204,7 @@ const Combat = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.3);
+      setVolume(0.05);
     }
   };
 
@@ -436,6 +436,7 @@ const Combat = () => {
       shield: 0,
       spectralMarked: false,
       spectralMarkBonus: 0,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -497,6 +498,12 @@ const Combat = () => {
       const attackerUnicorn = getUnicornPactTurnData(attackerPassive, turn);
       const defenderUnicorn = getUnicornPactTurnData(defenderPassive, turn);
       const auraBonus = getAuraBonus(attackerPassive, turn);
+      const consumeAuraSpellCapMultiplier = () => {
+        if (attackerPassive?.id !== 'aura_overload') return 1;
+        if (att.firstSpellCapBoostUsed) return 1;
+        att.firstSpellCapBoostUsed = true;
+        return 1 + (attackerPassive?.levelData?.spellCapBonus ?? 0);
+      };
       let skillUsed = false;
 
       const applyMageTowerDamage = (
@@ -544,17 +551,17 @@ const Combat = () => {
           combatLog.push(`${playerColor} 🛡️ ${defender.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
         }
 
-        if (defender.reflect && adjusted > 0) {
-          const back = Math.round(defender.reflect * adjusted);
-          attacker.currentHP -= back;
-          combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
-        }
-
         if (adjusted > 0) {
           defender.currentHP -= adjusted;
           defender.maso_taken = (defender.maso_taken || 0) + adjusted;
           if (defender.awakening?.damageStackBonus) {
             defender.awakening.damageTakenStacks += 1;
+          }
+
+          if (defender.reflect && defender.currentHP > 0) {
+            const back = Math.round(defender.reflect * adjusted);
+            attacker.currentHP -= back;
+            combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
           }
         }
 
@@ -622,6 +629,11 @@ const Combat = () => {
           att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
           att.maso_taken = 0;
           const inflicted = applyMageTowerDamage(att, def, dmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+          const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+          if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+            applyMageTowerDamage(att, def, masoSpellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+            log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+          }
           log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, att, log, playerColor);
@@ -654,9 +666,16 @@ const Combat = () => {
         skillUsed = true;
         const miss = att.maxHP - att.currentHP;
         const { missingHpPercent, capScale } = classConstants.healer;
-        const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+        const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+        if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+          att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+          log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+          log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+        }
         const healEffects = onHeal(att.weaponState, att, heal, def);
         if (healEffects.bonusDamage > 0) {
           const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -701,7 +720,9 @@ const Combat = () => {
 
         if (isMage) {
           const { capBase, capPerCap } = classConstants.mage;
-          const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+          const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+          const scaledCap = att.base.cap * spellCapMultiplier;
+          const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
           raw = dmgCap(atkSpell, def.base.rescap);
           if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
           const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
@@ -823,7 +844,7 @@ const Combat = () => {
     const victoryMusic = document.getElementById('victory-music');
     if (combatMusic) {
       combatMusic.currentTime = 0;
-      combatMusic.volume = 0.3;
+      combatMusic.volume = volume;
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
@@ -915,7 +936,7 @@ const Combat = () => {
     if (combatMusic) combatMusic.pause();
     if (victoryMusic) {
       victoryMusic.currentTime = 0;
-      victoryMusic.volume = 0.4;
+      victoryMusic.volume = volume;
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
   };
@@ -1120,15 +1141,24 @@ const Combat = () => {
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);
     const awakeningInfo = races[character.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStats = character.baseWithoutWeapon || getBaseWithBoosts(character);
+    const computedBase = getBaseWithBoosts(character);
+    const baseStats = character.baseWithoutWeapon || computedBase;
+    const awakeningRate = character.awakening?.applied ? (character.awakening.bonusPerStat || 0) : 0;
+    const preAwakeningBase = awakeningRate > 0
+      ? Object.fromEntries(
+          Object.entries(baseStats).map(([key, value]) => [key, Math.round((value || 0) / (1 + awakeningRate))])
+        )
+      : baseStats;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const awakeningBonus = (k) => (baseStats[k] || 0) - (preAwakeningBase[k] || 0);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0) - awakeningBonus(k);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      if (awakeningBonus(k) !== 0) parts.push(`Éveil: ${awakeningBonus(k) > 0 ? `+${awakeningBonus(k)}` : awakeningBonus(k)}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
@@ -1150,8 +1180,8 @@ const Combat = () => {
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || awakeningBonus(statKey) !== 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + awakeningBonus(statKey) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
