@@ -15,6 +15,7 @@ import { getWeaponById } from '../data/weapons';
 import { genererBracket, resoudreMatch, autoResolveByes, getParticipantNom } from '../utils/tournamentBracket';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
+import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId } from './infiniteLabyrinthService';
 
 // ============================================================================
 // CHARGER LES PERSONNAGES POUR LE TOURNOI
@@ -232,6 +233,8 @@ export async function lancerTournoi(docId = 'current') {
       matchActuel: firstIndex,
     });
 
+    await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+
     return { success: true };
   } catch (error) {
     console.error('Erreur lancement tournoi:', error);
@@ -433,6 +436,8 @@ export async function terminerTournoi(docId = 'current') {
       }
     }
 
+    await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+
     return { success: true };
   } catch (error) {
     console.error('Erreur terminaison tournoi:', error);
@@ -486,6 +491,8 @@ export async function checkTripleRoll(userId) {
 export async function consumeTripleRoll(userId) {
   try {
     await deleteDoc(doc(db, 'tournamentRewards', userId));
+    await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
