@@ -1141,8 +1141,19 @@ const Combat = () => {
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);
     const awakeningInfo = races[character.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
+<<<<<<< codex/fix-tournament-match-management-issues-wo7w2k
+    const computedBase = getBaseWithBoosts(character);
+    const baseStats = character.baseWithoutWeapon || computedBase;
+    const awakeningRate = character.awakening?.applied ? (character.awakening.bonusPerStat || 0) : 0;
+    const preAwakeningBase = awakeningRate > 0
+      ? Object.fromEntries(
+          Object.entries(baseStats).map(([key, value]) => [key, Math.round((value || 0) / (1 + awakeningRate))])
+        )
+      : baseStats;
+=======
     const preAwakeningBase = getBaseWithBoosts(character);
     const baseStats = character.baseWithoutWeapon || preAwakeningBase;
+>>>>>>> main
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const awakeningBonus = (k) => (baseStats[k] || 0) - (preAwakeningBase[k] || 0);
