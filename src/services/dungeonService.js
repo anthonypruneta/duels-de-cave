@@ -568,15 +568,10 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
           batch.set(progressRef, {
             userId,
             runsAvailable: increment(parsedAttempts),
-            lastCreditDate: resetAnchor,
             updatedAt: now,
-            createdAt: now,
-            runsToday: 0,
-            totalRuns: 0,
-            bestRun: 0,
-            totalBossKills: 0,
-            equippedWeapon: null,
-            lastRunDate: null
+            // Initialisé uniquement pour les profils qui n'ont pas encore de progression
+            lastCreditDate: resetAnchor,
+            createdAt: now
           }, { merge: true });
         });
 

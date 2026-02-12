@@ -1000,19 +1000,29 @@ const MageTower = () => {
     }
 
     const droppedPassive = rollMageTowerPassiveReward(3);
-    await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
     await markDungeonCompleted(currentUser.uid, 'mageTower');
 
-    setEquippedPassive(droppedPassive);
-    setCanInstantFinish(true);
-    setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
+    let autoEquipped = false;
+    if (!equippedPassive && droppedPassive) {
+      autoEquipped = true;
+      setEquippedPassive(droppedPassive);
+      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
+      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
+    }
 
+    setCanInstantFinish(true);
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
     if (summaryResult.success) {
       setDungeonSummary(summaryResult.data);
     }
 
-    setInstantMessage(`✅ Run instantanée terminée : ${droppedPassive?.name || 'passif niveau 3'} obtenu.`);
+    setRewardSummary({
+      droppedPassive,
+      autoEquipped,
+      hasNextLevel: false,
+      nextLevel: 4
+    });
+    setGameState('reward');
   };
 
   const simulateCombat = async () => {

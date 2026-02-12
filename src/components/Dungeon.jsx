@@ -971,15 +971,11 @@ const Dungeon = () => {
       return;
     }
 
-    await handleLootChoice(currentUser.uid, endResult.lootWeapon.id, true);
     await markDungeonCompleted(currentUser.uid, 'cave');
 
-    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-    if (summaryResult.success) {
-      setDungeonSummary(summaryResult.data);
-    }
-
-    setInstantMessage(`✅ Run instantanée terminée : ${endResult.lootWeapon.nom} équipée.`);
+    setLootWeapon(endResult.lootWeapon);
+    setAutoEquipDone(false);
+    setGameState('loot');
   };
 
   // Lancer le combat (timing identique à Combat.jsx)
