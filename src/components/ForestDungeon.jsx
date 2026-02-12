@@ -710,6 +710,11 @@ const ForestDungeon = () => {
         raw = applyBossOutgoingModifier(att, raw, turn);
         raw = applyBossIncomingModifier(def, raw, turn);
         const inflicted = applyMageTowerDamage(raw, false);
+        const masoSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'maso');
+        if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false);
+          log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+        }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);

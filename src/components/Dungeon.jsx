@@ -700,6 +700,11 @@ const Dungeon = () => {
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         const inflicted = applyMageTowerDamage(dmg, false);
+        const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+        if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false);
+          log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+        }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);

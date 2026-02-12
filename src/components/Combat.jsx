@@ -629,6 +629,11 @@ const Combat = () => {
           att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
           att.maso_taken = 0;
           const inflicted = applyMageTowerDamage(att, def, dmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+          const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+          if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+            applyMageTowerDamage(att, def, masoSpellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+            log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+          }
           log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
           if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
             reviveUndead(def, att, log, playerColor);
@@ -1136,15 +1141,18 @@ const Combat = () => {
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);
     const awakeningInfo = races[character.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStats = character.baseWithoutWeapon || getBaseWithBoosts(character);
+    const preAwakeningBase = getBaseWithBoosts(character);
+    const baseStats = character.baseWithoutWeapon || preAwakeningBase;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const awakeningBonus = (k) => (baseStats[k] || 0) - (preAwakeningBase[k] || 0);
+    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0) - awakeningBonus(k);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      if (awakeningBonus(k) !== 0) parts.push(`Éveil: ${awakeningBonus(k) > 0 ? `+${awakeningBonus(k)}` : awakeningBonus(k)}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
@@ -1166,8 +1174,8 @@ const Combat = () => {
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || awakeningBonus(statKey) !== 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + awakeningBonus(statKey) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
