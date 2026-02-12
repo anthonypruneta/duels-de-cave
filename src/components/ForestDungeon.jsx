@@ -235,14 +235,13 @@ const ForestDungeon = () => {
 
       const progressResult = await getDungeonProgress(currentUser.uid);
       const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.forest;
-      const inferredFromBoosts = Object.values(forestBoosts).some((value) => value > 0);
 
       const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
       if (summaryResult.success) {
         setDungeonSummary(summaryResult.data);
       }
 
-      setCanInstantFinish(Boolean(completionFlag || inferredFromBoosts));
+      setCanInstantFinish(Boolean(completionFlag));
       setEquippedWeapon(weaponData);
       setCharacter(normalizeCharacterBonuses({
         ...characterData,

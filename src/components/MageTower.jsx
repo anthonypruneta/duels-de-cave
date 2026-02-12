@@ -202,14 +202,13 @@ const MageTower = () => {
 
       const progressResult = await getDungeonProgress(currentUser.uid);
       const completionFlag = progressResult.success && progressResult.data?.dungeonCompletions?.mageTower;
-      const inferredFromPassive = (mageTowerPassive?.level || 0) >= 3;
 
       const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
       if (summaryResult.success) {
         setDungeonSummary(summaryResult.data);
       }
 
-      setCanInstantFinish(Boolean(completionFlag || inferredFromPassive));
+      setCanInstantFinish(Boolean(completionFlag));
       setEquippedWeapon(weaponData);
       setEquippedPassive(mageTowerPassive);
       setCharacter(normalizeCharacterBonuses({
