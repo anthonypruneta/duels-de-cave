@@ -5,6 +5,15 @@ import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacte
 import { grantDungeonRunsToAllPlayers } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi } from '../services/tournamentService';
+import {
+  ensureWeeklyInfiniteLabyrinth,
+  generateWeeklyInfiniteLabyrinth,
+  getCurrentWeekId,
+  getUserLabyrinthProgress,
+  launchLabyrinthCombat,
+  resetUserLabyrinthProgress,
+  resetWeeklyInfiniteLabyrinthEnemyPool
+} from '../services/infiniteLabyrinthService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 
@@ -22,6 +31,9 @@ const Admin = () => {
   const [savingImage, setSavingImage] = useState(false);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const labyrinthAudioRef = useRef(null);
+  const labyrinthReplayTokenRef = useRef(null);
+  const labyrinthReplayTimeoutRef = useRef(null);
 
   // États pour les annonces Discord
   const [annonceTitre, setAnnonceTitre] = useState('');
@@ -42,6 +54,27 @@ const Admin = () => {
 
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
+
+  const [labyrinthWeekId, setLabyrinthWeekId] = useState(getCurrentWeekId());
+  const [labyrinthData, setLabyrinthData] = useState(null);
+  const [labyrinthProgress, setLabyrinthProgress] = useState(null);
+  const [labyrinthLoading, setLabyrinthLoading] = useState(false);
+  const [selectedLabFloor, setSelectedLabFloor] = useState(1);
+  const [labyrinthCombatResult, setLabyrinthCombatResult] = useState(null);
+  const [labyrinthCombatLogs, setLabyrinthCombatLogs] = useState([]);
+  const [labyrinthError, setLabyrinthError] = useState('');
+  const [labyrinthMusicEnabled, setLabyrinthMusicEnabled] = useState(false);
+  const [selectedLabUserId, setSelectedLabUserId] = useState('');
+  const [isLabyrinthReplayOpen, setIsLabyrinthReplayOpen] = useState(false);
+  const [isLabyrinthReplayAnimating, setIsLabyrinthReplayAnimating] = useState(false);
+  const [labyrinthReplayLogs, setLabyrinthReplayLogs] = useState([]);
+  const [labyrinthReplayP1Name, setLabyrinthReplayP1Name] = useState('');
+  const [labyrinthReplayP2Name, setLabyrinthReplayP2Name] = useState('');
+  const [labyrinthReplayP1HP, setLabyrinthReplayP1HP] = useState(0);
+  const [labyrinthReplayP2HP, setLabyrinthReplayP2HP] = useState(0);
+  const [labyrinthReplayP1MaxHP, setLabyrinthReplayP1MaxHP] = useState(0);
+  const [labyrinthReplayP2MaxHP, setLabyrinthReplayP2MaxHP] = useState(0);
+  const [labyrinthReplayWinner, setLabyrinthReplayWinner] = useState('');
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -86,6 +119,84 @@ const Admin = () => {
 
   useEffect(() => {
     loadCharacters();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const bootstrapLabyrinth = async () => {
+      setLabyrinthLoading(true);
+      setLabyrinthError('');
+      try {
+        const weekId = getCurrentWeekId();
+        setLabyrinthWeekId(weekId);
+        const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(weekId);
+        if (labyrinthResult.success) {
+          setLabyrinthData(labyrinthResult.data);
+        } else {
+          setLabyrinthError(labyrinthResult.error || 'Impossible de charger le Labyrinthe Infini.');
+        }
+      } finally {
+        setLabyrinthLoading(false);
+      }
+    };
+    bootstrapLabyrinth();
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    if (!currentUser?.uid || selectedLabUserId) return;
+    const ownCharacter = characters.find((char) => char.id === currentUser.uid);
+    if (ownCharacter?.id) {
+      setSelectedLabUserId(ownCharacter.id);
+      return;
+    }
+    if (currentUser.uid) {
+      setSelectedLabUserId(currentUser.uid);
+      return;
+    }
+    if (characters.length > 0) {
+      setSelectedLabUserId(characters[0].id);
+    }
+  }, [characters, currentUser?.uid, selectedLabUserId]);
+
+  useEffect(() => {
+    if (!selectedLabUserId) return;
+
+    const loadProgress = async () => {
+      setLabyrinthLoading(true);
+      setLabyrinthError('');
+      try {
+        const weekId = labyrinthWeekId || getCurrentWeekId();
+        const progressResult = await getUserLabyrinthProgress(selectedLabUserId, weekId);
+        if (progressResult.success) {
+          setLabyrinthProgress(progressResult.data);
+          setSelectedLabFloor(progressResult.data.currentFloor || 1);
+          setLabyrinthCombatResult(null);
+          setLabyrinthCombatLogs([]);
+        } else {
+          setLabyrinthError(progressResult.error || 'Impossible de charger la progression du joueur sélectionné.');
+        }
+      } finally {
+        setLabyrinthLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, [labyrinthWeekId, selectedLabUserId]);
+
+  useEffect(() => () => {
+    const audio = labyrinthAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
+    }
   }, []);
 
   const handleDelete = async (userId, characterName) => {
@@ -438,6 +549,189 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
   };
 
+  const handleGenerateLabyrinth = async () => {
+    setLabyrinthLoading(true);
+    setLabyrinthError('');
+    try {
+      const weekId = getCurrentWeekId();
+      const generated = await generateWeeklyInfiniteLabyrinth(weekId);
+      if (generated.success) {
+        setLabyrinthWeekId(weekId);
+        setLabyrinthData(generated.labyrinth);
+        alert('✅ Labyrinthe infini hebdomadaire généré.');
+      } else {
+        setLabyrinthError(generated.error || 'Erreur génération labyrinthe.');
+        alert('❌ ' + (generated.error || 'Erreur génération labyrinthe.'));
+      }
+    } finally {
+      setLabyrinthLoading(false);
+    }
+  };
+
+  const handleResetLabyrinthEnemyPool = async () => {
+    setLabyrinthLoading(true);
+    setLabyrinthError('');
+    try {
+      const weekId = labyrinthWeekId || getCurrentWeekId();
+      const resetPoolResult = await resetWeeklyInfiniteLabyrinthEnemyPool(weekId);
+      if (resetPoolResult.success) {
+        setLabyrinthData(resetPoolResult.labyrinth);
+        setLabyrinthWeekId(weekId);
+        setLabyrinthCombatResult(null);
+        setLabyrinthCombatLogs([]);
+        alert("✅ Pool d'ennemis du labyrinthe régénéré (boss uniques reroll).");
+      } else {
+        setLabyrinthError(resetPoolResult.error || 'Erreur reset pool ennemis.');
+        alert('❌ ' + (resetPoolResult.error || 'Erreur reset pool ennemis.'));
+      }
+    } finally {
+      setLabyrinthLoading(false);
+    }
+  };
+
+  const handleResetMyLabyrinthProgress = async () => {
+    if (!selectedLabUserId) return;
+    setLabyrinthLoading(true);
+    setLabyrinthError('');
+    try {
+      const weekId = labyrinthWeekId || getCurrentWeekId();
+      const reset = await resetUserLabyrinthProgress(selectedLabUserId, weekId);
+      if (reset.success) {
+        const progress = await getUserLabyrinthProgress(selectedLabUserId, weekId);
+        if (progress.success) {
+          setLabyrinthProgress(progress.data);
+          setSelectedLabFloor(progress.data.currentFloor || 1);
+        }
+        setLabyrinthCombatResult(null);
+        setLabyrinthCombatLogs([]);
+        alert('✅ Progression labyrinthe réinitialisée pour le personnage sélectionné.');
+      }
+    } finally {
+      setLabyrinthLoading(false);
+    }
+  };
+
+  const handleLaunchLabyrinthCombat = async (floorOverride = null) => {
+    if (!selectedLabUserId) return;
+    setLabyrinthLoading(true);
+    setLabyrinthError('');
+    try {
+      const result = await launchLabyrinthCombat({
+        userId: selectedLabUserId,
+        floorNumber: floorOverride || Number(selectedLabFloor),
+        weekId: labyrinthWeekId
+      });
+      if (!result.success) {
+        setLabyrinthError(result.error || 'Erreur combat labyrinthe.');
+        alert('Erreur combat labyrinthe: ' + result.error);
+        return;
+      }
+      setLabyrinthCombatResult(result);
+      setLabyrinthCombatLogs(result.result.combatLog || []);
+      setLabyrinthProgress(result.progress);
+      setSelectedLabFloor(result.progress.currentFloor || 1);
+      playLabyrinthCombatReplay(result);
+    } finally {
+      setLabyrinthLoading(false);
+    }
+  };
+
+  const selectedLabCharacter = characters.find((char) => char.id === selectedLabUserId) || null;
+
+  const delayLabReplay = (ms) => new Promise((resolve) => {
+    labyrinthReplayTimeoutRef.current = setTimeout(resolve, ms);
+  });
+
+  const closeLabyrinthReplay = () => {
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
+    }
+    setIsLabyrinthReplayAnimating(false);
+    setIsLabyrinthReplayOpen(false);
+  };
+
+  const playLabyrinthCombatReplay = async (combatResult) => {
+    if (!combatResult?.result) return;
+
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
+    }
+
+    const token = { cancelled: false };
+    labyrinthReplayTokenRef.current = token;
+
+    const playerName = selectedLabCharacter?.name || 'Joueur';
+    const enemyName = combatResult.floor?.enemyName || 'Ennemi';
+    const data = combatResult.result;
+
+    setIsLabyrinthReplayOpen(true);
+    setIsLabyrinthReplayAnimating(true);
+    setLabyrinthReplayLogs([]);
+    setLabyrinthReplayWinner('');
+    setLabyrinthReplayP1Name(playerName);
+    setLabyrinthReplayP2Name(enemyName);
+    setLabyrinthReplayP1MaxHP(data.p1MaxHP || 0);
+    setLabyrinthReplayP2MaxHP(data.p2MaxHP || 0);
+    setLabyrinthReplayP1HP(data.p1MaxHP || 0);
+    setLabyrinthReplayP2HP(data.p2MaxHP || 0);
+
+    const steps = data.steps || [];
+    if (steps.length > 0) {
+      for (const step of steps) {
+        if (token.cancelled) return;
+        const logs = step.logs || [];
+        for (const line of logs) {
+          if (token.cancelled) return;
+          setLabyrinthReplayLogs((prev) => [...prev, line]);
+          await delayLabReplay(step.phase === 'victory' ? 200 : 280);
+        }
+        setLabyrinthReplayP1HP(step.p1HP ?? 0);
+        setLabyrinthReplayP2HP(step.p2HP ?? 0);
+        await delayLabReplay(step.phase === 'action' ? 600 : 400);
+      }
+    } else {
+      const combatLog = data.combatLog || [];
+      for (const line of combatLog) {
+        if (token.cancelled) return;
+        setLabyrinthReplayLogs((prev) => [...prev, line]);
+        await delayLabReplay(line.includes('---') ? 450 : 250);
+      }
+    }
+
+    if (token.cancelled) return;
+
+    setLabyrinthReplayWinner(data.winnerNom || (combatResult.didWin ? playerName : enemyName));
+    setIsLabyrinthReplayAnimating(false);
+  };
+
+  const handleToggleLabyrinthMusic = async () => {
+    const audio = labyrinthAudioRef.current;
+    if (!audio) return;
+
+    if (labyrinthMusicEnabled) {
+      audio.pause();
+      setLabyrinthMusicEnabled(false);
+      return;
+    }
+
+    audio.volume = 0.35;
+    audio.loop = true;
+    try {
+      await audio.play();
+      setLabyrinthMusicEnabled(true);
+    } catch (error) {
+      setLabyrinthError('Impossible de lancer la musique Labyrinthe (autoplay bloqué par le navigateur).');
+    }
+  };
+
   // Réinitialiser l'upload quand on change de personnage
   const handleSelectCharacter = (char) => {
     setSelectedCharacter(char);
@@ -596,6 +890,79 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </div>
         </div>
 
+        <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
+          <audio ref={labyrinthAudioRef} loop>
+            <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
+            <source src="/assets/music/labyrinthe.mp3" type="audio/mpeg" />
+          </audio>
+          <h2 className="text-2xl font-bold text-fuchsia-300 mb-2">🌀 Labyrinthe Infini (Admin uniquement)</h2>
+          <p className="text-stone-400 text-sm mb-4">Mode en test: aucune reward active et aucune exposition côté joueurs.</p>
+          {labyrinthError && <p className="text-red-300 text-sm mb-4">⚠️ {labyrinthError}</p>}
+
+          <div className="mb-4">
+            <label className="text-stone-400 text-sm block mb-2">Personnage de test Labyrinthe</label>
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <select
+                value={selectedLabUserId}
+                onChange={(e) => setSelectedLabUserId(e.target.value)}
+                className="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white w-full md:w-auto md:min-w-[320px]"
+              >
+                <option value="">Sélectionner un personnage</option>
+                {characters.map((char) => (
+                  <option key={char.id} value={char.id}>
+                    {char.name} • {char.race} {char.class} {char.disabled ? '(désactivé)' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="text-stone-300 text-xs">
+                {selectedLabCharacter ? `UID: ${selectedLabCharacter.id}` : 'Aucun personnage sélectionné'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 mb-4">
+            <button onClick={handleToggleLabyrinthMusic} className="bg-violet-700 hover:bg-violet-600 text-white px-4 py-2 rounded-lg font-bold">
+              {labyrinthMusicEnabled ? '⏸️ Couper musique Labyrinthe' : '🎵 Lancer musique Labyrinthe'}
+            </button>
+            <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
+            <button onClick={handleResetLabyrinthEnemyPool} disabled={labyrinthLoading} className="bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset pool ennemis (reroll semaine)</button>
+            <button onClick={handleResetMyLabyrinthProgress} disabled={labyrinthLoading} className="bg-stone-700 hover:bg-stone-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Reset progression (perso sélectionné)</button>
+            <button onClick={() => handleLaunchLabyrinthCombat(labyrinthProgress?.currentFloor || 1)} disabled={labyrinthLoading} className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Combat au currentFloor</button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 mb-4 text-sm">
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">WeekId</p><p className="text-white font-bold">{labyrinthWeekId}</p></div>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">Current floor</p><p className="text-white font-bold">{labyrinthProgress?.currentFloor ?? 1}</p></div>
+            <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3"><p className="text-stone-400">Boss vaincus</p><p className="text-white font-bold">{labyrinthProgress?.bossesDefeated ?? 0}</p></div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <input type="number" min={1} max={100} value={selectedLabFloor} onChange={(e) => setSelectedLabFloor(e.target.value)} className="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white w-32" />
+            <button onClick={() => handleLaunchLabyrinthCombat(Number(selectedLabFloor))} disabled={labyrinthLoading} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Lancer combat à l'étage choisi</button>
+          </div>
+
+          {labyrinthCombatResult && <div className="bg-stone-800/60 border border-stone-700 rounded-lg p-3 mb-4 text-sm"><p className="text-white font-bold">Résultat étage {labyrinthCombatResult.floor.floorNumber}: {labyrinthCombatResult.didWin ? '🏆 Victoire' : '💀 Défaite'}</p></div>}
+
+          {labyrinthCombatLogs.length > 0 && <div className="bg-black/50 border border-stone-700 rounded-lg p-3 mb-4 max-h-56 overflow-y-auto text-xs font-mono text-stone-300">{labyrinthCombatLogs.map((log, idx) => <div key={`lab-log-${idx}`}>{log}</div>)}</div>}
+
+          <div className="max-h-80 overflow-y-auto border border-stone-700 rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 sticky top-0"><tr className="text-stone-300 text-left"><th className="px-2 py-2">Étage</th><th className="px-2 py-2">Type</th><th className="px-2 py-2">Nom</th><th className="px-2 py-2">Image</th><th className="px-2 py-2">Kit boss</th></tr></thead>
+              <tbody>
+                {(labyrinthData?.floors || []).map((floor) => (
+                  <tr key={floor.floorNumber} className="border-t border-stone-800">
+                    <td className="px-2 py-2 text-white">{floor.floorNumber}</td>
+                    <td className="px-2 py-2 text-stone-300">{floor.type}</td>
+                    <td className="px-2 py-2 text-stone-200">{floor.enemyName}</td>
+                    <td className="px-2 py-2"><img src={floor.imagePath} alt={floor.enemyName} className="w-10 h-10 object-contain" /></td>
+                    <td className="px-2 py-2 text-stone-300">{floor.bossKit ? JSON.stringify(floor.bossKit) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Section Simulation Tournoi */}
         <div className="bg-stone-900/70 border-2 border-amber-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-amber-300 mb-4">🏆 Simulation de Tournoi</h2>
@@ -743,6 +1110,47 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </button>
         </div>
       </div>
+
+      {isLabyrinthReplayOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { if (!isLabyrinthReplayAnimating) closeLabyrinthReplay(); }}>
+          <div className="bg-stone-900 border-2 border-fuchsia-500 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-700">
+              <h3 className="text-fuchsia-300 font-bold text-lg">⚔️ Combat Labyrinthe</h3>
+              <button onClick={closeLabyrinthReplay} className="text-stone-300 hover:text-white">✖</button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 p-4 border-b border-stone-800">
+              <div className="bg-stone-800/60 rounded p-3">
+                <p className="text-stone-300 text-sm">{labyrinthReplayP1Name}</p>
+                <div className="w-full h-3 bg-stone-700 rounded mt-2">
+                  <div className="h-3 bg-green-500 rounded" style={{ width: `${labyrinthReplayP1MaxHP ? Math.max(0, Math.min(100, (labyrinthReplayP1HP / labyrinthReplayP1MaxHP) * 100)) : 0}%` }} />
+                </div>
+                <p className="text-xs text-stone-400 mt-1">HP: {Math.max(0, labyrinthReplayP1HP)} / {labyrinthReplayP1MaxHP}</p>
+              </div>
+              <div className="bg-stone-800/60 rounded p-3">
+                <p className="text-stone-300 text-sm">{labyrinthReplayP2Name}</p>
+                <div className="w-full h-3 bg-stone-700 rounded mt-2">
+                  <div className="h-3 bg-red-500 rounded" style={{ width: `${labyrinthReplayP2MaxHP ? Math.max(0, Math.min(100, (labyrinthReplayP2HP / labyrinthReplayP2MaxHP) * 100)) : 0}%` }} />
+                </div>
+                <p className="text-xs text-stone-400 mt-1">HP: {Math.max(0, labyrinthReplayP2HP)} / {labyrinthReplayP2MaxHP}</p>
+              </div>
+            </div>
+
+            <div className="p-4 max-h-[45vh] overflow-y-auto bg-black/40 text-sm font-mono text-stone-200">
+              {labyrinthReplayLogs.length === 0 ? (
+                <p className="text-stone-500 italic">Préparation du combat...</p>
+              ) : (
+                labyrinthReplayLogs.map((line, idx) => <div key={`lab-replay-${idx}`}>{line}</div>)
+              )}
+            </div>
+
+            <div className="px-4 py-3 border-t border-stone-700 flex items-center justify-between">
+              <p className="text-amber-300 font-bold">{labyrinthReplayWinner ? `🏆 Vainqueur: ${labyrinthReplayWinner}` : (isLabyrinthReplayAnimating ? '⏳ Combat en cours...' : 'Combat terminé')}</p>
+              <button onClick={closeLabyrinthReplay} className="bg-fuchsia-700 hover:bg-fuchsia-600 text-white px-3 py-1 rounded">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal détails personnage */}
       {selectedCharacter && (
