@@ -874,6 +874,12 @@ const CharacterCreation = () => {
             >
               ⚔️ PVP ⚔️
             </button>
+            <button
+              onClick={() => navigate('/labyrinthe-infini')}
+              className="bg-fuchsia-700 hover:bg-fuchsia-600 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"
+            >
+              🌀 Labyrinthe infini 🌀
+            </button>
           </div>
 
           <div className="mt-6 bg-stone-800 border border-amber-600/50 px-6 py-4 max-w-lg mx-auto rounded-lg">

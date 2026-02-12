@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
@@ -8,6 +8,7 @@ import { getEquippedWeapon } from './dungeonService';
 
 const FLOOR_COUNT = 100;
 const BOSS_FLOOR_STEP = 10;
+const BOSS_FLOOR_COUNT = FLOOR_COUNT / BOSS_FLOOR_STEP;
 
 const MOB_IMAGES = import.meta.glob('../assets/labyrinthe/mobs/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 const BOSS_IMAGES = import.meta.glob('../assets/labyrinthe/bosses/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
@@ -72,10 +73,29 @@ function pickSeeded(list, rng) {
   return list[clamp(idx, 0, list.length - 1)];
 }
 
+function shuffleSeeded(list, rng) {
+  const cloned = [...list];
+  for (let i = cloned.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const safeJ = clamp(j, 0, i);
+    [cloned[i], cloned[safeJ]] = [cloned[safeJ], cloned[i]];
+  }
+  return cloned;
+}
+
 function getImageEntries(globResult) {
   return Object.entries(globResult)
     .map(([sourcePath, imagePath]) => ({ sourcePath, imagePath }))
     .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+}
+
+async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
+  const progressRef = doc(db, 'dungeonProgress', userId);
+  await setDoc(progressRef, {
+    userId,
+    runsAvailable: increment(attempts),
+    updatedAt: Timestamp.now()
+  }, { merge: true });
 }
 
 export function getEnemyNameFromFilename(path) {
@@ -109,7 +129,13 @@ export function computeLabyrinthStats(baseStats, floorNumber) {
   } else if (phase === 2) {
     multiplier = 1.72 + floorInPhase * 0.032;
   } else {
-    multiplier = 2.68 + floorInPhase * 0.06;
+    // Phase hard (71-100): montée plus agressive pour que 70/80/90/100 soient réellement exigeants
+    // Exemple: 71 ≈ 2.92x, 80 ≈ 3.50x, 90 ≈ 4.40x, 100 ≈ 5.50x
+    multiplier = 2.92 + floorInPhase * 0.086;
+    if (floorNumber >= 90) {
+      // Palier final: accentuer le mur de difficulté sur les 10 derniers étages
+      multiplier *= 1.12;
+    }
   }
 
   return {
@@ -165,21 +191,26 @@ function pickBossKit(phase, rng) {
   };
 }
 
-export function buildInfiniteLabyrinth(weekId) {
+export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
   const mobs = getImageEntries(MOB_IMAGES);
   const bosses = getImageEntries(BOSS_IMAGES);
   if (!mobs.length || !bosses.length) {
     throw new Error('Assets labyrinthe manquants: ajoutez des images dans src/assets/labyrinthe/mobs et bosses.');
   }
 
-  const seed = `infinite-labyrinth-${weekId}`;
+  if (bosses.length < BOSS_FLOOR_COUNT) {
+    throw new Error(`Il faut au moins ${BOSS_FLOOR_COUNT} images de boss pour garantir des boss uniques (actuel: ${bosses.length}).`);
+  }
+
+  const seed = `infinite-labyrinth-${weekId}-reroll-${rerollVersion}`;
   const rng = createSeededRng(seed);
+  const bossPool = shuffleSeeded(bosses, rng);
 
   const floors = Array.from({ length: FLOOR_COUNT }, (_, idx) => {
     const floorNumber = idx + 1;
     const type = floorNumber % BOSS_FLOOR_STEP === 0 ? 'boss' : 'normal';
     const phase = getLabyrinthPhase(floorNumber);
-    const picked = type === 'boss' ? pickSeeded(bosses, rng) : pickSeeded(mobs, rng);
+    const picked = type === 'boss' ? bossPool.shift() : pickSeeded(mobs, rng);
 
     const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
     const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
@@ -201,18 +232,39 @@ export function buildInfiniteLabyrinth(weekId) {
     seed,
     generatedAt: new Date().toISOString(),
     floors,
-    rewardsEnabled: false
+    rewardsEnabled: false,
+    rerollVersion
   };
 }
 
-export async function generateWeeklyInfiniteLabyrinth(forceWeekId = null) {
+export async function generateWeeklyInfiniteLabyrinth(forceWeekId = null, rerollVersion = null) {
   try {
     const weekId = forceWeekId || getCurrentWeekId();
-    const labyrinth = buildInfiniteLabyrinth(weekId);
+    const effectiveRerollVersion = rerollVersion ?? 0;
+    const labyrinth = buildInfiniteLabyrinth(weekId, effectiveRerollVersion);
     await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
       ...labyrinth,
       generatedAt: serverTimestamp()
     }, { merge: true });
+    return { success: true, weekId, labyrinth };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function resetWeeklyInfiniteLabyrinthEnemyPool(forceWeekId = null) {
+  try {
+    const weekId = forceWeekId || getCurrentWeekId();
+    const currentSnap = await getDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId));
+    const currentRerollVersion = currentSnap.exists() ? (currentSnap.data().rerollVersion || 0) : 0;
+    const nextRerollVersion = currentRerollVersion + 1;
+    const labyrinth = buildInfiniteLabyrinth(weekId, nextRerollVersion);
+
+    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
+      ...labyrinth,
+      generatedAt: serverTimestamp()
+    }, { merge: true });
+
     return { success: true, weekId, labyrinth };
   } catch (error) {
     return { success: false, error: error.message };
@@ -326,11 +378,15 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
   const didWin = result.winnerId === (char.userId || userId);
 
   const updatedProgress = { ...progressResult.data };
+  let rewardGranted = false;
+
   if (didWin) {
     updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
     updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
     if (floor.type === 'boss') {
       updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
+      await grantDungeonRunsForLabyrinthBoss(userId, 5);
+      rewardGranted = true;
     }
   } else {
     updatedProgress.currentFloor = floor.floorNumber;
@@ -347,6 +403,7 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
     floor,
     result,
     didWin,
-    progress: updatedProgress
+    progress: updatedProgress,
+    rewardGranted
   };
 }
