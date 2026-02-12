@@ -1483,6 +1483,7 @@ const Dungeon = () => {
   // ============================================================================
   if (gameState === 'loot' && lootWeapon) {
     const hasCurrentWeapon = dungeonSummary?.equippedWeaponData;
+    const getOpaqueRarityBg = (rarity) => (RARITY_BG_COLORS[rarity] || '').replace('/50', '');
 
     return (
       <div className="min-h-screen p-6">
@@ -1505,7 +1506,7 @@ const Dungeon = () => {
           </div>
 
           {/* Arme droppée */}
-          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${RARITY_BG_COLORS[lootWeapon.rarete]} mb-6`}>
+          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${getOpaqueRarityBg(lootWeapon.rarete)} mb-6`}>
             <div className="text-center">
               {getWeaponImage(lootWeapon.imageFile) ? (
                 <img src={getWeaponImage(lootWeapon.imageFile)} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
@@ -1539,7 +1540,7 @@ const Dungeon = () => {
           {hasCurrentWeapon && (
             <div className="mb-6">
               <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
-              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${RARITY_BG_COLORS[hasCurrentWeapon.rarete]}`}>
+              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${getOpaqueRarityBg(hasCurrentWeapon.rarete)}`}>
                 <div className="flex items-center gap-3">
                   {getWeaponImage(hasCurrentWeapon.imageFile) ? (
                     <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
