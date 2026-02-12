@@ -9,9 +9,9 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
-import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -83,6 +83,36 @@ const getWeaponTooltipContent = (weapon) => {
   );
 };
 
+const formatAwakeningDetails = (awakening) => {
+  if (!awakening?.effect) return [];
+  const lines = [];
+  if (awakening.effect.statMultipliers) {
+    const stats = Object.entries(awakening.effect.statMultipliers)
+      .map(([k, v]) => `${k.toUpperCase()} +${Math.round((v - 1) * 100)}%`)
+      .join(' • ');
+    if (stats) lines.push(stats);
+  }
+  if (awakening.effect.statBonuses) {
+    const stats = Object.entries(awakening.effect.statBonuses)
+      .map(([k, v]) => `${k.toUpperCase()} +${v}`)
+      .join(' • ');
+    if (stats) lines.push(stats);
+  }
+  if (awakening.effect.critChanceBonus) lines.push(`Crit +${Math.round(awakening.effect.critChanceBonus * 100)}%`);
+  if (awakening.effect.critDamageBonus) lines.push(`Dégâts crit +${Math.round(awakening.effect.critDamageBonus * 100)}%`);
+  if (awakening.effect.regenPercent) lines.push(`Régénération +${(awakening.effect.regenPercent * 100).toFixed(1)}% PV max / tour`);
+  if (awakening.effect.highHpDamageBonus) lines.push(`+${Math.round(awakening.effect.highHpDamageBonus * 100)}% dégâts au-dessus de ${Math.round((awakening.effect.highHpThreshold ?? 1) * 100)}% PV`);
+  if (awakening.effect.incomingHitMultiplier && awakening.effect.incomingHitCount) {
+    lines.push(`Attaques subies réduites à ${Math.round(awakening.effect.incomingHitMultiplier * 100)}% (${awakening.effect.incomingHitCount} coups)`);
+  }
+  if (awakening.effect.damageTakenMultiplier) lines.push(`Dégâts subis ×${awakening.effect.damageTakenMultiplier}`);
+  if (awakening.effect.damageStackBonus) lines.push(`+${Math.round(awakening.effect.damageStackBonus * 100)}% dégâts infligés par stack de dégâts reçus`);
+  if (awakening.effect.bleedPercentPerStack) lines.push(`Saignement ${(awakening.effect.bleedPercentPerStack * 100).toFixed(1)}% PV max / stack`);
+  if (awakening.effect.explosionPercent) lines.push(`Explosion mort-vivant: ${(awakening.effect.explosionPercent * 100).toFixed(1)}% PV max`);
+  if (awakening.effect.revivePercent) lines.push(`Résurrection à ${(awakening.effect.revivePercent * 100).toFixed(0)}% PV`);
+  return lines;
+};
+
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
@@ -98,9 +128,111 @@ const CharacterCreation = () => {
   const [rollsRemaining, setRollsRemaining] = useState(0);
   const [allRolls, setAllRolls] = useState([]);
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
+  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const weaponFamilies = getWeaponFamilyInfo();
+
+  const renderGameEncyclopedia = () => (
+    <div className="mt-10">
+      <button
+        type="button"
+        onClick={() => setShowEncyclopedia(prev => !prev)}
+        className="w-full bg-stone-900/80 border-2 border-amber-600 px-5 py-4 text-amber-300 font-bold text-lg hover:border-amber-400 transition"
+      >
+        {showEncyclopedia ? '▼' : '▶'} 📚 Encyclopédie du jeu
+      </button>
+
+      {showEncyclopedia && (
+        <div className="mt-4 space-y-6">
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">⚔️ Classes détaillées</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {Object.entries(classes).map(([name, info]) => (
+                <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
+                  <div className="font-bold text-white mb-1">{info.icon} {name}</div>
+                  <div className="text-amber-200 text-sm mb-1">{info.ability}</div>
+                  <div className="text-stone-300 text-xs">{info.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">🎭 Races & Awakening</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {Object.entries(races).map(([name, info]) => {
+                const details = formatAwakeningDetails(info.awakening);
+                return (
+                  <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
+                    <div className="font-bold text-white mb-1">{info.icon} {name}</div>
+                    <div className="text-stone-300 text-xs mb-2">Bonus: {info.bonus}</div>
+                    <div className="text-emerald-300 text-xs font-semibold">Awakening (Niv {info.awakening?.levelRequired})</div>
+                    <div className="text-emerald-200 text-xs mb-1">{info.awakening?.description}</div>
+                    {details.length > 0 && (
+                      <ul className="text-[11px] text-stone-400 list-disc ml-4 space-y-0.5">
+                        {details.map((line, i) => <li key={`${name}-aw-${i}`}>{line}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">🗡️ Armes</h3>
+            <div className="space-y-3">
+              {Object.entries(weaponFamilies).map(([familyId, familyInfo]) => {
+                const familyWeapons = getWeaponsByFamily(familyId)
+                  .sort((a, b) => {
+                    const rank = { commune: 1, rare: 2, legendaire: 3 };
+                    return rank[a.rarete] - rank[b.rarete];
+                  });
+                return (
+                  <div key={familyId} className="bg-stone-900/60 border border-stone-700 p-3">
+                    <div className="font-bold text-white mb-2">{familyInfo.icon} {familyInfo.nom}</div>
+                    <div className="grid md:grid-cols-3 gap-2">
+                      {familyWeapons.map((weapon) => (
+                        <div key={weapon.id} className="bg-stone-950/60 border border-stone-800 p-2">
+                          <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
+                          <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
+                          <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
+                          {weapon.effet && (
+                            <div className="text-[11px] text-amber-200">{weapon.effet.nom}: {weapon.effet.description}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">✨ Passifs (Tour de Mage)</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {MAGE_TOWER_PASSIVES.map((passive) => (
+                <div key={passive.id} className="bg-stone-900/60 border border-stone-700 p-3">
+                  <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
+                  <div className="space-y-1">
+                    {Object.entries(passive.levels).map(([lvl, lvlData]) => (
+                      <div key={`${passive.id}-${lvl}`} className="text-xs">
+                        <span className="text-amber-200 font-semibold">Niv {lvl}:</span>{' '}
+                        <span className="text-stone-300">{lvlData.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   // Calculer la description réelle basée sur les stats du personnage (retourne JSX)
   // Utilise les constantes centralisées de combatMechanics.js
@@ -728,6 +860,7 @@ const CharacterCreation = () => {
               ℹ️ Nouveau personnage disponible lundi prochain
             </p>
           </div>
+          {renderGameEncyclopedia()}
         </div>
       {renderDungeonGrantPopup()}
       </div>
@@ -756,6 +889,7 @@ const CharacterCreation = () => {
             </p>
           </div>
         </div>
+        <div className="max-w-4xl w-full">{renderGameEncyclopedia()}</div>
       {renderDungeonGrantPopup()}
       </div>
     );
@@ -944,6 +1078,7 @@ const CharacterCreation = () => {
               </div>
             </div>
           )}
+          {renderGameEncyclopedia()}
         </div>
       {renderDungeonGrantPopup()}
       </div>
@@ -1096,6 +1231,7 @@ const CharacterCreation = () => {
             )}
           </button>
         </div>
+        {renderGameEncyclopedia()}
       </div>
       {renderDungeonGrantPopup()}
     </div>
