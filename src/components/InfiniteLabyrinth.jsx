@@ -12,6 +12,7 @@ import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
+import { classConstants } from '../data/combatMechanics';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -80,7 +81,127 @@ const getPassiveDetails = (passive) => {
 const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
 const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
 
-const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
+const getCalculatedDescription = (className, cap, auto) => {
+  switch (className) {
+    case 'Guerrier': {
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
+      const ignoreBasePct = Math.round(ignoreBase * 100);
+      const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
+      const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
+      return (
+        <>
+          +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+          <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+            <span className="text-green-400">{ignoreTotalPct}%</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Voleur': {
+      const { spdBonus, critPerCap } = classConstants.voleur;
+      const critBonusPct = Math.round(critPerCap * cap * 100);
+      return (
+        <>
+          +{spdBonus} VIT | Esquive 1 coup
+          <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+            <span className="text-green-400"> | +{critBonusPct}% crit</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Paladin': {
+      const { reflectBase, reflectPerCap } = classConstants.paladin;
+      const reflectBasePct = Math.round(reflectBase * 100);
+      const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+      const reflectTotalPct = reflectBasePct + reflectBonusPct;
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+            <span className="text-green-400">{reflectTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts reçus
+        </>
+      );
+    }
+    case 'Healer': {
+      const { missingHpPercent, capScale } = classConstants.healer;
+      const missingPct = Math.round(missingHpPercent * 100);
+      const healValue = Math.round(capScale * cap);
+      return (
+        <>
+          Heal {missingPct}% PV manquants +{' '}
+          <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+            <span className="text-green-400">{healValue}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Archer': {
+      const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+      const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+      const hit2Cap = Math.round(hit2CapMultiplier * cap);
+      return (
+        <>
+          2 attaques: 1 tir normal +{' '}
+          <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Mage': {
+      const { capBase, capPerCap } = classConstants.mage;
+      const magicPct = capBase + capPerCap * cap;
+      const magicDmg = Math.round(magicPct * cap);
+      return (
+        <>
+          Dégâts = Auto +{' '}
+          <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+            <span className="text-green-400">{auto + magicDmg}</span>
+          </Tooltip>
+          {' '}(vs ResC)
+        </>
+      );
+    }
+    case 'Demoniste': {
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const familierPct = capBase + capPerCap * cap;
+      const familierDmgTotal = Math.round(familierPct * cap);
+      const ignoreResistPct = Math.round(ignoreResist * 100);
+      const stackBonusPct = Math.round(stackPerAuto * 100);
+      return (
+        <>
+          Familier:{' '}
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+            <span className="text-green-400">{familierDmgTotal}</span>
+          </Tooltip>
+          {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+        </>
+      );
+    }
+    case 'Masochiste': {
+      const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+      const returnBasePct = Math.round(returnBase * 100);
+      const returnBonusPct = Math.round(returnPerCap * cap * 100);
+      const returnTotalPct = returnBasePct + returnBonusPct;
+      const healPct = Math.round(healPercent * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+            <span className="text-green-400">{returnTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts accumulés & heal {healPct}%
+        </>
+      );
+    }
+    default:
+      return classes[className]?.description || '';
+  }
+};
+
+const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellAndRaceDetails = true }) => {
   if (!character) return null;
 
   const raceB = character.bonuses?.race || {};
@@ -134,7 +255,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
     <div className="w-full">
       <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl">
         <div className="bg-stone-900/90 text-stone-200 p-3 border-b border-stone-700">
-          <div className="font-bold">{character.race} • {character.class}</div>
+          <div className="font-bold">{showSpellAndRaceDetails ? `${character.race} • ${character.class}` : 'Créature du labyrinthe'}</div>
           <div className="text-stone-300">• Niveau {character.level ?? 1}</div>
         </div>
 
@@ -200,18 +321,19 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
               </div>
             )}
 
-            {races[character.race] && (
+            {showSpellAndRaceDetails && races[character.race] && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
                 <span className="text-stone-300">{races[character.race].bonus}</span>
               </div>
             )}
 
-            {classes[character.class] && (
+            {showSpellAndRaceDetails && classes[character.class] && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             )}
@@ -254,6 +376,49 @@ const InfiniteLabyrinth = () => {
   const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
   const shownEnemyFloor = displayEnemyFloor || defaultEnemyFloor;
 
+  const formatLogMessage = (text) => {
+    const pName = playerCharacter?.name;
+    const eName = enemyCharacter?.name;
+    if (!pName || !eName) return text;
+
+    const escapedPName = pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedEName = eName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameRegex = new RegExp(`(${escapedPName}|${escapedEName})`, 'g');
+
+    const parts = [];
+    let key = 0;
+    text.split(nameRegex).forEach((part) => {
+      if (!part) return;
+      if (part === pName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        return;
+      }
+      if (part === eName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-purple-400">{part}</span>);
+        return;
+      }
+
+      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+      let lastIndex = 0;
+      let match;
+      while ((match = numRegex.exec(part)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(part.slice(lastIndex, match.index));
+        }
+        const isHeal = match[2].toLowerCase().includes('vie');
+        const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
+        parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
+        parts.push(` ${match[2]}`);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < part.length) {
+        parts.push(part.slice(lastIndex));
+      }
+    });
+
+    return parts;
+  };
+
   const enemyCharacter = useMemo(() => {
     if (!shownEnemyFloor) return null;
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
@@ -282,8 +447,7 @@ const InfiniteLabyrinth = () => {
 
   const applyCombatVolume = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
-    [labyrinthMusic, victoryMusic].forEach((audio) => {
+    [labyrinthMusic].forEach((audio) => {
       if (audio) {
         audio.volume = volume;
         audio.muted = isMuted;
@@ -331,26 +495,16 @@ const InfiniteLabyrinth = () => {
 
   const startFightMusic = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
-    if (victoryMusic) victoryMusic.pause();
     if (labyrinthMusic) {
-      labyrinthMusic.currentTime = 0;
       labyrinthMusic.volume = volume;
       labyrinthMusic.muted = isMuted;
       labyrinthMusic.play().catch(() => {});
     }
   };
 
-  const stopFightMusic = ({ playVictory = false } = {}) => {
+  const stopFightMusic = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
     if (labyrinthMusic) labyrinthMusic.pause();
-    if (playVictory && victoryMusic) {
-      victoryMusic.currentTime = 0;
-      victoryMusic.volume = volume;
-      victoryMusic.muted = isMuted;
-      victoryMusic.play().catch(() => {});
-    }
   };
 
   const delayReplay = (ms) => new Promise((resolve) => {
@@ -420,7 +574,9 @@ const InfiniteLabyrinth = () => {
       setReplayLogs((prev) => [...prev, '🎁 Boss vaincu: +5 essais de donjon ajoutés.']);
     }
 
-    stopFightMusic({ playVictory: result.didWin });
+    if (!result.didWin) {
+      stopFightMusic();
+    }
     setIsAnimatingFight(false);
   };
 
@@ -523,9 +679,6 @@ const InfiniteLabyrinth = () => {
         <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
         <source src="/assets/music/labyrinthe.mp3" type="audio/mpeg" />
       </audio>
-      <audio id="labyrinth-victory-music">
-        <source src="/assets/music/victory.mp3" type="audio/mpeg" />
-      </audio>
       <Header />
       <SoundControl />
       <div className="max-w-[1800px] mx-auto pt-16">
@@ -596,15 +749,21 @@ const InfiniteLabyrinth = () => {
                       if (log.includes('🏆')) {
                         return <div key={idx} className="flex justify-center my-4"><div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div></div>;
                       }
-                      if (log.includes('---')) {
+                      if (log.includes('💀')) {
+                        return <div key={idx} className="flex justify-center my-4"><div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('💚')) {
+                        return <div key={idx} className="flex justify-center my-3"><div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('---') || log.includes('⚔️')) {
                         return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div></div>;
                       }
                       return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-sm italic">{cleanLog}</div></div>;
                     }
                     if (isP1) {
-                      return <div key={idx} className="flex justify-start"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                      return <div key={idx} className="flex justify-start"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                     }
-                    return <div key={idx} className="flex justify-end"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                    return <div key={idx} className="flex justify-end"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                   })
                 )}
               </div>
@@ -614,7 +773,12 @@ const InfiniteLabyrinth = () => {
           </div>
 
           <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCard character={enemyCharacter} currentHPOverride={replayP2HP || enemyCharacter?.base?.hp} maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp} />
+            <CharacterCard
+              character={enemyCharacter}
+              currentHPOverride={replayP2HP || enemyCharacter?.base?.hp}
+              maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
+              showSpellAndRaceDetails={shownEnemyFloor?.type === 'boss'}
+            />
           </div>
         </div>
       </div>
