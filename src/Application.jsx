@@ -12,6 +12,7 @@ import HallOfFame from './components/HallOfFame';
 import MesAnciensPersonnages from './components/MesAnciensPersonnages';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
+import InfiniteLabyrinth from './components/InfiniteLabyrinth';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function Application() {
@@ -89,6 +90,15 @@ function Application() {
             element={
               <ProtectedRoute>
                 <MesAnciensPersonnages />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/labyrinthe-infini"
+            element={
+              <ProtectedRoute>
+                <InfiniteLabyrinth />
               </ProtectedRoute>
             }
           />

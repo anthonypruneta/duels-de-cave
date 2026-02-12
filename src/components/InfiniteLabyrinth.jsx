@@ -1,0 +1,522 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from './Header';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  ensureWeeklyInfiniteLabyrinth,
+  getCurrentWeekId,
+  getUserLabyrinthProgress,
+  launchLabyrinthCombat
+} from '../services/infiniteLabyrinthService';
+import { getUserCharacter } from '../services/characterService';
+import { getEquippedWeapon } from '../services/dungeonService';
+import { races } from '../data/races';
+import { classes } from '../data/classes';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+
+const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+
+const getWeaponImage = (imageFile) => {
+  if (!imageFile) return null;
+  return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
+};
+
+const Tooltip = ({ children, content }) => (
+  <span className="relative group cursor-help">
+    {children}
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+      {content}
+      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500" />
+    </span>
+  </span>
+);
+
+const STAT_LABELS = { hp: 'HP', auto: 'Auto', def: 'Déf', cap: 'Cap', rescap: 'ResC', spd: 'VIT' };
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-yellow-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
+const getWeaponTooltipContent = (weapon) => {
+  if (!weapon) return null;
+  const stats = formatWeaponStats(weapon);
+  return (
+    <span className="block whitespace-normal text-xs">
+      <span className="block font-semibold text-white">{weapon.nom}</span>
+      <span className="block text-stone-300">{weapon.description}</span>
+      {weapon.effet && <span className="block text-amber-200">Effet: {weapon.effet.nom} — {weapon.effet.description}</span>}
+      {stats && <span className="block text-stone-200">Stats: {stats}</span>}
+    </span>
+  );
+};
+
+const getPassiveDetails = (passive) => {
+  if (!passive) return null;
+  const base = getMageTowerPassiveById(passive.id);
+  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+  if (!base || !levelData) return null;
+  return { ...base, level: passive.level, levelData };
+};
+
+const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
+const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
+
+const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
+  if (!character) return null;
+
+  const raceB = character.bonuses?.race || {};
+  const classB = character.bonuses?.class || {};
+  const forestBoosts = getForestBoosts(character);
+  const weapon = character.equippedWeaponData;
+  const passiveDetails = getPassiveDetails(character.mageTowerPassive);
+  const awakeningInfo = races[character.race]?.awakening || null;
+  const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
+
+  const computedBase = getBaseWithBoosts(character);
+  const baseStats = character.baseWithoutWeapon || computedBase;
+  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
+
+  const currentHP = currentHPOverride ?? character.currentHP ?? baseStats.hp;
+  const maxHP = maxHPOverride ?? character.maxHP ?? baseStats.hp;
+  const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 0;
+  const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+
+  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+  const baseWithoutBonus = (k) => (baseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+  const tooltipContent = (k) => {
+    const parts = [`Base: ${baseWithoutBonus(k)}`];
+    if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+    if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+    if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+    const weaponDelta = weapon?.stats?.[k] ?? 0;
+    if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+    return parts.join(' | ');
+  };
+
+  const StatWithTooltip = ({ statKey, label }) => {
+    const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+    const passiveAutoBonus = statKey === 'auto'
+      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+      : 0;
+    const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
+    const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+    const totalDelta = totalBonus(statKey) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
+    return (
+      <Tooltip content={tooltipContent(statKey)}>
+        <span className="text-green-400 font-bold">{label}: {displayValue}</span>
+        {hasBonus && <span className="ml-1 text-xs text-amber-300">({totalDelta > 0 ? `+${totalDelta}` : totalDelta})</span>}
+      </Tooltip>
+    );
+  };
+
+  const characterImage = character.characterImage || character.imagePath || null;
+
+  return (
+    <div className="w-full">
+      <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl">
+        <div className="bg-stone-900/90 text-stone-200 p-3 border-b border-stone-700">
+          <div className="font-bold">{character.race} • {character.class}</div>
+          <div className="text-stone-300">• Niveau {character.level ?? 1}</div>
+        </div>
+
+        <div className="h-auto relative bg-stone-900 flex items-center justify-center">
+          {characterImage ? (
+            <img src={characterImage} alt={character.name} className="w-full h-[420px] object-contain" />
+          ) : (
+            <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
+          )}
+          <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
+            <div className="text-white font-bold text-3xl text-center">{character.name}</div>
+          </div>
+        </div>
+
+        <div className="bg-stone-800 p-4 border-t border-stone-600">
+          <div className="mb-3">
+            <div className="flex justify-between text-sm text-white mb-2">
+              <StatWithTooltip statKey="hp" label="HP" />
+              <StatWithTooltip statKey="spd" label="VIT" />
+            </div>
+            <div className="text-xs text-stone-400 mb-2">{character.name} — PV {Math.max(0, currentHP)}/{maxHP}</div>
+            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
+              <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
+            <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
+          </div>
+
+          <div className="space-y-2">
+            {weapon && (
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <Tooltip content={getWeaponTooltipContent(weapon)}>
+                  <span className="flex items-center gap-2">
+                    {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
+                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                  </span>
+                </Tooltip>
+              </div>
+            )}
+
+            {passiveDetails && (
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <span className="text-lg">{passiveDetails.icon}</span>
+                <div className="flex-1">
+                  <div className="text-amber-300 font-semibold mb-1">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
+                  <div className="text-stone-400 text-[10px]">{passiveDetails.levelData.description}</div>
+                </div>
+              </div>
+            )}
+
+            {isAwakeningActive && (
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <span className="text-lg">✨</span>
+                <div className="flex-1">
+                  <div className="text-amber-300 font-semibold mb-1">Éveil racial actif (Niv {awakeningInfo.levelRequired}+)</div>
+                  <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+                </div>
+              </div>
+            )}
+
+            {races[character.race] && (
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <span className="text-lg">{races[character.race].icon}</span>
+                <span className="text-stone-300">{races[character.race].bonus}</span>
+              </div>
+            )}
+
+            {classes[character.class] && (
+              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <span className="text-lg">{classes[character.class].icon}</span>
+                <div className="flex-1">
+                  <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InfiniteLabyrinth = () => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const [weekId, setWeekId] = useState(getCurrentWeekId());
+  const [labyrinthData, setLabyrinthData] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [playerCharacter, setPlayerCharacter] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isAutoRunActive, setIsAutoRunActive] = useState(false);
+  const [isAnimatingFight, setIsAnimatingFight] = useState(false);
+  const [replayLogs, setReplayLogs] = useState([]);
+  const [replayWinner, setReplayWinner] = useState('');
+  const [displayEnemyFloor, setDisplayEnemyFloor] = useState(null);
+  const [replayP1HP, setReplayP1HP] = useState(0);
+  const [replayP2HP, setReplayP2HP] = useState(0);
+  const [replayP1MaxHP, setReplayP1MaxHP] = useState(0);
+  const [replayP2MaxHP, setReplayP2MaxHP] = useState(0);
+
+  const replayTimeoutRef = useRef(null);
+  const replayTokenRef = useRef(null);
+  const autoRunTokenRef = useRef(null);
+  const logContainerRef = useRef(null);
+
+  const currentFloor = progress?.currentFloor || 1;
+  const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
+  const shownEnemyFloor = displayEnemyFloor || defaultEnemyFloor;
+
+  const enemyCharacter = useMemo(() => {
+    if (!shownEnemyFloor) return null;
+    const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
+    return {
+      id: `enemy-${shownEnemyFloor.floorNumber}`,
+      name: shownEnemyFloor.enemyName,
+      race: 'Humain',
+      class: shownEnemyFloor?.bossKit?.spellClass || 'Guerrier',
+      level: shownEnemyFloor.floorNumber,
+      base: shownEnemyFloor.stats,
+      bonuses: { race: {}, class: {} },
+      mageTowerPassive: shownEnemyFloor?.bossKit?.passiveId
+        ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
+        : null,
+      equippedWeaponData: weapon,
+      characterImage: shownEnemyFloor.imagePath,
+      currentHP: replayP2HP || shownEnemyFloor.stats.hp,
+      maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp
+    };
+  }, [shownEnemyFloor, replayP2HP, replayP2MaxHP]);
+
+  useEffect(() => {
+    if (!logContainerRef.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+  }, [replayLogs]);
+
+  const delayReplay = (ms) => new Promise((resolve) => {
+    replayTimeoutRef.current = setTimeout(resolve, ms);
+  });
+
+  const stopAutoRun = () => {
+    if (autoRunTokenRef.current) {
+      autoRunTokenRef.current.cancelled = true;
+      autoRunTokenRef.current = null;
+    }
+    setIsAutoRunActive(false);
+  };
+
+  const playReplay = async (result) => {
+    const data = result?.result;
+    if (!data) return;
+
+    if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
+    if (replayTimeoutRef.current) {
+      clearTimeout(replayTimeoutRef.current);
+      replayTimeoutRef.current = null;
+    }
+
+    const token = { cancelled: false };
+    replayTokenRef.current = token;
+
+    setIsAnimatingFight(true);
+    setReplayLogs([]);
+    setReplayWinner('');
+    setReplayP1MaxHP(data.p1MaxHP || 0);
+    setReplayP2MaxHP(data.p2MaxHP || 0);
+    setReplayP1HP(data.p1MaxHP || 0);
+    setReplayP2HP(data.p2MaxHP || 0);
+
+    const steps = data.steps || [];
+    if (steps.length > 0) {
+      for (const step of steps) {
+        if (token.cancelled) return;
+        for (const line of (step.logs || [])) {
+          if (token.cancelled) return;
+          setReplayLogs((prev) => [...prev, line]);
+          await delayReplay(step.phase === 'victory' ? 170 : 240);
+        }
+        setReplayP1HP(step.p1HP ?? 0);
+        setReplayP2HP(step.p2HP ?? 0);
+        await delayReplay(step.phase === 'action' ? 560 : 300);
+      }
+    } else {
+      for (const line of (data.combatLog || [])) {
+        if (token.cancelled) return;
+        setReplayLogs((prev) => [...prev, line]);
+        await delayReplay(line.includes('---') ? 450 : 250);
+      }
+    }
+
+    if (token.cancelled) return;
+
+    setReplayWinner(data.winnerNom || (result.didWin ? playerCharacter?.name : result.floor?.enemyName));
+    if (result.rewardGranted) {
+      setReplayLogs((prev) => [...prev, '🎁 Boss vaincu: +5 essais de donjon ajoutés.']);
+    }
+    setIsAnimatingFight(false);
+  };
+
+  const loadLabyrinthData = async () => {
+    if (!currentUser?.uid) return;
+    setLoading(true);
+    setError('');
+    try {
+      const resolvedWeekId = getCurrentWeekId();
+      setWeekId(resolvedWeekId);
+
+      const [labyrinthResult, progressResult, playerResult, weaponResult] = await Promise.all([
+        ensureWeeklyInfiniteLabyrinth(resolvedWeekId),
+        getUserLabyrinthProgress(currentUser.uid, resolvedWeekId),
+        getUserCharacter(currentUser.uid),
+        getEquippedWeapon(currentUser.uid)
+      ]);
+
+      if (!labyrinthResult.success) {
+        setError(labyrinthResult.error || 'Impossible de charger le labyrinthe.');
+        return;
+      }
+      setLabyrinthData(labyrinthResult.data);
+
+      if (!progressResult.success) {
+        setError(progressResult.error || 'Impossible de charger la progression.');
+        return;
+      }
+      setProgress(progressResult.data);
+
+      if (playerResult.success && playerResult.data) {
+        const character = normalizeCharacterBonuses({
+          ...playerResult.data,
+          id: currentUser.uid,
+          userId: currentUser.uid,
+          level: playerResult.data.level ?? 1,
+          equippedWeaponData: weaponResult.success ? weaponResult.weapon : null,
+          equippedWeaponId: weaponResult.success ? weaponResult.weapon?.id || null : (playerResult.data.equippedWeaponId || null)
+        });
+        setPlayerCharacter(character);
+      }
+
+      const initialFloor = labyrinthResult.data?.floors?.find((f) => f.floorNumber === (progressResult.data?.currentFloor || 1));
+      setDisplayEnemyFloor(initialFloor || null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLabyrinthData();
+  }, [currentUser?.uid]);
+
+  useEffect(() => () => {
+    if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
+    if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
+    if (autoRunTokenRef.current) autoRunTokenRef.current.cancelled = true;
+  }, []);
+
+  const handleStartCurrentFloorFight = async () => {
+    if (!currentUser?.uid || isAutoRunActive) return;
+
+    setLoading(true);
+    setError('');
+    setIsAutoRunActive(true);
+
+    const token = { cancelled: false };
+    autoRunTokenRef.current = token;
+
+    try {
+      while (!token.cancelled) {
+        const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
+        if (!result.success) {
+          setError(result.error || 'Combat impossible.');
+          break;
+        }
+
+        setProgress(result.progress);
+        setDisplayEnemyFloor(result.floor || null);
+        await playReplay(result);
+        if (token.cancelled) break;
+
+        if (!result.didWin) break;
+        if ((result.progress?.currentFloor || 1) > 100) break;
+      }
+    } finally {
+      autoRunTokenRef.current = null;
+      setIsAutoRunActive(false);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-6">
+      <Header />
+      <div className="max-w-[1800px] mx-auto pt-16">
+        <div className="flex justify-center mb-8">
+          <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+            <h1 className="text-3xl font-bold text-stone-200">⚔️ Combat ⚔️</h1>
+          </div>
+        </div>
+
+        {error && <p className="text-red-300 text-center mb-4">⚠️ {error}</p>}
+
+        <div className="flex justify-center gap-3 md:gap-4 mb-4">
+          <button
+            onClick={handleStartCurrentFloorFight}
+            disabled={loading}
+            className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+          >
+            ▶️ {loading ? 'Combats en cours...' : 'Lancer le combat'}
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+          >
+            ← Changer
+          </button>
+        </div>
+
+        <div className="text-center mb-4 text-stone-300 text-sm">
+          Week {weekId} • Étage {currentFloor} • Boss vaincus {progress?.bossesDefeated || 0}
+          {isAutoRunActive && ' • Auto-run actif'}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+          <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+            <CharacterCard character={playerCharacter} currentHPOverride={replayP1HP || playerCharacter?.base?.hp} maxHPOverride={replayP1MaxHP || playerCharacter?.base?.hp} />
+          </div>
+
+          <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+            {replayWinner && (
+              <div className="flex justify-center mb-4">
+                <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                  🏆 {replayWinner} remporte le combat! 🏆
+                </div>
+              </div>
+            )}
+
+            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+              <div className="bg-stone-900 p-3 border-b border-stone-600">
+                <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+              </div>
+              <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                {replayLogs.length === 0 ? (
+                  <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
+                ) : (
+                  replayLogs.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                    if (!isP1 && !isP2) {
+                      if (log.includes('🏆')) {
+                        return <div key={idx} className="flex justify-center my-4"><div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('---')) {
+                        return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div></div>;
+                      }
+                      return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-sm italic">{cleanLog}</div></div>;
+                    }
+                    if (isP1) {
+                      return <div key={idx} className="flex justify-start"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                    }
+                    return <div key={idx} className="flex justify-end"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                  })
+                )}
+              </div>
+            </div>
+
+            {isAnimatingFight && <p className="text-amber-300 text-sm mt-3 text-center">Combat en cours...</p>}
+          </div>
+
+          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+            <CharacterCard character={enemyCharacter} currentHPOverride={replayP2HP || enemyCharacter?.base?.hp} maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default InfiniteLabyrinth;
