@@ -32,6 +32,8 @@ const Admin = () => {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const labyrinthAudioRef = useRef(null);
+  const labyrinthReplayTokenRef = useRef(null);
+  const labyrinthReplayTimeoutRef = useRef(null);
 
   // États pour les annonces Discord
   const [annonceTitre, setAnnonceTitre] = useState('');
@@ -63,6 +65,16 @@ const Admin = () => {
   const [labyrinthError, setLabyrinthError] = useState('');
   const [labyrinthMusicEnabled, setLabyrinthMusicEnabled] = useState(false);
   const [selectedLabUserId, setSelectedLabUserId] = useState('');
+  const [isLabyrinthReplayOpen, setIsLabyrinthReplayOpen] = useState(false);
+  const [isLabyrinthReplayAnimating, setIsLabyrinthReplayAnimating] = useState(false);
+  const [labyrinthReplayLogs, setLabyrinthReplayLogs] = useState([]);
+  const [labyrinthReplayP1Name, setLabyrinthReplayP1Name] = useState('');
+  const [labyrinthReplayP2Name, setLabyrinthReplayP2Name] = useState('');
+  const [labyrinthReplayP1HP, setLabyrinthReplayP1HP] = useState(0);
+  const [labyrinthReplayP2HP, setLabyrinthReplayP2HP] = useState(0);
+  const [labyrinthReplayP1MaxHP, setLabyrinthReplayP1MaxHP] = useState(0);
+  const [labyrinthReplayP2MaxHP, setLabyrinthReplayP2MaxHP] = useState(0);
+  const [labyrinthReplayWinner, setLabyrinthReplayWinner] = useState('');
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -176,6 +188,14 @@ const Admin = () => {
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
+    }
+
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
     }
   }, []);
 
@@ -610,12 +630,87 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       setLabyrinthCombatLogs(result.result.combatLog || []);
       setLabyrinthProgress(result.progress);
       setSelectedLabFloor(result.progress.currentFloor || 1);
+      playLabyrinthCombatReplay(result);
     } finally {
       setLabyrinthLoading(false);
     }
   };
 
   const selectedLabCharacter = characters.find((char) => char.id === selectedLabUserId) || null;
+
+  const delayLabReplay = (ms) => new Promise((resolve) => {
+    labyrinthReplayTimeoutRef.current = setTimeout(resolve, ms);
+  });
+
+  const closeLabyrinthReplay = () => {
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
+    }
+    setIsLabyrinthReplayAnimating(false);
+    setIsLabyrinthReplayOpen(false);
+  };
+
+  const playLabyrinthCombatReplay = async (combatResult) => {
+    if (!combatResult?.result) return;
+
+    if (labyrinthReplayTokenRef.current) {
+      labyrinthReplayTokenRef.current.cancelled = true;
+    }
+    if (labyrinthReplayTimeoutRef.current) {
+      clearTimeout(labyrinthReplayTimeoutRef.current);
+      labyrinthReplayTimeoutRef.current = null;
+    }
+
+    const token = { cancelled: false };
+    labyrinthReplayTokenRef.current = token;
+
+    const playerName = selectedLabCharacter?.name || 'Joueur';
+    const enemyName = combatResult.floor?.enemyName || 'Ennemi';
+    const data = combatResult.result;
+
+    setIsLabyrinthReplayOpen(true);
+    setIsLabyrinthReplayAnimating(true);
+    setLabyrinthReplayLogs([]);
+    setLabyrinthReplayWinner('');
+    setLabyrinthReplayP1Name(playerName);
+    setLabyrinthReplayP2Name(enemyName);
+    setLabyrinthReplayP1MaxHP(data.p1MaxHP || 0);
+    setLabyrinthReplayP2MaxHP(data.p2MaxHP || 0);
+    setLabyrinthReplayP1HP(data.p1MaxHP || 0);
+    setLabyrinthReplayP2HP(data.p2MaxHP || 0);
+
+    const steps = data.steps || [];
+    if (steps.length > 0) {
+      for (const step of steps) {
+        if (token.cancelled) return;
+        const logs = step.logs || [];
+        for (const line of logs) {
+          if (token.cancelled) return;
+          setLabyrinthReplayLogs((prev) => [...prev, line]);
+          await delayLabReplay(step.phase === 'victory' ? 200 : 280);
+        }
+        setLabyrinthReplayP1HP(step.p1HP ?? 0);
+        setLabyrinthReplayP2HP(step.p2HP ?? 0);
+        await delayLabReplay(step.phase === 'action' ? 600 : 400);
+      }
+    } else {
+      const combatLog = data.combatLog || [];
+      for (const line of combatLog) {
+        if (token.cancelled) return;
+        setLabyrinthReplayLogs((prev) => [...prev, line]);
+        await delayLabReplay(line.includes('---') ? 450 : 250);
+      }
+    }
+
+    if (token.cancelled) return;
+
+    setLabyrinthReplayWinner(data.winnerNom || (combatResult.didWin ? playerName : enemyName));
+    setIsLabyrinthReplayAnimating(false);
+  };
 
   const handleToggleLabyrinthMusic = async () => {
     const audio = labyrinthAudioRef.current;
@@ -1015,6 +1110,47 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </button>
         </div>
       </div>
+
+      {isLabyrinthReplayOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { if (!isLabyrinthReplayAnimating) closeLabyrinthReplay(); }}>
+          <div className="bg-stone-900 border-2 border-fuchsia-500 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-700">
+              <h3 className="text-fuchsia-300 font-bold text-lg">⚔️ Combat Labyrinthe</h3>
+              <button onClick={closeLabyrinthReplay} className="text-stone-300 hover:text-white">✖</button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 p-4 border-b border-stone-800">
+              <div className="bg-stone-800/60 rounded p-3">
+                <p className="text-stone-300 text-sm">{labyrinthReplayP1Name}</p>
+                <div className="w-full h-3 bg-stone-700 rounded mt-2">
+                  <div className="h-3 bg-green-500 rounded" style={{ width: `${labyrinthReplayP1MaxHP ? Math.max(0, Math.min(100, (labyrinthReplayP1HP / labyrinthReplayP1MaxHP) * 100)) : 0}%` }} />
+                </div>
+                <p className="text-xs text-stone-400 mt-1">HP: {Math.max(0, labyrinthReplayP1HP)} / {labyrinthReplayP1MaxHP}</p>
+              </div>
+              <div className="bg-stone-800/60 rounded p-3">
+                <p className="text-stone-300 text-sm">{labyrinthReplayP2Name}</p>
+                <div className="w-full h-3 bg-stone-700 rounded mt-2">
+                  <div className="h-3 bg-red-500 rounded" style={{ width: `${labyrinthReplayP2MaxHP ? Math.max(0, Math.min(100, (labyrinthReplayP2HP / labyrinthReplayP2MaxHP) * 100)) : 0}%` }} />
+                </div>
+                <p className="text-xs text-stone-400 mt-1">HP: {Math.max(0, labyrinthReplayP2HP)} / {labyrinthReplayP2MaxHP}</p>
+              </div>
+            </div>
+
+            <div className="p-4 max-h-[45vh] overflow-y-auto bg-black/40 text-sm font-mono text-stone-200">
+              {labyrinthReplayLogs.length === 0 ? (
+                <p className="text-stone-500 italic">Préparation du combat...</p>
+              ) : (
+                labyrinthReplayLogs.map((line, idx) => <div key={`lab-replay-${idx}`}>{line}</div>)
+              )}
+            </div>
+
+            <div className="px-4 py-3 border-t border-stone-700 flex items-center justify-between">
+              <p className="text-amber-300 font-bold">{labyrinthReplayWinner ? `🏆 Vainqueur: ${labyrinthReplayWinner}` : (isLabyrinthReplayAnimating ? '⏳ Combat en cours...' : 'Combat terminé')}</p>
+              <button onClick={closeLabyrinthReplay} className="bg-fuchsia-700 hover:bg-fuchsia-600 text-white px-3 py-1 rounded">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal détails personnage */}
       {selectedCharacter && (

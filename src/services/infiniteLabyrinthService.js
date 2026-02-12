@@ -120,7 +120,13 @@ export function computeLabyrinthStats(baseStats, floorNumber) {
   } else if (phase === 2) {
     multiplier = 1.72 + floorInPhase * 0.032;
   } else {
-    multiplier = 2.68 + floorInPhase * 0.06;
+    // Phase hard (71-100): montée plus agressive pour que 70/80/90/100 soient réellement exigeants
+    // Exemple: 71 ≈ 2.92x, 80 ≈ 3.50x, 90 ≈ 4.40x, 100 ≈ 5.50x
+    multiplier = 2.92 + floorInPhase * 0.086;
+    if (floorNumber >= 90) {
+      // Palier final: accentuer le mur de difficulté sur les 10 derniers étages
+      multiplier *= 1.12;
+    }
   }
 
   return {
