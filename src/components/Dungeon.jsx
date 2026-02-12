@@ -1520,7 +1520,7 @@ const Dungeon = () => {
               <div className="mt-4 flex justify-center gap-4 flex-wrap">
                 {Object.entries(lootWeapon.stats).map(([stat, value]) => (
                   <div key={stat} className="bg-stone-800 px-3 py-1 border border-stone-600">
-                    <span className="text-gray-400 text-sm">{stat.toUpperCase()}</span>
+                    <span className="text-gray-400 text-sm">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
                     <span className={`ml-2 font-bold ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {value > 0 ? '+' : ''}{value}
                     </span>
@@ -1552,7 +1552,7 @@ const Dungeon = () => {
                     <div className="flex gap-2">
                       {Object.entries(hasCurrentWeapon.stats).map(([stat, value]) => (
                         <span key={stat} className="text-xs text-gray-400">
-                          {stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
+                          {STAT_LABELS[stat] || stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
                         </span>
                       ))}
                     </div>

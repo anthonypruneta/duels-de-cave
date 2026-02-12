@@ -42,6 +42,15 @@ const STAT_LABELS = {
   spd: 'VIT'
 };
 
+const STAT_DESCRIPTIONS = {
+  hp: "Points de vie max. Quand tu tombes à 0, le combat est perdu.",
+  auto: "Puissance des attaques de base (et certaines compétences qui scalent dessus).",
+  def: "Réduit les dégâts physiques reçus.",
+  cap: "Puissance des sorts/compétences CAP et scaling de plusieurs effets.",
+  rescap: "Réduit les dégâts magiques/CAP reçus.",
+  spd: "Détermine l'ordre d'action (le plus rapide joue en premier)."
+};
+
 const getWeaponStatColor = (value) => {
   if (value > 0) return 'text-green-400';
   if (value < 0) return 'text-red-400';
@@ -147,6 +156,18 @@ const CharacterCreation = () => {
       {showEncyclopedia && (
         <div className="mt-4 space-y-6">
           <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">📊 Description des stats</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              {Object.entries(STAT_LABELS).map(([key, label]) => (
+                <div key={key} className="bg-stone-900/60 border border-stone-700 p-3">
+                  <div className="font-bold text-white mb-1">{label}</div>
+                  <div className="text-stone-300 text-xs">{STAT_DESCRIPTIONS[key]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
             <h3 className="text-xl text-amber-300 font-bold mb-3">⚔️ Classes détaillées</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {Object.entries(classes).map(([name, info]) => (
@@ -198,7 +219,7 @@ const CharacterCreation = () => {
                         <div key={weapon.id} className="bg-stone-950/60 border border-stone-800 p-2">
                           <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
-                          <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
+                          <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
                           {weapon.effet && (
                             <div className="text-[11px] text-amber-200">{weapon.effet.nom}: {weapon.effet.description}</div>
                           )}
