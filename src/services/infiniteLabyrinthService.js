@@ -206,13 +206,17 @@ export function buildInfiniteLabyrinth(weekId) {
 }
 
 export async function generateWeeklyInfiniteLabyrinth(forceWeekId = null) {
-  const weekId = forceWeekId || getCurrentWeekId();
-  const labyrinth = buildInfiniteLabyrinth(weekId);
-  await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
-    ...labyrinth,
-    generatedAt: serverTimestamp()
-  }, { merge: true });
-  return { success: true, weekId, labyrinth };
+  try {
+    const weekId = forceWeekId || getCurrentWeekId();
+    const labyrinth = buildInfiniteLabyrinth(weekId);
+    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
+      ...labyrinth,
+      generatedAt: serverTimestamp()
+    }, { merge: true });
+    return { success: true, weekId, labyrinth };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 export async function getWeeklyInfiniteLabyrinth(weekId = null) {
@@ -226,6 +230,7 @@ export async function ensureWeeklyInfiniteLabyrinth(weekId = null) {
   const existing = await getWeeklyInfiniteLabyrinth(weekId);
   if (existing.success) return existing;
   const created = await generateWeeklyInfiniteLabyrinth(existing.weekId);
+  if (!created.success) return created;
   return { success: true, data: created.labyrinth, weekId: created.weekId };
 }
 
@@ -299,7 +304,13 @@ function buildFloorEnemy(floor) {
 export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId = null }) {
   const resolvedWeekId = weekId || getCurrentWeekId();
   const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
+  if (!labyrinthResult.success) {
+    return { success: false, error: labyrinthResult.error || 'Labyrinthe indisponible.' };
+  }
   const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
+  if (!progressResult.success) {
+    return { success: false, error: progressResult.error || 'Progression indisponible.' };
+  }
   const char = await getPreparedUserCharacter(userId);
 
   if (!char) {

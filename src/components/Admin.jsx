@@ -58,6 +58,7 @@ const Admin = () => {
   const [selectedLabFloor, setSelectedLabFloor] = useState(1);
   const [labyrinthCombatResult, setLabyrinthCombatResult] = useState(null);
   const [labyrinthCombatLogs, setLabyrinthCombatLogs] = useState([]);
+  const [labyrinthError, setLabyrinthError] = useState('');
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -108,16 +109,24 @@ const Admin = () => {
     if (!currentUser?.uid) return;
     const bootstrapLabyrinth = async () => {
       setLabyrinthLoading(true);
-      const weekId = getCurrentWeekId();
-      setLabyrinthWeekId(weekId);
-      const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(weekId);
-      const progressResult = await getUserLabyrinthProgress(currentUser.uid, weekId);
-      if (labyrinthResult.success) setLabyrinthData(labyrinthResult.data);
-      if (progressResult.success) {
-        setLabyrinthProgress(progressResult.data);
-        setSelectedLabFloor(progressResult.data.currentFloor || 1);
+      setLabyrinthError('');
+      try {
+        const weekId = getCurrentWeekId();
+        setLabyrinthWeekId(weekId);
+        const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(weekId);
+        const progressResult = await getUserLabyrinthProgress(currentUser.uid, weekId);
+        if (labyrinthResult.success) {
+          setLabyrinthData(labyrinthResult.data);
+        } else {
+          setLabyrinthError(labyrinthResult.error || 'Impossible de charger le Labyrinthe Infini.');
+        }
+        if (progressResult.success) {
+          setLabyrinthProgress(progressResult.data);
+          setSelectedLabFloor(progressResult.data.currentFloor || 1);
+        }
+      } finally {
+        setLabyrinthLoading(false);
       }
-      setLabyrinthLoading(false);
     };
     bootstrapLabyrinth();
   }, [currentUser?.uid]);
@@ -474,54 +483,67 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
   const handleGenerateLabyrinth = async () => {
     setLabyrinthLoading(true);
-    const weekId = getCurrentWeekId();
-    const generated = await generateWeeklyInfiniteLabyrinth(weekId);
-    if (generated.success) {
-      setLabyrinthWeekId(weekId);
-      setLabyrinthData(generated.labyrinth);
-      alert('✅ Labyrinthe infini hebdomadaire généré.');
-    } else {
-      alert('❌ Erreur génération labyrinthe.');
+    setLabyrinthError('');
+    try {
+      const weekId = getCurrentWeekId();
+      const generated = await generateWeeklyInfiniteLabyrinth(weekId);
+      if (generated.success) {
+        setLabyrinthWeekId(weekId);
+        setLabyrinthData(generated.labyrinth);
+        alert('✅ Labyrinthe infini hebdomadaire généré.');
+      } else {
+        setLabyrinthError(generated.error || 'Erreur génération labyrinthe.');
+        alert('❌ ' + (generated.error || 'Erreur génération labyrinthe.'));
+      }
+    } finally {
+      setLabyrinthLoading(false);
     }
-    setLabyrinthLoading(false);
   };
 
   const handleResetMyLabyrinthProgress = async () => {
     if (!currentUser?.uid) return;
     setLabyrinthLoading(true);
-    const weekId = labyrinthWeekId || getCurrentWeekId();
-    const reset = await resetUserLabyrinthProgress(currentUser.uid, weekId);
-    if (reset.success) {
-      const progress = await getUserLabyrinthProgress(currentUser.uid, weekId);
-      if (progress.success) {
-        setLabyrinthProgress(progress.data);
-        setSelectedLabFloor(progress.data.currentFloor || 1);
+    setLabyrinthError('');
+    try {
+      const weekId = labyrinthWeekId || getCurrentWeekId();
+      const reset = await resetUserLabyrinthProgress(currentUser.uid, weekId);
+      if (reset.success) {
+        const progress = await getUserLabyrinthProgress(currentUser.uid, weekId);
+        if (progress.success) {
+          setLabyrinthProgress(progress.data);
+          setSelectedLabFloor(progress.data.currentFloor || 1);
+        }
+        setLabyrinthCombatResult(null);
+        setLabyrinthCombatLogs([]);
+        alert('✅ Progression labyrinthe réinitialisée (votre compte).');
       }
-      setLabyrinthCombatResult(null);
-      setLabyrinthCombatLogs([]);
-      alert('✅ Progression labyrinthe réinitialisée (votre compte).');
+    } finally {
+      setLabyrinthLoading(false);
     }
-    setLabyrinthLoading(false);
   };
 
   const handleLaunchLabyrinthCombat = async (floorOverride = null) => {
     if (!currentUser?.uid) return;
     setLabyrinthLoading(true);
-    const result = await launchLabyrinthCombat({
-      userId: currentUser.uid,
-      floorNumber: floorOverride || Number(selectedLabFloor),
-      weekId: labyrinthWeekId
-    });
-    if (!result.success) {
-      alert('Erreur combat labyrinthe: ' + result.error);
+    setLabyrinthError('');
+    try {
+      const result = await launchLabyrinthCombat({
+        userId: currentUser.uid,
+        floorNumber: floorOverride || Number(selectedLabFloor),
+        weekId: labyrinthWeekId
+      });
+      if (!result.success) {
+        setLabyrinthError(result.error || 'Erreur combat labyrinthe.');
+        alert('Erreur combat labyrinthe: ' + result.error);
+        return;
+      }
+      setLabyrinthCombatResult(result);
+      setLabyrinthCombatLogs(result.result.combatLog || []);
+      setLabyrinthProgress(result.progress);
+      setSelectedLabFloor(result.progress.currentFloor || 1);
+    } finally {
       setLabyrinthLoading(false);
-      return;
     }
-    setLabyrinthCombatResult(result);
-    setLabyrinthCombatLogs(result.result.combatLog || []);
-    setLabyrinthProgress(result.progress);
-    setSelectedLabFloor(result.progress.currentFloor || 1);
-    setLabyrinthLoading(false);
   };
 
   // Réinitialiser l'upload quand on change de personnage
@@ -685,6 +707,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-fuchsia-300 mb-2">🌀 Labyrinthe Infini (Admin uniquement)</h2>
           <p className="text-stone-400 text-sm mb-4">Mode en test: aucune reward active et aucune exposition côté joueurs.</p>
+          {labyrinthError && <p className="text-red-300 text-sm mb-4">⚠️ {labyrinthError}</p>}
 
           <div className="flex flex-wrap gap-3 mb-4">
             <button onClick={handleGenerateLabyrinth} disabled={labyrinthLoading} className="bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">Générer Labyrinthe Infini de la semaine</button>
