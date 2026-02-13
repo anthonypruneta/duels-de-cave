@@ -112,7 +112,7 @@ export const weapons = {
     },
     effet: {
       nom: 'Vie de l\'Arbre-Monde',
-      description: 'Si le personnage peut se soigner, ses soins sont conservés et infligent aussi 50% de dégâts. Sinon, régénère 3% HP max par tour.',
+      description: 'Si le personnage peut se soigner, ses soins peuvent crit, sont conservés et infligent aussi 50% de dégâts. Sinon, régénère 3% HP max par tour.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
         // La logique vérifie si la classe peut heal (Healer, Paladin avec riposte qui heal, etc.)
@@ -120,6 +120,7 @@ export const weapons = {
       values: {
         healDamagePercent: 0.5,    // 50% des soins en dégâts
         regenPercent: 0.03,        // 3% HP max par tour
+        healCritMultiplier: 1.5,   // Critiques de soin
       },
     },
     description: 'Une branche de l\'arbre cosmique, source de toute vie.',
