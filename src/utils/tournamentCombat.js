@@ -39,6 +39,56 @@ function getAuraBonus(passiveDetails, turn) {
   return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
 }
 
+
+function mergeAwakeningEffects(effects = []) {
+  const validEffects = effects.filter(Boolean);
+  if (validEffects.length === 0) return null;
+
+  return validEffects.reduce((acc, effect) => {
+    if (effect.statMultipliers) {
+      acc.statMultipliers = acc.statMultipliers || {};
+      Object.entries(effect.statMultipliers).forEach(([stat, value]) => {
+        acc.statMultipliers[stat] = (acc.statMultipliers[stat] ?? 1) * value;
+      });
+    }
+
+    if (effect.statBonuses) {
+      acc.statBonuses = acc.statBonuses || {};
+      Object.entries(effect.statBonuses).forEach(([stat, value]) => {
+        acc.statBonuses[stat] = (acc.statBonuses[stat] ?? 0) + value;
+      });
+    }
+
+    const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack'];
+    additiveKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
+    });
+
+    const multiplicativeKeys = ['damageTakenMultiplier', 'incomingHitMultiplier'];
+    multiplicativeKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 1) * effect[key];
+    });
+
+    if (typeof effect.highHpThreshold === 'number') {
+      acc.highHpThreshold = typeof acc.highHpThreshold === 'number'
+        ? Math.min(acc.highHpThreshold, effect.highHpThreshold)
+        : effect.highHpThreshold;
+    }
+    if (typeof effect.highHpDamageBonus === 'number') {
+      acc.highHpDamageBonus = (acc.highHpDamageBonus ?? 0) + effect.highHpDamageBonus;
+    }
+
+    if (typeof effect.incomingHitCount === 'number') acc.incomingHitCount = (acc.incomingHitCount ?? 0) + effect.incomingHitCount;
+    if (typeof effect.revivePercent === 'number') acc.revivePercent = Math.max(acc.revivePercent ?? 0, effect.revivePercent);
+    if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
+    if (typeof effect.ignoreResist === 'number') acc.ignoreResist = Math.max(acc.ignoreResist ?? 0, effect.ignoreResist);
+
+    if (effect.reviveOnce) acc.reviveOnce = true;
+
+    return acc;
+  }, {});
+}
+
 function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
   if (!passiveDetails) return;
@@ -64,7 +114,13 @@ export function preparerCombattant(char) {
   const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
   const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
   const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
-  const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+  const additionalAwakeningEffects = char.allowMultipleAwakenings
+    ? (char.additionalAwakeningRaces || []).map((race) => getAwakeningEffect(race, char.level ?? 1))
+    : [];
+  const awakeningEffect = mergeAwakeningEffects([
+    getAwakeningEffect(char.race, char.level ?? 1),
+    ...additionalAwakeningEffects
+  ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
