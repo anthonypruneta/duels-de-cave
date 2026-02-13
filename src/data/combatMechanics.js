@@ -81,7 +81,7 @@ export const raceConstants = {
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
   gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
-  mindflayer: { cooldownSpellReduction: 0.20, noCooldownSpellReduction: 0.45, addCooldownTurns: 1 }
+  mindflayer: { addCooldownTurns: 1, ownCooldownReductionTurns: 1, ownNoCooldownSpellBonus: 0.20 }
 };
 
 // Constantes générales

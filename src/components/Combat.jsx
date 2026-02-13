@@ -513,26 +513,35 @@ const Combat = () => {
 
       const getMindflayerSpellCooldown = (caster, target, spellId) => {
         const baseCooldown = cooldowns[spellId] ?? 1;
-        if (target.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
-        const awakening = target.awakening || {};
-        const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-        return baseCooldown + addedTurns;
-      };
 
-      const applyMindflayerSpellMod = (_caster, target, baseDamage, spellId) => {
-        if (target.race !== 'Mindflayer') return baseDamage;
-        const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
-        const awakening = target.awakening || {};
-        const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
-        const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
-
-        if (hasCooldown) {
-          log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (-${Math.round(cooldownReduction * 100)}% dégâts, CD+1 permanent).`);
-          return Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
+        let adjustedCooldown = baseCooldown;
+        if (target.race === 'Mindflayer' && baseCooldown > 1) {
+          const targetAwakening = target.awakening || {};
+          const addedTurns = targetAwakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
+          adjustedCooldown += addedTurns;
         }
 
-        log.push(`${playerColor} 🦑 ${target.name} affaiblit ce sort sans CD (-${Math.round(noCooldownReduction * 100)}% dégâts).`);
-        return Math.max(1, Math.round(baseDamage * (1 - noCooldownReduction)));
+        if (caster.race === 'Mindflayer' && caster.awakening && adjustedCooldown > 1) {
+          const casterAwakening = caster.awakening || {};
+          const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
+          adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
+        }
+
+        return adjustedCooldown;
+      };
+
+      const applyMindflayerSpellMod = (caster, _target, baseDamage, spellId) => {
+        let adjustedDamage = baseDamage;
+        const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+
+        if (caster.race === 'Mindflayer' && caster.awakening && !hasCooldown) {
+          const casterAwakening = caster.awakening || {};
+          const noCooldownBonus = casterAwakening.mindflayerOwnNoCooldownSpellBonus ?? raceConstants.mindflayer.ownNoCooldownSpellBonus;
+          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + noCooldownBonus)));
+          log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(noCooldownBonus * 100)}% dégâts).`);
+        }
+
+        return adjustedDamage;
       };
 
       const applyMageTowerDamage = (

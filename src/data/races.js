@@ -24,16 +24,16 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '- +3% Auto\n- +3% Cap\n- +3 VIT\n- +12% crit\n- +15% dégâts crit',
+      description: '+3% Auto, +3% Cap, +5 VIT, +20% crit, +15% dégâts crit',
       effect: {
         statMultipliers: {
           auto: 1.03,
           cap: 1.03
         },
         statBonuses: {
-          spd: 3
+          spd: 5
         },
-        critChanceBonus: 0.12,
+        critChanceBonus: 0.20,
         critDamageBonus: 0.15
       }
     }
@@ -55,10 +55,11 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '- +15% PV max\n- -5% dégâts subis',
+      description: '+15% PV max, +5% Déf',
       effect: {
         statMultipliers: {
-          hp: 1.15
+          hp: 1.15,
+          def: 1.05
         }
       }
     }
@@ -92,7 +93,7 @@ export const races = {
     }
   },
   'Lycan': {
-    bonus: 'Attaque inflige saignement +1/tour',
+    bonus: 'Attaque inflige saignement +1 de dégât/tour',
     icon: '🐺',
     awakening: {
       levelRequired: 100,
@@ -150,15 +151,15 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'CD+1 dès le début du combat, sort ennemi avec CD: -15% dégâts, sans CD → -35% dégâts',
+    bonus: '- CD ennemie +1 dès le début du combat',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
+      description: '- CD ennemie +1 dès le début du combat\n- votre CD -1 dès le début du combat\n- si pas de CD dégâts du sort +20%',
       effect: {
-        mindflayerCooldownSpellReduction: 0.2,
-        mindflayerNoCooldownSpellReduction: 0.45,
-        mindflayerAddCooldownTurns: 1
+        mindflayerAddCooldownTurns: 1,
+        mindflayerOwnCooldownReductionTurns: 1,
+        mindflayerOwnNoCooldownSpellBonus: 0.2
       }
     }
   }
