@@ -296,6 +296,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     if (def.reflect && def.currentHP > 0) {
       const back = Math.round(def.reflect * adjusted);
       att.currentHP -= back;
+      def.reflect = false;
       log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
     }
   }

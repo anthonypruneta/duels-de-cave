@@ -635,6 +635,7 @@ const Combat = () => {
           if (defender.reflect && defender.currentHP > 0) {
             const back = Math.round(defender.reflect * adjusted);
             attacker.currentHP -= back;
+            defender.reflect = false;
             combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
           }
         }

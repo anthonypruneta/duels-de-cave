@@ -54,6 +54,7 @@ import {
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import Header from './Header';
+import { simulerMatch } from '../utils/tournamentCombat';
 
 // Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -1003,75 +1004,19 @@ const Dungeon = () => {
     const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
-    applyStartOfCombatPassives(p, b, logs, '[P1]');
-    setCombatLog(logs);
 
-    let turn = 1;
-    let bossAbilityCooldown = 0;
+    const matchResult = simulerMatch(p, b);
+    logs.push(...matchResult.combatLog);
 
-    while (p.currentHP > 0 && b.currentHP > 0 && turn <= generalConstants.maxTurns) {
-      logs.push(`--- Début du tour ${turn} ---`);
-      setCombatLog([...logs]);
-      await new Promise(r => setTimeout(r, 800));
+    const finalStep = matchResult.steps?.[matchResult.steps.length - 1];
+    const finalP1HP = finalStep?.p1HP ?? p.currentHP;
+    const finalP2HP = finalStep?.p2HP ?? b.currentHP;
+    p.currentHP = finalP1HP;
+    b.currentHP = finalP2HP;
 
-      const playerUnicorn = getUnicornPactTurnData(getPassiveDetails(p.mageTowerPassive), turn);
-      if (playerUnicorn) {
-        logs.push(`🦄 Pacte de la Licorne — ${playerUnicorn.label}`);
-      }
-
-      // Déterminer qui attaque en premier selon la vitesse + priorité d'arme
-      const playerHasPriority = p.weaponState?.isLegendary
-        && p.weaponState.weaponId === 'epee_legendaire'
-        && ((p.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-      const bossHasPriority = b.weaponState?.isLegendary
-        && b.weaponState.weaponId === 'epee_legendaire'
-        && ((b.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-
-      let playerFirst;
-      if (playerUnicorn) {
-        playerFirst = playerUnicorn.label === 'Tour A';
-      } else if (playerHasPriority && !bossHasPriority) {
-        playerFirst = true;
-      } else if (bossHasPriority && !playerHasPriority) {
-        playerFirst = false;
-      } else {
-        playerFirst = p.base.spd >= b.base.spd;
-      }
-      const first = playerFirst ? p : b;
-      const second = playerFirst ? b : p;
-      const firstIsPlayer = playerFirst;
-
-      // Action du premier combattant
-      const log1 = [];
-      setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: [] });
-      await new Promise(r => setTimeout(r, 300));
-      bossAbilityCooldown = processPlayerAction(first, second, log1, firstIsPlayer, bossAbilityCooldown, turn);
-      setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: log1 });
-      logs.push(...log1);
-      setCombatLog([...logs]);
-      setPlayer({...p});
-      setBoss({...b});
-      await new Promise(r => setTimeout(r, 2000));
-      setCurrentAction(null);
-
-      // Si le combat n'est pas fini, action du deuxième combattant
-      if (p.currentHP > 0 && b.currentHP > 0) {
-        const log2 = [];
-        setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: [] });
-        await new Promise(r => setTimeout(r, 300));
-        bossAbilityCooldown = processPlayerAction(second, first, log2, !firstIsPlayer, bossAbilityCooldown, turn);
-        setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: log2 });
-        logs.push(...log2);
-        setCombatLog([...logs]);
-        setPlayer({...p});
-        setBoss({...b});
-        await new Promise(r => setTimeout(r, 2000));
-        setCurrentAction(null);
-      }
-
-      turn++;
-    }
-
+    setPlayer({ ...p });
+    setBoss({ ...b });
+    setCombatLog([...logs]);
     // Résultat du combat
     if (p.currentHP > 0) {
       logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);
