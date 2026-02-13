@@ -3,7 +3,7 @@ import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'fire
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
-import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
+import { simulerMatch } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getEquippedWeapon } from './dungeonService';
 
@@ -392,12 +392,12 @@ async function getPreparedUserCharacter(userId) {
     const weaponResult = await getEquippedWeapon(userId);
     weaponId = weaponResult.success ? weaponResult.weapon?.id || null : null;
   }
-  return preparerCombattant(normalizeCharacterBonuses({
+  return normalizeCharacterBonuses({
     ...data,
     userId,
     level: data.level ?? 1,
     equippedWeaponId: weaponId
-  }));
+  });
 }
 
 function buildFloorEnemy(floor) {
@@ -407,7 +407,7 @@ function buildFloorEnemy(floor) {
   const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
 
-  return preparerCombattant({
+  return {
     name: floor.enemyName,
     race,
     additionalAwakeningRaces,
@@ -420,7 +420,7 @@ function buildFloorEnemy(floor) {
       level: floor.bossKit.passiveLevel || 1
     } : null,
     equippedWeaponId: floor.bossKit?.weaponId || null
-  });
+  };
 }
 
 export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId = null }) {
