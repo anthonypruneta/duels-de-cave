@@ -271,10 +271,11 @@ const getCalculatedDescription = (className, cap, auto) => {
 // CARTE PERSONNAGE TOURNOI (même style que Combat.jsx)
 // ============================================================================
 
-const TournamentCharacterCard = ({ participant, currentHP, maxHP }) => {
+const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) => {
   if (!participant) return null;
   const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 100;
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+  const shieldPercent = maxHP > 0 ? Math.min(100, (shield / maxHP) * 100) : 0;
   const weapon = participant.equippedWeaponData ||
     (participant.equippedWeaponId ? getWeaponById(participant.equippedWeaponId) : null);
   const pClass = participant.classe || participant.class;
@@ -454,6 +455,8 @@ const Tournament = () => {
   const [matchEnCours, setMatchEnCours] = useState(null);
   const [p1HP, setP1HP] = useState(0);
   const [p2HP, setP2HP] = useState(0);
+  const [p1Shield, setP1Shield] = useState(0);
+  const [p2Shield, setP2Shield] = useState(0);
   const [p1MaxHP, setP1MaxHP] = useState(0);
   const [p2MaxHP, setP2MaxHP] = useState(0);
   const [winner, setWinner] = useState(null);
@@ -688,6 +691,8 @@ const Tournament = () => {
     setP2MaxHP(logData.p2MaxHP || 0);
     setP1HP(logData.p1MaxHP || 0);
     setP2HP(logData.p2MaxHP || 0);
+    setP1Shield(0);
+    setP2Shield(0);
 
     // Annonce de début
     setAnnonceActuelle(logData.annonceDebut);
@@ -717,6 +722,8 @@ const Tournament = () => {
           }
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
+          setP1Shield(step.p1Shield || 0);
+          setP2Shield(step.p2Shield || 0);
           await delay(500);
         } else if (step.phase === 'turn_start') {
           for (const line of step.logs) {
@@ -1037,6 +1044,7 @@ const Tournament = () => {
             participant={p1Data}
             currentHP={p1HP}
             maxHP={p1MaxHP}
+            shield={p1Shield}
           />
         </div>
 
@@ -1131,6 +1139,7 @@ const Tournament = () => {
             participant={p2Data}
             currentHP={p2HP}
             maxHP={p2MaxHP}
+            shield={p2Shield}
           />
         </div>
       </div>

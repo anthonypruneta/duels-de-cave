@@ -61,7 +61,7 @@ const generateCharacter = (name, level = 1) => {
     name, race, class: charClass, base, level,
     bonuses: { race: rB, class: cB },
     currentHP: base.hp, maxHP: base.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
     undead: false, dodge: false, reflect: false,
     bleed_stacks: 0, bleedPercentPerStack: 0,
     maso_taken: 0, familiarStacks: 0,

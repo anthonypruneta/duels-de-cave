@@ -202,7 +202,7 @@ const getCalculatedDescription = (className, cap, auto) => {
   }
 };
 
-const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
+const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOverride = 0, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
   if (!character) return null;
 
   const raceB = character.bonuses?.race || {};
@@ -230,6 +230,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
   const maxHP = maxHPOverride ?? character.maxHP ?? baseStats.hp;
   const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 0;
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+  const shieldPercent = maxHP > 0 ? Math.min(100, (shieldOverride / maxHP) * 100) : 0;
 
   const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
   const baseWithoutBonus = (k) => (baseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
@@ -286,6 +287,11 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
             <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
               <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
             </div>
+            {shieldOverride > 0 && (
+              <div className="mt-1 mb-3 bg-stone-900 h-2 overflow-hidden border border-blue-700">
+                <div className="h-full transition-all duration-500 bg-blue-500" style={{ width: `${shieldPercent}%` }} />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
               <StatWithTooltip statKey="auto" label="Auto" />
@@ -369,6 +375,8 @@ const InfiniteLabyrinth = () => {
   const [replayP2HP, setReplayP2HP] = useState(0);
   const [replayP1MaxHP, setReplayP1MaxHP] = useState(0);
   const [replayP2MaxHP, setReplayP2MaxHP] = useState(0);
+  const [replayP1Shield, setReplayP1Shield] = useState(0);
+  const [replayP2Shield, setReplayP2Shield] = useState(0);
 
   const replayTimeoutRef = useRef(null);
   const replayTokenRef = useRef(null);
@@ -560,6 +568,8 @@ const InfiniteLabyrinth = () => {
 
         setReplayP1HP(step.p1HP ?? 0);
         setReplayP2HP(step.p2HP ?? 0);
+        setReplayP1Shield(step.p1Shield ?? 0);
+        setReplayP2Shield(step.p2Shield ?? 0);
 
         if (step.phase === 'turnStart') await delayReplay(800);
         else if (step.phase === 'action') await delayReplay(2000);
@@ -727,7 +737,7 @@ const InfiniteLabyrinth = () => {
 
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCard character={playerCharacter} currentHPOverride={replayP1HP || playerCharacter?.base?.hp} maxHPOverride={replayP1MaxHP || playerCharacter?.base?.hp} />
+            <CharacterCard character={playerCharacter} currentHPOverride={replayP1HP || playerCharacter?.base?.hp} maxHPOverride={replayP1MaxHP || playerCharacter?.base?.hp} shieldOverride={replayP1Shield} />
           </div>
 
           <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -784,6 +794,7 @@ const InfiniteLabyrinth = () => {
               character={enemyCharacter}
               currentHPOverride={replayP2HP || enemyCharacter?.base?.hp}
               maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
+              shieldOverride={replayP2Shield}
               headerLabel={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
               showRaceDetails={false}
               showClassDetails={Boolean(shownEnemyFloor?.bossKit?.spellClass)}
