@@ -81,7 +81,7 @@ export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap
 export const calcCritChance = (attacker) => {
   let c = generalConstants.baseCritChance;
   if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
-  if (attacker.race === 'Elfe') c += raceConstants.elfe.critBonus;
+  if (attacker.race === 'Elfe' && !attacker?.awakening) c += raceConstants.elfe.critBonus;
   if (attacker?.awakening?.critChanceBonus) c += attacker.awakening.critChanceBonus;
   return c;
 };
