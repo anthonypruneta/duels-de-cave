@@ -975,6 +975,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           >
             {simulationLoading ? '⏳ Préparation...' : '🎲 Lancer une simulation en direct'}
           </button>
+
+          <button
+            onClick={() => navigate('/admin/balance')}
+            className="w-full mt-3 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold transition"
+          >
+            ⚖️ Ouvrir la page d'équilibrage (admin)
+          </button>
         </div>
 
         {/* Canvas caché pour le traitement */}

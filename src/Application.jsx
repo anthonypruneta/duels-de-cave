@@ -16,6 +16,7 @@ import InfiniteLabyrinth from './components/InfiniteLabyrinth';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
+import AdminBalance from './components/AdminBalance';
 
 function Application() {
   return (
@@ -122,7 +123,19 @@ function Application() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <Admin />
+                <AdminOnlyRoute>
+                  <Admin />
+                </AdminOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/balance"
+            element={
+              <ProtectedRoute>
+                <AdminOnlyRoute>
+                  <AdminBalance />
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
