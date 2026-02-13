@@ -796,7 +796,7 @@ const InfiniteLabyrinth = () => {
               maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
               shieldOverride={replayP2Shield}
               headerLabel={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
-              showRaceDetails={false}
+              showRaceDetails={shownEnemyFloor?.type === 'boss'}
               showClassDetails={Boolean(shownEnemyFloor?.bossKit?.spellClass)}
             />
           </div>
