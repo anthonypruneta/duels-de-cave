@@ -29,6 +29,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
 
       - name: Deploy to Firebase Hosting Preview Channel
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DUELSDECAVE != '' }}
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

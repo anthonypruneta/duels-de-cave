@@ -6,7 +6,8 @@ import {
   getPlayerDungeonSummary,
   startDungeonRun,
   endDungeonRun,
-  handleLootChoice
+  handleLootChoice,
+  markDungeonCompleted
 } from '../services/dungeonService';
 import {
   getAllDungeonLevels,
@@ -183,6 +184,7 @@ const Dungeon = () => {
   const [lootWeapon, setLootWeapon] = useState(null);
   const [error, setError] = useState(null);
   const [autoEquipDone, setAutoEquipDone] = useState(false);
+  const [instantMessage, setInstantMessage] = useState(null);
 
   // États de combat (même pattern que Combat.jsx)
   const [player, setPlayer] = useState(null);
@@ -192,8 +194,8 @@ const Dungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(true);
-  const [volume, setVolume] = useState(0.35);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
   const ensureDungeonMusic = () => {
@@ -253,7 +255,7 @@ const Dungeon = () => {
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
     if (isMuted && volume === 0) {
-      setVolume(0.35);
+      setVolume(0.05);
     }
   };
 
@@ -483,6 +485,7 @@ const Dungeon = () => {
       shield: 0,
       spectralMarked: false,
       spectralMarkBonus: 0,
+      firstSpellCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -503,6 +506,7 @@ const Dungeon = () => {
     p.shield = 0;
     p.spectralMarked = false;
     p.spectralMarkBonus = 0;
+    p.firstSpellCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -573,9 +577,15 @@ const Dungeon = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
+    const consumeAuraSpellCapMultiplier = () => {
+      if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
+      if (att.firstSpellCapBoostUsed) return 1;
+      att.firstSpellCapBoostUsed = true;
+      return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
+    };
     let skillUsed = false;
 
-    const applyMageTowerDamage = (raw, isCrit) => {
+    const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
@@ -610,27 +620,27 @@ const Dungeon = () => {
         log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
       }
 
-      if (def.reflect && adjusted > 0) {
-        const back = Math.round(def.reflect * adjusted);
-        att.currentHP -= back;
-        log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      }
-
       if (adjusted > 0) {
         def.currentHP -= adjusted;
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
         }
+
+        if (def.reflect && def.currentHP > 0) {
+          const back = Math.round(def.reflect * adjusted);
+          att.currentHP -= back;
+          log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+        }
       }
 
-      if (isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
+      if (applyOnHitPassives && isPlayer && playerPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
         def.spectralMarked = true;
         def.spectralMarkBonus = playerPassive.levelData.damageTakenBonus;
         log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
       }
 
-      if (isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
+      if (applyOnHitPassives && isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
         const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
@@ -690,6 +700,11 @@ const Dungeon = () => {
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         const inflicted = applyMageTowerDamage(dmg, false);
+        const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
+        if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
+          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false, false);
+          log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
+        }
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);
@@ -725,9 +740,16 @@ const Dungeon = () => {
       if (isPlayer) skillUsed = true;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap));
+      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+      const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+      if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
+        log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
+        log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+      }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
@@ -803,12 +825,14 @@ const Dungeon = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * att.base.cap) * att.base.cap * attackMultiplier);
+        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const scaledCap = att.base.cap * spellCapMultiplier;
+        const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
           if (spellEffects.doubleCast) {
-            applyMageTowerDamage(spellEffects.secondCastDamage, false);
+            applyMageTowerDamage(spellEffects.secondCastDamage, false, false);
             log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
           }
         } else if (isWar) {
@@ -906,6 +930,7 @@ const Dungeon = () => {
   // Démarrer une run
   const handleStartRun = async () => {
     setError(null);
+    setInstantMessage(null);
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -933,6 +958,29 @@ const Dungeon = () => {
     setPlayer(playerReady);
     setBoss(bossReady);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+  };
+
+  const handleInstantFinishRun = async () => {
+    setError(null);
+    setInstantMessage(null);
+
+    const startResult = await startDungeonRun(currentUser.uid);
+    if (!startResult.success) {
+      setError(startResult.error);
+      return;
+    }
+
+    const endResult = await endDungeonRun(currentUser.uid, DUNGEON_CONSTANTS.TOTAL_LEVELS);
+    if (!endResult.success || !endResult.lootWeapon) {
+      setError(endResult.error || 'Impossible de terminer instantanément cette run.');
+      return;
+    }
+
+    await markDungeonCompleted(currentUser.uid, 'cave');
+
+    setLootWeapon(endResult.lootWeapon);
+    setAutoEquipDone(false);
+    setGameState('loot');
   };
 
   // Lancer le combat (timing identique à Combat.jsx)
@@ -1049,6 +1097,9 @@ const Dungeon = () => {
         stopDungeonMusic();
         await new Promise(r => setTimeout(r, 1500));
         const result = await endDungeonRun(currentUser.uid, newHighest);
+        if (result.success) {
+          await markDungeonCompleted(currentUser.uid, 'cave');
+        }
         if (result.success && result.lootWeapon) {
           setLootWeapon(result.lootWeapon);
           setGameState('loot');
@@ -1432,6 +1483,7 @@ const Dungeon = () => {
   // ============================================================================
   if (gameState === 'loot' && lootWeapon) {
     const hasCurrentWeapon = dungeonSummary?.equippedWeaponData;
+    const getOpaqueRarityBg = (rarity) => (RARITY_BG_COLORS[rarity] || '').replace('/50', '');
 
     return (
       <div className="min-h-screen p-6">
@@ -1454,7 +1506,7 @@ const Dungeon = () => {
           </div>
 
           {/* Arme droppée */}
-          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${RARITY_BG_COLORS[lootWeapon.rarete]} mb-6`}>
+          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${getOpaqueRarityBg(lootWeapon.rarete)} mb-6`}>
             <div className="text-center">
               {getWeaponImage(lootWeapon.imageFile) ? (
                 <img src={getWeaponImage(lootWeapon.imageFile)} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
@@ -1468,7 +1520,7 @@ const Dungeon = () => {
               <div className="mt-4 flex justify-center gap-4 flex-wrap">
                 {Object.entries(lootWeapon.stats).map(([stat, value]) => (
                   <div key={stat} className="bg-stone-800 px-3 py-1 border border-stone-600">
-                    <span className="text-gray-400 text-sm">{stat.toUpperCase()}</span>
+                    <span className="text-gray-400 text-sm">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
                     <span className={`ml-2 font-bold ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {value > 0 ? '+' : ''}{value}
                     </span>
@@ -1488,7 +1540,7 @@ const Dungeon = () => {
           {hasCurrentWeapon && (
             <div className="mb-6">
               <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
-              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${RARITY_BG_COLORS[hasCurrentWeapon.rarete]}`}>
+              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${getOpaqueRarityBg(hasCurrentWeapon.rarete)}`}>
                 <div className="flex items-center gap-3">
                   {getWeaponImage(hasCurrentWeapon.imageFile) ? (
                     <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
@@ -1500,7 +1552,7 @@ const Dungeon = () => {
                     <div className="flex gap-2">
                       {Object.entries(hasCurrentWeapon.stats).map(([stat, value]) => (
                         <span key={stat} className="text-xs text-gray-400">
-                          {stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
+                          {STAT_LABELS[stat] || stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
                         </span>
                       ))}
                     </div>
@@ -1781,7 +1833,7 @@ const Dungeon = () => {
             <p className="text-white text-2xl">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-sm">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_DAY} par jour (reset à midi)</p>
+            <p className="text-stone-400 text-sm">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400 text-sm">Meilleur run</p>
@@ -1833,6 +1885,12 @@ const Dungeon = () => {
           </div>
         </div>
 
+        {instantMessage && (
+          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+            <p className="text-emerald-300">{instantMessage}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
@@ -1854,6 +1912,19 @@ const Dungeon = () => {
           >
             {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la grotte' : 'Plus de runs'}
           </button>
+          {(dungeonSummary?.bestRun || 0) >= DUNGEON_CONSTANTS.TOTAL_LEVELS && (
+            <button
+              onClick={handleInstantFinishRun}
+              disabled={!dungeonSummary?.runsRemaining}
+              className={`px-8 py-4 font-bold border ${
+                dungeonSummary?.runsRemaining > 0
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
+              }`}
+            >
+              ⚡ Terminer instantanément
+            </button>
+          )}
         </div>
 
         <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">
