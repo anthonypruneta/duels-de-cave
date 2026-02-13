@@ -100,10 +100,6 @@ export const races = {
       description: 'Chaque auto: +1 stack de saignement (0.7% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        statMultipliers: {
-          spd: 1.03,
-          auto: 1.02
-        },
         bleedPercentPerStack: 0.007
       }
     }

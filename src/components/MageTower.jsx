@@ -800,7 +800,7 @@ const MageTower = () => {
     }
 
     let mult = 1.0;
-    if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
       mult = raceConstants.orc.damageBonus;
     }
 
