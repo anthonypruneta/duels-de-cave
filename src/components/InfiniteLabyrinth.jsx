@@ -252,91 +252,90 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
   const characterImage = character.characterImage || character.imagePath || null;
 
   return (
-    <div className="w-full">
-      <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl">
-        <div className="bg-stone-900/90 text-stone-200 p-3 border-b border-stone-700">
-          <div className="font-bold">{headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race} • ${character.class}` : 'Créature du labyrinthe')}</div>
-          <div className="text-stone-300">• Niveau {character.level ?? 1}</div>
+    <div className="w-full max-w-[340px] mx-auto">
+      <div className="relative shadow-2xl">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+          {headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race} • ${character.class}` : 'Créature du labyrinthe')} • Niveau {character.level ?? 1}
         </div>
 
-        <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-          {characterImage ? (
-            <img src={characterImage} alt={character.name} className="w-full h-[420px] object-contain" />
-          ) : (
-            <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
-          )}
-          <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-            <div className="text-white font-bold text-3xl text-center">{character.name}</div>
+        <div className="overflow-visible border border-stone-600 bg-stone-900">
+          <div className="relative bg-stone-900 flex items-center justify-center">
+            {characterImage ? (
+              <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
+            ) : (
+              <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
+            )}
+            <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
+              <div className="text-white font-bold text-[42px] leading-none text-center">{character.name}</div>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-stone-800 p-4 border-t border-stone-600">
-          <div className="mb-3">
-            <div className="flex justify-between text-sm text-white mb-2">
+          <div className="bg-stone-800 p-3 border-t border-stone-600">
+            <div className="flex justify-between text-xs text-white mb-2 font-bold">
               <StatWithTooltip statKey="hp" label="HP" />
               <StatWithTooltip statKey="spd" label="VIT" />
             </div>
             <div className="text-xs text-stone-400 mb-2">{character.name} — PV {Math.max(0, currentHP)}/{maxHP}</div>
-            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
+            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
               <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-            <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
-          </div>
+            <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
+              <StatWithTooltip statKey="auto" label="Auto" />
+              <StatWithTooltip statKey="def" label="Déf" />
+              <StatWithTooltip statKey="cap" label="Cap" />
+              <StatWithTooltip statKey="rescap" label="ResC" />
+            </div>
 
-          <div className="space-y-2">
-            {weapon && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <Tooltip content={getWeaponTooltipContent(weapon)}>
-                  <span className="flex items-center gap-2">
-                    {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
-                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
-                  </span>
-                </Tooltip>
-              </div>
-            )}
-
-            {passiveDetails && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{passiveDetails.icon}</span>
-                <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
-                  <div className="text-stone-400 text-[10px]">{passiveDetails.levelData.description}</div>
+            <div className="space-y-2">
+              {weapon && (
+                <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <Tooltip content={getWeaponTooltipContent(weapon)}>
+                    <span className="flex items-center gap-2">
+                      {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    </span>
+                  </Tooltip>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeAwakenings.map(({ raceName, info }) => (
-              <div key={`awakening-${raceName}`} className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">✨</span>
-                <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">Éveil racial actif ({raceName}) (Niv {info.levelRequired}+)</div>
-                  <div className="text-stone-400 text-[10px]">{info.description}</div>
+              {passiveDetails && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{passiveDetails.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
+                    <div className="text-stone-400 text-[11px]">{passiveDetails.levelData.description}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {showRaceDetails && races[character.race] && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{races[character.race].icon}</span>
-                <span className="text-stone-300">{races[character.race].bonus}</span>
-              </div>
-            )}
-
-            {showClassDetails && classes[character.class] && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{classes[character.class].icon}</span>
-                <div className="flex-1">
-                  <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+              {activeAwakenings.map(({ raceName, info }) => (
+                <div key={`awakening-${raceName}`} className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">✨</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">Éveil racial actif ({raceName}) (Niv {info.levelRequired}+)</div>
+                    <div className="text-stone-400 text-[11px]">{info.description}</div>
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
+
+              {showRaceDetails && races[character.race] && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{races[character.race].icon}</span>
+                  <span className="text-stone-300">{races[character.race].bonus}</span>
+                </div>
+              )}
+
+              {showClassDetails && classes[character.class] && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{classes[character.class].icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
+                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
