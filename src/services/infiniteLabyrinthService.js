@@ -424,56 +424,61 @@ function buildFloorEnemy(floor) {
 }
 
 export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId = null }) {
-  const resolvedWeekId = weekId || getCurrentWeekId();
-  const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
-  if (!labyrinthResult.success) {
-    return { success: false, error: labyrinthResult.error || 'Labyrinthe indisponible.' };
-  }
-  const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
-  if (!progressResult.success) {
-    return { success: false, error: progressResult.error || 'Progression indisponible.' };
-  }
-  const char = await getPreparedUserCharacter(userId);
-
-  if (!char) {
-    return { success: false, error: 'Personnage introuvable pour ce joueur.' };
-  }
-
-  const selectedFloor = floorNumber || progressResult.data.currentFloor || 1;
-  const floor = labyrinthResult.data.floors.find((f) => f.floorNumber === Number(selectedFloor));
-  if (!floor) return { success: false, error: 'Étage invalide.' };
-
-  const enemy = buildFloorEnemy(floor);
-  const result = simulerMatch(char, enemy);
-  const didWin = result.winnerId === (char.userId || userId);
-
-  const updatedProgress = { ...progressResult.data };
-  let rewardGranted = false;
-
-  if (didWin) {
-    updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
-    updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
-    if (floor.type === 'boss') {
-      updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
-      await grantDungeonRunsForLabyrinthBoss(userId, 5);
-      rewardGranted = true;
+  try {
+    const resolvedWeekId = weekId || getCurrentWeekId();
+    const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
+    if (!labyrinthResult.success) {
+      return { success: false, error: labyrinthResult.error || 'Labyrinthe indisponible.' };
     }
-  } else {
-    updatedProgress.currentFloor = floor.floorNumber;
+    const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
+    if (!progressResult.success) {
+      return { success: false, error: progressResult.error || 'Progression indisponible.' };
+    }
+    const char = await getPreparedUserCharacter(userId);
+
+    if (!char) {
+      return { success: false, error: 'Personnage introuvable pour ce joueur.' };
+    }
+
+    const selectedFloor = floorNumber || progressResult.data.currentFloor || 1;
+    const floor = labyrinthResult.data.floors.find((f) => f.floorNumber === Number(selectedFloor));
+    if (!floor) return { success: false, error: 'Étage invalide.' };
+    if (!floor.stats) return { success: false, error: "Stats d'étage manquantes." };
+
+    const enemy = buildFloorEnemy(floor);
+    const result = simulerMatch(char, enemy);
+    const didWin = result.winnerId === (char.userId || userId);
+
+    const updatedProgress = { ...progressResult.data };
+    let rewardGranted = false;
+
+    if (didWin) {
+      updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
+      updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
+      if (floor.type === 'boss') {
+        updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
+        await grantDungeonRunsForLabyrinthBoss(userId, 5);
+        rewardGranted = true;
+      }
+    } else {
+      updatedProgress.currentFloor = floor.floorNumber;
+    }
+
+    await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), {
+      ...updatedProgress,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    return {
+      success: true,
+      weekId: resolvedWeekId,
+      floor,
+      result,
+      didWin,
+      progress: updatedProgress,
+      rewardGranted
+    };
+  } catch (error) {
+    return { success: false, error: error?.message || 'Erreur combat labyrinthe.' };
   }
-
-  await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), {
-    ...updatedProgress,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-
-  return {
-    success: true,
-    weekId: resolvedWeekId,
-    floor,
-    result,
-    didWin,
-    progress: updatedProgress,
-    rewardGranted
-  };
 }
