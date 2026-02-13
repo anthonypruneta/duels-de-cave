@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo } from '../services/characterService';
 import { clearEquippedWeapon, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import Header from './Header';
@@ -125,6 +125,10 @@ const formatAwakeningDetails = (awakening) => {
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
+  const [ownerPseudo, setOwnerPseudo] = useState('');
+  const [showPseudoModal, setShowPseudoModal] = useState(false);
+  const [pseudoSaving, setPseudoSaving] = useState(false);
+  const [pseudoError, setPseudoError] = useState('');
   const [equippedWeapon, setEquippedWeapon] = useState(null);
   const [canCreate, setCanCreate] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
@@ -385,6 +389,40 @@ const CharacterCreation = () => {
     }
   };
 
+
+  const pseudoStorageKey = currentUser ? `ownerPseudo:${currentUser.uid}` : null;
+
+  const normalizePseudo = (value) => value.trim().slice(0, 24);
+
+  const handleSavePseudo = async () => {
+    const normalized = normalizePseudo(ownerPseudo);
+    if (normalized.length < 3) {
+      setPseudoError('Pseudo requis (3-24 caractères).');
+      return;
+    }
+
+    setPseudoSaving(true);
+    setPseudoError('');
+    try {
+      if (existingCharacter) {
+        const result = await updateCharacterOwnerPseudo(currentUser.uid, normalized);
+        if (!result.success) {
+          setPseudoError(result.error || 'Erreur sauvegarde pseudo');
+          return;
+        }
+        setExistingCharacter(prev => prev ? { ...prev, ownerPseudo: normalized } : prev);
+      }
+
+      if (pseudoStorageKey) {
+        localStorage.setItem(pseudoStorageKey, normalized);
+      }
+      setOwnerPseudo(normalized);
+      setShowPseudoModal(false);
+    } finally {
+      setPseudoSaving(false);
+    }
+  };
+
   // Charger le personnage existant au montage
   useEffect(() => {
     const loadCharacter = async () => {
@@ -403,6 +441,10 @@ const CharacterCreation = () => {
           ...normalized,
           level
         });
+        const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
+        const pseudoValue = normalized.ownerPseudo || storedPseudo;
+        setOwnerPseudo(pseudoValue);
+        setShowPseudoModal(!normalized.ownerPseudo);
         const weaponId = normalized.equippedWeaponId || null;
         const weaponData = weaponId ? getWeaponById(weaponId) : null;
         setEquippedWeapon(weaponData);
@@ -411,6 +453,9 @@ const CharacterCreation = () => {
         // Vérifier si l'utilisateur peut créer un personnage
         const canCreateResult = await canCreateCharacter(currentUser.uid);
         setCanCreate(canCreateResult.canCreate);
+        const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
+        setOwnerPseudo(storedPseudo);
+        setShowPseudoModal(!storedPseudo);
         if (!canCreateResult.canCreate && canCreateResult.daysRemaining) {
           setDaysRemaining(canCreateResult.daysRemaining);
         }
@@ -624,7 +669,8 @@ const CharacterCreation = () => {
       forestBoosts: getEmptyStatBoosts(),
       level: 1,
       equippedWeaponId: null,
-      mageTowerPassive: null
+      mageTowerPassive: null,
+      ownerPseudo: normalizePseudo(ownerPseudo) || null
     };
   };
 
@@ -640,6 +686,10 @@ const CharacterCreation = () => {
   const handleSubmit = async () => {
     if (!validateForm()) return;
     if (!canCreate) return;
+    if (!normalizePseudo(ownerPseudo)) {
+      setShowPseudoModal(true);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -652,6 +702,7 @@ const CharacterCreation = () => {
         // Supprimer le pending roll
         await deletePendingRoll(currentUser.uid);
         await clearEquippedWeapon(currentUser.uid);
+        if (pseudoStorageKey) localStorage.setItem(pseudoStorageKey, normalizePseudo(ownerPseudo));
         setExistingCharacter(newChar);
         setEquippedWeapon(null);
         setCanCreate(false);
@@ -670,11 +721,43 @@ const CharacterCreation = () => {
     if (errors[field]) setErrors(prev => ({...prev, [field]: ''}));
   };
 
+
+  const PseudoModal = showPseudoModal ? (
+    <div className="fixed inset-0 z-[70] bg-black/75 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-stone-900 border border-amber-500 p-5 shadow-2xl">
+        <h3 className="text-xl font-bold text-amber-300 mb-2">Ton pseudo public</h3>
+        <p className="text-stone-300 text-sm mb-4">
+          Renseigne un pseudo pour identifier le propriétaire du personnage dans le Hall of Fame.
+        </p>
+        <input
+          type="text"
+          value={ownerPseudo}
+          onChange={(e) => {
+            setOwnerPseudo(e.target.value);
+            if (pseudoError) setPseudoError('');
+          }}
+          placeholder="Ex: CrocMaster"
+          className="w-full px-3 py-2 bg-stone-800 border border-stone-600 text-white focus:border-amber-400 outline-none"
+          maxLength={24}
+        />
+        {pseudoError && <div className="text-red-400 text-xs mt-2">{pseudoError}</div>}
+        <button
+          onClick={handleSavePseudo}
+          disabled={pseudoSaving}
+          className="mt-4 w-full bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white font-bold py-2"
+        >
+          {pseudoSaving ? '⏳ Sauvegarde...' : 'Valider le pseudo'}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   // Chargement
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        {PseudoModal}
         <div className="text-amber-400 text-2xl">Chargement...</div>
       </div>
     );
@@ -732,6 +815,7 @@ const CharacterCreation = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        {PseudoModal}
         <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
@@ -838,6 +922,7 @@ const CharacterCreation = () => {
               </div>
 
             <div className="mt-4 space-y-2 text-sm">
+              {!isAwakeningActive && (
               <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
                 <span className="text-2xl">{races[existingCharacter.race].icon}</span>
                 <div>
@@ -845,6 +930,7 @@ const CharacterCreation = () => {
                   <div className="text-stone-400 text-xs">{races[existingCharacter.race].bonus}</div>
                 </div>
               </div>
+              )}
               <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
                 <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
                 <div>
@@ -1116,6 +1202,7 @@ const CharacterCreation = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <Header />
+      {PseudoModal}
       <div className="max-w-4xl w-full pt-20">
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">

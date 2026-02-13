@@ -425,6 +425,24 @@ export const toggleCharacterDisabled = async (userId, disabled) => {
   }
 };
 
+
+// Mettre à jour le pseudo propriétaire du personnage
+export const updateCharacterOwnerPseudo = async (userId, ownerPseudo) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        ownerPseudo: ownerPseudo || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du pseudo propriétaire:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour le niveau du personnage
 export const updateCharacterLevel = async (userId, level) => {
   try {

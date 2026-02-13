@@ -81,7 +81,8 @@ export async function creerTournoi(docId = 'current') {
         mageTowerPassive: p.mageTowerPassive || null,
         forestBoosts: p.forestBoosts || null,
         name: p.name,
-        class: p.class
+        class: p.class,
+        ownerPseudo: p.ownerPseudo || null
       };
     }
 
@@ -95,6 +96,7 @@ export async function creerTournoi(docId = 'current') {
         race: p.race,
         classe: p.class,
         characterImage: p.characterImage || null,
+        ownerPseudo: p.ownerPseudo || null,
       })),
       matches,
       matchOrder,
@@ -233,7 +235,9 @@ export async function lancerTournoi(docId = 'current') {
       matchActuel: firstIndex,
     });
 
-    await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+    if (docId === 'current') {
+      await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+    }
 
     return { success: true };
   } catch (error) {
@@ -293,7 +297,8 @@ export async function avancerMatch(docId = 'current') {
         nom: championData.nom,
         race: championData.race,
         classe: championData.classe,
-        characterImage: championData.characterImage
+        characterImage: championData.characterImage,
+        ownerPseudo: championData.ownerPseudo || null
       } : null;
 
       await updateDoc(doc(db, 'tournaments', docId), {
@@ -339,7 +344,8 @@ export async function avancerMatch(docId = 'current') {
             nom: championData.nom,
             race: championData.race,
             classe: championData.classe,
-            characterImage: championData.characterImage
+            characterImage: championData.characterImage,
+            ownerPseudo: championData.ownerPseudo || null
           };
           updateData.annonceChampion = annonceChampion(championData.nom);
         }
@@ -530,7 +536,8 @@ export async function simulerTournoiTest() {
         mageTowerPassive: p.mageTowerPassive || null,
         forestBoosts: p.forestBoosts || null,
         name: p.name,
-        class: p.class
+        class: p.class,
+        ownerPseudo: p.ownerPseudo || null
       };
     }
 
@@ -581,7 +588,7 @@ export async function simulerTournoiTest() {
 
     return {
       success: true,
-      champion: championData ? { nom: championData.nom, race: championData.race, classe: championData.classe, characterImage: championData.characterImage } : null,
+      champion: championData ? { nom: championData.nom, race: championData.race, classe: championData.classe, characterImage: championData.characterImage, ownerPseudo: championData.ownerPseudo || null } : null,
       nbParticipants: participants.length,
       nbMatchs: resultatsMatchs.length,
       resultatsMatchs,

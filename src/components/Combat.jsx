@@ -20,6 +20,7 @@ import {
   onAttack,
   onHeal,
   onSpellCast,
+  rollHealCrit,
   onTurnStart
 } from '../utils/weaponEffects';
 import {
@@ -447,7 +448,7 @@ const Combat = () => {
   // Fonctions utilitaires importées depuis combatMechanics.js
 
   const reviveUndead = (target, attacker, log, playerColor) => {
-    const revivePercent = target.awakening?.revivePercent ?? raceConstants.mortVivant.revivePercent;
+    const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
     const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
     const explosionPercent = target.awakening?.explosionPercent ?? 0;
     if (attacker && explosionPercent > 0) {
@@ -603,7 +604,7 @@ const Combat = () => {
       }
 
       if (att.race === 'Sylvari') {
-        const regenPercent = att.awakening?.regenPercent ?? raceConstants.sylvari.regenPercent;
+        const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
         const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
@@ -668,9 +669,11 @@ const Combat = () => {
         const miss = att.maxHP - att.currentHP;
         const { missingHpPercent, capScale } = classConstants.healer;
         const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-        const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+        const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+        const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
+        const heal = healCritResult.amount;
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
         const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
         if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
           att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
@@ -697,7 +700,7 @@ const Combat = () => {
       skillUsed = skillUsed || isMage || isWar || isArcher;
 
       let mult = 1.0;
-      if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+      if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
         mult = raceConstants.orc.damageBonus;
       }
       if (turnEffects.damageMultiplier !== 1) {
@@ -754,8 +757,10 @@ const Combat = () => {
         } else {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
           if (att.race === 'Lycan') {
-            const bleedStacks = att.awakening?.bleedStacksPerHit ?? raceConstants.lycan.bleedPerHit;
-            def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+            const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
+            if (bleedStacks > 0) {
+              def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+            }
             if (att.awakening?.bleedPercentPerStack) {
               def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
             }
@@ -1265,10 +1270,12 @@ const Combat = () => {
                   </div>
                 </div>
               )}
+              {!isAwakeningActive && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
                 <span className="text-stone-300">{races[character.race].bonus}</span>
               </div>
+              )}
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
