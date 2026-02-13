@@ -93,6 +93,19 @@ const getWeaponTooltipContent = (weapon) => {
   );
 };
 
+
+const splitDescriptionLines = (text) => {
+  if (!text) return [];
+  return text
+    .split('\n')
+    .flatMap((chunk) => chunk.split(' - '))
+    .flatMap((chunk) => chunk.split(', '))
+    .flatMap((chunk) => chunk.split(' & '))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.startsWith('-') ? line.replace(/^-\s*/, '') : line);
+};
+
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
@@ -161,12 +174,32 @@ const CharacterCreation = () => {
             <h3 className="text-xl text-amber-300 font-bold mb-3">🎭 Races & Awakening</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {Object.entries(races).map(([name, info]) => {
+                const bonusLines = splitDescriptionLines(info.bonus);
+                const awakeningLines = splitDescriptionLines(info.awakening?.description);
+
                 return (
                   <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-stone-300 text-xs mb-2">Bonus: {info.bonus}</div>
-                    <div className="text-emerald-300 text-xs font-semibold">Awakening (Niv {info.awakening?.levelRequired})</div>
-                    <div className="text-emerald-200 text-xs mb-1 whitespace-pre-line">{info.awakening?.description}</div>
+                    <div className="font-bold text-white mb-2">{info.icon} {name}</div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-stone-300 text-xs font-semibold mb-1">Bonus racial</div>
+                        <div className="text-stone-300 text-xs space-y-0.5">
+                          {bonusLines.map((line, idx) => (
+                            <div key={`${name}-bonus-${idx}`}>- {line}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-emerald-300 text-xs font-semibold mb-1">Awakening (Niv {info.awakening?.levelRequired})</div>
+                        <div className="text-emerald-200 text-xs space-y-0.5">
+                          {awakeningLines.map((line, idx) => (
+                            <div key={`${name}-awak-${idx}`}>- {line}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
