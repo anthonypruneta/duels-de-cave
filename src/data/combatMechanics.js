@@ -81,7 +81,7 @@ export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap
 export const calcCritChance = (attacker) => {
   let c = generalConstants.baseCritChance;
   if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
-  if (attacker.race === 'Elfe') c += raceConstants.elfe.critBonus;
+  if (attacker.race === 'Elfe' && !attacker?.awakening) c += raceConstants.elfe.critBonus;
   if (attacker?.awakening?.critChanceBonus) c += attacker.awakening.critChanceBonus;
   return c;
 };
@@ -142,6 +142,7 @@ export const weaponConstants = {
   yggdrasil: {
     healDamagePercent: 0.5,    // 50% des soins en dégâts bonus (le soin reste)
     regenPercent: 0.03,        // 3% HP max par tour (si pas de heal)
+    healCritMultiplier: 1.5,   // Critiques de soin (Yggdrasil)
   },
 
   // Égide d'Athéna (Bouclier légendaire)

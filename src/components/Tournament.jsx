@@ -575,33 +575,39 @@ const Tournament = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-création à 18h (admin) — pas en simulation
+  // Auto-création à 18h — pas en simulation
   useEffect(() => {
     if (isSimulation) return;
-    if (!isAdmin || autoCreatedRef.current || tournoi || loading) return;
+    if (autoCreatedRef.current || tournoi || loading) return;
     if (phase === 'annonce' || phase === 'combat') {
       autoCreatedRef.current = true;
       (async () => {
         setActionLoading(true);
-        await creerTournoi(docId);
-        setActionLoading(false);
+        try {
+          await creerTournoi(docId);
+        } finally {
+          setActionLoading(false);
+        }
       })();
     }
-  }, [phase, isAdmin, tournoi, loading]);
+  }, [phase, tournoi, loading, isSimulation, docId]);
 
-  // Auto-lancement à 19h (admin) — pas en simulation
+  // Auto-lancement à 19h — pas en simulation
   useEffect(() => {
     if (isSimulation) return;
-    if (!isAdmin || autoLaunchedRef.current || !tournoi || loading) return;
+    if (autoLaunchedRef.current || !tournoi || loading) return;
     if (phase === 'combat' && tournoi.statut === 'preparation') {
       autoLaunchedRef.current = true;
       (async () => {
         setActionLoading(true);
-        await lancerTournoi(docId);
-        setActionLoading(false);
+        try {
+          await lancerTournoi(docId);
+        } finally {
+          setActionLoading(false);
+        }
       })();
     }
-  }, [phase, isAdmin, tournoi, loading]);
+  }, [phase, tournoi, loading, isSimulation, docId]);
 
   // Auto-scroll du combat log (scroll le conteneur uniquement, pas la page)
   useEffect(() => {
@@ -1242,7 +1248,7 @@ const Tournament = () => {
           {isAdmin && (
             <div className="text-center bg-stone-900 border border-red-600 p-6 rounded-xl">
               <h3 className="text-red-400 font-bold mb-4">Admin</h3>
-              <p className="text-stone-500 text-sm mb-4">Le tournoi se lance automatiquement à 19h.</p>
+              <p className="text-stone-500 text-sm mb-4">Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.</p>
               <button
                 onClick={async () => {
                   setActionLoading(true);

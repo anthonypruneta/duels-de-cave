@@ -11,7 +11,7 @@
  */
 
 import { getWeaponById, RARITY } from '../data/weapons.js';
-import { weaponConstants, healingClasses, dmgPhys, dmgCap } from '../data/combatMechanics.js';
+import { weaponConstants, healingClasses, dmgPhys, dmgCap, calcCritChance } from '../data/combatMechanics.js';
 
 // ============================================================================
 // ÉTAT DE COMBAT POUR LES ARMES
@@ -254,6 +254,24 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
   }
 
   return effects;
+}
+
+
+
+/**
+ * Permet aux soins de crit pour la Branche d'Yggdrasil
+ */
+export function rollHealCrit(weaponState, healer, healAmount) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'baton_legendaire') {
+    return { amount: healAmount, isCrit: false };
+  }
+
+  const critChance = calcCritChance(healer);
+  const isCrit = Math.random() < critChance;
+  if (!isCrit) return { amount: healAmount, isCrit: false };
+
+  const critAmount = Math.max(1, Math.round(healAmount * weaponConstants.yggdrasil.healCritMultiplier));
+  return { amount: critAmount, isCrit: true };
 }
 
 // ============================================================================

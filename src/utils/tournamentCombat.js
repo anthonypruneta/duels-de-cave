@@ -8,7 +8,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
-  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart
+  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -39,6 +39,54 @@ function getAuraBonus(passiveDetails, turn) {
   return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
 }
 
+function mergeAwakeningEffects(effects = []) {
+  const validEffects = effects.filter(Boolean);
+  if (validEffects.length === 0) return null;
+
+  return validEffects.reduce((acc, effect) => {
+    if (effect.statMultipliers) {
+      acc.statMultipliers = acc.statMultipliers || {};
+      Object.entries(effect.statMultipliers).forEach(([stat, value]) => {
+        acc.statMultipliers[stat] = (acc.statMultipliers[stat] ?? 1) * value;
+      });
+    }
+
+    if (effect.statBonuses) {
+      acc.statBonuses = acc.statBonuses || {};
+      Object.entries(effect.statBonuses).forEach(([stat, value]) => {
+        acc.statBonuses[stat] = (acc.statBonuses[stat] ?? 0) + value;
+      });
+    }
+
+    const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack'];
+    additiveKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
+    });
+
+    const multiplicativeKeys = ['damageTakenMultiplier', 'incomingHitMultiplier'];
+    multiplicativeKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 1) * effect[key];
+    });
+
+    if (typeof effect.highHpThreshold === 'number') {
+      acc.highHpThreshold = typeof acc.highHpThreshold === 'number'
+        ? Math.min(acc.highHpThreshold, effect.highHpThreshold)
+        : effect.highHpThreshold;
+    }
+    if (typeof effect.highHpDamageBonus === 'number') {
+      acc.highHpDamageBonus = (acc.highHpDamageBonus ?? 0) + effect.highHpDamageBonus;
+    }
+
+    if (typeof effect.incomingHitCount === 'number') acc.incomingHitCount = (acc.incomingHitCount ?? 0) + effect.incomingHitCount;
+    if (typeof effect.revivePercent === 'number') acc.revivePercent = Math.max(acc.revivePercent ?? 0, effect.revivePercent);
+    if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
+
+    if (effect.reviveOnce) acc.reviveOnce = true;
+
+    return acc;
+  }, {});
+}
+
 function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
   if (!passiveDetails) return;
@@ -64,7 +112,12 @@ export function preparerCombattant(char) {
   const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
   const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
   const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
-  const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+  const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
+    .map((race) => getAwakeningEffect(race, char.level ?? 1));
+  const awakeningEffect = mergeAwakeningEffects([
+    getAwakeningEffect(char.race, char.level ?? 1),
+    ...additionalAwakeningEffects
+  ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
@@ -96,7 +149,7 @@ export function preparerCombattant(char) {
 // ============================================================================
 
 function reviveUndead(target, attacker, log, playerColor) {
-  const revivePercent = target.awakening?.revivePercent ?? raceConstants.mortVivant.revivePercent;
+  const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
   const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
   const explosionPercent = target.awakening?.explosionPercent ?? 0;
   if (attacker && explosionPercent > 0) {
@@ -217,7 +270,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (turnEffects.regen > 0) att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
 
   if (att.race === 'Sylvari') {
-    const regenPercent = att.awakening?.regenPercent ?? raceConstants.sylvari.regenPercent;
+    const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
     const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
@@ -274,9 +327,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-    const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+    const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+    const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
+    const heal = healCritResult.amount;
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-    log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+    log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
     const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
     if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
@@ -303,7 +358,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
   let mult = 1.0;
-  if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
+  if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
   const baseHits = isArcher ? classConstants.archer.hitCount : 1;
@@ -355,8 +410,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
     } else {
       raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
       if (att.race === 'Lycan') {
-        const bleedStacks = att.awakening?.bleedStacksPerHit ?? raceConstants.lycan.bleedPerHit;
-        def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+        const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
+        if (bleedStacks > 0) {
+          def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+        }
         if (att.awakening?.bleedPercentPerStack) def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
       }
     }
