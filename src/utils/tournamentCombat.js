@@ -199,28 +199,49 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
 
 function getMindflayerSpellCooldown(caster, target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
-  if (target.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
-  const awakening = target.awakening || {};
-  const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-  return baseCooldown + addedTurns;
-}
 
-function applyMindflayerSpellMod(_caster, target, baseDamage, spellId, log, playerColor) {
-  if (target.race !== 'Mindflayer') return baseDamage;
-  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
-  const awakening = target.awakening || {};
-  const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
-  const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
-
-  if (hasCooldown) {
-    const reduced = Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
-    log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (-${Math.round(cooldownReduction * 100)}% dégâts, CD+1 permanent).`);
-    return reduced;
+  let adjustedCooldown = baseCooldown;
+  if (target.race === 'Mindflayer' && baseCooldown > 1) {
+    const targetAwakening = target.awakening || {};
+    const addedTurns = targetAwakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
+    adjustedCooldown += addedTurns;
   }
 
-  const reduced = Math.max(1, Math.round(baseDamage * (1 - noCooldownReduction)));
-  log.push(`${playerColor} 🦑 ${target.name} affaiblit ce sort sans CD (-${Math.round(noCooldownReduction * 100)}% dégâts).`);
-  return reduced;
+  if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
+    const casterAwakening = caster.awakening || {};
+    const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
+    if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
+  }
+
+  return adjustedCooldown;
+}
+
+function applyMindflayerSpellMod(caster, target, baseDamage, spellId, log, playerColor) {
+  let adjustedDamage = baseDamage;
+  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+
+  if (target?.race === 'Mindflayer' && !hasCooldown) {
+    const targetAwakening = target.awakening || {};
+    const reductionBase = targetAwakening.mindflayerEnemyNoCooldownSpellReduction ?? raceConstants.mindflayer.enemyNoCooldownSpellReduction;
+    const reductionScaling = targetAwakening.mindflayerEnemyNoCooldownSpellCapScaling ?? raceConstants.mindflayer.enemyNoCooldownSpellCapScaling;
+    const reduction = Math.max(0, reductionBase + (target.base?.cap || 0) * reductionScaling);
+    adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 - reduction)));
+    log.push(`${playerColor} 🦑 ${target.name} affaiblit le sort sans CD adverse (-${Math.round(reduction * 100)}% dégâts).`);
+  }
+
+  if (caster.race === 'Mindflayer' && !hasCooldown) {
+    const casterAwakening = caster.awakening || {};
+    const noCooldownBonus = casterAwakening.mindflayerOwnNoCooldownSpellBonus ?? raceConstants.mindflayer.ownNoCooldownSpellBonus;
+    const capScaling = casterAwakening.mindflayerOwnNoCooldownSpellCapScaling ?? raceConstants.mindflayer.ownNoCooldownSpellCapScaling;
+    const capBonus = Math.max(0, (caster.base?.cap || 0) * capScaling);
+    const totalBonus = noCooldownBonus + capBonus;
+    if (totalBonus > 0) {
+      adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
+      log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
+    }
+  }
+
+  return adjustedDamage;
 }
 
 function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
@@ -438,7 +459,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.succubeWeakenNextAttack = false;
     log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
   }
-  if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
+  if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
   const baseHits = isArcher ? classConstants.archer.hitCount : 1;
