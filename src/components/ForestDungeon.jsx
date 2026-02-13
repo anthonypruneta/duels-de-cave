@@ -1696,7 +1696,7 @@ const ForestDungeon = () => {
             <p className="text-white text-2xl">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-sm">+10 par jour (reset à midi)</p>
+            <p className="text-stone-400 text-sm">+5 à minuit et +5 à midi</p>
           </div>
           <div className="text-right">
             <p className="text-gray-400 text-sm">Fin instantanée</p>
