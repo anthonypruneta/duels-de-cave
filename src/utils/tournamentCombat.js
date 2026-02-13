@@ -8,7 +8,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
-  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart
+  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -327,9 +327,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-    const heal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+    const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+    const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
+    const heal = healCritResult.amount;
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-    log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie`);
+    log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
     const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
     if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);

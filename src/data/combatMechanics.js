@@ -142,6 +142,7 @@ export const weaponConstants = {
   yggdrasil: {
     healDamagePercent: 0.5,    // 50% des soins en dégâts bonus (le soin reste)
     regenPercent: 0.03,        // 3% HP max par tour (si pas de heal)
+    healCritMultiplier: 1.5,   // Critiques de soin (Yggdrasil)
   },
 
   // Égide d'Athéna (Bouclier légendaire)

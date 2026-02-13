@@ -266,7 +266,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
               <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
             )}
             <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
-              <div className="text-white font-bold text-4xl leading-tight text-center">{character.name}</div>
+              <div className="text-white font-bold text-3xl leading-tight text-center">{character.name}</div>
             </div>
           </div>
 
