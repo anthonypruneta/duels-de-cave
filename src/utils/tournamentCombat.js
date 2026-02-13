@@ -142,6 +142,7 @@ export function preparerCombattant(char) {
     spectralMarked: false,
     spectralMarkBonus: 0,
     firstSpellCapBoostUsed: false,
+    mindflayerSpellTheftUsed: false,
     stunned: false,
     stunnedTurns: 0,
     weaponState,
@@ -197,30 +198,34 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
 }
 
 
-function getMindflayerSpellCooldown(caster, target, spellId) {
+function getMindflayerSpellCooldown(caster, _target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
-  if (target.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
-  const awakening = target.awakening || {};
-  const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-  return baseCooldown + addedTurns;
-}
+  let adjustedCooldown = baseCooldown;
 
-function applyMindflayerSpellMod(_caster, target, baseDamage, spellId, log, playerColor) {
-  if (target.race !== 'Mindflayer') return baseDamage;
-  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
-  const awakening = target.awakening || {};
-  const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
-  const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
-
-  if (hasCooldown) {
-    const reduced = Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
-    log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (-${Math.round(cooldownReduction * 100)}% dégâts, CD+1 permanent).`);
-    return reduced;
+  if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
+    const casterAwakening = caster.awakening || {};
+    const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
+    if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
   }
 
-  const reduced = Math.max(1, Math.round(baseDamage * (1 - noCooldownReduction)));
-  log.push(`${playerColor} 🦑 ${target.name} affaiblit ce sort sans CD (-${Math.round(noCooldownReduction * 100)}% dégâts).`);
-  return reduced;
+  return adjustedCooldown;
+}
+
+function applyMindflayerSpellMod(_caster, _target, baseDamage, _spellId, _log, _playerColor) {
+  return baseDamage;
+}
+
+function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
+  if (target?.race !== 'Mindflayer') return;
+  if (target.mindflayerSpellTheftUsed) return;
+  if (target.currentHP <= 0 || caster.currentHP <= 0) return;
+
+  target.mindflayerSpellTheftUsed = true;
+  const targetAwakening = target.awakening || {};
+  const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
+  const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
+  const inflicted = applyDamage(target, caster, stolenDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+  log.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
 }
 
 function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
@@ -270,11 +275,13 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
 
     if (isSpellDamage) {
       grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
+      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
     }
 
     if (def.reflect && def.currentHP > 0) {
       const back = Math.round(def.reflect * adjusted);
       att.currentHP -= back;
+      def.reflect = false;
       log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
     }
   }
@@ -438,7 +445,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.succubeWeakenNextAttack = false;
     log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
   }
-  if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
+  if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
   const baseHits = isArcher ? classConstants.archer.hitCount : 1;

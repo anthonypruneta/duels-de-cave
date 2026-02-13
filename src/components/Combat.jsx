@@ -33,7 +33,9 @@ import {
   dmgCap,
   calcCritChance,
   getCritMultiplier,
-  getSpeedDuelBonuses
+  getSpeedDuelBonuses,
+  getRaceBonus,
+  getClassBonus
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 
@@ -441,6 +443,7 @@ const Combat = () => {
       spectralMarked: false,
       spectralMarkBonus: 0,
       firstSpellCapBoostUsed: false,
+      mindflayerSpellTheftUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -511,28 +514,32 @@ const Combat = () => {
       let skillUsed = false;
 
 
-      const getMindflayerSpellCooldown = (caster, target, spellId) => {
+      const getMindflayerSpellCooldown = (caster, _target, spellId) => {
         const baseCooldown = cooldowns[spellId] ?? 1;
-        if (target.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
-        const awakening = target.awakening || {};
-        const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-        return baseCooldown + addedTurns;
-      };
 
-      const applyMindflayerSpellMod = (_caster, target, baseDamage, spellId) => {
-        if (target.race !== 'Mindflayer') return baseDamage;
-        const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
-        const awakening = target.awakening || {};
-        const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
-        const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
-
-        if (hasCooldown) {
-          log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (-${Math.round(cooldownReduction * 100)}% dégâts, CD+1 permanent).`);
-          return Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
+        let adjustedCooldown = baseCooldown;
+        if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
+          const casterAwakening = caster.awakening || {};
+          const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
+          if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
         }
 
-        log.push(`${playerColor} 🦑 ${target.name} affaiblit ce sort sans CD (-${Math.round(noCooldownReduction * 100)}% dégâts).`);
-        return Math.max(1, Math.round(baseDamage * (1 - noCooldownReduction)));
+        return adjustedCooldown;
+      };
+
+      const applyMindflayerSpellMod = (_caster, _target, baseDamage, _spellId) => baseDamage;
+
+      const triggerMindflayerSpellTheft = (caster, target, spellDamage, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost) => {
+        if (target?.race !== 'Mindflayer') return;
+        if (target.mindflayerSpellTheftUsed) return;
+        if (target.currentHP <= 0 || caster.currentHP <= 0) return;
+
+        target.mindflayerSpellTheftUsed = true;
+        const targetAwakening = target.awakening || {};
+        const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
+        const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
+        const inflicted = applyMageTowerDamage(target, caster, stolenDamage, false, combatLog, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBoost, true, true);
+        combatLog.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
       };
 
       const applyMageTowerDamage = (
@@ -605,11 +612,13 @@ const Combat = () => {
               defender.shield = (defender.shield || 0) + shieldGain;
               combatLog.push(`${playerColor} 🧱 ${defender.name} gagne ${shieldGain} de bouclier.`);
             }
+            triggerMindflayerSpellTheft(attacker, defender, adjusted, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
           }
 
           if (defender.reflect && defender.currentHP > 0) {
             const back = Math.round(defender.reflect * adjusted);
             attacker.currentHP -= back;
+            defender.reflect = false;
             combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
           }
         }
@@ -769,7 +778,7 @@ const Combat = () => {
         mult *= (1 - classConstants.succube.nextAttackReduction);
         att.succubeWeakenNextAttack = false;
       }
-      if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+      if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
         mult = raceConstants.orc.damageBonus;
       }
       if (turnEffects.damageMultiplier !== 1) {
@@ -1218,8 +1227,8 @@ const Combat = () => {
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = character.maxHP > 0 ? Math.min(100, ((character.shield || 0) / character.maxHP) * 100) : 0;
-    const raceB = character.bonuses?.race || {};
-    const classB = character.bonuses?.class || {};
+    const raceB = getRaceBonus(character.race);
+    const classB = getClassBonus(character.class);
     const forestBoosts = getForestBoosts(character);
     const weapon = character.equippedWeaponData;
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);
