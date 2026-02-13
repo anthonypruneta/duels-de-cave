@@ -769,7 +769,7 @@ const Combat = () => {
         mult *= (1 - classConstants.succube.nextAttackReduction);
         att.succubeWeakenNextAttack = false;
       }
-      if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+      if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
         mult = raceConstants.orc.damageBonus;
       }
       if (turnEffects.damageMultiplier !== 1) {

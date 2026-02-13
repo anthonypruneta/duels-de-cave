@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, getDisabledCharacters } from '../services/characterService';
 import { clearEquippedWeapon, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
+import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -92,36 +93,6 @@ const getWeaponTooltipContent = (weapon) => {
   );
 };
 
-const formatAwakeningDetails = (awakening) => {
-  if (!awakening?.effect) return [];
-  const lines = [];
-  if (awakening.effect.statMultipliers) {
-    const stats = Object.entries(awakening.effect.statMultipliers)
-      .map(([k, v]) => `${k.toUpperCase()} +${Math.round((v - 1) * 100)}%`)
-      .join(' • ');
-    if (stats) lines.push(stats);
-  }
-  if (awakening.effect.statBonuses) {
-    const stats = Object.entries(awakening.effect.statBonuses)
-      .map(([k, v]) => `${k.toUpperCase()} +${v}`)
-      .join(' • ');
-    if (stats) lines.push(stats);
-  }
-  if (awakening.effect.critChanceBonus) lines.push(`Crit +${Math.round(awakening.effect.critChanceBonus * 100)}%`);
-  if (awakening.effect.critDamageBonus) lines.push(`Dégâts crit +${Math.round(awakening.effect.critDamageBonus * 100)}%`);
-  if (awakening.effect.regenPercent) lines.push(`Régénération +${(awakening.effect.regenPercent * 100).toFixed(1)}% PV max / tour`);
-  if (awakening.effect.highHpDamageBonus) lines.push(`+${Math.round(awakening.effect.highHpDamageBonus * 100)}% dégâts au-dessus de ${Math.round((awakening.effect.highHpThreshold ?? 1) * 100)}% PV`);
-  if (awakening.effect.incomingHitMultiplier && awakening.effect.incomingHitCount) {
-    lines.push(`Attaques subies réduites à ${Math.round(awakening.effect.incomingHitMultiplier * 100)}% (${awakening.effect.incomingHitCount} coups)`);
-  }
-  if (awakening.effect.damageTakenMultiplier) lines.push(`Dégâts subis ×${awakening.effect.damageTakenMultiplier}`);
-  if (awakening.effect.damageStackBonus) lines.push(`+${Math.round(awakening.effect.damageStackBonus * 100)}% dégâts infligés par stack de dégâts reçus`);
-  if (awakening.effect.bleedPercentPerStack) lines.push(`Saignement ${(awakening.effect.bleedPercentPerStack * 100).toFixed(1)}% PV max / stack`);
-  if (awakening.effect.explosionPercent) lines.push(`Explosion mort-vivant: ${(awakening.effect.explosionPercent * 100).toFixed(1)}% PV max`);
-  if (awakening.effect.revivePercent) lines.push(`Résurrection à ${(awakening.effect.revivePercent * 100).toFixed(0)}% PV`);
-  return lines;
-};
-
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
@@ -142,6 +113,8 @@ const CharacterCreation = () => {
   const [allRolls, setAllRolls] = useState([]);
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
   const [showEncyclopedia, setShowEncyclopedia] = useState(false);
+  const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
+  const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
 
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -188,18 +161,12 @@ const CharacterCreation = () => {
             <h3 className="text-xl text-amber-300 font-bold mb-3">🎭 Races & Awakening</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {Object.entries(races).map(([name, info]) => {
-                const details = formatAwakeningDetails(info.awakening);
                 return (
                   <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
                     <div className="text-stone-300 text-xs mb-2">Bonus: {info.bonus}</div>
                     <div className="text-emerald-300 text-xs font-semibold">Awakening (Niv {info.awakening?.levelRequired})</div>
-                    <div className="text-emerald-200 text-xs mb-1">{info.awakening?.description}</div>
-                    {details.length > 0 && (
-                      <ul className="text-[11px] text-stone-400 list-disc ml-4 space-y-0.5">
-                        {details.map((line, i) => <li key={`${name}-aw-${i}`}>{line}</li>)}
-                      </ul>
-                    )}
+                    <div className="text-emerald-200 text-xs mb-1 whitespace-pre-line">{info.awakening?.description}</div>
                   </div>
                 );
               })}
@@ -477,6 +444,22 @@ const CharacterCreation = () => {
           }
         }
 
+        if (canCreateResult.canCreate) {
+          const disabledCharsResult = await getDisabledCharacters(currentUser.uid);
+          if (disabledCharsResult.success && disabledCharsResult.data.length > 0) {
+            const latestDisabled = [...disabledCharsResult.data].sort((a, b) => {
+              const aCreated = a.createdAt?.toMillis?.() || 0;
+              const bCreated = b.createdAt?.toMillis?.() || 0;
+              return bCreated - aCreated;
+            })[0];
+
+            setLastWeekRestrictions({
+              race: latestDisabled?.race || null,
+              class: latestDisabled?.class || null
+            });
+          }
+        }
+
         // Vérifier la récompense triple roll
         const tripleRoll = await checkTripleRoll(currentUser.uid);
         if (tripleRoll) {
@@ -490,6 +473,15 @@ const CharacterCreation = () => {
 
     loadCharacter();
   }, [currentUser]);
+
+  useEffect(() => {
+    const checkDowntime = async () => {
+      const result = await shouldLockPveModes();
+      setIsDowntimeLocked(!!result.locked);
+    };
+
+    checkDowntime();
+  }, []);
 
   useEffect(() => {
     const loadDungeonGrantPopup = async () => {
@@ -589,16 +581,28 @@ const CharacterCreation = () => {
   const raceBonus = (race) => getRaceBonus(race);
   const classBonus = (clazz) => getClassBonus(clazz);
 
+  const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+
+  const pickRaceAndClass = () => {
+    const racePool = Object.keys(races).filter((raceName) => raceName !== lastWeekRestrictions.race);
+    const classPool = Object.keys(classes).filter((className) => className !== lastWeekRestrictions.class);
+
+    const finalRacePool = racePool.length > 0 ? racePool : Object.keys(races);
+    const finalClassPool = classPool.length > 0 ? classPool : Object.keys(classes);
+
+    return {
+      race: pickRandom(finalRacePool),
+      charClass: pickRandom(finalClassPool)
+    };
+  };
+
   // Roll aléatoire de race/classe/stats (étape 1)
   const rollCharacter = async () => {
     if (hasTripleRoll) {
       // Triple roll: générer 3 personnages d'un coup
       const rolls = [];
       for (let i = 0; i < 3; i++) {
-        const raceKeys = Object.keys(races);
-        const classKeys = Object.keys(classes);
-        const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
-        const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+        const { race, charClass } = pickRaceAndClass();
         const raw = genStats();
         const rB = raceBonus(race);
         const cB = classBonus(charClass);
@@ -610,7 +614,7 @@ const CharacterCreation = () => {
           rescap: raw.rescap+rB.rescap+cB.rescap,
           spd: raw.spd+rB.spd+cB.spd
         };
-        rolls.push({ race, class: charClass, base, bonuses: {race:rB,class:cB} });
+        rolls.push({ race, class: charClass, base, bonuses: { race: rB, class: cB } });
       }
       setAllRolls(rolls);
       setRolledCharacter(null);
@@ -620,10 +624,7 @@ const CharacterCreation = () => {
         await savePendingRoll(currentUser.uid, { type: 'triple', rolls });
       }
     } else {
-      const raceKeys = Object.keys(races);
-      const classKeys = Object.keys(classes);
-      const race = raceKeys[Math.floor(Math.random()*raceKeys.length)];
-      const charClass = classKeys[Math.floor(Math.random()*classKeys.length)];
+      const { race, charClass } = pickRaceAndClass();
       const raw = genStats();
       const rB = raceBonus(race);
       const cB = classBonus(charClass);
@@ -635,7 +636,7 @@ const CharacterCreation = () => {
         rescap: raw.rescap+rB.rescap+cB.rescap,
         spd: raw.spd+rB.spd+cB.spd
       };
-      const rolled = { race, class: charClass, base, bonuses: {race:rB,class:cB} };
+      const rolled = { race, class: charClass, base, bonuses: { race: rB, class: cB } };
       setRolledCharacter(rolled);
       // Sauvegarder le roll en Firestore
       if (currentUser) {
@@ -950,23 +951,27 @@ const CharacterCreation = () => {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
               onClick={() => navigate('/dungeons')}
-              className="bg-amber-600 hover:bg-amber-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
+              disabled={isDowntimeLocked}
+              className="bg-amber-600 hover:bg-amber-700 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
             >
               🏰 Donjon 🏰
             </button>
             <button
-              onClick={() => navigate('/combat')}
-              className="bg-stone-100 hover:bg-white text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
-            >
-              ⚔️ PVP ⚔️
-            </button>
-            <button
               onClick={() => navigate('/labyrinthe-infini')}
-              className="bg-fuchsia-700 hover:bg-fuchsia-600 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"
+              disabled={isDowntimeLocked}
+              className="bg-fuchsia-700 hover:bg-fuchsia-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"
             >
               🌀 Labyrinthe infini 🌀
             </button>
           </div>
+
+          {isDowntimeLocked && (
+            <div className="mt-6 bg-stone-800 border border-red-500/60 px-6 py-4 max-w-lg mx-auto rounded-lg">
+              <p className="text-red-300 text-base text-center font-medium">
+                🔒 Après le tournoi, les donjons et le labyrinthe sont fermés jusqu'à lundi.
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 bg-stone-800 border border-amber-600/50 px-6 py-4 max-w-lg mx-auto rounded-lg">
             <p className="text-amber-200 text-base text-center font-medium">
@@ -1018,6 +1023,11 @@ const CharacterCreation = () => {
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
               <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
               <p className="text-amber-300 text-lg">Lance les dés et découvre ta race et ta classe!</p>
+              {(lastWeekRestrictions.race || lastWeekRestrictions.class) && (
+                <p className="text-sm text-red-300 mt-3">
+                  Restriction hebdo: impossible de reroll <strong>{lastWeekRestrictions.race || '—'}</strong> et <strong>{lastWeekRestrictions.class || '—'}</strong> (semaine précédente).
+                </p>
+              )}
             </div>
           </div>
 
