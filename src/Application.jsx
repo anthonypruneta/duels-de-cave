@@ -14,6 +14,8 @@ import Auth from './components/Auth';
 import Admin from './components/Admin';
 import InfiniteLabyrinth from './components/InfiniteLabyrinth';
 import ProtectedRoute from './components/ProtectedRoute';
+import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
+import AdminOnlyRoute from './components/AdminOnlyRoute';
 
 function Application() {
   return (
@@ -33,7 +35,11 @@ function Application() {
             path="/combat"
             element={
               <ProtectedRoute>
-                <Combat />
+                <AdminOnlyRoute>
+                  <ModeAvailabilityRoute>
+                    <Combat />
+                  </ModeAvailabilityRoute>
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
@@ -41,7 +47,9 @@ function Application() {
             path="/dungeon"
             element={
               <ProtectedRoute>
-                <Dungeon />
+                <ModeAvailabilityRoute>
+                  <Dungeon />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
@@ -49,7 +57,9 @@ function Application() {
             path="/dungeons"
             element={
               <ProtectedRoute>
-                <DungeonSelection />
+                <ModeAvailabilityRoute>
+                  <DungeonSelection />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
@@ -57,7 +67,9 @@ function Application() {
             path="/forest"
             element={
               <ProtectedRoute>
-                <ForestDungeon />
+                <ModeAvailabilityRoute>
+                  <ForestDungeon />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
@@ -65,7 +77,9 @@ function Application() {
             path="/mage-tower"
             element={
               <ProtectedRoute>
-                <MageTower />
+                <ModeAvailabilityRoute>
+                  <MageTower />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
@@ -98,7 +112,9 @@ function Application() {
             path="/labyrinthe-infini"
             element={
               <ProtectedRoute>
-                <InfiniteLabyrinth />
+                <ModeAvailabilityRoute>
+                  <InfiniteLabyrinth />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
