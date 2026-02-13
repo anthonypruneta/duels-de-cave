@@ -156,16 +156,11 @@ export const races = {
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts, +12% PV/ResC, -10% dégâts subis',
+      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
       effect: {
         mindflayerCooldownSpellReduction: 0.2,
         mindflayerNoCooldownSpellReduction: 0.45,
-        mindflayerAddCooldownTurns: 1,
-        statMultipliers: {
-          hp: 1.12,
-          rescap: 1.12
-        },
-        damageTakenMultiplier: 0.9
+        mindflayerAddCooldownTurns: 1
       }
     }
   }
