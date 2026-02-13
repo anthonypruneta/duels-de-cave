@@ -47,7 +47,8 @@ import {
   dmgPhys,
   dmgCap,
   calcCritChance,
-  getCritMultiplier
+  getCritMultiplier,
+  getSpeedDuelBonuses
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import Header from './Header';
@@ -475,7 +476,7 @@ const Dungeon = () => {
       baseWithoutWeapon,
       currentHP: baseWithAwakening.hp,
       maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
+      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
       undead: false,
       dodge: false,
       reflect: false,
@@ -484,6 +485,8 @@ const Dungeon = () => {
       maso_taken: 0,
       familiarStacks: 0,
       shield: 0,
+      sireneStacks: 0,
+      succubeWeakenNextAttack: false,
       spectralMarked: false,
       spectralMarkBonus: 0,
       firstSpellCapBoostUsed: false,
@@ -821,7 +824,7 @@ const Dungeon = () => {
 
     for (let i = 0; i < totalHits; i++) {
       const isBonusAttack = i >= baseHits;
-      const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
+      const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att, def);
       if (isCrit) wasCrit = true;
       let raw = 0;
       const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
@@ -1240,6 +1243,7 @@ const Dungeon = () => {
     if (!char) return null;
     const hpPercent = (char.currentHP / char.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = char.maxHP > 0 ? Math.min(100, ((char.shield || 0) / char.maxHP) * 100) : 0;
     const raceB = char.bonuses?.race || {};
     const classB = char.bonuses?.class || {};
     const forestBoosts = getForestBoosts(char);
@@ -1319,6 +1323,11 @@ const Dungeon = () => {
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
+              {(char.shield || 0) > 0 && (
+                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
+                  <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
@@ -1396,6 +1405,7 @@ const Dungeon = () => {
     if (!bossChar) return null;
     const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield || 0) / bossChar.maxHP) * 100) : 0;
     const bossData = getBossById(bossChar.bossId);
     const bossImg = getBossImage(bossChar.imageFile);
     const currentLvlData = getDungeonLevelByNumber(currentLevel);
@@ -1428,6 +1438,11 @@ const Dungeon = () => {
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
+              {(bossChar.shield || 0) > 0 && (
+                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
+                  <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <div className="text-stone-400">Auto: {bossChar.base.auto}</div>

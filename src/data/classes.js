@@ -9,5 +9,8 @@ export const classes = {
   'Archer': { ability: 'Double tir (CD: 3 tours)', description: 'Deux tirs : le premier inflige 100% de votre attaque. Le second inflige 120% de votre attaque + 20% de votre Cap (opposé à la RésCap).', icon: '🏹' },
   'Mage': { ability: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige votre attaque de base + 68% de votre Cap (vs RésCap).', icon: '🔮' },
   'Demoniste': { ability: 'Attaque du familier (Passif)', description: 'Chaque tour, votre familier inflige 45% de votre Cap et ignore 50% de la RésCap ennemie. Chaque auto augmente ces dégâts de 0,8% de Cap (cumulable).', icon: '💠' },
-  'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% des dégâts accumulés + 0,8% de votre Cap. Se soigne de 22% des dégâts accumulés.', icon: '🩸' }
+  'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% des dégâts accumulés + 0,8% de votre Cap. Se soigne de 22% des dégâts accumulés.', icon: '🩸' },
+  'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi un spell, gagne un bouclier égal à 25% des dégâts reçus + 15% de votre CAP.', icon: '🧱' },
+  'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 20% CAP. La prochaine attaque adverse inflige -40% dégâts.', icon: '💋' },
+  'Bastion': { ability: 'Charge du Rempart (CD: 5 tours)', description: 'Passif: +5% DEF. Inflige auto + 20% CAP + 20% DEF.', icon: '🏰' }
 };
