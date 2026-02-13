@@ -993,13 +993,6 @@ const CharacterCreation = () => {
               🏰 Donjon 🏰
             </button>
             <button
-              onClick={() => navigate('/combat')}
-              disabled={isDowntimeLocked}
-              className="bg-stone-100 hover:bg-white disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-stone-900 px-12 py-4 font-bold text-xl shadow-2xl border-2 border-stone-400 hover:border-stone-600 transition-all"
-            >
-              ⚔️ PVP ⚔️
-            </button>
-            <button
               onClick={() => navigate('/labyrinthe-infini')}
               disabled={isDowntimeLocked}
               className="bg-fuchsia-700 hover:bg-fuchsia-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"
@@ -1011,7 +1004,7 @@ const CharacterCreation = () => {
           {isDowntimeLocked && (
             <div className="mt-6 bg-stone-800 border border-red-500/60 px-6 py-4 max-w-lg mx-auto rounded-lg">
               <p className="text-red-300 text-base text-center font-medium">
-                🔒 Après le tournoi, les donjons / PvP / labyrinthe sont fermés jusqu'à lundi.
+                🔒 Après le tournoi, les donjons et le labyrinthe sont fermés jusqu'à lundi.
               </p>
             </div>
           )}

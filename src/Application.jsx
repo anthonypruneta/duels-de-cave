@@ -15,6 +15,7 @@ import Admin from './components/Admin';
 import InfiniteLabyrinth from './components/InfiniteLabyrinth';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
+import AdminOnlyRoute from './components/AdminOnlyRoute';
 
 function Application() {
   return (
@@ -34,9 +35,11 @@ function Application() {
             path="/combat"
             element={
               <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <Combat />
-                </ModeAvailabilityRoute>
+                <AdminOnlyRoute>
+                  <ModeAvailabilityRoute>
+                    <Combat />
+                  </ModeAvailabilityRoute>
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
