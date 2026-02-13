@@ -20,7 +20,9 @@ import {
   dmgPhys,
   dmgCap,
   calcCritChance,
-  getCritMultiplier
+  getCritMultiplier,
+  getRaceBonus,
+  getClassBonus
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
@@ -45,6 +47,7 @@ import {
   onTurnStart
 } from '../utils/weaponEffects';
 import Header from './Header';
+import { simulerMatch } from '../utils/tournamentCombat';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -784,7 +787,7 @@ const ForestDungeon = () => {
     }
 
     let mult = 1.0;
-    if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
       mult = raceConstants.orc.damageBonus;
     }
 
@@ -1030,73 +1033,19 @@ const ForestDungeon = () => {
     const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
-    applyStartOfCombatPassives(p, b, logs, '[P1]');
-    setCombatLog(logs);
 
-    let turn = 1;
+    const matchResult = simulerMatch(p, b);
+    logs.push(...matchResult.combatLog);
 
-    while (p.currentHP > 0 && b.currentHP > 0 && turn <= generalConstants.maxTurns) {
-      logs.push(`--- Début du tour ${turn} ---`);
-      if (b?.ability?.type === 'unicorn_cycle') {
-        const mult = turn % 2 === 1 ? '+15%' : '-15%';
-        logs.push(`✨ ${b.name} alterne sa magie (${mult} dégâts infligés et reçus)`);
-      }
-      const playerUnicorn = getUnicornPactTurnData(getPassiveDetails(p.mageTowerPassive), turn);
-      if (playerUnicorn) {
-        logs.push(`🦄 Pacte de la Licorne — ${playerUnicorn.label}`);
-      }
-      setCombatLog([...logs]);
-      await new Promise(r => setTimeout(r, 800));
+    const finalStep = matchResult.steps?.[matchResult.steps.length - 1];
+    const finalP1HP = finalStep?.p1HP ?? p.currentHP;
+    const finalP2HP = finalStep?.p2HP ?? b.currentHP;
+    p.currentHP = finalP1HP;
+    b.currentHP = finalP2HP;
 
-      const playerHasPriority = p.weaponState?.isLegendary
-        && p.weaponState.weaponId === 'epee_legendaire'
-        && ((p.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-      const bossHasPriority = b.weaponState?.isLegendary
-        && b.weaponState.weaponId === 'epee_legendaire'
-        && ((b.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-
-      let playerFirst;
-      if (playerUnicorn) {
-        playerFirst = playerUnicorn.label === 'Tour A';
-      } else if (playerHasPriority && !bossHasPriority) {
-        playerFirst = true;
-      } else if (bossHasPriority && !playerHasPriority) {
-        playerFirst = false;
-      } else {
-        playerFirst = p.base.spd >= b.base.spd;
-      }
-      const first = playerFirst ? p : b;
-      const second = playerFirst ? b : p;
-      const firstIsPlayer = playerFirst;
-
-      const log1 = [];
-      setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: [] });
-      await new Promise(r => setTimeout(r, 300));
-      processPlayerAction(first, second, log1, firstIsPlayer, turn);
-      setCurrentAction({ player: firstIsPlayer ? 1 : 2, logs: log1 });
-      logs.push(...log1);
-      setCombatLog([...logs]);
-      setPlayer({ ...p });
-      setBoss({ ...b });
-      await new Promise(r => setTimeout(r, 2000));
-      setCurrentAction(null);
-
-      if (p.currentHP > 0 && b.currentHP > 0) {
-        const log2 = [];
-        setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: [] });
-        await new Promise(r => setTimeout(r, 300));
-        processPlayerAction(second, first, log2, !firstIsPlayer, turn);
-        setCurrentAction({ player: !firstIsPlayer ? 1 : 2, logs: log2 });
-        logs.push(...log2);
-        setCombatLog([...logs]);
-        setPlayer({ ...p });
-        setBoss({ ...b });
-        await new Promise(r => setTimeout(r, 2000));
-        setCurrentAction(null);
-      }
-
-      turn++;
-    }
+    setPlayer({ ...p });
+    setBoss({ ...b });
+    setCombatLog([...logs]);
 
     if (p.currentHP > 0) {
       logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);
@@ -1233,8 +1182,8 @@ const ForestDungeon = () => {
     if (!char) return null;
     const hpPercent = (char.currentHP / char.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const raceB = char.bonuses?.race || {};
-    const classB = char.bonuses?.class || {};
+    const raceB = getRaceBonus(char.race);
+    const classB = getClassBonus(char.class);
     const weapon = char.equippedWeaponData;
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;
