@@ -20,7 +20,9 @@ import {
   dmgPhys,
   dmgCap,
   calcCritChance,
-  getCritMultiplier
+  getCritMultiplier,
+  getRaceBonus,
+  getClassBonus
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
@@ -1233,8 +1235,8 @@ const ForestDungeon = () => {
     if (!char) return null;
     const hpPercent = (char.currentHP / char.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const raceB = char.bonuses?.race || {};
-    const classB = char.bonuses?.class || {};
+    const raceB = getRaceBonus(char.race);
+    const classB = getClassBonus(char.class);
     const weapon = char.equippedWeaponData;
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;

@@ -33,7 +33,9 @@ import {
   dmgCap,
   calcCritChance,
   getCritMultiplier,
-  getSpeedDuelBonuses
+  getSpeedDuelBonuses,
+  getRaceBonus,
+  getClassBonus
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 
@@ -1241,8 +1243,8 @@ const Combat = () => {
     const hpPercent = (character.currentHP / character.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = character.maxHP > 0 ? Math.min(100, ((character.shield || 0) / character.maxHP) * 100) : 0;
-    const raceB = character.bonuses?.race || {};
-    const classB = character.bonuses?.class || {};
+    const raceB = getRaceBonus(character.race);
+    const classB = getClassBonus(character.class);
     const forestBoosts = getForestBoosts(character);
     const weapon = character.equippedWeaponData;
     const passiveDetails = getPassiveDetails(character.mageTowerPassive);

@@ -13,7 +13,7 @@ import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants } from '../data/combatMechanics';
+import { classConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -205,8 +205,8 @@ const getCalculatedDescription = (className, cap, auto) => {
 const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOverride = 0, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
   if (!character) return null;
 
-  const raceB = character.bonuses?.race || {};
-  const classB = character.bonuses?.class || {};
+  const raceB = getRaceBonus(character.race);
+  const classB = getClassBonus(character.class);
   const forestBoosts = getForestBoosts(character);
   const weapon = character.equippedWeaponData;
   const passiveDetails = getPassiveDetails(character.mageTowerPassive);
