@@ -151,11 +151,11 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'Quand l’ennemi lance un spell: CD>0 → +1 CD & -15% dégâts, sans CD → -35% dégâts',
+    bonus: 'Quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD>0 → +1 CD & -20% dégâts, sans CD → -45% dégâts',
+      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
       effect: {
         mindflayerCooldownSpellReduction: 0.2,
         mindflayerNoCooldownSpellReduction: 0.45,
