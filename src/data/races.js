@@ -97,14 +97,14 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (1.8% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
         statMultipliers: {
           spd: 1.12,
           auto: 1.10
         },
-        bleedPercentPerStack: 0.028
+        bleedPercentPerStack: 0.018
       }
     }
   },
@@ -118,6 +118,48 @@ export const races = {
         regenPercent: 0.035,
         highHpDamageBonus: 0.08,
         highHpThreshold: 0.8
+      }
+    }
+  },
+  'Gnome': {
+    bonus: 'VIT > cible: +20% crit, VIT < cible: +20% esquive, égalité: +10% crit/esquive',
+    icon: '🧠',
+    awakening: {
+      levelRequired: 100,
+      description: 'VIT > cible: +30% crit, VIT < cible: +30% esquive, égalité: +15% crit/esquive',
+      effect: {
+        speedDuelCritHigh: 0.3,
+        speedDuelDodgeLow: 0.3,
+        speedDuelEqualCrit: 0.15,
+        speedDuelEqualDodge: 0.15
+      }
+    }
+  },
+  'Sirène': {
+    bonus: '+15 CAP, subit un spell: +10% dégâts/soins des capacités (max 3 stacks)',
+    icon: '🧜',
+    awakening: {
+      levelRequired: 100,
+      description: '+20 CAP, stacks à +12% dégâts/soins des capacités (max 3)',
+      effect: {
+        statBonuses: {
+          cap: 5
+        },
+        sireneStackBonus: 0.12,
+        sireneMaxStacks: 3
+      }
+    }
+  },
+  'Mindflayer': {
+    bonus: 'Quand l’ennemi lance un spell: CD>0 → +1 CD & -15% dégâts, sans CD → -35% dégâts',
+    icon: '🦑',
+    awakening: {
+      levelRequired: 100,
+      description: 'CD>0 → +1 CD & -20% dégâts, sans CD → -45% dégâts',
+      effect: {
+        mindflayerCooldownSpellReduction: 0.2,
+        mindflayerNoCooldownSpellReduction: 0.45,
+        mindflayerAddCooldownTurns: 1
       }
     }
   }

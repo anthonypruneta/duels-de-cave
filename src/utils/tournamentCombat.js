@@ -12,7 +12,7 @@ import {
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
-  dmgPhys, dmgCap, calcCritChance, getCritMultiplier
+  dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses
 } from '../data/combatMechanics.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
 
@@ -119,13 +119,16 @@ export function preparerCombattant(char) {
     ...additionalAwakeningEffects
   ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
+  const baseWithClassPassive = char.class === 'Bastion'
+    ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
+    : baseWithAwakening;
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
     ...char,
-    base: baseWithAwakening,
-    currentHP: baseWithAwakening.hp,
-    maxHP: baseWithAwakening.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 },
+    base: baseWithClassPassive,
+    currentHP: baseWithClassPassive.hp,
+    maxHP: baseWithClassPassive.hp,
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
     undead: false,
     dodge: false,
     reflect: false,
@@ -134,6 +137,8 @@ export function preparerCombattant(char) {
     maso_taken: 0,
     familiarStacks: 0,
     shield: 0,
+    sireneStacks: 0,
+    succubeWeakenNextAttack: false,
     spectralMarked: false,
     spectralMarkBonus: 0,
     firstSpellCapBoostUsed: false,
@@ -191,7 +196,42 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
   return adjusted;
 }
 
-function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true) {
+
+function applyMindflayerSpellMod(caster, target, baseDamage, spellId, log, playerColor) {
+  if (target.race !== 'Mindflayer') return baseDamage;
+  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+  const awakening = target.awakening || {};
+  const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
+  const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
+  const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
+
+  if (hasCooldown) {
+    caster.cd[spellId] += addedTurns;
+    const reduced = Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
+    log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (${Math.round(cooldownReduction * 100)}% dégâts, +${addedTurns} CD).`);
+    return reduced;
+  }
+
+  const reduced = Math.max(1, Math.round(baseDamage * (1 - noCooldownReduction)));
+  log.push(`${playerColor} 🦑 ${target.name} affaiblit ce sort sans CD (-${Math.round(noCooldownReduction * 100)}% dégâts).`);
+  return reduced;
+}
+
+function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
+  if (adjusted <= 0) return;
+  if (def.race === 'Sirène') {
+    const maxStacks = def.awakening?.sireneMaxStacks ?? raceConstants.sirene.maxStacks;
+    def.sireneStacks = Math.min(maxStacks, (def.sireneStacks || 0) + 1);
+    log.push(`${playerColor} 🧜 ${def.name} gagne un stack Sirène (${def.sireneStacks}/${maxStacks}).`);
+  }
+  if (def.class === 'Briseur de Sort') {
+    const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + def.base.cap * classConstants.briseurSort.shieldFromCap));
+    def.shield = (def.shield || 0) + shield;
+    log.push(`${playerColor} 🧱 ${def.name} convertit le spell en bouclier (+${shield}).`);
+  }
+}
+
+function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isSpellDamage = false) {
   let adjusted = raw;
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
@@ -206,6 +246,11 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 💨 ${def.name} esquive habilement l'attaque !`);
     return 0;
   }
+  const speedDuel = getSpeedDuelBonuses(def, att);
+  if (speedDuel.dodge > 0 && Math.random() < speedDuel.dodge) {
+    log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
+    return 0;
+  }
   if (def.shield > 0 && adjusted > 0) {
     const absorbed = Math.min(def.shield, adjusted);
     def.shield -= absorbed;
@@ -216,6 +261,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     def.currentHP -= adjusted;
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+
+    if (isSpellDamage) {
+      grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
+    }
 
     if (def.reflect && def.currentHP > 0) {
       const back = Math.round(def.reflect * adjusted);
@@ -281,7 +330,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
     const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
@@ -294,7 +343,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       att.maso_taken = 0;
-      const inflicted = applyDamage(att, def, dmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+      let spellDmg = applyMindflayerSpellMod(att, def, dmg, 'maso', log, playerColor);
+      const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
       if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
         applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
@@ -327,7 +377,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-    const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+    const sireneBoost = att.race === 'Sirène' ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
+    const baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -346,6 +397,24 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+
+  if (att.class === 'Succube' && att.cd.succ === cooldowns.succ) {
+    skillUsed = true;
+    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
+    raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
+    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    def.succubeWeakenNextAttack = true;
+    log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
+  }
+
+  if (att.class === 'Bastion' && att.cd.bast === cooldowns.bast) {
+    skillUsed = true;
+    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
+    raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
+    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
+  }
+
   if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
     skillUsed = true;
     att.dodge = true;
@@ -358,6 +427,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
   let mult = 1.0;
+  if (att.succubeWeakenNextAttack) {
+    mult *= (1 - classConstants.succube.nextAttackReduction);
+    att.succubeWeakenNextAttack = false;
+    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
+  }
   if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
@@ -370,7 +444,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
-    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
+    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att, def);
     if (isCrit) wasCrit = true;
     let raw = 0;
     const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
@@ -382,6 +456,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
       raw = dmgCap(atkSpell, def.base.rescap);
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
+      raw = applyMindflayerSpellMod(att, def, raw, 'mag', log, playerColor);
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
       if (spellEffects.doubleCast) {
         applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
@@ -397,6 +472,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
         raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
       }
+      raw = applyMindflayerSpellMod(att, def, raw, 'war', log, playerColor);
       if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
@@ -407,6 +483,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
         raw = physPart + capPart;
       }
+      raw = applyMindflayerSpellMod(att, def, raw, 'arc', log, playerColor);
     } else {
       raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
       if (att.race === 'Lycan') {
@@ -418,12 +495,17 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
     }
 
+    if ((isMage || isWar || (isArcher && !isBonusAttack)) && att.race === 'Sirène' && (att.sireneStacks || 0) > 0) {
+      const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+      raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
+    }
+
     if (isCrit) {
       const critDamage = Math.round(raw * getCritMultiplier(att));
       raw = modifyCritDamage(att.weaponState, critDamage);
     }
 
-    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)));
     if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
       att.familiarStacks = (att.familiarStacks || 0) + 1;
     }
@@ -487,7 +569,7 @@ export function simulerMatch(char1, char2) {
   applyStartOfCombatPassives(p1, p2, introLogs, '[P1]');
   applyStartOfCombatPassives(p2, p1, introLogs, '[P2]');
   allLogs.push(...introLogs);
-  steps.push({ phase: 'intro', logs: introLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
+  steps.push({ phase: 'intro', logs: introLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
 
   let turn = 1;
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
@@ -499,7 +581,7 @@ export function simulerMatch(char1, char2) {
     if (p2Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
 
     allLogs.push(...turnStartLogs);
-    steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
+    steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
 
     // Determine order
     const p1HasPriority = p1.weaponState?.isLegendary
@@ -528,14 +610,14 @@ export function simulerMatch(char1, char2) {
     const firstActionLogs = [];
     processPlayerAction(first, second, firstActionLogs, firstIsP1, turn);
     allLogs.push(...firstActionLogs);
-    steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
+    steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
 
     // Second player action
     if (p1.currentHP > 0 && p2.currentHP > 0) {
       const secondActionLogs = [];
       processPlayerAction(second, first, secondActionLogs, !firstIsP1, turn);
       allLogs.push(...secondActionLogs);
-      steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP });
+      steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
     }
 
     turn++;
@@ -546,7 +628,7 @@ export function simulerMatch(char1, char2) {
   const loser = winnerIsP1 ? p2 : p1;
   const victoryLog = `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
   allLogs.push(victoryLog);
-  steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP });
+  steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
 
   return {
     combatLog: allLogs,

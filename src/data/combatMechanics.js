@@ -10,7 +10,9 @@ export const cooldowns = {
   arc: 3,   // Archer - Tir multiple
   mag: 3,   // Mage - Sort magique
   dem: 1,   // Demoniste - Familier (chaque tour)
-  maso: 4   // Masochiste - Renvoi dégâts
+  maso: 4,  // Masochiste - Renvoi dégâts
+  succ: 4,  // Succube - Coup de fouet
+  bast: 5   // Bastion - Charge du rempart
 };
 
 // Constantes des classes (valeurs réelles utilisées dans le combat)
@@ -51,6 +53,19 @@ export const classConstants = {
     returnBase: 0.09,      // 9% des dégâts accumulés
     returnPerCap: 0.008,   // +0.8% par point de Cap
     healPercent: 0.22      // Heal 22% des dégâts encaissés
+  },
+  briseurSort: {
+    shieldFromSpellDamage: 0.4,
+    shieldFromCap: 0.25
+  },
+  succube: {
+    capScale: 0.2,
+    nextAttackReduction: 0.4
+  },
+  bastion: {
+    defPercentBonus: 0.05,
+    capScale: 0.2,
+    defScale: 0.15
   }
 };
 
@@ -62,8 +77,11 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1, bleedDivisor: 4 },
-  sylvari: { regenPercent: 0.02 }
+  lycan: { bleedPerHit: 1, bleedDivisor: 5 },
+  sylvari: { regenPercent: 0.02 },
+  sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
+  gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10 },
+  mindflayer: { cooldownSpellReduction: 0.15, noCooldownSpellReduction: 0.35, addCooldownTurns: 1 }
 };
 
 // Constantes générales
@@ -78,11 +96,32 @@ export const dmgPhys = (auto, def) => Math.max(1, Math.round(auto - 0.5 * def));
 export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap));
 
 // Calcul du crit chance (identique à Combat.jsx)
-export const calcCritChance = (attacker) => {
+export const getSpeedDuelBonuses = (attacker, defender) => {
+  const bonuses = { crit: 0, dodge: 0 };
+  if (attacker?.race !== 'Gnome' || !defender?.base) return bonuses;
+
+  const aw = attacker?.awakening || {};
+  const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
+  const dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
+  const critIfEqual = aw.speedDuelEqualCrit ?? raceConstants.gnome.critIfEqual;
+  const dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
+
+  if (attacker.base.spd > defender.base.spd) bonuses.crit += critIfFaster;
+  else if (attacker.base.spd < defender.base.spd) bonuses.dodge += dodgeIfSlower;
+  else {
+    bonuses.crit += critIfEqual;
+    bonuses.dodge += dodgeIfEqual;
+  }
+
+  return bonuses;
+};
+
+export const calcCritChance = (attacker, defender = null) => {
   let c = generalConstants.baseCritChance;
   if (attacker.class === 'Voleur') c += classConstants.voleur.critPerCap * attacker.base.cap;
   if (attacker.race === 'Elfe' && !attacker?.awakening) c += raceConstants.elfe.critBonus;
   if (attacker?.awakening?.critChanceBonus) c += attacker.awakening.critChanceBonus;
+  c += getSpeedDuelBonuses(attacker, defender).crit;
   return c;
 };
 
@@ -115,6 +154,9 @@ export const getRaceBonus = (race) => {
     case 'Dragonkin':
       b.hp = raceConstants.dragonkin.hp;
       b.rescap = raceConstants.dragonkin.rescap;
+      break;
+    case 'Sirène':
+      b.cap = raceConstants.sirene.cap;
       break;
   }
   return b;
