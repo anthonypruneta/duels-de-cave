@@ -59,8 +59,7 @@ export const races = {
       effect: {
         statMultipliers: {
           hp: 1.15
-        },
-        damageTakenMultiplier: 0.95
+        }
       }
     }
   },
@@ -140,23 +139,22 @@ export const races = {
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+23 CAP\n- stacks à +15% dégâts/soins des capacités (max 3)\n- -5% dégâts subis',
+      description: '+23 CAP, stacks à +15% dégâts/soins des capacités (max 3)',
       effect: {
         statBonuses: {
           cap: 8
         },
         sireneStackBonus: 0.15,
-        sireneMaxStacks: 3,
-        damageTakenMultiplier: 0.95
+        sireneMaxStacks: 3
       }
     }
   },
   'Mindflayer': {
-    bonus: 'CD+1 dès le début du combat\n- sort ennemi avec CD: -15% dégâts\n- sans CD → -35% dégâts',
+    bonus: 'CD+1 dès le début du combat, sort ennemi avec CD: -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: '- CD+1\n-- sort ennemi avec CD: -20% dégâts\n- sans CD → -45% dégâts',
+      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
       effect: {
         mindflayerCooldownSpellReduction: 0.2,
         mindflayerNoCooldownSpellReduction: 0.45,
