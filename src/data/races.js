@@ -126,15 +126,15 @@ export const races = {
     icon: '🧠',
     awakening: {
       levelRequired: 100,
-      description: '+8% VIT, +5% CAP, VIT > cible: +40% crit, VIT < cible: +40% esquive, égalité: +20% crit/esquive',
+      description: '+12% VIT, +8% CAP, VIT > cible: +45% crit, VIT < cible: +45% esquive, égalité: +22% crit/esquive',
       effect: {
-        speedDuelCritHigh: 0.4,
-        speedDuelDodgeLow: 0.4,
-        speedDuelEqualCrit: 0.2,
-        speedDuelEqualDodge: 0.2,
+        speedDuelCritHigh: 0.45,
+        speedDuelDodgeLow: 0.45,
+        speedDuelEqualCrit: 0.22,
+        speedDuelEqualDodge: 0.22,
         statMultipliers: {
-          spd: 1.08,
-          cap: 1.05
+          spd: 1.12,
+          cap: 1.08
         }
       }
     }

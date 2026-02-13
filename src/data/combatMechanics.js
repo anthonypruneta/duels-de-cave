@@ -55,8 +55,8 @@ export const classConstants = {
     healPercent: 0.22      // Heal 22% des dégâts encaissés
   },
   briseurSort: {
-    shieldFromSpellDamage: 0.65,
-    shieldFromCap: 0.4
+    shieldFromSpellDamage: 0.75,
+    shieldFromCap: 0.5
   },
   succube: {
     capScale: 0.2,
