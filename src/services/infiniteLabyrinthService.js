@@ -411,6 +411,7 @@ function buildFloorEnemy(floor) {
     name: floor.enemyName,
     race,
     additionalAwakeningRaces,
+    allowMultipleAwakenings: additionalAwakeningRaces.length > 0,
     class: enemyClass,
     level: floor.floorNumber,
     base: floor.stats,
