@@ -44,6 +44,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Configuration globale du jeu (équilibrage persistant)
+    // Ex: gameConfig/balance
+    match /gameConfig/{configId} {
+      // Lecture : utilisateurs connectés (chargement au boot de l'app)
+      allow read: if request.auth != null;
+      // Écriture : admin uniquement
+      allow write: if isAdmin();
+    }
+
+    // Milestones globaux (premiers kills/clears)
+    match /globalMilestones/{milestoneId} {
+      // Lecture : utilisateurs connectés
+      allow read: if request.auth != null;
+      // Écriture : utilisateurs connectés (création contrôlée côté transaction)
+      allow write: if request.auth != null;
+    }
+
     // Règles pour les rolls en attente (lock du roll)
     match /pendingRolls/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
