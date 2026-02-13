@@ -521,10 +521,10 @@ const Combat = () => {
           adjustedCooldown += addedTurns;
         }
 
-        if (caster.race === 'Mindflayer' && caster.awakening && adjustedCooldown > 1) {
+        if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
           const casterAwakening = caster.awakening || {};
           const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
-          adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
+          if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
         }
 
         return adjustedCooldown;
@@ -534,11 +534,14 @@ const Combat = () => {
         let adjustedDamage = baseDamage;
         const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
 
-        if (caster.race === 'Mindflayer' && caster.awakening && !hasCooldown) {
+        if (caster.race === 'Mindflayer' && !hasCooldown) {
           const casterAwakening = caster.awakening || {};
           const noCooldownBonus = casterAwakening.mindflayerOwnNoCooldownSpellBonus ?? raceConstants.mindflayer.ownNoCooldownSpellBonus;
-          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + noCooldownBonus)));
-          log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(noCooldownBonus * 100)}% dégâts).`);
+          const capScaling = casterAwakening.mindflayerOwnNoCooldownSpellCapScaling ?? raceConstants.mindflayer.ownNoCooldownSpellCapScaling;
+          const capBonus = Math.max(0, (caster.base?.cap || 0) * capScaling);
+          const totalBonus = noCooldownBonus + capBonus;
+          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
+          log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
         }
 
         return adjustedDamage;
