@@ -82,12 +82,8 @@ export const raceConstants = {
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
   gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
   mindflayer: {
-    addCooldownTurns: 1,
-    enemyNoCooldownSpellReduction: 0.10,
-    enemyNoCooldownSpellCapScaling: 0.001,
-    ownCooldownReductionTurns: 0,
-    ownNoCooldownSpellBonus: 0,
-    ownNoCooldownSpellCapScaling: 0
+    stealSpellCapDamageScale: 0.20,
+    ownCooldownReductionTurns: 0
   }
 };
 

@@ -142,6 +142,7 @@ export function preparerCombattant(char) {
     spectralMarked: false,
     spectralMarkBonus: 0,
     firstSpellCapBoostUsed: false,
+    mindflayerSpellTheftUsed: false,
     stunned: false,
     stunnedTurns: 0,
     weaponState,
@@ -197,15 +198,9 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
 }
 
 
-function getMindflayerSpellCooldown(caster, target, spellId) {
+function getMindflayerSpellCooldown(caster, _target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
-
   let adjustedCooldown = baseCooldown;
-  if (target.race === 'Mindflayer' && baseCooldown > 1) {
-    const targetAwakening = target.awakening || {};
-    const addedTurns = targetAwakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-    adjustedCooldown += addedTurns;
-  }
 
   if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
     const casterAwakening = caster.awakening || {};
@@ -216,32 +211,21 @@ function getMindflayerSpellCooldown(caster, target, spellId) {
   return adjustedCooldown;
 }
 
-function applyMindflayerSpellMod(caster, target, baseDamage, spellId, log, playerColor) {
-  let adjustedDamage = baseDamage;
-  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+function applyMindflayerSpellMod(_caster, _target, baseDamage, _spellId, _log, _playerColor) {
+  return baseDamage;
+}
 
-  if (target?.race === 'Mindflayer' && !hasCooldown) {
-    const targetAwakening = target.awakening || {};
-    const reductionBase = targetAwakening.mindflayerEnemyNoCooldownSpellReduction ?? raceConstants.mindflayer.enemyNoCooldownSpellReduction;
-    const reductionScaling = targetAwakening.mindflayerEnemyNoCooldownSpellCapScaling ?? raceConstants.mindflayer.enemyNoCooldownSpellCapScaling;
-    const reduction = Math.max(0, reductionBase + (target.base?.cap || 0) * reductionScaling);
-    adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 - reduction)));
-    log.push(`${playerColor} 🦑 ${target.name} affaiblit le sort sans CD adverse (-${Math.round(reduction * 100)}% dégâts).`);
-  }
+function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
+  if (target?.race !== 'Mindflayer') return;
+  if (target.mindflayerSpellTheftUsed) return;
+  if (target.currentHP <= 0 || caster.currentHP <= 0) return;
 
-  if (caster.race === 'Mindflayer' && !hasCooldown) {
-    const casterAwakening = caster.awakening || {};
-    const noCooldownBonus = casterAwakening.mindflayerOwnNoCooldownSpellBonus ?? raceConstants.mindflayer.ownNoCooldownSpellBonus;
-    const capScaling = casterAwakening.mindflayerOwnNoCooldownSpellCapScaling ?? raceConstants.mindflayer.ownNoCooldownSpellCapScaling;
-    const capBonus = Math.max(0, (caster.base?.cap || 0) * capScaling);
-    const totalBonus = noCooldownBonus + capBonus;
-    if (totalBonus > 0) {
-      adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
-      log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
-    }
-  }
-
-  return adjustedDamage;
+  target.mindflayerSpellTheftUsed = true;
+  const targetAwakening = target.awakening || {};
+  const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
+  const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
+  const inflicted = applyDamage(target, caster, stolenDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+  log.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
 }
 
 function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
@@ -291,6 +275,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
 
     if (isSpellDamage) {
       grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
+      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
     }
 
     if (def.reflect && def.currentHP > 0) {

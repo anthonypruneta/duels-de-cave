@@ -443,6 +443,7 @@ const Combat = () => {
       spectralMarked: false,
       spectralMarkBonus: 0,
       firstSpellCapBoostUsed: false,
+      mindflayerSpellTheftUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -513,16 +514,10 @@ const Combat = () => {
       let skillUsed = false;
 
 
-      const getMindflayerSpellCooldown = (caster, target, spellId) => {
+      const getMindflayerSpellCooldown = (caster, _target, spellId) => {
         const baseCooldown = cooldowns[spellId] ?? 1;
 
         let adjustedCooldown = baseCooldown;
-        if (target.race === 'Mindflayer' && baseCooldown > 1) {
-          const targetAwakening = target.awakening || {};
-          const addedTurns = targetAwakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
-          adjustedCooldown += addedTurns;
-        }
-
         if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
           const casterAwakening = caster.awakening || {};
           const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
@@ -532,32 +527,19 @@ const Combat = () => {
         return adjustedCooldown;
       };
 
-      const applyMindflayerSpellMod = (caster, target, baseDamage, spellId) => {
-        let adjustedDamage = baseDamage;
-        const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+      const applyMindflayerSpellMod = (_caster, _target, baseDamage, _spellId) => baseDamage;
 
-        if (target?.race === 'Mindflayer' && !hasCooldown) {
-          const targetAwakening = target.awakening || {};
-          const reductionBase = targetAwakening.mindflayerEnemyNoCooldownSpellReduction ?? raceConstants.mindflayer.enemyNoCooldownSpellReduction;
-          const reductionScaling = targetAwakening.mindflayerEnemyNoCooldownSpellCapScaling ?? raceConstants.mindflayer.enemyNoCooldownSpellCapScaling;
-          const reduction = Math.max(0, reductionBase + (target.base?.cap || 0) * reductionScaling);
-          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 - reduction)));
-          log.push(`${playerColor} 🦑 ${target.name} affaiblit le sort sans CD adverse (-${Math.round(reduction * 100)}% dégâts).`);
-        }
+      const triggerMindflayerSpellTheft = (caster, target, spellDamage, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost) => {
+        if (target?.race !== 'Mindflayer') return;
+        if (target.mindflayerSpellTheftUsed) return;
+        if (target.currentHP <= 0 || caster.currentHP <= 0) return;
 
-        if (caster.race === 'Mindflayer' && !hasCooldown) {
-          const casterAwakening = caster.awakening || {};
-          const noCooldownBonus = casterAwakening.mindflayerOwnNoCooldownSpellBonus ?? raceConstants.mindflayer.ownNoCooldownSpellBonus;
-          const capScaling = casterAwakening.mindflayerOwnNoCooldownSpellCapScaling ?? raceConstants.mindflayer.ownNoCooldownSpellCapScaling;
-          const capBonus = Math.max(0, (caster.base?.cap || 0) * capScaling);
-          const totalBonus = noCooldownBonus + capBonus;
-          if (totalBonus > 0) {
-            adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
-            log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
-          }
-        }
-
-        return adjustedDamage;
+        target.mindflayerSpellTheftUsed = true;
+        const targetAwakening = target.awakening || {};
+        const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
+        const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
+        const inflicted = applyMageTowerDamage(target, caster, stolenDamage, false, combatLog, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBoost, true, true);
+        combatLog.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
       };
 
       const applyMageTowerDamage = (
@@ -630,6 +612,7 @@ const Combat = () => {
               defender.shield = (defender.shield || 0) + shieldGain;
               combatLog.push(`${playerColor} 🧱 ${defender.name} gagne ${shieldGain} de bouclier.`);
             }
+            triggerMindflayerSpellTheft(attacker, defender, adjusted, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
           }
 
           if (defender.reflect && defender.currentHP > 0) {
