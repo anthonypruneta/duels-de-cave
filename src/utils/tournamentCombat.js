@@ -66,7 +66,13 @@ export function preparerCombattant(char) {
   const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
   const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
   const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
-  const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+  const additionalAwakeningEffects = char.allowMultipleAwakenings
+    ? (char.additionalAwakeningRaces || []).map((race) => getAwakeningEffect(race, char.level ?? 1))
+    : [];
+  const awakeningEffect = mergeAwakeningEffects([
+    getAwakeningEffect(char.race, char.level ?? 1),
+    ...additionalAwakeningEffects
+  ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
