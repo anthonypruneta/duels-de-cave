@@ -64,6 +64,9 @@ const HallOfFame = () => {
                   <p className="text-stone-400">
                     {entry.champion?.race} • {entry.champion?.classe}
                   </p>
+                  {entry.champion?.ownerPseudo && (
+                    <p className="text-cyan-300 text-sm">Joueur: {entry.champion.ownerPseudo}</p>
+                  )}
                   <p className="text-stone-500 text-sm mt-1">
                     {entry.nbParticipants} participants • {entry.nbMatchs} matchs
                   </p>
