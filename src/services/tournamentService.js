@@ -233,7 +233,9 @@ export async function lancerTournoi(docId = 'current') {
       matchActuel: firstIndex,
     });
 
-    await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+    if (docId === 'current') {
+      await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
+    }
 
     return { success: true };
   } catch (error) {
