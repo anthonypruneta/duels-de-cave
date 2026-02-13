@@ -152,7 +152,7 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: '+8 ResC, quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
+    bonus: 'CD+1 dès le début du combat, sort ennemi avec CD: -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
