@@ -24,16 +24,16 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '+3% Auto, +3% Cap, +3 VIT, +12% crit, +15% dégâts crit',
+      description: '+3% Auto, +3% Cap, +5 VIT, +20% crit, +15% dégâts crit',
       effect: {
         statMultipliers: {
           auto: 1.03,
           cap: 1.03
         },
         statBonuses: {
-          spd: 3
+          spd: 5
         },
-        critChanceBonus: 0.12,
+        critChanceBonus: 0.20,
         critDamageBonus: 0.15
       }
     }
@@ -43,7 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 4 premières attaques subies infligent 33% dégâts',
+      description: '- Sous 50% PV: +22% dégâts\n- Les 4 premières attaques subies infligent 33% dégâts',
       effect: {
         incomingHitMultiplier: 0.33,
         incomingHitCount: 4
@@ -55,12 +55,12 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+15% PV max, -5% dégâts subis',
+      description: '+15% PV max, +5% Déf',
       effect: {
         statMultipliers: {
-          hp: 1.15
-        },
-        damageTakenMultiplier: 0.95
+          hp: 1.15,
+          def: 1.05
+        }
       }
     }
   },
@@ -93,17 +93,13 @@ export const races = {
     }
   },
   'Lycan': {
-    bonus: 'Attaque inflige saignement +1/tour',
+    bonus: 'Attaque inflige saignement +1 de dégât/tour',
     icon: '🐺',
     awakening: {
       levelRequired: 100,
       description: 'Chaque auto: +1 stack de saignement (0.7% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        statMultipliers: {
-          spd: 1.03,
-          auto: 1.02
-        },
         bleedPercentPerStack: 0.007
       }
     }
@@ -144,32 +140,25 @@ export const races = {
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+23 CAP, stacks à +15% dégâts/soins des capacités (max 3), -5% dégâts subis',
+      description: '+23 CAP, stacks à +15% dégâts/soins des capacités (max 3)',
       effect: {
         statBonuses: {
           cap: 8
         },
         sireneStackBonus: 0.15,
-        sireneMaxStacks: 3,
-        damageTakenMultiplier: 0.95
+        sireneMaxStacks: 3
       }
     }
   },
   'Mindflayer': {
-    bonus: '+8 ResC, quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
+    bonus: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 20% de votre CAP aux dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts, +12% PV/ResC, -10% dégâts subis',
+      description: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 20% de votre CAP aux dégâts\nVotre sort a -1 de CD',
       effect: {
-        mindflayerCooldownSpellReduction: 0.2,
-        mindflayerNoCooldownSpellReduction: 0.45,
-        mindflayerAddCooldownTurns: 1,
-        statMultipliers: {
-          hp: 1.12,
-          rescap: 1.12
-        },
-        damageTakenMultiplier: 0.9
+        mindflayerStealSpellCapDamageScale: 0.2,
+        mindflayerOwnCooldownReductionTurns: 1
       }
     }
   }

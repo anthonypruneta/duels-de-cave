@@ -81,7 +81,10 @@ export const raceConstants = {
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
   gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
-  mindflayer: { cooldownSpellReduction: 0.20, noCooldownSpellReduction: 0.45, addCooldownTurns: 1, rescap: 12 }
+  mindflayer: {
+    stealSpellCapDamageScale: 0.20,
+    ownCooldownReductionTurns: 0
+  }
 };
 
 // Constantes générales
@@ -154,9 +157,6 @@ export const getRaceBonus = (race) => {
     case 'Dragonkin':
       b.hp = raceConstants.dragonkin.hp;
       b.rescap = raceConstants.dragonkin.rescap;
-      break;
-    case 'Mindflayer':
-      b.rescap = raceConstants.mindflayer.rescap;
       break;
     case 'Gnome':
       b.spd = raceConstants.gnome.spd;
