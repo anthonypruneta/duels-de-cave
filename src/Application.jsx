@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import CharacterCreation from './components/CharacterCreation';
@@ -17,8 +17,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
+import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
+
+  useEffect(() => {
+    loadPersistedBalanceConfig();
+  }, []);
+
   return (
     <Router>
       <AuthProvider>

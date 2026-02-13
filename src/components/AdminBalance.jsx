@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
@@ -6,6 +6,7 @@ import { classes } from '../data/classes';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch } from '../utils/tournamentCombat';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 
 const RACE_TO_CONSTANT_KEY = {
   'Humain': 'humain',
@@ -152,6 +153,24 @@ function AdminBalance() {
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
 
+  useEffect(() => {
+    const loadSavedConfig = async () => {
+      const result = await loadPersistedBalanceConfig();
+      if (!result.success || !result.data) return;
+
+      setRaceBonusDraft(deepClone(raceConstants));
+      setClassDraft(deepClone(classConstants));
+
+      const awakeningDraft = {};
+      Object.entries(races).forEach(([name, info]) => {
+        awakeningDraft[name] = deepClone(info?.awakening?.effect || {});
+      });
+      setRaceAwakeningDraft(awakeningDraft);
+    };
+
+    loadSavedConfig();
+  }, []);
+
   const applyDraftToLiveData = ({ temporary = false } = {}) => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
@@ -162,9 +181,6 @@ function AdminBalance() {
       applyNumericOverrides(currentEffect, effectDraft);
     });
 
-    if (!temporary) {
-      setSaveMessage('✅ Modifications validées et appliquées à l\'ensemble du jeu (session en cours).');
-    }
   };
 
   const withTemporaryDraftOverrides = (callback) => {
@@ -196,10 +212,18 @@ function AdminBalance() {
   const simulateForLevel = (level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classWins = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const raceAppearances = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
+    const classAppearances = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
 
     for (let i = 0; i < count; i++) {
       const p1 = makeCharacter(`L${level}-A-${i}`, level);
       const p2 = makeCharacter(`L${level}-B-${i}`, level);
+
+      raceAppearances[p1.race] += 1;
+      raceAppearances[p2.race] += 1;
+      classAppearances[p1.class] += 1;
+      classAppearances[p2.class] += 1;
+
       const match = simulerMatch(p1, p2);
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
@@ -207,11 +231,19 @@ function AdminBalance() {
     }
 
     const sortedRaces = Object.entries(raceWins)
-      .map(([race, wins]) => ({ race, wins, rate: ((wins / count) * 100).toFixed(1) }))
+      .map(([race, wins]) => {
+        const appearances = raceAppearances[race] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { race, wins, appearances, rate: rate.toFixed(1) };
+      })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
     const sortedClasses = Object.entries(classWins)
-      .map(([clazz, wins]) => ({ clazz, wins, rate: ((wins / count) * 100).toFixed(1) }))
+      .map(([clazz, wins]) => {
+        const appearances = classAppearances[clazz] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { clazz, wins, appearances, rate: rate.toFixed(1) };
+      })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
     return { sortedRaces, sortedClasses };
@@ -233,10 +265,29 @@ function AdminBalance() {
     }
   };
 
-  const handleApplyGlobally = () => {
+  const handleApplyGlobally = async () => {
     setSaving(true);
+    setSaveMessage('');
+
     try {
-      applyDraftToLiveData();
+      const config = {
+        raceConstants: deepClone(raceBonusDraft),
+        classConstants: deepClone(classDraft),
+        raceAwakenings: deepClone(raceAwakeningDraft)
+      };
+
+      const saveResult = await savePersistedBalanceConfig({
+        config,
+        updatedBy: 'admin'
+      });
+
+      if (!saveResult.success) {
+        setSaveMessage(`❌ ${saveResult.error}`);
+        return;
+      }
+
+      applyBalanceConfig(config);
+      setSaveMessage('✅ Modifications sauvegardées en base et appliquées de façon permanente.');
     } finally {
       setSaving(false);
     }
@@ -364,7 +415,7 @@ function AdminBalance() {
                       {results[key].sortedRaces.map((row) => (
                         <div key={`${key}-race-${row.race}`} className="flex justify-between text-stone-300">
                           <span>{races[row.race]?.icon} {row.race}</span>
-                          <span>{row.rate}%</span>
+                          <span>{row.rate}% WR</span>
                         </div>
                       ))}
                     </div>
@@ -375,7 +426,7 @@ function AdminBalance() {
                       {results[key].sortedClasses.map((row) => (
                         <div key={`${key}-class-${row.clazz}`} className="flex justify-between text-stone-300">
                           <span>{classes[row.clazz]?.icon} {row.clazz}</span>
-                          <span>{row.rate}%</span>
+                          <span>{row.rate}% WR</span>
                         </div>
                       ))}
                     </div>
