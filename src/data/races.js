@@ -43,7 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 4 premières attaques subies infligent 33% dégâts (conserve: Sous 50% PV: +22% dégâts)',
+      description: '- Sous 50% PV: +22% dégâts\n- Les 4 premières attaques subies infligent 33% dégâts',
       effect: {
         incomingHitMultiplier: 0.33,
         incomingHitCount: 4

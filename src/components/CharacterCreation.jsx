@@ -166,7 +166,7 @@ const CharacterCreation = () => {
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
                     <div className="text-stone-300 text-xs mb-2">Bonus: {info.bonus}</div>
                     <div className="text-emerald-300 text-xs font-semibold">Awakening (Niv {info.awakening?.levelRequired})</div>
-                    <div className="text-emerald-200 text-xs mb-1">{info.awakening?.description}</div>
+                    <div className="text-emerald-200 text-xs mb-1 whitespace-pre-line">{info.awakening?.description}</div>
                   </div>
                 );
               })}
