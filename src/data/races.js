@@ -97,14 +97,14 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1.0% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (1.8% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
         statMultipliers: {
           spd: 1.12,
           auto: 1.10
         },
-        bleedPercentPerStack: 0.028
+        bleedPercentPerStack: 0.018
       }
     }
   },
@@ -151,14 +151,14 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'Quand l’ennemi lance un spell: CD>0 → +1 CD & -10% dégâts, sans CD → -30% dégâts',
+    bonus: 'Quand l’ennemi lance un spell: CD>0 → +1 CD & -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD>0 → +1 CD & -15% dégâts, sans CD → -35% dégâts',
+      description: 'CD>0 → +1 CD & -20% dégâts, sans CD → -45% dégâts',
       effect: {
-        mindflayerCooldownSpellReduction: 0.15,
-        mindflayerNoCooldownSpellReduction: 0.35,
+        mindflayerCooldownSpellReduction: 0.2,
+        mindflayerNoCooldownSpellReduction: 0.45,
         mindflayerAddCooldownTurns: 1
       }
     }

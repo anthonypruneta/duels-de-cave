@@ -55,8 +55,8 @@ export const classConstants = {
     healPercent: 0.22      // Heal 22% des dégâts encaissés
   },
   briseurSort: {
-    shieldFromSpellDamage: 0.25,
-    shieldFromCap: 0.15
+    shieldFromSpellDamage: 0.4,
+    shieldFromCap: 0.25
   },
   succube: {
     capScale: 0.2,
@@ -65,7 +65,7 @@ export const classConstants = {
   bastion: {
     defPercentBonus: 0.05,
     capScale: 0.2,
-    defScale: 0.2
+    defScale: 0.15
   }
 };
 
@@ -77,11 +77,11 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1, bleedDivisor: 4 },
+  lycan: { bleedPerHit: 1, bleedDivisor: 5 },
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
   gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10 },
-  mindflayer: { cooldownSpellReduction: 0.10, noCooldownSpellReduction: 0.30, addCooldownTurns: 1 }
+  mindflayer: { cooldownSpellReduction: 0.15, noCooldownSpellReduction: 0.35, addCooldownTurns: 1 }
 };
 
 // Constantes générales
