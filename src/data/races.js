@@ -6,15 +6,15 @@ export const races = {
     icon: '👥',
     awakening: {
       levelRequired: 100,
-      description: '+6% à toutes les stats',
+      description: '+3% à toutes les stats',
       effect: {
         statMultipliers: {
-          auto: 1.06,
-          def: 1.06,
-          rescap: 1.06,
-          spd: 1.06,
-          cap: 1.06,
-          hp: 1.06
+          auto: 1.03,
+          def: 1.03,
+          rescap: 1.03,
+          spd: 1.03,
+          cap: 1.03,
+          hp: 1.03
         }
       }
     }
@@ -97,14 +97,14 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1.8% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (0.7% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
         statMultipliers: {
-          spd: 1.12,
-          auto: 1.10
+          spd: 1.03,
+          auto: 1.02
         },
-        bleedPercentPerStack: 0.018
+        bleedPercentPerStack: 0.007
       }
     }
   },
@@ -122,16 +122,20 @@ export const races = {
     }
   },
   'Gnome': {
-    bonus: 'VIT > cible: +20% crit, VIT < cible: +20% esquive, égalité: +10% crit/esquive',
+    bonus: '+3 VIT, +2 CAP, VIT > cible: +20% crit, VIT < cible: +20% esquive, égalité: +10% crit/esquive',
     icon: '🧠',
     awakening: {
       levelRequired: 100,
-      description: 'VIT > cible: +30% crit, VIT < cible: +30% esquive, égalité: +15% crit/esquive',
+      description: '+8% VIT, +5% CAP, VIT > cible: +40% crit, VIT < cible: +40% esquive, égalité: +20% crit/esquive',
       effect: {
-        speedDuelCritHigh: 0.3,
-        speedDuelDodgeLow: 0.3,
-        speedDuelEqualCrit: 0.15,
-        speedDuelEqualDodge: 0.15
+        speedDuelCritHigh: 0.4,
+        speedDuelDodgeLow: 0.4,
+        speedDuelEqualCrit: 0.2,
+        speedDuelEqualDodge: 0.2,
+        statMultipliers: {
+          spd: 1.08,
+          cap: 1.05
+        }
       }
     }
   },
@@ -140,26 +144,32 @@ export const races = {
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+20 CAP, stacks à +12% dégâts/soins des capacités (max 3)',
+      description: '+23 CAP, stacks à +15% dégâts/soins des capacités (max 3), -5% dégâts subis',
       effect: {
         statBonuses: {
-          cap: 5
+          cap: 8
         },
-        sireneStackBonus: 0.12,
-        sireneMaxStacks: 3
+        sireneStackBonus: 0.15,
+        sireneMaxStacks: 3,
+        damageTakenMultiplier: 0.95
       }
     }
   },
   'Mindflayer': {
-    bonus: 'Quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
+    bonus: '+8 ResC, quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
+      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts, +12% PV/ResC, -10% dégâts subis',
       effect: {
         mindflayerCooldownSpellReduction: 0.2,
         mindflayerNoCooldownSpellReduction: 0.45,
-        mindflayerAddCooldownTurns: 1
+        mindflayerAddCooldownTurns: 1,
+        statMultipliers: {
+          hp: 1.12,
+          rescap: 1.12
+        },
+        damageTakenMultiplier: 0.9
       }
     }
   }
