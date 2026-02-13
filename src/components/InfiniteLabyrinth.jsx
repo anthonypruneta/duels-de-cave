@@ -6,12 +6,14 @@ import {
   ensureWeeklyInfiniteLabyrinth,
   getCurrentWeekId,
   getUserLabyrinthProgress,
-  launchLabyrinthCombat
+  launchLabyrinthCombat,
+  resolveLabyrinthFloorImagePath
 } from '../services/infiniteLabyrinthService';
 import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
+import { classConstants } from '../data/combatMechanics';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -80,7 +82,127 @@ const getPassiveDetails = (passive) => {
 const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
 const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
 
-const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
+const getCalculatedDescription = (className, cap, auto) => {
+  switch (className) {
+    case 'Guerrier': {
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
+      const ignoreBasePct = Math.round(ignoreBase * 100);
+      const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
+      const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
+      return (
+        <>
+          +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+          <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+            <span className="text-green-400">{ignoreTotalPct}%</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Voleur': {
+      const { spdBonus, critPerCap } = classConstants.voleur;
+      const critBonusPct = Math.round(critPerCap * cap * 100);
+      return (
+        <>
+          +{spdBonus} VIT | Esquive 1 coup
+          <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+            <span className="text-green-400"> | +{critBonusPct}% crit</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Paladin': {
+      const { reflectBase, reflectPerCap } = classConstants.paladin;
+      const reflectBasePct = Math.round(reflectBase * 100);
+      const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+      const reflectTotalPct = reflectBasePct + reflectBonusPct;
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+            <span className="text-green-400">{reflectTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts reçus
+        </>
+      );
+    }
+    case 'Healer': {
+      const { missingHpPercent, capScale } = classConstants.healer;
+      const missingPct = Math.round(missingHpPercent * 100);
+      const healValue = Math.round(capScale * cap);
+      return (
+        <>
+          Heal {missingPct}% PV manquants +{' '}
+          <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+            <span className="text-green-400">{healValue}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Archer': {
+      const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+      const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+      const hit2Cap = Math.round(hit2CapMultiplier * cap);
+      return (
+        <>
+          2 attaques: 1 tir normal +{' '}
+          <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          </Tooltip>
+        </>
+      );
+    }
+    case 'Mage': {
+      const { capBase, capPerCap } = classConstants.mage;
+      const magicPct = capBase + capPerCap * cap;
+      const magicDmg = Math.round(magicPct * cap);
+      return (
+        <>
+          Dégâts = Auto +{' '}
+          <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+            <span className="text-green-400">{auto + magicDmg}</span>
+          </Tooltip>
+          {' '}(vs ResC)
+        </>
+      );
+    }
+    case 'Demoniste': {
+      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const familierPct = capBase + capPerCap * cap;
+      const familierDmgTotal = Math.round(familierPct * cap);
+      const ignoreResistPct = Math.round(ignoreResist * 100);
+      const stackBonusPct = Math.round(stackPerAuto * 100);
+      return (
+        <>
+          Familier:{' '}
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+            <span className="text-green-400">{familierDmgTotal}</span>
+          </Tooltip>
+          {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+        </>
+      );
+    }
+    case 'Masochiste': {
+      const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+      const returnBasePct = Math.round(returnBase * 100);
+      const returnBonusPct = Math.round(returnPerCap * cap * 100);
+      const returnTotalPct = returnBasePct + returnBonusPct;
+      const healPct = Math.round(healPercent * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+            <span className="text-green-400">{returnTotalPct}%</span>
+          </Tooltip>
+          {' '}des dégâts accumulés & heal {healPct}%
+        </>
+      );
+    }
+    default:
+      return classes[className]?.description || '';
+  }
+};
+
+const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
   if (!character) return null;
 
   const raceB = character.bonuses?.race || {};
@@ -88,8 +210,10 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
   const forestBoosts = getForestBoosts(character);
   const weapon = character.equippedWeaponData;
   const passiveDetails = getPassiveDetails(character.mageTowerPassive);
-  const awakeningInfo = races[character.race]?.awakening || null;
-  const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
+  const awakeningRaces = [character.race, ...(character.additionalAwakeningRaces || [])].filter(Boolean);
+  const activeAwakenings = awakeningRaces
+    .map((raceName) => ({ raceName, info: races[raceName]?.awakening }))
+    .filter(({ info }) => info && (character.level ?? 1) >= info.levelRequired);
 
   const computedBase = getBaseWithBoosts(character);
   const baseStats = character.baseWithoutWeapon || computedBase;
@@ -118,12 +242,9 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
       ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
       : 0;
     const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
-    const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-    const totalDelta = totalBonus(statKey) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
     return (
       <Tooltip content={tooltipContent(statKey)}>
         <span className="text-green-400 font-bold">{label}: {displayValue}</span>
-        {hasBonus && <span className="ml-1 text-xs text-amber-300">({totalDelta > 0 ? `+${totalDelta}` : totalDelta})</span>}
       </Tooltip>
     );
   };
@@ -131,90 +252,90 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride }) => {
   const characterImage = character.characterImage || character.imagePath || null;
 
   return (
-    <div className="w-full">
-      <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl">
-        <div className="bg-stone-900/90 text-stone-200 p-3 border-b border-stone-700">
-          <div className="font-bold">{character.race} • {character.class}</div>
-          <div className="text-stone-300">• Niveau {character.level ?? 1}</div>
+    <div className="w-full max-w-[340px] mx-auto">
+      <div className="relative shadow-2xl">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+          {headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race} • ${character.class}` : 'Créature du labyrinthe')} • Niveau {character.level ?? 1}
         </div>
 
-        <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-          {characterImage ? (
-            <img src={characterImage} alt={character.name} className="w-full h-[420px] object-contain" />
-          ) : (
-            <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
-          )}
-          <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-            <div className="text-white font-bold text-3xl text-center">{character.name}</div>
+        <div className="overflow-visible border border-stone-600 bg-stone-900">
+          <div className="relative bg-stone-900 flex items-center justify-center">
+            {characterImage ? (
+              <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
+            ) : (
+              <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
+            )}
+            <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
+              <div className="text-white font-bold text-[42px] leading-none text-center">{character.name}</div>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-stone-800 p-4 border-t border-stone-600">
-          <div className="mb-3">
-            <div className="flex justify-between text-sm text-white mb-2">
+          <div className="bg-stone-800 p-3 border-t border-stone-600">
+            <div className="flex justify-between text-xs text-white mb-2 font-bold">
               <StatWithTooltip statKey="hp" label="HP" />
               <StatWithTooltip statKey="spd" label="VIT" />
             </div>
             <div className="text-xs text-stone-400 mb-2">{character.name} — PV {Math.max(0, currentHP)}/{maxHP}</div>
-            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
+            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
               <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-            <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
-          </div>
+            <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
+              <StatWithTooltip statKey="auto" label="Auto" />
+              <StatWithTooltip statKey="def" label="Déf" />
+              <StatWithTooltip statKey="cap" label="Cap" />
+              <StatWithTooltip statKey="rescap" label="ResC" />
+            </div>
 
-          <div className="space-y-2">
-            {weapon && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <Tooltip content={getWeaponTooltipContent(weapon)}>
-                  <span className="flex items-center gap-2">
-                    {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
-                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
-                  </span>
-                </Tooltip>
-              </div>
-            )}
-
-            {passiveDetails && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{passiveDetails.icon}</span>
-                <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
-                  <div className="text-stone-400 text-[10px]">{passiveDetails.levelData.description}</div>
+            <div className="space-y-2">
+              {weapon && (
+                <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <Tooltip content={getWeaponTooltipContent(weapon)}>
+                    <span className="flex items-center gap-2">
+                      {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
+                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    </span>
+                  </Tooltip>
                 </div>
-              </div>
-            )}
+              )}
 
-            {isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">✨</span>
-                <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">Éveil racial actif (Niv {awakeningInfo.levelRequired}+)</div>
-                  <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+              {passiveDetails && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{passiveDetails.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
+                    <div className="text-stone-400 text-[11px]">{passiveDetails.levelData.description}</div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {races[character.race] && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{races[character.race].icon}</span>
-                <span className="text-stone-300">{races[character.race].bonus}</span>
-              </div>
-            )}
-
-            {classes[character.class] && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">{classes[character.class].icon}</span>
-                <div className="flex-1">
-                  <div className="text-stone-200 font-semibold mb-1">{classes[character.class].ability}</div>
+              {activeAwakenings.map(({ raceName, info }) => (
+                <div key={`awakening-${raceName}`} className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">✨</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">Éveil racial actif ({raceName}) (Niv {info.levelRequired}+)</div>
+                    <div className="text-stone-400 text-[11px]">{info.description}</div>
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
+
+              {showRaceDetails && races[character.race] && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{races[character.race].icon}</span>
+                  <span className="text-stone-300">{races[character.race].bonus}</span>
+                </div>
+              )}
+
+              {showClassDetails && classes[character.class] && (
+                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                  <span className="text-lg">{classes[character.class].icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
+                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -254,13 +375,57 @@ const InfiniteLabyrinth = () => {
   const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
   const shownEnemyFloor = displayEnemyFloor || defaultEnemyFloor;
 
+  const formatLogMessage = (text) => {
+    const pName = playerCharacter?.name;
+    const eName = enemyCharacter?.name;
+    if (!pName || !eName) return text;
+
+    const escapedPName = pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedEName = eName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameRegex = new RegExp(`(${escapedPName}|${escapedEName})`, 'g');
+
+    const parts = [];
+    let key = 0;
+    text.split(nameRegex).forEach((part) => {
+      if (!part) return;
+      if (part === pName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        return;
+      }
+      if (part === eName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-purple-400">{part}</span>);
+        return;
+      }
+
+      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+      let lastIndex = 0;
+      let match;
+      while ((match = numRegex.exec(part)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(part.slice(lastIndex, match.index));
+        }
+        const isHeal = match[2].toLowerCase().includes('vie');
+        const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
+        parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
+        parts.push(` ${match[2]}`);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < part.length) {
+        parts.push(part.slice(lastIndex));
+      }
+    });
+
+    return parts;
+  };
+
   const enemyCharacter = useMemo(() => {
     if (!shownEnemyFloor) return null;
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
-      race: 'Humain',
+      race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || 'Humain',
+      additionalAwakeningRaces: shownEnemyFloor?.bossKit?.awakeningRaces?.slice(1) || [],
       class: shownEnemyFloor?.bossKit?.spellClass || 'Guerrier',
       level: shownEnemyFloor.floorNumber,
       base: shownEnemyFloor.stats,
@@ -269,7 +434,7 @@ const InfiniteLabyrinth = () => {
         ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
         : null,
       equippedWeaponData: weapon,
-      characterImage: shownEnemyFloor.imagePath,
+      characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
       currentHP: replayP2HP || shownEnemyFloor.stats.hp,
       maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp
     };
@@ -282,8 +447,7 @@ const InfiniteLabyrinth = () => {
 
   const applyCombatVolume = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
-    [labyrinthMusic, victoryMusic].forEach((audio) => {
+    [labyrinthMusic].forEach((audio) => {
       if (audio) {
         audio.volume = volume;
         audio.muted = isMuted;
@@ -331,26 +495,16 @@ const InfiniteLabyrinth = () => {
 
   const startFightMusic = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
-    if (victoryMusic) victoryMusic.pause();
     if (labyrinthMusic) {
-      labyrinthMusic.currentTime = 0;
       labyrinthMusic.volume = volume;
       labyrinthMusic.muted = isMuted;
       labyrinthMusic.play().catch(() => {});
     }
   };
 
-  const stopFightMusic = ({ playVictory = false } = {}) => {
+  const stopFightMusic = () => {
     const labyrinthMusic = document.getElementById('labyrinth-music');
-    const victoryMusic = document.getElementById('labyrinth-victory-music');
     if (labyrinthMusic) labyrinthMusic.pause();
-    if (playVictory && victoryMusic) {
-      victoryMusic.currentTime = 0;
-      victoryMusic.volume = volume;
-      victoryMusic.muted = isMuted;
-      victoryMusic.play().catch(() => {});
-    }
   };
 
   const delayReplay = (ms) => new Promise((resolve) => {
@@ -420,7 +574,9 @@ const InfiniteLabyrinth = () => {
       setReplayLogs((prev) => [...prev, '🎁 Boss vaincu: +5 essais de donjon ajoutés.']);
     }
 
-    stopFightMusic({ playVictory: result.didWin });
+    if (!result.didWin) {
+      stopFightMusic();
+    }
     setIsAnimatingFight(false);
   };
 
@@ -523,9 +679,6 @@ const InfiniteLabyrinth = () => {
         <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
         <source src="/assets/music/labyrinthe.mp3" type="audio/mpeg" />
       </audio>
-      <audio id="labyrinth-victory-music">
-        <source src="/assets/music/victory.mp3" type="audio/mpeg" />
-      </audio>
       <Header />
       <SoundControl />
       <div className="max-w-[1800px] mx-auto pt-16">
@@ -596,15 +749,21 @@ const InfiniteLabyrinth = () => {
                       if (log.includes('🏆')) {
                         return <div key={idx} className="flex justify-center my-4"><div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div></div>;
                       }
-                      if (log.includes('---')) {
+                      if (log.includes('💀')) {
+                        return <div key={idx} className="flex justify-center my-4"><div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('💚')) {
+                        return <div key={idx} className="flex justify-center my-3"><div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">{cleanLog}</div></div>;
+                      }
+                      if (log.includes('---') || log.includes('⚔️')) {
                         return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div></div>;
                       }
                       return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-sm italic">{cleanLog}</div></div>;
                     }
                     if (isP1) {
-                      return <div key={idx} className="flex justify-start"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                      return <div key={idx} className="flex justify-start"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                     }
-                    return <div key={idx} className="flex justify-end"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500 max-w-[80%]"><div className="text-xs md:text-sm">{cleanLog}</div></div></div>;
+                    return <div key={idx} className="flex justify-end"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500"><div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
                   })
                 )}
               </div>
@@ -614,7 +773,14 @@ const InfiniteLabyrinth = () => {
           </div>
 
           <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCard character={enemyCharacter} currentHPOverride={replayP2HP || enemyCharacter?.base?.hp} maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp} />
+            <CharacterCard
+              character={enemyCharacter}
+              currentHPOverride={replayP2HP || enemyCharacter?.base?.hp}
+              maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
+              headerLabel={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
+              showRaceDetails={false}
+              showClassDetails={Boolean(shownEnemyFloor?.bossKit?.spellClass)}
+            />
           </div>
         </div>
       </div>

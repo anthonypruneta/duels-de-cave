@@ -494,7 +494,7 @@ const MageTower = () => {
   };
 
   const reviveUndead = (target, attacker, log, playerColor) => {
-    const revivePercent = target.awakening?.revivePercent ?? raceConstants.mortVivant.revivePercent;
+    const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
     const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
     const explosionPercent = target.awakening?.explosionPercent ?? 0;
     if (attacker && explosionPercent > 0) {
@@ -697,7 +697,7 @@ const MageTower = () => {
     }
 
     if (att.race === 'Sylvari') {
-      const regenPercent = att.awakening?.regenPercent ?? raceConstants.sylvari.regenPercent;
+      const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
       const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
@@ -797,7 +797,7 @@ const MageTower = () => {
     }
 
     let mult = 1.0;
-    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+    if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
       mult = raceConstants.orc.damageBonus;
     }
 
@@ -853,8 +853,10 @@ const MageTower = () => {
       } else {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
         if (att.race === 'Lycan') {
-          const bleedStacks = att.awakening?.bleedStacksPerHit ?? raceConstants.lycan.bleedPerHit;
-          def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+          const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
+          if (bleedStacks > 0) {
+            def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
+          }
           if (att.awakening?.bleedPercentPerStack) {
             def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
           }
