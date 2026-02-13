@@ -113,7 +113,7 @@ const buildRaceBonusDescription = (raceName, constants) => {
     case 'Sylvari': return `Regen ${pct(constants.regenPercent, 1)} PV max/tour`;
     case 'Sirène': return `+${constants.cap || 0} CAP, subit un spell: +${pct(constants.stackBonus, 0)} dégâts/soins des capacités (max ${constants.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${constants.spd || 0} VIT, +${constants.cap || 0} CAP, VIT > cible: +${pct(constants.critIfFaster, 0)} crit, VIT < cible: +${pct(constants.dodgeIfSlower, 0)} esquive, égalité: +${pct(constants.critIfEqual, 0)}/${pct(constants.dodgeIfEqual, 0)} crit/esquive`;
-    case 'Mindflayer': return `- CD ennemie +${constants.addCooldownTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort +${pct(constants.ownNoCooldownSpellBonus, 0)} (+${((constants.ownNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
+    case 'Mindflayer': return `- CD ennemie +${constants.addCooldownTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort -${pct(constants.enemyNoCooldownSpellReduction, 0)} (+${((constants.enemyNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -130,7 +130,7 @@ const buildRaceAwakeningDescription = (raceName, effect) => {
     case 'Sylvari': return `Regen ${pct(effect?.regenPercent, 1)} PV max/tour, +${pct(effect?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(effect?.highHpThreshold || 0) * 100).toFixed(0)}%`;
     case 'Sirène': return `+${effect?.statBonuses?.cap || 0} CAP, stacks à +${pct(effect?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${effect?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((effect?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((effect?.statMultipliers?.cap || 1) - 1, 0)} CAP, VIT > cible: +${pct(effect?.speedDuelCritHigh, 0)} crit, VIT < cible: +${pct(effect?.speedDuelDodgeLow, 0)} esquive, égalité: +${pct(effect?.speedDuelEqualCrit, 0)}/${pct(effect?.speedDuelEqualDodge, 0)} crit/esquive`;
-    case 'Mindflayer': return `- CD ennemie +${effect?.mindflayerAddCooldownTurns || 0} dès le début du combat\n- votre CD -${effect?.mindflayerOwnCooldownReductionTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort +${pct(effect?.mindflayerOwnNoCooldownSpellBonus, 0)} (+${((effect?.mindflayerOwnNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
+    case 'Mindflayer': return `- CD ennemie +${effect?.mindflayerAddCooldownTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort -${pct(effect?.mindflayerEnemyNoCooldownSpellReduction, 0)} (+${((effect?.mindflayerEnemyNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)\n- votre CD -${effect?.mindflayerOwnCooldownReductionTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort +${pct(effect?.mindflayerOwnNoCooldownSpellBonus, 0)} (+${((effect?.mindflayerOwnNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
     default: return races[raceName]?.awakening?.description || '';
   }
 };

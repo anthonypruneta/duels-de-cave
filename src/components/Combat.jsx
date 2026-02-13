@@ -530,9 +530,18 @@ const Combat = () => {
         return adjustedCooldown;
       };
 
-      const applyMindflayerSpellMod = (caster, _target, baseDamage, spellId) => {
+      const applyMindflayerSpellMod = (caster, target, baseDamage, spellId) => {
         let adjustedDamage = baseDamage;
         const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+
+        if (target?.race === 'Mindflayer' && !hasCooldown) {
+          const targetAwakening = target.awakening || {};
+          const reductionBase = targetAwakening.mindflayerEnemyNoCooldownSpellReduction ?? raceConstants.mindflayer.enemyNoCooldownSpellReduction;
+          const reductionScaling = targetAwakening.mindflayerEnemyNoCooldownSpellCapScaling ?? raceConstants.mindflayer.enemyNoCooldownSpellCapScaling;
+          const reduction = Math.max(0, reductionBase + (target.base?.cap || 0) * reductionScaling);
+          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 - reduction)));
+          log.push(`${playerColor} 🦑 ${target.name} affaiblit le sort sans CD adverse (-${Math.round(reduction * 100)}% dégâts).`);
+        }
 
         if (caster.race === 'Mindflayer' && !hasCooldown) {
           const casterAwakening = caster.awakening || {};
@@ -540,8 +549,10 @@ const Combat = () => {
           const capScaling = casterAwakening.mindflayerOwnNoCooldownSpellCapScaling ?? raceConstants.mindflayer.ownNoCooldownSpellCapScaling;
           const capBonus = Math.max(0, (caster.base?.cap || 0) * capScaling);
           const totalBonus = noCooldownBonus + capBonus;
-          adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
-          log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
+          if (totalBonus > 0) {
+            adjustedDamage = Math.max(1, Math.round(adjustedDamage * (1 + totalBonus)));
+            log.push(`${playerColor} 🦑 ${caster.name} amplifie son sort sans CD (+${Math.round(totalBonus * 100)}% dégâts).`);
+          }
         }
 
         return adjustedDamage;

@@ -151,16 +151,18 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: '- CD ennemie +1 dès le début du combat\n- si pas de CD dégâts du sort +10% (+0,1% par CAP)',
+    bonus: '- CD ennemie +1 dès le début du combat\n- si pas de CD dégâts du sort -10% (+0,1% par CAP)',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: '- CD ennemie +1 dès le début du combat\n- votre CD -1 dès le début du combat\n- si pas de CD dégâts du sort +20% (+0,1% par CAP)',
+      description: '- CD ennemie +1 dès le début du combat\n- si pas de CD dégâts du sort -20% (+0,1% par CAP)\n- votre CD -1 dès le début du combat\n- si pas de CD dégâts du sort +50% (+0,5% par CAP)',
       effect: {
         mindflayerAddCooldownTurns: 1,
         mindflayerOwnCooldownReductionTurns: 1,
-        mindflayerOwnNoCooldownSpellBonus: 0.2,
-        mindflayerOwnNoCooldownSpellCapScaling: 0.001
+        mindflayerEnemyNoCooldownSpellReduction: 0.2,
+        mindflayerEnemyNoCooldownSpellCapScaling: 0.001,
+        mindflayerOwnNoCooldownSpellBonus: 0.5,
+        mindflayerOwnNoCooldownSpellCapScaling: 0.005
       }
     }
   }
