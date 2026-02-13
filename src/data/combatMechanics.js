@@ -172,6 +172,9 @@ export const getClassBonus = (charClass) => {
     case 'Guerrier':
       b.auto = classConstants.guerrier.autoBonus;
       break;
+    case 'Bastion':
+      b.def = 5;
+      break;
   }
   return b;
 };
