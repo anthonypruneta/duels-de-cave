@@ -202,7 +202,7 @@ const getCalculatedDescription = (className, cap, auto) => {
   }
 };
 
-const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellAndRaceDetails = true }) => {
+const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
   if (!character) return null;
 
   const raceB = character.bonuses?.race || {};
@@ -210,8 +210,10 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellA
   const forestBoosts = getForestBoosts(character);
   const weapon = character.equippedWeaponData;
   const passiveDetails = getPassiveDetails(character.mageTowerPassive);
-  const awakeningInfo = races[character.race]?.awakening || null;
-  const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
+  const awakeningRaces = [character.race, ...(character.additionalAwakeningRaces || [])].filter(Boolean);
+  const activeAwakenings = awakeningRaces
+    .map((raceName) => ({ raceName, info: races[raceName]?.awakening }))
+    .filter(({ info }) => info && (character.level ?? 1) >= info.levelRequired);
 
   const computedBase = getBaseWithBoosts(character);
   const baseStats = character.baseWithoutWeapon || computedBase;
@@ -253,7 +255,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellA
     <div className="w-full">
       <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl">
         <div className="bg-stone-900/90 text-stone-200 p-3 border-b border-stone-700">
-          <div className="font-bold">{showSpellAndRaceDetails ? `${character.race} • ${character.class}` : 'Créature du labyrinthe'}</div>
+          <div className="font-bold">{headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race} • ${character.class}` : 'Créature du labyrinthe')}</div>
           <div className="text-stone-300">• Niveau {character.level ?? 1}</div>
         </div>
 
@@ -309,24 +311,24 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showSpellA
               </div>
             )}
 
-            {isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+            {activeAwakenings.map(({ raceName, info }) => (
+              <div key={`awakening-${raceName}`} className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">✨</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">Éveil racial actif (Niv {awakeningInfo.levelRequired}+)</div>
-                  <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+                  <div className="text-amber-300 font-semibold mb-1">Éveil racial actif ({raceName}) (Niv {info.levelRequired}+)</div>
+                  <div className="text-stone-400 text-[10px]">{info.description}</div>
                 </div>
               </div>
-            )}
+            ))}
 
-            {showSpellAndRaceDetails && races[character.race] && (
+            {showRaceDetails && races[character.race] && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
                 <span className="text-stone-300">{races[character.race].bonus}</span>
               </div>
             )}
 
-            {showSpellAndRaceDetails && classes[character.class] && (
+            {showClassDetails && classes[character.class] && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
@@ -424,6 +426,7 @@ const InfiniteLabyrinth = () => {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
       race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || 'Humain',
+      additionalAwakeningRaces: shownEnemyFloor?.bossKit?.awakeningRaces?.slice(1) || [],
       class: shownEnemyFloor?.bossKit?.spellClass || 'Guerrier',
       level: shownEnemyFloor.floorNumber,
       base: shownEnemyFloor.stats,
@@ -775,7 +778,9 @@ const InfiniteLabyrinth = () => {
               character={enemyCharacter}
               currentHPOverride={replayP2HP || enemyCharacter?.base?.hp}
               maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
-              showSpellAndRaceDetails={shownEnemyFloor?.type === 'boss'}
+              headerLabel={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
+              showRaceDetails={false}
+              showClassDetails={Boolean(shownEnemyFloor?.bossKit?.spellClass)}
             />
           </div>
         </div>
