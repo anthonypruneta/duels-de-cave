@@ -209,7 +209,7 @@ const processTurn = (p1, p2) => {
 
     // Orc - Bonus dégâts sous 50% PV
     let mult = 1.0;
-    if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
+    if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
       mult = raceConstants.orc.damageBonus;
     }
     mult = applyOutgoingAwakeningMultiplier(att, mult);
