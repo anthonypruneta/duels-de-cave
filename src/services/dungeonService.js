@@ -32,6 +32,7 @@ import {
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
 import { getUserCharacter, updateCharacterEquippedWeapon } from './characterService';
+import { announceFirstDungeonFinalBossKill } from './milestoneAnnouncementService';
 
 // ============================================================================
 // HELPER RETRY (même pattern que characterService)
@@ -481,6 +482,15 @@ export const markDungeonCompleted = async (userId, dungeonKey) => {
         }, { merge: true });
       }
     });
+
+    const characterResult = await getUserCharacter(userId);
+    if (characterResult.success && characterResult.data) {
+      await announceFirstDungeonFinalBossKill({
+        userId,
+        dungeonKey,
+        character: characterResult.data
+      });
+    }
 
     return { success: true };
   } catch (error) {
