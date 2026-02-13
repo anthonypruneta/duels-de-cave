@@ -1365,7 +1365,7 @@ const MageTower = () => {
                   </Tooltip>
                 </div>
               )}
-              {races[char.race] && (
+              {!isAwakeningActive && races[char.race] && (
                 <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                   <span className="text-lg">{races[char.race].icon}</span>
                   <span className="text-stone-300">{races[char.race].bonus}</span>

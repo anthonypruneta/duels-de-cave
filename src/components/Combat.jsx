@@ -1270,10 +1270,12 @@ const Combat = () => {
                   </div>
                 </div>
               )}
+              {!isAwakeningActive && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
                 <span className="text-stone-300">{races[character.race].bonus}</span>
               </div>
+              )}
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{classes[character.class].icon}</span>
                 <div className="flex-1">
