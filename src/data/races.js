@@ -43,7 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 4 premières attaques subies infligent 33% dégâts',
+      description: 'Les 4 premières attaques subies infligent 33% dégâts (conserve: Sous 50% PV: +22% dégâts)',
       effect: {
         incomingHitMultiplier: 0.33,
         incomingHitCount: 4
@@ -100,10 +100,6 @@ export const races = {
       description: 'Chaque auto: +1 stack de saignement (0.7% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        statMultipliers: {
-          spd: 1.03,
-          auto: 1.02
-        },
         bleedPercentPerStack: 0.007
       }
     }
