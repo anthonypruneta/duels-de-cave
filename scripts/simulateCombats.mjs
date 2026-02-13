@@ -442,16 +442,35 @@ const onSpellCast = (attacker) => {
   return null;
 };
 
+
+const getMindflayerSpellCooldown = (attacker, defender, spellId) => {
+  const baseCooldown = cooldowns[spellId] ?? 1;
+  if (defender.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
+  const aw = defender.awakening || {};
+  const addedTurns = aw.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
+  return baseCooldown + addedTurns;
+};
+
+const applyMindflayerSpellReduction = (attacker, defender, rawDamage, spellId) => {
+  if (defender.race !== 'Mindflayer') return rawDamage;
+  const aw = defender.awakening || {};
+  const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
+  const reduction = hasCooldown
+    ? (aw.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction)
+    : (aw.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction);
+  return Math.max(1, Math.round(rawDamage * (1 - reduction)));
+};
+
 const applyClassEffects = (attacker, defender) => {
   let skillUsed = false;
   let damageInstances = [];
   let healAmount = 0;
 
-  const isMage = attacker.class === 'Mage' && attacker.cd.mag === cooldowns.mag;
-  const isWar = attacker.class === 'Guerrier' && attacker.cd.war === cooldowns.war;
-  const isArcher = attacker.class === 'Archer' && attacker.cd.arc === cooldowns.arc;
+  const isMage = attacker.class === 'Mage' && attacker.cd.mag === getMindflayerSpellCooldown(attacker, defender, 'mag');
+  const isWar = attacker.class === 'Guerrier' && attacker.cd.war === getMindflayerSpellCooldown(attacker, defender, 'war');
+  const isArcher = attacker.class === 'Archer' && attacker.cd.arc === getMindflayerSpellCooldown(attacker, defender, 'arc');
   const isDemon = attacker.class === 'Demoniste';
-  const isMaso = attacker.class === 'Masochiste' && attacker.cd.maso === cooldowns.maso && attacker.masoTaken > 0;
+  const isMaso = attacker.class === 'Masochiste' && attacker.cd.maso === getMindflayerSpellCooldown(attacker, defender, 'maso') && attacker.masoTaken > 0;
   const isHeal = attacker.class === 'Healer' && attacker.cd.heal === cooldowns.heal;
 
   if (attacker.class === 'Paladin' && attacker.cd.pal === cooldowns.pal) {
@@ -482,7 +501,7 @@ const applyClassEffects = (attacker, defender) => {
     const heal = Math.max(1, Math.round(attacker.masoTaken * healPercent));
     attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
     attacker.masoTaken = 0;
-    damageInstances.push({ raw: dmg, isSpell: false, isBonusAttack: false });
+    damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, dmg, 'maso'), isSpell: true, isBonusAttack: false });
   }
 
   if (isDemon) {
@@ -497,7 +516,7 @@ const applyClassEffects = (attacker, defender) => {
     skillUsed = true;
     const { capBase, capPerCap } = classConstants.mage;
     const atkSpell = Math.round(attacker.stats.auto + (capBase + capPerCap * attacker.stats.cap) * attacker.stats.cap);
-    const raw = dmgCap(atkSpell, defender.stats.rescap);
+    const raw = applyMindflayerSpellReduction(attacker, defender, dmgCap(atkSpell, defender.stats.rescap), 'mag');
     damageInstances.push({ raw, isSpell: true, isBonusAttack: false });
 
     const doubleCast = onSpellCast(attacker);
@@ -512,10 +531,10 @@ const applyClassEffects = (attacker, defender) => {
     const ignore = ignoreBase + ignorePerCap * attacker.stats.cap;
     if (defender.stats.def <= defender.stats.rescap) {
       const effDef = Math.max(0, Math.round(defender.stats.def * (1 - ignore)));
-      damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), effDef), isSpell: false, isBonusAttack: false });
+      damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, dmgPhys(Math.round(attacker.stats.auto), effDef), 'war'), isSpell: true, isBonusAttack: false });
     } else {
       const effRes = Math.max(0, Math.round(defender.stats.rescap * (1 - ignore)));
-      damageInstances.push({ raw: dmgCap(Math.round(attacker.stats.cap), effRes), isSpell: true, isBonusAttack: false });
+      damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, dmgCap(Math.round(attacker.stats.cap), effRes), 'war'), isSpell: true, isBonusAttack: false });
     }
   }
 
@@ -524,17 +543,17 @@ const applyClassEffects = (attacker, defender) => {
     const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
     for (let i = 0; i < hitCount; i++) {
       if (i === 0) {
-        damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), isSpell: false, isBonusAttack: false });
+        damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), 'arc'), isSpell: true, isBonusAttack: false });
       } else {
         const phys = dmgPhys(Math.round(attacker.stats.auto * hit2AutoMultiplier), defender.stats.def);
         const cap = dmgCap(Math.round(attacker.stats.cap * hit2CapMultiplier), defender.stats.rescap);
-        damageInstances.push({ raw: phys + cap, isSpell: false, isBonusAttack: false });
+        damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, phys + cap, 'arc'), isSpell: true, isBonusAttack: false });
       }
     }
   }
 
   if (!skillUsed && damageInstances.length === 0) {
-    damageInstances.push({ raw: dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), isSpell: false, isBonusAttack: false });
+    damageInstances.push({ raw: applyMindflayerSpellReduction(attacker, defender, dmgPhys(Math.round(attacker.stats.auto), defender.stats.def), 'arc'), isSpell: true, isBonusAttack: false });
   }
 
   return { damageInstances, skillUsed };
