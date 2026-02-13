@@ -438,7 +438,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.succubeWeakenNextAttack = false;
     log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
   }
-  if (att.race === 'Orc' && !att.awakening && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
+  if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
   const baseHits = isArcher ? classConstants.archer.hitCount : 1;
