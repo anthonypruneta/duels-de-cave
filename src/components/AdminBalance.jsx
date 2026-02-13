@@ -44,13 +44,14 @@ const applyNumericOverrides = (target, source) => {
       applyNumericOverrides(target[key], val);
       return;
     }
+
     const parsed = Number(val);
     if (!Number.isNaN(parsed)) target[key] = parsed;
   });
 };
 
 const updateNestedValue = (obj, path, value) => {
-  if (path.length === 0) return obj;
+  if (!path.length) return obj;
   const [head, ...rest] = path;
   return {
     ...obj,
@@ -58,36 +59,34 @@ const updateNestedValue = (obj, path, value) => {
   };
 };
 
-const NumberTreeEditor = ({ value, onChange, path = [] }) => {
-  return (
-    <div className="space-y-2">
-      {Object.entries(value || {}).map(([key, val]) => {
-        const keyPath = [...path, key];
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-          return (
-            <div key={keyPath.join('.')} className="border border-stone-700 p-2 bg-stone-950/50">
-              <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
-              <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
-            </div>
-          );
-        }
-
+const NumberTreeEditor = ({ value, onChange, path = [] }) => (
+  <div className="space-y-2">
+    {Object.entries(value || {}).map(([key, val]) => {
+      const keyPath = [...path, key];
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
         return (
-          <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
-            <span className="text-stone-300">{key}</span>
-            <input
-              type="number"
-              step="any"
-              value={val}
-              onChange={(e) => onChange(keyPath, e.target.value)}
-              className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
-            />
-          </label>
+          <div key={keyPath.join('.')} className="border border-stone-700 p-2 bg-stone-950/50">
+            <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
+            <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
+          </div>
         );
-      })}
-    </div>
-  );
-};
+      }
+
+      return (
+        <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-stone-300">{key}</span>
+          <input
+            type="number"
+            step="any"
+            value={val}
+            onChange={(e) => onChange(keyPath, e.target.value)}
+            className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
+          />
+        </label>
+      );
+    })}
+  </div>
+);
 
 const genStats = () => ({
   hp: 120 + Math.floor(Math.random() * 81),
@@ -106,6 +105,7 @@ const makeCharacter = (id, level) => {
   const raw = genStats();
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
+
   const base = applyAwakeningToBase({
     hp: raw.hp + raceBonus.hp + classBonus.hp,
     auto: raw.auto + raceBonus.auto + classBonus.auto,
@@ -135,12 +135,63 @@ function AdminBalance() {
   const [duels, setDuels] = useState(500);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [raceTab, setRaceTab] = useState('bonus');
 
-  const [raceDraft, setRaceDraft] = useState(() => deepClone(raceConstants));
+  const [raceBonusDraft, setRaceBonusDraft] = useState(() => deepClone(raceConstants));
+  const [raceAwakeningDraft, setRaceAwakeningDraft] = useState(() => {
+    const draft = {};
+    Object.entries(races).forEach(([name, info]) => {
+      draft[name] = deepClone(info?.awakening?.effect || {});
+    });
+    return draft;
+  });
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
 
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
+
+  const applyDraftToLiveData = ({ temporary = false } = {}) => {
+    applyNumericOverrides(raceConstants, raceBonusDraft);
+    applyNumericOverrides(classConstants, classDraft);
+
+    Object.entries(raceAwakeningDraft).forEach(([raceName, effectDraft]) => {
+      const currentEffect = races?.[raceName]?.awakening?.effect;
+      if (!currentEffect || !effectDraft) return;
+      applyNumericOverrides(currentEffect, effectDraft);
+    });
+
+    if (!temporary) {
+      setSaveMessage('✅ Modifications validées et appliquées à l\'ensemble du jeu (session en cours).');
+    }
+  };
+
+  const withTemporaryDraftOverrides = (callback) => {
+    const previousRaceConstants = deepClone(raceConstants);
+    const previousClassConstants = deepClone(classConstants);
+    const previousAwakeningEffects = {};
+
+    Object.entries(races).forEach(([name, info]) => {
+      previousAwakeningEffects[name] = deepClone(info?.awakening?.effect || {});
+    });
+
+    try {
+      applyDraftToLiveData({ temporary: true });
+      callback();
+    } finally {
+      Object.keys(raceConstants).forEach((key) => delete raceConstants[key]);
+      Object.assign(raceConstants, previousRaceConstants);
+
+      Object.keys(classConstants).forEach((key) => delete classConstants[key]);
+      Object.assign(classConstants, previousClassConstants);
+
+      Object.entries(previousAwakeningEffects).forEach(([name, effect]) => {
+        if (!races?.[name]?.awakening) return;
+        races[name].awakening.effect = effect;
+      });
+    }
+  };
 
   const simulateForLevel = (level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
@@ -169,23 +220,25 @@ function AdminBalance() {
   const handleRun = async () => {
     const duelCount = Math.max(10, Number(duels) || 10);
     setRunning(true);
-
-    const previousRaceConstants = deepClone(raceConstants);
-    const previousClassConstants = deepClone(classConstants);
+    setSaveMessage('');
 
     try {
-      applyNumericOverrides(raceConstants, raceDraft);
-      applyNumericOverrides(classConstants, classDraft);
-
-      const level1 = simulateForLevel(1, duelCount);
-      const level100 = simulateForLevel(100, duelCount);
-      setResults({ duelCount, level1, level100 });
+      withTemporaryDraftOverrides(() => {
+        const level1 = simulateForLevel(1, duelCount);
+        const level100 = simulateForLevel(100, duelCount);
+        setResults({ duelCount, level1, level100 });
+      });
     } finally {
-      Object.keys(raceConstants).forEach((key) => delete raceConstants[key]);
-      Object.assign(raceConstants, previousRaceConstants);
-      Object.keys(classConstants).forEach((key) => delete classConstants[key]);
-      Object.assign(classConstants, previousClassConstants);
       setRunning(false);
+    }
+  };
+
+  const handleApplyGlobally = () => {
+    setSaving(true);
+    try {
+      applyDraftToLiveData();
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -200,7 +253,7 @@ function AdminBalance() {
 
         <div className="bg-stone-900/70 border border-amber-600 p-4 mb-6">
           <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1 et 100)</label>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <input type="number" min="10" value={duels} onChange={(e) => setDuels(e.target.value)} className="px-3 py-2 bg-stone-800 border border-stone-600 text-white w-40" />
             <button onClick={handleRun} disabled={running} className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-4 py-2 font-bold">
               {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100'}
@@ -210,22 +263,55 @@ function AdminBalance() {
 
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Races (description + valeurs modifiables)</h2>
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Races</h2>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setRaceTab('bonus')}
+                className={`px-3 py-2 rounded text-sm font-bold ${raceTab === 'bonus' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-300'}`}
+              >
+                Bonus racial
+              </button>
+              <button
+                onClick={() => setRaceTab('awakening')}
+                className={`px-3 py-2 rounded text-sm font-bold ${raceTab === 'awakening' ? 'bg-emerald-600 text-white' : 'bg-stone-800 text-stone-300'}`}
+              >
+                Éveil racial
+              </button>
+            </div>
+
             <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
               {raceCards.map(([name, info]) => {
                 const constantKey = RACE_TO_CONSTANT_KEY[name];
-                if (!constantKey || !raceDraft[constantKey]) return null;
+                const bonusValues = constantKey ? raceBonusDraft[constantKey] : null;
+                const awakeningValues = raceAwakeningDraft[name];
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-xs text-stone-300 mb-1">Bonus: {info.bonus}</div>
-                    <div className="text-xs text-emerald-300 whitespace-pre-line mb-2">Awakening: {info.awakening?.description}</div>
-                    <NumberTreeEditor
-                      value={raceDraft[constantKey]}
-                      onChange={(path, value) => {
-                        setRaceDraft((prev) => ({ ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) }));
-                      }}
-                    />
+                    {raceTab === 'bonus' ? (
+                      <>
+                        <div className="text-xs text-stone-300 mb-2 whitespace-pre-line">Bonus: {info.bonus}</div>
+                        {bonusValues ? (
+                          <NumberTreeEditor
+                            value={bonusValues}
+                            onChange={(path, value) => {
+                              setRaceBonusDraft((prev) => ({ ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) }));
+                            }}
+                          />
+                        ) : (
+                          <div className="text-xs text-stone-500">Aucune valeur numérique mappée pour ce bonus.</div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xs text-emerald-300 mb-2 whitespace-pre-line">Awakening: {info.awakening?.description}</div>
+                        <NumberTreeEditor
+                          value={awakeningValues}
+                          onChange={(path, value) => {
+                            setRaceAwakeningDraft((prev) => ({ ...prev, [name]: updateNestedValue(prev[name] || {}, path, value) }));
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -253,6 +339,17 @@ function AdminBalance() {
               })}
             </div>
           </div>
+        </div>
+
+        <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
+          <button
+            onClick={handleApplyGlobally}
+            disabled={saving}
+            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
+          >
+            {saving ? '⏳ Validation...' : '✅ Valider les modifications (appliquer à tout le jeu)'}
+          </button>
+          {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
         </div>
 
         {results && (
