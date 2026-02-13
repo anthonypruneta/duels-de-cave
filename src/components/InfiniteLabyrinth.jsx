@@ -423,7 +423,7 @@ const InfiniteLabyrinth = () => {
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
-      race: 'Humain',
+      race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || 'Humain',
       class: shownEnemyFloor?.bossKit?.spellClass || 'Guerrier',
       level: shownEnemyFloor.floorNumber,
       base: shownEnemyFloor.stats,

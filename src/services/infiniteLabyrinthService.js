@@ -1,6 +1,7 @@
 import { db } from '../firebase/config';
 import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -33,6 +34,8 @@ const SPELL_POOL = [
   { id: 'dem', class: 'Demoniste', name: 'Invocation familière' },
   { id: 'maso', class: 'Masochiste', name: 'Renvoi sanguin' }
 ];
+
+const AWAKENING_RACE_POOL = Object.keys(races).filter((raceName) => races[raceName]?.awakening);
 
 const BOSS_MULTIPLIER = {
   hp: 1.4,
@@ -208,14 +211,26 @@ function computeBossStats(stats) {
   };
 }
 
-function pickBossKit(phase, rng) {
+function pickBossKit(phase, floorNumber, rng) {
   const passiveLevel = phase;
   const passive = pickSeeded(MAGE_TOWER_PASSIVES, rng);
+  let awakeningRaces = [];
+
+  if (floorNumber === 90 || floorNumber === 100) {
+    const firstRace = pickSeeded(AWAKENING_RACE_POOL, rng);
+    awakeningRaces = [firstRace];
+    if (floorNumber === 100) {
+      const remaining = AWAKENING_RACE_POOL.filter((raceName) => raceName !== firstRace);
+      const secondRace = remaining.length ? pickSeeded(remaining, rng) : firstRace;
+      awakeningRaces.push(secondRace);
+    }
+  }
 
   if (phase === 1) {
     return {
       passiveId: passive.id,
-      passiveLevel
+      passiveLevel,
+      awakeningRaces
     };
   }
 
@@ -226,7 +241,8 @@ function pickBossKit(phase, rng) {
       spellId: spell.id,
       spellClass: spell.class,
       passiveId: passive.id,
-      passiveLevel
+      passiveLevel,
+      awakeningRaces
     };
   }
 
@@ -236,7 +252,8 @@ function pickBossKit(phase, rng) {
     spellClass: spell.class,
     passiveId: passive.id,
     passiveLevel,
-    weaponId: weapon.id
+    weaponId: weapon.id,
+    awakeningRaces
   };
 }
 
@@ -263,7 +280,7 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
 
     const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
     const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
-    const bossKit = type === 'boss' ? pickBossKit(phase, rng) : null;
+    const bossKit = type === 'boss' ? pickBossKit(phase, floorNumber, rng) : null;
 
     return {
       floorNumber,
@@ -385,14 +402,17 @@ async function getPreparedUserCharacter(userId) {
 
 function buildFloorEnemy(floor) {
   const passive = floor.bossKit?.passiveId ? getMageTowerPassiveById(floor.bossKit.passiveId) : null;
-  const race = 'Humain';
+  const awakeningRaces = floor.bossKit?.awakeningRaces || [];
+  const race = awakeningRaces[0] || 'Humain';
+  const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
 
   return preparerCombattant({
     name: floor.enemyName,
     race,
+    additionalAwakeningRaces,
     class: enemyClass,
-    level: 1,
+    level: floor.floorNumber,
     base: floor.stats,
     bonuses: { race: {}, class: {} },
     mageTowerPassive: floor.bossKit?.passiveId ? {
