@@ -214,6 +214,13 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
   const activeAwakenings = awakeningRaces
     .map((raceName) => ({ raceName, info: races[raceName]?.awakening }))
     .filter(({ info }) => info && (character.level ?? 1) >= info.levelRequired);
+  const raceAwakeningInfo = races[character.race]?.awakening || null;
+  const hasAwakeningState = Boolean(character.awakening)
+    || (Array.isArray(character.additionalAwakeningRaces) && character.additionalAwakeningRaces.length > 0)
+    || Boolean(raceAwakeningInfo && (character.level ?? 1) >= raceAwakeningInfo.levelRequired);
+  const displayedAwakenings = activeAwakenings.length > 0
+    ? activeAwakenings
+    : (hasAwakeningState && raceAwakeningInfo ? [{ raceName: character.race, info: raceAwakeningInfo }] : []);
 
   const computedBase = getBaseWithBoosts(character);
   const baseStats = character.baseWithoutWeapon || computedBase;
@@ -309,7 +316,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
                 </div>
               )}
 
-              {activeAwakenings.map(({ raceName, info }) => (
+              {showRaceDetails && displayedAwakenings.map(({ raceName, info }) => (
                 <div key={`awakening-${raceName}`} className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                   <span className="text-lg">✨</span>
                   <div className="flex-1">
@@ -319,7 +326,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, showRaceDe
                 </div>
               ))}
 
-              {showRaceDetails && races[character.race] && (
+              {showRaceDetails && !hasAwakeningState && races[character.race] && (
                 <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                   <span className="text-lg">{races[character.race].icon}</span>
                   <span className="text-stone-300">{races[character.race].bonus}</span>
