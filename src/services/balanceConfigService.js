@@ -2,6 +2,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { classConstants, raceConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
+import { classes } from '../data/classes';
 
 const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
 
@@ -26,11 +27,51 @@ export const buildCurrentBalanceConfig = () => {
     raceAwakenings[raceName] = deepClone(info?.awakening?.effect || {});
   });
 
+  const raceTexts = {};
+  Object.entries(races).forEach(([raceName, info]) => {
+    raceTexts[raceName] = {
+      bonus: info?.bonus || '',
+      awakeningDescription: info?.awakening?.description || ''
+    };
+  });
+
+  const classTexts = {};
+  Object.entries(classes).forEach(([className, info]) => {
+    classTexts[className] = {
+      ability: info?.ability || '',
+      description: info?.description || ''
+    };
+  });
+
   return {
     raceConstants: deepClone(raceConstants),
     classConstants: deepClone(classConstants),
-    raceAwakenings
+    raceAwakenings,
+    raceTexts,
+    classTexts
   };
+};
+
+
+
+const applyTextOverrides = (config) => {
+  if (config.raceTexts) {
+    Object.entries(config.raceTexts).forEach(([raceName, raceText]) => {
+      if (!races[raceName] || !raceText) return;
+      if (typeof raceText.bonus === 'string') races[raceName].bonus = raceText.bonus;
+      if (typeof raceText.awakeningDescription === 'string' && races[raceName].awakening) {
+        races[raceName].awakening.description = raceText.awakeningDescription;
+      }
+    });
+  }
+
+  if (config.classTexts) {
+    Object.entries(config.classTexts).forEach(([className, classText]) => {
+      if (!classes[className] || !classText) return;
+      if (typeof classText.ability === 'string') classes[className].ability = classText.ability;
+      if (typeof classText.description === 'string') classes[className].description = classText.description;
+    });
+  }
 };
 
 export const applyBalanceConfig = (config) => {
@@ -51,6 +92,8 @@ export const applyBalanceConfig = (config) => {
       applyNumericOverrides(currentEffect, effect);
     });
   }
+
+  applyTextOverrides(config);
 };
 
 export const loadPersistedBalanceConfig = async () => {

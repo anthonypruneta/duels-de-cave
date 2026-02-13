@@ -37,6 +37,7 @@ const CLASS_TO_CONSTANT_KEY = {
 };
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
+const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 
 const applyNumericOverrides = (target, source) => {
   Object.entries(source).forEach(([key, val]) => {
@@ -100,6 +101,79 @@ const genStats = () => ({
 
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+const buildRaceBonusDescription = (raceName, constants) => {
+  switch (raceName) {
+    case 'Humain': return `+${constants.hp || 0} PV & +${constants.auto || 0} toutes stats`;
+    case 'Elfe': return `+${constants.auto || 0} AUTO, +${constants.cap || 0} CAP, +${constants.spd || 0} VIT, +${pct(constants.critBonus, 0)} crit`;
+    case 'Orc': return `Sous ${(Number(constants.lowHpThreshold || 0) * 100).toFixed(0)}% PV: +${((Number(constants.damageBonus || 1) - 1) * 100).toFixed(0)}% dégâts`;
+    case 'Nain': return `+${constants.hp || 0} PV & +${constants.def || 0} Déf`;
+    case 'Dragonkin': return `+${constants.hp || 0} PV & +${constants.rescap || 0} ResC`;
+    case 'Mort-vivant': return `Revient à ${pct(constants.revivePercent, 0)} PV (1x)`;
+    case 'Lycan': return `Attaque inflige saignement +${constants.bleedPerHit || 0} de dégât/tour`;
+    case 'Sylvari': return `Regen ${pct(constants.regenPercent, 1)} PV max/tour`;
+    case 'Sirène': return `+${constants.cap || 0} CAP, subit un spell: +${pct(constants.stackBonus, 0)} dégâts/soins des capacités (max ${constants.maxStacks || 0} stacks)`;
+    case 'Gnome': return `+${constants.spd || 0} VIT, +${constants.cap || 0} CAP, VIT > cible: +${pct(constants.critIfFaster, 0)} crit, VIT < cible: +${pct(constants.dodgeIfSlower, 0)} esquive, égalité: +${pct(constants.critIfEqual, 0)}/${pct(constants.dodgeIfEqual, 0)} crit/esquive`;
+    case 'Mindflayer': return `- CD ennemie +${constants.addCooldownTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort +${pct(constants.ownNoCooldownSpellBonus, 0)} (+${((constants.ownNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
+    default: return races[raceName]?.bonus || '';
+  }
+};
+
+const buildRaceAwakeningDescription = (raceName, effect) => {
+  switch (raceName) {
+    case 'Humain': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} à toutes les stats`;
+    case 'Elfe': return `+${pct((effect?.statMultipliers?.auto || 1) - 1, 0)} Auto, +${pct((effect?.statMultipliers?.cap || 1) - 1, 0)} Cap, +${effect?.statBonuses?.spd || 0} VIT, +${pct(effect?.critChanceBonus, 0)} crit, +${pct(effect?.critDamageBonus, 0)} dégâts crit`;
+    case 'Orc': return `- Sous 50% PV: +22% dégâts\n- Les ${effect?.incomingHitCount || 0} premières attaques subies infligent ${(Number(effect?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
+    case 'Nain': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((effect?.statMultipliers?.def || 1) - 1, 0)} Déf`;
+    case 'Dragonkin': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((effect?.statMultipliers?.rescap || 1) - 1, 0)} ResC, +${pct(effect?.damageStackBonus, 0)} dégâts infligés par dégât reçu`;
+    case 'Mort-vivant': return `Première mort: explosion ${pct(effect?.explosionPercent, 0)} PV max + résurrection ${pct(effect?.revivePercent, 0)} PV max`;
+    case 'Lycan': return `Chaque auto: +${effect?.bleedStacksPerHit || 0} stack de saignement (${pct(effect?.bleedPercentPerStack, 1)} PV max par tour)`;
+    case 'Sylvari': return `Regen ${pct(effect?.regenPercent, 1)} PV max/tour, +${pct(effect?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(effect?.highHpThreshold || 0) * 100).toFixed(0)}%`;
+    case 'Sirène': return `+${effect?.statBonuses?.cap || 0} CAP, stacks à +${pct(effect?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${effect?.sireneMaxStacks || 0})`;
+    case 'Gnome': return `+${pct((effect?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((effect?.statMultipliers?.cap || 1) - 1, 0)} CAP, VIT > cible: +${pct(effect?.speedDuelCritHigh, 0)} crit, VIT < cible: +${pct(effect?.speedDuelDodgeLow, 0)} esquive, égalité: +${pct(effect?.speedDuelEqualCrit, 0)}/${pct(effect?.speedDuelEqualDodge, 0)} crit/esquive`;
+    case 'Mindflayer': return `- CD ennemie +${effect?.mindflayerAddCooldownTurns || 0} dès le début du combat\n- votre CD -${effect?.mindflayerOwnCooldownReductionTurns || 0} dès le début du combat\n- si pas de CD dégâts du sort +${pct(effect?.mindflayerOwnNoCooldownSpellBonus, 0)} (+${((effect?.mindflayerOwnNoCooldownSpellCapScaling || 0) * 100).toFixed(1)}% par CAP)`;
+    default: return races[raceName]?.awakening?.description || '';
+  }
+};
+
+const buildClassDescription = (className, constants) => {
+  switch (className) {
+    case 'Guerrier': return `Frappe la résistance la plus faible. Ignore ${(constants.ignoreBase || 0) * 100}% de la résistance ennemie + ${(constants.ignorePerCap || 0) * 100}% de votre Cap. Gagne +${constants.autoBonus || 0} ATK.`;
+    case 'Voleur': return `Esquive la prochaine attaque. Gagne +${constants.spdBonus || 0} VIT et +${((constants.critPerCap || 0) * 100).toFixed(1)}% de votre Cap en chance de critique.`;
+    case 'Paladin': return `Renvoie ${(constants.reflectBase || 0) * 100}% des dégâts reçus + ${(constants.reflectPerCap || 0) * 100}% de votre Cap.`;
+    case 'Healer': return `Soigne ${(constants.missingHpPercent || 0) * 100}% des PV manquants + ${(constants.capScale || 0) * 100}% de votre Cap.`;
+    case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(constants.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(constants.hit2CapMultiplier || 0) * 100}% de votre Cap (opposé à la RésCap).`;
+    case 'Mage': return `Inflige votre attaque de base + ${(constants.capBase || 0) * 100}% de votre Cap (vs RésCap).`;
+    case 'Demoniste': return `Chaque tour, votre familier inflige ${(constants.capBase || 0) * 100}% de votre Cap et ignore ${(constants.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(constants.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
+    case 'Masochiste': return `Renvoie ${(constants.returnBase || 0) * 100}% des dégâts accumulés + ${(constants.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(constants.healPercent || 0) * 100}% des dégâts accumulés.`;
+    case 'Briseur de Sort': return `Après avoir subi un spell, gagne un bouclier égal à ${(constants.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(constants.shieldFromCap || 0) * 100}% de votre CAP.`;
+    case 'Succube': return `Inflige auto + ${(constants.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(constants.nextAttackReduction || 0) * 100}% dégâts.`;
+    case 'Bastion': return `Passif: +${(constants.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(constants.capScale || 0) * 100}% CAP + ${(constants.defScale || 0) * 100}% DEF.`;
+    default: return classes[className]?.description || '';
+  }
+};
+
+const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
+  const data = {};
+  Object.entries(RACE_TO_CONSTANT_KEY).forEach(([raceName, key]) => {
+    data[raceName] = {
+      bonus: buildRaceBonusDescription(raceName, raceBonusDraft[key] || {}),
+      awakeningDescription: buildRaceAwakeningDescription(raceName, raceAwakeningDraft[raceName] || {})
+    };
+  });
+  return data;
+};
+
+const buildClassTextDraft = (classDraft) => {
+  const data = {};
+  Object.entries(CLASS_TO_CONSTANT_KEY).forEach(([className, key]) => {
+    data[className] = {
+      ability: classes[className]?.ability || '',
+      description: buildClassDescription(className, classDraft[key] || {})
+    };
+  });
+  return data;
+};
+
 const makeCharacter = (id, level) => {
   const raceName = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
@@ -149,6 +223,8 @@ function AdminBalance() {
     return draft;
   });
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
+  const [raceTextDraft, setRaceTextDraft] = useState(() => buildRaceTextDraft(deepClone(raceConstants), Object.fromEntries(Object.entries(races).map(([name, info]) => [name, deepClone(info?.awakening?.effect || {})]))));
+  const [classTextDraft, setClassTextDraft] = useState(() => buildClassTextDraft(deepClone(classConstants)));
 
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
@@ -158,20 +234,24 @@ function AdminBalance() {
       const result = await loadPersistedBalanceConfig();
       if (!result.success || !result.data) return;
 
-      setRaceBonusDraft(deepClone(raceConstants));
-      setClassDraft(deepClone(classConstants));
-
-      const awakeningDraft = {};
+      const loadedRaceBonusDraft = deepClone(raceConstants);
+      const loadedClassDraft = deepClone(classConstants);
+      const loadedAwakeningDraft = {};
       Object.entries(races).forEach(([name, info]) => {
-        awakeningDraft[name] = deepClone(info?.awakening?.effect || {});
+        loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
       });
-      setRaceAwakeningDraft(awakeningDraft);
+
+      setRaceBonusDraft(loadedRaceBonusDraft);
+      setClassDraft(loadedClassDraft);
+      setRaceAwakeningDraft(loadedAwakeningDraft);
+      setRaceTextDraft(buildRaceTextDraft(loadedRaceBonusDraft, loadedAwakeningDraft));
+      setClassTextDraft(buildClassTextDraft(loadedClassDraft));
     };
 
     loadSavedConfig();
   }, []);
 
-  const applyDraftToLiveData = ({ temporary = false } = {}) => {
+  const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
 
@@ -180,7 +260,6 @@ function AdminBalance() {
       if (!currentEffect || !effectDraft) return;
       applyNumericOverrides(currentEffect, effectDraft);
     });
-
   };
 
   const withTemporaryDraftOverrides = (callback) => {
@@ -193,7 +272,7 @@ function AdminBalance() {
     });
 
     try {
-      applyDraftToLiveData({ temporary: true });
+      applyDraftToLiveData();
       callback();
     } finally {
       Object.keys(raceConstants).forEach((key) => delete raceConstants[key]);
@@ -273,7 +352,9 @@ function AdminBalance() {
       const config = {
         raceConstants: deepClone(raceBonusDraft),
         classConstants: deepClone(classDraft),
-        raceAwakenings: deepClone(raceAwakeningDraft)
+        raceAwakenings: deepClone(raceAwakeningDraft),
+        raceTexts: deepClone(raceTextDraft),
+        classTexts: deepClone(classTextDraft)
       };
 
       const saveResult = await savePersistedBalanceConfig({
@@ -287,7 +368,7 @@ function AdminBalance() {
       }
 
       applyBalanceConfig(config);
-      setSaveMessage('✅ Modifications sauvegardées en base et appliquées de façon permanente.');
+      setSaveMessage('✅ Modifications sauvegardées en base et descriptions synchronisées.');
     } finally {
       setSaving(false);
     }
@@ -340,12 +421,21 @@ function AdminBalance() {
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
                     {raceTab === 'bonus' ? (
                       <>
-                        <div className="text-xs text-stone-300 mb-2 whitespace-pre-line">Bonus: {info.bonus}</div>
+                        <textarea
+                          className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
+                          value={`Bonus: ${raceTextDraft[name]?.bonus || ''}`}
+                          readOnly
+                          rows={2}
+                        />
                         {bonusValues ? (
                           <NumberTreeEditor
                             value={bonusValues}
                             onChange={(path, value) => {
-                              setRaceBonusDraft((prev) => ({ ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) }));
+                              setRaceBonusDraft((prev) => {
+                                const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
+                                setRaceTextDraft(buildRaceTextDraft(next, raceAwakeningDraft));
+                                return next;
+                              });
                             }}
                           />
                         ) : (
@@ -354,11 +444,20 @@ function AdminBalance() {
                       </>
                     ) : (
                       <>
-                        <div className="text-xs text-emerald-300 mb-2 whitespace-pre-line">Awakening: {info.awakening?.description}</div>
+                        <textarea
+                          className="w-full text-xs text-emerald-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
+                          value={`Awakening: ${raceTextDraft[name]?.awakeningDescription || ''}`}
+                          readOnly
+                          rows={4}
+                        />
                         <NumberTreeEditor
                           value={awakeningValues}
                           onChange={(path, value) => {
-                            setRaceAwakeningDraft((prev) => ({ ...prev, [name]: updateNestedValue(prev[name] || {}, path, value) }));
+                            setRaceAwakeningDraft((prev) => {
+                              const next = { ...prev, [name]: updateNestedValue(prev[name] || {}, path, value) };
+                              setRaceTextDraft(buildRaceTextDraft(raceBonusDraft, next));
+                              return next;
+                            });
                           }}
                         />
                       </>
@@ -370,7 +469,7 @@ function AdminBalance() {
           </div>
 
           <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (description + valeurs modifiables)</h2>
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (description auto + valeurs modifiables)</h2>
             <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
               {classCards.map(([name, info]) => {
                 const constantKey = CLASS_TO_CONSTANT_KEY[name];
@@ -378,11 +477,21 @@ function AdminBalance() {
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-xs text-amber-300 mb-2">{info.ability} — {info.description}</div>
+                    <div className="text-xs text-amber-300 mb-1">{classTextDraft[name]?.ability || info.ability}</div>
+                    <textarea
+                      className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
+                      value={classTextDraft[name]?.description || info.description}
+                      readOnly
+                      rows={3}
+                    />
                     <NumberTreeEditor
                       value={classDraft[constantKey]}
                       onChange={(path, value) => {
-                        setClassDraft((prev) => ({ ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) }));
+                        setClassDraft((prev) => {
+                          const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
+                          setClassTextDraft(buildClassTextDraft(next));
+                          return next;
+                        });
                       }}
                     />
                   </div>
