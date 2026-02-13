@@ -1,6 +1,7 @@
 import { db } from '../firebase/config';
 import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -33,6 +34,8 @@ const SPELL_POOL = [
   { id: 'dem', class: 'Demoniste', name: 'Invocation familière' },
   { id: 'maso', class: 'Masochiste', name: 'Renvoi sanguin' }
 ];
+
+const AWAKENING_RACE_POOL = Object.keys(races).filter((raceName) => races[raceName]?.awakening);
 
 const BOSS_MULTIPLIER = {
   hp: 1.4,
@@ -87,6 +90,55 @@ function getImageEntries(globResult) {
   return Object.entries(globResult)
     .map(([sourcePath, imagePath]) => ({ sourcePath, imagePath }))
     .sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+}
+
+
+function getFloorImageEntriesByType(type) {
+  return type === 'boss' ? getImageEntries(BOSS_IMAGES) : getImageEntries(MOB_IMAGES);
+}
+
+function normalizeAssetName(raw = '') {
+  return raw
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function getNameFromImagePath(path) {
+  if (!path) return '';
+  const filename = decodeURIComponent((path.split('/').pop() || '').trim());
+  const withoutExt = filename.replace(/\.[^/.]+$/, '');
+  return withoutExt.replace(/-[A-Za-z0-9_-]{6,}$/u, '');
+}
+
+export function resolveLabyrinthFloorImagePath(floor) {
+  if (!floor) return null;
+
+  const candidates = getFloorImageEntriesByType(floor.type);
+  if (!candidates.length) return floor.imagePath || null;
+
+  const bySourcePath = floor.imageSourcePath
+    ? candidates.find((entry) => entry.sourcePath === floor.imageSourcePath)
+    : null;
+  if (bySourcePath) return bySourcePath.imagePath;
+
+  const currentImagePaths = new Set(candidates.map((entry) => entry.imagePath));
+  if (floor.imagePath && currentImagePaths.has(floor.imagePath)) return floor.imagePath;
+
+  const expectedName = normalizeAssetName(floor.enemyName || getNameFromImagePath(floor.imagePath));
+  if (expectedName) {
+    const byEnemyName = candidates.find((entry) => normalizeAssetName(getEnemyNameFromFilename(entry.sourcePath)) === expectedName);
+    if (byEnemyName) return byEnemyName.imagePath;
+  }
+
+  const legacyName = normalizeAssetName(getNameFromImagePath(floor.imagePath));
+  if (legacyName) {
+    const byLegacyName = candidates.find((entry) => normalizeAssetName(getNameFromImagePath(entry.sourcePath)) === legacyName);
+    if (byLegacyName) return byLegacyName.imagePath;
+  }
+
+  return floor.imagePath || null;
 }
 
 async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
@@ -159,14 +211,26 @@ function computeBossStats(stats) {
   };
 }
 
-function pickBossKit(phase, rng) {
+function pickBossKit(phase, floorNumber, rng) {
   const passiveLevel = phase;
   const passive = pickSeeded(MAGE_TOWER_PASSIVES, rng);
+  let awakeningRaces = [];
+
+  if (floorNumber === 90 || floorNumber === 100) {
+    const firstRace = pickSeeded(AWAKENING_RACE_POOL, rng);
+    awakeningRaces = [firstRace];
+    if (floorNumber === 100) {
+      const remaining = AWAKENING_RACE_POOL.filter((raceName) => raceName !== firstRace);
+      const secondRace = remaining.length ? pickSeeded(remaining, rng) : firstRace;
+      awakeningRaces.push(secondRace);
+    }
+  }
 
   if (phase === 1) {
     return {
       passiveId: passive.id,
-      passiveLevel
+      passiveLevel,
+      awakeningRaces
     };
   }
 
@@ -177,7 +241,8 @@ function pickBossKit(phase, rng) {
       spellId: spell.id,
       spellClass: spell.class,
       passiveId: passive.id,
-      passiveLevel
+      passiveLevel,
+      awakeningRaces
     };
   }
 
@@ -187,7 +252,8 @@ function pickBossKit(phase, rng) {
     spellClass: spell.class,
     passiveId: passive.id,
     passiveLevel,
-    weaponId: weapon.id
+    weaponId: weapon.id,
+    awakeningRaces
   };
 }
 
@@ -214,7 +280,7 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
 
     const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
     const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
-    const bossKit = type === 'boss' ? pickBossKit(phase, rng) : null;
+    const bossKit = type === 'boss' ? pickBossKit(phase, floorNumber, rng) : null;
 
     return {
       floorNumber,
@@ -222,6 +288,7 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
       phase,
       enemyName: getEnemyNameFromFilename(picked.sourcePath),
       imagePath: picked.imagePath,
+      imageSourcePath: picked.sourcePath,
       stats: finalStats,
       bossKit
     };
@@ -335,14 +402,15 @@ async function getPreparedUserCharacter(userId) {
 
 function buildFloorEnemy(floor) {
   const passive = floor.bossKit?.passiveId ? getMageTowerPassiveById(floor.bossKit.passiveId) : null;
-  const race = 'Humain';
+  const awakeningRaces = floor.bossKit?.awakeningRaces || [];
+  const race = awakeningRaces[0] || 'Humain';
   const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
 
   return preparerCombattant({
     name: floor.enemyName,
     race,
     class: enemyClass,
-    level: 1,
+    level: floor.floorNumber,
     base: floor.stats,
     bonuses: { race: {}, class: {} },
     mageTowerPassive: floor.bossKit?.passiveId ? {
@@ -354,56 +422,61 @@ function buildFloorEnemy(floor) {
 }
 
 export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId = null }) {
-  const resolvedWeekId = weekId || getCurrentWeekId();
-  const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
-  if (!labyrinthResult.success) {
-    return { success: false, error: labyrinthResult.error || 'Labyrinthe indisponible.' };
-  }
-  const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
-  if (!progressResult.success) {
-    return { success: false, error: progressResult.error || 'Progression indisponible.' };
-  }
-  const char = await getPreparedUserCharacter(userId);
-
-  if (!char) {
-    return { success: false, error: 'Personnage introuvable pour ce joueur.' };
-  }
-
-  const selectedFloor = floorNumber || progressResult.data.currentFloor || 1;
-  const floor = labyrinthResult.data.floors.find((f) => f.floorNumber === Number(selectedFloor));
-  if (!floor) return { success: false, error: 'Étage invalide.' };
-
-  const enemy = buildFloorEnemy(floor);
-  const result = simulerMatch(char, enemy);
-  const didWin = result.winnerId === (char.userId || userId);
-
-  const updatedProgress = { ...progressResult.data };
-  let rewardGranted = false;
-
-  if (didWin) {
-    updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
-    updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
-    if (floor.type === 'boss') {
-      updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
-      await grantDungeonRunsForLabyrinthBoss(userId, 5);
-      rewardGranted = true;
+  try {
+    const resolvedWeekId = weekId || getCurrentWeekId();
+    const labyrinthResult = await ensureWeeklyInfiniteLabyrinth(resolvedWeekId);
+    if (!labyrinthResult.success) {
+      return { success: false, error: labyrinthResult.error || 'Labyrinthe indisponible.' };
     }
-  } else {
-    updatedProgress.currentFloor = floor.floorNumber;
+    const progressResult = await getUserLabyrinthProgress(userId, resolvedWeekId);
+    if (!progressResult.success) {
+      return { success: false, error: progressResult.error || 'Progression indisponible.' };
+    }
+    const char = await getPreparedUserCharacter(userId);
+
+    if (!char) {
+      return { success: false, error: 'Personnage introuvable pour ce joueur.' };
+    }
+
+    const selectedFloor = floorNumber || progressResult.data.currentFloor || 1;
+    const floor = labyrinthResult.data.floors.find((f) => f.floorNumber === Number(selectedFloor));
+    if (!floor) return { success: false, error: 'Étage invalide.' };
+    if (!floor.stats) return { success: false, error: "Stats d'étage manquantes." };
+
+    const enemy = buildFloorEnemy(floor);
+    const result = simulerMatch(char, enemy);
+    const didWin = result.winnerId === (char.userId || userId);
+
+    const updatedProgress = { ...progressResult.data };
+    let rewardGranted = false;
+
+    if (didWin) {
+      updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
+      updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
+      if (floor.type === 'boss') {
+        updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
+        await grantDungeonRunsForLabyrinthBoss(userId, 5);
+        rewardGranted = true;
+      }
+    } else {
+      updatedProgress.currentFloor = floor.floorNumber;
+    }
+
+    await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), {
+      ...updatedProgress,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    return {
+      success: true,
+      weekId: resolvedWeekId,
+      floor,
+      result,
+      didWin,
+      progress: updatedProgress,
+      rewardGranted
+    };
+  } catch (error) {
+    return { success: false, error: error?.message || 'Erreur combat labyrinthe.' };
   }
-
-  await setDoc(doc(db, 'userLabyrinthProgress', userId, 'weeks', resolvedWeekId), {
-    ...updatedProgress,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-
-  return {
-    success: true,
-    weekId: resolvedWeekId,
-    floor,
-    result,
-    didWin,
-    progress: updatedProgress,
-    rewardGranted
-  };
 }

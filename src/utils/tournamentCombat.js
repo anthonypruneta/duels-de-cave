@@ -39,6 +39,8 @@ function getAuraBonus(passiveDetails, turn) {
   return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
 }
 
+
+
 function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
   if (!passiveDetails) return;
