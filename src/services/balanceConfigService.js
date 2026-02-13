@@ -54,6 +54,27 @@ export const buildCurrentBalanceConfig = () => {
 
 
 
+
+const normalizeMindflayerConfig = (config) => {
+  if (!config || typeof config !== 'object') return;
+
+  const raceMindflayer = config?.raceConstants?.mindflayer;
+  if (raceMindflayer && raceMindflayer.stealSpellCapDamageScale == null) {
+    const legacyReduction = Number(raceMindflayer.enemyNoCooldownSpellReduction);
+    if (!Number.isNaN(legacyReduction) && legacyReduction > 0) {
+      raceMindflayer.stealSpellCapDamageScale = legacyReduction;
+    }
+  }
+
+  const awakeningMindflayer = config?.raceAwakenings?.Mindflayer;
+  if (awakeningMindflayer && awakeningMindflayer.mindflayerStealSpellCapDamageScale == null) {
+    const legacyReduction = Number(awakeningMindflayer.mindflayerEnemyNoCooldownSpellReduction);
+    if (!Number.isNaN(legacyReduction) && legacyReduction > 0) {
+      awakeningMindflayer.mindflayerStealSpellCapDamageScale = legacyReduction;
+    }
+  }
+};
+
 const applyTextOverrides = (config) => {
   if (config.raceTexts) {
     Object.entries(config.raceTexts).forEach(([raceName, raceText]) => {
@@ -76,6 +97,8 @@ const applyTextOverrides = (config) => {
 
 export const applyBalanceConfig = (config) => {
   if (!config) return;
+
+  normalizeMindflayerConfig(config);
 
   if (config.raceConstants) {
     applyNumericOverrides(raceConstants, config.raceConstants);
