@@ -31,7 +31,7 @@ export const classConstants = {
     reflectPerCap: 0.01    // +1% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.22, // 22% des PV manquants
+    missingHpPercent: 0.20, // 20% des PV manquants
     capScale: 0.5           // 50% de la Cap
   },
   archer: {
@@ -55,8 +55,8 @@ export const classConstants = {
     healPercent: 0.22      // Heal 22% des dégâts encaissés
   },
   briseurSort: {
-    shieldFromSpellDamage: 0.4,
-    shieldFromCap: 0.25
+    shieldFromSpellDamage: 0.75,
+    shieldFromCap: 0.5
   },
   succube: {
     capScale: 0.2,
@@ -80,8 +80,8 @@ export const raceConstants = {
   lycan: { bleedPerHit: 1, bleedDivisor: 5 },
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
-  gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10 },
-  mindflayer: { cooldownSpellReduction: 0.15, noCooldownSpellReduction: 0.35, addCooldownTurns: 1 }
+  gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
+  mindflayer: { cooldownSpellReduction: 0.20, noCooldownSpellReduction: 0.45, addCooldownTurns: 1, rescap: 12 }
 };
 
 // Constantes générales
@@ -155,6 +155,13 @@ export const getRaceBonus = (race) => {
       b.hp = raceConstants.dragonkin.hp;
       b.rescap = raceConstants.dragonkin.rescap;
       break;
+    case 'Mindflayer':
+      b.rescap = raceConstants.mindflayer.rescap;
+      break;
+    case 'Gnome':
+      b.spd = raceConstants.gnome.spd;
+      b.cap = raceConstants.gnome.cap;
+      break;
     case 'Sirène':
       b.cap = raceConstants.sirene.cap;
       break;
@@ -173,7 +180,7 @@ export const getClassBonus = (charClass) => {
       b.auto = classConstants.guerrier.autoBonus;
       break;
     case 'Bastion':
-      b.def = 5;
+      b.def = 3;
       break;
   }
   return b;

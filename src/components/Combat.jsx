@@ -511,17 +511,23 @@ const Combat = () => {
       let skillUsed = false;
 
 
-      const applyMindflayerSpellMod = (caster, target, baseDamage, spellId) => {
+      const getMindflayerSpellCooldown = (caster, target, spellId) => {
+        const baseCooldown = cooldowns[spellId] ?? 1;
+        if (target.race !== 'Mindflayer' || baseCooldown <= 1) return baseCooldown;
+        const awakening = target.awakening || {};
+        const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
+        return baseCooldown + addedTurns;
+      };
+
+      const applyMindflayerSpellMod = (_caster, target, baseDamage, spellId) => {
         if (target.race !== 'Mindflayer') return baseDamage;
         const hasCooldown = (cooldowns[spellId] ?? 0) > 1;
         const awakening = target.awakening || {};
         const cooldownReduction = awakening.mindflayerCooldownSpellReduction ?? raceConstants.mindflayer.cooldownSpellReduction;
         const noCooldownReduction = awakening.mindflayerNoCooldownSpellReduction ?? raceConstants.mindflayer.noCooldownSpellReduction;
-        const addedTurns = awakening.mindflayerAddCooldownTurns ?? raceConstants.mindflayer.addCooldownTurns;
 
         if (hasCooldown) {
-          caster.cd[spellId] += addedTurns;
-          log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (${Math.round(cooldownReduction * 100)}% dégâts, +${addedTurns} CD).`);
+          log.push(`${playerColor} 🦑 ${target.name} perturbe le sort (-${Math.round(cooldownReduction * 100)}% dégâts, CD+1 permanent).`);
           return Math.max(1, Math.round(baseDamage * (1 - cooldownReduction)));
         }
 
@@ -730,7 +736,7 @@ const Combat = () => {
         }
       }
 
-      if (att.class === 'Succube' && att.cd.succ === cooldowns.succ) {
+      if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) {
         skillUsed = true;
         let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
         raw = applyMindflayerSpellMod(att, def, raw, 'succ');
@@ -739,7 +745,7 @@ const Combat = () => {
         log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts.`);
       }
 
-      if (att.class === 'Bastion' && att.cd.bast === cooldowns.bast) {
+      if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) {
         skillUsed = true;
         let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
         raw = applyMindflayerSpellMod(att, def, raw, 'bast');
@@ -753,9 +759,9 @@ const Combat = () => {
         log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
       }
 
-      const isMage = att.class === 'Mage' && att.cd.mag === cooldowns.mag;
-      const isWar = att.class === 'Guerrier' && att.cd.war === cooldowns.war;
-      const isArcher = att.class === 'Archer' && att.cd.arc === cooldowns.arc;
+      const isMage = att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
+      const isWar = att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
+      const isArcher = att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
       skillUsed = skillUsed || isMage || isWar || isArcher;
 
       let mult = 1.0;
