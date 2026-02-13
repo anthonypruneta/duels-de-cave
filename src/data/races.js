@@ -43,7 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: 'Les 4 premières attaques subies infligent 33% dégâts',
+      description: '- Sous 50% PV: +22% dégâts\n- Les 4 premières attaques subies infligent 33% dégâts',
       effect: {
         incomingHitMultiplier: 0.33,
         incomingHitCount: 4
@@ -100,10 +100,6 @@ export const races = {
       description: 'Chaque auto: +1 stack de saignement (0.7% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        statMultipliers: {
-          spd: 1.03,
-          auto: 1.02
-        },
         bleedPercentPerStack: 0.007
       }
     }
@@ -156,20 +152,15 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: '+8 ResC, quand l’ennemi lance un spell: CD+1 & -15% dégâts, sans CD → -35% dégâts',
+    bonus: 'CD+1 dès le début du combat, sort ennemi avec CD: -15% dégâts, sans CD → -35% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts, +12% PV/ResC, -10% dégâts subis',
+      description: 'CD+1 & -20% dégâts, sans CD → -45% dégâts',
       effect: {
         mindflayerCooldownSpellReduction: 0.2,
         mindflayerNoCooldownSpellReduction: 0.45,
-        mindflayerAddCooldownTurns: 1,
-        statMultipliers: {
-          hp: 1.12,
-          rescap: 1.12
-        },
-        damageTakenMultiplier: 0.9
+        mindflayerAddCooldownTurns: 1
       }
     }
   }

@@ -6,6 +6,7 @@ import { getWeaponsByRarity, RARITY } from '../data/weapons';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getEquippedWeapon } from './dungeonService';
+import { announceFirstLabyrinthFloorClear } from './milestoneAnnouncementService';
 
 const FLOOR_COUNT = 100;
 const BOSS_FLOOR_STEP = 10;
@@ -455,6 +456,16 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
     if (didWin) {
       updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
       updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
+
+      if ([80, 90, 100].includes(floor.floorNumber)) {
+        await announceFirstLabyrinthFloorClear({
+          userId,
+          weekId: resolvedWeekId,
+          floorNumber: floor.floorNumber,
+          character: char
+        });
+      }
+
       if (floor.type === 'boss') {
         updatedProgress.bossesDefeated = (updatedProgress.bossesDefeated || 0) + 1;
         await grantDungeonRunsForLabyrinthBoss(userId, 5);
