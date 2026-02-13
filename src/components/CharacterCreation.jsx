@@ -799,7 +799,9 @@ const CharacterCreation = () => {
 
   // Afficher le personnage existant
   if (existingCharacter) {
-    const totalBonus = (k) => (existingCharacter.bonuses.race[k]||0) + (existingCharacter.bonuses.class[k]||0);
+    const raceB = getRaceBonus(existingCharacter.race);
+    const classB = getClassBonus(existingCharacter.class);
+    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
     const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
     const weapon = equippedWeapon;
@@ -819,8 +821,8 @@ const CharacterCreation = () => {
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (existingCharacter.bonuses.race[k] > 0) parts.push(`Race: +${existingCharacter.bonuses.race[k]}`);
-      if (existingCharacter.bonuses.class[k] > 0) parts.push(`Classe: +${existingCharacter.bonuses.class[k]}`);
+      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
       if (k === 'auto' && egideAtkBonus > 0) parts.push(`Égide: +${egideAtkBonus}`);
