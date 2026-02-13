@@ -404,13 +404,13 @@ function buildFloorEnemy(floor) {
   const passive = floor.bossKit?.passiveId ? getMageTowerPassiveById(floor.bossKit.passiveId) : null;
   const awakeningRaces = floor.bossKit?.awakeningRaces || [];
   const race = awakeningRaces[0] || 'Humain';
+  const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
 
   return preparerCombattant({
     name: floor.enemyName,
     race,
     additionalAwakeningRaces,
-    allowMultipleAwakenings: additionalAwakeningRaces.length > 0,
     class: enemyClass,
     level: floor.floorNumber,
     base: floor.stats,
