@@ -251,6 +251,25 @@ export const updateCharacterImage = async (userId, imageDataUrl) => {
   }
 };
 
+// Mettre à jour l'image d'un personnage archivé
+export const updateArchivedCharacterImage = async (docId, imageDataUrl) => {
+  try {
+    const storageRef = ref(storage, `characters/archived/${docId}/profile_${Date.now()}.jpg`);
+    await uploadString(storageRef, imageDataUrl, 'data_url');
+    const downloadURL = await getDownloadURL(storageRef);
+
+    await retryOperation(async () => {
+      const archivedRef = doc(db, 'archivedCharacters', docId);
+      await setDoc(archivedRef, { characterImage: downloadURL }, { merge: true });
+    });
+
+    return { success: true, imageUrl: downloadURL };
+  } catch (error) {
+    console.error('Erreur mise à jour image archivée:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour les stats de base d'un personnage
 export const updateCharacterBaseStats = async (userId, baseStats) => {
   try {
