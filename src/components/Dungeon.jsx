@@ -538,10 +538,9 @@ const Dungeon = () => {
     return 1;
   };
 
-  const SPELL_CLASSES = new Set(['Mage', 'Guerrier', 'Archer', 'Demoniste', 'Masochiste', 'Succube', 'Bastion']);
-  const getBriseurAutoBonus = (att, def) => {
-    if (att.class !== 'Briseur de Sort' || SPELL_CLASSES.has(def?.class)) return 0;
-    return Math.round(att.base.cap * classConstants.briseurSort.noSpellAutoCapBonus);
+  const getBriseurAutoBonus = (att) => {
+    if (att.class !== 'Briseur de Sort') return 0;
+    return Math.round(att.base.cap * classConstants.briseurSort.autoCapBonus);
   };
 
   const reviveUndead = (target, attacker, log, playerColor) => {
@@ -879,7 +878,7 @@ const Dungeon = () => {
           raw = physPart + capPart;
         }
       } else {
-        const autoCapBonus = getBriseurAutoBonus(att, def);
+        const autoCapBonus = getBriseurAutoBonus(att);
         raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
         if (att.race === 'Lycan') {
           const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;

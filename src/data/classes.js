@@ -10,7 +10,7 @@ export const classes = {
   'Mage': { ability: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige votre attaque de base + 68% de votre Cap (vs RésCap).', icon: '🔮' },
   'Demoniste': { ability: 'Attaque du familier (Passif)', description: 'Chaque tour, votre familier inflige 45% de votre Cap et ignore 50% de la RésCap ennemie. Chaque auto augmente ces dégâts de 0,8% de Cap (cumulable).', icon: '💠' },
   'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% des dégâts accumulés + 0,8% de votre Cap. Se soigne de 22% des dégâts accumulés.', icon: '🩸' },
-  'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi un spell, gagne un bouclier égal à 75% des dégâts reçus + 50% de votre CAP. Réduit les soins adverses de 30%. Si l\'adversaire n\'a pas de sort offensif : auto = auto + 50% CAP.', icon: '🧱' },
+  'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi un spell, gagne un bouclier égal à 75% des dégâts reçus + 50% de votre CAP. Réduit les soins adverses de 30%. Auto + 20% CAP.', icon: '🧱' },
   'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 20% CAP. La prochaine attaque adverse inflige -40% dégâts.', icon: '💋' },
   'Bastion': { ability: 'Charge du Rempart (CD: 5 tours)', description: 'Passif: +5% DEF. Inflige auto + 20% CAP + 15% DEF.', icon: '🏰' }
 };

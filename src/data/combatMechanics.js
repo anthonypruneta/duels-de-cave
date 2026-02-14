@@ -58,7 +58,7 @@ export const classConstants = {
     shieldFromSpellDamage: 0.75,
     shieldFromCap: 0.5,
     antiHealReduction: 0.30,
-    noSpellAutoCapBonus: 0.50
+    autoCapBonus: 0.20
   },
   succube: {
     capScale: 0.2,
