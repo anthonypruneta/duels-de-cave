@@ -10,6 +10,7 @@ const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
 const applyNumericOverrides = (target, source) => {
   Object.entries(source || {}).forEach(([key, val]) => {
+    if (!(key in target)) return;
     if (val && typeof val === 'object' && !Array.isArray(val)) {
       if (!target[key] || typeof target[key] !== 'object') target[key] = {};
       applyNumericOverrides(target[key], val);
