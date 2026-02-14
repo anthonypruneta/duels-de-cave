@@ -334,7 +334,28 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   att.reflect = false;
   for (const k of Object.keys(cooldowns)) {
-    att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
+    const effectiveCd = getMindflayerSpellCooldown(att, def, k);
+    att.cd[k] = (att.cd[k] % effectiveCd) + 1;
+  }
+
+  // Mindflayer : vole le sort AVANT qu'il ne se lance
+  let spellStolen = false;
+  const wouldCastSpell =
+    (att.class === 'Demoniste') ||
+    (att.class === 'Masochiste' && att.cd.maso === getMindflayerSpellCooldown(att, def, 'maso') && att.maso_taken > 0) ||
+    (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) ||
+    (att.class === 'Healer' && att.cd.heal === cooldowns.heal) ||
+    (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) ||
+    (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) ||
+    (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) ||
+    (att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag')) ||
+    (att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war')) ||
+    (att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc'));
+
+  if (wouldCastSpell && def?.race === 'Mindflayer' && !def.mindflayerSpellTheftUsed && def.currentHP > 0 && att.currentHP > 0) {
+    spellStolen = true;
+    const defColor = isP1 ? '[P2]' : '[P1]';
+    triggerMindflayerSpellTheft(att, def, log, defColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
   }
 
   const turnEffects = onTurnStart(att.weaponState, att, turn);
@@ -348,7 +369,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
   }
 
-  if (att.class === 'Demoniste') {
+  if (att.class === 'Demoniste' && !spellStolen) {
     const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
@@ -358,7 +379,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
 
-  if (att.class === 'Masochiste') {
+  if (att.class === 'Masochiste' && !spellStolen) {
     if (att.cd.maso === getMindflayerSpellCooldown(att, def, 'maso') && att.maso_taken > 0) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
@@ -388,14 +409,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
   }
 
-  if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+  if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal && !spellStolen) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     att.reflect = reflectBase + reflectPerCap * att.base.cap;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
   }
 
-  if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+  if (att.class === 'Healer' && att.cd.heal === cooldowns.heal && !spellStolen) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
@@ -421,7 +442,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
 
-  if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) {
+  if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ') && !spellStolen) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
@@ -430,7 +451,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
   }
 
-  if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) {
+  if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast') && !spellStolen) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
@@ -438,15 +459,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
   }
 
-  if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+  if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog && !spellStolen) {
     skillUsed = true;
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
   }
 
-  const isMage = att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
-  const isWar = att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
-  const isArcher = att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
+  const isMage = !spellStolen && att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
+  const isWar = !spellStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
+  const isArcher = !spellStolen && att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
   let mult = 1.0;
@@ -575,11 +596,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
-  // Mindflayer : vole et relance le premier sort lancé par l'ennemi
-  if (skillUsed) {
-    const defColor = isP1 ? '[P2]' : '[P1]';
-    triggerMindflayerSpellTheft(att, def, log, defColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
-  }
 }
 
 // ============================================================================
