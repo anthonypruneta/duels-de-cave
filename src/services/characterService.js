@@ -224,7 +224,7 @@ export const deleteCharacter = async (userId) => {
 export const updateCharacterImage = async (userId, imageDataUrl) => {
   try {
     // 1. Upload l'image sur Firebase Storage
-    const storageRef = ref(storage, `characters/${userId}/profile.jpg`);
+    const storageRef = ref(storage, `characters/${userId}/profile_${Date.now()}.jpg`);
 
     // uploadString accepte les data URLs directement
     await uploadString(storageRef, imageDataUrl, 'data_url');
