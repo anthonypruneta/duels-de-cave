@@ -79,8 +79,9 @@ const normalizeMindflayerConfig = (config) => {
 const normalizeGnomeConfig = (config) => {
   if (!config || typeof config !== 'object') return;
 
-  // Force les nouvelles valeurs du Gnome (refonte complète de la race)
-  if (config.raceConstants?.gnome) {
+  // Migration unique : ancienne version détectée si critDmgIfFaster absent
+  const gnome = config?.raceConstants?.gnome;
+  if (gnome && gnome.critDmgIfFaster == null) {
     config.raceConstants.gnome = {
       critIfFaster: 0.20, critDmgIfFaster: 0.20,
       dodgeIfSlower: 0.20, capBonusIfSlower: 0.20,
@@ -90,7 +91,8 @@ const normalizeGnomeConfig = (config) => {
     };
   }
 
-  if (config.raceAwakenings?.Gnome) {
+  const awakeningGnome = config?.raceAwakenings?.Gnome;
+  if (awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null) {
     config.raceAwakenings.Gnome = {
       speedDuelCritHigh: 0.40, speedDuelCritDmgHigh: 0.40,
       speedDuelDodgeLow: 0.40, speedDuelCapBonusLow: 0.40,
@@ -100,7 +102,7 @@ const normalizeGnomeConfig = (config) => {
     };
   }
 
-  if (config.raceTexts?.Gnome) {
+  if (config.raceTexts?.Gnome && (gnome && gnome.critDmgIfFaster == null || awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null)) {
     config.raceTexts.Gnome.bonus = races['Gnome']?.bonus;
     config.raceTexts.Gnome.awakeningDescription = races['Gnome']?.awakening?.description;
   }
