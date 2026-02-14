@@ -40,12 +40,12 @@ const makeCharacter = (id, level = 1) => {
   const levelBoosts = genLevelBoosts(level);
 
   const base = applyAwakeningToBase({
-    hp: raw.hp + raceBonus.hp + classBonus.hp + levelBoosts.hp,
-    auto: raw.auto + raceBonus.auto + classBonus.auto + levelBoosts.auto,
-    def: raw.def + raceBonus.def + classBonus.def + levelBoosts.def,
-    cap: raw.cap + raceBonus.cap + classBonus.cap + levelBoosts.cap,
-    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap + levelBoosts.rescap,
-    spd: raw.spd + raceBonus.spd + classBonus.spd + levelBoosts.spd
+    hp: raw.hp + raceBonus.hp + classBonus.hp,
+    auto: raw.auto + raceBonus.auto + classBonus.auto,
+    def: raw.def + raceBonus.def + classBonus.def,
+    cap: raw.cap + raceBonus.cap + classBonus.cap,
+    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
+    spd: raw.spd + raceBonus.spd + classBonus.spd
   }, getAwakeningEffect(race, level));
 
   return {

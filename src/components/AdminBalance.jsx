@@ -5,7 +5,8 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
-import { simulerMatch } from '../utils/tournamentCombat';
+import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
+import { getStatPointValue } from '../utils/statPoints';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 
@@ -74,6 +75,18 @@ const genStats = () => ({
 
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+const STAT_KEYS = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
+
+const genLevelBoosts = (level) => {
+  const boosts = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
+  const points = Math.max(0, level - 1);
+  for (let i = 0; i < points; i++) {
+    const stat = randomItem(STAT_KEYS);
+    boosts[stat] += getStatPointValue(stat);
+  }
+  return boosts;
+};
+
 
 const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
   const data = {};
@@ -103,6 +116,7 @@ const makeCharacter = (id, level) => {
   const raw = genStats();
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
+  const levelBoosts = genLevelBoosts(level);
 
   const base = applyAwakeningToBase({
     hp: raw.hp + raceBonus.hp + classBonus.hp,
@@ -122,7 +136,7 @@ const makeCharacter = (id, level) => {
     base,
     level,
     bonuses: { race: raceBonus, class: classBonus },
-    forestBoosts: null,
+    forestBoosts: levelBoosts,
     mageTowerPassive: null,
     equippedWeaponId: null
   };
@@ -308,6 +322,7 @@ function AdminBalance() {
     const raw = genStats();
     const raceBonus = getRaceBonus(raceName);
     const classBonus = getClassBonus(className);
+    const levelBoosts = genLevelBoosts(level);
     const base = applyAwakeningToBase({
       hp: raw.hp + raceBonus.hp + classBonus.hp,
       auto: raw.auto + raceBonus.auto + classBonus.auto,
@@ -321,7 +336,7 @@ function AdminBalance() {
       name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
       race: raceName, class: className, base, level,
       bonuses: { race: raceBonus, class: classBonus },
-      forestBoosts: null, mageTowerPassive: null, equippedWeaponId: null
+      forestBoosts: levelBoosts, mageTowerPassive: null, equippedWeaponId: null
     };
   };
 
@@ -329,8 +344,10 @@ function AdminBalance() {
     withTemporaryDraftOverrides(() => {
       const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level);
       const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level);
+      const p1Final = preparerCombattant(p1);
+      const p2Final = preparerCombattant(p2);
       const result = simulerMatch(p1, p2);
-      setDuelResult({ ...result, p1, p2 });
+      setDuelResult({ ...result, p1: { ...p1, base: p1Final.base }, p2: { ...p2, base: p2Final.base } });
     });
   };
 
