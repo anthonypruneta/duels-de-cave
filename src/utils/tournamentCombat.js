@@ -211,8 +211,19 @@ function getMindflayerSpellCooldown(caster, _target, spellId) {
   return adjustedCooldown;
 }
 
-function applyMindflayerSpellMod(_caster, _target, baseDamage, _spellId, _log, _playerColor) {
-  return baseDamage;
+function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, playerColor) {
+  if (caster.race !== 'Mindflayer') return baseDamage;
+
+  const effectiveCooldown = getMindflayerSpellCooldown(caster, _target, spellId);
+  if (effectiveCooldown > 1) return baseDamage;
+
+  const casterAwakening = caster.awakening || {};
+  const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
+  if (!bonus || bonus <= 0) return baseDamage;
+
+  const boosted = Math.round(baseDamage * (1 + bonus));
+  log.push(`${playerColor} 🦑 Sort sans CD — ${caster.name} inflige +${Math.round(bonus * 100)}% de dégâts !`);
+  return boosted;
 }
 
 function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
