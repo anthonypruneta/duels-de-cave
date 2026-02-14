@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import {
   onTournoiUpdate, getCombatLog, creerTournoi, lancerTournoi,
-  avancerMatch, terminerTournoi, annoncerFinMatchDiscord
+  avancerMatch, terminerTournoi, annoncerFinMatchDiscord, supprimerTournoiTermine
 } from '../services/tournamentService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -577,6 +577,18 @@ const Tournament = () => {
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-nettoyage : supprimer le tournoi terminé quand on passe à la semaine suivante (lundi)
+  useEffect(() => {
+    if (isSimulation || !tournoi || loading) return;
+    if (tournoi.statut !== 'termine') return;
+    const now = getParisNow();
+    const day = now.getDay(); // 0=dimanche, 6=samedi
+    // Si on n'est plus samedi (6) ni dimanche (0), le tournoi terminé doit disparaître
+    if (day !== 0 && day !== 6) {
+      supprimerTournoiTermine(docId);
+    }
+  }, [tournoi, loading, isSimulation, docId]);
 
   // Auto-création à 18h — pas en simulation
   useEffect(() => {

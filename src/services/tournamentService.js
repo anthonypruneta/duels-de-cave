@@ -484,6 +484,24 @@ export async function getCombatLog(matchId, docId = 'current') {
 }
 
 // ============================================================================
+// NETTOYAGE TOURNOI TERMINÉ
+// ============================================================================
+
+export async function supprimerTournoiTermine(docId = 'current') {
+  try {
+    const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
+    for (const logDoc of logsSnapshot.docs) {
+      await deleteDoc(logDoc.ref);
+    }
+    await deleteDoc(doc(db, 'tournaments', docId));
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur nettoyage tournoi:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
