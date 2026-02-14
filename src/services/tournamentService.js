@@ -15,7 +15,59 @@ import { getWeaponById } from '../data/weapons';
 import { genererBracket, resoudreMatch, autoResolveByes, getParticipantNom } from '../utils/tournamentBracket';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
+import { envoyerAnnonceDiscord } from './discordService';
 import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId } from './infiniteLabyrinthService';
+
+// ============================================================================
+// ANNONCES DISCORD DU TOURNOI (fire-and-forget, ne bloque jamais le tournoi)
+// ============================================================================
+
+function annoncerTirageDiscord(matches, matchOrder, participants, nbParticipants) {
+  const premierTour = matchOrder
+    .map(id => matches[id])
+    .filter(m => m && m.bracket === 'winners' && m.round === 0 && m.p1 && m.p2 && m.p1 !== 'BYE' && m.p2 !== 'BYE')
+    .map((m, i) => {
+      const p1 = participants[m.p1];
+      const p2 = participants[m.p2];
+      return `⚔️ Match ${i + 1} : **${p1?.nom || '???'}** vs **${p2?.nom || '???'}**`;
+    });
+
+  const intro = annonceDebutTournoi(nbParticipants);
+  const message = `${intro}\n\n📋 **VOICI LES PREMIERS AFFRONTEMENTS :**\n\n${premierTour.join('\n')}`;
+
+  return envoyerAnnonceDiscord({ titre: '🏆 TIRAGE AU SORT DU TOURNOI', message, mentionEveryone: true });
+}
+
+function annoncerDebutMatchDiscord(match, participants) {
+  const p1 = participants[match.p1];
+  const p2 = participants[match.p2];
+  if (!p1 || !p2) return Promise.resolve();
+
+  const annonce = annonceDebutMatch(p1.nom, p2.nom, match.bracket, match.roundLabel);
+  const isFinale = match.bracket === 'grand_final' || match.bracket === 'grand_final_reset';
+
+  return envoyerAnnonceDiscord({
+    titre: isFinale ? '⚔️ GRANDE FINALE' : `🥊 ${match.roundLabel || 'Combat'}`,
+    message: annonce,
+    mentionEveryone: isFinale
+  });
+}
+
+function annoncerFinMatchDiscord(combatLogData) {
+  return envoyerAnnonceDiscord({
+    titre: `🏁 Victoire de ${combatLogData.winnerNom}`,
+    message: combatLogData.annonceFin
+  });
+}
+
+function annoncerChampionDiscord(champion) {
+  const annonce = annonceChampion(champion.nom);
+  return envoyerAnnonceDiscord({
+    titre: '👑 CHAMPION DU TOURNOI',
+    message: annonce,
+    mentionEveryone: true
+  });
+}
 
 // ============================================================================
 // CHARGER LES PERSONNAGES POUR LE TOURNOI
@@ -106,6 +158,11 @@ export async function creerTournoi(docId = 'current') {
     };
 
     await setDoc(doc(db, 'tournaments', docId), tournoi);
+
+    // Annonce Discord du tirage (uniquement pour le vrai tournoi)
+    if (docId === 'current') {
+      annoncerTirageDiscord(matches, matchOrder, participantsMap, participants.length).catch(() => {});
+    }
 
     return { success: true, nbParticipants: participants.length };
   } catch (error) {
@@ -227,6 +284,13 @@ export async function lancerTournoi(docId = 'current') {
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', firstMatchId), result.combatLogData);
 
+    // Annonces Discord du premier match
+    if (docId === 'current') {
+      annoncerDebutMatchDiscord(matches[firstMatchId], participants)
+        .then(() => annoncerFinMatchDiscord(result.combatLogData))
+        .catch(() => {});
+    }
+
     // Mettre à jour le tournoi
     await updateDoc(doc(db, 'tournaments', docId), {
       statut: 'en_cours',
@@ -309,11 +373,24 @@ export async function avancerMatch(docId = 'current') {
         champion,
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
+
+      // Annonce Discord du champion
+      if (docId === 'current' && champion) {
+        annoncerChampionDiscord(champion).catch(() => {});
+      }
+
       return { success: true, termine: true, champion };
     }
 
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', nextMatchId), result.combatLogData);
+
+    // Annonces Discord du match (début puis fin, chaînées pour l'ordre)
+    if (docId === 'current') {
+      annoncerDebutMatchDiscord(matches[nextMatchId], participants)
+        .then(() => annoncerFinMatchDiscord(result.combatLogData))
+        .catch(() => {});
+    }
 
     // Préparer la mise à jour
     let updateData = {
@@ -353,6 +430,11 @@ export async function avancerMatch(docId = 'current') {
     }
 
     await updateDoc(doc(db, 'tournaments', docId), updateData);
+
+    // Annonce Discord du champion si tournoi terminé
+    if (docId === 'current' && updateData.champion) {
+      annoncerChampionDiscord(updateData.champion).catch(() => {});
+    }
 
     return { success: true, termine: false, matchIndex: nextIndex };
   } catch (error) {
