@@ -7,37 +7,9 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../d
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
-
-const RACE_TO_CONSTANT_KEY = {
-  'Humain': 'humain',
-  'Elfe': 'elfe',
-  'Orc': 'orc',
-  'Nain': 'nain',
-  'Dragonkin': 'dragonkin',
-  'Mort-vivant': 'mortVivant',
-  'Lycan': 'lycan',
-  'Sylvari': 'sylvari',
-  'Sirène': 'sirene',
-  'Gnome': 'gnome',
-  'Mindflayer': 'mindflayer'
-};
-
-const CLASS_TO_CONSTANT_KEY = {
-  'Guerrier': 'guerrier',
-  'Voleur': 'voleur',
-  'Paladin': 'paladin',
-  'Healer': 'healer',
-  'Archer': 'archer',
-  'Mage': 'mage',
-  'Demoniste': 'demoniste',
-  'Masochiste': 'masochiste',
-  'Briseur de Sort': 'briseurSort',
-  'Succube': 'succube',
-  'Bastion': 'bastion'
-};
+import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
-const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 
 const applyNumericOverrides = (target, source) => {
   Object.entries(source).forEach(([key, val]) => {
@@ -101,56 +73,6 @@ const genStats = () => ({
 
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-const buildRaceBonusDescription = (raceName, constants) => {
-  switch (raceName) {
-    case 'Humain': return `+${constants.hp || 0} PV & +${constants.auto || 0} toutes stats`;
-    case 'Elfe': return `+${constants.auto || 0} AUTO, +${constants.cap || 0} CAP, +${constants.spd || 0} VIT, +${pct(constants.critBonus, 0)} crit`;
-    case 'Orc': return `Sous ${(Number(constants.lowHpThreshold || 0) * 100).toFixed(0)}% PV: +${((Number(constants.damageBonus || 1) - 1) * 100).toFixed(0)}% dégâts`;
-    case 'Nain': return `+${constants.hp || 0} PV & +${constants.def || 0} Déf`;
-    case 'Dragonkin': return `+${constants.hp || 0} PV & +${constants.rescap || 0} ResC`;
-    case 'Mort-vivant': return `Revient à ${pct(constants.revivePercent, 0)} PV (1x)`;
-    case 'Lycan': return `Attaque inflige saignement +${constants.bleedPerHit || 0} de dégât/tour`;
-    case 'Sylvari': return `Regen ${pct(constants.regenPercent, 1)} PV max/tour`;
-    case 'Sirène': return `+${constants.cap || 0} CAP, subit un spell: +${pct(constants.stackBonus, 0)} dégâts/soins des capacités (max ${constants.maxStacks || 0} stacks)`;
-    case 'Gnome': return `+${constants.spd || 0} VIT, +${constants.cap || 0} CAP, VIT > cible: +${pct(constants.critIfFaster, 0)} crit, VIT < cible: +${pct(constants.dodgeIfSlower, 0)} esquive, égalité: +${pct(constants.critIfEqual, 0)}/${pct(constants.dodgeIfEqual, 0)} crit/esquive`;
-    case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(constants.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
-    default: return races[raceName]?.bonus || '';
-  }
-};
-
-const buildRaceAwakeningDescription = (raceName, effect) => {
-  switch (raceName) {
-    case 'Humain': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} à toutes les stats`;
-    case 'Elfe': return `+${pct((effect?.statMultipliers?.auto || 1) - 1, 0)} Auto, +${pct((effect?.statMultipliers?.cap || 1) - 1, 0)} Cap, +${effect?.statBonuses?.spd || 0} VIT, +${pct(effect?.critChanceBonus, 0)} crit, +${pct(effect?.critDamageBonus, 0)} dégâts crit`;
-    case 'Orc': return `- Sous 50% PV: +22% dégâts\n- Les ${effect?.incomingHitCount || 0} premières attaques subies infligent ${(Number(effect?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
-    case 'Nain': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((effect?.statMultipliers?.def || 1) - 1, 0)} Déf`;
-    case 'Dragonkin': return `+${pct((effect?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((effect?.statMultipliers?.rescap || 1) - 1, 0)} ResC, +${pct(effect?.damageStackBonus, 0)} dégâts infligés par dégât reçu`;
-    case 'Mort-vivant': return `Première mort: explosion ${pct(effect?.explosionPercent, 0)} PV max + résurrection ${pct(effect?.revivePercent, 0)} PV max`;
-    case 'Lycan': return `Chaque auto: +${effect?.bleedStacksPerHit || 0} stack de saignement (${pct(effect?.bleedPercentPerStack, 1)} PV max par tour)`;
-    case 'Sylvari': return `Regen ${pct(effect?.regenPercent, 1)} PV max/tour, +${pct(effect?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(effect?.highHpThreshold || 0) * 100).toFixed(0)}%`;
-    case 'Sirène': return `+${effect?.statBonuses?.cap || 0} CAP, stacks à +${pct(effect?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${effect?.sireneMaxStacks || 0})`;
-    case 'Gnome': return `+${pct((effect?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((effect?.statMultipliers?.cap || 1) - 1, 0)} CAP, VIT > cible: +${pct(effect?.speedDuelCritHigh, 0)} crit, VIT < cible: +${pct(effect?.speedDuelDodgeLow, 0)} esquive, égalité: +${pct(effect?.speedDuelEqualCrit, 0)}/${pct(effect?.speedDuelEqualDodge, 0)} crit/esquive`;
-    case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(effect?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nVotre sort a -${effect?.mindflayerOwnCooldownReductionTurns || 0} de CD`;
-    default: return races[raceName]?.awakening?.description || '';
-  }
-};
-
-const buildClassDescription = (className, constants) => {
-  switch (className) {
-    case 'Guerrier': return `Frappe la résistance la plus faible. Ignore ${(constants.ignoreBase || 0) * 100}% de la résistance ennemie + ${(constants.ignorePerCap || 0) * 100}% de votre Cap. Gagne +${constants.autoBonus || 0} ATK.`;
-    case 'Voleur': return `Esquive la prochaine attaque. Gagne +${constants.spdBonus || 0} VIT et +${((constants.critPerCap || 0) * 100).toFixed(1)}% de votre Cap en chance de critique.`;
-    case 'Paladin': return `Renvoie ${(constants.reflectBase || 0) * 100}% des dégâts reçus + ${(constants.reflectPerCap || 0) * 100}% de votre Cap.`;
-    case 'Healer': return `Soigne ${(constants.missingHpPercent || 0) * 100}% des PV manquants + ${(constants.capScale || 0) * 100}% de votre Cap.`;
-    case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(constants.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(constants.hit2CapMultiplier || 0) * 100}% de votre Cap (opposé à la RésCap).`;
-    case 'Mage': return `Inflige votre attaque de base + ${(constants.capBase || 0) * 100}% de votre Cap (vs RésCap).`;
-    case 'Demoniste': return `Chaque tour, votre familier inflige ${(constants.capBase || 0) * 100}% de votre Cap et ignore ${(constants.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(constants.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
-    case 'Masochiste': return `Renvoie ${(constants.returnBase || 0) * 100}% des dégâts accumulés + ${(constants.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(constants.healPercent || 0) * 100}% des dégâts accumulés.`;
-    case 'Briseur de Sort': return `Après avoir subi un spell, gagne un bouclier égal à ${(constants.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(constants.shieldFromCap || 0) * 100}% de votre CAP.`;
-    case 'Succube': return `Inflige auto + ${(constants.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(constants.nextAttackReduction || 0) * 100}% dégâts.`;
-    case 'Bastion': return `Passif: +${(constants.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(constants.capScale || 0) * 100}% CAP + ${(constants.defScale || 0) * 100}% DEF.`;
-    default: return classes[className]?.description || '';
-  }
-};
 
 const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
   const data = {};

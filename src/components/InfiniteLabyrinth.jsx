@@ -14,6 +14,7 @@ import { getEquippedWeapon } from '../services/dungeonService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { classConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { getRaceBonusText } from '../utils/descriptionBuilders';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -335,7 +336,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
               {showRaceDetails && !hasAwakeningState && races[character.race] && (
                 <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                   <span className="text-lg">{races[character.race].icon}</span>
-                  <span className="text-stone-300">{races[character.race].bonus}</span>
+                  <span className="text-stone-300">{getRaceBonusText(character.race)}</span>
                 </div>
               )}
 

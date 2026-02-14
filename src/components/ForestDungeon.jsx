@@ -11,6 +11,7 @@ import { getEquippedWeapon, getDungeonProgress, getPlayerDungeonSummary, markDun
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { getRaceBonusText } from '../utils/descriptionBuilders';
 import {
   cooldowns,
   classConstants,
@@ -1317,7 +1318,7 @@ const ForestDungeon = () => {
               {!isAwakeningActive && races[char.race] && (
                 <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                   <span className="text-lg">{races[char.race].icon}</span>
-                  <span className="text-stone-300">{races[char.race].bonus}</span>
+                  <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
                 </div>
               )}
               {classes[char.class] && (
