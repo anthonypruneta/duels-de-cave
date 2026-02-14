@@ -448,7 +448,8 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
 
     const enemy = buildFloorEnemy(floor);
     const result = simulerMatch(char, enemy);
-    const didWin = result.winnerId === (char.userId || userId);
+    const lastStep = result.steps?.at(-1) || null;
+    const didWin = Number(lastStep?.p2HP) <= 0;
 
     const updatedProgress = { ...progressResult.data };
     let rewardGranted = false;
