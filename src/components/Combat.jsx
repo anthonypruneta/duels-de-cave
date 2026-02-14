@@ -363,12 +363,12 @@ const Combat = () => {
       case 'Briseur de Sort': {
         const { shieldFromSpellDamage, shieldFromCap } = classConstants.briseurSort;
         const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
-        const shieldCapPct = Math.round(shieldFromCap * cap * 100);
+        const shieldCapValue = Math.round(shieldFromCap * cap);
         return (
           <>
             Bouclier après spell:{' '}
             <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
-              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapPct}</span>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
             </Tooltip>
           </>
         );
@@ -399,7 +399,6 @@ const Combat = () => {
             <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
               <span className="text-green-400">{capDmg}</span>
             </Tooltip>
-            {' '}CAP + DEF
           </>
         );
       }
