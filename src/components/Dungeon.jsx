@@ -533,6 +533,11 @@ const Dungeon = () => {
   };
 
   // Fonction de résurrection mort-vivant
+  const getAntiHealFactor = (opponent) => {
+    if (opponent?.class === 'Briseur de Sort') return 1 - classConstants.briseurSort.antiHealReduction;
+    return 1;
+  };
+
   const reviveUndead = (target, attacker, log, playerColor) => {
     const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
     const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
@@ -650,9 +655,9 @@ const Dungeon = () => {
       }
 
       if (applyOnHitPassives && isPlayer && playerPassive?.id === 'essence_drain' && adjusted > 0) {
-        const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent));
+        const heal = Math.max(1, Math.round(adjusted * playerPassive.levelData.healPercent * getAntiHealFactor(def)));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
+        log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
       }
 
       return adjusted;
@@ -675,13 +680,14 @@ const Dungeon = () => {
       log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
     }
     if (turnEffects.regen > 0) {
-      att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
+      const weaponRegen = Math.max(1, Math.round(turnEffects.regen * getAntiHealFactor(def)));
+      att.currentHP = Math.min(att.maxHP, att.currentHP + weaponRegen);
     }
 
     // Passif Sylvari (regen)
     if (att.race === 'Sylvari') {
       const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
-      const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
+      const heal = Math.max(1, Math.round(att.maxHP * regenPercent * getAntiHealFactor(def)));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
     }
@@ -705,7 +711,7 @@ const Dungeon = () => {
         if (isPlayer) skillUsed = true;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-        const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
+        const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
         const inflicted = applyMageTowerDamage(dmg, false);
@@ -750,7 +756,7 @@ const Dungeon = () => {
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
       const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-      const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier));
+      const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier * getAntiHealFactor(def)));
       const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
       const heal = healCritResult.amount;
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);

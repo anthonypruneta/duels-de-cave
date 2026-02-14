@@ -20,6 +20,11 @@ import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '.
 // HELPERS
 // ============================================================================
 
+function getAntiHealFactor(opponent) {
+  if (opponent?.class === 'Briseur de Sort') return 1 - classConstants.briseurSort.antiHealReduction;
+  return 1;
+}
+
 function getPassiveDetails(passive) {
   if (!passive) return null;
   const base = getMageTowerPassiveById(passive.id);
@@ -254,7 +259,7 @@ function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassiv
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
       const masoTaken = caster.maso_taken || 0;
       const dmg = Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
-      const healAmount = Math.max(1, Math.round(masoTaken * healPercent));
+      const healAmount = Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)));
       target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
       const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} vole le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !`);
@@ -269,7 +274,7 @@ function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassiv
     case 'Healer': {
       const miss = target.maxHP - target.currentHP;
       const { missingHpPercent, capScale: healCapScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round(missingHpPercent * miss + healCapScale * target.base.cap));
+      const heal = Math.max(1, Math.round((missingHpPercent * miss + healCapScale * target.base.cap) * getAntiHealFactor(caster)));
       target.currentHP = Math.min(target.maxHP, target.currentHP + heal);
       log.push(`${playerColor} 🦑 ${target.name} vole le soin de ${caster.name} et récupère ${heal} PV !`);
       break;
@@ -410,7 +415,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
   }
   if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
-    const heal = Math.max(1, Math.round(att.maxHP * atkPassive.levelData.healPercent));
+    const heal = Math.max(1, Math.round(att.maxHP * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
   }
@@ -469,11 +474,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   const turnEffects = onTurnStart(att.weaponState, att, turn);
   if (turnEffects.log.length > 0) log.push(...turnEffects.log.map(e => `${playerColor} ${e}`));
-  if (turnEffects.regen > 0) att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
+  if (turnEffects.regen > 0) {
+    const weaponRegen = Math.max(1, Math.round(turnEffects.regen * getAntiHealFactor(def)));
+    att.currentHP = Math.min(att.maxHP, att.currentHP + weaponRegen);
+  }
 
   if (att.race === 'Sylvari') {
     const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
-    const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
+    const heal = Math.max(1, Math.round(att.maxHP * regenPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
   }
@@ -493,7 +501,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
       const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-      const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
+      const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       att.maso_taken = 0;
       let spellDmg = applyMindflayerSpellMod(att, def, dmg, 'maso', log, playerColor);
@@ -549,6 +557,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         log.push(`${playerColor} 🦑 Sort sans CD — ${att.name} soin renforcé +${Math.round(bonus * 100)}% !`);
       }
     }
+    baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
