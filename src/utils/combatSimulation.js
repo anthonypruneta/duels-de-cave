@@ -6,6 +6,7 @@ import { classes } from '../data/classes.js';
 import { getRaceBonus, getClassBonus, generalConstants } from '../data/combatMechanics.js';
 import { getAwakeningEffect, applyAwakeningToBase } from './awakening.js';
 import { simulerMatch } from './tournamentCombat.js';
+import { getStatPointValue } from './statPoints.js';
 
 const genStats = () => ({
   hp: 120 + Math.floor(Math.random() * 81),
@@ -18,20 +19,33 @@ const genStats = () => ({
 
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+const STAT_KEYS = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
+
+const genLevelBoosts = (level) => {
+  const boosts = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
+  const points = Math.max(0, level - 1);
+  for (let i = 0; i < points; i++) {
+    const stat = randomItem(STAT_KEYS);
+    boosts[stat] += getStatPointValue(stat);
+  }
+  return boosts;
+};
+
 const makeCharacter = (id, level = 1) => {
   const race = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
   const raw = genStats();
   const raceBonus = getRaceBonus(race);
   const classBonus = getClassBonus(className);
+  const levelBoosts = genLevelBoosts(level);
 
   const base = applyAwakeningToBase({
-    hp: raw.hp + raceBonus.hp + classBonus.hp,
-    auto: raw.auto + raceBonus.auto + classBonus.auto,
-    def: raw.def + raceBonus.def + classBonus.def,
-    cap: raw.cap + raceBonus.cap + classBonus.cap,
-    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
-    spd: raw.spd + raceBonus.spd + classBonus.spd
+    hp: raw.hp + raceBonus.hp + classBonus.hp + levelBoosts.hp,
+    auto: raw.auto + raceBonus.auto + classBonus.auto + levelBoosts.auto,
+    def: raw.def + raceBonus.def + classBonus.def + levelBoosts.def,
+    cap: raw.cap + raceBonus.cap + classBonus.cap + levelBoosts.cap,
+    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap + levelBoosts.rescap,
+    spd: raw.spd + raceBonus.spd + classBonus.spd + levelBoosts.spd
   }, getAwakeningEffect(race, level));
 
   return {
@@ -43,7 +57,7 @@ const makeCharacter = (id, level = 1) => {
     base,
     level,
     bonuses: { race: raceBonus, class: classBonus },
-    forestBoosts: null,
+    forestBoosts: levelBoosts,
     mageTowerPassive: null,
     equippedWeaponId: null
   };

@@ -58,7 +58,9 @@ function mergeAwakeningEffects(effects = []) {
       });
     }
 
-    const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack'];
+    const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack',
+      'mindflayerStealSpellCapDamageScale', 'mindflayerOwnCooldownReductionTurns', 'mindflayerNoCooldownSpellBonus',
+      'sireneStackBonus', 'sireneMaxStacks'];
     additiveKeys.forEach((key) => {
       if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
     });
@@ -226,7 +228,7 @@ function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, play
   return boosted;
 }
 
-function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
+function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
   if (target?.race !== 'Mindflayer') return;
   if (target.mindflayerSpellTheftUsed) return;
   if (target.currentHP <= 0 || caster.currentHP <= 0) return;
@@ -234,9 +236,116 @@ function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerCol
   target.mindflayerSpellTheftUsed = true;
   const targetAwakening = target.awakening || {};
   const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
-  const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
-  const inflicted = applyDamage(target, caster, stolenDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
-  log.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
+  const capBonus = Math.max(0, Math.round(target.base.cap * capScale));
+
+  // Le Mindflayer (target) relance le sort volé contre l'ennemi (caster)
+  const stolenClass = caster.class;
+
+  switch (stolenClass) {
+    case 'Demoniste': {
+      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+      const hit = Math.max(1, Math.round((capBase + capPerCap * target.base.cap) * target.base.cap));
+      const raw = dmgCap(hit, caster.base.rescap * (1 - ignoreResist)) + capBonus;
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole le familier de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
+    case 'Masochiste': {
+      const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+      const masoTaken = caster.maso_taken || 0;
+      const dmg = Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
+      const healAmount = Math.max(1, Math.round(masoTaken * healPercent));
+      target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
+      const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !`);
+      break;
+    }
+    case 'Paladin': {
+      const { reflectBase, reflectPerCap } = classConstants.paladin;
+      target.reflect = reflectBase + reflectPerCap * target.base.cap;
+      log.push(`${playerColor} 🦑 ${target.name} vole la riposte de ${caster.name} et renverra ${Math.round(target.reflect * 100)}% des dégâts !`);
+      break;
+    }
+    case 'Healer': {
+      const miss = target.maxHP - target.currentHP;
+      const { missingHpPercent, capScale: healCapScale } = classConstants.healer;
+      const heal = Math.max(1, Math.round(missingHpPercent * miss + healCapScale * target.base.cap));
+      target.currentHP = Math.min(target.maxHP, target.currentHP + heal);
+      log.push(`${playerColor} 🦑 ${target.name} vole le soin de ${caster.name} et récupère ${heal} PV !`);
+      break;
+    }
+    case 'Succube': {
+      const raw = dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      caster.succubeWeakenNextAttack = true;
+      log.push(`${playerColor} 🦑 ${target.name} vole le fouet de ${caster.name}, inflige ${inflicted} dégâts et affaiblit sa prochaine attaque !`);
+      break;
+    }
+    case 'Bastion': {
+      const raw = dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole la Charge du Rempart de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
+    case 'Voleur': {
+      target.dodge = true;
+      log.push(`${playerColor} 🦑 ${target.name} vole l'esquive de ${caster.name} et évitera la prochaine attaque !`);
+      break;
+    }
+    case 'Mage': {
+      const { capBase, capPerCap } = classConstants.mage;
+      const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
+      const raw = dmgCap(atkSpell, caster.base.rescap) + capBonus;
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole le sort magique de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
+    case 'Guerrier': {
+      const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+      const ignore = ignoreBase + ignorePerCap * target.base.cap;
+      let raw;
+      if (caster.base.def <= caster.base.rescap) {
+        const effDef = Math.max(0, Math.round(caster.base.def * (1 - ignore)));
+        raw = dmgPhys(Math.round(target.base.auto), effDef);
+      } else {
+        const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
+        raw = dmgCap(Math.round(target.base.cap), effRes);
+      }
+      raw += capBonus;
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole la frappe pénétrante de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
+    case 'Archer': {
+      const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+      let totalDmg = 0;
+      for (let i = 0; i < hitCount; i++) {
+        let raw;
+        if (i === 0) {
+          raw = dmgPhys(Math.round(target.base.auto), caster.base.def) + capBonus;
+        } else {
+          const physPart = dmgPhys(Math.round(target.base.auto * hit2AutoMultiplier), caster.base.def);
+          const capPart = dmgCap(Math.round(target.base.cap * hit2CapMultiplier), caster.base.rescap);
+          raw = physPart + capPart + capBonus;
+        }
+        const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+        totalDmg += inflicted;
+        if (caster.currentHP <= 0) break;
+      }
+      log.push(`${playerColor} 🦑 ${target.name} vole le tir multiple de ${caster.name} et inflige ${totalDmg} dégâts !`);
+      break;
+    }
+    default: {
+      const stolenDamage = Math.max(1, Math.round(target.base.cap * capScale));
+      const inflicted = applyDamage(target, caster, stolenDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🦑 ${target.name} vole le sort de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
+  }
+
+  if (caster.currentHP <= 0 && caster.race === 'Mort-vivant' && !caster.undead) {
+    reviveUndead(caster, target, log, playerColor);
+  }
 }
 
 function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
@@ -280,10 +389,6 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
   }
   if (adjusted > 0) {
-    if (isSpellDamage) {
-      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
-    }
-
     def.currentHP -= adjusted;
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
@@ -338,7 +443,28 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   att.reflect = false;
   for (const k of Object.keys(cooldowns)) {
-    att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
+    const effectiveCd = getMindflayerSpellCooldown(att, def, k);
+    att.cd[k] = (att.cd[k] % effectiveCd) + 1;
+  }
+
+  // Mindflayer : vole le sort AVANT qu'il ne se lance
+  let spellStolen = false;
+  const wouldCastSpell =
+    (att.class === 'Demoniste') ||
+    (att.class === 'Masochiste' && att.cd.maso === getMindflayerSpellCooldown(att, def, 'maso') && att.maso_taken > 0) ||
+    (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) ||
+    (att.class === 'Healer' && att.cd.heal === cooldowns.heal) ||
+    (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) ||
+    (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) ||
+    (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) ||
+    (att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag')) ||
+    (att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war')) ||
+    (att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc'));
+
+  if (wouldCastSpell && def?.race === 'Mindflayer' && !def.mindflayerSpellTheftUsed && def.currentHP > 0 && att.currentHP > 0) {
+    spellStolen = true;
+    const defColor = isP1 ? '[P2]' : '[P1]';
+    triggerMindflayerSpellTheft(att, def, log, defColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
   }
 
   const turnEffects = onTurnStart(att.weaponState, att, turn);
@@ -352,7 +478,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
   }
 
-  if (att.class === 'Demoniste') {
+  if (att.class === 'Demoniste' && !spellStolen) {
     const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
@@ -362,7 +488,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
 
-  if (att.class === 'Masochiste') {
+  if (att.class === 'Masochiste' && !spellStolen) {
     if (att.cd.maso === getMindflayerSpellCooldown(att, def, 'maso') && att.maso_taken > 0) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
@@ -392,14 +518,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
   }
 
-  if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
+  if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal && !spellStolen) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     att.reflect = reflectBase + reflectPerCap * att.base.cap;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
   }
 
-  if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
+  if (att.class === 'Healer' && att.cd.heal === cooldowns.heal && !spellStolen) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
@@ -425,7 +551,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
 
-  if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) {
+  if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ') && !spellStolen) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
@@ -434,7 +560,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
   }
 
-  if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) {
+  if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast') && !spellStolen) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
@@ -442,15 +568,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
   }
 
-  if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
+  if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog && !spellStolen) {
     skillUsed = true;
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
   }
 
-  const isMage = att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
-  const isWar = att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
-  const isArcher = att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
+  const isMage = !spellStolen && att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
+  const isWar = !spellStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
+  const isArcher = !spellStolen && att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
   let mult = 1.0;
@@ -578,6 +704,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
     }
   }
+
 }
 
 // ============================================================================
