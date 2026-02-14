@@ -25,14 +25,9 @@ function getAntiHealFactor(opponent) {
   return 1;
 }
 
-const SPELL_CLASSES = new Set(['Mage', 'Guerrier', 'Archer', 'Demoniste', 'Masochiste', 'Succube', 'Bastion']);
-function hasOffensiveSpell(character) {
-  return SPELL_CLASSES.has(character?.class);
-}
-
-function getBriseurAutoBonus(att, def) {
-  if (att.class !== 'Briseur de Sort' || hasOffensiveSpell(def)) return 0;
-  return Math.round(att.base.cap * classConstants.briseurSort.noSpellAutoCapBonus);
+function getBriseurAutoBonus(att) {
+  if (att.class !== 'Briseur de Sort') return 0;
+  return Math.round(att.base.cap * classConstants.briseurSort.autoCapBonus);
 }
 
 function getPassiveDetails(passive) {
@@ -675,7 +670,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'arc', log, playerColor);
     } else {
-      const autoCapBonus = getBriseurAutoBonus(att, def);
+      const autoCapBonus = getBriseurAutoBonus(att);
       raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
       if (att.race === 'Lycan') {
         const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
