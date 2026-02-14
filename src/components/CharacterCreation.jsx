@@ -1043,6 +1043,14 @@ const CharacterCreation = () => {
             >
               🌀 Labyrinthe infini 🌀
             </button>
+            {currentUser?.email === 'antho.pruneta@gmail.com' && (
+              <button
+                onClick={() => navigate('/combat')}
+                className="bg-red-700 hover:bg-red-600 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all"
+              >
+                ⚔️ PvP ⚔️
+              </button>
+            )}
           </div>
 
           {isDowntimeLocked && (

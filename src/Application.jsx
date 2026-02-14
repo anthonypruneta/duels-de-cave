@@ -43,9 +43,7 @@ function Application() {
             element={
               <ProtectedRoute>
                 <AdminOnlyRoute>
-                  <ModeAvailabilityRoute>
-                    <Combat />
-                  </ModeAvailabilityRoute>
+                  <Combat />
                 </AdminOnlyRoute>
               </ProtectedRoute>
             }
