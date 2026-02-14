@@ -226,7 +226,7 @@ function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, play
   return boosted;
 }
 
-function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
+function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
   if (target?.race !== 'Mindflayer') return;
   if (target.mindflayerSpellTheftUsed) return;
   if (target.currentHP <= 0 || caster.currentHP <= 0) return;
@@ -234,7 +234,7 @@ function triggerMindflayerSpellTheft(caster, target, spellDamage, log, playerCol
   target.mindflayerSpellTheftUsed = true;
   const targetAwakening = target.awakening || {};
   const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
-  const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
+  const stolenDamage = Math.max(1, Math.round(target.base.cap * capScale));
   const inflicted = applyDamage(target, caster, stolenDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
   log.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
 }
@@ -280,10 +280,6 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
   }
   if (adjusted > 0) {
-    if (isSpellDamage) {
-      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
-    }
-
     def.currentHP -= adjusted;
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
@@ -577,6 +573,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     } else {
       log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
     }
+  }
+
+  // Mindflayer : vole et relance le premier sort lancé par l'ennemi
+  if (skillUsed) {
+    const defColor = isP1 ? '[P2]' : '[P1]';
+    triggerMindflayerSpellTheft(att, def, log, defColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
   }
 }
 
