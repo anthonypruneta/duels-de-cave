@@ -142,6 +142,11 @@ export function isNewDay(lastRunDate) {
   return last < currentAnchor;
 }
 
+function isParisSunday(date) {
+  const str = new Date(date).toLocaleString('en-US', { timeZone: 'Europe/Paris' });
+  return new Date(str).getDay() === 0;
+}
+
 export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
   if (!lastCreditDate) return 0;
   const last = lastCreditDate instanceof Date ? lastCreditDate : lastCreditDate.toDate();
@@ -149,8 +154,17 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
   const lastAnchor = getResetAnchor(last);
   const diffMs = currentAnchor - lastAnchor;
   if (diffMs <= 0) return 0;
+  // Compter les périodes en excluant celles qui tombent le dimanche (heure de Paris)
   const periodMs = 12 * 60 * 60 * 1000;
-  return Math.floor(diffMs / periodMs);
+  let count = 0;
+  let cursor = new Date(lastAnchor.getTime() + periodMs);
+  while (cursor <= currentAnchor) {
+    if (!isParisSunday(cursor)) {
+      count++;
+    }
+    cursor = new Date(cursor.getTime() + periodMs);
+  }
+  return count;
 }
 
 /**

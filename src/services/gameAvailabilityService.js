@@ -1,28 +1,29 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
-const DOWNTIME_DAY = 0; // dimanche
-
-export const isPostTournamentDowntimeDay = (date = new Date()) => date.getDay() === DOWNTIME_DAY;
+function getParisDay() {
+  const parisStr = new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' });
+  return new Date(parisStr).getDay();
+}
 
 export const shouldLockPveModes = async () => {
   try {
-    if (!isPostTournamentDowntimeDay()) {
-      return { success: true, locked: false };
-    }
-
     const tournoiSnap = await getDoc(doc(db, 'tournaments', 'current'));
     if (!tournoiSnap.exists()) {
       return { success: true, locked: false };
     }
 
     const tournoi = tournoiSnap.data();
-    const isReplayAvailable = tournoi?.statut === 'termine';
+    const isTermine = tournoi?.statut === 'termine';
+    const parisDay = getParisDay();
+    // Bloquer samedi soir et dimanche, débloquer dès lundi
+    const isWeekend = parisDay === 0 || parisDay === 6;
+    const locked = isTermine && isWeekend;
 
     return {
       success: true,
-      locked: isReplayAvailable,
-      reason: isReplayAvailable ? 'post_tournament_downtime' : null,
+      locked,
+      reason: locked ? 'post_tournament_downtime' : null,
       tournoiStatus: tournoi?.statut || null
     };
   } catch (error) {

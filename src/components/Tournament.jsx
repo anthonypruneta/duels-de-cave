@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import {
   onTournoiUpdate, getCombatLog, creerTournoi, lancerTournoi,
-  avancerMatch, terminerTournoi
+  avancerMatch, terminerTournoi, annoncerFinMatchDiscord
 } from '../services/tournamentService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -780,6 +780,11 @@ const Tournament = () => {
     setWinner(logData.winnerNom);
     setAnnonceActuelle(logData.annonceFin);
     stopAnimation();
+
+    // Annoncer le vainqueur sur Discord après l'animation (admin + vrai tournoi uniquement)
+    if (isAdmin && !isSimulation && !replayMatchId) {
+      annoncerFinMatchDiscord(logData).catch(() => {});
+    }
 
     // Arrêter musique combat, jouer victoire
     if (combatMusic) combatMusic.pause();

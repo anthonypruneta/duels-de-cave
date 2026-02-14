@@ -16,7 +16,7 @@ import { genererBracket, resoudreMatch, autoResolveByes, getParticipantNom } fro
 import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
 import { envoyerAnnonceDiscord } from './discordService';
-import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId } from './infiniteLabyrinthService';
+import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteLabyrinthEnemyPool } from './infiniteLabyrinthService';
 
 // ============================================================================
 // ANNONCES DISCORD DU TOURNOI (fire-and-forget, ne bloque jamais le tournoi)
@@ -53,7 +53,7 @@ function annoncerDebutMatchDiscord(match, participants) {
   });
 }
 
-function annoncerFinMatchDiscord(combatLogData) {
+export function annoncerFinMatchDiscord(combatLogData) {
   return envoyerAnnonceDiscord({
     titre: `🏁 Victoire de ${combatLogData.winnerNom}`,
     message: combatLogData.annonceFin
@@ -272,7 +272,26 @@ export async function lancerTournoi(docId = 'current') {
     const tournoi = tournoiDoc.data();
     if (tournoi.statut !== 'preparation') return { success: false, error: 'Le tournoi a déjà été lancé' };
 
-    const { matches, matchOrder, participants } = tournoi;
+    const { matches, matchOrder } = tournoi;
+
+    // Recharger les personnages avec stats/niveau/arme à jour (XP entre 18h et 19h)
+    const freshParticipants = await chargerParticipants();
+    const participants = { ...tournoi.participants };
+    for (const p of freshParticipants) {
+      const id = p.userId || p.id;
+      if (participants[id]) {
+        participants[id] = {
+          ...participants[id],
+          base: p.base,
+          bonuses: p.bonuses,
+          level: p.level ?? 1,
+          equippedWeaponId: p.equippedWeaponId || null,
+          equippedWeaponData: p.equippedWeaponData || null,
+          mageTowerPassive: p.mageTowerPassive || null,
+          forestBoosts: p.forestBoosts || null,
+        };
+      }
+    }
 
     const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, 0);
     if (!prochainMatch) return { success: false, error: 'Aucun match jouable trouvé' };
@@ -284,19 +303,18 @@ export async function lancerTournoi(docId = 'current') {
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', firstMatchId), result.combatLogData);
 
-    // Annonces Discord du premier match
+    // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
     if (docId === 'current') {
-      annoncerDebutMatchDiscord(matches[firstMatchId], participants)
-        .then(() => annoncerFinMatchDiscord(result.combatLogData))
-        .catch(() => {});
+      annoncerDebutMatchDiscord(matches[firstMatchId], participants).catch(() => {});
     }
 
-    // Mettre à jour le tournoi
+    // Mettre à jour le tournoi avec les participants rafraîchis
     await updateDoc(doc(db, 'tournaments', docId), {
       statut: 'en_cours',
       matches,
       matchOrder,
       matchActuel: firstIndex,
+      participants,
     });
 
     if (docId === 'current') {
@@ -379,17 +397,20 @@ export async function avancerMatch(docId = 'current') {
         annoncerChampionDiscord(champion).catch(() => {});
       }
 
+      // Régénérer le labyrinthe quand le tournoi est terminé
+      if (docId === 'current') {
+        resetWeeklyInfiniteLabyrinthEnemyPool().catch(() => {});
+      }
+
       return { success: true, termine: true, champion };
     }
 
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', nextMatchId), result.combatLogData);
 
-    // Annonces Discord du match (début puis fin, chaînées pour l'ordre)
+    // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
     if (docId === 'current') {
-      annoncerDebutMatchDiscord(matches[nextMatchId], participants)
-        .then(() => annoncerFinMatchDiscord(result.combatLogData))
-        .catch(() => {});
+      annoncerDebutMatchDiscord(matches[nextMatchId], participants).catch(() => {});
     }
 
     // Préparer la mise à jour
@@ -416,6 +437,7 @@ export async function avancerMatch(docId = 'current') {
         let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
         const championData = participantsList.find(p => p.userId === championId);
         if (championData) {
+          updateData.statut = 'termine';
           updateData.champion = {
             userId: championData.userId,
             nom: championData.nom,
@@ -434,6 +456,11 @@ export async function avancerMatch(docId = 'current') {
     // Annonce Discord du champion si tournoi terminé
     if (docId === 'current' && updateData.champion) {
       annoncerChampionDiscord(updateData.champion).catch(() => {});
+    }
+
+    // Régénérer le labyrinthe quand le tournoi est terminé
+    if (updateData.statut === 'termine' && docId === 'current') {
+      resetWeeklyInfiniteLabyrinthEnemyPool().catch(() => {});
     }
 
     return { success: true, termine: false, matchIndex: nextIndex };
