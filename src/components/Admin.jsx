@@ -52,6 +52,9 @@ const Admin = () => {
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
 
+  // État pour le tirage manuel du tournoi
+  const [tirageLoading, setTirageLoading] = useState(false);
+
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
 
@@ -477,6 +480,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
 
     setAnnonceEnvoi(false);
+  };
+
+  // Tirage manuel du tournoi (créer le bracket en avance)
+  const handleCreerTirage = async () => {
+    if (!confirm('Créer le tirage du tournoi maintenant ? Cela écrasera tout tournoi existant en préparation.')) return;
+    setTirageLoading(true);
+    const result = await creerTournoi('current');
+    setTirageLoading(false);
+    if (result.success) {
+      alert(`✅ Tirage créé avec ${result.nbParticipants} participants !`);
+    } else {
+      alert('❌ Erreur: ' + result.error);
+    }
   };
 
   // Simulation de tournoi en direct
@@ -961,6 +977,20 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Section Tirage Manuel du Tournoi */}
+        <div className="bg-stone-900/70 border-2 border-red-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-red-300 mb-4">🎯 Tirage du Tournoi</h2>
+          <p className="text-stone-400 text-sm mb-4">Déclencher le tirage au sort du tournoi en avance. Normalement automatique le samedi à 18h. Le bracket sera visible sur la page tournoi.</p>
+
+          <button
+            onClick={handleCreerTirage}
+            disabled={tirageLoading}
+            className="w-full bg-red-600 hover:bg-red-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
+          >
+            {tirageLoading ? '⏳ Création du tirage...' : '🎲 Créer le tirage maintenant'}
+          </button>
         </div>
 
         {/* Section Simulation Tournoi */}
