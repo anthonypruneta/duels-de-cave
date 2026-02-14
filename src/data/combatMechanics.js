@@ -82,7 +82,7 @@ export const raceConstants = {
   lycan: { bleedPerHit: 1, bleedDivisor: 5 },
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
-  gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
+  gnome: { critIfFaster: 0.20, critDmgIfFaster: 0.20, dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, critIfEqual: 0.05, critDmgIfEqual: 0.05, dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, spd: 5, cap: 5 },
   mindflayer: {
     stealSpellCapDamageScale: 0.20,
     ownCooldownReductionTurns: 0,
@@ -103,20 +103,30 @@ export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap
 
 // Calcul du crit chance (identique à Combat.jsx)
 export const getSpeedDuelBonuses = (attacker, defender) => {
-  const bonuses = { crit: 0, dodge: 0 };
+  const bonuses = { crit: 0, critDamage: 0, dodge: 0, capBonus: 0 };
   if (attacker?.race !== 'Gnome' || !defender?.base) return bonuses;
 
   const aw = attacker?.awakening || {};
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
+  const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
   const dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
+  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? raceConstants.gnome.capBonusIfSlower;
   const critIfEqual = aw.speedDuelEqualCrit ?? raceConstants.gnome.critIfEqual;
+  const critDmgIfEqual = aw.speedDuelEqualCritDmg ?? raceConstants.gnome.critDmgIfEqual;
   const dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
+  const capBonusIfEqual = aw.speedDuelEqualCapBonus ?? raceConstants.gnome.capBonusIfEqual;
 
-  if (attacker.base.spd > defender.base.spd) bonuses.crit += critIfFaster;
-  else if (attacker.base.spd < defender.base.spd) bonuses.dodge += dodgeIfSlower;
-  else {
+  if (attacker.base.spd > defender.base.spd) {
+    bonuses.crit += critIfFaster;
+    bonuses.critDamage += critDmgIfFaster;
+  } else if (attacker.base.spd < defender.base.spd) {
+    bonuses.dodge += dodgeIfSlower;
+    bonuses.capBonus += capBonusIfSlower;
+  } else {
     bonuses.crit += critIfEqual;
+    bonuses.critDamage += critDmgIfEqual;
     bonuses.dodge += dodgeIfEqual;
+    bonuses.capBonus += capBonusIfEqual;
   }
 
   return bonuses;
@@ -131,9 +141,10 @@ export const calcCritChance = (attacker, defender = null) => {
   return c;
 };
 
-export const getCritMultiplier = (attacker) => {
+export const getCritMultiplier = (attacker, defender = null) => {
   const bonus = attacker?.awakening?.critDamageBonus ?? 0;
-  return generalConstants.critMultiplier * (1 + bonus);
+  const speedDuelBonus = getSpeedDuelBonuses(attacker, defender).critDamage;
+  return generalConstants.critMultiplier * (1 + bonus + speedDuelBonus);
 };
 
 // Bonus de stats par race
