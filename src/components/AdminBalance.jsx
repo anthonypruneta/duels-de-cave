@@ -7,6 +7,9 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../d
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { getStatPointValue } from '../utils/statPoints';
+import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
+import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
+import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 
@@ -156,6 +159,7 @@ function AdminBalance() {
   const classNames = useMemo(() => Object.keys(classes), []);
   const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
   const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
+  const [duelOpponent, setDuelOpponent] = useState('pvp');
   const [duelResult, setDuelResult] = useState(null);
 
   const [raceBonusDraft, setRaceBonusDraft] = useState(() => deepClone(raceConstants));
@@ -340,14 +344,52 @@ function AdminBalance() {
     };
   };
 
+  const BOSS_OPTIONS = [
+    { id: 'pvp', label: '⚔️ PvP (Joueur vs Joueur)' },
+    { id: 'licorne', label: '🦄 Licorne (Forêt)', icon: '🦄' },
+    { id: 'dragon', label: '🐲 Dragon (Donjon)', icon: '🐲' },
+    { id: 'lich', label: '🧟 Liche (Tour de Mage)', icon: '🧟' }
+  ];
+
+  const createBossForDuel = (bossId) => {
+    if (bossId === 'licorne') {
+      const bossData = FOREST_LEVELS.find(l => l.boss.id === 'licorne')?.boss;
+      if (!bossData) return null;
+      const boss = createForestBossCombatant(bossData);
+      boss.shield = 0;
+      boss.shieldExploded = false;
+      return boss;
+    }
+    if (bossId === 'lich') {
+      const bossData = MAGE_TOWER_LEVELS.find(l => l.boss.id === 'lich')?.boss;
+      if (!bossData) return null;
+      const boss = createMageTowerBossCombatant(bossData);
+      boss.shield = Math.max(1, Math.round(boss.maxHP * 0.2));
+      return boss;
+    }
+    if (bossId === 'dragon') {
+      return createBossCombatant('dragon');
+    }
+    return null;
+  };
+
   const handleDuel = () => {
     withTemporaryDraftOverrides(() => {
       const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level);
-      const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level);
       const p1Final = preparerCombattant(p1);
-      const p2Final = preparerCombattant(p2);
-      const result = simulerMatch(p1, p2);
-      setDuelResult({ ...result, p1: { ...p1, base: p1Final.base }, p2: { ...p2, base: p2Final.base } });
+      const p1Display = { ...p1, base: p1Final.base };
+
+      if (duelOpponent === 'pvp') {
+        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level);
+        const p2Final = preparerCombattant(p2);
+        const result = simulerMatch(p1, p2);
+        setDuelResult({ ...result, p1: p1Display, p2: { ...p2, base: p2Final.base } });
+      } else {
+        const boss = createBossForDuel(duelOpponent);
+        if (!boss) return;
+        const result = simulerMatch(p1, boss);
+        setDuelResult({ ...result, p1: p1Display, p2: boss, isBoss: true });
+      }
     });
   };
 
@@ -492,36 +534,70 @@ function AdminBalance() {
         {/* Duel 1v1 */}
         <div className="bg-stone-900/70 border border-purple-500 rounded-lg p-4 mb-8">
           <h2 className="text-xl text-purple-300 font-bold mb-4">⚔️ Duel 1v1</h2>
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            {[{ label: 'Joueur 1', state: duelP1, setter: setDuelP1, color: 'text-blue-300' },
-              { label: 'Joueur 2', state: duelP2, setter: setDuelP2, color: 'text-red-300' }].map(({ label, state, setter, color }) => (
-              <div key={label} className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
-                <div className={`font-bold ${color}`}>{label}</div>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {BOSS_OPTIONS.map(({ id, label }) => (
+              <button key={id} onClick={() => { setDuelOpponent(id); setDuelResult(null); }}
+                className={`px-3 py-1 text-xs font-bold rounded border ${duelOpponent === id
+                  ? 'bg-purple-600 border-purple-400 text-white'
+                  : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-400'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className={`grid ${duelOpponent === 'pvp' ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-4 mb-4`}>
+            <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
+              <div className="font-bold text-blue-300">{duelOpponent === 'pvp' ? 'Joueur 1' : 'Joueur'}</div>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Race
+                <select value={duelP1.race} onChange={(e) => setDuelP1((p) => ({ ...p, race: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {raceNames.map((r) => <option key={r} value={r}>{races[r]?.icon} {r}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Classe
+                <select value={duelP1.class} onChange={(e) => setDuelP1((p) => ({ ...p, class: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {classNames.map((c) => <option key={c} value={c}>{classes[c]?.icon} {c}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Niveau
+                <input type="number" min="1" max="200" value={duelP1.level}
+                  onChange={(e) => setDuelP1((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
+                  className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
+              </label>
+            </div>
+            {duelOpponent === 'pvp' && (
+              <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
+                <div className="font-bold text-red-300">Joueur 2</div>
                 <label className="flex items-center gap-2 text-xs text-stone-300">
                   Race
-                  <select value={state.race} onChange={(e) => setter((p) => ({ ...p, race: e.target.value }))}
+                  <select value={duelP2.race} onChange={(e) => setDuelP2((p) => ({ ...p, race: e.target.value }))}
                     className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
                     {raceNames.map((r) => <option key={r} value={r}>{races[r]?.icon} {r}</option>)}
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-stone-300">
                   Classe
-                  <select value={state.class} onChange={(e) => setter((p) => ({ ...p, class: e.target.value }))}
+                  <select value={duelP2.class} onChange={(e) => setDuelP2((p) => ({ ...p, class: e.target.value }))}
                     className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
                     {classNames.map((c) => <option key={c} value={c}>{classes[c]?.icon} {c}</option>)}
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-stone-300">
                   Niveau
-                  <input type="number" min="1" max="200" value={state.level}
-                    onChange={(e) => setter((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
+                  <input type="number" min="1" max="200" value={duelP2.level}
+                    onChange={(e) => setDuelP2((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
                     className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
                 </label>
               </div>
-            ))}
+            )}
           </div>
           <button onClick={handleDuel} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-2 rounded font-bold mb-4">
-            ⚔️ Lancer le duel
+            {duelOpponent === 'pvp' ? '⚔️ Lancer le duel' : `⚔️ Combattre le boss`}
           </button>
 
           {duelResult && (
@@ -534,7 +610,7 @@ function AdminBalance() {
                 <span className="text-stone-500 font-bold">VS</span>
                 <div className="text-sm text-right">
                   <span className="text-red-300 font-bold">{duelResult.p2.name}</span>
-                  <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p2.level} — HP:{duelResult.p2.base.hp} ATK:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
+                  <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} ATK:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
                 </div>
               </div>
               <div className="text-center text-lg font-bold text-amber-300">
