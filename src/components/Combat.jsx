@@ -19,6 +19,7 @@ import {
 } from '../data/combatMechanics';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -359,8 +360,52 @@ const Combat = () => {
         );
       }
 
+      case 'Briseur de Sort': {
+        const { shieldFromSpellDamage, shieldFromCap } = classConstants.briseurSort;
+        const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+        const shieldCapPct = Math.round(shieldFromCap * cap * 100);
+        return (
+          <>
+            Bouclier après spell:{' '}
+            <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapPct}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Succube': {
+        const { capScale, nextAttackReduction } = classConstants.succube;
+        const capDmg = Math.round(capScale * cap);
+        const reductionPct = Math.round(nextAttackReduction * 100);
+        return (
+          <>
+            Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+          </>
+        );
+      }
+
+      case 'Bastion': {
+        const { defPercentBonus, capScale, defScale } = classConstants.bastion;
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP + DEF
+          </>
+        );
+      }
+
       default:
-        return classes[className]?.description || '';
+        return getClassDescriptionText(className);
     }
   };
 
@@ -751,7 +796,7 @@ const Combat = () => {
               {!isAwakeningActive && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
                 <span className="text-lg">{races[character.race].icon}</span>
-                <span className="text-stone-300">{races[character.race].bonus}</span>
+                <span className="text-stone-300">{getRaceBonusText(character.race)}</span>
               </div>
               )}
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">

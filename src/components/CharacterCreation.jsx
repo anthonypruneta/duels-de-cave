@@ -13,6 +13,7 @@ import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils
 import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -384,8 +385,52 @@ const CharacterCreation = () => {
         );
       }
 
+      case 'Briseur de Sort': {
+        const { shieldFromSpellDamage, shieldFromCap } = classConstants.briseurSort;
+        const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+        const shieldCapPct = Math.round(shieldFromCap * cap * 100);
+        return (
+          <>
+            Bouclier après spell:{' '}
+            <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapPct}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Succube': {
+        const { capScale, nextAttackReduction } = classConstants.succube;
+        const capDmg = Math.round(capScale * cap);
+        const reductionPct = Math.round(nextAttackReduction * 100);
+        return (
+          <>
+            Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+          </>
+        );
+      }
+
+      case 'Bastion': {
+        const { defPercentBonus, capScale, defScale } = classConstants.bastion;
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP + DEF
+          </>
+        );
+      }
+
       default:
-        return classes[className]?.description || '';
+        return getClassDescriptionText(className);
     }
   };
 
@@ -963,7 +1008,7 @@ const CharacterCreation = () => {
                 <span className="text-2xl">{races[existingCharacter.race].icon}</span>
                 <div>
                   <div className="text-amber-200 font-bold mb-1">Race: {existingCharacter.race}</div>
-                  <div className="text-stone-400 text-xs">{races[existingCharacter.race].bonus}</div>
+                  <div className="text-stone-400 text-xs">{getRaceBonusText(existingCharacter.race)}</div>
                 </div>
               </div>
               )}
@@ -1142,7 +1187,7 @@ const CharacterCreation = () => {
                       ))}
                     </div>
                     <div className="text-center">
-                      <div className="text-sm text-stone-400 mb-1">{races[roll.race].bonus}</div>
+                      <div className="text-sm text-stone-400 mb-1">{getRaceBonusText(roll.race)}</div>
                       <div className="text-sm text-amber-300">{classes[roll.class].ability}</div>
                     </div>
                     <button className="w-full mt-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-stone-900 px-4 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-yellow-400 transition-all">
@@ -1211,7 +1256,7 @@ const CharacterCreation = () => {
                     <span className="text-2xl">{races[rolledCharacter.race].icon}</span>
                     <span className="text-blue-300 font-bold text-lg">Race: {rolledCharacter.race}</span>
                   </div>
-                  <p className="text-gray-300 text-sm">{races[rolledCharacter.race].bonus}</p>
+                  <p className="text-gray-300 text-sm">{getRaceBonusText(rolledCharacter.race)}</p>
                 </div>
 
                 {/* Bonus Classe */}
