@@ -83,7 +83,8 @@ export const raceConstants = {
   gnome: { critIfFaster: 0.20, dodgeIfSlower: 0.20, critIfEqual: 0.10, dodgeIfEqual: 0.10, spd: 3, cap: 2 },
   mindflayer: {
     stealSpellCapDamageScale: 0.20,
-    ownCooldownReductionTurns: 0
+    ownCooldownReductionTurns: 0,
+    noCooldownSpellBonus: 0.30
   }
 };
 
