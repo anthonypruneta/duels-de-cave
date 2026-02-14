@@ -52,6 +52,7 @@ import {
 } from '../utils/weaponEffects';
 import Header from './Header';
 import { simulerMatch } from '../utils/tournamentCombat';
+import { replayCombatSteps } from '../utils/combatReplay';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -1049,17 +1050,21 @@ const MageTower = () => {
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
     const matchResult = simulerMatch(p, b);
-    logs.push(...matchResult.combatLog);
 
-    const finalStep = matchResult.steps?.[matchResult.steps.length - 1];
-    const finalP1HP = finalStep?.p1HP ?? p.currentHP;
-    const finalP2HP = finalStep?.p2HP ?? b.currentHP;
-    p.currentHP = finalP1HP;
-    b.currentHP = finalP2HP;
-
-    setPlayer({ ...p });
-    setBoss({ ...b });
-    setCombatLog([...logs]);
+    // Replay animé des steps
+    const finalLogs = await replayCombatSteps(matchResult.steps, {
+      setCombatLog,
+      onStepHP: (step) => {
+        p.currentHP = step.p1HP;
+        b.currentHP = step.p2HP;
+        setPlayer({ ...p });
+        setBoss({ ...b });
+      },
+      existingLogs: logs,
+      speed: 'fast'
+    });
+    logs.length = 0;
+    logs.push(...finalLogs);
 
     if (p.currentHP > 0) {
       logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);

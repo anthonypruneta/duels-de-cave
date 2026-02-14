@@ -55,6 +55,7 @@ import {
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import Header from './Header';
 import { simulerMatch } from '../utils/tournamentCombat';
+import { replayCombatSteps } from '../utils/combatReplay';
 
 // Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -1006,17 +1007,21 @@ const Dungeon = () => {
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
     const matchResult = simulerMatch(p, b);
-    logs.push(...matchResult.combatLog);
 
-    const finalStep = matchResult.steps?.[matchResult.steps.length - 1];
-    const finalP1HP = finalStep?.p1HP ?? p.currentHP;
-    const finalP2HP = finalStep?.p2HP ?? b.currentHP;
-    p.currentHP = finalP1HP;
-    b.currentHP = finalP2HP;
-
-    setPlayer({ ...p });
-    setBoss({ ...b });
-    setCombatLog([...logs]);
+    // Replay animé des steps
+    const finalLogs = await replayCombatSteps(matchResult.steps, {
+      setCombatLog,
+      onStepHP: (step) => {
+        p.currentHP = step.p1HP;
+        b.currentHP = step.p2HP;
+        setPlayer({ ...p });
+        setBoss({ ...b });
+      },
+      existingLogs: logs,
+      speed: 'fast'
+    });
+    logs.length = 0;
+    logs.push(...finalLogs);
     // Résultat du combat
     if (p.currentHP > 0) {
       logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);

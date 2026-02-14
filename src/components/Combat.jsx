@@ -18,6 +18,7 @@ import {
   getClassBonus
 } from '../data/combatMechanics';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
+import { replayCombatSteps } from '../utils/combatReplay';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -394,28 +395,17 @@ const Combat = () => {
 
     // Lancer le combat via le moteur unique
     const result = simulerMatch(selectedChar1, selectedChar2);
-    const allLogs = [];
 
     // Rejouer les steps avec animation
-    for (const step of result.steps) {
-      allLogs.push(...step.logs);
-      setCombatLog([...allLogs]);
-
-      // Mettre à jour les barres de vie
-      setPlayer1(prev => ({ ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 }));
-      setPlayer2(prev => ({ ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 }));
-
-      if (step.phase === 'intro') {
-        await new Promise(r => setTimeout(r, 800));
-      } else if (step.phase === 'turn_start') {
-        await new Promise(r => setTimeout(r, 800));
-      } else if (step.phase === 'action') {
-        setCurrentAction({ player: step.player, logs: step.logs });
-        await new Promise(r => setTimeout(r, 300));
-        await new Promise(r => setTimeout(r, 2000));
-        setCurrentAction(null);
-      }
-    }
+    await replayCombatSteps(result.steps, {
+      setCombatLog,
+      onStepHP: (step) => {
+        setPlayer1(prev => ({ ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 }));
+        setPlayer2(prev => ({ ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 }));
+      },
+      setCurrentAction,
+      speed: 'normal'
+    });
 
     setWinner(result.winnerNom);
     setIsSimulating(false);
