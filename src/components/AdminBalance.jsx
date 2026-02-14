@@ -67,14 +67,42 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => (
   </div>
 );
 
-const genStats = () => ({
-  hp: 120 + Math.floor(Math.random() * 81),
-  auto: 15 + Math.floor(Math.random() * 21),
-  def: 15 + Math.floor(Math.random() * 21),
-  cap: 15 + Math.floor(Math.random() * 21),
-  rescap: 15 + Math.floor(Math.random() * 21),
-  spd: 15 + Math.floor(Math.random() * 21)
-});
+const genStats = () => {
+  const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
+  let rem = 35;
+
+  // Spike optionnel (30% chance)
+  const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
+  if (Math.random() < 0.3) {
+    const k = pool[Math.floor(Math.random() * pool.length)];
+    const spikeAmount = 5 + Math.floor(Math.random() * 6);
+    const actual = Math.min(spikeAmount, 35 - s[k]);
+    s[k] += actual;
+    rem -= actual;
+  }
+
+  // Distribution équilibrée des points restants
+  let guard = 1000;
+  while (rem > 0 && guard-- > 0) {
+    const entries = [['hp',2],['auto',2],['def',2],['cap',2],['rescap',2],['spd',2]];
+    const tot = entries.reduce((a,[,w]) => a + w, 0);
+    let r = Math.random() * tot;
+    let k = 'hp';
+    for (const [key, w] of entries) {
+      r -= w;
+      if (r <= 0) { k = key; break; }
+    }
+    if (k === 'hp') {
+      const hpGain = getStatPointValue('hp');
+      if (s.hp + hpGain <= 200) { s.hp += hpGain; rem--; }
+    } else {
+      const statGain = getStatPointValue(k);
+      if (s[k] + statGain <= 35) { s[k] += statGain; rem--; }
+    }
+  }
+
+  return s;
+};
 
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
