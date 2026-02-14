@@ -11,33 +11,13 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import {
-  applyGungnirDebuff,
-  applyMjollnirStun,
-  applyPassiveWeaponStats,
-  initWeaponCombatState,
-  modifyCritDamage,
-  onAttack,
-  onHeal,
-  onSpellCast,
-  rollHealCrit,
-  onTurnStart
-} from '../utils/weaponEffects';
-import {
-  cooldowns,
   classConstants,
-  raceConstants,
-  generalConstants,
-  weaponConstants,
-  dmgPhys,
-  dmgCap,
-  calcCritChance,
-  getCritMultiplier,
-  getSpeedDuelBonuses,
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
+import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -118,37 +98,6 @@ const getPassiveDetails = (passive) => {
   const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
   if (!base || !levelData) return null;
   return { ...base, level: passive.level, levelData };
-};
-
-const getUnicornPactTurnData = (passiveDetails, turn) => {
-  if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
-  const isTurnA = turn % 2 === 1;
-  return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
-};
-
-const getAuraBonus = (passiveDetails, turn) => {
-  if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
-  return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
-};
-
-const applyStartOfCombatPassives = (attacker, defender, log, label) => {
-  const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
-  if (!passiveDetails) return;
-
-  if (passiveDetails.id === 'arcane_barrier') {
-    const shieldValue = Math.max(1, Math.round(attacker.maxHP * passiveDetails.levelData.shieldPercent));
-    attacker.shield = shieldValue;
-    log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
-  }
-
-  if (passiveDetails.id === 'mind_breach') {
-    const reduction = passiveDetails.levelData.defReduction;
-    defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
-    log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
-  }
-
-  defender.spectralMarked = false;
-  defender.spectralMarkBonus = 0;
 };
 
 const Combat = () => {
@@ -414,510 +363,12 @@ const Combat = () => {
     }
   };
 
-  // Préparer un personnage pour le combat
-  const prepareForCombat = (char) => {
-    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
-    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-    const weaponState = initWeaponCombatState(char, weaponId);
-    return {
-      ...char,
-      base: baseWithAwakening,
-      baseWithoutWeapon,
-      currentHP: baseWithAwakening.hp,
-      maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
-      undead: false,
-      dodge: false,
-      reflect: false,
-      bleed_stacks: 0,
-      bleedPercentPerStack: 0,
-      maso_taken: 0,
-      familiarStacks: 0,
-      shield: 0,
-      sireneStacks: 0,
-      succubeWeakenNextAttack: false,
-      spectralMarked: false,
-      spectralMarkBonus: 0,
-      firstSpellCapBoostUsed: false,
-      mindflayerSpellTheftUsed: false,
-      stunned: false,
-      stunnedTurns: 0,
-      weaponState,
-      awakening: buildAwakeningState(awakeningEffect)
-    };
-  };
-
-  // Fonctions utilitaires importées depuis combatMechanics.js
-
-  const reviveUndead = (target, attacker, log, playerColor) => {
-    const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
-    const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
-    const explosionPercent = target.awakening?.explosionPercent ?? 0;
-    if (attacker && explosionPercent > 0) {
-      let explosion = Math.max(1, Math.round(explosionPercent * target.maxHP));
-      if (attacker.awakening?.damageTakenMultiplier) {
-        explosion = Math.max(1, Math.round(explosion * attacker.awakening.damageTakenMultiplier));
-      }
-      attacker.currentHP -= explosion;
-      if (attacker.awakening?.damageStackBonus) {
-        attacker.awakening.damageTakenStacks += 1;
-      }
-      log.push(`${playerColor} 💥 L'éveil de ${target.name} explose et inflige ${explosion} dégâts à ${attacker.name}`);
-    }
-    target.undead = true;
-    target.currentHP = revive;
-    log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
-  };
-
-  const applyIncomingAwakeningModifiers = (defender, damage) => {
-    let adjusted = damage;
-    if (defender.awakening?.incomingHitMultiplier && defender.awakening.incomingHitCountRemaining > 0) {
-      adjusted = Math.round(adjusted * defender.awakening.incomingHitMultiplier);
-      defender.awakening.incomingHitCountRemaining -= 1;
-    }
-    if (defender.awakening?.damageTakenMultiplier) {
-      adjusted = Math.round(adjusted * defender.awakening.damageTakenMultiplier);
-    }
-    return adjusted;
-  };
-
-  const applyOutgoingAwakeningBonus = (attacker, damage) => {
-    let adjusted = damage;
-    if (attacker.awakening?.highHpDamageBonus && attacker.currentHP > attacker.maxHP * (attacker.awakening.highHpThreshold ?? 1)) {
-      adjusted = Math.round(adjusted * (1 + attacker.awakening.highHpDamageBonus));
-    }
-    if (attacker.awakening?.damageStackBonus && attacker.awakening.damageTakenStacks > 0) {
-      adjusted = Math.round(adjusted * (1 + attacker.awakening.damageStackBonus * attacker.awakening.damageTakenStacks));
-    }
-    return adjusted;
-  };
-
-  const processPlayerAction = (att, def, log, isP1, turn) => {
-    if (att.currentHP <= 0 || def.currentHP <= 0) return;
-
-      const playerColor = isP1 ? '[P1]' : '[P2]';
-      const attackerPassive = getPassiveDetails(att.mageTowerPassive);
-      const defenderPassive = getPassiveDetails(def.mageTowerPassive);
-      const attackerUnicorn = getUnicornPactTurnData(attackerPassive, turn);
-      const defenderUnicorn = getUnicornPactTurnData(defenderPassive, turn);
-      const auraBonus = getAuraBonus(attackerPassive, turn);
-      const consumeAuraSpellCapMultiplier = () => {
-        if (attackerPassive?.id !== 'aura_overload') return 1;
-        if (att.firstSpellCapBoostUsed) return 1;
-        att.firstSpellCapBoostUsed = true;
-        return 1 + (attackerPassive?.levelData?.spellCapBonus ?? 0);
-      };
-      let skillUsed = false;
-
-
-      const getMindflayerSpellCooldown = (caster, _target, spellId) => {
-        const baseCooldown = cooldowns[spellId] ?? 1;
-
-        let adjustedCooldown = baseCooldown;
-        if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
-          const casterAwakening = caster.awakening || {};
-          const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
-          if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
-        }
-
-        return adjustedCooldown;
-      };
-
-      const applyMindflayerSpellMod = (_caster, _target, baseDamage, _spellId) => baseDamage;
-
-      const triggerMindflayerSpellTheft = (caster, target, spellDamage, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost) => {
-        if (target?.race !== 'Mindflayer') return;
-        if (target.mindflayerSpellTheftUsed) return;
-        if (target.currentHP <= 0 || caster.currentHP <= 0) return;
-
-        target.mindflayerSpellTheftUsed = true;
-        const targetAwakening = target.awakening || {};
-        const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
-        const stolenDamage = Math.max(1, Math.round((spellDamage || 0) + (target.base.cap * capScale)));
-        const inflicted = applyMageTowerDamage(target, caster, stolenDamage, false, combatLog, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBoost, true, true);
-        combatLog.push(`${playerColor} 🦑 ${target.name} vole le premier sort de ${caster.name}, le relance et inflige ${inflicted} dégâts !`);
-      };
-
-      const applyMageTowerDamage = (
-        attacker,
-        defender,
-        raw,
-        isCrit,
-        combatLog,
-        atkPassive,
-        defPassive,
-        atkUnicorn,
-        defUnicorn,
-        auraBoost,
-        applyOnHitPassives = true,
-        isSpellDamage = false
-      ) => {
-        let adjusted = raw;
-
-        if (atkUnicorn) {
-          adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
-        }
-        if (auraBoost) {
-          adjusted = Math.round(adjusted * (1 + auraBoost));
-        }
-        if (defender.spectralMarked && defender.spectralMarkBonus) {
-          adjusted = Math.round(adjusted * (1 + defender.spectralMarkBonus));
-        }
-        if (defUnicorn) {
-          adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
-        }
-        if (defPassive?.id === 'obsidian_skin' && isCrit) {
-          adjusted = Math.round(adjusted * (1 - defPassive.levelData.critReduction));
-        }
-        adjusted = applyOutgoingAwakeningBonus(attacker, adjusted);
-        adjusted = applyIncomingAwakeningModifiers(defender, adjusted);
-
-        if (defender.dodge) {
-          defender.dodge = false;
-          combatLog.push(`${playerColor} 💨 ${defender.name} esquive habilement l'attaque !`);
-          return 0;
-        }
-
-        const speedDuel = getSpeedDuelBonuses(defender, attacker);
-        if (speedDuel.dodge > 0 && Math.random() < speedDuel.dodge) {
-          combatLog.push(`${playerColor} 💨 ${defender.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
-          return 0;
-        }
-
-        if (defender.shield > 0 && adjusted > 0) {
-          const absorbed = Math.min(defender.shield, adjusted);
-          defender.shield -= absorbed;
-          adjusted -= absorbed;
-          combatLog.push(`${playerColor} 🛡️ ${defender.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
-        }
-
-        if (adjusted > 0) {
-          defender.currentHP -= adjusted;
-          defender.maso_taken = (defender.maso_taken || 0) + adjusted;
-          if (defender.awakening?.damageStackBonus) {
-            defender.awakening.damageTakenStacks += 1;
-          }
-
-          if (isSpellDamage) {
-            if (defender.race === 'Sirène') {
-              const maxStacks = defender.awakening?.sireneMaxStacks ?? raceConstants.sirene.maxStacks;
-              defender.sireneStacks = Math.min(maxStacks, (defender.sireneStacks || 0) + 1);
-            }
-            if (defender.class === 'Briseur de Sort') {
-              const shieldGain = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + defender.base.cap * classConstants.briseurSort.shieldFromCap));
-              defender.shield = (defender.shield || 0) + shieldGain;
-              combatLog.push(`${playerColor} 🧱 ${defender.name} gagne ${shieldGain} de bouclier.`);
-            }
-            triggerMindflayerSpellTheft(attacker, defender, adjusted, combatLog, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
-          }
-
-          if (defender.reflect && defender.currentHP > 0) {
-            const back = Math.round(defender.reflect * adjusted);
-            attacker.currentHP -= back;
-            defender.reflect = false;
-            combatLog.push(`${playerColor} 🔁 ${defender.name} riposte et renvoie ${back} points de dégâts à ${attacker.name}`);
-          }
-        }
-
-        if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !defender.spectralMarked) {
-          defender.spectralMarked = true;
-          defender.spectralMarkBonus = atkPassive.levelData.damageTakenBonus;
-          combatLog.push(`${playerColor} 🟣 ${defender.name} est marqué et subira +${Math.round(defender.spectralMarkBonus * 100)}% dégâts.`);
-        }
-
-        if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
-          const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent));
-          attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
-          combatLog.push(`${playerColor} 🩸 ${attacker.name} siphonne ${heal} points de vie grâce au Vol d’essence`);
-        }
-
-        return adjusted;
-      };
-      if (att.stunnedTurns > 0) {
-        att.stunnedTurns -= 1;
-        if (att.stunnedTurns <= 0) {
-          att.stunned = false;
-        }
-        log.push(`${playerColor} 😵 ${att.name} est étourdi et ne peut pas agir ce tour`);
-        return;
-      }
-
-      att.reflect = false;
-      for (const k of Object.keys(cooldowns)) {
-        att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
-      }
-
-      const turnEffects = onTurnStart(att.weaponState, att, turn);
-      if (turnEffects.log.length > 0) {
-        log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
-      }
-      if (turnEffects.regen > 0) {
-        att.currentHP = Math.min(att.maxHP, att.currentHP + turnEffects.regen);
-      }
-
-      if (att.race === 'Sylvari') {
-        const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
-        const heal = Math.max(1, Math.round(att.maxHP * regenPercent));
-        att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
-      }
-
-      if (att.class === 'Demoniste') {
-        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
-        const stackBonus = stackPerAuto * (att.familiarStacks || 0);
-        const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
-        const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-        const inflicted = applyMageTowerDamage(att, def, raw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
-        log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
-        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, att, log, playerColor);
-        }
-      }
-
-      if (att.class === 'Masochiste') {
-        if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
-          skillUsed = true;
-          const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
-          const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-          const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent));
-          att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
-          att.maso_taken = 0;
-          const inflicted = applyMageTowerDamage(att, def, dmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
-          const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
-          if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-            applyMageTowerDamage(att, def, masoSpellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
-            log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
-          }
-          log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
-          if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-            reviveUndead(def, att, log, playerColor);
-          }
-        }
-      }
-
-      if (att.bleed_stacks > 0) {
-        let bleedDmg = att.bleedPercentPerStack
-          ? Math.max(1, Math.round(att.maxHP * att.bleedPercentPerStack * att.bleed_stacks))
-          : Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
-        if (att.awakening?.damageTakenMultiplier) {
-          bleedDmg = Math.max(1, Math.round(bleedDmg * att.awakening.damageTakenMultiplier));
-        }
-        att.currentHP -= bleedDmg;
-        log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
-        if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
-          reviveUndead(att, def, log, playerColor);
-        }
-      }
-
-      if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
-        skillUsed = true;
-        const { reflectBase, reflectPerCap } = classConstants.paladin;
-        att.reflect = reflectBase + reflectPerCap * att.base.cap;
-        log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
-      }
-
-      if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {
-        skillUsed = true;
-        const miss = att.maxHP - att.currentHP;
-        const { missingHpPercent, capScale } = classConstants.healer;
-        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-        const sireneBoost = att.race === 'Sirène' ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
-        const baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
-        const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
-        const heal = healCritResult.amount;
-        att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-        log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
-        const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
-        if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
-          att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
-          log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
-          log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
-        }
-        const healEffects = onHeal(att.weaponState, att, heal, def);
-        if (healEffects.bonusDamage > 0) {
-          const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-          applyMageTowerDamage(att, def, bonusDmg, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
-          log.push(`${playerColor} ${healEffects.log.join(' ')}`);
-        }
-      }
-
-      if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) {
-        skillUsed = true;
-        let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
-        raw = applyMindflayerSpellMod(att, def, raw, 'succ');
-        const inflicted = applyMageTowerDamage(att, def, raw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
-        def.succubeWeakenNextAttack = true;
-        log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts.`);
-      }
-
-      if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) {
-        skillUsed = true;
-        let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
-        raw = applyMindflayerSpellMod(att, def, raw, 'bast');
-        const inflicted = applyMageTowerDamage(att, def, raw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
-        log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts.`);
-      }
-
-      if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
-        skillUsed = true;
-        att.dodge = true;
-        log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
-      }
-
-      const isMage = att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
-      const isWar = att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
-      const isArcher = att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
-      skillUsed = skillUsed || isMage || isWar || isArcher;
-
-      let mult = 1.0;
-      if (att.succubeWeakenNextAttack) {
-        mult *= (1 - classConstants.succube.nextAttackReduction);
-        att.succubeWeakenNextAttack = false;
-      }
-      if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) {
-        mult = raceConstants.orc.damageBonus;
-      }
-      if (turnEffects.damageMultiplier !== 1) {
-        mult *= turnEffects.damageMultiplier;
-      }
-
-      const baseHits = isArcher ? classConstants.archer.hitCount : 1;
-      const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
-      let total = 0;
-      let wasCrit = false;
-
-      const forceCrit = attackerPassive?.id === 'obsidian_skin'
-        && att.currentHP <= att.maxHP * attackerPassive.levelData.critThreshold;
-
-      for (let i = 0; i < totalHits; i++) {
-        const isBonusAttack = i >= baseHits;
-        const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att, def);
-        if (isCrit) wasCrit = true;
-        let raw = 0;
-        const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
-
-        if (isMage) {
-          const { capBase, capPerCap } = classConstants.mage;
-          const spellCapMultiplier = consumeAuraSpellCapMultiplier();
-          const scaledCap = att.base.cap * spellCapMultiplier;
-          const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
-          raw = dmgCap(atkSpell, def.base.rescap);
-          raw = applyMindflayerSpellMod(att, def, raw, 'mag');
-          if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
-          const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
-          if (spellEffects.doubleCast) {
-            const secondCast = applyMageTowerDamage(att, def, spellEffects.secondCastDamage, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
-            log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
-          }
-        } else if (isWar) {
-          const { ignoreBase, ignorePerCap } = classConstants.guerrier;
-          const ignore = ignoreBase + ignorePerCap * att.base.cap;
-          if (def.base.def <= def.base.rescap) {
-            const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
-            raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
-          } else {
-            const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
-            raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
-          }
-          raw = applyMindflayerSpellMod(att, def, raw, 'war');
-          if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
-        } else if (isArcher && !isBonusAttack) {
-          if (i === 0) {
-            raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
-          } else {
-            const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
-            const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
-            const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
-            raw = physPart + capPart;
-          }
-          raw = applyMindflayerSpellMod(att, def, raw, 'arc');
-        } else {
-          raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
-          if (att.race === 'Lycan') {
-            const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
-            if (bleedStacks > 0) {
-              def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
-            }
-            if (att.awakening?.bleedPercentPerStack) {
-              def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
-            }
-          }
-        }
-
-        if ((isMage || isWar || (isArcher && !isBonusAttack)) && att.race === 'Sirène' && (att.sireneStacks || 0) > 0) {
-          const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
-          raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
-        }
-
-        if (isCrit) {
-          const critDamage = Math.round(raw * getCritMultiplier(att));
-          raw = modifyCritDamage(att.weaponState, critDamage);
-        }
-
-        const inflicted = applyMageTowerDamage(att, def, raw, isCrit, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)));
-        if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
-          att.familiarStacks = (att.familiarStacks || 0) + 1;
-        }
-
-        if (!isMage) {
-          const attackEffects = onAttack(att.weaponState, att, def, inflicted);
-          if (attackEffects.stunTarget) {
-            Object.assign(def, applyMjollnirStun(def));
-          }
-          if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
-            def.base = applyGungnirDebuff(def.base);
-          }
-          if (attackEffects.log.length > 0) {
-            log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
-          }
-        }
-
-        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-          reviveUndead(def, att, log, playerColor);
-        } else if (def.currentHP <= 0) {
-          total += inflicted;
-          break;
-        }
-
-        total += inflicted;
-        if (isArcher && !isBonusAttack) {
-          const critText = isCrit ? ' CRITIQUE !' : '';
-          const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
-          log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${inflicted} points de dégâts${critText}`);
-        } else if (isBonusAttack) {
-          log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
-        }
-      }
-
-      if (attackerPassive?.id === 'elemental_fury' && skillUsed) {
-        const baseLightning = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
-        const lightningRaw = dmgPhys(baseLightning, def.base.def);
-        const lightningDamage = applyMageTowerDamage(att, def, lightningRaw, false, log, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
-        log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
-      }
-
-      if (!isArcher && total > 0) {
-        const critText = wasCrit ? ' CRITIQUE !' : '';
-        if (isMage) {
-          log.push(`${playerColor} ${att.name} inflige ${total} points de dégâts magiques à ${def.name}${critText}`);
-        } else if (isWar) {
-          log.push(`${playerColor} ${att.name} transperce les défenses de ${def.name} et inflige ${total} points de dégâts${critText}`);
-        } else {
-          log.push(`${playerColor} ${att.name} attaque ${def.name} et inflige ${total} points de dégâts${critText}`);
-        }
-      }
-  };
-
   // Lancer le combat avec les personnages sélectionnés
   const startCombat = () => {
     if (!selectedChar1 || !selectedChar2) return;
 
-    const p1 = prepareForCombat(selectedChar1);
-    const p2 = prepareForCombat(selectedChar2);
+    const p1 = preparerCombattant(selectedChar1);
+    const p2 = preparerCombattant(selectedChar2);
 
     setPlayer1(p1);
     setPlayer2(p2);
@@ -926,6 +377,7 @@ const Combat = () => {
     setWinner(null);
   };
 
+  // Simulation de combat — utilise le moteur unique de tournamentCombat.js
   const simulateCombat = async () => {
     if (!player1 || !player2 || isSimulating) return;
     setIsSimulating(true);
@@ -940,88 +392,32 @@ const Combat = () => {
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    const p1 = prepareForCombat(selectedChar1);
-    const p2 = prepareForCombat(selectedChar2);
+    // Lancer le combat via le moteur unique
+    const result = simulerMatch(selectedChar1, selectedChar2);
+    const allLogs = [];
 
-    const logs = [`⚔️ Le combat épique commence entre ${p1.name} et ${p2.name} !`];
-    applyStartOfCombatPassives(p1, p2, logs, '[P1]');
-    applyStartOfCombatPassives(p2, p1, logs, '[P2]');
-    setCombatLog(logs);
+    // Rejouer les steps avec animation
+    for (const step of result.steps) {
+      allLogs.push(...step.logs);
+      setCombatLog([...allLogs]);
 
-    let turn = 1;
-    while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
-      logs.push(`--- Début du tour ${turn} ---`);
-      setCombatLog([...logs]);
-      await new Promise(r => setTimeout(r, 800));
+      // Mettre à jour les barres de vie
+      setPlayer1(prev => ({ ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 }));
+      setPlayer2(prev => ({ ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 }));
 
-      const p1Unicorn = getUnicornPactTurnData(getPassiveDetails(p1.mageTowerPassive), turn);
-      const p2Unicorn = getUnicornPactTurnData(getPassiveDetails(p2.mageTowerPassive), turn);
-      if (p1Unicorn) {
-        logs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
-      }
-      if (p2Unicorn) {
-        logs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
-      }
-
-      // Déterminer qui attaque en premier selon la vitesse + priorité d'arme
-      const p1HasPriority = p1.weaponState?.isLegendary
-        && p1.weaponState.weaponId === 'epee_legendaire'
-        && ((p1.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-      const p2HasPriority = p2.weaponState?.isLegendary
-        && p2.weaponState.weaponId === 'epee_legendaire'
-        && ((p2.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
-
-      let first;
-      if (p1Unicorn && !p2Unicorn) {
-        first = p1Unicorn.label === 'Tour A' ? p1 : p2;
-      } else if (p2Unicorn && !p1Unicorn) {
-        first = p2Unicorn.label === 'Tour A' ? p2 : p1;
-      } else if (p1HasPriority && !p2HasPriority) {
-        first = p1;
-      } else if (p2HasPriority && !p1HasPriority) {
-        first = p2;
-      } else {
-        first = p1.base.spd >= p2.base.spd ? p1 : p2;
-      }
-      const second = first === p1 ? p2 : p1;
-      const firstIsP1 = first === p1;
-
-      // Action du premier joueur
-      const log1 = [];
-      setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: [] });
-      await new Promise(r => setTimeout(r, 300));
-      processPlayerAction(first, second, log1, firstIsP1, turn);
-      setCurrentAction({ player: firstIsP1 ? 1 : 2, logs: log1 });
-      logs.push(...log1);
-      setCombatLog([...logs]);
-      setPlayer1({...p1});
-      setPlayer2({...p2});
-      await new Promise(r => setTimeout(r, 2000));
-      setCurrentAction(null);
-
-      // Si le combat n'est pas fini, action du deuxième joueur
-      if (p1.currentHP > 0 && p2.currentHP > 0) {
-        const log2 = [];
-        setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: [] });
+      if (step.phase === 'intro') {
+        await new Promise(r => setTimeout(r, 800));
+      } else if (step.phase === 'turn_start') {
+        await new Promise(r => setTimeout(r, 800));
+      } else if (step.phase === 'action') {
+        setCurrentAction({ player: step.player, logs: step.logs });
         await new Promise(r => setTimeout(r, 300));
-        processPlayerAction(second, first, log2, !firstIsP1, turn);
-        setCurrentAction({ player: !firstIsP1 ? 1 : 2, logs: log2 });
-        logs.push(...log2);
-        setCombatLog([...logs]);
-        setPlayer1({...p1});
-        setPlayer2({...p2});
         await new Promise(r => setTimeout(r, 2000));
         setCurrentAction(null);
       }
-
-      turn++;
     }
 
-    const w = p1.currentHP > 0 ? p1.name : p2.name;
-    const loser = p1.currentHP > 0 ? p2.name : p1.name;
-    logs.push(`🏆 ${w} remporte glorieusement le combat contre ${loser} !`);
-    setCombatLog([...logs]);
-    setWinner(w);
+    setWinner(result.winnerNom);
     setIsSimulating(false);
 
     // Arrêter la musique de combat et jouer la musique de victoire
