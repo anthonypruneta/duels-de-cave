@@ -280,13 +280,16 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
   }
   if (adjusted > 0) {
+    if (isSpellDamage) {
+      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
+    }
+
     def.currentHP -= adjusted;
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
 
     if (isSpellDamage) {
       grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
-      triggerMindflayerSpellTheft(att, def, adjusted, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
     }
 
     if (def.reflect && def.currentHP > 0) {
