@@ -1055,7 +1055,7 @@ const CharacterCreation = () => {
 
           <div className="mt-6 bg-stone-800 border border-amber-600/50 px-6 py-4 max-w-lg mx-auto rounded-lg">
             <p className="text-amber-200 text-base text-center font-medium">
-              ℹ️ Nouveau personnage disponible lundi prochain
+              ℹ️ Nouveau personnage disponible après le tournoi
             </p>
           </div>
           {renderGameEncyclopedia()}
