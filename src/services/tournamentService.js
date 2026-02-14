@@ -590,6 +590,16 @@ export async function getArchivedCharacters(userId) {
   }
 }
 
+export async function getAllArchivedCharacters() {
+  try {
+    const snapshot = await getDocs(collection(db, 'archivedCharacters'));
+    const characters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return { success: true, data: characters };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================================================
 // VÉRIFIER RÉCOMPENSE TRIPLE ROLL
 // ============================================================================

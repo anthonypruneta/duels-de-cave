@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, toggleCharacterDisabled } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
-import { creerTournoi, lancerTournoi } from '../services/tournamentService';
+import { creerTournoi, lancerTournoi, getAllArchivedCharacters } from '../services/tournamentService';
 import {
   ensureWeeklyInfiniteLabyrinth,
   generateWeeklyInfiniteLabyrinth,
@@ -54,6 +54,9 @@ const Admin = () => {
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
+
+  // Personnages archivés
+  const [archivedCharacters, setArchivedCharacters] = useState([]);
 
   // Onglet actif/désactivé
   const [adminTab, setAdminTab] = useState('actifs');
@@ -107,7 +110,10 @@ const Admin = () => {
   // Fonction pour charger/recharger les personnages
   const loadCharacters = async () => {
     setLoading(true);
-    const result = await getAllCharacters();
+    const [result, archivedResult] = await Promise.all([
+      getAllCharacters(),
+      getAllArchivedCharacters()
+    ]);
 
     if (result.success) {
       setCharacters(result.data);
@@ -115,6 +121,10 @@ const Admin = () => {
     } else {
       setError(result.error);
       console.error('Erreur chargement personnages:', result.error);
+    }
+
+    if (archivedResult.success) {
+      setArchivedCharacters(archivedResult.data);
     }
 
     setLoading(false);
@@ -400,7 +410,10 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     if (!processedImage || !selectedCharacter) return;
 
     setSavingImage(true);
-    const result = await updateCharacterImage(selectedCharacter.id, processedImage);
+    const isArchived = selectedCharacter._source === 'archived';
+    const result = isArchived
+      ? await updateArchivedCharacterImage(selectedCharacter.id, processedImage)
+      : await updateCharacterImage(selectedCharacter.id, processedImage);
 
     if (result.success) {
       // Recharger les données depuis Firestore pour avoir l'URL correcte
@@ -1017,11 +1030,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {/* Canvas caché pour le traitement */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-        {/* Onglets Actifs / Désactivés */}
+        {/* Onglets Actifs / Désactivés / Archivés */}
         {(() => {
           const activeChars = characters.filter(c => !c.disabled);
           const disabledChars = characters.filter(c => c.disabled);
-          const displayedChars = adminTab === 'actifs' ? activeChars : disabledChars;
+          const displayedChars = adminTab === 'actifs' ? activeChars : adminTab === 'desactives' ? disabledChars : archivedCharacters;
 
           return (
             <>
@@ -1046,12 +1059,22 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 >
                   Désactivés ({disabledChars.length})
                 </button>
+                <button
+                  onClick={() => setAdminTab('archives')}
+                  className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
+                    adminTab === 'archives'
+                      ? 'bg-purple-600 border-purple-400 text-white'
+                      : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
+                  }`}
+                >
+                  Archivés ({archivedCharacters.length})
+                </button>
               </div>
 
               {displayedChars.length === 0 ? (
                 <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
                   <p className="text-gray-400 text-xl">
-                    {adminTab === 'actifs' ? 'Aucun personnage actif' : 'Aucun personnage désactivé'}
+                    {adminTab === 'actifs' ? 'Aucun personnage actif' : adminTab === 'desactives' ? 'Aucun personnage désactivé' : 'Aucun personnage archivé'}
                   </p>
                 </div>
               ) : (
@@ -1060,9 +1083,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                     <div
                       key={char.id}
                       className={`bg-stone-800/90 rounded-xl p-6 border-2 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer ${
-                        char.disabled ? 'border-red-600' : 'border-amber-600'
+                        adminTab === 'archives' ? 'border-purple-600' : char.disabled ? 'border-red-600' : 'border-amber-600'
                       }`}
-                      onClick={() => handleSelectCharacter(char)}
+                      onClick={() => handleSelectCharacter(adminTab === 'archives' ? { ...char, _source: 'archived' } : char)}
                     >
                       {/* Image du personnage si elle existe */}
                       {char.characterImage && (
@@ -1097,7 +1120,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       </p>
 
                       {/* Stats */}
-                      <div className="bg-stone-900/50 rounded-lg p-3 mb-4 text-xs">
+                      {char.base && <div className="bg-stone-900/50 rounded-lg p-3 mb-4 text-xs">
                         <div className="grid grid-cols-2 gap-2 text-gray-300">
                           <div>HP: <span className="text-white font-bold">{char.base.hp}</span></div>
                           <div>VIT: <span className="text-white font-bold">{char.base.spd}</span></div>
@@ -1106,7 +1129,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                           <div>Cap: <span className="text-white font-bold">{char.base.cap}</span></div>
                           <div>ResC: <span className="text-white font-bold">{char.base.rescap}</span></div>
                         </div>
-                      </div>
+                      </div>}
 
                       {/* Mot-clé */}
                       <div className="bg-amber-900/30 rounded-lg p-2 mb-3">
@@ -1123,9 +1146,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSelectCharacter(char);
+                          handleSelectCharacter(adminTab === 'archives' ? { ...char, _source: 'archived' } : char);
                         }}
-                        className="mt-4 w-full bg-amber-600 hover:bg-amber-500 text-white py-2 rounded transition"
+                        className={`mt-4 w-full py-2 rounded transition ${
+                          adminTab === 'archives' ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
+                        }`}
                       >
                         {char.characterImage ? 'Modifier l\'image' : 'Ajouter une image'}
                       </button>
@@ -1233,35 +1258,37 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 <p className="text-amber-300 font-bold text-lg">{selectedCharacter.keyword}</p>
               </div>
 
-              <div className="bg-stone-900/50 rounded-lg p-4">
-                <p className="text-gray-400 text-sm mb-2">Statistiques de base</p>
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-400">HP:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.hp}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Auto:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.auto}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Déf:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.def}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Cap:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.cap}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">ResC:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.rescap}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">VIT:</span>{' '}
-                    <span className="text-white font-bold">{selectedCharacter.base.spd}</span>
+              {selectedCharacter.base && (
+                <div className="bg-stone-900/50 rounded-lg p-4">
+                  <p className="text-gray-400 text-sm mb-2">Statistiques de base</p>
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-400">HP:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.hp}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Auto:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.auto}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Déf:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.def}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Cap:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.cap}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">ResC:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.rescap}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">VIT:</span>{' '}
+                      <span className="text-white font-bold">{selectedCharacter.base.spd}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="bg-stone-900/50 rounded-lg p-4">
                 <p className="text-gray-400 text-sm mb-1">Date de création</p>
@@ -1386,26 +1413,30 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               )}
             </div>
 
-            {/* Bouton activer/désactiver */}
-            <button
-              onClick={() => handleToggleDisabled(selectedCharacter)}
-              className={`w-full py-3 rounded-lg font-bold transition mb-4 ${
-                selectedCharacter.disabled
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-orange-600 hover:bg-orange-500 text-white'
-              }`}
-            >
-              {selectedCharacter.disabled ? '✅ Réactiver ce personnage' : '🚫 Désactiver ce personnage'}
-            </button>
+            {/* Bouton activer/désactiver (pas pour les archivés) */}
+            {selectedCharacter._source !== 'archived' && (
+              <button
+                onClick={() => handleToggleDisabled(selectedCharacter)}
+                className={`w-full py-3 rounded-lg font-bold transition mb-4 ${
+                  selectedCharacter.disabled
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-orange-600 hover:bg-orange-500 text-white'
+                }`}
+              >
+                {selectedCharacter.disabled ? '✅ Réactiver ce personnage' : '🚫 Désactiver ce personnage'}
+              </button>
+            )}
 
-            {/* Bouton suppression */}
-            <button
-              onClick={() => handleDelete(selectedCharacter.id, selectedCharacter.name)}
-              disabled={deleting}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-600 text-white py-3 rounded-lg font-bold transition mb-4"
-            >
-              {deleting ? '⏳ Suppression...' : '🗑️ Supprimer ce personnage'}
-            </button>
+            {/* Bouton suppression (pas pour les archivés) */}
+            {selectedCharacter._source !== 'archived' && (
+              <button
+                onClick={() => handleDelete(selectedCharacter.id, selectedCharacter.name)}
+                disabled={deleting}
+                className="w-full bg-red-600 hover:bg-red-500 disabled:bg-gray-600 text-white py-3 rounded-lg font-bold transition mb-4"
+              >
+                {deleting ? '⏳ Suppression...' : '🗑️ Supprimer ce personnage'}
+              </button>
+            )}
 
             {/* User ID */}
             <div className="text-xs text-gray-500 text-center">
