@@ -462,7 +462,8 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
           userId,
           weekId: resolvedWeekId,
           floorNumber: floor.floorNumber,
-          character: char
+          character: char,
+          enemyName: floor.enemyName
         });
       }
 

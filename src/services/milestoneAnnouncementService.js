@@ -1,6 +1,11 @@
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { envoyerAnnonceDiscord } from './discordService';
+import { getAllForestLevels } from '../data/forestDungeons';
+import { getAllMageTowerLevels } from '../data/mageTowerDungeons';
+
+const FINAL_FOREST_BOSS = getAllForestLevels().at(-1)?.boss || null;
+const FINAL_MAGE_TOWER_BOSS = getAllMageTowerLevels().at(-1)?.boss || null;
 
 const DUNGEON_MILESTONES = {
   cave: {
@@ -8,19 +13,34 @@ const DUNGEON_MILESTONES = {
     bossName: 'Vyraxion le Dévoreur'
   },
   forest: {
-    dungeonName: 'Donjon de la Forêt',
-    bossName: 'Kurtah le Protecteur'
+    dungeonName: 'La Forêt',
+    bossName: FINAL_FOREST_BOSS?.nom || 'Boss inconnu'
   },
   mageTower: {
     dungeonName: 'Tour du Mage',
-    bossName: 'Golden Thief Bug'
+    bossName: FINAL_MAGE_TOWER_BOSS?.nom || 'Boss inconnu'
   }
 };
+
 
 const getDisplayName = (character) => {
   if (character?.ownerPseudo) return character.ownerPseudo;
   if (character?.name) return character.name;
   return 'Un héros inconnu';
+};
+
+
+const formatEnemyName = (enemyName, floorNumber) => {
+  if (!enemyName || typeof enemyName !== 'string') {
+    return `le boss de l'étage **${floorNumber}**`;
+  }
+
+  const cleanName = enemyName
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return `**${cleanName || `Boss étage ${floorNumber}`}**`;
 };
 
 const trySendDiscordAnnouncement = async (payload) => {
@@ -75,7 +95,7 @@ export async function announceFirstDungeonFinalBossKill({ userId, dungeonKey, ch
   }
 }
 
-export async function announceFirstLabyrinthFloorClear({ userId, weekId, floorNumber, character }) {
+export async function announceFirstLabyrinthFloorClear({ userId, weekId, floorNumber, character, enemyName = null }) {
   try {
     if (!userId || !weekId || ![80, 90, 100].includes(Number(floorNumber))) {
       return { success: false, skipped: true, reason: 'invalid_params' };
@@ -105,9 +125,12 @@ export async function announceFirstLabyrinthFloorClear({ userId, weekId, floorNu
       return { success: true, announced: false, reason: 'already_claimed' };
     }
 
+    const zoneName = `Labyrinthe infini (Étage ${level})`;
+    const bossLabel = formatEnemyName(enemyName, level);
+
     await trySendDiscordAnnouncement({
-      titre: `🌀 Premier clear Semaine ${weekId} – Étage ${level}`,
-      message: `**${getDisplayName(character)}** est le premier à vaincre l'étage **${level}** du Labyrinthe infini cette semaine !`,
+      titre: `🌀 Premier clear Semaine ${weekId} – ${zoneName}`,
+      message: `**${getDisplayName(character)}** est le premier à vaincre ${bossLabel} dans le ${zoneName} cette semaine !`,
       mentionEveryone: true
     });
 
