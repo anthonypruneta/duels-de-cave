@@ -16,6 +16,8 @@ import {
 } from '../services/infiniteLabyrinthService';
 import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
+import { races as racesData } from '../data/races';
+import { classes as classesData } from '../data/classes';
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -85,27 +87,8 @@ const Admin = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const races = {
-    'Humain': '👥',
-    'Elfe': '🧝',
-    'Orc': '🪓',
-    'Nain': '⛏️',
-    'Dragonkin': '🐲',
-    'Mort-vivant': '☠️',
-    'Lycan': '🐺',
-    'Sylvari': '🌿'
-  };
-
-  const classes = {
-    'Guerrier': '🗡️',
-    'Voleur': '🌀',
-    'Paladin': '🛡️',
-    'Healer': '✚',
-    'Archer': '🏹',
-    'Mage': '🔮',
-    'Demoniste': '💠',
-    'Masochiste': '🩸'
-  };
+  const races = Object.fromEntries(Object.entries(racesData).map(([k, v]) => [k, v.icon]));
+  const classes = Object.fromEntries(Object.entries(classesData).map(([k, v]) => [k, v.icon]));
 
   // Fonction pour charger/recharger les personnages
   const loadCharacters = async () => {
