@@ -504,6 +504,12 @@ const MageTower = () => {
     return 1;
   };
 
+  const SPELL_CLASSES = new Set(['Mage', 'Guerrier', 'Archer', 'Demoniste', 'Masochiste', 'Succube', 'Bastion']);
+  const getBriseurAutoBonus = (att, def) => {
+    if (att.class !== 'Briseur de Sort' || SPELL_CLASSES.has(def?.class)) return 0;
+    return Math.round(att.base.cap * classConstants.briseurSort.noSpellAutoCapBonus);
+  };
+
   const reviveUndead = (target, attacker, log, playerColor) => {
     const revivePercent = target.awakening ? (target.awakening.revivePercent ?? 0) : raceConstants.mortVivant.revivePercent;
     const revive = Math.max(1, Math.round(revivePercent * target.maxHP));
@@ -865,7 +871,8 @@ const MageTower = () => {
           raw = physPart + capPart;
         }
       } else {
-        raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
+        const autoCapBonus = getBriseurAutoBonus(att, def);
+        raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
         if (att.race === 'Lycan') {
           const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
           if (bleedStacks > 0) {
