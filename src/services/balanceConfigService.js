@@ -76,6 +76,42 @@ const normalizeMindflayerConfig = (config) => {
   }
 };
 
+const normalizeGnomeConfig = (config) => {
+  if (!config || typeof config !== 'object') return;
+
+  // Migration des constantes raciales du Gnome vers la nouvelle version
+  const gnome = config?.raceConstants?.gnome;
+  if (gnome && gnome.critDmgIfFaster == null) {
+    // Ancienne version détectée — on force les nouvelles valeurs par défaut
+    Object.assign(gnome, {
+      critIfFaster: 0.20, critDmgIfFaster: 0.20,
+      dodgeIfSlower: 0.20, capBonusIfSlower: 0.20,
+      critIfEqual: 0.05, critDmgIfEqual: 0.05,
+      dodgeIfEqual: 0.05, capBonusIfEqual: 0.05,
+      spd: 5, cap: 5
+    });
+  }
+
+  // Migration de l'awakening du Gnome
+  const awakeningGnome = config?.raceAwakenings?.Gnome;
+  if (awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null) {
+    Object.assign(awakeningGnome, {
+      speedDuelCritHigh: 0.40, speedDuelCritDmgHigh: 0.40,
+      speedDuelDodgeLow: 0.40, speedDuelCapBonusLow: 0.40,
+      speedDuelEqualCrit: 0.10, speedDuelEqualCritDmg: 0.10,
+      speedDuelEqualDodge: 0.10, speedDuelEqualCapBonus: 0.10,
+      statMultipliers: { spd: 1.05, cap: 1.05 }
+    });
+  }
+
+  // Migration des textes du Gnome
+  const gnomeText = config?.raceTexts?.Gnome;
+  if (gnomeText) {
+    gnomeText.bonus = races['Gnome']?.bonus || gnomeText.bonus;
+    gnomeText.awakeningDescription = races['Gnome']?.awakening?.description || gnomeText.awakeningDescription;
+  }
+};
+
 const applyTextOverrides = (config) => {
   if (config.raceTexts) {
     Object.entries(config.raceTexts).forEach(([raceName, raceText]) => {
@@ -100,6 +136,7 @@ export const applyBalanceConfig = (config) => {
   if (!config) return;
 
   normalizeMindflayerConfig(config);
+  normalizeGnomeConfig(config);
 
   if (config.raceConstants) {
     applyNumericOverrides(raceConstants, config.raceConstants);
