@@ -452,11 +452,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const wouldCastSpell =
     (att.class === 'Demoniste') ||
     (att.class === 'Masochiste' && att.cd.maso === getMindflayerSpellCooldown(att, def, 'maso') && att.maso_taken > 0) ||
-    (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) ||
-    (att.class === 'Healer' && att.cd.heal === cooldowns.heal) ||
+    (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal')) ||
+    (att.class === 'Healer' && att.cd.heal === getMindflayerSpellCooldown(att, def, 'heal')) ||
     (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ')) ||
     (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast')) ||
-    (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) ||
+    (att.class === 'Voleur' && att.cd.rog === getMindflayerSpellCooldown(att, def, 'rog')) ||
     (att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag')) ||
     (att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war')) ||
     (att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc'));
@@ -518,20 +518,37 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
   }
 
-  if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal && !spellStolen) {
+  if (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal') && !spellStolen) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
-    att.reflect = reflectBase + reflectPerCap * att.base.cap;
+    let reflectValue = reflectBase + reflectPerCap * att.base.cap;
+    if (att.race === 'Mindflayer' && getMindflayerSpellCooldown(att, def, 'pal') <= 1) {
+      const casterAwakening = att.awakening || {};
+      const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
+      if (bonus > 0) {
+        reflectValue *= (1 + bonus);
+        log.push(`${playerColor} 🦑 Sort sans CD — ${att.name} riposte renforcée +${Math.round(bonus * 100)}% !`);
+      }
+    }
+    att.reflect = reflectValue;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
   }
 
-  if (att.class === 'Healer' && att.cd.heal === cooldowns.heal && !spellStolen) {
+  if (att.class === 'Healer' && att.cd.heal === getMindflayerSpellCooldown(att, def, 'heal') && !spellStolen) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     const spellCapMultiplier = consumeAuraSpellCapMultiplier();
     const sireneBoost = att.race === 'Sirène' ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
-    const baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
+    let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
+    if (att.race === 'Mindflayer' && getMindflayerSpellCooldown(att, def, 'heal') <= 1) {
+      const casterAwakening = att.awakening || {};
+      const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
+      if (bonus > 0) {
+        baseHeal = Math.round(baseHeal * (1 + bonus));
+        log.push(`${playerColor} 🦑 Sort sans CD — ${att.name} soin renforcé +${Math.round(bonus * 100)}% !`);
+      }
+    }
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -560,7 +577,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
   }
 
-  if (att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast') && !spellStolen) {
+  const isBastion = !spellStolen && att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast');
+  if (isBastion) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
@@ -568,7 +586,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
   }
 
-  if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog && !spellStolen) {
+  if (att.class === 'Voleur' && att.cd.rog === getMindflayerSpellCooldown(att, def, 'rog') && !spellStolen) {
     skillUsed = true;
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
@@ -588,7 +606,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
   if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
-  const baseHits = isArcher ? classConstants.archer.hitCount : 1;
+  const baseHits = isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
   let total = 0;
   let wasCrit = false;
