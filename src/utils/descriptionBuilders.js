@@ -93,7 +93,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap (vs RésCap).`;
     case 'Demoniste': return `Chaque tour, votre familier inflige ${(c.capBase || 0) * 100}% de votre Cap et ignore ${(c.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(c.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
     case 'Masochiste': return `Renvoie ${(c.returnBase || 0) * 100}% des dégâts accumulés + ${(c.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(c.healPercent || 0) * 100}% des dégâts accumulés.`;
-    case 'Briseur de Sort': return `Après avoir subi un spell, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP.`;
+    case 'Briseur de Sort': return `Après avoir subi un spell, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Si l'adversaire n'a pas de sort offensif : auto = auto + ${(c.noSpellAutoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     default: return classes[className]?.description || '';

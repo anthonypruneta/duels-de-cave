@@ -57,7 +57,8 @@ export const classConstants = {
   briseurSort: {
     shieldFromSpellDamage: 0.75,
     shieldFromCap: 0.5,
-    antiHealReduction: 0.30
+    antiHealReduction: 0.30,
+    noSpellAutoCapBonus: 0.50
   },
   succube: {
     capScale: 0.2,
