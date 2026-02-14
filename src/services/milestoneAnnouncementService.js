@@ -22,16 +22,25 @@ const DUNGEON_MILESTONES = {
   }
 };
 
-const LABYRINTH_ZONE_BY_FLOOR = {
-  80: 'Palier des profondeurs',
-  90: 'Palier des cauchemars',
-  100: 'Sommet du Labyrinthe infini'
-};
 
 const getDisplayName = (character) => {
   if (character?.ownerPseudo) return character.ownerPseudo;
   if (character?.name) return character.name;
   return 'Un héros inconnu';
+};
+
+
+const formatEnemyName = (enemyName, floorNumber) => {
+  if (!enemyName || typeof enemyName !== 'string') {
+    return `le boss de l'étage **${floorNumber}**`;
+  }
+
+  const cleanName = enemyName
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return `**${cleanName || `Boss étage ${floorNumber}`}**`;
 };
 
 const trySendDiscordAnnouncement = async (payload) => {
@@ -116,12 +125,12 @@ export async function announceFirstLabyrinthFloorClear({ userId, weekId, floorNu
       return { success: true, announced: false, reason: 'already_claimed' };
     }
 
-    const zoneName = LABYRINTH_ZONE_BY_FLOOR[level] || 'Labyrinthe infini';
-    const bossLabel = enemyName ? ` **${enemyName}**` : ` le boss de l'étage **${level}**`;
+    const zoneName = `Labyrinthe infini (Étage ${level})`;
+    const bossLabel = formatEnemyName(enemyName, level);
 
     await trySendDiscordAnnouncement({
       titre: `🌀 Premier clear Semaine ${weekId} – ${zoneName}`,
-      message: `**${getDisplayName(character)}** est le premier à vaincre${bossLabel} (${zoneName}) cette semaine !`,
+      message: `**${getDisplayName(character)}** est le premier à vaincre ${bossLabel} dans le ${zoneName} cette semaine !`,
       mentionEveryone: true
     });
 
