@@ -692,7 +692,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
 
     if (isCrit) {
-      const critDamage = Math.round(raw * getCritMultiplier(att));
+      const critDamage = Math.round(raw * getCritMultiplier(att, def));
       raw = modifyCritDamage(att.weaponState, critDamage);
     }
 
@@ -749,9 +749,21 @@ function processPlayerAction(att, def, log, isP1, turn) {
 // SIMULATION COMPLÈTE (synchrone) — avec steps pour animation
 // ============================================================================
 
+function applyGnomeCapBonus(fighter, opponent) {
+  if (fighter.race !== 'Gnome') return;
+  const speedDuel = getSpeedDuelBonuses(fighter, opponent);
+  if (speedDuel.capBonus > 0) {
+    fighter.base = { ...fighter.base, cap: Math.round(fighter.base.cap * (1 + speedDuel.capBonus)) };
+  }
+}
+
 export function simulerMatch(char1, char2) {
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);
+
+  // Appliquer le bonus de CAP conditionnel du Gnome
+  applyGnomeCapBonus(p1, p2);
+  applyGnomeCapBonus(p2, p1);
 
   const allLogs = [];
   const steps = [];

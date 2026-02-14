@@ -53,7 +53,7 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Lycan': return `Attaque inflige saignement +${c.bleedPerHit || 0} de dégât/tour`;
     case 'Sylvari': return `Regen ${pct(c.regenPercent, 1)} PV max/tour`;
     case 'Sirène': return `+${c.cap || 0} CAP, subit un spell: +${pct(c.stackBonus, 0)} dégâts/soins des capacités (max ${c.maxStacks || 0} stacks)`;
-    case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP, VIT > cible: +${pct(c.critIfFaster, 0)} crit, VIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, égalité: +${pct(c.critIfEqual, 0)}/${pct(c.dodgeIfEqual, 0)} crit/esquive`;
+    case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nSort sans CD: +${pct(c.noCooldownSpellBonus, 0)} dégâts`;
     default: return races[raceName]?.bonus || '';
   }
@@ -72,7 +72,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Lycan': return `Chaque auto: +${e?.bleedStacksPerHit || 0} stack de saignement (${pct(e?.bleedPercentPerStack, 1)} PV max par tour)`;
     case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour, +${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
     case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${e?.sireneMaxStacks || 0})`;
-    case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP, VIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, VIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, égalité: +${pct(e?.speedDuelEqualCrit, 0)}/${pct(e?.speedDuelEqualDodge, 0)} crit/esquive`;
+    case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nVotre sort a -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSort sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     default: return races[raceName]?.awakening?.description || '';
   }

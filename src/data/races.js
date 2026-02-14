@@ -118,19 +118,23 @@ export const races = {
     }
   },
   'Gnome': {
-    bonus: '- +3 VIT\n- +2 CAP\n- VIT > cible: +20% crit\n- VIT < cible: +20% esquive\n- égalité: +10% crit/esquive',
-    icon: '🧠',
+    bonus: '- +5 VIT\n- +5 CAP\n- VIT > cible: +20% crit, +20% dégâts crit\n- VIT < cible: +20% esquive, +20% CAP\n- égalité: +5% crit/dégâts crit/esquive/CAP',
+    icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+12% VIT\n- +8% CAP\n- VIT > cible: +45% crit\n- VIT < cible: +45% esquive\n- égalité: +22% crit/esquive',
+      description: '+5% VIT\n- +5% CAP\n- VIT > cible: +40% crit, +40% dégâts crit\n- VIT < cible: +40% esquive, +40% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
-        speedDuelCritHigh: 0.45,
-        speedDuelDodgeLow: 0.45,
-        speedDuelEqualCrit: 0.22,
-        speedDuelEqualDodge: 0.22,
+        speedDuelCritHigh: 0.40,
+        speedDuelCritDmgHigh: 0.40,
+        speedDuelDodgeLow: 0.40,
+        speedDuelCapBonusLow: 0.40,
+        speedDuelEqualCrit: 0.10,
+        speedDuelEqualCritDmg: 0.10,
+        speedDuelEqualDodge: 0.10,
+        speedDuelEqualCapBonus: 0.10,
         statMultipliers: {
-          spd: 1.12,
-          cap: 1.08
+          spd: 1.05,
+          cap: 1.05
         }
       }
     }
