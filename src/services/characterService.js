@@ -391,16 +391,26 @@ export const deletePendingRoll = async (userId) => {
 };
 
 // Récupérer les personnages désactivés d'un utilisateur
+// Cherche dans 'characters' (disabled) ET 'archivedCharacters' (archivés par le tournoi)
 export const getDisabledCharacters = async (userId) => {
   try {
     const result = await retryOperation(async () => {
-      const q = query(
+      const qDisabled = query(
         collection(db, 'characters'),
         where('userId', '==', userId),
         where('disabled', '==', true)
       );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const qArchived = query(
+        collection(db, 'archivedCharacters'),
+        where('userId', '==', userId)
+      );
+      const [disabledSnap, archivedSnap] = await Promise.all([
+        getDocs(qDisabled),
+        getDocs(qArchived)
+      ]);
+      const disabled = disabledSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const archived = archivedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return [...disabled, ...archived];
     });
     return { success: true, data: result };
   } catch (error) {
