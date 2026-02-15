@@ -108,9 +108,9 @@ const createTrainingDummy = () => ({
   base: {
     hp: DUMMY_HP,
     auto: 0,
-    def: 0,
+    def: 20,
     cap: 0,
-    rescap: 0,
+    rescap: 20,
     spd: 0
   },
   bonuses: {
