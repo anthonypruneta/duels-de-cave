@@ -135,6 +135,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BOUCLIER,
     rarete: RARITY.COMMUNE,
     icon: '🛡️',
+    imageFile: 'bouclier1.png',
     stats: {
       def: 3,
       rescap: 3,
@@ -149,6 +150,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BOUCLIER,
     rarete: RARITY.RARE,
     icon: '🛡️',
+    imageFile: 'bouclier2.png',
     stats: {
       def: 5,
       rescap: 5,
@@ -163,6 +165,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.BOUCLIER,
     rarete: RARITY.LEGENDAIRE,
     icon: '⚔️',
+    imageFile: 'bouclier3.png',
     stats: {
       def: 5,
       rescap: 5,
@@ -190,6 +193,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.EPEE,
     rarete: RARITY.COMMUNE,
     icon: '⚔️',
+    imageFile: 'epee1.png',
     stats: {
       auto: 3,
     },
@@ -203,6 +207,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.EPEE,
     rarete: RARITY.RARE,
     icon: '⚔️',
+    imageFile: 'epee2.png',
     stats: {
       auto: 5,
     },
@@ -216,6 +221,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.EPEE,
     rarete: RARITY.LEGENDAIRE,
     icon: '🗡️',
+    imageFile: 'epee3.png',
     stats: {
       auto: 10,
       spd: -10,
@@ -244,6 +250,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.DAGUE,
     rarete: RARITY.COMMUNE,
     icon: '🗡️',
+    imageFile: 'dague1.png',
     stats: {
       auto: 2,
       spd: 2,
@@ -258,6 +265,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.DAGUE,
     rarete: RARITY.RARE,
     icon: '🗡️',
+    imageFile: 'dague2.png',
     stats: {
       auto: 4,
       spd: 4,
@@ -272,6 +280,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.DAGUE,
     rarete: RARITY.LEGENDAIRE,
     icon: '🔥',
+    imageFile: 'dague3.png',
     stats: {
       auto: 4,
       spd: 4,
@@ -300,6 +309,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.MARTEAU,
     rarete: RARITY.COMMUNE,
     icon: '🔨',
+    imageFile: 'marteau1.png',
     stats: {
       auto: 3,
       spd: -2,
@@ -314,6 +324,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.MARTEAU,
     rarete: RARITY.RARE,
     icon: '🔨',
+    imageFile: 'marteau2.png',
     stats: {
       auto: 6,
       spd: -3,
@@ -328,6 +339,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.MARTEAU,
     rarete: RARITY.LEGENDAIRE,
     icon: '⚡',
+    imageFile: 'marteau3.png',
     stats: {
       auto: 8,
       spd: -3,
@@ -355,6 +367,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.LANCE,
     rarete: RARITY.COMMUNE,
     icon: '🔱',
+    imageFile: 'lance1.png',
     stats: {
       auto: 3,
       spd: 1,
@@ -369,6 +382,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.LANCE,
     rarete: RARITY.RARE,
     icon: '🔱',
+    imageFile: 'lance2.png',
     stats: {
       auto: 5,
       spd: 2,
@@ -383,6 +397,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.LANCE,
     rarete: RARITY.LEGENDAIRE,
     icon: '✨',
+    imageFile: 'lance3.png',
     stats: {
       auto: 7,
       spd: 3,
@@ -410,6 +425,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.ARC,
     rarete: RARITY.COMMUNE,
     icon: '🏹',
+    imageFile: 'arc1.png',
     stats: {
       auto: 2,
       spd: 3,
@@ -424,6 +440,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.ARC,
     rarete: RARITY.RARE,
     icon: '🏹',
+    imageFile: 'arc2.png',
     stats: {
       auto: 4,
       spd: 5,
@@ -438,6 +455,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.ARC,
     rarete: RARITY.LEGENDAIRE,
     icon: '🌟',
+    imageFile: 'arc3.png',
     stats: {
       auto: 5,
       spd: 7,
@@ -466,6 +484,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.TOME,
     rarete: RARITY.COMMUNE,
     icon: '📖',
+    imageFile: 'tome1.png',
     stats: {
       cap: 3,
     },
@@ -479,6 +498,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.TOME,
     rarete: RARITY.RARE,
     icon: '📖',
+    imageFile: 'tome2.png',
     stats: {
       cap: 5,
     },
@@ -492,6 +512,7 @@ export const weapons = {
     famille: WEAPON_FAMILIES.TOME,
     rarete: RARITY.LEGENDAIRE,
     icon: '📜',
+    imageFile: 'tome3.png',
     stats: {
       cap: 7,
     },
