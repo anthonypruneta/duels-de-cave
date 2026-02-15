@@ -1452,7 +1452,7 @@ const MageTower = () => {
     const PassiveCard = ({ passive, detail, onSelect }) => (
       <button
         onClick={() => onSelect(passive)}
-        className="flex-1 bg-stone-900/60 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-900/80 transition-all cursor-pointer text-center"
+        className="flex-1 bg-stone-800 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-700 transition-all cursor-pointer text-center"
       >
         <div className="text-4xl mb-2">{detail.icon}</div>
         <div className="text-amber-300 font-semibold">

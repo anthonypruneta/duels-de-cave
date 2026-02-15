@@ -1457,7 +1457,7 @@ const Dungeon = () => {
     const WeaponCard = ({ weapon, onSelect }) => (
       <button
         onClick={() => onSelect(weapon)}
-        className={`flex-1 p-5 border-2 ${RARITY_BORDER_COLORS[weapon.rarete]} ${getOpaqueRarityBg(weapon.rarete)} hover:brightness-125 transition-all cursor-pointer text-center`}
+        className={`flex-1 p-5 border-2 ${RARITY_BORDER_COLORS[weapon.rarete]} bg-stone-800 hover:bg-stone-700 transition-all cursor-pointer text-center`}
       >
         {getWeaponImage(weapon.imageFile) ? (
           <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-24 h-auto mx-auto mb-3" />
