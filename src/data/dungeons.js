@@ -168,6 +168,23 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
 }
 
 /**
+ * Calcule le nombre d'essais accumulés depuis le lundi 00h00 de la semaine courante.
+ * Un nouveau joueur qui rejoint en cours de semaine reçoit tous les essais qu'il a loupés.
+ * Ex: arrivée mardi matin → lundi matin (5) + lundi midi (5) + mardi matin (5) = 15
+ */
+export function getRunsSinceWeekStart(now = new Date()) {
+  const day = now.getDay(); // 0=dim, 1=lun, ...
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+
+  const periods = getResetPeriodsSince(monday, now);
+  // +1 car la période courante (lundi matin) compte aussi
+  return (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+}
+
+/**
  * Calcule les runs restantes aujourd'hui
  */
 export function getRemainingRuns(runsToday, lastRunDate) {
