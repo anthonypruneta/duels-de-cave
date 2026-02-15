@@ -23,7 +23,7 @@ import {
 } from '../data/weapons';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
 import Header from './Header';
-import { simulerMatch } from '../utils/tournamentCombat';
+import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
 import mannequinImg from '../assets/training/mannequin.png';
@@ -356,7 +356,7 @@ const Training = () => {
     setDpsStats(null);
 
     const playerReady = prepareForCombat(character);
-    const dummyReady = createTrainingDummy();
+    const dummyReady = preparerCombattant(createTrainingDummy());
 
     setPlayer(playerReady);
     setDummy(dummyReady);
