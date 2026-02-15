@@ -2,33 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
-import { getArchivedCharacters } from '../services/tournamentService';
 import { getDisabledCharacters } from '../services/characterService';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 
 const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
-  const [archivedChars, setArchivedChars] = useState([]);
-  const [disabledChars, setDisabledChars] = useState([]);
+  const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
-      const [archivedResult, disabledResult] = await Promise.all([
-        getArchivedCharacters(currentUser.uid),
-        getDisabledCharacters(currentUser.uid)
-      ]);
-      if (archivedResult.success) setArchivedChars(archivedResult.data);
-      if (disabledResult.success) setDisabledChars(disabledResult.data);
+      const result = await getDisabledCharacters(currentUser.uid);
+      if (result.success) {
+        // Dédoublonner par ID (getDisabledCharacters renvoie disabled + archived)
+        const unique = [];
+        const seen = new Set();
+        for (const c of result.data) {
+          if (!seen.has(c.id)) {
+            seen.add(c.id);
+            unique.push(c);
+          }
+        }
+        setCharacters(unique);
+      }
       setLoading(false);
     };
     load();
   }, [currentUser]);
-
-  const characters = [...disabledChars.map(c => ({ ...c, source: 'disabled' })), ...archivedChars.map(c => ({ ...c, source: 'archived' }))];
 
   if (loading) {
     return (
@@ -62,7 +65,7 @@ const MesAnciensPersonnages = () => {
                 key={char.id}
                 className={`bg-stone-800/90 border-2 ${
                   char.tournamentChampion ? 'border-yellow-500' :
-                  char.source === 'disabled' ? 'border-red-600' : 'border-stone-600'
+                  char.disabled ? 'border-red-600' : 'border-stone-600'
                 } rounded-xl p-4`}
               >
                 {char.characterImage && (
@@ -75,7 +78,7 @@ const MesAnciensPersonnages = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="text-xl font-bold text-white">{char.name}</h3>
                   {char.tournamentChampion && <span className="text-yellow-400">👑</span>}
-                  {char.source === 'disabled' && <span className="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">Désactivé</span>}
+                  {char.disabled && <span className="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">Désactivé</span>}
                 </div>
                 <p className="text-amber-300 text-sm">
                   {char.race} • {char.class}
