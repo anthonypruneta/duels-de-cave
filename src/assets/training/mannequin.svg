@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <linearGradient id="woodGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B6914"/>
+      <stop offset="50%" stop-color="#6B4F12"/>
+      <stop offset="100%" stop-color="#5A3E0E"/>
+    </linearGradient>
+    <linearGradient id="woodDark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5A3E0E"/>
+      <stop offset="50%" stop-color="#4A3010"/>
+      <stop offset="100%" stop-color="#5A3E0E"/>
+    </linearGradient>
+    <linearGradient id="strawGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D4A840"/>
+      <stop offset="100%" stop-color="#B8922E"/>
+    </linearGradient>
+    <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C0392B"/>
+      <stop offset="100%" stop-color="#922B21"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#3D2B1F" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#1C1412" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="500" fill="#1C1412"/>
+  <ellipse cx="200" cy="225" rx="180" ry="200" fill="url(#bgGlow)"/>
+
+  <!-- Ground shadow -->
+  <ellipse cx="200" cy="470" rx="120" ry="18" fill="#0D0A08" opacity="0.6"/>
+
+  <!-- Vertical pole -->
+  <rect x="185" y="160" width="30" height="310" rx="3" fill="url(#woodDark)"/>
+  <!-- Wood grain lines on pole -->
+  <line x1="192" y1="170" x2="192" y2="460" stroke="#4A3010" stroke-width="0.5" opacity="0.5"/>
+  <line x1="200" y1="165" x2="200" y2="465" stroke="#6B4F12" stroke-width="0.3" opacity="0.3"/>
+  <line x1="208" y1="170" x2="208" y2="460" stroke="#4A3010" stroke-width="0.5" opacity="0.5"/>
+
+  <!-- Base platform -->
+  <rect x="145" y="450" width="110" height="20" rx="4" fill="url(#woodGrad)"/>
+  <rect x="155" y="445" width="90" height="10" rx="3" fill="#6B4F12"/>
+
+  <!-- Cross arms -->
+  <rect x="95" y="180" width="210" height="25" rx="4" fill="url(#woodGrad)"/>
+  <!-- Wood grain on arms -->
+  <line x1="100" y1="188" x2="300" y2="188" stroke="#8B6914" stroke-width="0.5" opacity="0.4"/>
+  <line x1="100" y1="195" x2="300" y2="195" stroke="#5A3E0E" stroke-width="0.5" opacity="0.4"/>
+
+  <!-- Head (straw-filled sack) -->
+  <circle cx="200" cy="120" r="52" fill="url(#strawGrad)"/>
+  <circle cx="200" cy="120" r="48" fill="#C4993A"/>
+  <!-- Burlap texture lines -->
+  <path d="M160 105 Q180 110 200 105 Q220 100 240 105" stroke="#A07828" stroke-width="1" fill="none" opacity="0.5"/>
+  <path d="M158 120 Q180 125 200 120 Q220 115 242 120" stroke="#A07828" stroke-width="1" fill="none" opacity="0.5"/>
+  <path d="M160 135 Q180 130 200 135 Q220 140 240 135" stroke="#A07828" stroke-width="1" fill="none" opacity="0.5"/>
+
+  <!-- Face markings (X eyes and stitched mouth) -->
+  <!-- Left X eye -->
+  <line x1="178" y1="108" x2="190" y2="120" stroke="#5A3E0E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="190" y1="108" x2="178" y2="120" stroke="#5A3E0E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Right X eye -->
+  <line x1="210" y1="108" x2="222" y2="120" stroke="#5A3E0E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="222" y1="108" x2="210" y2="120" stroke="#5A3E0E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Stitched mouth -->
+  <path d="M182 138 L188 135 L194 138 L200 135 L206 138 L212 135 L218 138" stroke="#5A3E0E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Target on torso -->
+  <circle cx="200" cy="280" r="50" fill="url(#targetGrad)" opacity="0.9"/>
+  <circle cx="200" cy="280" r="38" fill="#E8E8E8" opacity="0.9"/>
+  <circle cx="200" cy="280" r="28" fill="#C0392B" opacity="0.9"/>
+  <circle cx="200" cy="280" r="16" fill="#E8E8E8" opacity="0.9"/>
+  <circle cx="200" cy="280" r="7" fill="#C0392B"/>
+
+  <!-- Straw poking out -->
+  <!-- Top of head -->
+  <line x1="185" y1="72" x2="180" y2="58" stroke="#D4A840" stroke-width="2" stroke-linecap="round"/>
+  <line x1="195" y1="70" x2="192" y2="54" stroke="#C4993A" stroke-width="2" stroke-linecap="round"/>
+  <line x1="205" y1="70" x2="210" y2="55" stroke="#D4A840" stroke-width="2" stroke-linecap="round"/>
+  <line x1="215" y1="72" x2="220" y2="58" stroke="#B8922E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="200" y1="68" x2="200" y2="52" stroke="#C4993A" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Left arm straw -->
+  <line x1="98" y1="182" x2="88" y2="175" stroke="#D4A840" stroke-width="2" stroke-linecap="round"/>
+  <line x1="100" y1="200" x2="90" y2="205" stroke="#C4993A" stroke-width="2" stroke-linecap="round"/>
+  <line x1="96" y1="190" x2="84" y2="188" stroke="#B8922E" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Right arm straw -->
+  <line x1="302" y1="182" x2="312" y2="175" stroke="#D4A840" stroke-width="2" stroke-linecap="round"/>
+  <line x1="300" y1="200" x2="310" y2="205" stroke="#C4993A" stroke-width="2" stroke-linecap="round"/>
+  <line x1="304" y1="190" x2="316" y2="188" stroke="#B8922E" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Torso straw bits -->
+  <line x1="180" y1="340" x2="172" y2="350" stroke="#D4A840" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="220" y1="340" x2="228" y2="350" stroke="#C4993A" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Rope details on joints -->
+  <ellipse cx="200" cy="168" rx="18" ry="6" fill="none" stroke="#8B7355" stroke-width="2.5"/>
+  <ellipse cx="200" cy="164" rx="16" ry="5" fill="none" stroke="#A08B6D" stroke-width="1.5"/>
+
+  <!-- Nail details -->
+  <circle cx="130" cy="192" r="3" fill="#888"/>
+  <circle cx="130" cy="192" r="1.5" fill="#666"/>
+  <circle cx="270" cy="192" r="3" fill="#888"/>
+  <circle cx="270" cy="192" r="1.5" fill="#666"/>
+
+  <!-- Wear marks / battle damage -->
+  <line x1="170" y1="250" x2="175" y2="260" stroke="#4A3010" stroke-width="1.5" opacity="0.6"/>
+  <line x1="225" y1="310" x2="230" y2="320" stroke="#4A3010" stroke-width="1.5" opacity="0.6"/>
+  <line x1="110" y1="185" x2="115" y2="195" stroke="#5A3E0E" stroke-width="1" opacity="0.5"/>
+</svg>
