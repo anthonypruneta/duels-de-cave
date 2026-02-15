@@ -1006,36 +1006,37 @@ const ForestDungeon = () => {
       return;
     }
 
-    let updatedBoosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
-    const totalGainsByStat = {};
-    let totalLevelGain = 0;
-
-    for (const levelData of getAllForestLevels()) {
-      const rewardResult = rollForestRewards(levelData, updatedBoosts);
-      updatedBoosts = rewardResult.updatedBoosts;
-      totalLevelGain += levelData.rewardRolls;
-      Object.entries(rewardResult.gainsByStat).forEach(([stat, value]) => {
-        totalGainsByStat[stat] = (totalGainsByStat[stat] || 0) + value;
-      });
-    }
-
-    const updatedLevel = (character?.level ?? 1) + totalLevelGain;
-    await updateCharacterForestBoosts(currentUser.uid, updatedBoosts, updatedLevel);
     await markDungeonCompleted(currentUser.uid, 'forest');
-
     setCanInstantFinish(true);
-    setCharacter((prev) => prev ? { ...prev, level: updatedLevel, forestBoosts: updatedBoosts } : prev);
 
-    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-    if (summaryResult.success) {
-      setDungeonSummary(summaryResult.data);
-    }
+    const generateFullRunReward = () => {
+      let boosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
+      const totalGains = {};
+      let totalLevelGain = 0;
+      for (const levelData of getAllForestLevels()) {
+        const result = rollForestRewards(levelData, boosts);
+        boosts = result.updatedBoosts;
+        totalLevelGain += levelData.rewardRolls;
+        Object.entries(result.gainsByStat).forEach(([stat, value]) => {
+          totalGains[stat] = (totalGains[stat] || 0) + value;
+        });
+      }
+      return { updatedBoosts: boosts, gainsByStat: totalGains, totalLevelGain };
+    };
 
-    const labels = getStatLabels();
-    const gainsText = Object.entries(totalGainsByStat)
-      .map(([stat, value]) => `${labels[stat] || stat.toUpperCase()} +${value}`)
-      .join(' • ');
-    setInstantMessage(`✅ Run instantanée terminée : ${gainsText || 'boosts appliqués'}.`);
+    const option1 = generateFullRunReward();
+    const option2 = generateFullRunReward();
+
+    setRewardSummary({
+      options: [
+        { updatedBoosts: option1.updatedBoosts, gainsByStat: option1.gainsByStat },
+        { updatedBoosts: option2.updatedBoosts, gainsByStat: option2.gainsByStat }
+      ],
+      levelGain: option1.totalLevelGain,
+      hasNextLevel: false,
+      nextLevel: getAllForestLevels().length + 1
+    });
+    setGameState('reward');
   };
 
   const simulateCombat = async () => {
