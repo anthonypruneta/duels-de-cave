@@ -429,6 +429,8 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
 
 function processPlayerAction(att, def, log, isP1, turn) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
+  // Le mannequin d'entraînement ne fait rien
+  if (att.userId === 'training-dummy') return;
 
   const playerColor = isP1 ? '[P1]' : '[P2]';
   const attackerPassive = getPassiveDetails(att.mageTowerPassive);
