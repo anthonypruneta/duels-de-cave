@@ -1452,7 +1452,7 @@ const ForestDungeon = () => {
     const StatOptionCard = ({ option, index, onSelect }) => (
       <button
         onClick={() => onSelect(index)}
-        className="flex-1 bg-stone-900/60 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-900/80 transition-all cursor-pointer text-center"
+        className="flex-1 bg-stone-800 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-700 transition-all cursor-pointer text-center"
       >
         <div className="text-2xl mb-2">🎲</div>
         <div className="text-amber-200 text-sm font-semibold mb-1">Option {index + 1}</div>
