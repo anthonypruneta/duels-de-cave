@@ -569,6 +569,14 @@ export async function terminerTournoi(docId = 'current') {
       }
     }
 
+    // 4. Reset les essais de donjon pour tous les joueurs
+    if (charsResult.success) {
+      for (const char of charsResult.data) {
+        const progressRef = doc(db, 'dungeonProgress', char.userId || char.id);
+        await deleteDoc(progressRef).catch(() => {});
+      }
+    }
+
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
 
     return { success: true };
