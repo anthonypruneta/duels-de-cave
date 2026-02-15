@@ -259,6 +259,18 @@ const Training = () => {
     </div>
   );
 
+  // Lancer la musique quand on entre en combat (après que le DOM ait rendu l'audio)
+  useEffect(() => {
+    if (gameState === 'fighting') {
+      const audio = document.getElementById('training-music');
+      if (audio) {
+        audio.currentTime = 0;
+        audio.volume = volume;
+        audio.play().catch(e => console.log('Autoplay bloqué:', e));
+      }
+    }
+  }, [gameState]);
+
   // Charger le personnage
   useEffect(() => {
     const loadData = async () => {
@@ -349,14 +361,6 @@ const Training = () => {
     setPlayer(playerReady);
     setDummy(dummyReady);
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
-
-    // Jouer la musique d'entraînement
-    const audio = document.getElementById('training-music');
-    if (audio) {
-      audio.currentTime = 0;
-      audio.volume = volume;
-      audio.play().catch(e => console.log('Autoplay bloqué:', e));
-    }
   };
 
   // Lancer la simulation
