@@ -264,6 +264,22 @@ export const generateLoot = (levelNumber) => {
   return weapon;
 };
 
+export const generateLootPair = (levelNumber) => {
+  const level = getDungeonLevelByNumber(levelNumber);
+  if (!level) return [null, null];
+
+  const weapon1 = getRandomWeaponByRarity(level.dropRarity);
+  let weapon2 = getRandomWeaponByRarity(level.dropRarity);
+  let attempts = 0;
+  while (weapon2.id === weapon1.id && attempts < 10) {
+    weapon2 = getRandomWeaponByRarity(level.dropRarity);
+    attempts++;
+  }
+
+  console.log(`🎁 Loot paire: ${weapon1.nom} / ${weapon2.nom}`);
+  return [weapon1, weapon2];
+};
+
 // ============================================================================
 // ENREGISTRER LA FIN D'UNE RUN (victoire ou défaite)
 // ============================================================================
@@ -271,8 +287,9 @@ export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel 
   try {
     console.log('🏆 Fin de run:', { userId, highestLevelBeaten, defeatedOnLevel });
 
-    // Générer le loot basé sur le dernier niveau réussi
-    const lootWeapon = highestLevelBeaten > 0 ? generateLoot(highestLevelBeaten) : null;
+    // Générer le loot basé sur le dernier niveau réussi (paire de 2 armes)
+    const lootWeapons = highestLevelBeaten > 0 ? generateLootPair(highestLevelBeaten) : [null, null];
+    const lootWeapon = lootWeapons[0];
 
     // Mettre à jour les stats
     await retryOperation(async () => {
@@ -298,6 +315,7 @@ export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel 
       highestLevelBeaten,
       defeatedOnLevel,
       lootWeapon,
+      lootWeapons,
       isFullClear: highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
     };
   } catch (error) {

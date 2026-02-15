@@ -1071,15 +1071,9 @@ const ForestDungeon = () => {
       setCombatResult('victory');
 
       const levelData = getForestLevelByNumber(currentLevel);
-      const rewardResult = rollForestRewards(levelData);
+      const rewardOption1 = rollForestRewards(levelData);
+      const rewardOption2 = rollForestRewards(levelData);
       const levelGain = levelData.rewardRolls;
-      const updatedCharacter = {
-        ...character,
-        level: (character.level ?? 1) + levelGain,
-        forestBoosts: rewardResult.updatedBoosts
-      };
-      setCharacter(updatedCharacter);
-      updateCharacterForestBoosts(currentUser.uid, rewardResult.updatedBoosts, updatedCharacter.level);
 
       const nextLevel = currentLevel + 1;
       if (nextLevel > getAllForestLevels().length) {
@@ -1087,7 +1081,11 @@ const ForestDungeon = () => {
         setCanInstantFinish(true);
       }
       setRewardSummary({
-        gainsByStat: rewardResult.gainsByStat,
+        options: [
+          { updatedBoosts: rewardOption1.updatedBoosts, gainsByStat: rewardOption1.gainsByStat },
+          { updatedBoosts: rewardOption2.updatedBoosts, gainsByStat: rewardOption2.gainsByStat }
+        ],
+        levelGain,
         hasNextLevel: nextLevel <= getAllForestLevels().length,
         nextLevel
       });
@@ -1102,12 +1100,22 @@ const ForestDungeon = () => {
     setIsSimulating(false);
   };
 
-  const handleRewardContinue = () => {
-    if (!rewardSummary) return;
+  const handleForestChoice = (optionIndex) => {
+    if (!rewardSummary || !rewardSummary.options?.[optionIndex]) return;
+    const chosen = rewardSummary.options[optionIndex];
+
+    const updatedCharacter = {
+      ...character,
+      level: (character.level ?? 1) + rewardSummary.levelGain,
+      forestBoosts: chosen.updatedBoosts
+    };
+    setCharacter(updatedCharacter);
+    updateCharacterForestBoosts(currentUser.uid, chosen.updatedBoosts, updatedCharacter.level);
+
     if (rewardSummary.hasNextLevel) {
       const nextLevelData = getForestLevelByNumber(rewardSummary.nextLevel);
       const refreshedPlayer = prepareForCombat({
-        ...character,
+        ...updatedCharacter,
         equippedWeaponData: equippedWeapon,
         equippedWeaponId: equippedWeapon?.id || null
       });
@@ -1438,6 +1446,25 @@ const ForestDungeon = () => {
 
   if (gameState === 'reward' && rewardSummary) {
     const labels = getStatLabels();
+    const options = rewardSummary.options || [];
+
+    const StatOptionCard = ({ option, index, onSelect }) => (
+      <button
+        onClick={() => onSelect(index)}
+        className="flex-1 bg-stone-900/60 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-900/80 transition-all cursor-pointer text-center"
+      >
+        <div className="text-2xl mb-2">🎲</div>
+        <div className="text-amber-200 text-sm font-semibold mb-1">Option {index + 1}</div>
+        <div className="flex flex-col gap-1">
+          {Object.entries(option.gainsByStat).map(([stat, value]) => (
+            <span key={stat} className="text-green-400 font-semibold text-sm">
+              {labels[stat] || stat} +{value}
+            </span>
+          ))}
+        </div>
+      </button>
+    );
+
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
@@ -1445,23 +1472,16 @@ const ForestDungeon = () => {
         <audio id="forest-music" loop>
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
+        <div className="bg-stone-800 border border-amber-600 p-8 max-w-xl w-full text-center">
           <div className="text-6xl mb-4">🌲</div>
           <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
-          <p className="text-stone-300 mb-6">
-            Gains :{' '}
-            {Object.entries(rewardSummary.gainsByStat).map(([stat, value], index) => (
-              <span key={stat} className="text-amber-200 font-semibold">
-                {labels[stat] || stat} +{value}{index < Object.keys(rewardSummary.gainsByStat).length - 1 ? ', ' : ''}
-              </span>
+          <p className="text-stone-300 mb-2">Choisissez votre distribution de stats :</p>
+
+          <div className="flex flex-col sm:flex-row gap-4 mb-6 mt-4">
+            {options.map((option, i) => (
+              <StatOptionCard key={i} option={option} index={i} onSelect={handleForestChoice} />
             ))}
-          </p>
-          <button
-            onClick={handleRewardContinue}
-            className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
-          >
-            {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
-          </button>
+          </div>
         </div>
       </div>
     );

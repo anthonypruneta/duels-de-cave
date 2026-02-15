@@ -7,7 +7,8 @@ import {
   startDungeonRun,
   endDungeonRun,
   handleLootChoice,
-  markDungeonCompleted
+  markDungeonCompleted,
+  generateLootPair
 } from '../services/dungeonService';
 import {
   getAllDungeonLevels,
@@ -188,9 +189,8 @@ const Dungeon = () => {
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting, victory, defeat, loot
   const [currentLevel, setCurrentLevel] = useState(1);
   const [highestLevelBeaten, setHighestLevelBeaten] = useState(0);
-  const [lootWeapon, setLootWeapon] = useState(null);
+  const [lootWeapons, setLootWeapons] = useState([null, null]);
   const [error, setError] = useState(null);
-  const [autoEquipDone, setAutoEquipDone] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
 
   // États de combat (même pattern que Combat.jsx)
@@ -996,15 +996,15 @@ const Dungeon = () => {
     }
 
     const endResult = await endDungeonRun(currentUser.uid, DUNGEON_CONSTANTS.TOTAL_LEVELS);
-    if (!endResult.success || !endResult.lootWeapon) {
+    if (!endResult.success || !endResult.lootWeapons?.[0]) {
       setError(endResult.error || 'Impossible de terminer instantanément cette run.');
       return;
     }
 
     await markDungeonCompleted(currentUser.uid, 'cave');
 
-    setLootWeapon(endResult.lootWeapon);
-    setAutoEquipDone(false);
+    setLootWeapons(endResult.lootWeapons);
+
     setGameState('loot');
   };
 
@@ -1073,8 +1073,8 @@ const Dungeon = () => {
         if (result.success) {
           await markDungeonCompleted(currentUser.uid, 'cave');
         }
-        if (result.success && result.lootWeapon) {
-          setLootWeapon(result.lootWeapon);
+        if (result.success && result.lootWeapons?.[0]) {
+          setLootWeapons(result.lootWeapons);
           setGameState('loot');
         } else {
           setGameState('victory');
@@ -1088,8 +1088,8 @@ const Dungeon = () => {
       stopDungeonMusic();
       await new Promise(r => setTimeout(r, 1500));
       const result = await endDungeonRun(currentUser.uid, highestLevelBeaten, currentLevel);
-      if (result.success && result.lootWeapon) {
-        setLootWeapon(result.lootWeapon);
+      if (result.success && result.lootWeapons?.[0]) {
+        setLootWeapons(result.lootWeapons);
         setGameState('loot');
       } else {
         setGameState('defeat');
@@ -1099,26 +1099,10 @@ const Dungeon = () => {
     setIsSimulating(false);
   };
 
-  useEffect(() => {
-    if (!lootWeapon || autoEquipDone || !currentUser) return;
-    if (dungeonSummary?.equippedWeaponData) return;
-
-    const autoEquip = async () => {
-      await handleLootChoice(currentUser.uid, lootWeapon.id, true);
-      const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-      if (summaryResult.success) {
-        setDungeonSummary(summaryResult.data);
-      }
-      setAutoEquipDone(true);
-    };
-
-    autoEquip();
-  }, [lootWeapon, autoEquipDone, currentUser, dungeonSummary]);
-
-  // Gérer le choix du loot
-  const handleLootDecision = async (equipNew) => {
-    if (lootWeapon && !autoEquipDone) {
-      await handleLootChoice(currentUser.uid, lootWeapon.id, equipNew);
+  // Gérer le choix du loot (le joueur choisit une des 2 armes)
+  const handleLootDecision = async (chosenWeapon) => {
+    if (chosenWeapon) {
+      await handleLootChoice(currentUser.uid, chosenWeapon.id, true);
     }
 
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
@@ -1126,8 +1110,8 @@ const Dungeon = () => {
       setDungeonSummary(summaryResult.data);
     }
 
-    setLootWeapon(null);
-    setAutoEquipDone(false);
+    setLootWeapons([null, null]);
+
     setGameState('lobby');
   };
 
@@ -1146,7 +1130,7 @@ const Dungeon = () => {
     setCombatLog([]);
     setCombatResult(null);
     setCurrentAction(null);
-    setAutoEquipDone(false);
+
   };
 
   // Formater les messages du log avec les couleurs (même style que Combat.jsx)
@@ -1464,11 +1448,45 @@ const Dungeon = () => {
   const currentLevelData = getDungeonLevelByNumber(currentLevel);
 
   // ============================================================================
-  // ÉCRAN DE LOOT
+  // ÉCRAN DE LOOT (choix entre 2 armes)
   // ============================================================================
-  if (gameState === 'loot' && lootWeapon) {
+  if (gameState === 'loot' && lootWeapons[0]) {
     const hasCurrentWeapon = dungeonSummary?.equippedWeaponData;
     const getOpaqueRarityBg = (rarity) => (RARITY_BG_COLORS[rarity] || '').replace('/50', '');
+
+    const WeaponCard = ({ weapon, onSelect }) => (
+      <button
+        onClick={() => onSelect(weapon)}
+        className={`flex-1 p-5 border-2 ${RARITY_BORDER_COLORS[weapon.rarete]} ${getOpaqueRarityBg(weapon.rarete)} hover:brightness-125 transition-all cursor-pointer text-center`}
+      >
+        {getWeaponImage(weapon.imageFile) ? (
+          <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-24 h-auto mx-auto mb-3" />
+        ) : (
+          <div className="text-5xl mb-3">{weapon.icon}</div>
+        )}
+        <h3 className={`text-xl font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</h3>
+        <p className={`text-xs uppercase ${RARITY_COLORS[weapon.rarete]}`}>{weapon.rarete}</p>
+        <p className="text-gray-400 text-xs mt-2">{weapon.description}</p>
+
+        <div className="mt-3 flex justify-center gap-2 flex-wrap">
+          {Object.entries(weapon.stats).map(([stat, value]) => (
+            <div key={stat} className="bg-stone-800 px-2 py-1 border border-stone-600">
+              <span className="text-gray-400 text-xs">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
+              <span className={`ml-1 font-bold text-sm ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {value > 0 ? '+' : ''}{value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {weapon.effet && (
+          <div className="mt-3 bg-amber-900/30 border border-amber-600 p-2">
+            <p className="text-amber-300 font-bold text-sm">{weapon.effet.nom}</p>
+            <p className="text-amber-200 text-xs">{weapon.effet.description}</p>
+          </div>
+        )}
+      </button>
+    );
 
     return (
       <div className="min-h-screen p-6">
@@ -1477,49 +1495,25 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20">
+        <div className="max-w-4xl mx-auto pt-20">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">🎁</div>
             <h2 className="text-4xl font-bold text-amber-400 mb-2">Butin obtenu !</h2>
-            <p className="text-gray-300">
+            <p className="text-gray-300 mb-2">
               {highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
                 ? 'Vous avez vaincu tous les boss !'
                 : highestLevelBeaten > 0
                   ? `Vous avez atteint le niveau ${highestLevelBeaten}`
                   : 'Défaite au premier niveau'}
             </p>
+            <p className="text-amber-200 text-sm">Choisissez une arme :</p>
           </div>
 
-          {/* Arme droppée */}
-          <div className={`p-6 border-2 ${RARITY_BORDER_COLORS[lootWeapon.rarete]} ${getOpaqueRarityBg(lootWeapon.rarete)} mb-6`}>
-            <div className="text-center">
-              {getWeaponImage(lootWeapon.imageFile) ? (
-                <img src={getWeaponImage(lootWeapon.imageFile)} alt={lootWeapon.nom} className="w-32 h-auto mx-auto mb-3" />
-              ) : (
-                <div className="text-6xl mb-3">{lootWeapon.icon}</div>
-              )}
-              <h3 className={`text-2xl font-bold ${RARITY_COLORS[lootWeapon.rarete]}`}>{lootWeapon.nom}</h3>
-              <p className={`text-sm uppercase ${RARITY_COLORS[lootWeapon.rarete]}`}>{lootWeapon.rarete}</p>
-              <p className="text-gray-400 text-sm mt-2">{lootWeapon.description}</p>
-
-              <div className="mt-4 flex justify-center gap-4 flex-wrap">
-                {Object.entries(lootWeapon.stats).map(([stat, value]) => (
-                  <div key={stat} className="bg-stone-800 px-3 py-1 border border-stone-600">
-                    <span className="text-gray-400 text-sm">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
-                    <span className={`ml-2 font-bold ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {value > 0 ? '+' : ''}{value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {lootWeapon.effet && (
-                <div className="mt-4 bg-amber-900/30 border border-amber-600 p-3">
-                  <p className="text-amber-300 font-bold">{lootWeapon.effet.nom}</p>
-                  <p className="text-amber-200 text-sm">{lootWeapon.effet.description}</p>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <WeaponCard weapon={lootWeapons[0]} onSelect={handleLootDecision} />
+            {lootWeapons[1] && (
+              <WeaponCard weapon={lootWeapons[1]} onSelect={handleLootDecision} />
+            )}
           </div>
 
           {hasCurrentWeapon && (
@@ -1544,34 +1538,6 @@ const Dungeon = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {hasCurrentWeapon ? (
-            <div className="flex gap-4">
-              <button onClick={() => handleLootDecision(false)} className="flex-1 bg-stone-700 hover:bg-stone-600 text-white px-6 py-4 font-bold border border-stone-500">
-                Garder mon arme
-              </button>
-              <button onClick={() => handleLootDecision(true)} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white px-6 py-4 font-bold border border-amber-500">
-                Équiper la nouvelle
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-sm text-stone-300">
-                Aucune arme équipée : la nouvelle arme est équipée automatiquement.
-              </p>
-              <button
-                onClick={() => handleLootDecision(true)}
-                disabled={!autoEquipDone}
-                className={`w-full px-6 py-4 font-bold border ${
-                  autoEquipDone
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500'
-                    : 'bg-stone-700 text-stone-500 border-stone-600 cursor-not-allowed'
-                }`}
-              >
-                {autoEquipDone ? 'Continuer' : 'Équipement en cours...'}
-              </button>
             </div>
           )}
         </div>

@@ -36,7 +36,8 @@ import {
 import {
   getMageTowerPassiveById,
   getMageTowerPassiveLevel,
-  rollMageTowerPassive
+  rollMageTowerPassive,
+  rollMageTowerPassivePair
 } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
@@ -1026,16 +1027,8 @@ const MageTower = () => {
       return;
     }
 
-    const droppedPassive = rollMageTowerPassiveReward(3);
+    const droppedPassives = rollMageTowerPassivePair(3);
     await markDungeonCompleted(currentUser.uid, 'mageTower');
-
-    let autoEquipped = false;
-    if (!equippedPassive && droppedPassive) {
-      autoEquipped = true;
-      setEquippedPassive(droppedPassive);
-      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
-      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
-    }
 
     setCanInstantFinish(true);
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
@@ -1044,8 +1037,7 @@ const MageTower = () => {
     }
 
     setRewardSummary({
-      droppedPassive,
-      autoEquipped,
+      droppedPassives,
       hasNextLevel: false,
       nextLevel: 4
     });
@@ -1084,20 +1076,7 @@ const MageTower = () => {
       setCombatLog([...logs]);
       setCombatResult('victory');
 
-      const droppedPassive = rollMageTowerPassiveReward(currentLevel);
-      let autoEquipped = false;
-      let updatedPassive = equippedPassive;
-      if (!equippedPassive && droppedPassive) {
-        updatedPassive = droppedPassive;
-        autoEquipped = true;
-        setEquippedPassive(droppedPassive);
-        updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
-      }
-      const updatedCharacter = {
-        ...character,
-        mageTowerPassive: updatedPassive
-      };
-      setCharacter(updatedCharacter);
+      const droppedPassives = rollMageTowerPassivePair(currentLevel);
 
       const nextLevel = currentLevel + 1;
       if (nextLevel > getAllMageTowerLevels().length) {
@@ -1105,8 +1084,7 @@ const MageTower = () => {
         setCanInstantFinish(true);
       }
       setRewardSummary({
-        droppedPassive,
-        autoEquipped,
+        droppedPassives,
         hasNextLevel: nextLevel <= getAllMageTowerLevels().length,
         nextLevel
       });
@@ -1153,18 +1131,14 @@ const MageTower = () => {
     }
   };
 
-  const handlePassiveDecision = async (equipNew) => {
-    if (!rewardSummary) return;
-    const droppedPassive = rewardSummary.droppedPassive;
-    const nextPassive = equipNew && droppedPassive ? droppedPassive : equippedPassive;
+  const handlePassiveDecision = async (chosenPassive) => {
+    if (!rewardSummary || !chosenPassive) return;
 
-    if (equipNew && droppedPassive) {
-      setEquippedPassive(droppedPassive);
-      await updateCharacterMageTowerPassive(currentUser.uid, droppedPassive);
-      setCharacter((prev) => prev ? { ...prev, mageTowerPassive: droppedPassive } : prev);
-    }
+    setEquippedPassive(chosenPassive);
+    await updateCharacterMageTowerPassive(currentUser.uid, chosenPassive);
+    setCharacter((prev) => prev ? { ...prev, mageTowerPassive: chosenPassive } : prev);
 
-    handleRewardContinue(nextPassive);
+    handleRewardContinue(chosenPassive);
   };
 
   const handleBackToLobby = () => {
@@ -1471,8 +1445,25 @@ const MageTower = () => {
   const levels = getAllMageTowerLevels();
 
   if (gameState === 'reward' && rewardSummary) {
-    const droppedDetails = getPassiveDetails(rewardSummary.droppedPassive);
+    const droppedPassives = rewardSummary.droppedPassives || [];
+    const details = droppedPassives.map(p => getPassiveDetails(p));
     const equippedDetails = getPassiveDetails(equippedPassive);
+
+    const PassiveCard = ({ passive, detail, onSelect }) => (
+      <button
+        onClick={() => onSelect(passive)}
+        className="flex-1 bg-stone-900/60 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-900/80 transition-all cursor-pointer text-center"
+      >
+        <div className="text-4xl mb-2">{detail.icon}</div>
+        <div className="text-amber-300 font-semibold">
+          {detail.name} — Niveau {detail.level}
+        </div>
+        <div className="text-stone-400 text-sm mt-2">
+          {detail.levelData.description}
+        </div>
+      </button>
+    );
+
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
@@ -1480,26 +1471,23 @@ const MageTower = () => {
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-800 border border-amber-600 p-8 max-w-md w-full text-center">
+        <div className="bg-stone-800 border border-amber-600 p-8 max-w-xl w-full text-center">
           <div className="text-6xl mb-4">🪄</div>
           <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
-          <p className="text-stone-300 mb-6">
-            Vous trouvez un passif mystique pour la Tour du Mage.
+          <p className="text-stone-300 mb-2">
+            Vous trouvez des passifs mystiques.
           </p>
-          {droppedDetails && (
-            <div className="bg-stone-900/60 border border-stone-600 p-4 mb-6">
-              <div className="text-4xl mb-2">{droppedDetails.icon}</div>
-              <div className="text-amber-300 font-semibold">
-                {droppedDetails.name} — Niveau {droppedDetails.level}
-              </div>
-              <div className="text-stone-400 text-sm mt-2">
-                {droppedDetails.levelData.description}
-              </div>
-            </div>
-          )}
-          {equippedDetails && !rewardSummary.autoEquipped && (
-            <div className="bg-stone-900/40 border border-stone-700 p-3 mb-6 text-left">
-              <div className="text-stone-300 text-xs uppercase mb-2">Passif actuel</div>
+          <p className="text-amber-200 text-sm mb-6">Choisissez un passif :</p>
+
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {details.map((detail, i) => detail && (
+              <PassiveCard key={i} passive={droppedPassives[i]} detail={detail} onSelect={handlePassiveDecision} />
+            ))}
+          </div>
+
+          {equippedDetails && (
+            <div className="bg-stone-900/40 border border-stone-700 p-3 text-left">
+              <div className="text-stone-300 text-xs uppercase mb-2">Passif actuellement équipé</div>
               <div className="flex items-start gap-2">
                 <span className="text-xl">{equippedDetails.icon}</span>
                 <div>
@@ -1510,37 +1498,6 @@ const MageTower = () => {
                     {equippedDetails.levelData.description}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-          {rewardSummary.autoEquipped ? (
-            <>
-              <p className="text-emerald-300 mb-4 text-sm">
-                Aucun passif équipé : le nouveau passif est automatiquement équipé.
-              </p>
-              <button
-                onClick={handleRewardContinue}
-                className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-3 font-bold border-2 border-stone-400"
-              >
-                {rewardSummary.hasNextLevel ? 'Continuer' : 'Terminer'}
-              </button>
-            </>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <p className="text-stone-300 text-sm">Remplacer votre passif actuel ?</p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => handlePassiveDecision(true)}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 font-bold border border-amber-500"
-                >
-                  Oui
-                </button>
-                <button
-                  onClick={() => handlePassiveDecision(false)}
-                  className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 font-bold border border-stone-500"
-                >
-                  Non
-                </button>
               </div>
             </div>
           )}

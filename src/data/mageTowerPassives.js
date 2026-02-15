@@ -178,3 +178,17 @@ export const rollMageTowerPassive = (level) => {
   const passive = MAGE_TOWER_PASSIVES[Math.floor(Math.random() * MAGE_TOWER_PASSIVES.length)];
   return passive ? { id: passive.id, level } : null;
 };
+
+export const rollMageTowerPassivePair = (level) => {
+  const idx1 = Math.floor(Math.random() * MAGE_TOWER_PASSIVES.length);
+  let idx2 = Math.floor(Math.random() * MAGE_TOWER_PASSIVES.length);
+  let attempts = 0;
+  while (idx2 === idx1 && attempts < 10) {
+    idx2 = Math.floor(Math.random() * MAGE_TOWER_PASSIVES.length);
+    attempts++;
+  }
+  return [
+    { id: MAGE_TOWER_PASSIVES[idx1].id, level },
+    { id: MAGE_TOWER_PASSIVES[idx2].id, level }
+  ];
+};
