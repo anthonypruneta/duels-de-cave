@@ -569,7 +569,7 @@ const Training = () => {
             <div className="mb-3">
               <div className="flex justify-between text-sm text-white mb-2">
                 <span className="text-orange-400">PV infinis</span>
-                <span className="text-stone-400">VIT: 0</span>
+                <span className="text-stone-400">VIT: {dummy.base.spd}</span>
               </div>
               <div className="text-xs text-stone-400 mb-2">Mannequin — Incassable</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
@@ -577,10 +577,10 @@ const Training = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: 0</div>
-              <div className="text-stone-400">Déf: 0</div>
-              <div className="text-stone-400">Cap: 0</div>
-              <div className="text-stone-400">ResC: 0</div>
+              <div className="text-stone-400">Auto: {dummy.base.auto}</div>
+              <div className="text-stone-400">Déf: {dummy.base.def}</div>
+              <div className="text-stone-400">Cap: {dummy.base.cap}</div>
+              <div className="text-stone-400">ResC: {dummy.base.rescap}</div>
             </div>
             <div className="space-y-2">
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
