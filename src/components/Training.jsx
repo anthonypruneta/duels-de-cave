@@ -26,7 +26,7 @@ import Header from './Header';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
-import mannequinImg from '../assets/training/mannequin.svg';
+import mannequinImg from '../assets/training/mannequin.png';
 
 // Chargement dynamique des images d'armes
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
