@@ -28,6 +28,7 @@ import {
   getRemainingRuns,
   getResetAnchor,
   getResetPeriodsSince,
+  getRunsSinceWeekStart,
   DUNGEON_CONSTANTS
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
@@ -139,12 +140,15 @@ export const getDungeonProgress = async (userId) => {
       return { success: true, data };
     } else {
       // Initialiser la progression si elle n'existe pas
+      // On attribue tous les essais depuis le lundi matin de la semaine
       console.log('ℹ️ Aucune progression, initialisation...');
+      const initialRuns = getRunsSinceWeekStart(new Date());
+      console.log(`🎁 Nouveau joueur: ${initialRuns} essais attribués (rattrapage depuis lundi)`);
       const initialProgress = {
         userId,
         equippedWeapon: null,
         runsToday: 0,
-        runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
+        runsAvailable: initialRuns,
         lastRunDate: null,
         lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
         totalRuns: 0,
@@ -490,7 +494,7 @@ export const markDungeonCompleted = async (userId, dungeonKey) => {
           updatedAt: Timestamp.now(),
           createdAt: Timestamp.now(),
           runsToday: 0,
-          runsAvailable: DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
+          runsAvailable: getRunsSinceWeekStart(new Date()),
           totalRuns: 0,
           bestRun: 0,
           totalBossKills: 0,
