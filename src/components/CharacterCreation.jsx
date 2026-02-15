@@ -1043,6 +1043,12 @@ const CharacterCreation = () => {
               🏰 Donjon 🏰
             </button>
             <button
+              onClick={() => navigate('/training')}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-orange-500 hover:border-orange-400 transition-all"
+            >
+              🎯 Entraînement 🎯
+            </button>
+            <button
               onClick={() => navigate('/labyrinthe-infini')}
               disabled={isDowntimeLocked}
               className="bg-fuchsia-700 hover:bg-fuchsia-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"

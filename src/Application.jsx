@@ -13,6 +13,7 @@ import MesAnciensPersonnages from './components/MesAnciensPersonnages';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import InfiniteLabyrinth from './components/InfiniteLabyrinth';
+import Training from './components/Training';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
@@ -113,6 +114,14 @@ function Application() {
             }
           />
 
+          <Route
+            path="/training"
+            element={
+              <ProtectedRoute>
+                <Training />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/labyrinthe-infini"
             element={
