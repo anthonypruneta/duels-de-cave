@@ -214,7 +214,7 @@ function getMindflayerSpellCooldown(caster, _target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
   let adjustedCooldown = baseCooldown;
 
-  if (caster.race === 'Mindflayer' && adjustedCooldown > 1) {
+  if (caster.race === 'Mindflayer' && adjustedCooldown > 1 && !caster.mindflayerFirstCDUsed) {
     const casterAwakening = caster.awakening || {};
     const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
     if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
@@ -610,6 +610,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const isWar = !spellStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerSpellCooldown(att, def, 'war');
   const isArcher = !spellStolen && att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
   skillUsed = skillUsed || isMage || isWar || isArcher;
+
+  // Mindflayer éveillé: marquer le flag après le premier sort lancé (le -1 CD ne s'applique qu'une fois)
+  if (skillUsed && att.race === 'Mindflayer' && !att.mindflayerFirstCDUsed) {
+    const aw = att.awakening || {};
+    const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
+    if (reduction > 0) att.mindflayerFirstCDUsed = true;
+  }
 
   let mult = 1.0;
   if (att.succubeWeakenNextAttack) {
