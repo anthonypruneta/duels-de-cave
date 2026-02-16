@@ -76,6 +76,16 @@ const WorldBossAdmin = ({ characters }) => {
     }
   }, [combatLogs]);
 
+  // Arrêter la musique uniquement en quittant la page (unmount)
+  useEffect(() => {
+    return () => {
+      if (bossAudioRef.current) {
+        bossAudioRef.current.pause();
+        bossAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     const [eventResult, lbResult] = await Promise.all([
@@ -215,9 +225,6 @@ const WorldBossAdmin = ({ characters }) => {
 
       setIsReplaying(false);
       setCombatResult(result);
-
-      // Arrêter la musique à la fin du combat
-      if (bossAudioRef.current) bossAudioRef.current.pause();
 
       // Enregistrer les dégâts en base
       if (result.damageDealt > 0) {
