@@ -21,7 +21,10 @@ import {
   collection,
   increment,
   Timestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot,
+  query,
+  orderBy
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss.js';
@@ -66,10 +69,24 @@ function isMorning() {
   return new Date().getHours() < 12;
 }
 
+function shouldAutoStartNow() {
+  return new Date().getHours() >= 18;
+}
+
 // ============================================================================
 // EVENT GLOBAL
 // ============================================================================
 const EVENT_DOC_REF = () => doc(db, 'worldBossEvent', 'current');
+
+const clearWorldBossDamages = async () => {
+  const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+  const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+  if (damagesSnap.empty) return;
+
+  const batch = writeBatch(db);
+  damagesSnap.docs.forEach((d) => batch.delete(d.ref));
+  await retryOperation(async () => batch.commit());
+};
 
 /**
  * Récupérer l'état de l'event
@@ -90,11 +107,42 @@ export const getWorldBossEvent = async () => {
   }
 };
 
+
+/**
+ * S'abonner en temps réel à l'état de l'event
+ * @param {(data: object | null) => void} onData
+ * @param {(error: Error) => void} onError
+ * @returns {() => void} unsubscribe
+ */
+export const subscribeWorldBossEvent = (onData, onError = () => {}) => {
+  let unsubscribe = () => {};
+
+  waitForFirestore()
+    .then(() => {
+      unsubscribe = onSnapshot(
+        EVENT_DOC_REF(),
+        (snap) => onData(snap.exists() ? snap.data() : null),
+        (error) => {
+          console.error('Erreur subscription event world boss:', error);
+          onError(error);
+        }
+      );
+    })
+    .catch((error) => {
+      console.error('Erreur init subscription event world boss:', error);
+      onError(error);
+    });
+
+  return () => unsubscribe();
+};
+
 /**
  * Démarrer l'event
  */
 export const startWorldBossEvent = async () => {
   try {
+    await clearWorldBossDamages();
+
     const eventData = {
       bossId: WORLD_BOSS.id,
       bossName: WORLD_BOSS.nom,
@@ -115,6 +163,51 @@ export const startWorldBossEvent = async () => {
     return { success: true, data: eventData };
   } catch (error) {
     console.error('Erreur démarrage event:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Lancement auto quotidien à partir de 18h (idempotent)
+ * - Ne fait rien si l'event est déjà actif
+ * - Ne relance pas plusieurs fois le même jour
+ */
+export const ensureWorldBossAutoStart = async () => {
+  try {
+    if (!shouldAutoStartNow()) return { success: true, skipped: true, reason: 'before_18h' };
+
+    const todayKey = getTodayKey();
+    const snap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    const data = snap.exists() ? snap.data() : null;
+
+    if (data?.status === EVENT_STATUS.ACTIVE) {
+      return { success: true, skipped: true, reason: 'already_active' };
+    }
+
+    if (data?.lastAutoStartDateKey === todayKey) {
+      return { success: true, skipped: true, reason: 'already_started_today' };
+    }
+
+    await clearWorldBossDamages();
+
+    const eventData = {
+      bossId: WORLD_BOSS.id,
+      bossName: WORLD_BOSS.nom,
+      status: EVENT_STATUS.ACTIVE,
+      hpMax: WORLD_BOSS.baseStats.hp,
+      hpRemaining: WORLD_BOSS.baseStats.hp,
+      totalDamageDealt: 0,
+      totalAttempts: 0,
+      startedAt: Timestamp.now(),
+      endedAt: null,
+      lastAutoStartDateKey: todayKey,
+      updatedAt: Timestamp.now()
+    };
+
+    await retryOperation(async () => setDoc(EVENT_DOC_REF(), eventData));
+    return { success: true, started: true };
+  } catch (error) {
+    console.error('Erreur lancement auto world boss:', error);
     return { success: false, error: error.message };
   }
 };
@@ -301,6 +394,40 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
     console.error('Erreur enregistrement dégâts:', error);
     return { success: false, error: error.message };
   }
+};
+
+
+/**
+ * S'abonner en temps réel au leaderboard
+ * @param {(entries: Array<object>) => void} onData
+ * @param {(error: Error) => void} onError
+ * @returns {() => void} unsubscribe
+ */
+export const subscribeLeaderboard = (onData, onError = () => {}) => {
+  let unsubscribe = () => {};
+
+  waitForFirestore()
+    .then(() => {
+      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+      const q = query(damagesRef, orderBy('totalDamage', 'desc'));
+      unsubscribe = onSnapshot(
+        q,
+        (snap) => {
+          const entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          onData(entries);
+        },
+        (error) => {
+          console.error('Erreur subscription leaderboard world boss:', error);
+          onError(error);
+        }
+      );
+    })
+    .catch((error) => {
+      console.error('Erreur init subscription leaderboard world boss:', error);
+      onError(error);
+    });
+
+  return () => unsubscribe();
 };
 
 /**

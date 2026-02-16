@@ -17,11 +17,14 @@ import {
   forceNewDay,
   canAttemptBoss,
   recordAttemptDamage,
-  getLeaderboard
+  getLeaderboard,
+  subscribeWorldBossEvent,
+  subscribeLeaderboard
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
+import cataclysmeBossImage from '../assets/bosses/dragon.png';
 
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
@@ -29,7 +32,7 @@ const STATUS_LABELS = {
   [EVENT_STATUS.FINISHED]: { text: 'Terminé', color: 'text-red-400', dot: 'bg-red-500' }
 };
 
-const WorldBossAdmin = ({ characters }) => {
+const WorldBossAdmin = ({ characters, isAdmin = true }) => {
   // État event
   const [eventData, setEventData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +67,49 @@ const WorldBossAdmin = ({ characters }) => {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Chargement initial
+  // Chargement initial + mises à jour temps réel
   useEffect(() => {
-    loadData();
+    let gotEventSnapshot = false;
+    let gotLeaderboardSnapshot = false;
+
+    const maybeStopLoading = () => {
+      if (gotEventSnapshot && gotLeaderboardSnapshot) {
+        setLoading(false);
+      }
+    };
+
+    setLoading(true);
+
+    const unsubscribeEvent = subscribeWorldBossEvent(
+      (data) => {
+        setEventData(data);
+        gotEventSnapshot = true;
+        maybeStopLoading();
+      },
+      (error) => {
+        console.error('Erreur live event world boss:', error);
+        gotEventSnapshot = true;
+        maybeStopLoading();
+      }
+    );
+
+    const unsubscribeLeaderboard = subscribeLeaderboard(
+      (entries) => {
+        setLeaderboard(entries);
+        gotLeaderboardSnapshot = true;
+        maybeStopLoading();
+      },
+      (error) => {
+        console.error('Erreur live leaderboard world boss:', error);
+        gotLeaderboardSnapshot = true;
+        maybeStopLoading();
+      }
+    );
+
+    return () => {
+      unsubscribeEvent();
+      unsubscribeLeaderboard();
+    };
   }, []);
 
   // Auto-scroll logs
@@ -75,6 +118,16 @@ const WorldBossAdmin = ({ characters }) => {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [combatLogs]);
+
+  // Arrêter la musique uniquement en quittant la page (unmount)
+  useEffect(() => {
+    return () => {
+      if (bossAudioRef.current) {
+        bossAudioRef.current.pause();
+        bossAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,6 +148,13 @@ const WorldBossAdmin = ({ characters }) => {
     }
     canAttemptBoss(selectedCharId).then(result => setAttemptInfo(result));
   }, [selectedCharId, eventData]);
+
+  // Vue joueur: présélectionner automatiquement son unique personnage
+  useEffect(() => {
+    if (!isAdmin && !selectedCharId && Array.isArray(characters) && characters.length === 1) {
+      setSelectedCharId(characters[0].id);
+    }
+  }, [isAdmin, selectedCharId, characters]);
 
   // ============================================================================
   // ACTIONS ADMIN
@@ -216,9 +276,6 @@ const WorldBossAdmin = ({ characters }) => {
       setIsReplaying(false);
       setCombatResult(result);
 
-      // Arrêter la musique à la fin du combat
-      if (bossAudioRef.current) bossAudioRef.current.pause();
-
       // Enregistrer les dégâts en base
       if (result.damageDealt > 0) {
         await recordAttemptDamage(selectedCharId, character.name, result.damageDealt);
@@ -320,7 +377,7 @@ const WorldBossAdmin = ({ characters }) => {
 
   if (loading) {
     return (
-      <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
+      <div className="bg-gradient-to-b from-stone-900/90 via-stone-900/80 to-black/80 border-2 border-red-700 rounded-xl p-6 mb-8 shadow-[0_0_40px_rgba(220,38,38,0.15)]">
         <h2 className="text-2xl font-bold text-red-400 mb-4">☄️ Cataclysme (Test)</h2>
         <p className="text-stone-400">Chargement...</p>
       </div>
@@ -328,9 +385,13 @@ const WorldBossAdmin = ({ characters }) => {
   }
 
   return (
-    <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
-      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial (Test)</h2>
-      <p className="text-stone-400 text-sm mb-6">Mode en test : aucune reward active et aucune exposition côté joueurs.</p>
+    <div className="bg-gradient-to-b from-stone-900/90 via-stone-900/80 to-black/80 border-2 border-red-700 rounded-xl p-6 mb-8 shadow-[0_0_40px_rgba(220,38,38,0.15)]">
+      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial{isAdmin ? ' (Test)' : ''}</h2>
+      <p className="text-stone-400 text-sm mb-6">
+        {isAdmin
+          ? 'Mode en test : aucune reward active et aucune exposition côté joueurs.'
+          : 'Mode joueur : 2 tentatives par jour (matin + après-midi).'}
+      </p>
 
       {/* ================================================================ */}
       {/* ÉTAT DE L'EVENT */}
@@ -348,6 +409,20 @@ const WorldBossAdmin = ({ characters }) => {
             {eventData?.endedAt && (
               <span className="ml-4">Terminé: {eventData.endedAt.toDate().toLocaleString('fr-FR')}</span>
             )}
+          </div>
+        </div>
+
+        {/* Visuel boss */}
+        <div className="mb-4 bg-stone-900/70 border border-red-800 rounded-lg p-3">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <div className="w-28 h-28 md:w-36 md:h-36 rounded-lg overflow-hidden border-2 border-red-700 bg-stone-950">
+              <img src={cataclysmeBossImage} alt={WORLD_BOSS.nom} className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1 text-center md:text-left">
+              <div className="text-red-300 text-sm uppercase tracking-wide">Boss mondial</div>
+              <div className="text-2xl font-extrabold text-red-400">{WORLD_BOSS.nom}</div>
+              <div className="text-stone-400 text-sm mt-1">{WORLD_BOSS.description}</div>
+            </div>
           </div>
         </div>
 
@@ -375,6 +450,8 @@ const WorldBossAdmin = ({ characters }) => {
         </div>
       </div>
 
+      {isAdmin && (
+        <>
       {/* ================================================================ */}
       {/* BOUTONS ADMIN */}
       {/* ================================================================ */}
@@ -408,6 +485,8 @@ const WorldBossAdmin = ({ characters }) => {
           🌅 Forcer nouvelle journée
         </button>
       </div>
+      </>
+      )}
 
       {/* ================================================================ */}
       {/* SIMULATION DE COMBAT */}
@@ -532,6 +611,8 @@ const WorldBossAdmin = ({ characters }) => {
         </div>
       )}
 
+      {isAdmin && (
+      <>
       {/* ================================================================ */}
       {/* SIMULATION DE MASSE */}
       {/* ================================================================ */}
@@ -650,6 +731,8 @@ const WorldBossAdmin = ({ characters }) => {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
 
       {/* ================================================================ */}
