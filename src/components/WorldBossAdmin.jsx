@@ -17,9 +17,7 @@ import {
   forceNewDay,
   canAttemptBoss,
   recordAttemptDamage,
-  getLeaderboard,
-  subscribeWorldBossEvent,
-  subscribeLeaderboard
+  getLeaderboard
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
@@ -66,49 +64,9 @@ const WorldBossAdmin = ({ characters }) => {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Chargement initial + mises à jour temps réel
+  // Chargement initial
   useEffect(() => {
-    let gotEventSnapshot = false;
-    let gotLeaderboardSnapshot = false;
-
-    const maybeStopLoading = () => {
-      if (gotEventSnapshot && gotLeaderboardSnapshot) {
-        setLoading(false);
-      }
-    };
-
-    setLoading(true);
-
-    const unsubscribeEvent = subscribeWorldBossEvent(
-      (data) => {
-        setEventData(data);
-        gotEventSnapshot = true;
-        maybeStopLoading();
-      },
-      (error) => {
-        console.error('Erreur live event world boss:', error);
-        gotEventSnapshot = true;
-        maybeStopLoading();
-      }
-    );
-
-    const unsubscribeLeaderboard = subscribeLeaderboard(
-      (entries) => {
-        setLeaderboard(entries);
-        gotLeaderboardSnapshot = true;
-        maybeStopLoading();
-      },
-      (error) => {
-        console.error('Erreur live leaderboard world boss:', error);
-        gotLeaderboardSnapshot = true;
-        maybeStopLoading();
-      }
-    );
-
-    return () => {
-      unsubscribeEvent();
-      unsubscribeLeaderboard();
-    };
+    loadData();
   }, []);
 
   // Auto-scroll logs
@@ -117,16 +75,6 @@ const WorldBossAdmin = ({ characters }) => {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [combatLogs]);
-
-  // Arrêter la musique uniquement en quittant la page (unmount)
-  useEffect(() => {
-    return () => {
-      if (bossAudioRef.current) {
-        bossAudioRef.current.pause();
-        bossAudioRef.current.currentTime = 0;
-      }
-    };
-  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -267,6 +215,9 @@ const WorldBossAdmin = ({ characters }) => {
 
       setIsReplaying(false);
       setCombatResult(result);
+
+      // Arrêter la musique à la fin du combat
+      if (bossAudioRef.current) bossAudioRef.current.pause();
 
       // Enregistrer les dégâts en base
       if (result.damageDealt > 0) {
