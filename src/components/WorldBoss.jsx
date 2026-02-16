@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -520,8 +520,19 @@ const WorldBoss = () => {
   );
 
   // === Lancer le combat ===
+  const [attemptError, setAttemptError] = useState(null);
+
   const handleFight = async () => {
     if (!character || !eventData || eventData.status !== EVENT_STATUS.ACTIVE || isSimulating) return;
+    setAttemptError(null);
+
+    // Vérifier si le joueur peut tenter le boss
+    const charId = character.userId || currentUser.uid;
+    const check = await canAttemptBoss(charId);
+    if (!check.canAttempt) {
+      setAttemptError(check.reason);
+      return;
+    }
 
     setIsSimulating(true);
     setWinner(null);
@@ -564,7 +575,12 @@ const WorldBoss = () => {
 
     setIsSimulating(false);
     setCombatResult(result);
-    // Combat non enregistré (mode test)
+
+    // Enregistrer les dégâts dans Firestore (met à jour HP boss + leaderboard en temps réel)
+    if (result.damageDealt > 0) {
+      const charId = character.userId || currentUser.uid;
+      await recordAttemptDamage(charId, character.name, result.damageDealt);
+    }
   };
 
   // === Variables ===
@@ -701,7 +717,9 @@ const WorldBoss = () => {
                 >
                   ☄️ Affronter {boss.name}
                 </button>
-                <p className="text-stone-500 text-xs text-center">Mode test — le combat ne sera pas enregistré</p>
+                {attemptError && (
+                  <p className="text-red-400 text-sm text-center bg-red-900/30 border border-red-700 px-4 py-2">{attemptError}</p>
+                )}
                 <button onClick={() => navigate('/')} className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition">
                   ⬅️ Retour
                 </button>
