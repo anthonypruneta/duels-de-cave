@@ -10,21 +10,18 @@ export const applyAwakeningToBase = (base, awakeningEffect) => {
   if (!awakeningEffect) return { ...base };
   let updated = { ...base };
 
-  // Important: appliquer d'abord les bonus plats puis les multiplicateurs (%)
-  // pour que les effets en pourcentage prennent aussi en compte les bonus fixes
-  // (ex: boosts forêt, bonus race/classe, ou bonus plats d'éveil).
-  if (awakeningEffect.statBonuses) {
-    for (const [stat, bonus] of Object.entries(awakeningEffect.statBonuses)) {
-      if (typeof updated[stat] === 'number') {
-        updated[stat] = Math.round(updated[stat] + bonus);
-      }
-    }
-  }
-
   if (awakeningEffect.statMultipliers) {
     for (const [stat, multiplier] of Object.entries(awakeningEffect.statMultipliers)) {
       if (typeof updated[stat] === 'number') {
         updated[stat] = Math.round(updated[stat] * multiplier);
+      }
+    }
+  }
+
+  if (awakeningEffect.statBonuses) {
+    for (const [stat, bonus] of Object.entries(awakeningEffect.statBonuses)) {
+      if (typeof updated[stat] === 'number') {
+        updated[stat] = Math.round(updated[stat] + bonus);
       }
     }
   }
