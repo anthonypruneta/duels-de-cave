@@ -97,14 +97,24 @@ const WorldBossAdmin = ({ characters }) => {
   const handleStart = async () => {
     setActionLoading(true);
     const result = await startWorldBossEvent();
-    if (result.success) await loadData();
+    if (result.success) {
+      await loadData();
+    } else {
+      console.error('Échec démarrage event:', result.error);
+      setCombatLogs([`❌ Échec démarrage event : ${result.error}`]);
+    }
     setActionLoading(false);
   };
 
   const handleEnd = async () => {
     setActionLoading(true);
     const result = await endWorldBossEvent();
-    if (result.success) await loadData();
+    if (result.success) {
+      await loadData();
+    } else {
+      console.error('Échec fin event:', result.error);
+      setCombatLogs([`❌ Échec fin event : ${result.error}`]);
+    }
     setActionLoading(false);
   };
 
@@ -114,7 +124,12 @@ const WorldBossAdmin = ({ characters }) => {
     setCombatLogs([]);
     setAttemptInfo(null);
     const result = await resetWorldBossEvent();
-    if (result.success) await loadData();
+    if (result.success) {
+      await loadData();
+    } else {
+      console.error('Échec reset event:', result.error);
+      setCombatLogs([`❌ Échec reset event : ${result.error}`]);
+    }
     setActionLoading(false);
   };
 
@@ -212,7 +227,7 @@ const WorldBossAdmin = ({ characters }) => {
   // ============================================================================
   // MASS SIMULATION (12 combats par personnage)
   // ============================================================================
-  const MASS_SIM_FIGHTS = 12;
+  const MASS_SIM_FIGHTS = 6;
 
   const handleMassSimulation = async () => {
     if (!eventData || eventData.status !== EVENT_STATUS.ACTIVE) return;
