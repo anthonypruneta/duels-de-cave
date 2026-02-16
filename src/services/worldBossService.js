@@ -21,7 +21,8 @@ import {
   collection,
   increment,
   Timestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss.js';
@@ -324,4 +325,40 @@ export const getLeaderboard = async () => {
     console.error('Erreur récupération leaderboard:', error);
     return { success: false, error: error.message };
   }
+};
+
+// ============================================================================
+// LISTENERS TEMPS RÉEL
+// ============================================================================
+
+/**
+ * Écouter les changements de l'event en temps réel (HP du boss, statut, etc.)
+ * Retourne une fonction unsubscribe à appeler au démontage
+ */
+export const onWorldBossEventChange = (callback) => {
+  return onSnapshot(EVENT_DOC_REF(), (snap) => {
+    if (snap.exists()) {
+      callback(snap.data());
+    }
+  }, (error) => {
+    console.error('Erreur listener event world boss:', error);
+  });
+};
+
+/**
+ * Écouter les changements du leaderboard en temps réel
+ * Retourne une fonction unsubscribe à appeler au démontage
+ */
+export const onLeaderboardChange = (callback) => {
+  const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+  return onSnapshot(damagesRef, (snap) => {
+    const entries = [];
+    snap.docs.forEach(d => {
+      entries.push({ id: d.id, ...d.data() });
+    });
+    entries.sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0));
+    callback(entries);
+  }, (error) => {
+    console.error('Erreur listener leaderboard:', error);
+  });
 };
