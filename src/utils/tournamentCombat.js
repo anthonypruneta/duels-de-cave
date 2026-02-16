@@ -150,7 +150,7 @@ export function preparerCombattant(char) {
     base: baseWithClassPassive,
     currentHP: baseWithClassPassive.hp,
     maxHP: baseWithClassPassive.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,
@@ -647,6 +647,30 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
+  }
+
+  // ===== CAPACITÉS SPÉCIALES DES BOSS =====
+  if (att.isBoss && att.ability) {
+    att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
+
+    // Bandit: Saignement tous les N tours
+    if (att.bossId === 'bandit' && att.cd.boss_ability >= att.ability.cooldown) {
+      def.bleed_stacks = (def.bleed_stacks || 0) + (att.ability.effect?.stacksPerHit || 1);
+      log.push(`${playerColor} 🗡️ ${att.name} empoisonne sa lame et applique un saignement !`);
+      att.cd.boss_ability = 0;
+    }
+
+    // Dragon: Sort dévastateur tous les N tours
+    if (att.bossId === 'dragon' && att.cd.boss_ability >= att.ability.cooldown) {
+      const spellDmg = Math.round(att.base.cap * (1 + (att.ability.effect?.damageBonus || 0.5)));
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        reviveUndead(def, att, log, playerColor);
+      }
+      att.cd.boss_ability = 0;
+    }
   }
 
   const isMage = !spellStolen && att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
