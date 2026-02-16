@@ -36,7 +36,7 @@ const WorldBoss = () => {
   const characters = useMemo(() => (character ? [character] : []), [character]);
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(127,29,29,0.35),_rgba(12,10,9,0.95)_55%)] p-6">
       <Header />
       <div className="max-w-[1800px] mx-auto pt-16">
         <button
