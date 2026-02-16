@@ -180,16 +180,6 @@ const WorldBoss = () => {
     }
   }, [volume, isMuted]);
 
-  // Auto-scroll logs (desktop only)
-  const shouldAutoScrollLog = () => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(min-width: 768px)').matches;
-  };
-
-  useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [combatLog]);
 
   // Contrôle son
   const SoundControl = () => (
@@ -430,9 +420,6 @@ const WorldBoss = () => {
 
     return (
       <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-red-900 text-red-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-red-600 z-10">
-          ☄️ Boss Cataclysme
-        </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
             {boss.image ? (
@@ -442,18 +429,8 @@ const WorldBoss = () => {
                 <span className="text-8xl">☄️</span>
               </div>
             )}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-red-400 font-bold text-xl text-center">{boss.name}</div>
-            </div>
           </div>
           <div className="bg-stone-800 p-4 border-t border-red-800">
-            {/* Barre de vie combat */}
-            <div className="mb-3">
-              <div className="text-xs text-stone-400 mb-2">{boss.name} — PV {Math.max(0, bossCurrentHP)}/{bossMax}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-red-800">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${Math.max(0, hpPct)}%`}} />
-              </div>
-            </div>
             {/* Stats du boss */}
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <div className="text-red-300">Auto: {WORLD_BOSS.baseStats.auto}</div>
