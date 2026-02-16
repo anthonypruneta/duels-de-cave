@@ -75,14 +75,11 @@ function Header() {
     }
   };
 
-  const isAdmin = currentUser?.email === 'antho.pruneta@gmail.com';
-
   const navLinks = [
     { path: '/', label: '🏠', title: 'Accueil' },
     { path: '/tournament', label: '🏆', title: 'Tournoi' },
     { path: '/hall-of-fame', label: '👑', title: 'Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜', title: 'Anciens Persos' },
-    ...(isAdmin ? [{ path: '/world-boss', label: '☄️', title: 'Cataclysme' }] : []),
   ];
 
   return (
