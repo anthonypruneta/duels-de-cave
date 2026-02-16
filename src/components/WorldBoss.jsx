@@ -389,8 +389,9 @@ const WorldBoss = () => {
       const passiveAutoBonus = statKey === 'auto'
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
-      const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
-      const totalDelta = totalBonus(statKey) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
+      const forestDelta = forestBoosts[statKey] || 0;
+      const displayValue = baseStats[statKey] + forestDelta + weaponDelta + passiveAutoBonus;
+      const totalDelta = totalBonus(statKey) + forestDelta + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
         <span className={totalDelta !== 0 ? labelClass : ''}>
@@ -482,7 +483,7 @@ const WorldBoss = () => {
                 <span className="text-lg">{classes[char.class]?.icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, baseStats.cap + (forestBoosts.cap || 0) + (weapon?.stats?.cap ?? 0), baseStats.auto + (forestBoosts.auto || 0) + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             </div>
