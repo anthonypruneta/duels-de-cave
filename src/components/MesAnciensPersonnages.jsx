@@ -10,6 +10,7 @@ const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,7 +73,8 @@ const MesAnciensPersonnages = () => {
                   <img
                     src={char.characterImage}
                     alt={char.name}
-                    className="w-full max-h-48 object-contain mb-3 bg-stone-900 rounded"
+                    className="w-full max-h-48 object-contain mb-3 bg-stone-900 rounded cursor-pointer hover:opacity-80 transition"
+                    onClick={() => setSelectedImage(char.characterImage)}
                   />
                 )}
                 <div className="flex items-center gap-2 mb-2">
@@ -154,6 +156,20 @@ const MesAnciensPersonnages = () => {
           </button>
         </div>
       </div>
+
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <img
+            src={selectedImage}
+            alt="Personnage agrandi"
+            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
