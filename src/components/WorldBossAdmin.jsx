@@ -24,7 +24,6 @@ import {
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
-import cataclysmeBossImage from '../assets/bosses/dragon.png';
 
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
@@ -393,7 +392,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-b from-stone-900/90 via-stone-900/80 to-black/80 border-2 border-red-700 rounded-xl p-6 mb-8 shadow-[0_0_40px_rgba(220,38,38,0.15)]">
+      <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
         <h2 className="text-2xl font-bold text-red-400 mb-4">☄️ Cataclysme (Test)</h2>
         <p className="text-stone-400">Chargement...</p>
       </div>
@@ -401,7 +400,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
   }
 
   return (
-    <div className="bg-gradient-to-b from-stone-900/90 via-stone-900/80 to-black/80 border-2 border-red-700 rounded-xl p-6 mb-8 shadow-[0_0_40px_rgba(220,38,38,0.15)]">
+    <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
       <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial{isAdmin ? ' (Test)' : ''}</h2>
       <p className="text-stone-400 text-sm mb-6">
         {isAdmin
@@ -425,20 +424,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
             {eventData?.endedAt && (
               <span className="ml-4">Terminé: {eventData.endedAt.toDate().toLocaleString('fr-FR')}</span>
             )}
-          </div>
-        </div>
-
-        {/* Visuel boss */}
-        <div className="mb-4 bg-stone-900/70 border border-red-800 rounded-lg p-3">
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="w-28 h-28 md:w-36 md:h-36 rounded-lg overflow-hidden border-2 border-red-700 bg-stone-950">
-              <img src={cataclysmeBossImage} alt={WORLD_BOSS.nom} className="w-full h-full object-cover" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <div className="text-red-300 text-sm uppercase tracking-wide">Boss mondial</div>
-              <div className="text-2xl font-extrabold text-red-400">{WORLD_BOSS.nom}</div>
-              <div className="text-stone-400 text-sm mt-1">{WORLD_BOSS.description}</div>
-            </div>
           </div>
         </div>
 
