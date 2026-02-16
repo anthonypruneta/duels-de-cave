@@ -18,12 +18,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
-import { loadPersistedBalanceConfig } from './services/balanceConfigService';
-<<<<<<< HEAD
-import { ensureWorldBossAutoStart } from './services/worldBossService';
 import WorldBoss from './components/WorldBoss';
-=======
->>>>>>> parent of 8fa3e24 (Avoid WorldBoss symbol collision in app routes)
+import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
 
@@ -138,7 +134,6 @@ function Application() {
             }
           />
           <Route
-<<<<<<< HEAD
             path="/cataclysme"
             element={
               <ProtectedRoute>
@@ -147,8 +142,6 @@ function Application() {
             }
           />
           <Route
-=======
->>>>>>> parent of 8fa3e24 (Avoid WorldBoss symbol collision in app routes)
             path="/admin"
             element={
               <ProtectedRoute>
