@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, getDisabledCharacters } from '../services/characterService';
-import { clearEquippedWeapon, getLatestDungeonRunsGrant } from '../services/dungeonService';
+import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
+import { resetUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
@@ -786,7 +787,8 @@ const CharacterCreation = () => {
       if (result.success) {
         // Supprimer le pending roll
         await deletePendingRoll(currentUser.uid);
-        await clearEquippedWeapon(currentUser.uid);
+        await resetDungeonRuns(currentUser.uid);
+        await resetUserLabyrinthProgress(currentUser.uid);
         if (pseudoStorageKey) localStorage.setItem(pseudoStorageKey, normalizePseudo(ownerPseudo));
         setExistingCharacter(newChar);
         setEquippedWeapon(null);
