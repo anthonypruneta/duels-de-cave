@@ -55,6 +55,10 @@ const WorldBossAdmin = ({ characters }) => {
   const replayTimeoutRef = useRef(null);
   const logContainerRef = useRef(null);
 
+  // Mass simulation
+  const [massSimLoading, setMassSimLoading] = useState(false);
+  const [massSimResults, setMassSimResults] = useState(null);
+
   // Chargement initial
   useEffect(() => {
     loadData();
@@ -203,6 +207,75 @@ const WorldBossAdmin = ({ characters }) => {
     }
 
     setCombatLoading(false);
+  };
+
+  // ============================================================================
+  // MASS SIMULATION (12 combats par personnage)
+  // ============================================================================
+  const MASS_SIM_FIGHTS = 12;
+
+  const handleMassSimulation = async () => {
+    if (!eventData || eventData.status !== EVENT_STATUS.ACTIVE) return;
+
+    const activeChars = characters.filter(c => !c.disabled);
+    if (activeChars.length === 0) return;
+
+    setMassSimLoading(true);
+    setMassSimResults(null);
+
+    const results = [];
+    let bossHP = eventData.hpRemaining;
+
+    for (const char of activeChars) {
+      const charResult = {
+        id: char.id,
+        name: char.name,
+        race: char.race,
+        class: char.class,
+        level: char.level || 1,
+        fights: [],
+        totalDamage: 0,
+        totalDeaths: 0,
+        totalExtinctions: 0,
+        bestDamage: 0,
+        worstDamage: Infinity,
+      };
+
+      for (let i = 0; i < MASS_SIM_FIGHTS; i++) {
+        const fight = simulerWorldBossCombat(char, bossHP);
+        charResult.fights.push({
+          damage: fight.damageDealt,
+          died: fight.playerDied,
+          extinction: fight.reachedExtinction,
+        });
+        charResult.totalDamage += fight.damageDealt;
+        if (fight.playerDied) charResult.totalDeaths++;
+        if (fight.reachedExtinction) charResult.totalExtinctions++;
+        if (fight.damageDealt > charResult.bestDamage) charResult.bestDamage = fight.damageDealt;
+        if (fight.damageDealt < charResult.worstDamage) charResult.worstDamage = fight.damageDealt;
+
+        // Réduire les HP du boss globalement
+        bossHP = Math.max(0, bossHP - fight.damageDealt);
+      }
+
+      charResult.avgDamage = Math.round(charResult.totalDamage / MASS_SIM_FIGHTS);
+      results.push(charResult);
+    }
+
+    // Trier par dégâts totaux décroissants
+    results.sort((a, b) => b.totalDamage - a.totalDamage);
+
+    const grandTotal = results.reduce((sum, r) => sum + r.totalDamage, 0);
+
+    setMassSimResults({
+      results,
+      grandTotal,
+      bossHPBefore: eventData.hpRemaining,
+      bossHPAfter: bossHP,
+      totalFights: activeChars.length * MASS_SIM_FIGHTS,
+    });
+
+    setMassSimLoading(false);
   };
 
   // ============================================================================
@@ -423,6 +496,126 @@ const WorldBossAdmin = ({ characters }) => {
                   {log}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* SIMULATION DE MASSE */}
+      {/* ================================================================ */}
+      {status === EVENT_STATUS.ACTIVE && (
+        <div className="bg-stone-800 rounded-lg p-4 mb-6">
+          <h3 className="text-lg font-bold text-orange-300 mb-3">🔥 Simulation de masse — {MASS_SIM_FIGHTS} combats par personnage</h3>
+          <p className="text-stone-400 text-sm mb-3">
+            Lance {MASS_SIM_FIGHTS} combats pour chaque personnage actif contre le boss.
+            Les dégâts s'accumulent sur les HP du boss (simulation locale, rien n'est sauvegardé).
+          </p>
+
+          <button
+            onClick={handleMassSimulation}
+            disabled={massSimLoading}
+            className="bg-orange-600 hover:bg-orange-500 disabled:bg-stone-700 disabled:text-stone-500 text-white px-6 py-2 rounded-lg font-bold transition mb-4"
+          >
+            {massSimLoading ? '⏳ Simulation en cours...' : `☄️ Lancer la simulation (${characters.filter(c => !c.disabled).length} persos × ${MASS_SIM_FIGHTS} combats)`}
+          </button>
+
+          {massSimResults && (
+            <div>
+              {/* Résumé global */}
+              <div className="bg-stone-900 rounded-lg p-4 mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-stone-400 text-xs">Dégâts totaux</div>
+                  <div className="text-amber-400 font-bold text-xl">{massSimResults.grandTotal.toLocaleString('fr-FR')}</div>
+                </div>
+                <div>
+                  <div className="text-stone-400 text-xs">Combats joués</div>
+                  <div className="text-white font-bold text-xl">{massSimResults.totalFights}</div>
+                </div>
+                <div>
+                  <div className="text-stone-400 text-xs">HP boss avant</div>
+                  <div className="text-red-400 font-bold text-xl">{massSimResults.bossHPBefore.toLocaleString('fr-FR')}</div>
+                </div>
+                <div>
+                  <div className="text-stone-400 text-xs">HP boss après</div>
+                  <div className={`font-bold text-xl ${massSimResults.bossHPAfter <= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {massSimResults.bossHPAfter <= 0 ? 'VAINCU !' : massSimResults.bossHPAfter.toLocaleString('fr-FR')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Barre de vie résiduelle */}
+              <div className="mb-4">
+                <div className="w-full bg-stone-700 rounded-full h-4 overflow-hidden">
+                  <div
+                    className={`h-full ${massSimResults.bossHPAfter <= 0 ? 'bg-green-500' : 'bg-red-600'} rounded-full transition-all duration-500`}
+                    style={{ width: `${Math.max(0, (massSimResults.bossHPAfter / massSimResults.bossHPBefore) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Tableau des résultats par personnage */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-stone-400 text-left border-b border-stone-700">
+                      <th className="py-2 px-2">#</th>
+                      <th className="py-2 px-2">Personnage</th>
+                      <th className="py-2 px-2">Race / Classe</th>
+                      <th className="py-2 px-2 text-right">Dégâts totaux</th>
+                      <th className="py-2 px-2 text-right">Moyenne</th>
+                      <th className="py-2 px-2 text-right">Meilleur</th>
+                      <th className="py-2 px-2 text-right">Pire</th>
+                      <th className="py-2 px-2 text-center">Morts</th>
+                      <th className="py-2 px-2 text-center">Extinctions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {massSimResults.results.map((r, i) => (
+                      <tr key={r.id} className={`border-b border-stone-700/50 ${i === 0 ? 'text-amber-300' : i === 1 ? 'text-stone-300' : i === 2 ? 'text-orange-300' : 'text-stone-400'}`}>
+                        <td className="py-2 px-2 font-bold">{i + 1}</td>
+                        <td className="py-2 px-2 font-semibold">{r.name}</td>
+                        <td className="py-2 px-2 text-xs">{r.race} {r.class} (Niv.{r.level})</td>
+                        <td className="py-2 px-2 text-right font-bold">{r.totalDamage.toLocaleString('fr-FR')}</td>
+                        <td className="py-2 px-2 text-right">{r.avgDamage.toLocaleString('fr-FR')}</td>
+                        <td className="py-2 px-2 text-right text-green-400">{r.bestDamage.toLocaleString('fr-FR')}</td>
+                        <td className="py-2 px-2 text-right text-red-400">{r.worstDamage === Infinity ? '—' : r.worstDamage.toLocaleString('fr-FR')}</td>
+                        <td className="py-2 px-2 text-center">{r.totalDeaths}/{MASS_SIM_FIGHTS}</td>
+                        <td className="py-2 px-2 text-center">{r.totalExtinctions}/{MASS_SIM_FIGHTS}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Détails par combat (accordéon) */}
+              <details className="mt-4">
+                <summary className="text-stone-400 text-sm cursor-pointer hover:text-stone-300">
+                  Détails combat par combat
+                </summary>
+                <div className="mt-2 space-y-2 max-h-96 overflow-y-auto">
+                  {massSimResults.results.map((r) => (
+                    <div key={r.id} className="bg-stone-900 rounded p-3">
+                      <div className="text-sm font-bold text-stone-300 mb-1">{r.name}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {r.fights.map((f, fi) => (
+                          <div
+                            key={fi}
+                            className={`text-xs px-2 py-1 rounded ${
+                              f.extinction ? 'bg-red-900/50 text-red-300' :
+                              f.died ? 'bg-orange-900/50 text-orange-300' :
+                              'bg-green-900/50 text-green-300'
+                            }`}
+                          >
+                            #{fi + 1}: {f.damage.toLocaleString('fr-FR')} dmg
+                            {f.extinction ? ' ☠️' : f.died ? ' 💀' : ' ✓'}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
           )}
         </div>
