@@ -1057,12 +1057,6 @@ const CharacterCreation = () => {
             >
               🌀 Labyrinthe infini 🌀
             </button>
-            <button
-              onClick={() => navigate('/cataclysme')}
-              className="bg-red-800 hover:bg-red-700 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-red-600 hover:border-red-400 transition-all"
-            >
-              ☄️ Cataclysme ☄️
-            </button>
             {currentUser?.email === 'antho.pruneta@gmail.com' && (
               <button
                 onClick={() => navigate('/world-boss')}

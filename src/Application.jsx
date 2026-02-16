@@ -20,20 +20,11 @@ import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
-import { ensureWorldBossAutoStart } from './services/worldBossService';
-import WorldBoss from './components/WorldBoss';
 
 function Application() {
 
   useEffect(() => {
     loadPersistedBalanceConfig();
-
-    ensureWorldBossAutoStart();
-    const interval = setInterval(() => {
-      ensureWorldBossAutoStart();
-    }, 60_000);
-
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -143,10 +134,12 @@ function Application() {
             }
           />
           <Route
-            path="/cataclysme"
+            path="/world-boss"
             element={
               <ProtectedRoute>
-                <WorldBoss />
+                <AdminOnlyRoute>
+                  <WorldBoss />
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
