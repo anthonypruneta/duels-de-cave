@@ -17,8 +17,8 @@ export function createWorldBossCombatant() {
   const stats = WORLD_BOSS.baseStats;
   return {
     name: WORLD_BOSS.nom,
-    race: 'Boss',
-    class: 'Boss',
+    race: 'Humain',
+    class: 'Guerrier',
     level: 1,
     userId: 'world-boss',
     characterImage: null,

@@ -15,7 +15,6 @@ import {
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses
 } from '../data/combatMechanics.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
-import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 
 // ============================================================================
 // HELPERS
@@ -570,10 +569,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
       ? Math.max(1, Math.round(att.maxHP * att.bleedPercentPerStack * att.bleed_stacks))
       : Math.ceil(att.bleed_stacks / raceConstants.lycan.bleedDivisor);
     if (att.awakening?.damageTakenMultiplier) bleedDmg = Math.max(1, Math.round(bleedDmg * att.awakening.damageTakenMultiplier));
-    // Réduction des dégâts %PV max contre le World Boss
-    if (att.isWorldBoss && att.bleedPercentPerStack) {
-      bleedDmg = Math.max(1, Math.round(bleedDmg * (1 - WORLD_BOSS_CONSTANTS.PERCENT_HP_DAMAGE_REDUCTION)));
-    }
     att.currentHP -= bleedDmg;
     log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
