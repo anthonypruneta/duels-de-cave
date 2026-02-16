@@ -455,7 +455,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
   }
   if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
-    const heal = Math.max(1, Math.round(att.maxHP * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
+    const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
   }
