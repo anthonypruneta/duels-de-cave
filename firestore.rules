@@ -98,6 +98,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Boss Mondial (Cataclysme)
+    match /worldBossEvent/{eventId} {
+      // Lecture : utilisateurs connectés (HP du boss, leaderboard)
+      allow read: if request.auth != null;
+      // Écriture : admin uniquement (démarrer, terminer, reset)
+      allow write: if isAdmin();
+
+      // Sous-collection dégâts par personnage
+      match /damages/{charId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+      }
+    }
+
     // Labyrinthe infini hebdomadaire (admin only en écriture)
     match /weeklyInfiniteLabyrinths/{weekId} {
       // Lecture: utilisateurs connectés (utile pour affichage admin/test)
