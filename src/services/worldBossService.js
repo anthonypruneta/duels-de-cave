@@ -22,9 +22,7 @@ import {
   increment,
   Timestamp,
   writeBatch,
-  onSnapshot,
-  query,
-  orderBy
+  onSnapshot
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
@@ -105,35 +103,6 @@ export const getWorldBossEvent = async () => {
     console.error('Erreur récupération event world boss:', error);
     return { success: false, error: error.message };
   }
-};
-
-
-/**
- * S'abonner en temps réel à l'état de l'event
- * @param {(data: object | null) => void} onData
- * @param {(error: Error) => void} onError
- * @returns {() => void} unsubscribe
- */
-export const subscribeWorldBossEvent = (onData, onError = () => {}) => {
-  let unsubscribe = () => {};
-
-  waitForFirestore()
-    .then(() => {
-      unsubscribe = onSnapshot(
-        EVENT_DOC_REF(),
-        (snap) => onData(snap.exists() ? snap.data() : null),
-        (error) => {
-          console.error('Erreur subscription event world boss:', error);
-          onError(error);
-        }
-      );
-    })
-    .catch((error) => {
-      console.error('Erreur init subscription event world boss:', error);
-      onError(error);
-    });
-
-  return () => unsubscribe();
 };
 
 /**
@@ -400,40 +369,6 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
     console.error('Erreur enregistrement dégâts:', error);
     return { success: false, error: error.message };
   }
-};
-
-
-/**
- * S'abonner en temps réel au leaderboard
- * @param {(entries: Array<object>) => void} onData
- * @param {(error: Error) => void} onError
- * @returns {() => void} unsubscribe
- */
-export const subscribeLeaderboard = (onData, onError = () => {}) => {
-  let unsubscribe = () => {};
-
-  waitForFirestore()
-    .then(() => {
-      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
-      const q = query(damagesRef, orderBy('totalDamage', 'desc'));
-      unsubscribe = onSnapshot(
-        q,
-        (snap) => {
-          const entries = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          onData(entries);
-        },
-        (error) => {
-          console.error('Erreur subscription leaderboard world boss:', error);
-          onError(error);
-        }
-      );
-    })
-    .catch((error) => {
-      console.error('Erreur init subscription leaderboard world boss:', error);
-      onError(error);
-    });
-
-  return () => unsubscribe();
 };
 
 /**

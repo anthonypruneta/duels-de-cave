@@ -18,8 +18,7 @@ import {
   canAttemptBoss,
   recordAttemptDamage,
   getLeaderboard,
-  subscribeWorldBossEvent,
-  subscribeLeaderboard
+  launchCataclysm
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
@@ -66,49 +65,9 @@ const WorldBossAdmin = ({ characters }) => {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Chargement initial + mises à jour temps réel
+  // Chargement initial
   useEffect(() => {
-    let gotEventSnapshot = false;
-    let gotLeaderboardSnapshot = false;
-
-    const maybeStopLoading = () => {
-      if (gotEventSnapshot && gotLeaderboardSnapshot) {
-        setLoading(false);
-      }
-    };
-
-    setLoading(true);
-
-    const unsubscribeEvent = subscribeWorldBossEvent(
-      (data) => {
-        setEventData(data);
-        gotEventSnapshot = true;
-        maybeStopLoading();
-      },
-      (error) => {
-        console.error('Erreur live event world boss:', error);
-        gotEventSnapshot = true;
-        maybeStopLoading();
-      }
-    );
-
-    const unsubscribeLeaderboard = subscribeLeaderboard(
-      (entries) => {
-        setLeaderboard(entries);
-        gotLeaderboardSnapshot = true;
-        maybeStopLoading();
-      },
-      (error) => {
-        console.error('Erreur live leaderboard world boss:', error);
-        gotLeaderboardSnapshot = true;
-        maybeStopLoading();
-      }
-    );
-
-    return () => {
-      unsubscribeEvent();
-      unsubscribeLeaderboard();
-    };
+    loadData();
   }, []);
 
   // Auto-scroll logs
