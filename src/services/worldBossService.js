@@ -224,7 +224,7 @@ export const getCharacterDamage = async (characterId) => {
 
 /**
  * Vérifier si un personnage peut tenter le boss
- * 2 tentatives par jour, cumulables (pas de distinction matin/aprem)
+ * 2 tentatives par jour, non cumulables (perdues si non utilisées)
  */
 export const canAttemptBoss = async (characterId) => {
   const result = await getCharacterDamage(characterId);
@@ -263,7 +263,7 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
     const snap = await retryOperation(async () => getDoc(damageRef));
     const existing = snap.exists() ? snap.data() : null;
 
-    // Compteur journalier cumulable
+    // Compteur journalier (reset chaque jour, non cumulable)
     const isNewDate = !existing || existing.dateKey !== todayKey;
     const dailyAttempts = isNewDate ? 1 : (existing.dailyAttempts || 0) + 1;
 

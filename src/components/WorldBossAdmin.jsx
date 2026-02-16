@@ -725,7 +725,7 @@ const WorldBossAdmin = ({ characters }) => {
           <span>✨ ResC: {WORLD_BOSS.baseStats.rescap}</span>
           <span>💨 Vit: {WORLD_BOSS.baseStats.spd}</span>
         </div>
-        <p className="text-xs text-stone-500 mt-1">EXTINCTION au tour 10 — 2 tentatives/jour (cumulables) — Lancement auto chaque lundi 18h</p>
+        <p className="text-xs text-stone-500 mt-1">EXTINCTION au tour 10 — 2 tentatives/jour (non cumulables) — Lancement auto chaque lundi 18h</p>
       </div>
 
       {/* Contrôle son */}
