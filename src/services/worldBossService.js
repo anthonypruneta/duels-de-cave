@@ -27,7 +27,7 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
-import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss.js';
+import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 
 // ============================================================================
 // HELPER RETRY
@@ -320,30 +320,30 @@ export const getCharacterDamage = async (characterId) => {
 
 /**
  * Vérifier si un personnage peut tenter le boss
+ * 2 tentatives par jour, cumulables (pas de distinction matin/aprem)
  */
 export const canAttemptBoss = async (characterId) => {
   const result = await getCharacterDamage(characterId);
   if (!result.success) return { canAttempt: false, reason: 'Erreur de lecture' };
 
   const data = result.data;
-  if (!data) return { canAttempt: true, period: isMorning() ? 'morning' : 'afternoon' };
+  if (!data) return { canAttempt: true, attemptsLeft: WORLD_BOSS_CONSTANTS.ATTEMPTS_PER_DAY };
 
   const todayKey = getTodayKey();
 
   // Reset auto si jour différent
   if (data.dateKey !== todayKey) {
-    return { canAttempt: true, period: isMorning() ? 'morning' : 'afternoon' };
+    return { canAttempt: true, attemptsLeft: WORLD_BOSS_CONSTANTS.ATTEMPTS_PER_DAY };
   }
 
-  const morning = isMorning();
-  if (morning && data.morningUsed) {
-    return { canAttempt: false, reason: 'Tentative du matin déjà utilisée' };
-  }
-  if (!morning && data.afternoonUsed) {
-    return { canAttempt: false, reason: 'Tentative de l\'après-midi déjà utilisée' };
+  const todayAttempts = data.dailyAttempts || 0;
+  const remaining = WORLD_BOSS_CONSTANTS.ATTEMPTS_PER_DAY - todayAttempts;
+
+  if (remaining <= 0) {
+    return { canAttempt: false, reason: `Tu as utilisé tes ${WORLD_BOSS_CONSTANTS.ATTEMPTS_PER_DAY} tentatives du jour. Reviens demain !` };
   }
 
-  return { canAttempt: true, period: morning ? 'morning' : 'afternoon' };
+  return { canAttempt: true, attemptsLeft: remaining };
 };
 
 /**
@@ -353,17 +353,15 @@ export const canAttemptBoss = async (characterId) => {
 export const recordAttemptDamage = async (characterId, characterName, damage) => {
   try {
     const todayKey = getTodayKey();
-    const morning = isMorning();
     const damageRef = doc(db, 'worldBossEvent', 'current', 'damages', characterId);
 
     // Lire l'état actuel du perso
     const snap = await retryOperation(async () => getDoc(damageRef));
     const existing = snap.exists() ? snap.data() : null;
 
-    // Déterminer les flags matin/aprem
+    // Compteur journalier cumulable
     const isNewDate = !existing || existing.dateKey !== todayKey;
-    const morningUsed = isNewDate ? morning : (morning ? true : existing.morningUsed);
-    const afternoonUsed = isNewDate ? !morning : (!morning ? true : existing.afternoonUsed);
+    const dailyAttempts = isNewDate ? 1 : (existing.dailyAttempts || 0) + 1;
 
     const updatedDamage = {
       characterId,
@@ -372,8 +370,7 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
       lastAttemptDamage: damage,
       totalAttempts: (existing?.totalAttempts || 0) + 1,
       dateKey: todayKey,
-      morningUsed,
-      afternoonUsed,
+      dailyAttempts,
       updatedAt: Timestamp.now()
     };
 
@@ -388,6 +385,15 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
     });
 
     await retryOperation(async () => batch.commit());
+
+    // Vérifier si le boss est mort après cet enregistrement
+    const eventSnap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    if (eventSnap.exists()) {
+      const eventState = eventSnap.data();
+      if (eventState.hpRemaining <= 0 && eventState.status === EVENT_STATUS.ACTIVE) {
+        await onBossDefeated(characterName);
+      }
+    }
 
     return { success: true, data: updatedDamage };
   } catch (error) {
@@ -451,4 +457,319 @@ export const getLeaderboard = async () => {
     console.error('Erreur récupération leaderboard:', error);
     return { success: false, error: error.message };
   }
+};
+
+// ============================================================================
+// BOSS VAINCU : REWARDS + FIN AUTO
+// ============================================================================
+
+/**
+ * Appelé quand le boss tombe à 0 HP
+ * - Termine l'event
+ * - Donne 3 rerolls (tripleRoll) à tous les participants
+ * - Annonce Discord de victoire
+ */
+const onBossDefeated = async (killerName) => {
+  try {
+    // 1. Terminer l'event
+    await retryOperation(async () => {
+      await updateDoc(EVENT_DOC_REF(), {
+        status: EVENT_STATUS.FINISHED,
+        hpRemaining: 0,
+        endedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+    });
+
+    // 2. Donner tripleRoll à tous les participants
+    const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+    const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+    const rewardBatch = writeBatch(db);
+    const participantNames = [];
+
+    damagesSnap.docs.forEach(d => {
+      const data = d.data();
+      if (data.characterId && (data.totalDamage || 0) > 0) {
+        rewardBatch.set(doc(db, 'tournamentRewards', data.characterId), {
+          tripleRoll: true,
+          date: Timestamp.now(),
+          source: 'cataclysme'
+        });
+        participantNames.push(data.characterName);
+      }
+    });
+
+    await retryOperation(async () => rewardBatch.commit());
+
+    // 3. Annonce Discord
+    try {
+      const { envoyerAnnonceDiscord } = await import('./discordService.js');
+      const eventSnap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+      const eventData = eventSnap.exists() ? eventSnap.data() : {};
+
+      await envoyerAnnonceDiscord({
+        titre: `🎉 VICTOIRE !!! LE CATACLYSME A ÉTÉ VAINCU !!!`,
+        message: `C'EST FINI !!! L'ABOMINATION EST TOMBÉE !!!\n\n` +
+          `Le coup fatal a été porté par **${killerName}** !!! ` +
+          `QUEL HÉROS !!! QUELLE PUISSANCE !!!\n\n` +
+          `📊 **${eventData.totalAttempts || 0} tentatives** au total — **${participantNames.length} combattants** ont participé à cette guerre épique !!!\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** pour tous les participants !!!\n\n` +
+          `${participantNames.map(n => `⚔️ ${n}`).join('\n')}\n\n` +
+          `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
+        mentionEveryone: true
+      });
+    } catch (discordError) {
+      console.error('Erreur annonce Discord victoire:', discordError);
+    }
+  } catch (error) {
+    console.error('Erreur onBossDefeated:', error);
+  }
+};
+
+/**
+ * Vérifie si l'event doit se terminer (samedi 12h)
+ */
+export const checkAutoEnd = async () => {
+  try {
+    const now = new Date();
+    const day = now.getDay(); // 0=dim, 6=sam
+    const hour = now.getHours();
+
+    // Samedi à partir de 12h
+    if (day !== 6 || hour < 12) return { ended: false };
+
+    const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    if (!result.exists()) return { ended: false };
+
+    const data = result.data();
+    if (data.status !== EVENT_STATUS.ACTIVE) return { ended: false };
+
+    // Terminer l'event
+    await retryOperation(async () => {
+      await updateDoc(EVENT_DOC_REF(), {
+        status: EVENT_STATUS.FINISHED,
+        endedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+    });
+
+    // Donner les récompenses même si le boss n'est pas mort
+    const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+    const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+    const rewardBatch = writeBatch(db);
+    const participantNames = [];
+
+    damagesSnap.docs.forEach(d => {
+      const dData = d.data();
+      if (dData.characterId && (dData.totalDamage || 0) > 0) {
+        rewardBatch.set(doc(db, 'tournamentRewards', dData.characterId), {
+          tripleRoll: true,
+          date: Timestamp.now(),
+          source: 'cataclysme'
+        });
+        participantNames.push(dData.characterName);
+      }
+    });
+
+    if (participantNames.length > 0) {
+      await retryOperation(async () => rewardBatch.commit());
+    }
+
+    // Annonce Discord
+    try {
+      const { envoyerAnnonceDiscord } = await import('./discordService.js');
+      const hpPct = data.hpMax > 0 ? ((data.hpRemaining / data.hpMax) * 100).toFixed(1) : '???';
+
+      await envoyerAnnonceDiscord({
+        titre: `⏰ FIN DU CATACLYSME !!!`,
+        message: `LE TEMPS EST ÉCOULÉ !!! Le Cataclysme prend fin !!!\n\n` +
+          `Le boss avait encore **${hpPct}%** de ses PV (${(data.hpRemaining || 0).toLocaleString('fr-FR')} / ${(data.hpMax || 0).toLocaleString('fr-FR')}).\n\n` +
+          `**${participantNames.length} combattants** ont participé à cette guerre.\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** distribués à tous les participants !!!\n\n` +
+          `Rendez-vous lundi prochain à 18h pour un nouveau Cataclysme !!!`,
+        mentionEveryone: true
+      });
+    } catch (discordError) {
+      console.error('Erreur annonce Discord fin event:', discordError);
+    }
+
+    return { ended: true };
+  } catch (error) {
+    console.error('Erreur auto-end cataclysme:', error);
+    return { ended: false };
+  }
+};
+
+// ============================================================================
+// LANCEMENT AUTOMATIQUE + ANNONCE DISCORD
+// ============================================================================
+
+/**
+ * Annonces Discord style DBZ pour le Cataclysme
+ */
+const cataclysmAnnouncements = [
+  (bossName) => `TREMBLEZ, MORTELS !!! UNE SECTE DE CULTISTES FOUS A BRISÉ LE SCEAU ANCESTRAL !!!\n\n` +
+    `Dans les profondeurs des caves interdites, des adorateurs du chaos ont accompli un rituel interdit... ` +
+    `Ils ont invoqué **${bossName}**, UN DIEU OUBLIÉ D'UNE ÈRE RÉVOLUE !!!\n\n` +
+    `☄️ SON ÉNERGIE EST COLOSSALE !!! L'AIR LUI-MÊME SE DÉCHIRE SOUS SA PUISSANCE !!!\n\n` +
+    `GUERRIERS ! MAGES ! VOLEURS ! TOUS DOIVENT S'UNIR OU PÉRIR !!! ` +
+    `VOUS AVEZ **2 TENTATIVES PAR JOUR** POUR INFLIGER UN MAXIMUM DE DÉGÂTS À CETTE ABOMINATION !!!\n\n` +
+    `💀 **${WORLD_BOSS.baseStats.hp.toLocaleString('fr-FR')} POINTS DE VIE** À DÉTRUIRE ENSEMBLE !!!\n\n` +
+    `QUE LE COMBAT COMMENCE !!! L'HUMANITÉ TOUTE ENTIÈRE COMPTE SUR VOUS !!!`,
+
+  (bossName) => `L'HEURE EST GRAVE !!! LES TÉNÈBRES S'ABATTENT SUR LE MONDE !!!\n\n` +
+    `Une confrérie de cultistes hérétiques a ouvert un portail dimensionnel au cœur des caves... ` +
+    `De l'autre côté, une entité titanesque a répondu à leur appel : **${bossName}** !!!\n\n` +
+    `☄️ LA TERRE TREMBLE !!! LES MONTAGNES SE FISSURENT !!! CE DIEU OUBLIÉ VEUT TOUT RÉDUIRE EN CENDRES !!!\n\n` +
+    `COMBATTANTS DE TOUTES LES RACES, C'EST L'HEURE DE PROUVER VOTRE VALEUR !!! ` +
+    `**2 TENTATIVES PAR JOUR** — CHAQUE COUP COMPTE DANS CETTE GUERRE TOTALE !!!\n\n` +
+    `⚔️ **${WORLD_BOSS.baseStats.hp.toLocaleString('fr-FR')} PV** SE DRESSENT ENTRE VOUS ET LA VICTOIRE !!!\n\n` +
+    `ALLEZ-VOUS RESTER LÀ À TREMBLER OU ALLEZ-VOUS VOUS BATTRE ?! EN AVANT !!!`,
+
+  (bossName) => `IMPOSSIBLE !!! LES PROPHÉTIES DISAIENT VRAI !!!\n\n` +
+    `Des cultistes fanatiques ont sacrifié leur propre essence pour briser le dernier sceau de la prison dimensionnelle... ` +
+    `Et de cette brèche a surgi **${bossName}**, UNE DIVINITÉ DÉCHUE QUE LE MONDE AVAIT OUBLIÉE DEPUIS DES MILLÉNAIRES !!!\n\n` +
+    `☄️ SA SIMPLE PRÉSENCE FAIT PLIER LA RÉALITÉ !!! C'EST UN CATACLYSME VIVANT !!!\n\n` +
+    `HÉROS ! LE DESTIN DU MONDE EST ENTRE VOS MAINS !!! ` +
+    `**2 ESSAIS PAR JOUR** POUR FRAPPER CETTE HORREUR AVEC TOUT CE QUE VOUS AVEZ !!!\n\n` +
+    `🔥 **${WORLD_BOSS.baseStats.hp.toLocaleString('fr-FR')} PV** — IL FAUDRA L'EFFORT DE TOUS POUR L'ABATTRE !!!\n\n` +
+    `NE RECULEZ PAS !!! C'EST MAINTENANT OU JAMAIS !!!`
+];
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Lancer le Cataclysme : reset total + annonce Discord
+ * @param {string} bossName - Nom du boss de la semaine
+ */
+export const launchCataclysm = async (bossName) => {
+  try {
+    // 1. Reset le leaderboard (supprimer toutes les entrées de dégâts)
+    const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+    const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+
+    if (!damagesSnap.empty) {
+      const batch = writeBatch(db);
+      damagesSnap.docs.forEach(d => batch.delete(d.ref));
+      await retryOperation(async () => batch.commit());
+    }
+
+    // 2. Reset et activer l'event
+    const eventData = {
+      bossId: WORLD_BOSS.id,
+      bossName: bossName || WORLD_BOSS.nom,
+      status: EVENT_STATUS.ACTIVE,
+      hpMax: WORLD_BOSS.baseStats.hp,
+      hpRemaining: WORLD_BOSS.baseStats.hp,
+      totalDamageDealt: 0,
+      totalAttempts: 0,
+      startedAt: Timestamp.now(),
+      endedAt: null,
+      launchedAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+
+    await retryOperation(async () => {
+      await setDoc(EVENT_DOC_REF(), eventData);
+    });
+
+    // 3. Annonce Discord
+    try {
+      const { envoyerAnnonceDiscord } = await import('./discordService.js');
+      const announcement = pickRandom(cataclysmAnnouncements)(bossName || WORLD_BOSS.nom);
+      await envoyerAnnonceDiscord({
+        titre: `☄️ CATACLYSME — ${(bossName || WORLD_BOSS.nom).toUpperCase()} EST LÀ !!!`,
+        message: announcement,
+        mentionEveryone: true
+      });
+    } catch (discordError) {
+      console.error('Erreur annonce Discord cataclysme:', discordError);
+    }
+
+    return { success: true, data: eventData };
+  } catch (error) {
+    console.error('Erreur lancement cataclysme:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Vérifie si le cataclysme doit être lancé automatiquement (lundi 18h)
+ * Retourne true si un lancement a été déclenché
+ */
+export const checkAutoLaunch = async (bossName) => {
+  try {
+    const now = new Date();
+    const day = now.getDay(); // 0=dim, 1=lun
+    const hour = now.getHours();
+
+    // Seulement le lundi à partir de 18h
+    if (day !== 1 || hour < 18) return { launched: false };
+
+    // Vérifier l'état actuel de l'event
+    const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    if (!result.exists()) {
+      // Pas d'event, on lance
+      await launchCataclysm(bossName);
+      return { launched: true };
+    }
+
+    const data = result.data();
+
+    // Si déjà actif, ne rien faire
+    if (data.status === EVENT_STATUS.ACTIVE) return { launched: false };
+
+    // Si inactif ou terminé, vérifier qu'on n'a pas déjà lancé aujourd'hui
+    if (data.launchedAt) {
+      const launchedDate = data.launchedAt.toDate();
+      const todayKey = getTodayKey();
+      const launchedKey = `${launchedDate.getFullYear()}-${String(launchedDate.getMonth() + 1).padStart(2, '0')}-${String(launchedDate.getDate()).padStart(2, '0')}`;
+      if (launchedKey === todayKey) return { launched: false }; // Déjà lancé aujourd'hui
+    }
+
+    // Lancer !
+    await launchCataclysm(bossName);
+    return { launched: true };
+  } catch (error) {
+    console.error('Erreur auto-launch cataclysme:', error);
+    return { launched: false };
+  }
+};
+
+// ============================================================================
+// LISTENERS TEMPS RÉEL
+// ============================================================================
+
+/**
+ * Écouter les changements de l'event en temps réel (HP du boss, statut, etc.)
+ * Retourne une fonction unsubscribe à appeler au démontage
+ */
+export const onWorldBossEventChange = (callback) => {
+  return onSnapshot(EVENT_DOC_REF(), (snap) => {
+    if (snap.exists()) {
+      callback(snap.data());
+    }
+  }, (error) => {
+    console.error('Erreur listener event world boss:', error);
+  });
+};
+
+/**
+ * Écouter les changements du leaderboard en temps réel
+ * Retourne une fonction unsubscribe à appeler au démontage
+ */
+export const onLeaderboardChange = (callback) => {
+  const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+  return onSnapshot(damagesRef, (snap) => {
+    const entries = [];
+    snap.docs.forEach(d => {
+      entries.push({ id: d.id, ...d.data() });
+    });
+    entries.sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0));
+    callback(entries);
+  }, (error) => {
+    console.error('Erreur listener leaderboard:', error);
+  });
 };

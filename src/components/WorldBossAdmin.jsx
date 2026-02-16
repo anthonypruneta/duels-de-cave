@@ -212,6 +212,22 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
     setActionLoading(false);
   };
 
+  const handleLaunchCataclysm = async () => {
+    if (!window.confirm('Lancer le Cataclysme ? (Reset total + annonce Discord @everyone)')) return;
+    setActionLoading(true);
+    setCombatResult(null);
+    setCombatLogs([]);
+    setAttemptInfo(null);
+    const result = await launchCataclysm(WORLD_BOSS.nom);
+    if (result.success) {
+      setCombatLogs(['✅ Cataclysme lancé ! Annonce Discord envoyée.']);
+      await loadData();
+    } else {
+      setCombatLogs([`❌ Échec lancement : ${result.error}`]);
+    }
+    setActionLoading(false);
+  };
+
   // ============================================================================
   // COMBAT
   // ============================================================================
@@ -484,6 +500,13 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
         >
           🌅 Forcer nouvelle journée
         </button>
+        <button
+          onClick={handleLaunchCataclysm}
+          disabled={actionLoading}
+          className="bg-red-800 hover:bg-red-700 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-red-500"
+        >
+          ☄️ Lancer le Cataclysme (Reset + Discord)
+        </button>
       </div>
       </>
       )}
@@ -528,7 +551,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
           {attemptInfo && selectedCharId && (
             <div className={`text-sm mb-3 ${attemptInfo.canAttempt ? 'text-green-400' : 'text-red-400'}`}>
               {attemptInfo.canAttempt
-                ? `✅ Tentative disponible (${attemptInfo.period === 'morning' ? 'matin' : 'après-midi'})`
+                ? `✅ Tentative disponible (${attemptInfo.attemptsLeft} restante${attemptInfo.attemptsLeft > 1 ? 's' : ''} aujourd'hui)`
                 : `❌ ${attemptInfo.reason}`
               }
             </div>
@@ -753,8 +776,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
                   <th className="py-2 px-2 text-right">Dégâts totaux</th>
                   <th className="py-2 px-2 text-right">Dernière tentative</th>
                   <th className="py-2 px-2 text-right">Tentatives</th>
-                  <th className="py-2 px-2 text-center">Matin</th>
-                  <th className="py-2 px-2 text-center">Aprem</th>
+                  <th className="py-2 px-2 text-center">Aujourd'hui</th>
                 </tr>
               </thead>
               <tbody>
@@ -765,8 +787,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
                     <td className="py-2 px-2 text-right font-bold">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</td>
                     <td className="py-2 px-2 text-right">{(entry.lastAttemptDamage || 0).toLocaleString('fr-FR')}</td>
                     <td className="py-2 px-2 text-right">{entry.totalAttempts || 0}</td>
-                    <td className="py-2 px-2 text-center">{entry.morningUsed ? '✅' : '—'}</td>
-                    <td className="py-2 px-2 text-center">{entry.afternoonUsed ? '✅' : '—'}</td>
+                    <td className="py-2 px-2 text-center">{entry.dailyAttempts || 0}/2</td>
                   </tr>
                 ))}
               </tbody>
@@ -786,7 +807,7 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
           <span>✨ ResC: {WORLD_BOSS.baseStats.rescap}</span>
           <span>💨 Vit: {WORLD_BOSS.baseStats.spd}</span>
         </div>
-        <p className="text-xs text-stone-500 mt-1">EXTINCTION au tour 10 — Max 2 tentatives/jour (matin + après-midi)</p>
+        <p className="text-xs text-stone-500 mt-1">EXTINCTION au tour 10 — 2 tentatives/jour (cumulables) — Lancement auto chaque lundi 18h</p>
       </div>
 
       {/* Contrôle son */}
