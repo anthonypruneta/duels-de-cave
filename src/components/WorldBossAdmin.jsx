@@ -17,7 +17,9 @@ import {
   forceNewDay,
   canAttemptBoss,
   recordAttemptDamage,
-  getLeaderboard
+  getLeaderboard,
+  subscribeWorldBossEvent,
+  subscribeLeaderboard
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
@@ -29,7 +31,7 @@ const STATUS_LABELS = {
   [EVENT_STATUS.FINISHED]: { text: 'Terminé', color: 'text-red-400', dot: 'bg-red-500' }
 };
 
-const WorldBossAdmin = ({ characters }) => {
+const WorldBossAdmin = ({ characters, isAdmin = true }) => {
   // État event
   const [eventData, setEventData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +66,49 @@ const WorldBossAdmin = ({ characters }) => {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Chargement initial
+  // Chargement initial + mises à jour temps réel
   useEffect(() => {
-    loadData();
+    let gotEventSnapshot = false;
+    let gotLeaderboardSnapshot = false;
+
+    const maybeStopLoading = () => {
+      if (gotEventSnapshot && gotLeaderboardSnapshot) {
+        setLoading(false);
+      }
+    };
+
+    setLoading(true);
+
+    const unsubscribeEvent = subscribeWorldBossEvent(
+      (data) => {
+        setEventData(data);
+        gotEventSnapshot = true;
+        maybeStopLoading();
+      },
+      (error) => {
+        console.error('Erreur live event world boss:', error);
+        gotEventSnapshot = true;
+        maybeStopLoading();
+      }
+    );
+
+    const unsubscribeLeaderboard = subscribeLeaderboard(
+      (entries) => {
+        setLeaderboard(entries);
+        gotLeaderboardSnapshot = true;
+        maybeStopLoading();
+      },
+      (error) => {
+        console.error('Erreur live leaderboard world boss:', error);
+        gotLeaderboardSnapshot = true;
+        maybeStopLoading();
+      }
+    );
+
+    return () => {
+      unsubscribeEvent();
+      unsubscribeLeaderboard();
+    };
   }, []);
 
   // Auto-scroll logs
@@ -75,6 +117,16 @@ const WorldBossAdmin = ({ characters }) => {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [combatLogs]);
+
+  // Arrêter la musique uniquement en quittant la page (unmount)
+  useEffect(() => {
+    return () => {
+      if (bossAudioRef.current) {
+        bossAudioRef.current.pause();
+        bossAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,6 +147,13 @@ const WorldBossAdmin = ({ characters }) => {
     }
     canAttemptBoss(selectedCharId).then(result => setAttemptInfo(result));
   }, [selectedCharId, eventData]);
+
+  // Vue joueur: présélectionner automatiquement son unique personnage
+  useEffect(() => {
+    if (!isAdmin && !selectedCharId && Array.isArray(characters) && characters.length === 1) {
+      setSelectedCharId(characters[0].id);
+    }
+  }, [isAdmin, selectedCharId, characters]);
 
   // ============================================================================
   // ACTIONS ADMIN
@@ -216,9 +275,6 @@ const WorldBossAdmin = ({ characters }) => {
       setIsReplaying(false);
       setCombatResult(result);
 
-      // Arrêter la musique à la fin du combat
-      if (bossAudioRef.current) bossAudioRef.current.pause();
-
       // Enregistrer les dégâts en base
       if (result.damageDealt > 0) {
         await recordAttemptDamage(selectedCharId, character.name, result.damageDealt);
@@ -329,8 +385,12 @@ const WorldBossAdmin = ({ characters }) => {
 
   return (
     <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
-      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial (Test)</h2>
-      <p className="text-stone-400 text-sm mb-6">Mode en test : aucune reward active et aucune exposition côté joueurs.</p>
+      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial{isAdmin ? ' (Test)' : ''}</h2>
+      <p className="text-stone-400 text-sm mb-6">
+        {isAdmin
+          ? 'Mode en test : aucune reward active et aucune exposition côté joueurs.'
+          : 'Mode joueur : 2 tentatives par jour (matin + après-midi).'}
+      </p>
 
       {/* ================================================================ */}
       {/* ÉTAT DE L'EVENT */}
@@ -375,6 +435,8 @@ const WorldBossAdmin = ({ characters }) => {
         </div>
       </div>
 
+      {isAdmin && (
+        <>
       {/* ================================================================ */}
       {/* BOUTONS ADMIN */}
       {/* ================================================================ */}
@@ -408,6 +470,8 @@ const WorldBossAdmin = ({ characters }) => {
           🌅 Forcer nouvelle journée
         </button>
       </div>
+      </>
+      )}
 
       {/* ================================================================ */}
       {/* SIMULATION DE COMBAT */}
@@ -532,6 +596,8 @@ const WorldBossAdmin = ({ characters }) => {
         </div>
       )}
 
+      {isAdmin && (
+      <>
       {/* ================================================================ */}
       {/* SIMULATION DE MASSE */}
       {/* ================================================================ */}
@@ -650,6 +716,8 @@ const WorldBossAdmin = ({ characters }) => {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
 
       {/* ================================================================ */}

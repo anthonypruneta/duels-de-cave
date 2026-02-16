@@ -19,11 +19,20 @@ import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
+import { ensureWorldBossAutoStart } from './services/worldBossService';
+import WorldBossPage from './components/WorldBoss';
 
 function Application() {
 
   useEffect(() => {
     loadPersistedBalanceConfig();
+
+    ensureWorldBossAutoStart();
+    const interval = setInterval(() => {
+      ensureWorldBossAutoStart();
+    }, 60_000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -129,6 +138,14 @@ function Application() {
                 <ModeAvailabilityRoute>
                   <InfiniteLabyrinth />
                 </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cataclysme"
+            element={
+              <ProtectedRoute>
+                <WorldBossPage />
               </ProtectedRoute>
             }
           />
