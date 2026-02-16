@@ -1485,6 +1485,15 @@ const MageTower = () => {
             ))}
           </div>
 
+          <div className="mb-6">
+            <button
+              onClick={() => handleRewardContinue(equippedPassive)}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-5 py-2 font-semibold"
+            >
+              {equippedDetails ? 'Garder mon passif actuel' : 'Continuer sans changer de passif'}
+            </button>
+          </div>
+
           {equippedDetails && (
             <div className="bg-stone-900/40 border border-stone-700 p-3 text-left">
               <div className="text-stone-300 text-xs uppercase mb-2">Passif actuellement équipé</div>

@@ -1516,6 +1516,15 @@ const Dungeon = () => {
             )}
           </div>
 
+          <div className="text-center mb-6">
+            <button
+              onClick={() => handleLootDecision(null)}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-5 py-2 font-semibold"
+            >
+              Garder mon arme actuelle
+            </button>
+          </div>
+
           {hasCurrentWeapon && (
             <div className="mb-6">
               <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
