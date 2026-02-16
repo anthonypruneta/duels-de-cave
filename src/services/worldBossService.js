@@ -290,6 +290,15 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
 
     await retryOperation(async () => batch.commit());
 
+    // Vérifier si le boss est mort après cet enregistrement
+    const eventSnap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    if (eventSnap.exists()) {
+      const eventState = eventSnap.data();
+      if (eventState.hpRemaining <= 0 && eventState.status === EVENT_STATUS.ACTIVE) {
+        await onBossDefeated(characterName);
+      }
+    }
+
     return { success: true, data: updatedDamage };
   } catch (error) {
     console.error('Erreur enregistrement dégâts:', error);
@@ -317,6 +326,147 @@ export const getLeaderboard = async () => {
   } catch (error) {
     console.error('Erreur récupération leaderboard:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// ============================================================================
+// BOSS VAINCU : REWARDS + FIN AUTO
+// ============================================================================
+
+/**
+ * Appelé quand le boss tombe à 0 HP
+ * - Termine l'event
+ * - Donne 3 rerolls (tripleRoll) à tous les participants
+ * - Annonce Discord de victoire
+ */
+const onBossDefeated = async (killerName) => {
+  try {
+    // 1. Terminer l'event
+    await retryOperation(async () => {
+      await updateDoc(EVENT_DOC_REF(), {
+        status: EVENT_STATUS.FINISHED,
+        hpRemaining: 0,
+        endedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+    });
+
+    // 2. Donner tripleRoll à tous les participants
+    const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+    const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+    const rewardBatch = writeBatch(db);
+    const participantNames = [];
+
+    damagesSnap.docs.forEach(d => {
+      const data = d.data();
+      if (data.characterId && (data.totalDamage || 0) > 0) {
+        rewardBatch.set(doc(db, 'tournamentRewards', data.characterId), {
+          tripleRoll: true,
+          date: Timestamp.now(),
+          source: 'cataclysme'
+        });
+        participantNames.push(data.characterName);
+      }
+    });
+
+    await retryOperation(async () => rewardBatch.commit());
+
+    // 3. Annonce Discord
+    try {
+      const { envoyerAnnonceDiscord } = await import('./discordService.js');
+      const eventSnap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+      const eventData = eventSnap.exists() ? eventSnap.data() : {};
+
+      await envoyerAnnonceDiscord({
+        titre: `🎉 VICTOIRE !!! LE CATACLYSME A ÉTÉ VAINCU !!!`,
+        message: `C'EST FINI !!! L'ABOMINATION EST TOMBÉE !!!\n\n` +
+          `Le coup fatal a été porté par **${killerName}** !!! ` +
+          `QUEL HÉROS !!! QUELLE PUISSANCE !!!\n\n` +
+          `📊 **${eventData.totalAttempts || 0} tentatives** au total — **${participantNames.length} combattants** ont participé à cette guerre épique !!!\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** pour tous les participants !!!\n\n` +
+          `${participantNames.map(n => `⚔️ ${n}`).join('\n')}\n\n` +
+          `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
+        mentionEveryone: true
+      });
+    } catch (discordError) {
+      console.error('Erreur annonce Discord victoire:', discordError);
+    }
+  } catch (error) {
+    console.error('Erreur onBossDefeated:', error);
+  }
+};
+
+/**
+ * Vérifie si l'event doit se terminer (samedi 12h)
+ */
+export const checkAutoEnd = async () => {
+  try {
+    const now = new Date();
+    const day = now.getDay(); // 0=dim, 6=sam
+    const hour = now.getHours();
+
+    // Samedi à partir de 12h
+    if (day !== 6 || hour < 12) return { ended: false };
+
+    const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    if (!result.exists()) return { ended: false };
+
+    const data = result.data();
+    if (data.status !== EVENT_STATUS.ACTIVE) return { ended: false };
+
+    // Terminer l'event
+    await retryOperation(async () => {
+      await updateDoc(EVENT_DOC_REF(), {
+        status: EVENT_STATUS.FINISHED,
+        endedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+    });
+
+    // Donner les récompenses même si le boss n'est pas mort
+    const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+    const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+    const rewardBatch = writeBatch(db);
+    const participantNames = [];
+
+    damagesSnap.docs.forEach(d => {
+      const dData = d.data();
+      if (dData.characterId && (dData.totalDamage || 0) > 0) {
+        rewardBatch.set(doc(db, 'tournamentRewards', dData.characterId), {
+          tripleRoll: true,
+          date: Timestamp.now(),
+          source: 'cataclysme'
+        });
+        participantNames.push(dData.characterName);
+      }
+    });
+
+    if (participantNames.length > 0) {
+      await retryOperation(async () => rewardBatch.commit());
+    }
+
+    // Annonce Discord
+    try {
+      const { envoyerAnnonceDiscord } = await import('./discordService.js');
+      const hpPct = data.hpMax > 0 ? ((data.hpRemaining / data.hpMax) * 100).toFixed(1) : '???';
+
+      await envoyerAnnonceDiscord({
+        titre: `⏰ FIN DU CATACLYSME !!!`,
+        message: `LE TEMPS EST ÉCOULÉ !!! Le Cataclysme prend fin !!!\n\n` +
+          `Le boss avait encore **${hpPct}%** de ses PV (${(data.hpRemaining || 0).toLocaleString('fr-FR')} / ${(data.hpMax || 0).toLocaleString('fr-FR')}).\n\n` +
+          `**${participantNames.length} combattants** ont participé à cette guerre.\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** distribués à tous les participants !!!\n\n` +
+          `Rendez-vous lundi prochain à 18h pour un nouveau Cataclysme !!!`,
+        mentionEveryone: true
+      });
+    } catch (discordError) {
+      console.error('Erreur annonce Discord fin event:', discordError);
+    }
+
+    return { ended: true };
+  } catch (error) {
+    console.error('Erreur auto-end cataclysme:', error);
+    return { ended: false };
   }
 };
 

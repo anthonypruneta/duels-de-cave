@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -121,6 +121,7 @@ const WorldBoss = () => {
   const [eventData, setEventData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState('');
 
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
@@ -174,6 +175,8 @@ const WorldBoss = () => {
 
       // Auto-launch si c'est lundi >= 18h et event inactif
       await checkAutoLaunch(boss.name);
+      // Auto-end si c'est samedi >= 12h
+      await checkAutoEnd();
 
       setLoading(false);
     };
@@ -192,6 +195,44 @@ const WorldBoss = () => {
       unsubEvent();
       unsubLeaderboard();
     };
+  }, []);
+
+  // Countdown vers samedi 12h
+  useEffect(() => {
+    const getNextSaturdayNoon = () => {
+      const now = new Date();
+      const day = now.getDay(); // 0=dim, 6=sam
+      let daysUntilSat = (6 - day + 7) % 7;
+      if (daysUntilSat === 0 && now.getHours() >= 12) daysUntilSat = 7;
+      const target = new Date(now);
+      target.setDate(now.getDate() + daysUntilSat);
+      target.setHours(12, 0, 0, 0);
+      return target;
+    };
+
+    const updateCountdown = () => {
+      const target = getNextSaturdayNoon();
+      const diff = target - new Date();
+      if (diff <= 0) {
+        setCountdown('Terminé');
+        checkAutoEnd();
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}j`);
+      parts.push(`${String(hours).padStart(2, '0')}h`);
+      parts.push(`${String(minutes).padStart(2, '0')}m`);
+      parts.push(`${String(seconds).padStart(2, '0')}s`);
+      setCountdown(parts.join(' '));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Musique dès l'ouverture
@@ -690,6 +731,7 @@ const WorldBoss = () => {
               </div>
               <div className="flex justify-between mt-1 text-xs text-stone-500">
                 <span>{globalHpPercent.toFixed(1)}%</span>
+                <span>⏰ Fin : {countdown}</span>
                 <span>{eventData.totalAttempts || 0} tentatives</span>
               </div>
             </div>
