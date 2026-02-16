@@ -115,6 +115,7 @@ const WorldBoss = () => {
   const [phase, setPhase] = useState('pre'); // 'pre' ou 'combat'
   const replayTokenRef = useRef(0);
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
 
   // Musique
   const bossAudioRef = useRef(null);
@@ -180,6 +181,12 @@ const WorldBoss = () => {
     }
   }, [volume, isMuted]);
 
+  // Auto-scroll du conteneur de logs uniquement (pas la page)
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [combatLog]);
 
   // Contrôle son
   const SoundControl = () => (
@@ -684,7 +691,7 @@ const WorldBoss = () => {
                 <div className="bg-stone-900 p-3 border-b border-red-800">
                   <h2 className="text-lg md:text-2xl font-bold text-red-400 text-center">☄️ Combat en direct</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Le combat va commencer...</p>
                   ) : (
