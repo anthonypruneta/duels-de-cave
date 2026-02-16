@@ -369,7 +369,7 @@ const WorldBoss = () => {
   // === CharacterCard joueur (identique à Combat.jsx) ===
   const PlayerCard = ({ char }) => {
     if (!char) return null;
-    const hpPercent = (char.currentHP / char.maxHP) * 100;
+    const hpPercent = Math.min(100, (char.currentHP / char.maxHP) * 100);
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = char.maxHP > 0 ? Math.min(100, ((char.shield || 0) / char.maxHP) * 100) : 0;
     const raceB = getRaceBonus(char.race);
@@ -610,8 +610,8 @@ const WorldBoss = () => {
       },
       onStepHP: (step) => {
         if (replayTokenRef.current !== currentToken) return;
-        setPlayerState(prev => prev ? { ...prev, currentHP: Math.max(0, step.p1HP), shield: step.p1Shield || 0 } : prev);
-        setBossState(prev => prev ? { ...prev, currentHP: Math.max(0, step.p2HP), shield: step.p2Shield || 0 } : prev);
+        setPlayerState(prev => prev ? { ...prev, currentHP: Math.min(prev.maxHP, Math.max(0, step.p1HP)), shield: step.p1Shield || 0 } : prev);
+        setBossState(prev => prev ? { ...prev, currentHP: Math.min(prev.maxHP, Math.max(0, step.p2HP)), shield: step.p2Shield || 0 } : prev);
       },
       speed: 'normal'
     });
