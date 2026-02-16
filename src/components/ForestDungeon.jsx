@@ -482,13 +482,23 @@ const ForestDungeon = () => {
     const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
+    const applyClassPercentBonus = (baseStats) => (
+      char.class === 'Bastion'
+        ? {
+          ...baseStats,
+          def: Math.max(1, Math.round(baseStats.def * (1 + classConstants.bastion.defPercentBonus)))
+        }
+        : baseStats
+    );
+    const baseWithClassPassive = applyClassPercentBonus(baseWithAwakening);
+    const baseWithoutWeaponWithClassPassive = applyClassPercentBonus(baseWithoutWeapon);
     const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
-      base: baseWithAwakening,
-      baseWithoutWeapon,
-      currentHP: baseWithAwakening.hp,
-      maxHP: baseWithAwakening.hp,
+      base: baseWithClassPassive,
+      baseWithoutWeapon: baseWithoutWeaponWithClassPassive,
+      currentHP: baseWithClassPassive.hp,
+      maxHP: baseWithClassPassive.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
       undead: false,
       dodge: false,
