@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -119,6 +119,7 @@ const WorldBoss = () => {
   // Données
   const [character, setCharacter] = useState(null);
   const [eventData, setEventData] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Boss aléatoire (choisi une fois au montage)
@@ -152,9 +153,10 @@ const WorldBoss = () => {
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
-      const [charResult, eventResult] = await Promise.all([
+      const [charResult, eventResult, lbResult] = await Promise.all([
         getUserCharacter(currentUser.uid),
-        getWorldBossEvent()
+        getWorldBossEvent(),
+        getLeaderboard()
       ]);
 
       if (charResult.success && charResult.data) {
@@ -175,6 +177,7 @@ const WorldBoss = () => {
       }
 
       if (eventResult.success) setEventData(eventResult.data);
+      if (lbResult.success) setLeaderboard(lbResult.data);
       setLoading(false);
     };
     load();
@@ -473,6 +476,41 @@ const WorldBoss = () => {
     );
   };
 
+  // === Tableau des participants ===
+  const LeaderboardPanel = () => (
+    <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl overflow-hidden">
+      <div className="bg-stone-900 p-3 border-b border-stone-600">
+        <h3 className="text-sm font-bold text-amber-400 text-center">🏅 Participants</h3>
+      </div>
+      <div className="max-h-[600px] overflow-y-auto">
+        {leaderboard.length === 0 ? (
+          <p className="text-stone-500 text-xs text-center py-4 italic">Aucun participant</p>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-stone-900 sticky top-0">
+              <tr>
+                <th className="text-left text-stone-400 px-3 py-2">#</th>
+                <th className="text-left text-stone-400 px-3 py-2">Nom</th>
+                <th className="text-right text-stone-400 px-3 py-2">Dégâts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((entry, i) => (
+                <tr key={entry.id} className={`border-t border-stone-700 ${entry.characterId === character?.userId ? 'bg-amber-900/30' : ''}`}>
+                  <td className="px-3 py-2 text-stone-500">
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                  </td>
+                  <td className="px-3 py-2 text-stone-200 truncate max-w-[120px]">{entry.characterName}</td>
+                  <td className="px-3 py-2 text-amber-400 font-mono text-right">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+
   // === Lancer le combat ===
   const handleFight = async () => {
     if (!character || !eventData || eventData.status !== EVENT_STATUS.ACTIVE || isSimulating) return;
@@ -635,14 +673,19 @@ const WorldBoss = () => {
         {phase === 'pre' ? (
           /* Avant le combat : bouton central */
           <div className="flex flex-col items-center gap-6">
-            <div className="flex flex-col md:flex-row gap-8 items-start justify-center w-full">
+            <div className="flex flex-col md:flex-row gap-4 items-start justify-center w-full">
+              {/* Leaderboard */}
+              <div className="w-full md:w-[220px] md:flex-shrink-0 order-4 md:order-1">
+                <LeaderboardPanel />
+              </div>
+
               {/* Aperçu joueur */}
-              <div className="w-full md:w-[340px] md:flex-shrink-0">
+              <div className="w-full md:w-[340px] md:flex-shrink-0 order-1 md:order-2">
                 <PlayerCard char={{ ...character, currentHP: character.base?.hp || 0, maxHP: character.base?.hp || 0, shield: 0 }} />
               </div>
 
               {/* Zone centrale */}
-              <div className="w-full md:w-[400px] flex flex-col items-center justify-center gap-6 py-12">
+              <div className="w-full md:w-[400px] flex flex-col items-center justify-center gap-6 py-12 order-2 md:order-3">
                 <div className="text-6xl">⚔️</div>
                 <button
                   onClick={handleFight}
@@ -657,7 +700,7 @@ const WorldBoss = () => {
               </div>
 
               {/* Aperçu boss */}
-              <div className="w-full md:w-[420px] md:flex-shrink-0">
+              <div className="w-full md:w-[420px] md:flex-shrink-0 order-3 md:order-4">
                 <BossCard />
               </div>
             </div>
@@ -665,13 +708,18 @@ const WorldBoss = () => {
         ) : (
           /* Phase combat */
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            {/* Joueur à gauche */}
-            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+            {/* Leaderboard */}
+            <div className="order-5 md:order-1 w-full md:w-[220px] md:flex-shrink-0">
+              <LeaderboardPanel />
+            </div>
+
+            {/* Joueur */}
+            <div className="order-1 md:order-2 w-full md:w-[340px] md:flex-shrink-0">
               {playerState && <PlayerCard char={playerState} />}
             </div>
 
             {/* Zone centrale : boutons + logs */}
-            <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+            <div className="order-2 md:order-3 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
               {/* Boutons */}
               <div className="flex justify-center gap-3 md:gap-4 mb-4">
                 <button
@@ -787,7 +835,7 @@ const WorldBoss = () => {
             </div>
 
             {/* Boss à droite (plus large) */}
-            <div className="order-3 md:order-3 w-full md:w-[420px] md:flex-shrink-0">
+            <div className="order-3 md:order-4 w-full md:w-[420px] md:flex-shrink-0">
               <BossCard />
             </div>
           </div>
