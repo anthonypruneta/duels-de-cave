@@ -20,7 +20,7 @@ import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import { ensureWorldBossAutoStart } from './services/worldBossService';
-import WorldBossPage from './components/WorldBoss';
+import WorldBoss from './components/WorldBoss';
 
 function Application() {
 
@@ -145,7 +145,7 @@ function Application() {
             path="/cataclysme"
             element={
               <ProtectedRoute>
-                <WorldBossPage />
+                <WorldBoss />
               </ProtectedRoute>
             }
           />
