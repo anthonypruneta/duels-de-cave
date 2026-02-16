@@ -262,6 +262,53 @@ const getCalculatedDescription = (className, cap, auto) => {
         </>
       );
     }
+    case 'Briseur de Sort': {
+      const { shieldFromSpellDamage, shieldFromCap, autoCapBonus, antiHealReduction } = classConstants.briseurSort;
+      const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+      const shieldCapValue = Math.round(shieldFromCap * cap);
+      const autoBonusValue = Math.round(autoCapBonus * cap);
+      const antiHealPct = Math.round(antiHealReduction * 100);
+      return (
+        <>
+          Bouclier après spell:{' '}
+          <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
+          </Tooltip>
+          {' '}| Auto +{' '}
+          <Tooltip content={`${autoCapBonus * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{autoBonusValue}</span>
+          </Tooltip>
+          {' '}| -{antiHealPct}% soins adverses
+        </>
+      );
+    }
+    case 'Succube': {
+      const { capScale, nextAttackReduction } = classConstants.succube;
+      const capDmg = Math.round(capScale * cap);
+      const reductionPct = Math.round(nextAttackReduction * 100);
+      return (
+        <>
+          Auto +{' '}
+          <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{capDmg}</span>
+          </Tooltip>
+          {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+        </>
+      );
+    }
+    case 'Bastion': {
+      const { defPercentBonus, capScale, defScale } = classConstants.bastion;
+      const defBonusPct = Math.round(defPercentBonus * 100);
+      const capDmg = Math.round(capScale * cap);
+      return (
+        <>
+          +{defBonusPct}% DEF | Auto +{' '}
+          <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+            <span className="text-green-400">{capDmg}</span>
+          </Tooltip>
+        </>
+      );
+    }
     default:
       return classes[className]?.description || '';
   }
@@ -366,6 +413,11 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
             <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
               <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${Math.max(0, hpPercent)}%`}} />
             </div>
+            {shield > 0 && (
+              <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
+                <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm mb-3">
             <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
