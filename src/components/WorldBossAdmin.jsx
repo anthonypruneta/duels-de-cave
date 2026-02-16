@@ -31,7 +31,7 @@ const STATUS_LABELS = {
   [EVENT_STATUS.FINISHED]: { text: 'Terminé', color: 'text-red-400', dot: 'bg-red-500' }
 };
 
-const WorldBossAdmin = ({ characters, isAdmin = true }) => {
+const WorldBossAdmin = ({ characters }) => {
   // État event
   const [eventData, setEventData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -147,13 +147,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
     }
     canAttemptBoss(selectedCharId).then(result => setAttemptInfo(result));
   }, [selectedCharId, eventData]);
-
-  // Vue joueur: présélectionner automatiquement son unique personnage
-  useEffect(() => {
-    if (!isAdmin && !selectedCharId && Array.isArray(characters) && characters.length === 1) {
-      setSelectedCharId(characters[0].id);
-    }
-  }, [isAdmin, selectedCharId, characters]);
 
   // ============================================================================
   // ACTIONS ADMIN
@@ -401,12 +394,8 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
 
   return (
     <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
-      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial{isAdmin ? ' (Test)' : ''}</h2>
-      <p className="text-stone-400 text-sm mb-6">
-        {isAdmin
-          ? 'Mode en test : aucune reward active et aucune exposition côté joueurs.'
-          : 'Mode joueur : 2 tentatives par jour (matin + après-midi).'}
-      </p>
+      <h2 className="text-2xl font-bold text-red-400 mb-2">☄️ Cataclysme — Boss Mondial (Test)</h2>
+      <p className="text-stone-400 text-sm mb-6">Mode en test : aucune reward active et aucune exposition côté joueurs.</p>
 
       {/* ================================================================ */}
       {/* ÉTAT DE L'EVENT */}
@@ -451,8 +440,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
         </div>
       </div>
 
-      {isAdmin && (
-        <>
       {/* ================================================================ */}
       {/* BOUTONS ADMIN */}
       {/* ================================================================ */}
@@ -493,8 +480,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
           ☄️ Lancer le Cataclysme (Reset + Discord)
         </button>
       </div>
-      </>
-      )}
 
       {/* ================================================================ */}
       {/* SIMULATION DE COMBAT */}
@@ -619,8 +604,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
         </div>
       )}
 
-      {isAdmin && (
-      <>
       {/* ================================================================ */}
       {/* SIMULATION DE MASSE */}
       {/* ================================================================ */}
@@ -739,8 +722,6 @@ const WorldBossAdmin = ({ characters, isAdmin = true }) => {
             </div>
           )}
         </div>
-      )}
-      </>
       )}
 
       {/* ================================================================ */}
