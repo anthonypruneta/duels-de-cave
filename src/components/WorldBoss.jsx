@@ -40,11 +40,30 @@ function getBossNameFromPath(path) {
   return filename.replace(/\.[^/.]+$/, '');
 }
 
-// Piocher un boss aléatoire dans les images cataclysme
-function pickRandomBoss() {
+// Retourne un index de semaine qui change le samedi à midi
+function getWeekSeed() {
+  const now = new Date();
+  // Reculer au dernier samedi midi
+  // jour 0=dim, 6=sam
+  const day = now.getDay();
+  const hour = now.getHours();
+  // Nombre de jours depuis samedi midi dernier
+  let daysSinceSat = (day - 6 + 7) % 7;
+  if (daysSinceSat === 0 && hour < 12) daysSinceSat = 7; // avant samedi midi = semaine précédente
+  const lastSatNoon = new Date(now);
+  lastSatNoon.setDate(now.getDate() - daysSinceSat);
+  lastSatNoon.setHours(12, 0, 0, 0);
+  // Seed = timestamp du samedi midi en jours (stable pour toute la semaine)
+  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
+}
+
+// Piocher un boss déterministe par semaine (change le samedi à midi)
+function pickWeeklyBoss() {
   const entries = Object.entries(CATACLYSM_IMAGES);
   if (entries.length === 0) return { name: WORLD_BOSS.nom, image: null };
-  const [sourcePath, imagePath] = entries[Math.floor(Math.random() * entries.length)];
+  const seed = getWeekSeed();
+  const index = seed % entries.length;
+  const [sourcePath, imagePath] = entries[index];
   return { name: getBossNameFromPath(sourcePath), image: imagePath };
 }
 
@@ -103,7 +122,7 @@ const WorldBoss = () => {
   const [loading, setLoading] = useState(true);
 
   // Boss aléatoire (choisi une fois au montage)
-  const boss = useMemo(() => pickRandomBoss(), []);
+  const boss = useMemo(() => pickWeeklyBoss(), []);
 
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);
