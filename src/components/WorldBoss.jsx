@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -171,6 +171,9 @@ const WorldBoss = () => {
           equippedWeaponId: weaponId
         }));
       }
+
+      // Auto-launch si c'est lundi >= 18h et event inactif
+      await checkAutoLaunch(boss.name);
 
       setLoading(false);
     };
