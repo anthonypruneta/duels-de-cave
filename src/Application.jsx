@@ -18,6 +18,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
+import WorldBoss from './components/WorldBoss';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -129,6 +130,16 @@ function Application() {
                 <ModeAvailabilityRoute>
                   <InfiniteLabyrinth />
                 </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/world-boss"
+            element={
+              <ProtectedRoute>
+                <AdminOnlyRoute>
+                  <WorldBoss />
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />

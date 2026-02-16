@@ -31,6 +31,14 @@ body::before {
   pointer-events: none;
 }
 
+/* Fond spécial Cataclysme */
+body.cataclysm-bg {
+  background-image: url('/assets/backgrounds/cataclysme.png');
+}
+body.cataclysm-bg::before {
+  background-color: rgba(0, 0, 0, 0.60);
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
