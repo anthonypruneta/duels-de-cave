@@ -134,10 +134,12 @@ function Application() {
             }
           />
           <Route
-            path="/cataclysme"
+            path="/world-boss"
             element={
               <ProtectedRoute>
-                <WorldBoss />
+                <AdminOnlyRoute>
+                  <WorldBoss />
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
