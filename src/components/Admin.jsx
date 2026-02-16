@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled } from '../services/characterService';
-import { grantDungeonRunsToAllPlayers } from '../services/dungeonService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel } from '../services/characterService';
+import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi, getAllArchivedCharacters } from '../services/tournamentService';
 import {
@@ -53,6 +53,9 @@ const Admin = () => {
 
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
+
+  // État pour le reset de progression
+  const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
@@ -558,6 +561,47 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       }
     } else {
       alert('Erreur: ' + result.error);
+    }
+  };
+
+  // Reset complet de la progression d'un personnage (donjon, labyrinthe, récompenses)
+  const handleResetProgression = async (char) => {
+    const confirmMsg = `Réinitialiser TOUTE la progression de "${char.name}" ?\n\n` +
+      '- Progression donjon (grotte, forêt, tour du mage)\n' +
+      '- Arme équipée\n' +
+      '- Boosts de forêt\n' +
+      '- Passif tour du mage\n' +
+      '- Niveau\n' +
+      '- Progression labyrinthe\n\n' +
+      'Cette action est irréversible !';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setResetProgressionLoading(true);
+    try {
+      const userId = char.id;
+
+      const results = await Promise.all([
+        resetDungeonRuns(userId),
+        resetUserLabyrinthProgress(userId),
+        updateCharacterForestBoosts(userId, null),
+        updateCharacterMageTowerPassive(userId, null),
+        updateCharacterEquippedWeapon(userId, null),
+        updateCharacterLevel(userId, 1),
+      ]);
+
+      const allSuccess = results.every(r => r.success);
+
+      if (allSuccess) {
+        alert(`Progression de "${char.name}" réinitialisée avec succès !`);
+      } else {
+        const failed = results.filter(r => !r.success);
+        alert(`Progression partiellement réinitialisée. ${failed.length} opération(s) ont échoué.`);
+      }
+    } catch (error) {
+      alert('Erreur lors du reset: ' + error.message);
+    } finally {
+      setResetProgressionLoading(false);
     }
   };
 
@@ -1407,6 +1451,17 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 }`}
               >
                 {selectedCharacter.disabled ? '✅ Réactiver ce personnage' : '🚫 Désactiver ce personnage'}
+              </button>
+            )}
+
+            {/* Bouton reset progression (pas pour les archivés) */}
+            {selectedCharacter._source !== 'archived' && (
+              <button
+                onClick={() => handleResetProgression(selectedCharacter)}
+                disabled={resetProgressionLoading}
+                className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white py-3 rounded-lg font-bold transition mb-4"
+              >
+                {resetProgressionLoading ? '⏳ Réinitialisation...' : '🔄 Reset progression (donjon, armes, boosts)'}
               </button>
             )}
 
