@@ -8,7 +8,8 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
-  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit
+  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit,
+  applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictSpellBonus, getVerdictCooldownPenalty
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -170,6 +171,7 @@ export function preparerCombattant(char) {
     stunned: false,
     stunnedTurns: 0,
     boneGuardActive: false,
+    _labrysBleedPercent: 0,
     weaponState,
     awakening: buildAwakeningState(awakeningEffect)
   };
@@ -226,6 +228,12 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
 function getMindflayerSpellCooldown(caster, _target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
   let adjustedCooldown = baseCooldown;
+
+  // Arbalète du Verdict: +1 CD sur tous les sorts
+  const verdictPenalty = getVerdictCooldownPenalty(caster.weaponState);
+  if (verdictPenalty > 0) {
+    adjustedCooldown += verdictPenalty;
+  }
 
   if (caster.race === 'Mindflayer' && adjustedCooldown > 1 && !caster.mindflayerFirstCDUsed) {
     const casterAwakening = caster.awakening || {};
@@ -535,6 +543,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
   }
 
+  // Onction d'Éternité: regen % HP max par tour
+  if (attackerPassive?.id === 'onction_eternite') {
+    const onctionHeal = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.regenPercent * getAntiHealFactor(def)));
+    att.currentHP = Math.min(att.maxHP, att.currentHP + onctionHeal);
+    log.push(`${playerColor} 🌿 Onction d'Éternité: ${att.name} régénère ${onctionHeal} points de vie`);
+  }
+
   if (att.class === 'Demoniste' && !spellStolen) {
     const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
@@ -554,6 +569,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       att.maso_taken = 0;
       let spellDmg = applyMindflayerSpellMod(att, def, dmg, 'maso', log, playerColor);
+      // Arbalète du Verdict
+      const verdictBonusMaso = getVerdictSpellBonus(att.weaponState);
+      if (verdictBonusMaso.damageMultiplier !== 1) {
+        spellDmg = Math.round(spellDmg * verdictBonusMaso.damageMultiplier);
+        verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
       if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
@@ -577,6 +598,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.currentHP -= bleedDmg;
     log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
+  }
+
+  // Saignement Labrys d'Arès: dégâts bruts quand la cible attaque
+  if (att._labrysBleedPercent > 0) {
+    const labrysResult = processLabrysBleed(att);
+    if (labrysResult.damage > 0) {
+      att.currentHP -= labrysResult.damage;
+      labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
+      if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
+    }
   }
 
   if (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal') && !spellStolen) {
@@ -634,6 +665,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
+    // Arbalète du Verdict
+    const verdictBonusSucc = getVerdictSpellBonus(att.weaponState);
+    if (verdictBonusSucc.damageMultiplier !== 1) {
+      raw = Math.round(raw * verdictBonusSucc.damageMultiplier);
+      verdictBonusSucc.log.forEach(l => log.push(`${playerColor} ${l}`));
+    }
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     def.succubeWeakenNextAttack = true;
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
@@ -644,6 +681,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
+    // Arbalète du Verdict
+    const verdictBonusBast = getVerdictSpellBonus(att.weaponState);
+    if (verdictBonusBast.damageMultiplier !== 1) {
+      raw = Math.round(raw * verdictBonusBast.damageMultiplier);
+      verdictBonusBast.log.forEach(l => log.push(`${playerColor} ${l}`));
+    }
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
   }
@@ -705,6 +748,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   let wasCrit = false;
 
   const forceCrit = attackerPassive?.id === 'obsidian_skin' && att.currentHP <= att.maxHP * attackerPassive.levelData.critThreshold;
+  let fractureUsedThisTurn = false;
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
@@ -721,6 +765,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = dmgCap(atkSpell, def.base.rescap);
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
       raw = applyMindflayerSpellMod(att, def, raw, 'mag', log, playerColor);
+      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts
+      const verdictBonus = getVerdictSpellBonus(att.weaponState);
+      if (verdictBonus.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonus.damageMultiplier);
+        verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
       if (spellEffects.doubleCast) {
         applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
@@ -737,6 +787,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'war', log, playerColor);
+      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts
+      const verdictBonusWar = getVerdictSpellBonus(att.weaponState);
+      if (verdictBonusWar.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonusWar.damageMultiplier);
+        verdictBonusWar.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
@@ -748,9 +804,24 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = physPart + capPart;
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'arc', log, playerColor);
+      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts (1 seul usage par activation skill)
+      if (i === 0) {
+        const verdictBonusArc = getVerdictSpellBonus(att.weaponState);
+        if (verdictBonusArc.damageMultiplier !== 1) {
+          raw = Math.round(raw * verdictBonusArc.damageMultiplier);
+          verdictBonusArc.log.forEach(l => log.push(`${playerColor} ${l}`));
+        }
+      }
     } else {
       const autoCapBonus = getBriseurAutoBonus(att);
       raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
+      // Orbe du Sacrifice Sanguin: +Y% dégâts autos, -X% HP max
+      if (attackerPassive?.id === 'orbe_sacrifice') {
+        raw = Math.round(raw * (1 + attackerPassive.levelData.autoDamageBonus));
+        const hpCost = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.hpCostPercent));
+        att.currentHP -= hpCost;
+        log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(attackerPassive.levelData.autoDamageBonus * 100)}%)`);
+      }
       if (att.race === 'Lycan') {
         const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
         if (bleedStacks > 0) {
@@ -770,6 +841,27 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = modifyCritDamage(att.weaponState, critDamage);
     }
 
+    // Rituel de Fracture: explose le bouclier ennemi sur auto (1 fois par tour)
+    if (attackerPassive?.id === 'rituel_fracture' && !fractureUsedThisTurn && !isMage && !isWar && def.shield > 0) {
+      fractureUsedThisTurn = true;
+      const shieldValue = def.shield;
+      const fractureDmg = Math.max(1, Math.round(shieldValue * attackerPassive.levelData.shieldExplosionPercent));
+      def.shield = 0;
+      def.currentHP -= fractureDmg;
+      def.maso_taken = (def.maso_taken || 0) + fractureDmg;
+      if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+      log.push(`${playerColor} 💥 Rituel de Fracture: ${att.name} brise le bouclier de ${def.name} (${shieldValue}) et inflige ${fractureDmg} dégâts bruts !`);
+
+      if (def?.ability?.type === 'lich_shield' && !def.shieldExploded) {
+        def.shieldExploded = true;
+        let lichExplosion = Math.max(1, Math.round(def.maxHP * 0.2));
+        lichExplosion = applyIncomingAwakeningModifiers(att, lichExplosion);
+        att.currentHP -= lichExplosion;
+        if (att.awakening?.damageStackBonus) att.awakening.damageTakenStacks += 1;
+        log.push(`${playerColor} 💥 Le bouclier de liche de ${def.name} explose aussi et inflige ${lichExplosion} dégâts à ${att.name}`);
+      }
+    }
+
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)));
     if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
       att.familiarStacks = (att.familiarStacks || 0) + 1;
@@ -779,6 +871,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const attackEffects = onAttack(att.weaponState, att, def, inflicted);
       if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
     }
 

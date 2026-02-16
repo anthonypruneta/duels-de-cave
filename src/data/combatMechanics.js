@@ -254,6 +254,26 @@ export const weaponConstants = {
     doubleCastTriggers: [2, 4], // Se déclenche au 2e et 4e sort
     secondCastDamage: 0.7,      // 70% des dégâts/soins
   },
+
+  // Fléau d'Anathème (Fléau légendaire) — Vague 2
+  fleauAnatheme: {
+    defReductionPercent: 0.15,   // -15% DEF ennemi au premier coup
+    rescapReductionPercent: 0.15, // -15% ResC ennemi au premier coup
+  },
+
+  // Arbalète du Verdict (Arbalète légendaire) — Vague 2
+  arbaleteVerdict: {
+    spellDamageBonus: 0.7,       // +70% dégâts sur les 2 premiers sorts
+    spellBonusCount: 2,          // Nombre de sorts bonus
+    cooldownPenalty: 1,          // +1 CD sur tous les sorts
+  },
+
+  // Labrys d'Arès (Hache légendaire) — Vague 2
+  labrysAres: {
+    initialBleedPercent: 0.03,   // 3% HP max par auto de la cible
+    bleedDecayPercent: 0.01,     // Réduit de 1% par auto
+    rawDamage: true,             // Dégâts bruts (ignorent DEF/ResC)
+  },
 };
 
 // ============================================================================
