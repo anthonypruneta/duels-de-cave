@@ -479,17 +479,24 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     setAnnonceEnvoi(false);
   };
 
-  // Tirage manuel du tournoi (créer le bracket en avance)
-  const handleCreerTirage = async () => {
-    if (!confirm('Créer le tirage du tournoi maintenant ? Cela écrasera tout tournoi existant en préparation.')) return;
+  // Démarrer l'event : créer le tirage + lancer le tournoi + rediriger
+  const handleDemarrerEvent = async () => {
+    if (!confirm('Démarrer l\'event maintenant avec tous les personnages actifs ? Cela écrasera tout tournoi existant.')) return;
     setTirageLoading(true);
-    const result = await creerTournoi('current');
-    setTirageLoading(false);
-    if (result.success) {
-      alert(`✅ Tirage créé avec ${result.nbParticipants} participants !`);
-    } else {
-      alert('❌ Erreur: ' + result.error);
+    const createResult = await creerTournoi('current');
+    if (!createResult.success) {
+      alert('❌ Erreur création: ' + createResult.error);
+      setTirageLoading(false);
+      return;
     }
+    const launchResult = await lancerTournoi('current');
+    if (!launchResult.success) {
+      alert('❌ Erreur lancement: ' + launchResult.error);
+      setTirageLoading(false);
+      return;
+    }
+    setTirageLoading(false);
+    navigate('/tournament');
   };
 
   // Simulation de tournoi en direct
@@ -979,17 +986,17 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </div>
         </div>
 
-        {/* Section Tirage Manuel du Tournoi */}
+        {/* Section Démarrer l'Event */}
         <div className="bg-stone-900/70 border-2 border-red-500 rounded-xl p-6 mb-8">
-          <h2 className="text-2xl font-bold text-red-300 mb-4">🎯 Tirage du Tournoi</h2>
-          <p className="text-stone-400 text-sm mb-4">Déclencher le tirage au sort du tournoi en avance. Normalement automatique le samedi à 18h. Le bracket sera visible sur la page tournoi.</p>
+          <h2 className="text-2xl font-bold text-red-300 mb-4">🎯 Démarrer l'Event</h2>
+          <p className="text-stone-400 text-sm mb-4">Lance le tournoi avec tous les personnages actifs de la semaine. Crée le tirage, lance le premier combat et redirige vers la page tournoi. Les matchs s'enchaînent automatiquement.</p>
 
           <button
-            onClick={handleCreerTirage}
+            onClick={handleDemarrerEvent}
             disabled={tirageLoading}
             className="w-full bg-red-600 hover:bg-red-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
           >
-            {tirageLoading ? '⏳ Création du tirage...' : '🎲 Créer le tirage maintenant'}
+            {tirageLoading ? '⏳ Lancement de l\'event...' : '🚀 Démarrer l\'event'}
           </button>
         </div>
 

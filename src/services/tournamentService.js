@@ -79,7 +79,7 @@ async function chargerParticipants() {
 
   const participants = await Promise.all(
     result.data
-      .filter(char => !char.archived)
+      .filter(char => !char.archived && !char.disabled)
       .map(async (char) => {
         const level = char.level ?? 1;
         let weaponId = char.equippedWeaponId || null;
