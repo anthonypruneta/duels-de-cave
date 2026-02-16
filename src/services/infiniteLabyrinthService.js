@@ -402,11 +402,10 @@ async function getPreparedUserCharacter(userId) {
 }
 
 function buildFloorEnemy(floor) {
-  const passive = floor.bossKit?.passiveId ? getMageTowerPassiveById(floor.bossKit.passiveId) : null;
   const awakeningRaces = floor.bossKit?.awakeningRaces || [];
-  const race = awakeningRaces[0] || 'Humain';
+  const race = awakeningRaces[0] || null;
   const additionalAwakeningRaces = awakeningRaces.slice(1);
-  const enemyClass = floor.bossKit?.spellClass || 'Guerrier';
+  const enemyClass = floor.bossKit?.spellClass || null;
 
   return {
     name: floor.enemyName,
