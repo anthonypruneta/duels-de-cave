@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -149,15 +149,11 @@ const WorldBoss = () => {
     return () => document.body.classList.remove('cataclysm-bg');
   }, []);
 
-  // Chargement initial
+  // Chargement initial du personnage
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
-      const [charResult, eventResult, lbResult] = await Promise.all([
-        getUserCharacter(currentUser.uid),
-        getWorldBossEvent(),
-        getLeaderboard()
-      ]);
+      const charResult = await getUserCharacter(currentUser.uid);
 
       if (charResult.success && charResult.data) {
         const char = charResult.data;
@@ -176,12 +172,24 @@ const WorldBoss = () => {
         }));
       }
 
-      if (eventResult.success) setEventData(eventResult.data);
-      if (lbResult.success) setLeaderboard(lbResult.data);
       setLoading(false);
     };
     load();
   }, [currentUser]);
+
+  // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
+  useEffect(() => {
+    const unsubEvent = onWorldBossEventChange((data) => {
+      setEventData(data);
+    });
+    const unsubLeaderboard = onLeaderboardChange((entries) => {
+      setLeaderboard(entries);
+    });
+    return () => {
+      unsubEvent();
+      unsubLeaderboard();
+    };
+  }, []);
 
   // Musique dès l'ouverture
   useEffect(() => {
