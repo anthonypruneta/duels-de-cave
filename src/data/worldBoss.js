@@ -23,6 +23,7 @@ export const WORLD_BOSS_CONSTANTS = {
   MAX_TURNS: 10,           // Le combat dure 10 tours max
   EXTINCTION_TURN: 10,     // Tour de l'attaque EXTINCTION
   ATTEMPTS_PER_DAY: 2,     // 1 matin + 1 aprem
+  PERCENT_HP_DAMAGE_REDUCTION: 0.90, // 90% de réduction sur les dégâts basés sur %PV max (bleed Lycan, etc.)
 };
 
 // Statuts possibles de l'event
