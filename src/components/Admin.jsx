@@ -18,6 +18,7 @@ import Header from './Header';
 import borderImage from '../assets/backgrounds/border.png';
 import { races as racesData } from '../data/races';
 import { classes as classesData } from '../data/classes';
+import WorldBossAdmin from './WorldBossAdmin';
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -945,6 +946,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             </button>
           </div>
         </div>
+
+        {/* Section Boss Mondial */}
+        <WorldBossAdmin characters={characters} />
 
         <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
           <audio ref={labyrinthAudioRef} loop>
