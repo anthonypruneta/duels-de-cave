@@ -43,9 +43,12 @@ export function initWeaponCombatState(combatant, weaponId) {
   const counters = {
     turnCount: 0,           // Compteur de tours (pour Zweihänder, Lævateinn, Arc des Cieux)
     attackCount: 0,         // Compteur d'attaques (pour Mjöllnir)
-    spellCount: 0,          // Compteur de sorts (pour Codex Archon)
-    firstHitDone: false,    // Premier coup effectué (pour Gungnir)
+    spellCount: 0,          // Compteur de sorts (pour Codex Archon, Arbalète du Verdict)
+    firstHitDone: false,    // Premier coup effectué (pour Gungnir, Fléau d'Anathème)
     gungnirApplied: false,  // Debuff Gungnir appliqué (non cumulable)
+    anathemeApplied: false,  // Debuff Fléau d'Anathème appliqué
+    verdictSpellsUsed: 0,    // Nombre de sorts boostés par l'Arbalète du Verdict
+    labrysBleedActive: false, // Saignement Labrys actif sur la cible
   };
 
   return {
@@ -183,6 +186,8 @@ export function onAttack(weaponState, attacker, defender, damage) {
     stunTarget: false,
     stunDuration: 0,
     atkDebuff: 0,
+    anathemeDebuff: false,
+    applyLabrysBleed: false,
     log: []
   };
 
@@ -208,6 +213,25 @@ export function onAttack(weaponState, attacker, defender, damage) {
         weaponState.counters.gungnirApplied = true;
         effects.atkDebuff = weaponConstants.gungnir.atkReductionPercent;
         effects.log.push(`✨ Gungnir: Serment d'Odin - ATK ennemie réduite de 10%`);
+      }
+      break;
+    }
+
+    case 'fleau_legendaire': {
+      // Fléau d'Anathème: première attaque, -15% DEF et -15% ResC permanent
+      if (!weaponState.counters.anathemeApplied) {
+        weaponState.counters.anathemeApplied = true;
+        effects.anathemeDebuff = true;
+        effects.log.push(`🔗 Fléau d'Anathème: Anathème - ${defender.nom || defender.name || 'Ennemi'} perd 15% DEF et 15% ResC !`);
+      }
+      break;
+    }
+
+    case 'hache_legendaire': {
+      // Labrys d'Arès: applique saignement brut si pas déjà actif
+      if (!defender._labrysBleedPercent || defender._labrysBleedPercent <= 0) {
+        effects.applyLabrysBleed = true;
+        effects.log.push(`🪓 Labrys d'Arès: Saignement d'Arès appliqué - ${defender.nom || defender.name || 'Ennemi'} saigne (3% HP max) !`);
       }
       break;
     }
@@ -251,9 +275,48 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
       }
       break;
     }
+
+    case 'arbalete_legendaire': {
+      // Arbalète du Verdict: les 2 premiers sorts infligent +70% dégâts
+      // (Le comptage est géré ici, le bonus de dégâts est appliqué dans le combat)
+      // Le spellCount est déjà incrémenté ci-dessus
+      break;
+    }
   }
 
   return effects;
+}
+
+/**
+ * Retourne le bonus de dégâts de sort pour l'Arbalète du Verdict
+ * À appeler AVANT d'infliger les dégâts du sort
+ */
+export function getVerdictSpellBonus(weaponState) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
+    return { damageMultiplier: 1.0, log: [] };
+  }
+
+  weaponState.counters.verdictSpellsUsed = (weaponState.counters.verdictSpellsUsed || 0) + 1;
+  const spellIndex = weaponState.counters.verdictSpellsUsed;
+
+  if (spellIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
+    return {
+      damageMultiplier: 1 + weaponConstants.arbaleteVerdict.spellDamageBonus,
+      log: [`⚖️ Arbalète du Verdict: Sort ${spellIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
+    };
+  }
+
+  return { damageMultiplier: 1.0, log: [] };
+}
+
+/**
+ * Retourne la pénalité de cooldown de l'Arbalète du Verdict
+ */
+export function getVerdictCooldownPenalty(weaponState) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
+    return 0;
+  }
+  return weaponConstants.arbaleteVerdict.cooldownPenalty;
 }
 
 
@@ -372,4 +435,46 @@ export function applyMjollnirStun(defenderState) {
     stunned: true,
     stunnedTurns: weaponConstants.mjollnir.stunDuration
   };
+}
+
+/**
+ * Applique le debuff Anathème (Fléau légendaire) à un défenseur
+ * -15% DEF et -15% ResC permanent
+ */
+export function applyAnathemeDebuff(defenderStats) {
+  const debuffedStats = { ...defenderStats };
+  debuffedStats.def = Math.max(0, Math.round(debuffedStats.def * (1 - weaponConstants.fleauAnatheme.defReductionPercent)));
+  debuffedStats.rescap = Math.max(0, Math.round(debuffedStats.rescap * (1 - weaponConstants.fleauAnatheme.rescapReductionPercent)));
+  debuffedStats._anathemeDebuffed = true;
+  return debuffedStats;
+}
+
+/**
+ * Applique le saignement Labrys d'Arès à un défenseur
+ * La cible perd 3% HP max à chaque auto, réduit de 1% par auto
+ */
+export function applyLabrysBleed(defender) {
+  defender._labrysBleedPercent = weaponConstants.labrysAres.initialBleedPercent;
+}
+
+/**
+ * Traite le saignement Labrys quand la cible attaque
+ * Retourne les dégâts bruts infligés
+ */
+export function processLabrysBleed(attacker) {
+  if (!attacker._labrysBleedPercent || attacker._labrysBleedPercent <= 0) {
+    return { damage: 0, log: [] };
+  }
+
+  const bleedDmg = Math.max(1, Math.round(attacker.maxHP * attacker._labrysBleedPercent));
+  const log = [`🪓 Saignement d'Arès: ${attacker.nom || attacker.name} perd ${bleedDmg} PV bruts (${Math.round(attacker._labrysBleedPercent * 100)}% HP max)`];
+
+  // Réduire le saignement de 1%
+  attacker._labrysBleedPercent = Math.max(0, attacker._labrysBleedPercent - weaponConstants.labrysAres.bleedDecayPercent);
+
+  if (attacker._labrysBleedPercent <= 0) {
+    log.push(`🪓 Le saignement d'Arès se dissipe.`);
+  }
+
+  return { damage: bleedDmg, log };
 }

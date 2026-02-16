@@ -60,7 +60,30 @@ export const WEAPON_FAMILIES = {
   LANCE: 'lance',
   ARC: 'arc',
   TOME: 'tome',
+  FLEAU: 'fleau',
+  ARBALETE: 'arbalete',
+  HACHE: 'hache',
 };
+
+// ============================================================================
+// SYSTÈME DE VAGUES (activation progressive du contenu)
+// ============================================================================
+// Vague 1 : contenu initial (toujours actif)
+// Vague 2 : nouvelles armes/passifs post-tournoi S2
+const WAVE_ACTIVATION_DATES = {
+  1: null, // Toujours actif
+  2: new Date('2026-02-21T22:00:00+01:00'), // Samedi 21 février 2026, 22h Paris
+};
+
+/**
+ * Vérifie si une vague de contenu est active
+ */
+export function isWaveActive(wave) {
+  if (!wave || wave === 1) return true;
+  const activationDate = WAVE_ACTIVATION_DATES[wave];
+  if (!activationDate) return false;
+  return new Date() >= activationDate;
+}
 
 // ============================================================================
 // DÉFINITION DES 24 ARMES
@@ -530,6 +553,187 @@ export const weapons = {
     },
     description: 'Le livre ultime des arcanes, rédigé par les Archons primordiaux.',
   },
+
+  // =========================================================================
+  // I. FLÉAUX (Vague 2 — anti-tank)
+  // =========================================================================
+  fleau_commun: {
+    id: 'fleau_commun',
+    nom: 'Fléau Brutal',
+    famille: WEAPON_FAMILIES.FLEAU,
+    rarete: RARITY.COMMUNE,
+    icon: '⛓️',
+    imageFile: 'fleau1.png',
+    stats: {
+      auto: 2,
+    },
+    effet: null,
+    description: 'Un fléau d\'armes rudimentaire mais efficace.',
+    vague: 2,
+  },
+
+  fleau_rare: {
+    id: 'fleau_rare',
+    nom: 'Fléau du Crépuscule',
+    famille: WEAPON_FAMILIES.FLEAU,
+    rarete: RARITY.RARE,
+    icon: '⛓️',
+    imageFile: 'fleau2.png',
+    stats: {
+      auto: 3,
+      def: 1,
+    },
+    effet: null,
+    description: 'Un fléau forgé dans les ombres du crépuscule.',
+    vague: 2,
+  },
+
+  fleau_legendaire: {
+    id: 'fleau_legendaire',
+    nom: 'Fléau d\'Anathème',
+    famille: WEAPON_FAMILIES.FLEAU,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '🔗',
+    imageFile: 'fleau3.png',
+    stats: {
+      auto: 5,
+      def: 3,
+    },
+    effet: {
+      nom: 'Anathème',
+      description: 'Après votre première attaque, la cible perd 15% DEF et 15% ResC pour le reste du combat.',
+      trigger: {
+        type: TRIGGER_TYPES.FIRST_HIT,
+      },
+      values: {
+        defReductionPercent: 0.15,
+        rescapReductionPercent: 0.15,
+      },
+    },
+    description: 'Un fléau maudit qui brise les défenses de l\'âme et du corps.',
+    vague: 2,
+  },
+
+  // =========================================================================
+  // J. ARBALÈTES (Vague 2 — burst)
+  // =========================================================================
+  arbalete_commune: {
+    id: 'arbalete_commune',
+    nom: 'Arbalète de Chasse',
+    famille: WEAPON_FAMILIES.ARBALETE,
+    rarete: RARITY.COMMUNE,
+    icon: '🏹',
+    imageFile: 'arbalete1.png',
+    stats: {
+      auto: 1,
+      cap: 1,
+    },
+    effet: null,
+    description: 'Une arbalète légère pour le petit gibier.',
+    vague: 2,
+  },
+
+  arbalete_rare: {
+    id: 'arbalete_rare',
+    nom: 'Arbalète du Serment',
+    famille: WEAPON_FAMILIES.ARBALETE,
+    rarete: RARITY.RARE,
+    icon: '🏹',
+    imageFile: 'arbalete2.png',
+    stats: {
+      auto: 3,
+      cap: 3,
+    },
+    effet: null,
+    description: 'Une arbalète de précision, forgée sous serment de loyauté.',
+    vague: 2,
+  },
+
+  arbalete_legendaire: {
+    id: 'arbalete_legendaire',
+    nom: 'Arbalète du Verdict',
+    famille: WEAPON_FAMILIES.ARBALETE,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '⚖️',
+    imageFile: 'arbalete3.png',
+    stats: {
+      auto: 4,
+      cap: 4,
+    },
+    effet: {
+      nom: 'Verdict',
+      description: 'Vos deux premiers sorts infligent +70% dégâts mais ont +1 CD.',
+      trigger: {
+        type: TRIGGER_TYPES.PASSIVE,
+      },
+      values: {
+        spellDamageBonus: 0.7,
+        spellBonusCount: 2,
+        cooldownPenalty: 1,
+      },
+    },
+    description: 'L\'arbalète du juge suprême, dont chaque carreau est un verdict.',
+    vague: 2,
+  },
+
+  // =========================================================================
+  // K. HACHES (Vague 2 — saignement)
+  // =========================================================================
+  hache_commune: {
+    id: 'hache_commune',
+    nom: 'Hache de Bûcheron',
+    famille: WEAPON_FAMILIES.HACHE,
+    rarete: RARITY.COMMUNE,
+    icon: '🪓',
+    imageFile: 'hache1.png',
+    stats: {
+      auto: 4,
+    },
+    effet: null,
+    description: 'Une hache de travail reconvertie pour le combat.',
+    vague: 2,
+  },
+
+  hache_rare: {
+    id: 'hache_rare',
+    nom: 'Hache Géante',
+    famille: WEAPON_FAMILIES.HACHE,
+    rarete: RARITY.RARE,
+    icon: '🪓',
+    imageFile: 'hache2.png',
+    stats: {
+      auto: 6,
+    },
+    effet: null,
+    description: 'Une hache massive qui fend tout sur son passage.',
+    vague: 2,
+  },
+
+  hache_legendaire: {
+    id: 'hache_legendaire',
+    nom: 'Labrys d\'Arès',
+    famille: WEAPON_FAMILIES.HACHE,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '⚔️',
+    imageFile: 'hache3.png',
+    stats: {
+      auto: 8,
+    },
+    effet: {
+      nom: 'Saignement d\'Arès',
+      description: 'Votre attaque applique un saignement brut : la cible perd 3% HP max par auto qu\'elle effectue. Réduit de 1% par auto (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
+      trigger: {
+        type: TRIGGER_TYPES.PASSIVE,
+      },
+      values: {
+        initialBleedPercent: 0.03,
+        bleedDecayPercent: 0.01,
+        rawDamage: true,
+      },
+    },
+    description: 'La hache double du dieu de la guerre, qui inflige des blessures inguérissables.',
+    vague: 2,
+  },
 };
 
 // ============================================================================
@@ -567,12 +771,14 @@ export function getWeaponByFamilyAndRarity(family, rarity) {
 }
 
 /**
- * Tire une arme aléatoire d'une rareté donnée
+ * Tire une arme aléatoire d'une rareté donnée (filtrée par vague active)
  */
 export function getRandomWeaponByRarity(rarity) {
-  const familyKeys = Object.values(WEAPON_FAMILIES);
-  const randomFamily = familyKeys[Math.floor(Math.random() * familyKeys.length)];
-  return getWeaponByFamilyAndRarity(randomFamily, rarity);
+  const available = Object.values(weapons).filter(
+    w => w.rarete === rarity && isWaveActive(w.vague)
+  );
+  if (available.length === 0) return null;
+  return available[Math.floor(Math.random() * available.length)];
 }
 
 /**
@@ -588,6 +794,9 @@ export function getWeaponFamilyInfo() {
     [WEAPON_FAMILIES.LANCE]: { nom: 'Lances', icon: '🔱' },
     [WEAPON_FAMILIES.ARC]: { nom: 'Arcs', icon: '🏹' },
     [WEAPON_FAMILIES.TOME]: { nom: 'Tomes', icon: '📖' },
+    [WEAPON_FAMILIES.FLEAU]: { nom: 'Fléaux', icon: '⛓️' },
+    [WEAPON_FAMILIES.ARBALETE]: { nom: 'Arbalètes', icon: '🏹' },
+    [WEAPON_FAMILIES.HACHE]: { nom: 'Haches', icon: '🪓' },
   };
 }
 
@@ -618,6 +827,8 @@ export function applyWeaponStats(baseStats, weaponId) {
 export function validateWeaponsData() {
   const errors = [];
   const weaponList = Object.values(weapons);
+  const familyCount = Object.values(WEAPON_FAMILIES).length;
+  const expectedTotal = familyCount * 3;
 
   // Vérifie que chaque famille a exactement 3 armes (une par rareté)
   for (const family of Object.values(WEAPON_FAMILIES)) {
@@ -646,9 +857,9 @@ export function validateWeaponsData() {
     }
   }
 
-  // Vérifie qu'il y a 24 armes au total
-  if (weaponList.length !== 24) {
-    errors.push(`Total armes: attendu 24, trouvé ${weaponList.length}`);
+  // Vérifie le total (familles × 3 raretés)
+  if (weaponList.length !== expectedTotal) {
+    errors.push(`Total armes: attendu ${expectedTotal}, trouvé ${weaponList.length}`);
   }
 
   return {
