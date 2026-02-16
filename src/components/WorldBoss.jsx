@@ -24,7 +24,7 @@ import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionB
 import testImage1 from '../assets/characters/test.png';
 
 // Images du boss cataclysme (piochées par semaine, nom du fichier = nom du boss)
-const CATACLYSM_IMAGES = import.meta.glob('../assets/bosses/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
