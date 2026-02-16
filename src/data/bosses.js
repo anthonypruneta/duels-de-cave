@@ -14,7 +14,7 @@
 export const bosses = {
   // =========================================================================
   // BOSS NIVEAU 2 - BANDIT (Normal)
-  // Stats: 25 partout, 150 HP
+  // Stats: 30 partout, 180 HP
   // Capacité: Saignement tous les 2 tours (comme Lycan)
   // =========================================================================
   bandit: {
@@ -26,12 +26,12 @@ export const bosses = {
 
     // Stats fixes
     baseStats: {
-      hp: 150,
-      auto: 25,
-      def: 25,
-      cap: 25,
-      rescap: 25,
-      spd: 25,
+      hp: 180,
+      auto: 30,
+      def: 30,
+      cap: 30,
+      rescap: 30,
+      spd: 30,
     },
 
     // Capacité spéciale du boss
@@ -78,7 +78,7 @@ export const bosses = {
 
   // =========================================================================
   // BOSS NIVEAU 3 - DRAGON (Très Difficile)
-  // Stats: 35 partout, 280 HP
+  // Stats: 42 partout, 336 HP
   // Capacité: Sort tous les 5 tours avec +50% dégâts
   // =========================================================================
   dragon: {
@@ -90,12 +90,12 @@ export const bosses = {
 
     // Stats fixes
     baseStats: {
-      hp: 280,
-      auto: 35,
-      def: 35,
-      cap: 35,
-      rescap: 35,
-      spd: 35,
+      hp: 336,
+      auto: 42,
+      def: 42,
+      cap: 42,
+      rescap: 42,
+      spd: 42,
     },
 
     // Capacité spéciale du boss

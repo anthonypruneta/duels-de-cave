@@ -604,7 +604,7 @@ const Dungeon = () => {
     };
     let skillUsed = false;
 
-    const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true) => {
+    const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true, isSpellDamage = false) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
       if (isPlayer) {
@@ -644,6 +644,12 @@ const Dungeon = () => {
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
+        }
+
+        if (isSpellDamage && def.class === 'Briseur de Sort') {
+          const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + def.base.cap * classConstants.briseurSort.shieldFromCap));
+          def.shield = (def.shield || 0) + shield;
+          log.push(`${playerColor} 🧱 ${def.name} convertit le spell en bouclier (+${shield}).`);
         }
 
         if (def.reflect && def.currentHP > 0) {
@@ -703,7 +709,7 @@ const Dungeon = () => {
       const stackBonus = stackPerAuto * (att.familiarStacks || 0);
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
       const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
-      const inflicted = applyMageTowerDamage(raw, false);
+      const inflicted = applyMageTowerDamage(raw, false, true, true);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, att, log, playerColor);
@@ -803,7 +809,7 @@ const Dungeon = () => {
       if (att.bossId === 'dragon' && newBossCooldown >= att.ability.cooldown) {
         const spellDmg = Math.round(att.base.cap * 1.5);
         const raw = dmgCap(spellDmg, def.base.rescap);
-        const inflicted = applyMageTowerDamage(raw, false);
+        const inflicted = applyMageTowerDamage(raw, false, true, true);
         log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);
@@ -1514,6 +1520,15 @@ const Dungeon = () => {
             {lootWeapons[1] && (
               <WeaponCard weapon={lootWeapons[1]} onSelect={handleLootDecision} />
             )}
+          </div>
+
+          <div className="text-center mb-6">
+            <button
+              onClick={() => handleLootDecision(null)}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-5 py-2 font-semibold"
+            >
+              Garder mon arme actuelle
+            </button>
           </div>
 
           {hasCurrentWeapon && (

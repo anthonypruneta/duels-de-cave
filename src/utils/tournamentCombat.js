@@ -101,17 +101,27 @@ function mergeAwakeningEffects(effects = []) {
 
 function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
-  if (!passiveDetails) return;
-  if (passiveDetails.id === 'arcane_barrier') {
+  if (passiveDetails?.id === 'arcane_barrier') {
     const shieldValue = Math.max(1, Math.round(attacker.maxHP * passiveDetails.levelData.shieldPercent));
     attacker.shield = shieldValue;
     log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
   }
-  if (passiveDetails.id === 'mind_breach') {
+  if (passiveDetails?.id === 'mind_breach') {
     const reduction = passiveDetails.levelData.defReduction;
     defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
     log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
   }
+
+  if (attacker?.ability?.type === 'lich_shield') {
+    attacker.shield = Math.max(1, Math.round(attacker.maxHP * 0.2));
+    attacker.shieldExploded = false;
+    log.push(`${label} 🧟 Barrière macabre: ${attacker.name} se protège avec ${attacker.shield} points de bouclier.`);
+  }
+
+  if (attacker?.ability?.type === 'bone_guard') {
+    attacker.boneGuardActive = false;
+  }
+
   defender.spectralMarked = false;
   defender.spectralMarkBonus = 0;
 }
@@ -140,7 +150,7 @@ export function preparerCombattant(char) {
     base: baseWithClassPassive,
     currentHP: baseWithClassPassive.hp,
     maxHP: baseWithClassPassive.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,
@@ -149,6 +159,7 @@ export function preparerCombattant(char) {
     maso_taken: 0,
     familiarStacks: 0,
     shield: 0,
+    shieldExploded: false,
     sireneStacks: 0,
     succubeWeakenNextAttack: false,
     spectralMarked: false,
@@ -157,6 +168,7 @@ export function preparerCombattant(char) {
     mindflayerSpellTheftUsed: false,
     stunned: false,
     stunnedTurns: 0,
+    boneGuardActive: false,
     weaponState,
     awakening: buildAwakeningState(awakeningEffect)
   };
@@ -379,6 +391,9 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
   if (defUnicorn) adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
   if (defPassive?.id === 'obsidian_skin' && isCrit) adjusted = Math.round(adjusted * (1 - defPassive.levelData.critReduction));
+  if (def?.ability?.type === 'bone_guard' && def.boneGuardActive) {
+    adjusted = Math.round(adjusted * 0.7);
+  }
   adjusted = applyOutgoingAwakeningBonus(att, adjusted);
   adjusted = applyIncomingAwakeningModifiers(def, adjusted);
 
@@ -397,6 +412,26 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     def.shield -= absorbed;
     adjusted -= absorbed;
     log.push(`${playerColor} 🛡️ ${def.name} absorbe ${absorbed} points de dégâts grâce à un bouclier`);
+
+    if (def?.ability?.type === 'lich_shield' && def.shield <= 0 && !def.shieldExploded) {
+      def.shieldExploded = true;
+      let explosionDamage = Math.max(1, Math.round(def.maxHP * 0.2));
+      if (att.shield > 0 && explosionDamage > 0) {
+        const absorbedExplosion = Math.min(att.shield, explosionDamage);
+        att.shield -= absorbedExplosion;
+        explosionDamage -= absorbedExplosion;
+        log.push(`${playerColor} 🛡️ ${att.name} absorbe ${absorbedExplosion} dégâts de l'explosion grâce au bouclier`);
+      }
+      if (explosionDamage > 0) {
+        explosionDamage = applyIncomingAwakeningModifiers(att, explosionDamage);
+        att.currentHP -= explosionDamage;
+        if (att.awakening?.damageStackBonus) att.awakening.damageTakenStacks += 1;
+        log.push(`${playerColor} 💥 Le bouclier de ${def.name} explose et inflige ${explosionDamage} points de dégâts à ${att.name}`);
+        if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
+          reviveUndead(att, def, log, playerColor);
+        }
+      }
+    }
   }
   if (adjusted > 0) {
     def.currentHP -= adjusted;
@@ -420,10 +455,16 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
   }
   if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
-    const heal = Math.max(1, Math.round(att.maxHP * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
+    const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
   }
+
+  if (def?.ability?.type === 'bone_guard' && !def.boneGuardActive && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.4) {
+    def.boneGuardActive = true;
+    log.push(`${playerColor} 💀 ${def.name} renforce sa carapace et réduit les dégâts reçus !`);
+  }
+
   return adjusted;
 }
 
@@ -606,6 +647,30 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
+  }
+
+  // ===== CAPACITÉS SPÉCIALES DES BOSS =====
+  if (att.isBoss && att.ability) {
+    att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
+
+    // Bandit: Saignement tous les N tours
+    if (att.bossId === 'bandit' && att.cd.boss_ability >= att.ability.cooldown) {
+      def.bleed_stacks = (def.bleed_stacks || 0) + (att.ability.effect?.stacksPerHit || 1);
+      log.push(`${playerColor} 🗡️ ${att.name} empoisonne sa lame et applique un saignement !`);
+      att.cd.boss_ability = 0;
+    }
+
+    // Dragon: Sort dévastateur tous les N tours
+    if (att.bossId === 'dragon' && att.cd.boss_ability >= att.ability.cooldown) {
+      const spellDmg = Math.round(att.base.cap * (1 + (att.ability.effect?.damageBonus || 0.5)));
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        reviveUndead(def, att, log, playerColor);
+      }
+      att.cd.boss_ability = 0;
+    }
   }
 
   const isMage = !spellStolen && att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');

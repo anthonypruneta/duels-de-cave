@@ -6,6 +6,7 @@ import { getHallOfFame } from '../services/tournamentService';
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,7 +57,8 @@ const HallOfFame = () => {
                   <img
                     src={entry.champion.characterImage}
                     alt={entry.champion.nom}
-                    className="w-20 h-auto object-contain"
+                    className="w-20 h-auto object-contain cursor-pointer hover:opacity-80 transition"
+                    onClick={() => setSelectedImage(entry.champion.characterImage)}
                   />
                 )}
                 <div className="flex-1">
@@ -87,6 +89,20 @@ const HallOfFame = () => {
           </button>
         </div>
       </div>
+
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <img
+            src={selectedImage}
+            alt="Personnage agrandi"
+            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
