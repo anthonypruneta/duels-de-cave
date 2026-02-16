@@ -18,6 +18,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
+import WorldBoss from './components/WorldBoss';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import { ensureWorldBossAutoStart } from './services/worldBossService';
 import WorldBossPage from './components/WorldBoss';
