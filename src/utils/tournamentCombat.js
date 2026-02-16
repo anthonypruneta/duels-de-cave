@@ -888,6 +888,8 @@ export function simulerMatch(char1, char2) {
     const firstActionLogs = [];
     processPlayerAction(first, second, firstActionLogs, firstIsP1, turn);
     allLogs.push(...firstActionLogs);
+    p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
+    p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
     steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
 
     // Second player action
@@ -895,6 +897,8 @@ export function simulerMatch(char1, char2) {
       const secondActionLogs = [];
       processPlayerAction(second, first, secondActionLogs, !firstIsP1, turn);
       allLogs.push(...secondActionLogs);
+      p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
+      p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
       steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
     }
 
