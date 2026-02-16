@@ -264,7 +264,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     <div className="w-full max-w-[340px] mx-auto">
       <div className="relative shadow-2xl">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-          {headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race} • ${character.class}` : 'Créature du labyrinthe')} • Niveau {character.level ?? 1}
+          {headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race || '—'} • ${character.class || '—'}` : 'Créature du labyrinthe')} • Niveau {character.level ?? 1}
         </div>
 
         <div className="overflow-visible border border-stone-600 bg-stone-900">
@@ -440,9 +440,9 @@ const InfiniteLabyrinth = () => {
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
-      race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || 'Humain',
+      race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || null,
       additionalAwakeningRaces: shownEnemyFloor?.bossKit?.awakeningRaces?.slice(1) || [],
-      class: shownEnemyFloor?.bossKit?.spellClass || 'Guerrier',
+      class: shownEnemyFloor?.bossKit?.spellClass || null,
       level: shownEnemyFloor.floorNumber,
       base: shownEnemyFloor.stats,
       bonuses: { race: {}, class: {} },
