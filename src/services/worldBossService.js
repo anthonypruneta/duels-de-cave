@@ -65,10 +65,28 @@ function getTodayKey() {
   return `${y}-${m}-${d}`;
 }
 
+function isMorning() {
+  return new Date().getHours() < 12;
+}
+
+function shouldAutoStartNow() {
+  return new Date().getHours() >= 18;
+}
+
 // ============================================================================
 // EVENT GLOBAL
 // ============================================================================
 const EVENT_DOC_REF = () => doc(db, 'worldBossEvent', 'current');
+
+const clearWorldBossDamages = async () => {
+  const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+  const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
+  if (damagesSnap.empty) return;
+
+  const batch = writeBatch(db);
+  damagesSnap.docs.forEach((d) => batch.delete(d.ref));
+  await retryOperation(async () => batch.commit());
+};
 
 /**
  * Récupérer l'état de l'event
@@ -123,6 +141,8 @@ export const subscribeWorldBossEvent = (onData, onError = () => {}) => {
  */
 export const startWorldBossEvent = async () => {
   try {
+    await clearWorldBossDamages();
+
     const eventData = {
       bossId: WORLD_BOSS.id,
       bossName: WORLD_BOSS.nom,
@@ -143,6 +163,51 @@ export const startWorldBossEvent = async () => {
     return { success: true, data: eventData };
   } catch (error) {
     console.error('Erreur démarrage event:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Lancement auto quotidien à partir de 18h (idempotent)
+ * - Ne fait rien si l'event est déjà actif
+ * - Ne relance pas plusieurs fois le même jour
+ */
+export const ensureWorldBossAutoStart = async () => {
+  try {
+    if (!shouldAutoStartNow()) return { success: true, skipped: true, reason: 'before_18h' };
+
+    const todayKey = getTodayKey();
+    const snap = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
+    const data = snap.exists() ? snap.data() : null;
+
+    if (data?.status === EVENT_STATUS.ACTIVE) {
+      return { success: true, skipped: true, reason: 'already_active' };
+    }
+
+    if (data?.lastAutoStartDateKey === todayKey) {
+      return { success: true, skipped: true, reason: 'already_started_today' };
+    }
+
+    await clearWorldBossDamages();
+
+    const eventData = {
+      bossId: WORLD_BOSS.id,
+      bossName: WORLD_BOSS.nom,
+      status: EVENT_STATUS.ACTIVE,
+      hpMax: WORLD_BOSS.baseStats.hp,
+      hpRemaining: WORLD_BOSS.baseStats.hp,
+      totalDamageDealt: 0,
+      totalAttempts: 0,
+      startedAt: Timestamp.now(),
+      endedAt: null,
+      lastAutoStartDateKey: todayKey,
+      updatedAt: Timestamp.now()
+    };
+
+    await retryOperation(async () => setDoc(EVENT_DOC_REF(), eventData));
+    return { success: true, started: true };
+  } catch (error) {
+    console.error('Erreur lancement auto world boss:', error);
     return { success: false, error: error.message };
   }
 };
