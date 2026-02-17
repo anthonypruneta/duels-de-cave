@@ -218,16 +218,19 @@ export const MAGE_TOWER_PASSIVES = [
     vague: 2,
     levels: {
       1: {
-        description: 'Explose les boucliers ennemis et inflige 40% de leur valeur en dégâts bruts.',
-        shieldExplosionPercent: 0.40
+        description: 'Explose les boucliers ennemis et inflige 40% de leur valeur en dégâts bruts. Réduit les soins adverses de 10%.',
+        shieldExplosionPercent: 0.40,
+        healReduction: 0.10
       },
       2: {
-        description: 'Explose les boucliers ennemis et inflige 50% de leur valeur en dégâts bruts.',
-        shieldExplosionPercent: 0.50
+        description: 'Explose les boucliers ennemis et inflige 50% de leur valeur en dégâts bruts. Réduit les soins adverses de 20%.',
+        shieldExplosionPercent: 0.50,
+        healReduction: 0.20
       },
       3: {
-        description: 'Explose les boucliers ennemis et inflige 60% de leur valeur en dégâts bruts.',
-        shieldExplosionPercent: 0.60
+        description: 'Explose les boucliers ennemis et inflige 60% de leur valeur en dégâts bruts. Réduit les soins adverses de 30%.',
+        shieldExplosionPercent: 0.60,
+        healReduction: 0.30
       }
     }
   }
