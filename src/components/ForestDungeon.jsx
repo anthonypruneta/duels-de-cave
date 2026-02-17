@@ -573,8 +573,11 @@ const ForestDungeon = () => {
   const getUnicornMultiplier = (turn) => (turn % 2 === 1 ? 1.15 : 0.85);
 
   const getAntiHealFactor = (opponent) => {
-    if (opponent?.class === 'Briseur de Sort') return 1 - classConstants.briseurSort.antiHealReduction;
-    return 1;
+    let factor = 1;
+    if (opponent?.class === 'Briseur de Sort') factor *= (1 - classConstants.briseurSort.antiHealReduction);
+    const passive = getPassiveDetails(opponent?.mageTowerPassive);
+    if (passive?.id === 'rituel_fracture') factor *= (1 - (passive.levelData.healReduction || 0));
+    return factor;
   };
 
   const getBriseurAutoBonus = (att) => {
