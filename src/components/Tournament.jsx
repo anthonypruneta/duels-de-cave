@@ -341,38 +341,42 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const awakeningInfo = raceData?.awakening || null;
   const isAwakeningActive = awakeningInfo && (participant.level ?? 1) >= awakeningInfo.levelRequired;
 
-  // Pipeline de stats (même calcul que Combat.jsx)
+  // Pipeline de stats (même ordre que preparerCombattant: forest → weapon → awakening → bastion)
   const raceB = participant.bonuses?.race || {};
   const classB = participant.bonuses?.class || {};
   const forestBoosts = getForestBoosts(participant);
   const baseWithBoosts = applyStatBoosts(participant.base, forestBoosts);
+  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass) : baseWithBoosts;
   const awakeningEffect = getAwakeningEffect(participant.race, participant.level ?? 1);
-  const baseStats = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, pClass) : baseStats;
+  const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
+  const baseStats = pClass === 'Bastion'
+    ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
+    : baseWithAwakening;
+  const baseWithPassive = baseStats;
   const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-  const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+  const weaponDelta = (k) => weapon?.stats?.[k] ?? 0;
+  const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (weapon?.stats?.auto ?? 0);
+  const awakeningDelta = (k) => (baseWithAwakening[k] || 0) - (baseWithWeapon[k] || 0);
+  const bastionDelta = (k) => (baseStats[k] || 0) - (baseWithAwakening[k] || 0);
+  const baseWithoutBonus = (k) => baseWithBoosts[k] - totalBonus(k) - (forestBoosts[k] || 0);
   const tooltipContent = (k) => {
     const parts = [`Base: ${baseWithoutBonus(k)}`];
     if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
     if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-    const weaponDelta = weapon?.stats?.[k] ?? 0;
-    if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
-    if (k === 'auto') {
-      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
-      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-    }
+    if (weaponDelta(k) !== 0) parts.push(`Arme: ${weaponDelta(k) > 0 ? `+${weaponDelta(k)}` : weaponDelta(k)}`);
+    if (k === 'auto' && passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+    if (awakeningDelta(k) !== 0) parts.push(`Éveil: ${awakeningDelta(k) > 0 ? `+${awakeningDelta(k)}` : awakeningDelta(k)}`);
+    if (bastionDelta(k) !== 0) parts.push(`Bastion: ${bastionDelta(k) > 0 ? `+${bastionDelta(k)}` : bastionDelta(k)}`);
     return parts.join(' | ');
   };
 
   const StatWithTooltip = ({ statKey, label }) => {
-    const weaponDelta = weapon?.stats?.[statKey] ?? 0;
-    const passiveAutoBonus = statKey === 'auto'
-      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
-      : 0;
-    const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
-    const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-    const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
+    const displayValue = baseStats[statKey];
+    const allBonuses = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta(statKey)
+      + (statKey === 'auto' ? passiveAutoBonus : 0) + awakeningDelta(statKey) + bastionDelta(statKey);
+    const hasBonus = allBonuses !== 0;
+    const totalDelta = allBonuses;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
     return hasBonus ? (
       <Tooltip content={tooltipContent(statKey)}>
@@ -797,6 +801,8 @@ const Tournament = () => {
             }
             setCombatLog(prev => [...prev, line]);
           }
+          setP1Shield(step.p1Shield || 0);
+          setP2Shield(step.p2Shield || 0);
           await delay(800);
         } else if (step.phase === 'action') {
           for (const line of step.logs) {
@@ -808,6 +814,8 @@ const Tournament = () => {
           }
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
+          setP1Shield(step.p1Shield || 0);
+          setP2Shield(step.p2Shield || 0);
           await delay(2000);
         } else if (step.phase === 'victory') {
           for (const line of step.logs) {
@@ -819,6 +827,8 @@ const Tournament = () => {
           }
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
+          setP1Shield(step.p1Shield || 0);
+          setP2Shield(step.p2Shield || 0);
         }
       }
     } else {
