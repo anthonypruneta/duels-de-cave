@@ -478,3 +478,35 @@ export function processLabrysBleed(attacker) {
 
   return { damage: bleedDmg, log };
 }
+
+// ============================================================================
+// FORGE DES LÉGENDES — Upgrade % sur stats totales
+// ============================================================================
+
+/**
+ * Applique les bonus d'upgrade de la Forge des Légendes aux stats finales.
+ * Les % s'appliquent sur la stat totale du personnage (après tous les autres bonus).
+ *
+ * @param {Object} stats - Stats totales calculées du personnage
+ * @param {Object|null} forgeUpgrade - Données d'upgrade { upgradeAutoPct, upgradeVitPct, upgradeVitPenaltyPct }
+ * @returns {Object} Stats modifiées
+ */
+export function applyForgeUpgrade(stats, forgeUpgrade) {
+  if (!forgeUpgrade) return stats;
+
+  const modified = { ...stats };
+
+  if (forgeUpgrade.upgradeAutoPct) {
+    modified.auto = Math.round(modified.auto * (1 + forgeUpgrade.upgradeAutoPct));
+  }
+
+  if (forgeUpgrade.upgradeVitPct) {
+    modified.spd = Math.round(modified.spd * (1 + forgeUpgrade.upgradeVitPct));
+  }
+
+  if (forgeUpgrade.upgradeVitPenaltyPct) {
+    modified.spd = Math.round(modified.spd * (1 - forgeUpgrade.upgradeVitPenaltyPct));
+  }
+
+  return modified;
+}

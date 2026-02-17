@@ -57,3 +57,81 @@ body.cataclysm-bg::before {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* ===== Forge des Legendes — Effets visuels lave ===== */
+
+/* Nom d'arme avec gradient lave */
+.forge-lava-text {
+  background: linear-gradient(90deg, #ef4444, #f97316, #eab308, #f97316, #ef4444);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: forge-lava-flow 3s ease-in-out infinite;
+}
+
+@keyframes forge-lava-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Contour lave pour la carte personnage */
+.forge-lava-border {
+  position: relative;
+  overflow: visible;
+}
+
+.forge-lava-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ef4444, #f97316, #eab308, #f97316, #ef4444, #f97316);
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: forge-border-glow 4s ease-in-out infinite;
+}
+
+@keyframes forge-border-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Effet de brillance / reflet anime */
+.forge-lava-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.forge-lava-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(251, 191, 36, 0.08) 45%,
+    rgba(251, 191, 36, 0.15) 50%,
+    rgba(251, 191, 36, 0.08) 55%,
+    transparent 60%
+  );
+  animation: forge-shine-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes forge-shine-sweep {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+/* Ombre portee lave subtile */
+.forge-lava-glow {
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.3), 0 0 30px rgba(239, 68, 68, 0.15);
+}

@@ -9,7 +9,8 @@ import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit,
-  applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictSpellBonus, getVerdictCooldownPenalty
+  applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictSpellBonus, getVerdictCooldownPenalty,
+  applyForgeUpgrade
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -148,9 +149,11 @@ export function preparerCombattant(char) {
   ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
+  // Forge des Légendes: appliquer les % d'upgrade sur les stats totales
+  const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
   const baseWithClassPassive = char.class === 'Bastion'
-    ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
-    : baseWithAwakening;
+    ? { ...baseWithForge, def: Math.max(1, Math.round(baseWithForge.def * (1 + classConstants.bastion.defPercentBonus))) }
+    : baseWithForge;
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
     ...char,
@@ -733,6 +736,25 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const raw = dmgCap(spellDmg, def.base.rescap);
       const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        reviveUndead(def, att, log, playerColor);
+      }
+      att.cd.boss_ability = 0;
+    }
+
+    // Ornn: Appel du dieu de la forge — Auto + 50% CAP, Stun 1 tour, CD 5
+    if (att.bossId === 'ornn' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale || 0.5;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🔥 ${att.name} invoque l'Appel du dieu de la forge et inflige ${inflicted} points de dégâts`);
+      if (def.currentHP > 0) {
+        const stunDuration = att.ability.effect?.stunDuration || 1;
+        def.stunned = true;
+        def.stunnedTurns = stunDuration;
+        log.push(`${playerColor} 😵 ${def.name} est étourdi pendant ${stunDuration} tour !`);
+      }
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, att, log, playerColor);
       }
