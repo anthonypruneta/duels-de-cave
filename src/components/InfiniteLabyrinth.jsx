@@ -212,13 +212,14 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
   const weapon = character.equippedWeaponData;
   const passiveDetails = getPassiveDetails(character.mageTowerPassive);
   const awakeningRaces = [character.race, ...(character.additionalAwakeningRaces || [])].filter(Boolean);
+  const effectiveLevel = character.awakeningForced ? 999 : (character.level ?? 1);
   const activeAwakenings = awakeningRaces
     .map((raceName) => ({ raceName, info: races[raceName]?.awakening }))
-    .filter(({ info }) => info && (character.level ?? 1) >= info.levelRequired);
+    .filter(({ info }) => info && effectiveLevel >= info.levelRequired);
   const raceAwakeningInfo = races[character.race]?.awakening || null;
   const hasAwakeningState = Boolean(character.awakening)
     || (Array.isArray(character.additionalAwakeningRaces) && character.additionalAwakeningRaces.length > 0)
-    || Boolean(raceAwakeningInfo && (character.level ?? 1) >= raceAwakeningInfo.levelRequired);
+    || Boolean(raceAwakeningInfo && effectiveLevel >= raceAwakeningInfo.levelRequired);
   const displayedAwakenings = activeAwakenings.length > 0
     ? activeAwakenings
     : (hasAwakeningState && raceAwakeningInfo ? [{ raceName: character.race, info: raceAwakeningInfo }] : []);
@@ -452,7 +453,8 @@ const InfiniteLabyrinth = () => {
       equippedWeaponData: weapon,
       characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
       currentHP: replayP2HP || shownEnemyFloor.stats.hp,
-      maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp
+      maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp,
+      awakeningForced: (shownEnemyFloor?.bossKit?.awakeningRaces || []).length > 0
     };
   }, [shownEnemyFloor, replayP2HP, replayP2MaxHP]);
 

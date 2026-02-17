@@ -419,7 +419,8 @@ function buildFloorEnemy(floor) {
       id: floor.bossKit.passiveId,
       level: floor.bossKit.passiveLevel || 1
     } : null,
-    equippedWeaponId: floor.bossKit?.weaponId || null
+    equippedWeaponId: floor.bossKit?.weaponId || null,
+    awakeningForced: awakeningRaces.length > 0
   };
 }
 
