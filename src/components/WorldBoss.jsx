@@ -564,6 +564,22 @@ const WorldBoss = () => {
     </div>
   );
 
+  // === Tentatives restantes ===
+  const [attemptInfo, setAttemptInfo] = useState(null);
+
+  const refreshAttemptInfo = async () => {
+    if (!character || !currentUser) return;
+    const charId = character.userId || currentUser.uid;
+    const info = await canAttemptBoss(charId);
+    setAttemptInfo(info);
+  };
+
+  useEffect(() => {
+    if (character && eventData?.status === EVENT_STATUS.ACTIVE) {
+      refreshAttemptInfo();
+    }
+  }, [character, eventData?.status]);
+
   // === Lancer le combat ===
   const [attemptError, setAttemptError] = useState(null);
 
@@ -626,6 +642,9 @@ const WorldBoss = () => {
       const charId = character.userId || currentUser.uid;
       await recordAttemptDamage(charId, character.name, result.damageDealt);
     }
+
+    // Refresh les tentatives restantes
+    await refreshAttemptInfo();
   };
 
   // === Variables ===
@@ -757,12 +776,21 @@ const WorldBoss = () => {
               {/* Zone centrale */}
               <div className="w-full md:w-[400px] flex flex-col items-center justify-center gap-6 py-12 order-2 md:order-3">
                 <div className="text-6xl">⚔️</div>
+                {attemptInfo && (
+                  <p className={`text-sm font-semibold ${attemptInfo.canAttempt ? 'text-amber-400' : 'text-red-400'}`}>
+                    {attemptInfo.canAttempt
+                      ? `${attemptInfo.attemptsLeft} / 2 tentative${attemptInfo.attemptsLeft > 1 ? 's' : ''} restante${attemptInfo.attemptsLeft > 1 ? 's' : ''} aujourd'hui`
+                      : 'Plus de tentatives aujourd\'hui'}
+                  </p>
+                )}
                 <button
                   onClick={handleFight}
-                  className="bg-red-700 hover:bg-red-600 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                  disabled={attemptInfo && !attemptInfo.canAttempt}
+                  className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
                   ☄️ Affronter {boss.name}
                 </button>
+                <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
                 {attemptError && (
                   <p className="text-red-400 text-sm text-center bg-red-900/30 border border-red-700 px-4 py-2">{attemptError}</p>
                 )}
