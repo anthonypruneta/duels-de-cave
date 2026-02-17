@@ -919,12 +919,10 @@ const ForestDungeon = () => {
     }
 
     if (isPlayer && playerPassive?.id === 'elemental_fury' && skillUsed) {
-      const baseLightning = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
-      let lightningRaw = dmgPhys(baseLightning, def.base.def);
-      lightningRaw = applyBossOutgoingModifier(att, lightningRaw, turn);
-      lightningRaw = applyBossIncomingModifier(def, lightningRaw, turn);
-      const lightningDamage = applyMageTowerDamage(lightningRaw, false);
-      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
+      const lightningDamage = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
+      def.currentHP -= lightningDamage;
+      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
+      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
     }
 
     if (!isArcher && total > 0) {

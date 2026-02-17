@@ -897,10 +897,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   if (attackerPassive?.id === 'elemental_fury' && skillUsed) {
-    const baseLightning = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
-    const lightningRaw = dmgPhys(baseLightning, def.base.def);
-    const lightningDamage = applyDamage(att, def, lightningRaw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
-    log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
+    const lightningDamage = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
+    def.currentHP -= lightningDamage;
+    log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
+    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
 
   if (!isArcher && total > 0) {

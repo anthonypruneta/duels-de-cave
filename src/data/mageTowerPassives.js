@@ -83,15 +83,15 @@ export const MAGE_TOWER_PASSIVES = [
     icon: '⚡',
     levels: {
       1: {
-        description: 'Quand vous lancez une compétence, un éclair inflige 5% de votre Auto.',
+        description: 'Quand vous lancez une compétence, un éclair inflige 5% de votre Auto en dégâts bruts.',
         lightningPercent: 0.05
       },
       2: {
-        description: 'Quand vous lancez une compétence, un éclair inflige 10% de votre Auto.',
+        description: 'Quand vous lancez une compétence, un éclair inflige 10% de votre Auto en dégâts bruts.',
         lightningPercent: 0.1
       },
       3: {
-        description: 'Quand vous lancez une compétence, un éclair inflige 15% de votre Auto.',
+        description: 'Quand vous lancez une compétence, un éclair inflige 15% de votre Auto en dégâts bruts.',
         lightningPercent: 0.15
       }
     }
