@@ -35,6 +35,7 @@ import {
   createForestBossCombatant
 } from '../data/forestDungeons';
 import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } from '../utils/statPoints';
+import { clampLevel } from '../data/featureFlags';
 import {
   applyGungnirDebuff,
   applyMjollnirStun,
@@ -1115,7 +1116,7 @@ const ForestDungeon = () => {
 
     const updatedCharacter = {
       ...character,
-      level: (character.level ?? 1) + rewardSummary.levelGain,
+      level: clampLevel((character.level ?? 1) + rewardSummary.levelGain),
       forestBoosts: chosen.updatedBoosts
     };
     setCharacter(updatedCharacter);

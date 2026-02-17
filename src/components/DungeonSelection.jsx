@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlayerDungeonSummary } from '../services/dungeonService';
+import { isForgeActive } from '../data/featureFlags';
 import Header from './Header';
 
 const DungeonSelection = () => {
@@ -85,6 +86,19 @@ const DungeonSelection = () => {
                 Entrer dans la tour
               </button>
             </div>
+            {isForgeActive() && (
+              <div className="bg-stone-900/50 p-4 border border-orange-600/50 text-center">
+                <div className="text-4xl mb-2">🔨</div>
+                <p className="text-orange-300 font-bold text-lg">Forge des Legendes</p>
+                <p className="text-sm text-stone-400 mb-4">Upgrade d'arme legendaire</p>
+                <button
+                  onClick={() => navigate('/forge')}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 font-bold border border-orange-500"
+                >
+                  Entrer dans la forge
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
