@@ -1,10 +1,24 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { classConstants, raceConstants } from '../data/combatMechanics';
+import { classConstants, cooldowns, raceConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 
 const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
+
+// Mapping nom de classe → clé dans cooldowns
+const CLASS_TO_CD_KEY = {
+  'Guerrier': 'war',
+  'Voleur': 'rog',
+  'Paladin': 'pal',
+  'Healer': 'heal',
+  'Archer': 'arc',
+  'Mage': 'mag',
+  'Demoniste': 'dem',
+  'Masochiste': 'maso',
+  'Succube': 'succ',
+  'Bastion': 'bast'
+};
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -126,6 +140,16 @@ const applyTextOverrides = (config) => {
       if (typeof classText.description === 'string') classes[className].description = classText.description;
     });
   }
+
+  // Synchroniser les CD affichés avec les valeurs réelles de combatMechanics
+  Object.entries(CLASS_TO_CD_KEY).forEach(([className, cdKey]) => {
+    if (classes[className]?.ability && cooldowns[cdKey] != null) {
+      classes[className].ability = classes[className].ability.replace(
+        /\(CD: \d+ tours?\)/,
+        `(CD: ${cooldowns[cdKey]} tour${cooldowns[cdKey] > 1 ? 's' : ''})`
+      );
+    }
+  });
 };
 
 export const applyBalanceConfig = (config) => {
