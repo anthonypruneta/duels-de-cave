@@ -287,9 +287,10 @@ export const updateCharacterBaseStats = async (userId, baseStats) => {
   }
 };
 
-// Mettre à jour les boosts de stats de la forêt
+// Mettre à jour les boosts de stats de la forêt (avec level cap si actif)
 export const updateCharacterForestBoosts = async (userId, forestBoosts, level = null) => {
   try {
+    const { clampLevel } = await import('../data/featureFlags.js');
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
       const updateData = {
@@ -297,7 +298,7 @@ export const updateCharacterForestBoosts = async (userId, forestBoosts, level = 
         updatedAt: Timestamp.now()
       };
       if (level !== null) {
-        updateData.level = level;
+        updateData.level = clampLevel(level);
       }
       await setDoc(characterRef, updateData, { merge: true });
     });
@@ -513,13 +514,15 @@ export const migrateForestHpBoosts = async () => {
   }
 };
 
-// Mettre à jour le niveau du personnage
+// Mettre à jour le niveau du personnage (avec level cap si actif)
 export const updateCharacterLevel = async (userId, level) => {
   try {
+    const { clampLevel } = await import('../data/featureFlags.js');
+    const clampedLevel = clampLevel(level);
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
       await setDoc(characterRef, {
-        level,
+        level: clampedLevel,
         updatedAt: Timestamp.now()
       }, { merge: true });
     });

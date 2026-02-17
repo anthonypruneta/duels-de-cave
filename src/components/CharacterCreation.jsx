@@ -16,6 +16,9 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConst
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { isForgeActive } from '../data/featureFlags';
+import { getWeaponUpgrade } from '../services/forgeService';
+import { formatUpgradePct } from '../data/forgeDungeon';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -490,9 +493,18 @@ const CharacterCreation = () => {
         if (normalized.level == null) {
           updateCharacterLevel(currentUser.uid, level);
         }
+        // Charger forge upgrade si le feature est actif
+        let forgeUpgradeData = null;
+        if (isForgeActive()) {
+          const upgradeResult = await getWeaponUpgrade(currentUser.uid);
+          if (upgradeResult.success && upgradeResult.data) {
+            forgeUpgradeData = upgradeResult.data;
+          }
+        }
         setExistingCharacter({
           ...normalized,
-          level
+          level,
+          forgeUpgrade: forgeUpgradeData,
         });
         const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
         const pseudoValue = normalized.ownerPseudo || storedPseudo;
@@ -865,6 +877,8 @@ const CharacterCreation = () => {
     const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
+    const forgeUpgrade = existingCharacter.forgeUpgrade;
+    const hasForgeUpgrade = isForgeActive() && forgeUpgrade && forgeUpgrade.upgradeAutoPct;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class) : rawBase;
@@ -910,8 +924,8 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
-            <div className="shadow-2xl">
+          <div className={`relative max-w-md mx-auto ${hasForgeUpgrade ? 'forge-lava-border forge-lava-glow' : ''}`} style={{width:'340px'}}>
+            <div className={`shadow-2xl ${hasForgeUpgrade ? 'forge-lava-shine' : ''}`}>
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
@@ -952,7 +966,7 @@ const CharacterCreation = () => {
                           ) : (
                             <span className="text-xl">{weapon.icon}</span>
                           )}
-                          <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                          <span className={`font-semibold ${hasForgeUpgrade ? 'forge-lava-text' : RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                         </span>
                       </Tooltip>
                       <div className="text-[11px] text-stone-400 space-y-1">
@@ -965,6 +979,12 @@ const CharacterCreation = () => {
                         {weapon.stats && Object.keys(weapon.stats).length > 0 && (
                           <div className="text-stone-200">
                             Stats: {formatWeaponStats(weapon)}
+                          </div>
+                        )}
+                        {hasForgeUpgrade && (
+                          <div className="text-orange-300 font-semibold">
+                            🔨 Forge: ATK +{formatUpgradePct(forgeUpgrade.upgradeAutoPct)} • VIT +{formatUpgradePct(forgeUpgrade.upgradeVitPct)}
+                            {forgeUpgrade.upgradeVitPenaltyPct > 0 && ` • VIT -${formatUpgradePct(forgeUpgrade.upgradeVitPenaltyPct)}`}
                           </div>
                         )}
                       </div>
