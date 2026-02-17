@@ -346,7 +346,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const classB = participant.bonuses?.class || {};
   const forestBoosts = getForestBoosts(participant);
   const baseWithBoosts = applyStatBoosts(participant.base, forestBoosts);
-  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass) : baseWithBoosts;
+  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null) : baseWithBoosts;
   const awakeningEffect = getAwakeningEffect(participant.race, participant.level ?? 1);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseStats = pClass === 'Bastion'

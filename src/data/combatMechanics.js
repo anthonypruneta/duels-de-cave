@@ -314,4 +314,4 @@ export const bossConstants = {
 // ============================================================================
 // CLASSES QUI PEUVENT SE SOIGNER (pour Branche d'Yggdrasil)
 // ============================================================================
-export const healingClasses = ['Healer', 'Paladin'];
+export const healingClasses = ['Healer', 'Masochiste'];
