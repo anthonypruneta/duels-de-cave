@@ -3,8 +3,10 @@
  *
  * Boss unique : Ornn, le Dieu de la Forge
  * Accessible uniquement avec une arme légendaire équipée.
- * Récompense : upgrade d'arme en % sur les stats totales du personnage.
+ * Récompense : upgrade d'arme en % sur les stats de l'arme équipée.
  */
+
+import { getWeaponById } from './weapons';
 
 export const FORGE_BOSS = {
   id: 'ornn',
@@ -35,44 +37,52 @@ export const FORGE_BOSS = {
  * Plages de % pour les upgrades d'armes
  */
 export const UPGRADE_RANGES = {
-  // Bonus standard pour toutes les armes légendaires
-  autoPct: { min: 0.10, max: 0.20 },   // Auto +10% à +20%
-  vitPct: { min: 0.10, max: 0.20 },     // Vit +10% à +20%
+  // Bonus standard pour les stats positives de l'arme légendaire équipée
+  positivePct: { min: 0.10, max: 0.20 },
 
-  // Pénalités VIT spécifiques aux armes lourdes
-  vitPenalty: {
-    epee_legendaire: { min: 0, max: 0.10 },     // Zweihänder: 0-10%
-    marteau_legendaire: { min: 0, max: 0.05 },   // Mjöllnir: 0-5%
+  // Fluctuation négative pour les stats négatives de l'arme
+  // (pas de bonus positif sur ces stats)
+  negativePctByWeapon: {
+    epee_legendaire: { spd: { min: 0, max: 0.10 } },
+    marteau_legendaire: { spd: { min: 0, max: 0.05 } },
   },
+
+  // Fallback si une future arme a une stat négative sans configuration dédiée
+  negativePctDefault: { min: 0, max: 0.10 },
 };
+
+const rollPct = (range) => parseFloat((Math.random() * (range.max - range.min) + range.min).toFixed(4));
 
 /**
  * Génère un roll d'upgrade aléatoire pour une arme légendaire
  * @param {string} weaponId - ID de l'arme légendaire équipée
- * @returns {{ upgradeAutoPct: number, upgradeVitPct: number, upgradeVitPenaltyPct: number }}
+ * @returns {{ statBonusesPct: Object<string, number>, statPenaltyPct: Object<string, number> }}
  */
 export function generateForgeUpgradeRoll(weaponId) {
-  const { autoPct, vitPct, vitPenalty } = UPGRADE_RANGES;
+  const weapon = getWeaponById(weaponId);
+  if (!weapon?.stats) {
+    return { statBonusesPct: {}, statPenaltyPct: {} };
+  }
 
-  const upgradeAutoPct = parseFloat(
-    (Math.random() * (autoPct.max - autoPct.min) + autoPct.min).toFixed(4)
-  );
-  const upgradeVitPct = parseFloat(
-    (Math.random() * (vitPct.max - vitPct.min) + vitPct.min).toFixed(4)
-  );
+  const { positivePct, negativePctByWeapon, negativePctDefault } = UPGRADE_RANGES;
+  const statBonusesPct = {};
+  const statPenaltyPct = {};
 
-  let upgradeVitPenaltyPct = 0;
-  const penaltyRange = vitPenalty[weaponId];
-  if (penaltyRange) {
-    upgradeVitPenaltyPct = parseFloat(
-      (Math.random() * (penaltyRange.max - penaltyRange.min) + penaltyRange.min).toFixed(4)
-    );
+  for (const [statKey, statValue] of Object.entries(weapon.stats)) {
+    if (statValue > 0) {
+      statBonusesPct[statKey] = rollPct(positivePct);
+      continue;
+    }
+
+    if (statValue < 0) {
+      const range = negativePctByWeapon[weaponId]?.[statKey] || negativePctDefault;
+      statPenaltyPct[statKey] = rollPct(range);
+    }
   }
 
   return {
-    upgradeAutoPct,
-    upgradeVitPct,
-    upgradeVitPenaltyPct,
+    statBonusesPct,
+    statPenaltyPct,
   };
 }
 
@@ -110,5 +120,6 @@ export function createForgeBossCombatant() {
  * Formate un % d'upgrade pour l'affichage
  */
 export function formatUpgradePct(value) {
-  return `${Math.round(value * 100)}%`;
+  const pct = (value * 100).toFixed(1);
+  return `${pct.endsWith('.0') ? pct.slice(0, -2) : pct}%`;
 }

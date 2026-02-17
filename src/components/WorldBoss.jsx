@@ -380,7 +380,7 @@ const WorldBoss = () => {
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const characterImage = char.characterImage || testImage1;
 

@@ -11,7 +11,7 @@
  */
 
 import { getWeaponById, RARITY } from '../data/weapons.js';
-import { weaponConstants, healingClasses, dmgPhys, dmgCap, calcCritChance } from '../data/combatMechanics.js';
+import { weaponConstants, dmgPhys, dmgCap, calcCritChance } from '../data/combatMechanics.js';
 
 // ============================================================================
 // ÉTAT DE COMBAT POUR LES ARMES
@@ -60,6 +60,15 @@ export function initWeaponCombatState(combatant, weaponId) {
   };
 }
 
+
+const YGGDRASIL_HEAL_PASSIVES = new Set(['essence_drain', 'onction_eternite']);
+
+function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassive) {
+  if (combatantClass === 'Healer' || combatantClass === 'Masochiste') return true;
+  if (combatantRace === 'Sylvari') return true;
+  return YGGDRASIL_HEAL_PASSIVES.has(mageTowerPassive?.id);
+}
+
 // ============================================================================
 // MODIFICATION DES STATS DE BASE (Passifs permanents)
 // ============================================================================
@@ -67,7 +76,7 @@ export function initWeaponCombatState(combatant, weaponId) {
  * Applique les modifications de stats passives des armes légendaires
  * À appeler après le calcul des stats de base
  */
-export function applyPassiveWeaponStats(stats, weaponId, combatantClass) {
+export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combatantRace, mageTowerPassive) {
   if (!weaponId) return { ...stats };
 
   const weapon = getWeaponById(weaponId);
@@ -96,11 +105,11 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass) {
       }
 
       case 'baton_legendaire': {
-        // Branche d'Yggdrasil: regen passive si pas de classe heal
-        // La regen est gérée dans le hook de tour, pas ici
-        // Mais on marque le combattant comme ayant cette arme
-        modifiedStats._yggdrasilRegen = !healingClasses.includes(combatantClass);
-        modifiedStats._yggdrasilHealDamage = healingClasses.includes(combatantClass);
+        // Branche d'Yggdrasil: dégâts bonus sur toute source de soin personnelle
+        // (Healer, Masochiste, Sylvari, Vol d'essence, Onction d'Éternité), sinon regen passive.
+        const hasOffensiveHeal = canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassive);
+        modifiedStats._yggdrasilRegen = !hasOffensiveHeal;
+        modifiedStats._yggdrasilHealDamage = hasOffensiveHeal;
         break;
       }
     }
@@ -496,6 +505,24 @@ export function applyForgeUpgrade(stats, forgeUpgrade) {
 
   const modified = { ...stats };
 
+  // Nouveau format (par stat)
+  if (forgeUpgrade.statBonusesPct) {
+    for (const [statKey, pct] of Object.entries(forgeUpgrade.statBonusesPct)) {
+      if (modified[statKey] !== undefined && pct > 0) {
+        modified[statKey] = Math.round(modified[statKey] * (1 + pct));
+      }
+    }
+  }
+
+  if (forgeUpgrade.statPenaltyPct) {
+    for (const [statKey, pct] of Object.entries(forgeUpgrade.statPenaltyPct)) {
+      if (modified[statKey] !== undefined && pct > 0) {
+        modified[statKey] = Math.round(modified[statKey] * (1 - pct));
+      }
+    }
+  }
+
+  // Compat legacy (anciens rolls déjà stockés)
   if (forgeUpgrade.upgradeAutoPct) {
     modified.auto = Math.round(modified.auto * (1 + forgeUpgrade.upgradeAutoPct));
   }

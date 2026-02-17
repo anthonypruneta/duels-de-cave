@@ -679,7 +679,7 @@ const Combat = () => {
           Object.entries(baseStats).map(([key, value]) => [key, Math.round((value || 0) / (1 + awakeningRate))])
         )
       : baseStats;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const awakeningBonus = (k) => (baseStats[k] || 0) - (preAwakeningBase[k] || 0);
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0) - awakeningBonus(k);
