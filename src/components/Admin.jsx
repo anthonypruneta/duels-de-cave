@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateForestHpBoosts } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi, getAllArchivedCharacters } from '../services/tournamentService';
@@ -57,6 +57,10 @@ const Admin = () => {
 
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
+
+  // État pour la migration HP forêt
+  const [migrationHpLoading, setMigrationHpLoading] = useState(false);
+  const [migrationHpResult, setMigrationHpResult] = useState(null);
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
@@ -952,6 +956,39 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               {dungeonGrantLoading ? '⏳ Attribution en cours...' : '🎁 Ajouter les essais à tous les joueurs'}
             </button>
           </div>
+        </div>
+
+        {/* Migration HP Forêt */}
+        <div className="bg-stone-900/70 border-2 border-emerald-500 rounded-xl p-6 mb-8">
+          <h3 className="text-xl font-bold text-emerald-300 mb-4">🌿 Migration HP Forêt (3→4 par point)</h3>
+          <p className="text-stone-400 mb-4 text-sm">
+            Convertit les HP de forêt de tous les personnages de l'ancien ratio (3 HP/point) vers le nouveau (4 HP/point).
+          </p>
+          <button
+            onClick={async () => {
+              if (!window.confirm('Migrer les HP de forêt de TOUS les personnages ? (3→4 par point)')) return;
+              setMigrationHpLoading(true);
+              setMigrationHpResult(null);
+              const result = await migrateForestHpBoosts();
+              setMigrationHpResult(result);
+              setMigrationHpLoading(false);
+              if (result.success) {
+                const refreshed = await getAllCharacters();
+                if (refreshed.success) setCharacters(refreshed.data);
+              }
+            }}
+            disabled={migrationHpLoading}
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 px-6 rounded-lg font-bold transition"
+          >
+            {migrationHpLoading ? '⏳ Migration en cours...' : '🔄 Lancer la migration HP'}
+          </button>
+          {migrationHpResult && (
+            <div className={`mt-4 p-3 rounded-lg ${migrationHpResult.success ? 'bg-emerald-900/50 text-emerald-300' : 'bg-red-900/50 text-red-300'}`}>
+              {migrationHpResult.success
+                ? `${migrationHpResult.migrated} personnages migrés, ${migrationHpResult.skipped} ignorés (pas de HP forêt)`
+                : `Erreur: ${migrationHpResult.error}`}
+            </div>
+          )}
         </div>
 
         {/* Section Boss Mondial */}

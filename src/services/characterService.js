@@ -472,6 +472,47 @@ export const updateCharacterOwnerPseudo = async (userId, ownerPseudo) => {
   }
 };
 
+// Migration: convertir les forestBoosts HP de 3/point à 4/point
+// Pour chaque personnage, forestBoosts.hp passe de X à X*4/3 (ajoute X/3)
+export const migrateForestHpBoosts = async () => {
+  try {
+    const allResult = await getAllCharacters();
+    if (!allResult.success) return { success: false, error: allResult.error };
+
+    const characters = allResult.data;
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const char of characters) {
+      const currentHp = char.forestBoosts?.hp || 0;
+      if (currentHp <= 0) {
+        skipped++;
+        continue;
+      }
+
+      // Nombre de points investis = ancienne valeur / 3
+      // Nouvelle valeur = nombre de points * 4
+      const pointsInvested = Math.round(currentHp / 3);
+      const newHp = pointsInvested * 4;
+
+      const updatedBoosts = { ...char.forestBoosts, hp: newHp };
+      const characterRef = doc(db, 'characters', char.id);
+      await setDoc(characterRef, {
+        forestBoosts: updatedBoosts,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+
+      console.log(`Migration HP forêt: ${char.name} (${char.id}): ${currentHp} → ${newHp} (+${newHp - currentHp})`);
+      migrated++;
+    }
+
+    return { success: true, migrated, skipped, total: characters.length };
+  } catch (error) {
+    console.error('Erreur migration HP forêt:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour le niveau du personnage
 export const updateCharacterLevel = async (userId, level) => {
   try {

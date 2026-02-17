@@ -10,18 +10,19 @@ export const applyAwakeningToBase = (base, awakeningEffect) => {
   if (!awakeningEffect) return { ...base };
   let updated = { ...base };
 
-  if (awakeningEffect.statMultipliers) {
-    for (const [stat, multiplier] of Object.entries(awakeningEffect.statMultipliers)) {
-      if (typeof updated[stat] === 'number') {
-        updated[stat] = Math.round(updated[stat] * multiplier);
-      }
-    }
-  }
-
+  // Bonus flat AVANT les multiplicateurs %
   if (awakeningEffect.statBonuses) {
     for (const [stat, bonus] of Object.entries(awakeningEffect.statBonuses)) {
       if (typeof updated[stat] === 'number') {
         updated[stat] = Math.round(updated[stat] + bonus);
+      }
+    }
+  }
+
+  if (awakeningEffect.statMultipliers) {
+    for (const [stat, multiplier] of Object.entries(awakeningEffect.statMultipliers)) {
+      if (typeof updated[stat] === 'number') {
+        updated[stat] = Math.round(updated[stat] * multiplier);
       }
     }
   }
