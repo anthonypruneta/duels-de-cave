@@ -317,7 +317,7 @@ const Training = () => {
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
     const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
@@ -552,7 +552,7 @@ const Training = () => {
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const getDisplayedStatValue = (statKey) => {
       const weaponDelta = weapon?.stats?.[statKey] ?? 0;

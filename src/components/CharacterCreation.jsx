@@ -881,7 +881,7 @@ const CharacterCreation = () => {
     const hasForgeUpgrade = isForgeActive() && forgeUpgrade && forgeUpgrade.upgradeAutoPct;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class) : rawBase;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : rawBase;
     const passiveAutoBonus = (baseWithPassive.auto ?? rawBase.auto) - (rawBase.auto + (weapon?.stats?.auto ?? 0));
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
