@@ -143,6 +143,7 @@ export function preparerCombattant(char) {
     ...additionalAwakeningEffects
   ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
+  const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   const baseWithClassPassive = char.class === 'Bastion'
     ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithAwakening;
@@ -150,6 +151,7 @@ export function preparerCombattant(char) {
   return {
     ...char,
     base: baseWithClassPassive,
+    baseWithoutWeapon,
     currentHP: baseWithClassPassive.hp,
     maxHP: baseWithClassPassive.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
