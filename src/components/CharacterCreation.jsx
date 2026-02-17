@@ -866,8 +866,9 @@ const CharacterCreation = () => {
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class) : baseStats;
-    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+    const rawBase = existingCharacter.base;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class) : rawBase;
+    const passiveAutoBonus = (baseWithPassive.auto ?? rawBase.auto) - (rawBase.auto + (weapon?.stats?.auto ?? 0));
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
@@ -1024,8 +1025,8 @@ const CharacterCreation = () => {
                   <div className="text-stone-400 text-xs">
                     {getCalculatedDescription(
                       existingCharacter.class,
-                      baseStats.cap + (forestBoosts.cap || 0) + weaponStatValue('cap'),
-                      baseStats.auto + (forestBoosts.auto || 0) + weaponStatValue('auto') + passiveAutoBonus
+                      baseStats.cap + weaponStatValue('cap'),
+                      baseStats.auto + weaponStatValue('auto') + passiveAutoBonus
                     )}
                   </div>
                 </div>
