@@ -452,32 +452,85 @@ const Training = () => {
   };
 
   // Descriptions calculées des classes
-  const getCalculatedDescription = (className, cap, auto) => {
+  const getCalculatedDescription = (className, cap) => {
     switch(className) {
       case 'Guerrier': {
         const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
-        const ignoreTotalPct = Math.round(ignoreBase * 100) + Math.round(ignorePerCap * cap * 100);
-        return `+${autoBonus} Auto | Ignore ${ignoreTotalPct}% déf`;
+        const ignoreBasePct = Math.round(ignoreBase * 100);
+        const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
+        const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
+        return (
+          <>
+            +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+            <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+              <span className="text-green-400">{ignoreTotalPct}%</span>
+            </Tooltip>
+          </>
+        );
       }
       case 'Voleur': {
         const { spdBonus, critPerCap } = classConstants.voleur;
-        return `+${spdBonus} VIT | Esquive 1 coup | +${Math.round(critPerCap * cap * 100)}% crit`;
+        const critBonusPct = Math.round(critPerCap * cap * 100);
+        return (
+          <>
+            +{spdBonus} VIT | Esquive 1 coup
+            <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+              <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            </Tooltip>
+          </>
+        );
       }
       case 'Paladin': {
         const { reflectBase, reflectPerCap } = classConstants.paladin;
-        return `Riposte ${Math.round((reflectBase + reflectPerCap * cap) * 100)}%`;
+        const reflectBasePct = Math.round(reflectBase * 100);
+        const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+        const reflectTotalPct = reflectBasePct + reflectBonusPct;
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+              <span className="text-green-400">{reflectTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts reçus
+          </>
+        );
       }
       case 'Healer': {
         const { healBase, healPerCap } = classConstants.healer;
-        return `Soin ${Math.round(healBase + healPerCap * cap)} PV`;
+        const baseHeal = Math.round(healBase);
+        const capBonus = Math.round(healPerCap * cap);
+        const totalHeal = baseHeal + capBonus;
+        return (
+          <>
+            Soin{' '}
+            <Tooltip content={`Base: ${baseHeal} PV | Bonus (Cap ${cap}): +${capBonus} PV`}>
+              <span className="text-green-400">{totalHeal} PV</span>
+            </Tooltip>
+          </>
+        );
       }
       case 'Archer': {
         const { hitCount } = classConstants.archer;
-        return `${hitCount} attaques`;
+        return (
+          <>
+            <span className="text-green-400">{hitCount} attaques</span>
+            {' '}au total (1 Auto + combo hybride)
+          </>
+        );
       }
       case 'Mage': {
         const { capBase, capPerCap } = classConstants.mage;
-        return `Sort: ${Math.round((capBase + capPerCap * cap) * cap)} dégâts`;
+        const basePart = Math.round(capBase * cap);
+        const scalePart = Math.round(capPerCap * cap * cap);
+        const totalDamage = basePart + scalePart;
+        return (
+          <>
+            Sort magique :{' '}
+            <Tooltip content={`Base: ${basePart} | Scaling (Cap ${cap}): +${scalePart}`}>
+              <span className="text-green-400">{totalDamage} dégâts</span>
+            </Tooltip>
+          </>
+        );
       }
       default: return classes[className]?.description || '';
     }
@@ -501,6 +554,13 @@ const Training = () => {
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const getDisplayedStatValue = (statKey) => {
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const passiveAutoBonus = statKey === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      return baseStats[statKey] + weaponDelta + passiveAutoBonus;
+    };
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0)}`];
       if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
@@ -520,7 +580,7 @@ const Training = () => {
       const passiveAutoBonus = statKey === 'auto'
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
-      const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
+      const displayValue = getDisplayedStatValue(statKey);
       const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const hasBonus = totalDelta !== 0;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
@@ -619,7 +679,9 @@ const Training = () => {
                   <span className="text-lg">{classes[char.class].icon}</span>
                   <div className="flex-1">
                     <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div>
+                    <div className="text-stone-400 text-[10px]">
+                      {getCalculatedDescription(char.class, getDisplayedStatValue('cap'))}
+                    </div>
                   </div>
                 </div>
               )}
