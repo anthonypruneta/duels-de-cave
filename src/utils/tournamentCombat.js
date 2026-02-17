@@ -479,7 +479,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, false, true);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
@@ -568,7 +568,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
@@ -581,7 +581,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, onctionHeal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
@@ -607,7 +607,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
       if (masoHealEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(masoHealEffects.bonusDamage, def.base.rescap);
-        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
+        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
         log.push(`${playerColor} ${masoHealEffects.log.join(' ')}`);
       }
       att.maso_taken = 0;
@@ -699,7 +699,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
