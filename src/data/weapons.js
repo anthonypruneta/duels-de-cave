@@ -537,7 +537,8 @@ export const weapons = {
     icon: '📜',
     imageFile: 'tome3.png',
     stats: {
-      cap: 7,
+      cap: 6,
+      hp: 10,
     },
     effet: {
       nom: 'Arcane Majeure',
@@ -717,7 +718,8 @@ export const weapons = {
     icon: '⚔️',
     imageFile: 'hache3.png',
     stats: {
-      auto: 8,
+      auto: 6,
+      hp: 10,
     },
     effet: {
       nom: 'Saignement d\'Arès',
