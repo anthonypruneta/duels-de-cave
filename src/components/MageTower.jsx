@@ -706,6 +706,14 @@ const MageTower = () => {
     }
 
     const turnEffects = onTurnStart(att.weaponState || { isLegendary: false, counters: {} }, att, turn);
+    let weaponDamageBonusAvailable = turnEffects.damageMultiplier !== undefined && turnEffects.damageMultiplier !== 1;
+    const consumeWeaponDamageBonus = () => {
+      if (weaponDamageBonusAvailable) {
+        weaponDamageBonusAvailable = false;
+        return turnEffects.damageMultiplier;
+      }
+      return 1;
+    };
     if (turnEffects.log.length > 0) {
       log.push(...turnEffects.log.map(entry => `${playerColor} ${entry}`));
     }
@@ -725,7 +733,8 @@ const MageTower = () => {
       const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
       const stackBonus = stackPerAuto * (att.familiarStacks || 0);
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
-      const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+      let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+      raw = Math.round(raw * consumeWeaponDamageBonus());
       const inflicted = resolveDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
@@ -737,10 +746,11 @@ const MageTower = () => {
       if (att.cd.maso === cooldowns.maso && att.maso_taken > 0) {
         skillUsed = skillUsed || isPlayer;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
-        const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
+        let dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         att.maso_taken = 0;
+        dmg = Math.round(dmg * consumeWeaponDamageBonus());
         const inflicted = resolveDamage(dmg, false);
         const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
         if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
@@ -821,10 +831,6 @@ const MageTower = () => {
       mult = raceConstants.orc.damageBonus;
     }
 
-    if (turnEffects.damageMultiplier !== 1) {
-      mult *= turnEffects.damageMultiplier;
-    }
-
     let total = 0;
     const baseHits = isArcher ? classConstants.archer.hitCount : 1;
     const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
@@ -836,7 +842,8 @@ const MageTower = () => {
     for (let i = 0; i < totalHits; i++) {
       const isBonusAttack = i >= baseHits;
       const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att);
-      const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
+      const weaponBonus = i === 0 ? consumeWeaponDamageBonus() : 1;
+      const attackMultiplier = mult * weaponBonus * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
       let raw = 0;
       wasCrit = wasCrit || isCrit;
 

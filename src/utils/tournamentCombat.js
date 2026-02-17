@@ -533,6 +533,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   const turnEffects = onTurnStart(att.weaponState, att, turn);
+  // Zweihander: le bonus de dégâts s'applique au premier dégât du tour puis est consommé
+  let weaponDamageBonusAvailable = turnEffects.damageMultiplier !== undefined && turnEffects.damageMultiplier !== 1;
+  const consumeWeaponDamageBonus = () => {
+    if (weaponDamageBonusAvailable) {
+      weaponDamageBonusAvailable = false;
+      return turnEffects.damageMultiplier;
+    }
+    return 1;
+  };
   if (turnEffects.log.length > 0) log.push(...turnEffects.log.map(e => `${playerColor} ${e}`));
   if (turnEffects.regen > 0) {
     const weaponRegen = Math.max(1, Math.round(turnEffects.regen * getAntiHealFactor(def)));
@@ -557,7 +566,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
-    const raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+    let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+    raw = Math.round(raw * consumeWeaponDamageBonus());
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
@@ -572,6 +582,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       att.maso_taken = 0;
       let spellDmg = applyMindflayerSpellMod(att, def, dmg, 'maso', log, playerColor);
+      spellDmg = Math.round(spellDmg * consumeWeaponDamageBonus());
       // Arbalète du Verdict
       const verdictBonusMaso = getVerdictSpellBonus(att.weaponState);
       if (verdictBonusMaso.damageMultiplier !== 1) {
@@ -667,6 +678,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ') && !spellStolen) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
+    raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
     // Arbalète du Verdict
     const verdictBonusSucc = getVerdictSpellBonus(att.weaponState);
@@ -683,6 +695,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (isBastion) {
     skillUsed = true;
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
+    raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
     // Arbalète du Verdict
     const verdictBonusBast = getVerdictSpellBonus(att.weaponState);
@@ -743,7 +756,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
   }
   if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
-  if (turnEffects.damageMultiplier !== 1) mult *= turnEffects.damageMultiplier;
 
   const baseHits = isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
@@ -758,7 +770,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att, def);
     if (isCrit) wasCrit = true;
     let raw = 0;
-    const attackMultiplier = mult * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
+    const weaponBonus = i === 0 ? consumeWeaponDamageBonus() : 1;
+    const attackMultiplier = mult * weaponBonus * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
 
     if (isMage) {
       const { capBase, capPerCap } = classConstants.mage;
