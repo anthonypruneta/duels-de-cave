@@ -878,7 +878,27 @@ const CharacterCreation = () => {
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const forgeUpgrade = existingCharacter.forgeUpgrade;
-    const hasForgeUpgrade = isForgeActive() && forgeUpgrade && forgeUpgrade.upgradeAutoPct;
+    const extractForgeUpgrade = (roll) => {
+      if (!roll) return { bonuses: {}, penalties: {} };
+      if (roll.statBonusesPct || roll.statPenaltyPct) {
+        return {
+          bonuses: { ...(roll.statBonusesPct || {}) },
+          penalties: { ...(roll.statPenaltyPct || {}) }
+        };
+      }
+      const bonuses = {};
+      const penalties = {};
+      if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
+      if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
+      if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
+      return { bonuses, penalties };
+    };
+    const hasAnyForgeUpgrade = (roll) => {
+      const { bonuses, penalties } = extractForgeUpgrade(roll);
+      return Object.values(bonuses).some(v => v > 0) || Object.values(penalties).some(v => v > 0);
+    };
+    const forgeLabel = (statKey) => ({ auto: 'ATK', spd: 'VIT', cap: 'CAP', hp: 'HP', def: 'DEF', rescap: 'RESC' }[statKey] || statKey.toUpperCase());
+    const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : rawBase;
@@ -983,8 +1003,8 @@ const CharacterCreation = () => {
                         )}
                         {hasForgeUpgrade && (
                           <div className="text-orange-300 font-semibold">
-                            🔨 Forge: ATK +{formatUpgradePct(forgeUpgrade.upgradeAutoPct)} • VIT +{formatUpgradePct(forgeUpgrade.upgradeVitPct)}
-                            {forgeUpgrade.upgradeVitPenaltyPct > 0 && ` • VIT -${formatUpgradePct(forgeUpgrade.upgradeVitPenaltyPct)}`}
+                            🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
+                            {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
                           </div>
                         )}
                       </div>

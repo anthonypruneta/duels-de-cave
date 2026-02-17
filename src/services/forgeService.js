@@ -54,9 +54,7 @@ export const saveWeaponUpgrade = async (userId, upgradeData) => {
       const characterRef = doc(db, 'characters', userId);
       await setDoc(characterRef, {
         forgeUpgrade: {
-          upgradeAutoPct: upgradeData.upgradeAutoPct,
-          upgradeVitPct: upgradeData.upgradeVitPct,
-          upgradeVitPenaltyPct: upgradeData.upgradeVitPenaltyPct,
+          ...upgradeData,
           updatedAt: Timestamp.now(),
         },
         updatedAt: Timestamp.now(),
