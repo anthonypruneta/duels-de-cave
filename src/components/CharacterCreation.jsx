@@ -15,6 +15,7 @@ import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS }
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
+import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -865,12 +866,8 @@ const CharacterCreation = () => {
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
-    const egideAtkBonus = weapon?.id === 'bouclier_legendaire'
-      ? Math.round(
-        (baseStats.def + weaponStatValue('def')) * weaponConstants.egide.defToAtkPercent +
-        (baseStats.rescap + weaponStatValue('rescap')) * weaponConstants.egide.rescapToAtkPercent
-      )
-      : 0;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class) : baseStats;
+    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
@@ -878,15 +875,15 @@ const CharacterCreation = () => {
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
-      if (k === 'auto' && egideAtkBonus > 0) parts.push(`Égide: +${egideAtkBonus}`);
+      if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const weaponDelta = weaponStatValue(statKey);
-      const egideDelta = statKey === 'auto' ? egideAtkBonus : 0;
-      const displayValue = baseStats[statKey] + weaponDelta + egideDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || egideDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + egideDelta;
+      const passiveDelta = statKey === 'auto' ? passiveAutoBonus : 0;
+      const displayValue = baseStats[statKey] + weaponDelta + passiveDelta;
+      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveDelta !== 0;
+      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveDelta;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
@@ -1027,8 +1024,8 @@ const CharacterCreation = () => {
                   <div className="text-stone-400 text-xs">
                     {getCalculatedDescription(
                       existingCharacter.class,
-                      baseStats.cap + weaponStatValue('cap'),
-                      baseStats.auto + weaponStatValue('auto')
+                      baseStats.cap + (forestBoosts.cap || 0) + weaponStatValue('cap'),
+                      baseStats.auto + (forestBoosts.auto || 0) + weaponStatValue('auto') + passiveAutoBonus
                     )}
                   </div>
                 </div>
