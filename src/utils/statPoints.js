@@ -1,5 +1,5 @@
 const STAT_POINT_VALUES = {
-  hp: 3,
+  hp: 4,
   auto: 1,
   def: 1,
   cap: 1,
