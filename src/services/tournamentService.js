@@ -430,38 +430,13 @@ export async function avancerMatch(docId = 'current') {
       if (matches['GFR'] && matches['GFR'].statut === 'en_attente' && !matchOrder.includes('GFR')) {
         matchOrder.push('GFR');
         updateData.matchOrder = matchOrder;
-      } else {
-        // Déterminer le champion
-        const gfrMatch = matches['GFR'];
-        const gfMatch = matches['GF'];
-        let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
-        const championData = participantsList.find(p => p.userId === championId);
-        if (championData) {
-          updateData.statut = 'termine';
-          updateData.champion = {
-            userId: championData.userId,
-            nom: championData.nom,
-            race: championData.race,
-            classe: championData.classe,
-            characterImage: championData.characterImage,
-            ownerPseudo: championData.ownerPseudo || null
-          };
-          updateData.annonceChampion = annonceChampion(championData.nom);
-        }
       }
+      // Ne PAS terminer le tournoi ici — on sauvegarde d'abord le match joué
+      // pour que l'animation côté client puisse se faire. Le tournoi sera
+      // terminé au prochain appel d'avancerMatch() (quand result sera null).
     }
 
     await updateDoc(doc(db, 'tournaments', docId), updateData);
-
-    // Annonce Discord du champion si tournoi terminé
-    if (docId === 'current' && updateData.champion) {
-      annoncerChampionDiscord(updateData.champion).catch(() => {});
-    }
-
-    // Régénérer le labyrinthe quand le tournoi est terminé
-    if (updateData.statut === 'termine' && docId === 'current') {
-      resetWeeklyInfiniteLabyrinthEnemyPool().catch(() => {});
-    }
 
     return { success: true, termine: false, matchIndex: nextIndex };
   } catch (error) {
