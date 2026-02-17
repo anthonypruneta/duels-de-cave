@@ -139,7 +139,7 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
 export function preparerCombattant(char) {
   const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
   const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
   const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
   const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
@@ -476,6 +476,12 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
+    const healEffects = onHeal(att.weaponState, att, heal, def);
+    if (healEffects.bonusDamage > 0) {
+      const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, false, false);
+      log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+    }
   }
 
   if (def?.ability?.type === 'bone_guard' && !def.boneGuardActive && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.4) {
@@ -559,6 +565,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const heal = Math.max(1, Math.round(att.maxHP * regenPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
     log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
+    const healEffects = onHeal(att.weaponState, att, heal, def);
+    if (healEffects.bonusDamage > 0) {
+      const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+      log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+    }
   }
 
   // Onction d'Éternité: regen % HP max par tour
@@ -566,6 +578,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const onctionHeal = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.regenPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + onctionHeal);
     log.push(`${playerColor} 🌿 Onction d'Éternité: ${att.name} régénère ${onctionHeal} points de vie`);
+    const healEffects = onHeal(att.weaponState, att, onctionHeal, def);
+    if (healEffects.bonusDamage > 0) {
+      const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+      log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+    }
   }
 
   if (att.class === 'Demoniste' && !spellStolen) {
@@ -586,6 +604,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
       const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
+      const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
+      if (masoHealEffects.bonusDamage > 0) {
+        const bonusDmg = dmgCap(masoHealEffects.bonusDamage, def.base.rescap);
+        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+        log.push(`${playerColor} ${masoHealEffects.log.join(' ')}`);
+      }
       att.maso_taken = 0;
       let spellDmg = applyMindflayerSpellMod(att, def, dmg, 'maso', log, playerColor);
       spellDmg = Math.round(spellDmg * consumeWeaponDamageBonus());
@@ -675,7 +699,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }

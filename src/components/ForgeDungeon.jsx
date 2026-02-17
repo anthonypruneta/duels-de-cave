@@ -111,6 +111,41 @@ const Tooltip = ({ children, content }) => {
   );
 };
 
+
+const UPGRADE_STAT_LABELS = {
+  auto: 'ATK',
+  spd: 'VIT',
+  cap: 'CAP',
+  hp: 'HP',
+  def: 'DEF',
+  rescap: 'RESC'
+};
+
+const extractForgeUpgrade = (roll) => {
+  if (!roll) return { bonuses: {}, penalties: {} };
+
+  // Nouveau format
+  if (roll.statBonusesPct || roll.statPenaltyPct) {
+    return {
+      bonuses: { ...(roll.statBonusesPct || {}) },
+      penalties: { ...(roll.statPenaltyPct || {}) }
+    };
+  }
+
+  // Compat legacy
+  const bonuses = {};
+  const penalties = {};
+  if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
+  if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
+  if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
+  return { bonuses, penalties };
+};
+
+const hasAnyForgeUpgrade = (roll) => {
+  const { bonuses, penalties } = extractForgeUpgrade(roll);
+  return Object.values(bonuses).some(v => v > 0) || Object.values(penalties).some(v => v > 0);
+};
+
 const getPassiveDetails = (passive) => {
   if (!passive) return null;
   const base = getMageTowerPassiveById(passive.id);
@@ -309,7 +344,7 @@ const ForgeDungeon = () => {
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
     const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
@@ -509,25 +544,28 @@ const ForgeDungeon = () => {
     return processText(text);
   };
 
-  const UpgradeRollDisplay = ({ roll, label, isCurrent }) => (
-    <div className={`bg-stone-800 border p-4 text-center ${isCurrent ? 'border-amber-500' : 'border-orange-500'}`}>
-      <div className="text-lg mb-2">{isCurrent ? '🛡️' : '🔥'}</div>
-      <div className={`text-sm font-semibold mb-3 ${isCurrent ? 'text-amber-300' : 'text-orange-300'}`}>{label}</div>
-      <div className="space-y-2">
-        <div className="text-green-400 font-semibold">
-          ATK +{formatUpgradePct(roll.upgradeAutoPct)}
+  const UpgradeRollDisplay = ({ roll, label, isCurrent }) => {
+    const { bonuses, penalties } = extractForgeUpgrade(roll);
+
+    return (
+      <div className={`bg-stone-800 border p-4 text-center ${isCurrent ? 'border-amber-500' : 'border-orange-500'}`}>
+        <div className="text-lg mb-2">{isCurrent ? '🛡️' : '🔥'}</div>
+        <div className={`text-sm font-semibold mb-3 ${isCurrent ? 'text-amber-300' : 'text-orange-300'}`}>{label}</div>
+        <div className="space-y-2">
+          {Object.entries(bonuses).map(([statKey, pct]) => (
+            <div key={`bonus-${statKey}`} className="text-green-400 font-semibold">
+              {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} +{formatUpgradePct(pct)}
+            </div>
+          ))}
+          {Object.entries(penalties).map(([statKey, pct]) => (
+            <div key={`penalty-${statKey}`} className="text-red-400 font-semibold">
+              {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} -{formatUpgradePct(pct)} (malus arme)
+            </div>
+          ))}
         </div>
-        <div className="text-green-400 font-semibold">
-          VIT +{formatUpgradePct(roll.upgradeVitPct)}
-        </div>
-        {roll.upgradeVitPenaltyPct > 0 && (
-          <div className="text-red-400 font-semibold">
-            VIT -{formatUpgradePct(roll.upgradeVitPenaltyPct)} (malus arme)
-          </div>
-        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const PlayerCard = ({ char }) => {
     if (!char) return null;
@@ -713,7 +751,7 @@ const ForgeDungeon = () => {
 
   // Reward screen after victory
   if (gameState === 'reward' && newUpgradeRoll) {
-    const hasExistingUpgrade = currentUpgrade && currentUpgrade.upgradeAutoPct;
+    const hasExistingUpgrade = hasAnyForgeUpgrade(currentUpgrade);
     const alreadyChose = upgradeChoice !== null;
 
     return (
@@ -1017,15 +1055,20 @@ const ForgeDungeon = () => {
         </div>
 
         {/* Current upgrade display */}
-        {currentUpgrade && currentUpgrade.upgradeAutoPct && (
+        {hasAnyForgeUpgrade(currentUpgrade) && (
           <div className="bg-stone-800 border border-amber-600 p-4 mb-8">
             <h3 className="text-lg font-bold text-amber-400 mb-3 text-center">🔨 Upgrade actif</h3>
-            <div className="flex justify-center gap-6">
-              <span className="text-green-400 font-semibold">ATK +{formatUpgradePct(currentUpgrade.upgradeAutoPct)}</span>
-              <span className="text-green-400 font-semibold">VIT +{formatUpgradePct(currentUpgrade.upgradeVitPct)}</span>
-              {currentUpgrade.upgradeVitPenaltyPct > 0 && (
-                <span className="text-red-400 font-semibold">VIT -{formatUpgradePct(currentUpgrade.upgradeVitPenaltyPct)}</span>
-              )}
+            <div className="flex flex-wrap justify-center gap-6">
+              {Object.entries(extractForgeUpgrade(currentUpgrade).bonuses).map(([statKey, pct]) => (
+                <span key={`active-bonus-${statKey}`} className="text-green-400 font-semibold">
+                  {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} +{formatUpgradePct(pct)}
+                </span>
+              ))}
+              {Object.entries(extractForgeUpgrade(currentUpgrade).penalties).map(([statKey, pct]) => (
+                <span key={`active-penalty-${statKey}`} className="text-red-400 font-semibold">
+                  {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} -{formatUpgradePct(pct)}
+                </span>
+              ))}
             </div>
           </div>
         )}

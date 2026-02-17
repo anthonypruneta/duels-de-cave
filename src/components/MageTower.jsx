@@ -448,7 +448,7 @@ const MageTower = () => {
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class);
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
     const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
@@ -684,6 +684,12 @@ const MageTower = () => {
         const heal = Math.max(1, Math.round(remaining * playerPassive.levelData.healPercent * getAntiHealFactor(def)));
         att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
         log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
+        const healEffects = onHeal(att.weaponState, att, heal, def);
+        if (healEffects.bonusDamage > 0) {
+          const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+          applyMageTowerDamage(bonusDmg, false, true, true);
+          log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+        }
       }
 
       if (def?.ability?.type === 'bone_guard' && !def.boneGuardActive && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.4) {
@@ -730,6 +736,12 @@ const MageTower = () => {
       const heal = Math.max(1, Math.round(att.maxHP * regenPercent * getAntiHealFactor(def)));
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       log.push(`${playerColor} 🌿 ${att.name} régénère naturellement et récupère ${heal} points de vie`);
+      const healEffects = onHeal(att.weaponState, att, heal, def);
+      if (healEffects.bonusDamage > 0) {
+        const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+        applyMageTowerDamage(bonusDmg, false, true, true);
+        log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+      }
     }
 
     if (att.class === 'Demoniste') {
@@ -752,6 +764,12 @@ const MageTower = () => {
         let dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
         const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
+        const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
+        if (masoHealEffects.bonusDamage > 0) {
+          const bonusDmg = dmgCap(masoHealEffects.bonusDamage, def.base.rescap);
+          applyMageTowerDamage(bonusDmg, false, true, true);
+          log.push(`${playerColor} ${masoHealEffects.log.join(' ')}`);
+        }
         att.maso_taken = 0;
         dmg = Math.round(dmg * consumeWeaponDamageBonus());
         const inflicted = resolveDamage(dmg, false);
@@ -1224,7 +1242,7 @@ const MageTower = () => {
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class) : baseStats;
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
     const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const tooltipContent = (k) => {

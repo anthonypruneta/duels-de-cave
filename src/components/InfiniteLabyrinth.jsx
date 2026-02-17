@@ -226,7 +226,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
 
   const computedBase = getBaseWithBoosts(character);
   const baseStats = character.baseWithoutWeapon || computedBase;
-  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class) : baseStats;
+  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
 
   const currentHP = currentHPOverride ?? character.currentHP ?? baseStats.hp;
   const maxHP = maxHPOverride ?? character.maxHP ?? baseStats.hp;
