@@ -12,7 +12,7 @@ export const cooldowns = {
   dem: 1,   // Demoniste - Familier (chaque tour)
   maso: 4,  // Masochiste - Renvoi dégâts
   succ: 4,  // Succube - Coup de fouet
-  bast: 5   // Bastion - Charge du rempart
+  bast: 4   // Bastion - Charge du rempart
 };
 
 // Constantes des classes (valeurs réelles utilisées dans le combat)
