@@ -932,10 +932,9 @@ const MageTower = () => {
     }
 
     if (isPlayer && skillUsed && playerPassive?.id === 'elemental_fury') {
-      const baseLightning = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
-      const lightningRaw = dmgPhys(baseLightning, def.base.def);
-      const lightningDamage = resolveDamage(lightningRaw, false);
-      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} points de dégâts`);
+      const lightningDamage = Math.max(1, Math.round(att.base.auto * playerPassive.levelData.lightningPercent));
+      def.currentHP -= lightningDamage;
+      log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, att, log, playerColor);
       }

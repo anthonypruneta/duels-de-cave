@@ -631,13 +631,7 @@ const resolveAttackerTurn = (attacker, defender, turn) => {
 
   if (attacker.passiveDetails?.id === 'elemental_fury' && skillUsed) {
     const lightning = Math.max(1, Math.round(attacker.stats.auto * attacker.passiveDetails.levelData.lightningPercent));
-    applyDamage(attacker, defender, lightning, false, {
-      turn,
-      turnEffects,
-      attackerUnicorn,
-      defenderUnicorn,
-      auraBonus
-    });
+    defender.currentHP -= lightning;
   }
 
   if (turnEffects.bonusAttacks > 0) {
