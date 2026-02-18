@@ -1355,7 +1355,7 @@ const MageTower = () => {
             </div>
             <div className="space-y-2">
               {weapon && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <Tooltip content={getWeaponTooltipContent(weapon)}>
                     <span className="flex items-center gap-2">
                       {getWeaponImage(weapon.imageFile) ? (
@@ -1368,33 +1368,46 @@ const MageTower = () => {
                       </span>
                     </span>
                   </Tooltip>
+                  <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                    <div>{weapon.description}</div>
+                    {weapon.effet && (
+                      <div className="text-amber-200">
+                        Effet: {weapon.effet.nom} — {weapon.effet.description}
+                      </div>
+                    )}
+                    {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                      <div className="text-stone-200">
+                        Stats: {formatWeaponStats(weapon)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {!isAwakeningActive && races[char.race] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">{races[char.race].icon}</span>
                   <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
                 </div>
               )}
               {classes[char.class] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">{classes[char.class].icon}</span>
                   <div className="flex-1">
-                    <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">
+                    <div className="font-semibold text-amber-200">{classes[char.class].ability}</div>
+                    <div className="text-stone-400 text-[11px]">
                       {getCalculatedDescription(char.class, char.base.cap, char.base.auto)}
                     </div>
                   </div>
                 </div>
               )}
               {passiveDetails && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">{passiveDetails.icon}</span>
                   <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
+                    <div className="font-semibold text-amber-200">
                       {passiveDetails.name} — Niveau {passiveDetails.level}
                     </div>
-                    <div className="text-stone-400 text-[10px]">
+                    <div className="text-stone-400 text-[11px]">
                       {passiveDetails.levelData.description}
                     </div>
                   </div>
