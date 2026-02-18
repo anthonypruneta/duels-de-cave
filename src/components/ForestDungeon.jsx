@@ -25,7 +25,7 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import {
@@ -478,9 +478,11 @@ const ForestDungeon = () => {
 
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
     const weaponState = initWeaponCombatState(char, weaponId);
@@ -488,6 +490,7 @@ const ForestDungeon = () => {
       ...char,
       base: baseWithAwakening,
       baseWithoutWeapon,
+    baseWithBoosts,
       currentHP: baseWithAwakening.hp,
       maxHP: baseWithAwakening.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
@@ -1242,14 +1245,26 @@ const ForestDungeon = () => {
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const flatBaseStats = char.baseWithBoosts || baseStats;
+    const baseWithoutBonus = (k) => flatBaseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
+      const weaponBonus = weapon?.stats?.[k] ?? 0;
+      const passiveBonus = k === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const displayValue = baseStats[k] + weaponBonus + passiveBonus;
+      return displayValue - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus);
+    };
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       const weaponDelta = weapon?.stats?.[k] ?? 0;
@@ -1260,6 +1275,8 @@ const ForestDungeon = () => {
           parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
         }
       }
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
 
@@ -1269,8 +1286,9 @@ const ForestDungeon = () => {
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>

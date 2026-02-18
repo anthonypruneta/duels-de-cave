@@ -12,7 +12,7 @@ import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
-import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
+import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { classConstants } from '../data/combatMechanics';
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
@@ -345,36 +345,48 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const raceB = participant.bonuses?.race || {};
   const classB = participant.bonuses?.class || {};
   const forestBoosts = getForestBoosts(participant);
-  const baseWithBoosts = applyStatBoosts(participant.base, forestBoosts);
+  const effectiveLevel = participant.level ?? 1;
+  const baseWithBoostsRaw = applyStatBoosts(participant.base, forestBoosts);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, participant.race, effectiveLevel);
   const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null) : baseWithBoosts;
-  const awakeningEffect = getAwakeningEffect(participant.race, participant.level ?? 1);
+  const awakeningEffect = getAwakeningEffect(participant.race, effectiveLevel);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseStats = pClass === 'Bastion'
     ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithAwakening;
   const baseWithPassive = baseStats;
-  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
   const weaponDelta = (k) => weapon?.stats?.[k] ?? 0;
   const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (weapon?.stats?.auto ?? 0);
   const awakeningDelta = (k) => (baseWithAwakening[k] || 0) - (baseWithWeapon[k] || 0);
   const bastionDelta = (k) => (baseStats[k] || 0) - (baseWithAwakening[k] || 0);
   const baseWithoutBonus = (k) => baseWithBoosts[k] - totalBonus(k) - (forestBoosts[k] || 0);
+  const getRaceDisplayBonus = (k) => {
+    if (!isAwakeningActive) return raceB[k] || 0;
+    const classBonus = classB[k] || 0;
+    const forestBonus = forestBoosts[k] || 0;
+    const weaponBonus = weaponDelta(k);
+    const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
+    return (baseStats[k] || 0) - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus + bastionDelta(k));
+  };
   const tooltipContent = (k) => {
     const parts = [`Base: ${baseWithoutBonus(k)}`];
-    if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
     if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
     if (weaponDelta(k) !== 0) parts.push(`Arme: ${weaponDelta(k) > 0 ? `+${weaponDelta(k)}` : weaponDelta(k)}`);
     if (k === 'auto' && passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-    if (awakeningDelta(k) !== 0) parts.push(`Éveil: ${awakeningDelta(k) > 0 ? `+${awakeningDelta(k)}` : awakeningDelta(k)}`);
+    const raceDisplayBonus = getRaceDisplayBonus(k);
+    if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
     if (bastionDelta(k) !== 0) parts.push(`Bastion: ${bastionDelta(k) > 0 ? `+${bastionDelta(k)}` : bastionDelta(k)}`);
     return parts.join(' | ');
   };
 
   const StatWithTooltip = ({ statKey, label }) => {
     const displayValue = baseStats[statKey];
-    const allBonuses = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta(statKey)
-      + (statKey === 'auto' ? passiveAutoBonus : 0) + awakeningDelta(statKey) + bastionDelta(statKey);
+    const raceDisplayBonus = getRaceDisplayBonus(statKey);
+    const allBonuses = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta(statKey)
+      + (statKey === 'auto' ? passiveAutoBonus : 0) + bastionDelta(statKey);
     const hasBonus = allBonuses !== 0;
     const totalDelta = allBonuses;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
