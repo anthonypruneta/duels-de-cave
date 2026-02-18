@@ -392,14 +392,12 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
     const hasBonus = allBonuses !== 0;
     const totalDelta = allBonuses;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-    return hasBonus ? (
+    return (
       <Tooltip content={tooltipContent(statKey)}>
-        <span className={labelClass}>
+        <span className={`${hasBonus ? labelClass : ''} font-bold`}>
           {label}: {displayValue}
         </span>
       </Tooltip>
-    ) : (
-      <span>{label}: {displayValue}</span>
     );
   };
 
