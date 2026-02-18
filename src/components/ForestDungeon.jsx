@@ -1349,7 +1349,7 @@ const ForestDungeon = () => {
             </div>
             <div className="space-y-2">
               {weapon && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <Tooltip content={getWeaponTooltipContent(weapon)}>
                     <span className="flex items-center gap-2">
                       {getWeaponImage(weapon.imageFile) ? (
@@ -1362,6 +1362,19 @@ const ForestDungeon = () => {
                       </span>
                     </span>
                   </Tooltip>
+                  <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                    <div>{weapon.description}</div>
+                    {weapon.effet && (
+                      <div className="text-amber-200">
+                        Effet: {weapon.effet.nom} — {weapon.effet.description}
+                      </div>
+                    )}
+                    {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                      <div className="text-stone-200">
+                        Stats: {formatWeaponStats(weapon)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {passiveDetails && (
