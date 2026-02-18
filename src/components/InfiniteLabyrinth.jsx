@@ -238,6 +238,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
   const flatBaseStats = character.baseWithBoosts || computedBase;
   const baseWithoutBonus = (k) => (flatBaseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+  const isAwakeningActive = raceAwakeningInfo && effectiveLevel >= raceAwakeningInfo.levelRequired;
   const getRaceDisplayBonus = (k) => {
     if (!isAwakeningActive) return raceB[k] || 0;
     const classBonus = classB[k] || 0;
