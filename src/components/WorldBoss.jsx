@@ -816,7 +816,7 @@ const WorldBoss = () => {
               </div>
 
               {/* Aperçu boss */}
-              <div className="w-full md:w-[420px] md:flex-shrink-0 order-3 md:order-4">
+              <div className="w-full md:w-[520px] md:flex-shrink-0 order-3 md:order-4">
                 <BossCard />
               </div>
             </div>
@@ -951,7 +951,7 @@ const WorldBoss = () => {
             </div>
 
             {/* Boss à droite (plus large) */}
-            <div className="order-3 md:order-4 w-full md:w-[420px] md:flex-shrink-0">
+            <div className="order-3 md:order-4 w-full md:w-[520px] md:flex-shrink-0">
               <BossCard />
             </div>
           </div>
