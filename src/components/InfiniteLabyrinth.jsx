@@ -20,6 +20,7 @@ import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -82,6 +83,29 @@ const getPassiveDetails = (passive) => {
 
 const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) });
 const getBaseWithBoosts = (character) => applyStatBoosts(character.base, getForestBoosts(character));
+
+const mergeAwakeningEffects = (effects = []) => {
+  const validEffects = effects.filter(Boolean);
+  if (validEffects.length === 0) return null;
+
+  return validEffects.reduce((acc, effect) => {
+    if (effect.statMultipliers) {
+      acc.statMultipliers = acc.statMultipliers || {};
+      Object.entries(effect.statMultipliers).forEach(([stat, value]) => {
+        acc.statMultipliers[stat] = (acc.statMultipliers[stat] ?? 1) * value;
+      });
+    }
+
+    if (effect.statBonuses) {
+      acc.statBonuses = acc.statBonuses || {};
+      Object.entries(effect.statBonuses).forEach(([stat, value]) => {
+        acc.statBonuses[stat] = (acc.statBonuses[stat] ?? 0) + value;
+      });
+    }
+
+    return acc;
+  }, {});
+};
 
 const getCalculatedDescription = (className, cap, auto) => {
   switch (className) {
@@ -225,7 +249,15 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     ? activeAwakenings
     : (hasAwakeningState && raceAwakeningInfo ? [{ raceName: character.race, info: raceAwakeningInfo }] : []);
 
-  const computedBase = getBaseWithBoosts(character);
+  const baseWithBoostsRaw = getBaseWithBoosts(character);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, character.race, effectiveLevel);
+  const additionalAwakeningEffects = (character.additionalAwakeningRaces || [])
+    .map((race) => getAwakeningEffect(race, effectiveLevel));
+  const awakeningEffect = mergeAwakeningEffects([
+    getAwakeningEffect(character.race, effectiveLevel),
+    ...additionalAwakeningEffects
+  ]);
+  const computedBase = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   const baseStats = character.baseWithoutWeapon || computedBase;
   const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
 
@@ -237,7 +269,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
 
   const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
     const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
-  const flatBaseStats = character.baseWithBoosts || computedBase;
+  const flatBaseStats = character.baseWithBoosts || baseWithBoosts;
   const baseWithoutBonus = (k) => (flatBaseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
   const getRaceDisplayBonus = (k) => {
     if (!isAwakeningActive) return raceB[k] || 0;
