@@ -513,21 +513,31 @@ export async function supprimerTournoiTermine(docId = 'current') {
 // ============================================================================
 
 export function onTournoiUpdate(callback, docIdOrOnError = 'current', maybeOnError = null) {
-  const docId = typeof docIdOrOnError === 'string' && docIdOrOnError
-    ? docIdOrOnError
-    : 'current';
+  const requestedDocId = typeof docIdOrOnError === 'string' ? docIdOrOnError.trim() : '';
+  const docId = requestedDocId || 'current';
   const onError = typeof docIdOrOnError === 'function'
     ? docIdOrOnError
     : maybeOnError;
 
-  return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
+  let tournoiRef;
+  try {
+    tournoiRef = doc(db, 'tournaments', docId);
+  } catch (error) {
+    console.error('Erreur création référence listener tournoi:', { docId, requestedDocId, error });
+    callback(null);
+    if (typeof onError === 'function') onError(error);
+    return () => {};
+  }
+
+  return onSnapshot(tournoiRef, (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     } else {
       callback(null);
     }
   }, (error) => {
-    console.error('Erreur listener tournoi:', error);
+    console.error('Erreur listener tournoi:', { docId, error });
+    callback(null);
     if (typeof onError === 'function') {
       onError(error);
     }
