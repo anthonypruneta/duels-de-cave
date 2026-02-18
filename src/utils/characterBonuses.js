@@ -3,7 +3,8 @@ const emptyBonus = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
 export const getClassBonus = (clazz) => {
   const b = { ...emptyBonus };
   if (clazz === 'Voleur') b.spd = 5;
-  if (clazz === 'Guerrier') b.auto = 3;
+  if (clazz === 'Guerrier') b.auto = 4;
+  if (clazz === 'Bastion') b.def = 3;
   return b;
 };
 
