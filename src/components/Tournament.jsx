@@ -327,6 +327,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const weapon = participant.equippedWeaponData ||
     (participant.equippedWeaponId ? getWeaponById(participant.equippedWeaponId) : null);
   const pClass = participant.classe || participant.class;
+  const pRace = participant.race;
   const pName = participant.nom || participant.name;
 
   const passiveDetails = (() => {
@@ -765,10 +766,23 @@ const Tournament = () => {
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Charger le combat log
-    const result = await getCombatLog(matchId, docId);
-    if (!result.success || token.cancelled) {
+    // Charger le combat log (avec retries pour absorber les délais Firestore)
+    let result = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (token.cancelled) { stopAnimation(); return; }
+      result = await getCombatLog(matchId, docId);
+      if (result.success) break;
+      if (attempt < 3) await delay(800 * (attempt + 1));
+    }
+    if (!result?.success || token.cancelled) {
       stopAnimation();
+      // Même en cas d'échec, planifier l'auto-avancement pour ne pas bloquer la simulation
+      if (isAdmin && !replayMatchId) {
+        autoAdvanceRef.current = setTimeout(async () => {
+          autoAdvanceRef.current = null;
+          await avancerMatch(docId);
+        }, 3000);
+      }
       return;
     }
 
