@@ -37,3 +37,7 @@ coverage/
 
 # Cache
 .cache/
+-e 
+# Environment files
+*.env
+*.env.*
