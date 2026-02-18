@@ -322,8 +322,22 @@ const WorldBoss = () => {
         const critBonusPct = Math.round(critPerCap * cap * 100);
         return <>+{spdBonus} VIT | Esquive | +{critBonusPct}% crit</>;
       }
+      case 'Bastion': {
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
+        const shieldPct = Math.round(startShieldFromDef * 100);
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+          </>
+        );
+      }
       default:
-        return getClassDescriptionText(className, cap, auto);
+        return getClassDescriptionText(className);
     }
   };
 

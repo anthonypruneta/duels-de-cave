@@ -128,6 +128,12 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
     attacker.boneGuardActive = false;
   }
 
+  if (attacker.class === 'Bastion') {
+    const shieldValue = Math.max(1, Math.round(attacker.base.def * classConstants.bastion.startShieldFromDef));
+    attacker.shield = (attacker.shield || 0) + shieldValue;
+    log.push(`${label} 🏰 Rempart initial: ${attacker.name} gagne un bouclier de ${shieldValue} PV (${Math.round(classConstants.bastion.startShieldFromDef * 100)}% DEF).`);
+  }
+
   defender.spectralMarked = false;
   defender.spectralMarkBonus = 0;
 }

@@ -12,5 +12,5 @@ export const classes = {
   'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% des dégâts accumulés + 0,8% de votre Cap. Se soigne de 22% des dégâts accumulés.', icon: '🩸' },
   'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi un spell, gagne un bouclier égal à 75% des dégâts reçus + 50% de votre CAP. Réduit les soins adverses de 30%. Auto + 20% CAP.', icon: '🧱' },
   'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 20% CAP. La prochaine attaque adverse inflige -40% dégâts.', icon: '💋' },
-  'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Passif: +5% DEF. Inflige auto + 20% CAP + 15% DEF.', icon: '🏰' }
+  'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +5% DEF. Inflige auto + 20% CAP + 15% DEF.', icon: '🏰' }
 };

@@ -440,6 +440,20 @@ const MageTower = () => {
         );
       }
 
+      case 'Bastion': {
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
+        const shieldPct = Math.round(startShieldFromDef * 100);
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+          </>
+        );
+      }
       default:
         return classes[className]?.description || '';
     }
@@ -1004,6 +1018,12 @@ const MageTower = () => {
     if (bossChar?.ability?.type === 'lich_shield') {
       bossChar.shield = Math.max(1, Math.round(bossChar.maxHP * 0.2));
       logs.push(`🧟 Barrière macabre: ${bossChar.name} se protège avec ${bossChar.shield} points de bouclier.`);
+    }
+
+    if (playerChar.class === 'Bastion') {
+      const shieldValue = Math.max(1, Math.round(playerChar.base.def * classConstants.bastion.startShieldFromDef));
+      playerChar.shield = (playerChar.shield || 0) + shieldValue;
+      logs.push(`🏰 Rempart initial: ${playerChar.name} gagne un bouclier de ${shieldValue} PV (${Math.round(classConstants.bastion.startShieldFromDef * 100)}% DEF).`);
     }
 
     bossChar.spectralMarked = false;

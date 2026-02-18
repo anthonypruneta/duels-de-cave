@@ -160,18 +160,23 @@ const getAuraBonus = (passiveDetails, turn) => {
 
 const applyStartOfCombatPassives = (playerChar, bossChar, log, label) => {
   const passiveDetails = getPassiveDetails(playerChar.mageTowerPassive);
-  if (!passiveDetails) return;
 
-  if (passiveDetails.id === 'arcane_barrier') {
+  if (passiveDetails?.id === 'arcane_barrier') {
     const shieldValue = Math.max(1, Math.round(playerChar.maxHP * passiveDetails.levelData.shieldPercent));
     playerChar.shield = shieldValue;
     log.push(`${label} 🛡️ Barrière arcanique: ${playerChar.name} gagne un bouclier de ${shieldValue} PV.`);
   }
 
-  if (passiveDetails.id === 'mind_breach') {
+  if (passiveDetails?.id === 'mind_breach') {
     const reduction = passiveDetails.levelData.defReduction;
     bossChar.base.def = Math.max(0, Math.round(bossChar.base.def * (1 - reduction)));
     log.push(`${label} 🧠 Brèche mentale: ${bossChar.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+  }
+
+  if (playerChar.class === 'Bastion') {
+    const shieldValue = Math.max(1, Math.round(playerChar.base.def * classConstants.bastion.startShieldFromDef));
+    playerChar.shield = (playerChar.shield || 0) + shieldValue;
+    log.push(`${label} 🏰 Rempart initial: ${playerChar.name} gagne un bouclier de ${shieldValue} PV (${Math.round(classConstants.bastion.startShieldFromDef * 100)}% DEF).`);
   }
 
   bossChar.spectralMarked = false;
@@ -458,6 +463,20 @@ const Dungeon = () => {
               <span className="text-green-400">{returnTotalPct}%</span>
             </Tooltip>
             {' '}des dégâts accumulés & heal {healPct}%
+          </>
+        );
+      }
+      case 'Bastion': {
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
+        const shieldPct = Math.round(startShieldFromDef * 100);
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
           </>
         );
       }
