@@ -101,26 +101,51 @@ async function chargerParticipants() {
   return participants;
 }
 
+function buildParticipantEntries(participants) {
+  const usedIds = new Set();
+
+  return participants.map((p, index) => {
+    const baseId = String(p.userId || p.id || `participant-${index + 1}`);
+    let participantId = baseId;
+    let suffix = 2;
+
+    while (usedIds.has(participantId)) {
+      participantId = `${baseId}#${suffix}`;
+      suffix += 1;
+    }
+
+    usedIds.add(participantId);
+
+    return {
+      ...p,
+      participantId,
+      ownerUserId: p.userId || p.id || null,
+    };
+  });
+}
+
 // ============================================================================
 // CRÉER UN TOURNOI
 // ============================================================================
 
 export async function creerTournoi(docId = 'current') {
   try {
-    const participants = await chargerParticipants();
+    const rawParticipants = await chargerParticipants();
+    const participants = buildParticipantEntries(rawParticipants);
     if (participants.length < 2) {
       return { success: false, error: 'Il faut au moins 2 personnages pour créer un tournoi' };
     }
 
     // Générer le bracket
-    const participantIds = participants.map(p => p.userId || p.id);
+    const participantIds = participants.map(p => p.participantId);
     const { matches, matchOrder } = genererBracket(participantIds);
 
     // Stocker les données de participants pour la simulation
     const participantsMap = {};
     for (const p of participants) {
-      participantsMap[p.userId || p.id] = {
-        userId: p.userId || p.id,
+      participantsMap[p.participantId] = {
+        userId: p.participantId,
+        ownerUserId: p.ownerUserId,
         nom: p.name,
         race: p.race,
         classe: p.class,
@@ -143,7 +168,8 @@ export async function creerTournoi(docId = 'current') {
       createdAt: serverTimestamp(),
       participants: participantsMap,
       participantsList: participants.map(p => ({
-        userId: p.userId || p.id,
+        userId: p.ownerUserId,
+        participantId: p.participantId,
         nom: p.name,
         race: p.race,
         classe: p.class,
@@ -276,21 +302,25 @@ export async function lancerTournoi(docId = 'current') {
 
     // Recharger les personnages avec stats/niveau/arme à jour (XP entre 18h et 19h)
     const freshParticipants = await chargerParticipants();
+    const freshParticipantsById = new Map(
+      freshParticipants.map((p) => [String(p.userId || p.id), p])
+    );
     const participants = { ...tournoi.participants };
-    for (const p of freshParticipants) {
-      const id = p.userId || p.id;
-      if (participants[id]) {
-        participants[id] = {
-          ...participants[id],
-          base: p.base,
-          bonuses: p.bonuses,
-          level: p.level ?? 1,
-          equippedWeaponId: p.equippedWeaponId || null,
-          equippedWeaponData: p.equippedWeaponData || null,
-          mageTowerPassive: p.mageTowerPassive || null,
-          forestBoosts: p.forestBoosts || null,
-        };
-      }
+    for (const [id, participantData] of Object.entries(participants)) {
+      const sourceId = String(participantData.ownerUserId || id);
+      const p = freshParticipantsById.get(sourceId);
+      if (!p) continue;
+
+      participants[id] = {
+        ...participantData,
+        base: p.base,
+        bonuses: p.bonuses,
+        level: p.level ?? 1,
+        equippedWeaponId: p.equippedWeaponId || null,
+        equippedWeaponData: p.equippedWeaponData || null,
+        mageTowerPassive: p.mageTowerPassive || null,
+        forestBoosts: p.forestBoosts || null,
+      };
     }
 
     const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, 0);
@@ -373,9 +403,11 @@ export async function avancerMatch(docId = 'current') {
       const gfrMatch = matches['GFR'];
       const gfMatch = matches['GF'];
       let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
-      const championData = participantsList.find(p => p.userId === championId);
+      const championData = participantsList.find(
+        p => p.participantId === championId || p.userId === championId
+      );
       const champion = championData ? {
-        userId: championData.userId,
+        userId: championData.userId || championData.participantId,
         nom: championData.nom,
         race: championData.race,
         classe: championData.classe,
@@ -480,7 +512,14 @@ export async function supprimerTournoiTermine(docId = 'current') {
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
-export function onTournoiUpdate(callback, docId = 'current') {
+export function onTournoiUpdate(callback, docIdOrOnError = 'current', maybeOnError = null) {
+  const docId = typeof docIdOrOnError === 'string' && docIdOrOnError
+    ? docIdOrOnError
+    : 'current';
+  const onError = typeof docIdOrOnError === 'function'
+    ? docIdOrOnError
+    : maybeOnError;
+
   return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
@@ -489,6 +528,9 @@ export function onTournoiUpdate(callback, docId = 'current') {
     }
   }, (error) => {
     console.error('Erreur listener tournoi:', error);
+    if (typeof onError === 'function') {
+      onError(error);
+    }
   });
 }
 
@@ -631,19 +673,19 @@ export async function consumeTripleRoll(userId) {
 
 export async function simulerTournoiTest() {
   try {
-    const participants = await chargerParticipants();
+    const participants = buildParticipantEntries(await chargerParticipants());
     if (participants.length < 2) {
       return { success: false, error: 'Il faut au moins 2 personnages pour simuler un tournoi' };
     }
 
-    const participantIds = participants.map(p => p.userId || p.id);
+    const participantIds = participants.map(p => p.participantId);
     const { matches, matchOrder } = genererBracket(participantIds);
 
     const participantsMap = {};
     for (const p of participants) {
-      const id = p.userId || p.id;
-      participantsMap[id] = {
-        userId: id,
+      participantsMap[p.participantId] = {
+        userId: p.participantId,
+        ownerUserId: p.ownerUserId,
         nom: p.name,
         race: p.race,
         classe: p.class,
