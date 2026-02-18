@@ -33,7 +33,7 @@ import {
 } from '../utils/weaponEffects';
 import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct } from '../data/forgeDungeon';
 import Header from './Header';
-import { simulerMatch } from '../utils/tournamentCombat';
+import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
@@ -341,42 +341,7 @@ const ForgeDungeon = () => {
 
   const isLegendaryEquipped = equippedWeapon?.rarete === RARITY.LEGENDAIRE;
 
-  const prepareForCombat = (char) => {
-    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const effectiveLevel = char.level ?? 1;
-    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
-    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
-    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-    const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
-    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-    const weaponState = initWeaponCombatState(char, weaponId);
-    return {
-      ...char,
-      base: baseWithForge,
-      baseWithoutWeapon,
-    baseWithBoosts,
-      currentHP: baseWithForge.hp,
-      maxHP: baseWithForge.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
-      undead: false,
-      dodge: false,
-      reflect: false,
-      bleed_stacks: 0,
-      bleedPercentPerStack: 0,
-      maso_taken: 0,
-      familiarStacks: 0,
-      shield: 0,
-      spectralMarked: false,
-      spectralMarkBonus: 0,
-      firstSpellCapBoostUsed: false,
-      stunned: false,
-      stunnedTurns: 0,
-      weaponState,
-      awakening: buildAwakeningState(awakeningEffect)
-    };
-  };
+
 
   const handleStartRun = async () => {
     setError(null);
@@ -394,9 +359,8 @@ const ForgeDungeon = () => {
     setIsSimulating(false);
     ensureForgeMusic();
 
-    const playerReady = prepareForCombat(character);
-    const bossReady = createForgeBossCombatant();
-    bossReady.weaponState = initWeaponCombatState(bossReady, null);
+    const playerReady = preparerCombattant(character);
+    const bossReady = preparerCombattant(createForgeBossCombatant());
 
     setPlayer(playerReady);
     setBoss(bossReady);
@@ -413,7 +377,7 @@ const ForgeDungeon = () => {
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
-    const matchResult = simulerMatch(p, b);
+    const matchResult = simulerMatch(character, createForgeBossCombatant());
 
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
