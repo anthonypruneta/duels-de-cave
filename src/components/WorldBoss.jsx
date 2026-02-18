@@ -669,7 +669,7 @@ const WorldBoss = () => {
       const finalDisplayValue = getDisplayedStatValue(statKey);
       return (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className={totalDelta !== 0 ? labelClass : ''}>
+          <span className={`${totalDelta !== 0 ? labelClass : ''} font-bold`}>
             {label}: {finalDisplayValue}
           </span>
         </Tooltip>
