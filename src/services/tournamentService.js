@@ -512,7 +512,14 @@ export async function supprimerTournoiTermine(docId = 'current') {
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
-export function onTournoiUpdate(callback, docId = 'current', onError = null) {
+export function onTournoiUpdate(callback, docIdOrOnError = 'current', maybeOnError = null) {
+  const docId = typeof docIdOrOnError === 'string' && docIdOrOnError
+    ? docIdOrOnError
+    : 'current';
+  const onError = typeof docIdOrOnError === 'function'
+    ? docIdOrOnError
+    : maybeOnError;
+
   return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
