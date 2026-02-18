@@ -518,6 +518,7 @@ const Tournament = () => {
   // Tournoi state
   const [tournoi, setTournoi] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [listenerError, setListenerError] = useState(null);
 
   // Combat state
   const [combatLog, setCombatLog] = useState([]);
@@ -626,7 +627,11 @@ const Tournament = () => {
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
       setLoading(false);
-    }, docId);
+      setListenerError(null);
+    }, docId, (error) => {
+      setListenerError(error?.message || 'Erreur de synchronisation tournoi');
+      setLoading(false);
+    });
     return () => unsubscribe();
   }, [docId]);
 
@@ -1247,6 +1252,26 @@ const Tournament = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <div className="text-amber-400 text-2xl">Chargement du tournoi...</div>
+      </div>
+    );
+  }
+
+  if (listenerError) {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <div className="max-w-2xl mx-auto pt-20 text-center">
+          <div className="bg-stone-800/90 p-8 border-2 border-red-700 rounded-xl">
+            <p className="text-red-300 text-xl">Impossible de charger le tournoi</p>
+            <p className="text-stone-400 mt-2 text-sm">{listenerError}</p>
+          </div>
+          <button
+            onClick={() => navigate('/admin')}
+            className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            ← Retour à l'admin
+          </button>
+        </div>
       </div>
     );
   }

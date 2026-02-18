@@ -512,7 +512,7 @@ export async function supprimerTournoiTermine(docId = 'current') {
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
-export function onTournoiUpdate(callback, docId = 'current') {
+export function onTournoiUpdate(callback, docId = 'current', onError = null) {
   return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
@@ -521,6 +521,9 @@ export function onTournoiUpdate(callback, docId = 'current') {
     }
   }, (error) => {
     console.error('Erreur listener tournoi:', error);
+    if (typeof onError === 'function') {
+      onError(error);
+    }
   });
 }
 
