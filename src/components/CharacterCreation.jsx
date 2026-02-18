@@ -1086,8 +1086,9 @@ const CharacterCreation = () => {
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
               onClick={() => navigate('/dungeons')}
               disabled={isDowntimeLocked}
