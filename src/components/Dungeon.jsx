@@ -56,6 +56,7 @@ import {
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import Header from './Header';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
@@ -1310,105 +1311,25 @@ const Dungeon = () => {
     };
 
     return (
-      <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
-          {char.race} • {char.class} • Niveau {char.level ?? 1}
-        </div>
-        <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {characterImage ? (
-              <img src={characterImage} alt={char.name} className="w-full h-auto object-contain" />
-            ) : (
-              <div className="w-full h-48 flex items-center justify-center">
-                <span className="text-7xl">{races[char.race]?.icon || '❓'}</span>
-              </div>
-            )}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-white font-bold text-xl text-center">{char.name}</div>
-            </div>
-          </div>
-          <div className="bg-stone-800 p-4 border-t border-stone-600">
-            <div className="mb-3">
-              <div className="flex justify-between text-sm text-white mb-2">
-                <StatWithTooltip statKey="hp" label="HP" />
-                <StatWithTooltip statKey="spd" label="VIT" />
-              </div>
-              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {Math.max(0, char.currentHP)}/{char.maxHP}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
-              </div>
-              {(char.shield || 0) > 0 && (
-                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                  <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
-            </div>
-            <div className="space-y-2">
-              {weapon && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <Tooltip content={getWeaponTooltipContent(weapon)}>
-                    <span className="flex items-center gap-2">
-                      {getWeaponImage(weapon.imageFile) ? (
-                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                      ) : (
-                        <span className="text-xl">{weapon.icon}</span>
-                      )}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
-                    </span>
-                  </Tooltip>
-                </div>
-              )}
-              {passiveDetails && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{passiveDetails.icon}</span>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
-                      {passiveDetails.name} — Niveau {passiveDetails.level}
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {passiveDetails.levelData.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {isAwakeningActive && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">✨</span>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
-                      Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {awakeningInfo.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!isAwakeningActive && races[char.race] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{races[char.race].icon}</span>
-                  <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
-                </div>
-              )}
-              {classes[char.class] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{classes[char.class].icon}</span>
-                  <div className="flex-1">
-                    <div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedCharacterCard
+        header={`${char.race} • ${char.class} • Niveau ${char.level ?? 1}`}
+        name={char.name}
+        image={characterImage}
+        fallback={<span className="text-7xl">{races[char.race]?.icon || '❓'}</span>}
+        topStats={<><StatWithTooltip statKey="hp" label="HP" /><StatWithTooltip statKey="spd" label="VIT" /></>}
+        hpText={`${char.name} — PV ${Math.max(0, char.currentHP)}/${char.maxHP}`}
+        hpPercent={hpPercent}
+        hpClass={hpClass}
+        shieldPercent={shieldPercent}
+        mainStats={<><div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div><div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div><div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div><div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div></>}
+        details={<>
+          {weapon && <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600"><Tooltip content={getWeaponTooltipContent(weapon)}><span className="flex items-center gap-2">{getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}<span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span></span></Tooltip></div>}
+          {passiveDetails && <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600"><span className="text-lg">{passiveDetails.icon}</span><div className="flex-1"><div className="text-amber-300 font-semibold mb-1">{passiveDetails.name} — Niveau {passiveDetails.level}</div><div className="text-stone-400 text-[10px]">{passiveDetails.levelData.description}</div></div></div>}
+          {isAwakeningActive && <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600"><span className="text-lg">✨</span><div className="flex-1"><div className="text-amber-300 font-semibold mb-1">Éveil racial actif (Niv {awakeningInfo.levelRequired}+)</div><div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div></div></div>}
+          {!isAwakeningActive && races[char.race] && <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600"><span className="text-lg">{races[char.race].icon}</span><span className="text-stone-300">{getRaceBonusText(char.race)}</span></div>}
+          {classes[char.class] && <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600"><span className="text-lg">{classes[char.class].icon}</span><div className="flex-1"><div className="text-stone-200 font-semibold mb-1">{classes[char.class].ability}</div><div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getBaseWithBoosts(char).cap, getBaseWithBoosts(char).auto)}</div></div></div>}
+        </>}
+      />
     );
   };
 
