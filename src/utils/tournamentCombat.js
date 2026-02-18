@@ -16,7 +16,7 @@ import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses
 } from '../data/combatMechanics.js';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from './awakening.js';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from './awakening.js';
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 
 // ============================================================================
@@ -138,9 +138,10 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
 
 export function preparerCombattant(char) {
   const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-  const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
   const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
+  const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
   const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([
@@ -159,6 +160,7 @@ export function preparerCombattant(char) {
     ...char,
     base: baseWithClassPassive,
     baseWithoutWeapon,
+    baseWithBoosts,
     currentHP: baseWithClassPassive.hp,
     maxHP: baseWithClassPassive.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },

@@ -173,7 +173,7 @@ const makeCharacter = (id, level) => {
   };
 };
 
-function AdminBalance() {
+function AdminBalance({ embedded = false }) {
   const navigate = useNavigate();
   const [duels, setDuels] = useState(500);
   const [running, setRunning] = useState(false);
@@ -421,14 +421,14 @@ function AdminBalance() {
     });
   };
 
-  return (
-    <div className="min-h-screen p-6">
-      <Header />
-      <div className="max-w-7xl mx-auto pt-20">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-amber-300">⚖️ Équilibrage (Admin)</h1>
+  const content = (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-amber-300">⚖️ Équilibrage (Admin)</h1>
+        {!embedded && (
           <button onClick={() => navigate('/admin')} className="bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded">← Retour admin</button>
-        </div>
+        )}
+      </div>
 
         <div className="bg-stone-900/70 border border-amber-600 p-4 mb-6">
           <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1 et 100)</label>
@@ -703,6 +703,18 @@ function AdminBalance() {
             ))}
           </div>
         )}
+    </>
+  );
+
+  if (embedded) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <div className="min-h-screen p-6">
+      <Header />
+      <div className="max-w-7xl mx-auto pt-20">
+        {content}
       </div>
     </div>
   );

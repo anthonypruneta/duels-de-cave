@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateForestHpBoosts } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi, getAllArchivedCharacters } from '../services/tournamentService';
@@ -19,6 +19,7 @@ import borderImage from '../assets/backgrounds/border.png';
 import { races as racesData } from '../data/races';
 import { classes as classesData } from '../data/classes';
 import WorldBossAdmin from './WorldBossAdmin';
+import AdminBalance from './AdminBalance';
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -58,18 +59,14 @@ const Admin = () => {
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
 
-  // État pour la migration HP forêt
-  const [migrationHpLoading, setMigrationHpLoading] = useState(false);
-  const [migrationHpResult, setMigrationHpResult] = useState(null);
-
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
 
   // Personnages archivés
   const [archivedCharacters, setArchivedCharacters] = useState([]);
 
-  // Onglet actif/désactivé
-  const [adminTab, setAdminTab] = useState('actifs');
+  const [adminMainTab, setAdminMainTab] = useState('annonce');
+  const [characterStatusTab, setCharacterStatusTab] = useState('actifs');
 
   const [labyrinthWeekId, setLabyrinthWeekId] = useState(getCurrentWeekId());
   const [labyrinthData, setLabyrinthData] = useState(null);
@@ -839,6 +836,31 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2 mb-8">
+          {[
+            { key: 'annonce', label: '📢 Annonce' },
+            { key: 'labyrinthe', label: '🌀 Labyrinthe' },
+            { key: 'cataclysme', label: '🌋 Cataclysme' },
+            { key: 'tournois', label: '🏆 Tournois' },
+            { key: 'equilibrage', label: '⚖️ Équilibrage' },
+            { key: 'personnage', label: '👤 Personnage' }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setAdminMainTab(tab.key)}
+              className={`px-4 py-2 rounded-lg font-bold border-2 transition ${
+                adminMainTab === tab.key
+                  ? 'bg-amber-600 border-amber-400 text-white'
+                  : 'bg-stone-800 border-stone-600 text-stone-300 hover:border-stone-500'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {adminMainTab === 'annonce' && (
+          <>
         {/* Section Annonces Discord */}
         <div className="bg-stone-900/70 border-2 border-indigo-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-indigo-300 mb-4">📢 Annonce Discord</h2>
@@ -958,42 +980,18 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </div>
         </div>
 
-        {/* Migration HP Forêt */}
-        <div className="bg-stone-900/70 border-2 border-emerald-500 rounded-xl p-6 mb-8">
-          <h3 className="text-xl font-bold text-emerald-300 mb-4">🌿 Migration HP Forêt (3→4 par point)</h3>
-          <p className="text-stone-400 mb-4 text-sm">
-            Convertit les HP de forêt de tous les personnages de l'ancien ratio (3 HP/point) vers le nouveau (4 HP/point).
-          </p>
-          <button
-            onClick={async () => {
-              if (!window.confirm('Migrer les HP de forêt de TOUS les personnages ? (3→4 par point)')) return;
-              setMigrationHpLoading(true);
-              setMigrationHpResult(null);
-              const result = await migrateForestHpBoosts();
-              setMigrationHpResult(result);
-              setMigrationHpLoading(false);
-              if (result.success) {
-                const refreshed = await getAllCharacters();
-                if (refreshed.success) setCharacters(refreshed.data);
-              }
-            }}
-            disabled={migrationHpLoading}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 px-6 rounded-lg font-bold transition"
-          >
-            {migrationHpLoading ? '⏳ Migration en cours...' : '🔄 Lancer la migration HP'}
-          </button>
-          {migrationHpResult && (
-            <div className={`mt-4 p-3 rounded-lg ${migrationHpResult.success ? 'bg-emerald-900/50 text-emerald-300' : 'bg-red-900/50 text-red-300'}`}>
-              {migrationHpResult.success
-                ? `${migrationHpResult.migrated} personnages migrés, ${migrationHpResult.skipped} ignorés (pas de HP forêt)`
-                : `Erreur: ${migrationHpResult.error}`}
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Section Boss Mondial */}
-        <WorldBossAdmin characters={characters} />
+        {adminMainTab === 'cataclysme' && (
+          <>
+            {/* Section Boss Mondial */}
+            <WorldBossAdmin characters={characters} />
+          </>
+        )}
 
+        {adminMainTab === 'labyrinthe' && (
+          <>
         <div className="bg-stone-900/70 border-2 border-fuchsia-500 rounded-xl p-6 mb-8">
           <audio ref={labyrinthAudioRef} loop>
             <source src="/assets/music/Labyrinthe.mp3" type="audio/mpeg" />
@@ -1067,6 +1065,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           </div>
         </div>
 
+          </>
+        )}
+
+        {adminMainTab === 'tournois' && (
+          <>
         {/* Section Démarrer l'Event */}
         <div className="bg-stone-900/70 border-2 border-red-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-red-300 mb-4">🎯 Démarrer l'Event</h2>
@@ -1094,14 +1097,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             {simulationLoading ? '⏳ Préparation...' : '🎲 Lancer une simulation en direct'}
           </button>
 
-          <button
-            onClick={() => navigate('/admin/balance')}
-            className="w-full mt-3 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-bold transition"
-          >
-            ⚖️ Ouvrir la page d'équilibrage (admin)
-          </button>
         </div>
 
+          </>
+        )}
+
+        {adminMainTab === 'equilibrage' && (
+          <div className="bg-stone-900/40 border-2 border-amber-600 rounded-xl p-6 mb-8">
+            <AdminBalance embedded />
+          </div>
+        )}
+
+        {adminMainTab === 'personnage' && (
+          <>
         {/* Canvas caché pour le traitement */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
 
@@ -1109,15 +1117,15 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {(() => {
           const activeChars = characters.filter(c => !c.disabled);
           const disabledChars = characters.filter(c => c.disabled);
-          const displayedChars = adminTab === 'actifs' ? activeChars : adminTab === 'desactives' ? disabledChars : archivedCharacters;
+          const displayedChars = characterStatusTab === 'actifs' ? activeChars : characterStatusTab === 'desactives' ? disabledChars : archivedCharacters;
 
           return (
             <>
               <div className="flex gap-2 mb-6">
                 <button
-                  onClick={() => setAdminTab('actifs')}
+                  onClick={() => setCharacterStatusTab('actifs')}
                   className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
-                    adminTab === 'actifs'
+                    characterStatusTab === 'actifs'
                       ? 'bg-amber-600 border-amber-400 text-white'
                       : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
                   }`}
@@ -1125,9 +1133,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                   Actifs ({activeChars.length})
                 </button>
                 <button
-                  onClick={() => setAdminTab('desactives')}
+                  onClick={() => setCharacterStatusTab('desactives')}
                   className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
-                    adminTab === 'desactives'
+                    characterStatusTab === 'desactives'
                       ? 'bg-red-600 border-red-400 text-white'
                       : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
                   }`}
@@ -1135,9 +1143,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                   Désactivés ({disabledChars.length})
                 </button>
                 <button
-                  onClick={() => setAdminTab('archives')}
+                  onClick={() => setCharacterStatusTab('archives')}
                   className={`flex-1 py-3 rounded-lg font-bold text-lg transition border-2 ${
-                    adminTab === 'archives'
+                    characterStatusTab === 'archives'
                       ? 'bg-purple-600 border-purple-400 text-white'
                       : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-500'
                   }`}
@@ -1149,7 +1157,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               {displayedChars.length === 0 ? (
                 <div className="bg-stone-800/50 rounded-xl p-8 border-2 border-amber-600 text-center">
                   <p className="text-gray-400 text-xl">
-                    {adminTab === 'actifs' ? 'Aucun personnage actif' : adminTab === 'desactives' ? 'Aucun personnage désactivé' : 'Aucun personnage archivé'}
+                    {characterStatusTab === 'actifs' ? 'Aucun personnage actif' : characterStatusTab === 'desactives' ? 'Aucun personnage désactivé' : 'Aucun personnage archivé'}
                   </p>
                 </div>
               ) : (
@@ -1158,9 +1166,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                     <div
                       key={char.id}
                       className={`bg-stone-800/90 rounded-xl p-6 border-2 shadow-xl hover:shadow-2xl transition-shadow cursor-pointer ${
-                        adminTab === 'archives' ? 'border-purple-600' : char.disabled ? 'border-red-600' : 'border-amber-600'
+                        characterStatusTab === 'archives' ? 'border-purple-600' : char.disabled ? 'border-red-600' : 'border-amber-600'
                       }`}
-                      onClick={() => handleSelectCharacter(adminTab === 'archives' ? { ...char, _source: 'archived' } : char)}
+                      onClick={() => handleSelectCharacter(characterStatusTab === 'archives' ? { ...char, _source: 'archived' } : char)}
                     >
                       {/* Image du personnage si elle existe */}
                       {char.characterImage && (
@@ -1221,10 +1229,10 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSelectCharacter(adminTab === 'archives' ? { ...char, _source: 'archived' } : char);
+                          handleSelectCharacter(characterStatusTab === 'archives' ? { ...char, _source: 'archived' } : char);
                         }}
                         className={`mt-4 w-full py-2 rounded transition ${
-                          adminTab === 'archives' ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
+                          characterStatusTab === 'archives' ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
                         }`}
                       >
                         {char.characterImage ? 'Modifier l\'image' : 'Ajouter une image'}
@@ -1246,6 +1254,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             ← Retour
           </button>
         </div>
+          </>
+        )}
+
       </div>
 
       {isLabyrinthReplayOpen && (
