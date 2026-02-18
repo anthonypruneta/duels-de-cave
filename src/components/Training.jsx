@@ -617,12 +617,10 @@ const Training = () => {
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const hasBonus = totalDelta !== 0;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-      return hasBonus ? (
+      return (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className={labelClass}>{label}: {displayValue}</span>
+          <span className={`${hasBonus ? labelClass : ''} font-bold`}>{label}: {displayValue}</span>
         </Tooltip>
-      ) : (
-        <span>{label}: {displayValue}</span>
       );
     };
 
