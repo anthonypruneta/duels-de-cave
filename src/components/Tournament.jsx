@@ -443,7 +443,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
           </div>
           <div className="space-y-2">
             {weapon && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <Tooltip content={getWeaponTooltipContent(weapon)}>
                   <span className="flex items-center gap-2">
                     {getWeaponImage(weapon.imageFile) ? (
@@ -454,44 +454,57 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
                     <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                   </span>
                 </Tooltip>
+                <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                  <div>{weapon.description}</div>
+                  {weapon.effet && (
+                    <div className="text-amber-200">
+                      Effet: {weapon.effet.nom} — {weapon.effet.description}
+                    </div>
+                  )}
+                  {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                    <div className="text-stone-200">
+                      Stats: {formatWeaponStats(weapon)}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {passiveDetails && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{passiveDetails.icon}</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">
-                    {passiveDetails.name} — Niv. {passiveDetails.level}
+                  <div className="font-semibold text-amber-200">
+                    {passiveDetails.name} — Niveau {passiveDetails.level}
                   </div>
-                  <div className="text-stone-400 text-[10px]">
+                  <div className="text-stone-400 text-[11px]">
                     {passiveDetails.levelData.description}
                   </div>
                 </div>
               </div>
             )}
             {isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">✨</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">
+                  <div className="font-semibold text-amber-200">
                     Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
                   </div>
-                  <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+                  <div className="text-stone-400 text-[11px]">{awakeningInfo.description}</div>
                 </div>
               </div>
             )}
             {raceData && !isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{raceData.icon}</span>
                 <span className="text-stone-300">{raceData.bonus}</span>
               </div>
             )}
             {classData && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{classData.icon}</span>
                 <div className="flex-1">
-                  <div className="text-stone-200 font-semibold mb-1">{classData.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                  <div className="font-semibold text-amber-200">{classData.ability}</div>
+                  <div className="text-stone-400 text-[11px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             )}
