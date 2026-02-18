@@ -1335,7 +1335,7 @@ const Tournament = () => {
             <h2 className="text-xl font-bold text-amber-300 mb-4">Participants</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {tournoi.participantsList?.map(p => (
-                <div key={p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
+                <div key={p.participantId || p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
                   {p.characterImage && (
                     <img src={p.characterImage} alt={p.nom} className="w-16 h-auto mx-auto mb-2 object-contain" />
                   )}
