@@ -16,7 +16,7 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConst
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
-import { applyAwakeningToBase, getAwakeningEffect } from '../utils/awakening';
+import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct } from '../data/forgeDungeon';
@@ -870,7 +870,8 @@ const CharacterCreation = () => {
     const classB = getClassBonus(existingCharacter.class);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
-    const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
+    const baseStatsRaw = applyStatBoosts(existingCharacter.base, forestBoosts);
+    const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, existingCharacter.race, existingCharacter.level ?? 1);
     const weapon = equippedWeapon;
     const mageTowerPassive = existingCharacter.mageTowerPassive || null;
     const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
