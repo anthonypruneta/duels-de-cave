@@ -518,6 +518,7 @@ const Tournament = () => {
   // Tournoi state
   const [tournoi, setTournoi] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [listenerError, setListenerError] = useState(null);
 
   // Combat state
   const [combatLog, setCombatLog] = useState([]);
@@ -626,7 +627,11 @@ const Tournament = () => {
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
       setLoading(false);
-    }, docId);
+      setListenerError(null);
+    }, docId, (error) => {
+      setListenerError(error?.message || 'Erreur de synchronisation tournoi');
+      setLoading(false);
+    });
     return () => unsubscribe();
   }, [docId]);
 
@@ -1251,6 +1256,26 @@ const Tournament = () => {
     );
   }
 
+  if (listenerError) {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <div className="max-w-2xl mx-auto pt-20 text-center">
+          <div className="bg-stone-800/90 p-8 border-2 border-red-700 rounded-xl">
+            <p className="text-red-300 text-xl">Impossible de charger le tournoi</p>
+            <p className="text-stone-400 mt-2 text-sm">{listenerError}</p>
+          </div>
+          <button
+            onClick={() => navigate('/admin')}
+            className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            ← Retour à l'admin
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ============================================================================
   // PAS DE TOURNOI → COUNTDOWN
   // ============================================================================
@@ -1335,7 +1360,7 @@ const Tournament = () => {
             <h2 className="text-xl font-bold text-amber-300 mb-4">Participants</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {tournoi.participantsList?.map(p => (
-                <div key={p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
+                <div key={p.participantId || p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
                   {p.characterImage && (
                     <img src={p.characterImage} alt={p.nom} className="w-16 h-auto mx-auto mb-2 object-contain" />
                   )}
