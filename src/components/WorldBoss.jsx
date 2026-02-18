@@ -759,7 +759,7 @@ const WorldBoss = () => {
                 <span className="text-lg">{classes[char.class]?.icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getDisplayedStatValue('cap'), getDisplayedStatValue('auto'))}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, char.base.cap, char.base.auto)}</div>
                 </div>
               </div>
             </div>
