@@ -16,6 +16,7 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConst
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { applyAwakeningToBase, getAwakeningEffect } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct } from '../data/forgeDungeon';
@@ -901,24 +902,39 @@ const CharacterCreation = () => {
     const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : rawBase;
-    const passiveAutoBonus = (baseWithPassive.auto ?? rawBase.auto) - (rawBase.auto + (weapon?.stats?.auto ?? 0));
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : baseStats;
+    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+    const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
+    const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+
+    const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
+      const weaponBonus = weaponStatValue(k);
+      const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
+      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
+      return (finalStats[k] ?? 0) - subtotalWithoutRace;
+    };
+
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
       if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
+
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
-      const weaponDelta = weaponStatValue(statKey);
-      const passiveDelta = statKey === 'auto' ? passiveAutoBonus : 0;
-      const displayValue = baseStats[statKey] + weaponDelta + passiveDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveDelta;
+      const displayValue = finalStats[statKey] ?? 0;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0);
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0);
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
