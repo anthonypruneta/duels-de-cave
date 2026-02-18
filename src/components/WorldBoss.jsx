@@ -60,12 +60,38 @@ function getWeekSeed() {
 
 // Piocher un boss déterministe par semaine (change le samedi à midi)
 function pickWeeklyBoss() {
-  const entries = Object.entries(CATACLYSM_IMAGES);
+  const entries = Object.entries(CATACLYSM_IMAGES)
+    .sort(([a], [b]) => a.localeCompare(b, 'fr'));
   if (entries.length === 0) return { name: WORLD_BOSS.nom, image: null };
   const seed = getWeekSeed();
   const index = seed % entries.length;
   const [sourcePath, imagePath] = entries[index];
   return { name: getBossNameFromPath(sourcePath), image: imagePath };
+}
+
+function getCataclysmImageByName(name) {
+  if (!name) return null;
+  const normalized = name.trim().toLowerCase();
+  const entries = Object.entries(CATACLYSM_IMAGES);
+  for (const [sourcePath, imagePath] of entries) {
+    if (getBossNameFromPath(sourcePath).trim().toLowerCase() === normalized) {
+      return imagePath;
+    }
+  }
+  return null;
+}
+
+function getNextMondayAt18() {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getDay(); // 0=dim, 1=lun
+  let daysUntilMonday = (1 - day + 7) % 7;
+  if (daysUntilMonday === 0 && now.getHours() >= 18) {
+    daysUntilMonday = 7;
+  }
+  target.setDate(now.getDate() + daysUntilMonday);
+  target.setHours(18, 0, 0, 0);
+  return target;
 }
 
 const STAT_LABELS = {
@@ -123,9 +149,15 @@ const WorldBoss = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState('');
+  const [nextLaunchCountdown, setNextLaunchCountdown] = useState('');
 
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
+  const activeBossName = eventData?.bossName || boss.name;
+  const activeBossImage = useMemo(
+    () => getCataclysmImageByName(activeBossName) || boss.image,
+    [activeBossName, boss.image]
+  );
 
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);
@@ -175,7 +207,7 @@ const WorldBoss = () => {
       }
 
       // Auto-launch si c'est lundi >= 18h et event inactif
-      await checkAutoLaunch(boss.name);
+      await checkAutoLaunch(activeBossName);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
 
@@ -183,6 +215,18 @@ const WorldBoss = () => {
     };
     load();
   }, [currentUser]);
+
+  // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
+  useEffect(() => {
+    const runChecks = async () => {
+      await checkAutoLaunch(activeBossName);
+      await checkAutoEnd();
+    };
+
+    runChecks();
+    const interval = setInterval(runChecks, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeBossName]);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
@@ -197,6 +241,39 @@ const WorldBoss = () => {
       unsubLeaderboard();
     };
   }, []);
+
+  // Countdown vers le prochain lancement (lundi 18h)
+  useEffect(() => {
+    if (eventData?.status !== EVENT_STATUS.FINISHED && eventData?.status !== EVENT_STATUS.INACTIVE) {
+      setNextLaunchCountdown('');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const target = getNextMondayAt18();
+      const diff = target - new Date();
+
+      if (diff <= 0) {
+        setNextLaunchCountdown('Lancement imminent...');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}j`);
+      parts.push(`${String(hours).padStart(2, '0')}h`);
+      parts.push(`${String(minutes).padStart(2, '0')}m`);
+      parts.push(`${String(seconds).padStart(2, '0')}s`);
+      setNextLaunchCountdown(parts.join(' '));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [eventData?.status]);
 
   // Countdown vers samedi 12h
   useEffect(() => {
@@ -345,7 +422,7 @@ const WorldBoss = () => {
   // === formatLogMessage (identique à Combat.jsx) ===
   const formatLogMessage = (text, isP1) => {
     const p1Name = playerState?.name || character?.name || 'Joueur';
-    const p2Name = boss.name;
+    const p2Name = activeBossName;
     let key = 0;
 
     const processText = (str) => {
@@ -549,8 +626,8 @@ const WorldBoss = () => {
       <div className="relative shadow-2xl overflow-visible">
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {boss.image ? (
-              <img src={boss.image} alt={boss.name} className="w-full h-auto object-contain" style={{ minHeight: '400px' }} />
+            {activeBossImage ? (
+              <img src={activeBossImage} alt={activeBossName} className="w-full h-auto object-contain" style={{ minHeight: '400px' }} />
             ) : (
               <div className="w-full flex items-center justify-center bg-stone-800" style={{ minHeight: '400px' }}>
                 <span className="text-8xl">☄️</span>
@@ -712,6 +789,64 @@ const WorldBoss = () => {
 
   // === EVENT INACTIF ===
   if (!isActive) {
+    if (eventData?.status === EVENT_STATUS.FINISHED) {
+      const topParticipants = leaderboard.slice(0, 3);
+      const totalDamage = leaderboard.reduce((acc, entry) => acc + (entry.totalDamage || 0), 0);
+      return (
+        <div className="min-h-screen p-6">
+          <Header />
+          <SoundControl />
+          <div className="max-w-4xl mx-auto pt-20 text-center">
+            <h1 className="text-5xl font-bold text-red-500 mb-6">🏁 Cataclysme terminé</h1>
+            <div className="bg-stone-800/90 border-2 border-stone-600 p-8 text-left space-y-6">
+              <div className="text-center">
+                <p className="text-stone-200 text-xl font-semibold">{activeBossName} a été vaincu.</p>
+                <p className="text-stone-400 mt-2">Un nouveau boss arrivera automatiquement lundi à 18h.</p>
+                <p className="text-amber-300 font-mono text-lg mt-3">⏳ {nextLaunchCountdown || 'Calcul en cours...'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Tentatives totales</div>
+                  <div className="text-2xl text-amber-300 font-bold">{(eventData.totalAttempts || 0).toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Combattants</div>
+                  <div className="text-2xl text-amber-300 font-bold">{leaderboard.length.toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Dégâts cumulés</div>
+                  <div className="text-2xl text-amber-300 font-bold">{totalDamage.toLocaleString('fr-FR')}</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/70 border border-stone-600 p-4">
+                <h2 className="text-amber-400 font-bold mb-3">🏅 Top 3 des héros</h2>
+                {topParticipants.length === 0 ? (
+                  <p className="text-stone-500 italic text-sm">Aucun participant enregistré pour ce Cataclysme.</p>
+                ) : (
+                  <ol className="space-y-2">
+                    {topParticipants.map((entry, i) => (
+                      <li key={entry.id} className="flex justify-between text-stone-200 border-b border-stone-700 pb-2">
+                        <span>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {entry.characterName}</span>
+                        <span className="font-mono text-amber-300">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+            <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition">
+              ⬅️ Retour
+            </button>
+          </div>
+          <audio ref={bossAudioRef} loop>
+            <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -740,7 +875,7 @@ const WorldBoss = () => {
         <Header />
         <SoundControl />
         <div className="max-w-2xl mx-auto pt-20 text-center">
-          <h1 className="text-5xl font-bold text-red-500 mb-6">☄️ {boss.name}</h1>
+          <h1 className="text-5xl font-bold text-red-500 mb-6">☄️ {activeBossName}</h1>
           <div className="bg-stone-800/90 border-2 border-stone-600 p-8">
             <p className="text-stone-400 text-xl">Tu n&apos;as pas de personnage actif.</p>
             <button onClick={() => navigate('/')} className="mt-4 bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 font-bold transition">
@@ -769,7 +904,7 @@ const WorldBoss = () => {
         {/* === NOM DU BOSS EN ROUGE BIEN GROS === */}
         <div className="flex justify-center mb-4">
           <h1 className="text-5xl md:text-6xl font-black text-red-500 drop-shadow-[0_0_30px_rgba(239,68,68,0.5)] tracking-wide">
-            ☄️ {boss.name}
+            ☄️ {activeBossName}
           </h1>
         </div>
 
@@ -833,7 +968,7 @@ const WorldBoss = () => {
                   disabled={attemptInfo && !attemptInfo.canAttempt}
                   className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
-                  ☄️ Affronter {boss.name}
+                  ☄️ Affronter {activeBossName}
                 </button>
                 <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
                 {attemptError && (
