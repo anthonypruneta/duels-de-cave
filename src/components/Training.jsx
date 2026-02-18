@@ -535,6 +535,20 @@ const Training = () => {
           </>
         );
       }
+      case 'Bastion': {
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
+        const shieldPct = Math.round(startShieldFromDef * 100);
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+          </>
+        );
+      }
       default: return classes[className]?.description || '';
     }
   };
