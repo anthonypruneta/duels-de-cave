@@ -14,6 +14,7 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import {
   classConstants,
@@ -393,21 +394,35 @@ const WorldBoss = () => {
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStats = char.base;
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
+    const computedBase = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
+    const baseStats = char.baseWithoutWeapon || computedBase;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const baseWithoutBonus = (k) => (baseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+    const flatBaseStats = char.baseWithBoosts || baseWithBoosts;
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+      return (baseStats[k] ?? 0) - (flatBaseStats[k] ?? 0);
+    };
     const tooltipContent = (k) => {
-      const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
-      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
       const weaponDelta = weapon?.stats?.[k] ?? 0;
+      const passiveAutoBonus = k === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      const displayValue = (baseStats[k] ?? 0) + weaponDelta + passiveAutoBonus;
+      const baseWithoutBonus = displayValue - classBonus - forestBonus - weaponDelta - passiveAutoBonus - raceDisplayBonus;
+      const safeBase = Math.max(0, baseWithoutBonus);
+      const parts = [`Base: ${safeBase}`];
+      if (classBonus > 0) parts.push(`Classe: +${classBonus}`);
+      if (forestBonus > 0) parts.push(`Forêt: +${forestBonus}`);
       if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
-      if (k === 'auto') {
-        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
-        if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-      }
+      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
     const characterImage = char.characterImage || testImage1;
@@ -417,9 +432,9 @@ const WorldBoss = () => {
       const passiveAutoBonus = statKey === 'auto'
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
-      const forestDelta = forestBoosts[statKey] || 0;
-      const displayValue = baseStats[statKey] + forestDelta + weaponDelta + passiveAutoBonus;
-      const totalDelta = totalBonus(statKey) + forestDelta + weaponDelta + passiveAutoBonus;
+      const displayValue = (baseStats[statKey] ?? 0) + weaponDelta + passiveAutoBonus;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
         <Tooltip content={tooltipContent(statKey)}>
