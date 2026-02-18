@@ -66,6 +66,7 @@ export const classConstants = {
   },
   bastion: {
     defPercentBonus: 0.05,
+    startShieldFromDef: 0.3,
     capScale: 0.2,
     defScale: 0.15
   }

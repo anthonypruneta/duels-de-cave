@@ -14,6 +14,7 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
+import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import {
   classConstants,
@@ -65,6 +66,19 @@ function pickWeeklyBoss() {
   const index = seed % entries.length;
   const [sourcePath, imagePath] = entries[index];
   return { name: getBossNameFromPath(sourcePath), image: imagePath };
+}
+
+function getNextMondayAt18() {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getDay(); // 0=dim, 1=lun
+  let daysUntilMonday = (1 - day + 7) % 7;
+  if (daysUntilMonday === 0 && now.getHours() >= 18) {
+    daysUntilMonday = 7;
+  }
+  target.setDate(now.getDate() + daysUntilMonday);
+  target.setHours(18, 0, 0, 0);
+  return target;
 }
 
 const STAT_LABELS = {
@@ -122,6 +136,7 @@ const WorldBoss = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState('');
+  const [nextLaunchCountdown, setNextLaunchCountdown] = useState('');
 
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
@@ -183,6 +198,18 @@ const WorldBoss = () => {
     load();
   }, [currentUser]);
 
+  // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
+  useEffect(() => {
+    const runChecks = async () => {
+      await checkAutoLaunch(boss.name);
+      await checkAutoEnd();
+    };
+
+    runChecks();
+    const interval = setInterval(runChecks, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [boss.name]);
+
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
     const unsubEvent = onWorldBossEventChange((data) => {
@@ -196,6 +223,39 @@ const WorldBoss = () => {
       unsubLeaderboard();
     };
   }, []);
+
+  // Countdown vers le prochain lancement (lundi 18h)
+  useEffect(() => {
+    if (eventData?.status !== EVENT_STATUS.FINISHED && eventData?.status !== EVENT_STATUS.INACTIVE) {
+      setNextLaunchCountdown('');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const target = getNextMondayAt18();
+      const diff = target - new Date();
+
+      if (diff <= 0) {
+        setNextLaunchCountdown('Lancement imminent...');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}j`);
+      parts.push(`${String(hours).padStart(2, '0')}h`);
+      parts.push(`${String(minutes).padStart(2, '0')}m`);
+      parts.push(`${String(seconds).padStart(2, '0')}s`);
+      setNextLaunchCountdown(parts.join(' '));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [eventData?.status]);
 
   // Countdown vers samedi 12h
   useEffect(() => {
@@ -322,8 +382,22 @@ const WorldBoss = () => {
         const critBonusPct = Math.round(critPerCap * cap * 100);
         return <>+{spdBonus} VIT | Esquive | +{critBonusPct}% crit</>;
       }
+      case 'Bastion': {
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
+        const shieldPct = Math.round(startShieldFromDef * 100);
+        const defBonusPct = Math.round(defPercentBonus * 100);
+        const capDmg = Math.round(capScale * cap);
+        return (
+          <>
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+          </>
+        );
+      }
       default:
-        return getClassDescriptionText(className, cap, auto);
+        return getClassDescriptionText(className);
     }
   };
 
@@ -379,9 +453,37 @@ const WorldBoss = () => {
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStats = char.base;
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
+    const computedBase = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
+    const baseStats = char.baseWithoutWeapon || computedBase;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const flatBaseStats = char.baseWithBoosts || baseWithBoosts;
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+      return (baseStats[k] ?? 0) - (flatBaseStats[k] ?? 0);
+    };
+    const tooltipContent = (k) => {
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
+      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      const passiveAutoBonus = k === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      const displayValue = (baseStats[k] ?? 0) + weaponDelta + passiveAutoBonus;
+      const baseWithoutBonus = displayValue - classBonus - forestBonus - weaponDelta - passiveAutoBonus - raceDisplayBonus;
+      const safeBase = Math.max(0, baseWithoutBonus);
+      const parts = [`Base: ${safeBase}`];
+      if (classBonus > 0) parts.push(`Classe: +${classBonus}`);
+      if (forestBonus > 0) parts.push(`Forêt: +${forestBonus}`);
+      if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      return parts.join(' | ');
+    };
     const characterImage = char.characterImage || testImage1;
 
     const StatWithTooltip = ({ statKey, label }) => {
@@ -389,14 +491,16 @@ const WorldBoss = () => {
       const passiveAutoBonus = statKey === 'auto'
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;
-      const forestDelta = forestBoosts[statKey] || 0;
-      const displayValue = baseStats[statKey] + forestDelta + weaponDelta + passiveAutoBonus;
-      const totalDelta = totalBonus(statKey) + forestDelta + weaponDelta + passiveAutoBonus;
+      const displayValue = (baseStats[statKey] ?? 0) + weaponDelta + passiveAutoBonus;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
-        <span className={totalDelta !== 0 ? labelClass : ''}>
-          {label}: {displayValue}
-        </span>
+        <Tooltip content={tooltipContent(statKey)}>
+          <span className={totalDelta !== 0 ? labelClass : ''}>
+            {label}: {displayValue}
+          </span>
+        </Tooltip>
       );
     };
 
@@ -667,6 +771,64 @@ const WorldBoss = () => {
 
   // === EVENT INACTIF ===
   if (!isActive) {
+    if (eventData?.status === EVENT_STATUS.FINISHED) {
+      const topParticipants = leaderboard.slice(0, 3);
+      const totalDamage = leaderboard.reduce((acc, entry) => acc + (entry.totalDamage || 0), 0);
+      return (
+        <div className="min-h-screen p-6">
+          <Header />
+          <SoundControl />
+          <div className="max-w-4xl mx-auto pt-20 text-center">
+            <h1 className="text-5xl font-bold text-red-500 mb-6">🏁 Cataclysme terminé</h1>
+            <div className="bg-stone-800/90 border-2 border-stone-600 p-8 text-left space-y-6">
+              <div className="text-center">
+                <p className="text-stone-200 text-xl font-semibold">{eventData.bossName || boss.name} a été vaincu.</p>
+                <p className="text-stone-400 mt-2">Un nouveau boss arrivera automatiquement lundi à 18h.</p>
+                <p className="text-amber-300 font-mono text-lg mt-3">⏳ {nextLaunchCountdown || 'Calcul en cours...'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Tentatives totales</div>
+                  <div className="text-2xl text-amber-300 font-bold">{(eventData.totalAttempts || 0).toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Combattants</div>
+                  <div className="text-2xl text-amber-300 font-bold">{leaderboard.length.toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Dégâts cumulés</div>
+                  <div className="text-2xl text-amber-300 font-bold">{totalDamage.toLocaleString('fr-FR')}</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/70 border border-stone-600 p-4">
+                <h2 className="text-amber-400 font-bold mb-3">🏅 Top 3 des héros</h2>
+                {topParticipants.length === 0 ? (
+                  <p className="text-stone-500 italic text-sm">Aucun participant enregistré pour ce Cataclysme.</p>
+                ) : (
+                  <ol className="space-y-2">
+                    {topParticipants.map((entry, i) => (
+                      <li key={entry.id} className="flex justify-between text-stone-200 border-b border-stone-700 pb-2">
+                        <span>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {entry.characterName}</span>
+                        <span className="font-mono text-amber-300">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+            <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition">
+              ⬅️ Retour
+            </button>
+          </div>
+          <audio ref={bossAudioRef} loop>
+            <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -800,7 +962,7 @@ const WorldBoss = () => {
               </div>
 
               {/* Aperçu boss */}
-              <div className="w-full md:w-[420px] md:flex-shrink-0 order-3 md:order-4">
+              <div className="w-full md:w-[520px] md:flex-shrink-0 order-3 md:order-4">
                 <BossCard />
               </div>
             </div>
@@ -935,7 +1097,7 @@ const WorldBoss = () => {
             </div>
 
             {/* Boss à droite (plus large) */}
-            <div className="order-3 md:order-4 w-full md:w-[420px] md:flex-shrink-0">
+            <div className="order-3 md:order-4 w-full md:w-[520px] md:flex-shrink-0">
               <BossCard />
             </div>
           </div>

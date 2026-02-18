@@ -16,6 +16,7 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConst
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct } from '../data/forgeDungeon';
@@ -427,12 +428,13 @@ const CharacterCreation = () => {
       }
 
       case 'Bastion': {
-        const { defPercentBonus, capScale, defScale } = classConstants.bastion;
+        const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
         const defBonusPct = Math.round(defPercentBonus * 100);
+        const shieldPct = Math.round(startShieldFromDef * 100);
         const capDmg = Math.round(capScale * cap);
         return (
           <>
-            +{defBonusPct}% DEF | Auto +{' '}
+            Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
             <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
               <span className="text-green-400">{capDmg}</span>
             </Tooltip>
@@ -869,7 +871,8 @@ const CharacterCreation = () => {
     const classB = getClassBonus(existingCharacter.class);
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
     const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
-    const baseStats = applyStatBoosts(existingCharacter.base, forestBoosts);
+    const baseStatsRaw = applyStatBoosts(existingCharacter.base, forestBoosts);
+    const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, existingCharacter.race, existingCharacter.level ?? 1);
     const weapon = equippedWeapon;
     const mageTowerPassive = existingCharacter.mageTowerPassive || null;
     const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
@@ -878,27 +881,62 @@ const CharacterCreation = () => {
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const forgeUpgrade = existingCharacter.forgeUpgrade;
-    const hasForgeUpgrade = isForgeActive() && forgeUpgrade && forgeUpgrade.upgradeAutoPct;
+    const extractForgeUpgrade = (roll) => {
+      if (!roll) return { bonuses: {}, penalties: {} };
+      if (roll.statBonusesPct || roll.statPenaltyPct) {
+        return {
+          bonuses: { ...(roll.statBonusesPct || {}) },
+          penalties: { ...(roll.statPenaltyPct || {}) }
+        };
+      }
+      const bonuses = {};
+      const penalties = {};
+      if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
+      if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
+      if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
+      return { bonuses, penalties };
+    };
+    const hasAnyForgeUpgrade = (roll) => {
+      const { bonuses, penalties } = extractForgeUpgrade(roll);
+      return Object.values(bonuses).some(v => v > 0) || Object.values(penalties).some(v => v > 0);
+    };
+    const forgeLabel = (statKey) => ({ auto: 'ATK', spd: 'VIT', cap: 'CAP', hp: 'HP', def: 'DEF', rescap: 'RESC' }[statKey] || statKey.toUpperCase());
+    const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(rawBase, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : rawBase;
-    const passiveAutoBonus = (baseWithPassive.auto ?? rawBase.auto) - (rawBase.auto + (weapon?.stats?.auto ?? 0));
-    const baseWithoutBonus = (k) => baseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : baseStats;
+    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+    const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
+    const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+
+    const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
+      const weaponBonus = weaponStatValue(k);
+      const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
+      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
+      return (finalStats[k] ?? 0) - subtotalWithoutRace;
+    };
+
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
       if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
+
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
-      const weaponDelta = weaponStatValue(statKey);
-      const passiveDelta = statKey === 'auto' ? passiveAutoBonus : 0;
-      const displayValue = baseStats[statKey] + weaponDelta + passiveDelta;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveDelta !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponDelta + passiveDelta;
+      const displayValue = finalStats[statKey] ?? 0;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0);
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0);
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
@@ -983,8 +1021,8 @@ const CharacterCreation = () => {
                         )}
                         {hasForgeUpgrade && (
                           <div className="text-orange-300 font-semibold">
-                            🔨 Forge: ATK +{formatUpgradePct(forgeUpgrade.upgradeAutoPct)} • VIT +{formatUpgradePct(forgeUpgrade.upgradeVitPct)}
-                            {forgeUpgrade.upgradeVitPenaltyPct > 0 && ` • VIT -${formatUpgradePct(forgeUpgrade.upgradeVitPenaltyPct)}`}
+                            🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
+                            {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
                           </div>
                         )}
                       </div>

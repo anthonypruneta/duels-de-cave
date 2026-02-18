@@ -7,6 +7,8 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
+const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
+
 function Header() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ function Header() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     // Déjà installée en standalone → pas de bouton
@@ -113,6 +116,15 @@ function Header() {
           )}
           {currentUser && (
             <>
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="bg-amber-700 hover:bg-amber-600 text-white px-3 py-2 rounded border border-amber-500 transition text-sm font-bold"
+                  title="Administration"
+                >
+                  🛠️ Admin
+                </button>
+              )}
               <span className="text-amber-300 text-sm hidden md:inline">
                 {currentUser.email}
               </span>

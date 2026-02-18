@@ -505,6 +505,24 @@ export function applyForgeUpgrade(stats, forgeUpgrade) {
 
   const modified = { ...stats };
 
+  // Nouveau format (par stat)
+  if (forgeUpgrade.statBonusesPct) {
+    for (const [statKey, pct] of Object.entries(forgeUpgrade.statBonusesPct)) {
+      if (modified[statKey] !== undefined && pct > 0) {
+        modified[statKey] = Math.round(modified[statKey] * (1 + pct));
+      }
+    }
+  }
+
+  if (forgeUpgrade.statPenaltyPct) {
+    for (const [statKey, pct] of Object.entries(forgeUpgrade.statPenaltyPct)) {
+      if (modified[statKey] !== undefined && pct > 0) {
+        modified[statKey] = Math.round(modified[statKey] * (1 - pct));
+      }
+    }
+  }
+
+  // Compat legacy (anciens rolls déjà stockés)
   if (forgeUpgrade.upgradeAutoPct) {
     modified.auto = Math.round(modified.auto * (1 + forgeUpgrade.upgradeAutoPct));
   }
