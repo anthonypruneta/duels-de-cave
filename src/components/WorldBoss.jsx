@@ -60,12 +60,38 @@ function getWeekSeed() {
 
 // Piocher un boss déterministe par semaine (change le samedi à midi)
 function pickWeeklyBoss() {
-  const entries = Object.entries(CATACLYSM_IMAGES);
+  const entries = Object.entries(CATACLYSM_IMAGES)
+    .sort(([a], [b]) => a.localeCompare(b, 'fr'));
   if (entries.length === 0) return { name: WORLD_BOSS.nom, image: null };
   const seed = getWeekSeed();
   const index = seed % entries.length;
   const [sourcePath, imagePath] = entries[index];
   return { name: getBossNameFromPath(sourcePath), image: imagePath };
+}
+
+function getCataclysmImageByName(name) {
+  if (!name) return null;
+  const normalized = name.trim().toLowerCase();
+  const entries = Object.entries(CATACLYSM_IMAGES);
+  for (const [sourcePath, imagePath] of entries) {
+    if (getBossNameFromPath(sourcePath).trim().toLowerCase() === normalized) {
+      return imagePath;
+    }
+  }
+  return null;
+}
+
+function getNextMondayAt18() {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getDay(); // 0=dim, 1=lun
+  let daysUntilMonday = (1 - day + 7) % 7;
+  if (daysUntilMonday === 0 && now.getHours() >= 18) {
+    daysUntilMonday = 7;
+  }
+  target.setDate(now.getDate() + daysUntilMonday);
+  target.setHours(18, 0, 0, 0);
+  return target;
 }
 
 const STAT_LABELS = {
@@ -123,9 +149,15 @@ const WorldBoss = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState('');
+  const [nextLaunchCountdown, setNextLaunchCountdown] = useState('');
 
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
+  const activeBossName = eventData?.bossName || boss.name;
+  const activeBossImage = useMemo(
+    () => getCataclysmImageByName(activeBossName) || boss.image,
+    [activeBossName, boss.image]
+  );
 
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);
@@ -175,7 +207,7 @@ const WorldBoss = () => {
       }
 
       // Auto-launch si c'est lundi >= 18h et event inactif
-      await checkAutoLaunch(boss.name);
+      await checkAutoLaunch(activeBossName);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
 
@@ -183,6 +215,18 @@ const WorldBoss = () => {
     };
     load();
   }, [currentUser]);
+
+  // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
+  useEffect(() => {
+    const runChecks = async () => {
+      await checkAutoLaunch(activeBossName);
+      await checkAutoEnd();
+    };
+
+    runChecks();
+    const interval = setInterval(runChecks, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeBossName]);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
@@ -197,6 +241,39 @@ const WorldBoss = () => {
       unsubLeaderboard();
     };
   }, []);
+
+  // Countdown vers le prochain lancement (lundi 18h)
+  useEffect(() => {
+    if (eventData?.status !== EVENT_STATUS.FINISHED && eventData?.status !== EVENT_STATUS.INACTIVE) {
+      setNextLaunchCountdown('');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const target = getNextMondayAt18();
+      const diff = target - new Date();
+
+      if (diff <= 0) {
+        setNextLaunchCountdown('Lancement imminent...');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}j`);
+      parts.push(`${String(hours).padStart(2, '0')}h`);
+      parts.push(`${String(minutes).padStart(2, '0')}m`);
+      parts.push(`${String(seconds).padStart(2, '0')}s`);
+      setNextLaunchCountdown(parts.join(' '));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [eventData?.status]);
 
   // Countdown vers samedi 12h
   useEffect(() => {
@@ -316,13 +393,158 @@ const WorldBoss = () => {
         const ignoreBasePct = Math.round(ignoreBase * 100);
         const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
         const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
-        return <>+{autoBonus} Auto | Ignore {ignoreTotalPct}% déf</>;
+        return (
+          <>
+            +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+            <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+              <span className="text-green-400">{ignoreTotalPct}%</span>
+            </Tooltip>
+          </>
+        );
       }
+
       case 'Voleur': {
         const { spdBonus, critPerCap } = classConstants.voleur;
         const critBonusPct = Math.round(critPerCap * cap * 100);
-        return <>+{spdBonus} VIT | Esquive | +{critBonusPct}% crit</>;
+        return (
+          <>
+            +{spdBonus} VIT | Esquive 1 coup
+            <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+              <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            </Tooltip>
+          </>
+        );
       }
+
+      case 'Paladin': {
+        const { reflectBase, reflectPerCap } = classConstants.paladin;
+        const reflectBasePct = Math.round(reflectBase * 100);
+        const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+        const reflectTotalPct = reflectBasePct + reflectBonusPct;
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+              <span className="text-green-400">{reflectTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts reçus
+          </>
+        );
+      }
+
+      case 'Healer': {
+        const { missingHpPercent, capScale } = classConstants.healer;
+        const missingPct = Math.round(missingHpPercent * 100);
+        const healValue = Math.round(capScale * cap);
+        return (
+          <>
+            Heal {missingPct}% PV manquants +{' '}
+            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+              <span className="text-green-400">{healValue}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Archer': {
+        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+        const hit2Cap = Math.round(hit2CapMultiplier * cap);
+        return (
+          <>
+            2 attaques: 1 tir normal +{' '}
+            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+              <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Mage': {
+        const { capBase, capPerCap } = classConstants.mage;
+        const magicPct = capBase + capPerCap * cap;
+        const magicDmg = Math.round(magicPct * cap);
+        return (
+          <>
+            Dégâts = Auto +{' '}
+            <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+              <span className="text-green-400">{auto + magicDmg}</span>
+            </Tooltip>
+            {' '}(vs ResC)
+          </>
+        );
+      }
+
+      case 'Demoniste': {
+        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+        const familierPct = capBase + capPerCap * cap;
+        const familierDmgTotal = Math.round(familierPct * cap);
+        const ignoreResistPct = Math.round(ignoreResist * 100);
+        const stackBonusPct = Math.round(stackPerAuto * 100);
+        return (
+          <>
+            Familier:{' '}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+              <span className="text-green-400">{familierDmgTotal}</span>
+            </Tooltip>
+            {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+          </>
+        );
+      }
+
+      case 'Masochiste': {
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+        const returnBasePct = Math.round(returnBase * 100);
+        const returnBonusPct = Math.round(returnPerCap * cap * 100);
+        const returnTotalPct = returnBasePct + returnBonusPct;
+        const healPct = Math.round(healPercent * 100);
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+              <span className="text-green-400">{returnTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts accumulés & heal {healPct}%
+          </>
+        );
+      }
+
+      case 'Briseur de Sort': {
+        const { shieldFromSpellDamage, shieldFromCap, autoCapBonus, antiHealReduction } = classConstants.briseurSort;
+        const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+        const shieldCapValue = Math.round(shieldFromCap * cap);
+        const autoBonusValue = Math.round(autoCapBonus * cap);
+        const antiHealPct = Math.round(antiHealReduction * 100);
+        return (
+          <>
+            Bouclier après spell:{' '}
+            <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
+            </Tooltip>
+            {' '}| Auto +{' '}
+            <Tooltip content={`${autoCapBonus * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{autoBonusValue}</span>
+            </Tooltip>
+            {' '}| -{antiHealPct}% soins adverses
+          </>
+        );
+      }
+
+      case 'Succube': {
+        const { capScale, nextAttackReduction } = classConstants.succube;
+        const capDmg = Math.round(capScale * cap);
+        const reductionPct = Math.round(nextAttackReduction * 100);
+        return (
+          <>
+            Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+          </>
+        );
+      }
+
       case 'Bastion': {
         const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
         const shieldPct = Math.round(startShieldFromDef * 100);
@@ -345,7 +567,7 @@ const WorldBoss = () => {
   // === formatLogMessage (identique à Combat.jsx) ===
   const formatLogMessage = (text, isP1) => {
     const p1Name = playerState?.name || character?.name || 'Joueur';
-    const p2Name = boss.name;
+    const p2Name = activeBossName;
     let key = 0;
 
     const processText = (str) => {
@@ -384,9 +606,11 @@ const WorldBoss = () => {
   // === CharacterCard joueur (identique à Combat.jsx) ===
   const PlayerCard = ({ char }) => {
     if (!char) return null;
-    const hpPercent = Math.min(100, (char.currentHP / char.maxHP) * 100);
+    const safeMaxHP = Math.max(1, char.maxHP || 1);
+    const hpRatio = Math.max(0, Math.min(1, (char.currentHP || 0) / safeMaxHP));
+    const hpPercent = hpRatio * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = char.maxHP > 0 ? Math.min(100, ((char.shield || 0) / char.maxHP) * 100) : 0;
+    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((char.shield || 0) / safeMaxHP) * 100) : 0;
     const raceB = getRaceBonus(char.race);
     const classB = getClassBonus(char.class);
     const forestBoosts = getForestBoosts(char);
@@ -425,6 +649,19 @@ const WorldBoss = () => {
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
+
+    const getDisplayedStatValue = (statKey) => {
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const passiveAutoBonus = statKey === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const displayValue = (baseStats[statKey] ?? 0) + weaponDelta + passiveAutoBonus;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      return displayValue + raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0);
+    };
+
+    const displayedMaxHP = Math.max(1, getDisplayedStatValue('hp'));
+    const displayedCurrentHP = Math.max(0, Math.round(displayedMaxHP * hpRatio));
     const characterImage = char.characterImage || testImage1;
 
     const StatWithTooltip = ({ statKey, label }) => {
@@ -436,10 +673,11 @@ const WorldBoss = () => {
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
+      const finalDisplayValue = getDisplayedStatValue(statKey);
       return (
         <Tooltip content={tooltipContent(statKey)}>
           <span className={totalDelta !== 0 ? labelClass : ''}>
-            {label}: {displayValue}
+            {label}: {finalDisplayValue}
           </span>
         </Tooltip>
       );
@@ -463,7 +701,7 @@ const WorldBoss = () => {
                 <StatWithTooltip statKey="hp" label="HP" />
                 <StatWithTooltip statKey="spd" label="VIT" />
               </div>
-              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {char.currentHP}/{char.maxHP}</div>
+              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {displayedCurrentHP}/{displayedMaxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
@@ -528,7 +766,7 @@ const WorldBoss = () => {
                 <span className="text-lg">{classes[char.class]?.icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, baseStats.cap + (forestBoosts.cap || 0) + (weapon?.stats?.cap ?? 0), baseStats.auto + (forestBoosts.auto || 0) + (weapon?.stats?.auto ?? 0))}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getDisplayedStatValue('cap'), getDisplayedStatValue('auto'))}</div>
                 </div>
               </div>
             </div>
@@ -549,8 +787,8 @@ const WorldBoss = () => {
       <div className="relative shadow-2xl overflow-visible">
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {boss.image ? (
-              <img src={boss.image} alt={boss.name} className="w-full h-auto object-contain" style={{ minHeight: '400px' }} />
+            {activeBossImage ? (
+              <img src={activeBossImage} alt={activeBossName} className="w-full h-auto object-contain" style={{ minHeight: '400px' }} />
             ) : (
               <div className="w-full flex items-center justify-center bg-stone-800" style={{ minHeight: '400px' }}>
                 <span className="text-8xl">☄️</span>
@@ -712,6 +950,64 @@ const WorldBoss = () => {
 
   // === EVENT INACTIF ===
   if (!isActive) {
+    if (eventData?.status === EVENT_STATUS.FINISHED) {
+      const topParticipants = leaderboard.slice(0, 3);
+      const totalDamage = leaderboard.reduce((acc, entry) => acc + (entry.totalDamage || 0), 0);
+      return (
+        <div className="min-h-screen p-6">
+          <Header />
+          <SoundControl />
+          <div className="max-w-4xl mx-auto pt-20 text-center">
+            <h1 className="text-5xl font-bold text-red-500 mb-6">🏁 Cataclysme terminé</h1>
+            <div className="bg-stone-800/90 border-2 border-stone-600 p-8 text-left space-y-6">
+              <div className="text-center">
+                <p className="text-stone-200 text-xl font-semibold">{activeBossName} a été vaincu.</p>
+                <p className="text-stone-400 mt-2">Un nouveau boss arrivera automatiquement lundi à 18h.</p>
+                <p className="text-amber-300 font-mono text-lg mt-3">⏳ {nextLaunchCountdown || 'Calcul en cours...'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Tentatives totales</div>
+                  <div className="text-2xl text-amber-300 font-bold">{(eventData.totalAttempts || 0).toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Combattants</div>
+                  <div className="text-2xl text-amber-300 font-bold">{leaderboard.length.toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Dégâts cumulés</div>
+                  <div className="text-2xl text-amber-300 font-bold">{totalDamage.toLocaleString('fr-FR')}</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/70 border border-stone-600 p-4">
+                <h2 className="text-amber-400 font-bold mb-3">🏅 Top 3 des héros</h2>
+                {topParticipants.length === 0 ? (
+                  <p className="text-stone-500 italic text-sm">Aucun participant enregistré pour ce Cataclysme.</p>
+                ) : (
+                  <ol className="space-y-2">
+                    {topParticipants.map((entry, i) => (
+                      <li key={entry.id} className="flex justify-between text-stone-200 border-b border-stone-700 pb-2">
+                        <span>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {entry.characterName}</span>
+                        <span className="font-mono text-amber-300">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+            <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition">
+              ⬅️ Retour
+            </button>
+          </div>
+          <audio ref={bossAudioRef} loop>
+            <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -740,7 +1036,7 @@ const WorldBoss = () => {
         <Header />
         <SoundControl />
         <div className="max-w-2xl mx-auto pt-20 text-center">
-          <h1 className="text-5xl font-bold text-red-500 mb-6">☄️ {boss.name}</h1>
+          <h1 className="text-5xl font-bold text-red-500 mb-6">☄️ {activeBossName}</h1>
           <div className="bg-stone-800/90 border-2 border-stone-600 p-8">
             <p className="text-stone-400 text-xl">Tu n&apos;as pas de personnage actif.</p>
             <button onClick={() => navigate('/')} className="mt-4 bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 font-bold transition">
@@ -769,7 +1065,7 @@ const WorldBoss = () => {
         {/* === NOM DU BOSS EN ROUGE BIEN GROS === */}
         <div className="flex justify-center mb-4">
           <h1 className="text-5xl md:text-6xl font-black text-red-500 drop-shadow-[0_0_30px_rgba(239,68,68,0.5)] tracking-wide">
-            ☄️ {boss.name}
+            ☄️ {activeBossName}
           </h1>
         </div>
 
@@ -833,7 +1129,7 @@ const WorldBoss = () => {
                   disabled={attemptInfo && !attemptInfo.canAttempt}
                   className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
-                  ☄️ Affronter {boss.name}
+                  ☄️ Affronter {activeBossName}
                 </button>
                 <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
                 {attemptError && (
