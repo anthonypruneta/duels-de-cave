@@ -393,13 +393,158 @@ const WorldBoss = () => {
         const ignoreBasePct = Math.round(ignoreBase * 100);
         const ignoreBonusPct = Math.round(ignorePerCap * cap * 100);
         const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
-        return <>+{autoBonus} Auto | Ignore {ignoreTotalPct}% déf</>;
+        return (
+          <>
+            +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
+            <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+              <span className="text-green-400">{ignoreTotalPct}%</span>
+            </Tooltip>
+          </>
+        );
       }
+
       case 'Voleur': {
         const { spdBonus, critPerCap } = classConstants.voleur;
         const critBonusPct = Math.round(critPerCap * cap * 100);
-        return <>+{spdBonus} VIT | Esquive | +{critBonusPct}% crit</>;
+        return (
+          <>
+            +{spdBonus} VIT | Esquive 1 coup
+            <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
+              <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            </Tooltip>
+          </>
+        );
       }
+
+      case 'Paladin': {
+        const { reflectBase, reflectPerCap } = classConstants.paladin;
+        const reflectBasePct = Math.round(reflectBase * 100);
+        const reflectBonusPct = Math.round(reflectPerCap * cap * 100);
+        const reflectTotalPct = reflectBasePct + reflectBonusPct;
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+              <span className="text-green-400">{reflectTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts reçus
+          </>
+        );
+      }
+
+      case 'Healer': {
+        const { missingHpPercent, capScale } = classConstants.healer;
+        const missingPct = Math.round(missingHpPercent * 100);
+        const healValue = Math.round(capScale * cap);
+        return (
+          <>
+            Heal {missingPct}% PV manquants +{' '}
+            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+              <span className="text-green-400">{healValue}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Archer': {
+        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+        const hit2Cap = Math.round(hit2CapMultiplier * cap);
+        return (
+          <>
+            2 attaques: 1 tir normal +{' '}
+            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+              <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+            </Tooltip>
+          </>
+        );
+      }
+
+      case 'Mage': {
+        const { capBase, capPerCap } = classConstants.mage;
+        const magicPct = capBase + capPerCap * cap;
+        const magicDmg = Math.round(magicPct * cap);
+        return (
+          <>
+            Dégâts = Auto +{' '}
+            <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+              <span className="text-green-400">{auto + magicDmg}</span>
+            </Tooltip>
+            {' '}(vs ResC)
+          </>
+        );
+      }
+
+      case 'Demoniste': {
+        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+        const familierPct = capBase + capPerCap * cap;
+        const familierDmgTotal = Math.round(familierPct * cap);
+        const ignoreResistPct = Math.round(ignoreResist * 100);
+        const stackBonusPct = Math.round(stackPerAuto * 100);
+        return (
+          <>
+            Familier:{' '}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+              <span className="text-green-400">{familierDmgTotal}</span>
+            </Tooltip>
+            {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+          </>
+        );
+      }
+
+      case 'Masochiste': {
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+        const returnBasePct = Math.round(returnBase * 100);
+        const returnBonusPct = Math.round(returnPerCap * cap * 100);
+        const returnTotalPct = returnBasePct + returnBonusPct;
+        const healPct = Math.round(healPercent * 100);
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+              <span className="text-green-400">{returnTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts accumulés & heal {healPct}%
+          </>
+        );
+      }
+
+      case 'Briseur de Sort': {
+        const { shieldFromSpellDamage, shieldFromCap, autoCapBonus, antiHealReduction } = classConstants.briseurSort;
+        const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+        const shieldCapValue = Math.round(shieldFromCap * cap);
+        const autoBonusValue = Math.round(autoCapBonus * cap);
+        const antiHealPct = Math.round(antiHealReduction * 100);
+        return (
+          <>
+            Bouclier après spell:{' '}
+            <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
+            </Tooltip>
+            {' '}| Auto +{' '}
+            <Tooltip content={`${autoCapBonus * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{autoBonusValue}</span>
+            </Tooltip>
+            {' '}| -{antiHealPct}% soins adverses
+          </>
+        );
+      }
+
+      case 'Succube': {
+        const { capScale, nextAttackReduction } = classConstants.succube;
+        const capDmg = Math.round(capScale * cap);
+        const reductionPct = Math.round(nextAttackReduction * 100);
+        return (
+          <>
+            Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+          </>
+        );
+      }
+
       case 'Bastion': {
         const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
         const shieldPct = Math.round(startShieldFromDef * 100);
@@ -461,9 +606,11 @@ const WorldBoss = () => {
   // === CharacterCard joueur (identique à Combat.jsx) ===
   const PlayerCard = ({ char }) => {
     if (!char) return null;
-    const hpPercent = Math.min(100, (char.currentHP / char.maxHP) * 100);
+    const safeMaxHP = Math.max(1, char.maxHP || 1);
+    const hpRatio = Math.max(0, Math.min(1, (char.currentHP || 0) / safeMaxHP));
+    const hpPercent = hpRatio * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = char.maxHP > 0 ? Math.min(100, ((char.shield || 0) / char.maxHP) * 100) : 0;
+    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((char.shield || 0) / safeMaxHP) * 100) : 0;
     const raceB = getRaceBonus(char.race);
     const classB = getClassBonus(char.class);
     const forestBoosts = getForestBoosts(char);
@@ -502,6 +649,19 @@ const WorldBoss = () => {
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
+
+    const getDisplayedStatValue = (statKey) => {
+      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const passiveAutoBonus = statKey === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const displayValue = (baseStats[statKey] ?? 0) + weaponDelta + passiveAutoBonus;
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      return displayValue + raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0);
+    };
+
+    const displayedMaxHP = Math.max(1, getDisplayedStatValue('hp'));
+    const displayedCurrentHP = Math.max(0, Math.round(displayedMaxHP * hpRatio));
     const characterImage = char.characterImage || testImage1;
 
     const StatWithTooltip = ({ statKey, label }) => {
@@ -513,10 +673,11 @@ const WorldBoss = () => {
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
+      const finalDisplayValue = getDisplayedStatValue(statKey);
       return (
         <Tooltip content={tooltipContent(statKey)}>
           <span className={totalDelta !== 0 ? labelClass : ''}>
-            {label}: {displayValue}
+            {label}: {finalDisplayValue}
           </span>
         </Tooltip>
       );
@@ -540,7 +701,7 @@ const WorldBoss = () => {
                 <StatWithTooltip statKey="hp" label="HP" />
                 <StatWithTooltip statKey="spd" label="VIT" />
               </div>
-              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {char.currentHP}/{char.maxHP}</div>
+              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {displayedCurrentHP}/{displayedMaxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
                 <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
               </div>
@@ -605,7 +766,7 @@ const WorldBoss = () => {
                 <span className="text-lg">{classes[char.class]?.icon}</span>
                 <div className="flex-1">
                   <div className="text-stone-200 font-semibold mb-1">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, baseStats.cap + (forestBoosts.cap || 0) + (weapon?.stats?.cap ?? 0), baseStats.auto + (forestBoosts.auto || 0) + (weapon?.stats?.auto ?? 0))}</div>
+                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getDisplayedStatValue('cap'), getDisplayedStatValue('auto'))}</div>
                 </div>
               </div>
             </div>
