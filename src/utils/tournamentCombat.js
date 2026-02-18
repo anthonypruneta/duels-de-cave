@@ -159,6 +159,7 @@ export function preparerCombattant(char) {
     ...char,
     base: baseWithClassPassive,
     baseWithoutWeapon,
+    baseWithBoosts,
     currentHP: baseWithClassPassive.hp,
     maxHP: baseWithClassPassive.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
