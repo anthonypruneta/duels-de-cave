@@ -382,6 +382,20 @@ const WorldBoss = () => {
     const baseStats = char.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const baseWithoutBonus = (k) => (baseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+    const tooltipContent = (k) => {
+      const parts = [`Base: ${baseWithoutBonus(k)}`];
+      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
+      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+      if (k === 'auto') {
+        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+        if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+      }
+      return parts.join(' | ');
+    };
     const characterImage = char.characterImage || testImage1;
 
     const StatWithTooltip = ({ statKey, label }) => {
@@ -394,9 +408,11 @@ const WorldBoss = () => {
       const totalDelta = totalBonus(statKey) + forestDelta + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
-        <span className={totalDelta !== 0 ? labelClass : ''}>
-          {label}: {displayValue}
-        </span>
+        <Tooltip content={tooltipContent(statKey)}>
+          <span className={totalDelta !== 0 ? labelClass : ''}>
+            {label}: {displayValue}
+          </span>
+        </Tooltip>
       );
     };
 
@@ -800,7 +816,7 @@ const WorldBoss = () => {
               </div>
 
               {/* Aperçu boss */}
-              <div className="w-full md:w-[420px] md:flex-shrink-0 order-3 md:order-4">
+              <div className="w-full md:w-[520px] md:flex-shrink-0 order-3 md:order-4">
                 <BossCard />
               </div>
             </div>
@@ -935,7 +951,7 @@ const WorldBoss = () => {
             </div>
 
             {/* Boss à droite (plus large) */}
-            <div className="order-3 md:order-4 w-full md:w-[420px] md:flex-shrink-0">
+            <div className="order-3 md:order-4 w-full md:w-[520px] md:flex-shrink-0">
               <BossCard />
             </div>
           </div>

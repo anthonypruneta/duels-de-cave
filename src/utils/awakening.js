@@ -1,4 +1,5 @@
 import { races } from '../data/races.js';
+import { getRaceBonus } from '../data/combatMechanics.js';
 
 export const getAwakeningEffect = (race, level = 1) => {
   const awakening = races[race]?.awakening;
@@ -26,6 +27,22 @@ export const applyAwakeningToBase = (base, awakeningEffect) => {
       }
     }
   }
+
+  return updated;
+};
+
+export const removeBaseRaceFlatBonusesIfAwakened = (base, race, level = 1) => {
+  const awakeningEffect = getAwakeningEffect(race, level);
+  if (!awakeningEffect) return { ...base };
+
+  const raceBonus = getRaceBonus(race);
+  const updated = { ...base };
+
+  Object.entries(raceBonus).forEach(([stat, bonus]) => {
+    if (typeof updated[stat] === 'number' && typeof bonus === 'number' && bonus !== 0) {
+      updated[stat] = Math.round(updated[stat] - bonus);
+    }
+  });
 
   return updated;
 };
