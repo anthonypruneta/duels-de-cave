@@ -908,23 +908,33 @@ const CharacterCreation = () => {
     const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
 
     const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
-    const preAwakeningValue = (k) => baseWithPassive[k] ?? 0;
-    const awakeningDelta = (k) => (finalStats[k] ?? 0) - preAwakeningValue(k);
+    const getRaceDisplayBonus = (k) => {
+      if (!isAwakeningActive) return raceB[k] || 0;
+
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
+      const weaponBonus = weaponStatValue(k);
+      const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
+      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
+      return (finalStats[k] ?? 0) - subtotalWithoutRace;
+    };
 
     const tooltipContent = (k) => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
       if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
       if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
-      if (awakeningDelta(k) !== 0) parts.push(`Éveil: ${awakeningDelta(k) > 0 ? `+${awakeningDelta(k)}` : awakeningDelta(k)}`);
+
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const displayValue = finalStats[statKey] ?? 0;
-      const hasBonus = totalBonus(statKey) > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || awakeningDelta(statKey) !== 0;
-      const totalDelta = totalBonus(statKey) + forestBoosts[statKey] + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + awakeningDelta(statKey);
+      const raceDisplayBonus = getRaceDisplayBonus(statKey);
+      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0);
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0);
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
