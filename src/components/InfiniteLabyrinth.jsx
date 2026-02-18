@@ -234,15 +234,33 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const shieldPercent = maxHP > 0 ? Math.min(100, (shieldOverride / maxHP) * 100) : 0;
 
-  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-  const baseWithoutBonus = (k) => (baseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
+  const flatBaseStats = character.baseWithBoosts || computedBase;
+  const baseWithoutBonus = (k) => (flatBaseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
+  const getRaceDisplayBonus = (k) => {
+    if (!isAwakeningActive) return raceB[k] || 0;
+    const classBonus = classB[k] || 0;
+    const forestBonus = forestBoosts[k] || 0;
+    const weaponBonus = weapon?.stats?.[k] ?? 0;
+    const passiveBonus = k === 'auto'
+      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+      : 0;
+    const displayValue = (baseStats[k] || 0) + weaponBonus + passiveBonus;
+    return displayValue - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus);
+  };
   const tooltipContent = (k) => {
     const parts = [`Base: ${baseWithoutBonus(k)}`];
-    if (raceB[k] > 0) parts.push(`Race: +${raceB[k]}`);
     if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
     const weaponDelta = weapon?.stats?.[k] ?? 0;
     if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
+    if (k === 'auto') {
+      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
+    }
+    const raceDisplayBonus = getRaceDisplayBonus(k);
+    if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
     return parts.join(' | ');
   };
 
@@ -252,9 +270,12 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
       ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
       : 0;
     const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
+    const raceDisplayBonus = getRaceDisplayBonus(statKey);
+    const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
+    const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
     return (
       <Tooltip content={tooltipContent(statKey)}>
-        <span className="text-green-400 font-bold">{label}: {displayValue}</span>
+        <span className={`${labelClass} font-bold`}>{label}: {displayValue}</span>
       </Tooltip>
     );
   };
