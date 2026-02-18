@@ -68,6 +68,19 @@ function pickWeeklyBoss() {
   return { name: getBossNameFromPath(sourcePath), image: imagePath };
 }
 
+function getNextMondayAt18() {
+  const now = new Date();
+  const target = new Date(now);
+  const day = now.getDay(); // 0=dim, 1=lun
+  let daysUntilMonday = (1 - day + 7) % 7;
+  if (daysUntilMonday === 0 && now.getHours() >= 18) {
+    daysUntilMonday = 7;
+  }
+  target.setDate(now.getDate() + daysUntilMonday);
+  target.setHours(18, 0, 0, 0);
+  return target;
+}
+
 const STAT_LABELS = {
   hp: 'HP', auto: 'Auto', def: 'Déf', cap: 'Cap', rescap: 'ResC', spd: 'VIT'
 };
@@ -123,6 +136,7 @@ const WorldBoss = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState('');
+  const [nextLaunchCountdown, setNextLaunchCountdown] = useState('');
 
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
@@ -184,6 +198,18 @@ const WorldBoss = () => {
     load();
   }, [currentUser]);
 
+  // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
+  useEffect(() => {
+    const runChecks = async () => {
+      await checkAutoLaunch(boss.name);
+      await checkAutoEnd();
+    };
+
+    runChecks();
+    const interval = setInterval(runChecks, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [boss.name]);
+
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
     const unsubEvent = onWorldBossEventChange((data) => {
@@ -197,6 +223,39 @@ const WorldBoss = () => {
       unsubLeaderboard();
     };
   }, []);
+
+  // Countdown vers le prochain lancement (lundi 18h)
+  useEffect(() => {
+    if (eventData?.status !== EVENT_STATUS.FINISHED && eventData?.status !== EVENT_STATUS.INACTIVE) {
+      setNextLaunchCountdown('');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const target = getNextMondayAt18();
+      const diff = target - new Date();
+
+      if (diff <= 0) {
+        setNextLaunchCountdown('Lancement imminent...');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}j`);
+      parts.push(`${String(hours).padStart(2, '0')}h`);
+      parts.push(`${String(minutes).padStart(2, '0')}m`);
+      parts.push(`${String(seconds).padStart(2, '0')}s`);
+      setNextLaunchCountdown(parts.join(' '));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [eventData?.status]);
 
   // Countdown vers samedi 12h
   useEffect(() => {
@@ -712,6 +771,64 @@ const WorldBoss = () => {
 
   // === EVENT INACTIF ===
   if (!isActive) {
+    if (eventData?.status === EVENT_STATUS.FINISHED) {
+      const topParticipants = leaderboard.slice(0, 3);
+      const totalDamage = leaderboard.reduce((acc, entry) => acc + (entry.totalDamage || 0), 0);
+      return (
+        <div className="min-h-screen p-6">
+          <Header />
+          <SoundControl />
+          <div className="max-w-4xl mx-auto pt-20 text-center">
+            <h1 className="text-5xl font-bold text-red-500 mb-6">🏁 Cataclysme terminé</h1>
+            <div className="bg-stone-800/90 border-2 border-stone-600 p-8 text-left space-y-6">
+              <div className="text-center">
+                <p className="text-stone-200 text-xl font-semibold">{eventData.bossName || boss.name} a été vaincu.</p>
+                <p className="text-stone-400 mt-2">Un nouveau boss arrivera automatiquement lundi à 18h.</p>
+                <p className="text-amber-300 font-mono text-lg mt-3">⏳ {nextLaunchCountdown || 'Calcul en cours...'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Tentatives totales</div>
+                  <div className="text-2xl text-amber-300 font-bold">{(eventData.totalAttempts || 0).toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Combattants</div>
+                  <div className="text-2xl text-amber-300 font-bold">{leaderboard.length.toLocaleString('fr-FR')}</div>
+                </div>
+                <div className="bg-stone-900/70 border border-stone-600 p-4">
+                  <div className="text-stone-400 text-xs uppercase">Dégâts cumulés</div>
+                  <div className="text-2xl text-amber-300 font-bold">{totalDamage.toLocaleString('fr-FR')}</div>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/70 border border-stone-600 p-4">
+                <h2 className="text-amber-400 font-bold mb-3">🏅 Top 3 des héros</h2>
+                {topParticipants.length === 0 ? (
+                  <p className="text-stone-500 italic text-sm">Aucun participant enregistré pour ce Cataclysme.</p>
+                ) : (
+                  <ol className="space-y-2">
+                    {topParticipants.map((entry, i) => (
+                      <li key={entry.id} className="flex justify-between text-stone-200 border-b border-stone-700 pb-2">
+                        <span>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} {entry.characterName}</span>
+                        <span className="font-mono text-amber-300">{(entry.totalDamage || 0).toLocaleString('fr-FR')}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+            <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-2 border border-stone-500 transition">
+              ⬅️ Retour
+            </button>
+          </div>
+          <audio ref={bossAudioRef} loop>
+            <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen p-6">
         <Header />
