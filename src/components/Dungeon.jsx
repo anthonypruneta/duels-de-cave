@@ -1258,37 +1258,30 @@ const Dungeon = () => {
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
-    const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
-    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const flatBaseStats = char.baseWithBoosts || baseStats;
-    const baseWithoutBonus = (k) => flatBaseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const getRaceDisplayBonus = (k) => {
       if (!isAwakeningActive) return raceB[k] || 0;
-      const classBonus = classB[k] || 0;
-      const forestBonus = forestBoosts[k] || 0;
-      const weaponBonus = weapon?.stats?.[k] ?? 0;
-      const passiveBonus = k === 'auto'
-        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
-        : 0;
-      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
-      const displayValue = (baseStats[k] ?? 0) + weaponBonus + passiveBonus;
-      return displayValue - subtotalWithoutRace;
+      return (baseStats[k] ?? 0) - (flatBaseStats[k] ?? 0);
     };
     const tooltipContent = (k) => {
-      const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
+      const classBonus = classB[k] || 0;
+      const forestBonus = forestBoosts[k] || 0;
       const weaponDelta = weapon?.stats?.[k] ?? 0;
+      const passiveAutoBonus = k === 'auto'
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        : 0;
+      const raceDisplayBonus = getRaceDisplayBonus(k);
+      const displayValue = (baseStats[k] ?? 0) + weaponDelta + passiveAutoBonus;
+      const baseWithoutBonus = displayValue - classBonus - forestBonus - weaponDelta - passiveAutoBonus - raceDisplayBonus;
+      const parts = [`Base: ${baseWithoutBonus}`];
+      if (classBonus > 0) parts.push(`Classe: +${classBonus}`);
+      if (forestBonus > 0) parts.push(`Forêt: +${forestBonus}`);
       if (weaponDelta !== 0) {
         parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       }
-      if (k === 'auto') {
-        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
-        if (passiveAutoBonus !== 0) {
-          parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-        }
+      if (passiveAutoBonus !== 0) {
+        parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
       }
-      const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       return parts.join(' | ');
     };
