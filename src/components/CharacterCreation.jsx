@@ -1084,36 +1084,10 @@ const CharacterCreation = () => {
                     </div>
                   </div>
                 </div>
-                </div>
-              </div>
-
-            <div className="mt-4 space-y-2 text-sm">
-              {!isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
-                <span className="text-2xl">{races[existingCharacter.race].icon}</span>
-                <div>
-                  <div className="text-amber-200 font-bold mb-1">Race: {existingCharacter.race}</div>
-                  <div className="text-stone-400 text-xs">{getRaceBonusText(existingCharacter.race)}</div>
-                </div>
-              </div>
-              )}
-              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
-                <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
-                <div>
-                  <div className="text-amber-200 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
-                  <div className="text-stone-400 text-xs">
-                    {getCalculatedDescription(
-                      existingCharacter.class,
-                      finalStats.cap ?? 0,
-                      finalStats.auto ?? 0
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
               onClick={() => navigate('/dungeons')}
               disabled={isDowntimeLocked}
