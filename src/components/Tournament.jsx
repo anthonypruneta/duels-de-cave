@@ -403,8 +403,8 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
 
   return (
     <div className="relative shadow-2xl overflow-visible">
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 whitespace-nowrap">
-        {participant.race} • {pClass} • Niv. {participant.level ?? 1}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+        {participant.race} • {pClass} • Niveau {participant.level ?? 1}
       </div>
       <div className="overflow-visible">
         <div className="h-auto relative bg-stone-900 flex items-center justify-center">
