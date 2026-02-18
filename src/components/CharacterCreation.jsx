@@ -14,7 +14,7 @@ import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils
 import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
-import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
+import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
@@ -171,7 +171,7 @@ const CharacterCreation = () => {
                 <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
                   <div className="font-bold text-white mb-1">{info.icon} {name}</div>
                   <div className="text-amber-200 text-sm mb-1">{info.ability}</div>
-                  <div className="text-stone-300 text-xs">{info.description}</div>
+                  <div className="text-stone-300 text-xs">{getClassDescriptionText(name)}</div>
                 </div>
               ))}
             </div>
@@ -181,8 +181,8 @@ const CharacterCreation = () => {
             <h3 className="text-xl text-amber-300 font-bold mb-3">🎭 Races & Awakening</h3>
             <div className="grid md:grid-cols-2 gap-3">
               {Object.entries(races).map(([name, info]) => {
-                const bonusLines = splitDescriptionLines(info.bonus);
-                const awakeningLines = splitDescriptionLines(info.awakening?.description);
+                const bonusLines = splitDescriptionLines(getRaceBonusText(name));
+                const awakeningLines = splitDescriptionLines(buildRaceAwakeningDescription(name));
 
                 return (
                   <div key={name} className="bg-stone-900/60 border border-stone-700 p-3">
@@ -1218,7 +1218,7 @@ const CharacterCreation = () => {
               {/* Info races et classes */}
               <div className="mt-8 grid md:grid-cols-2 gap-6">
                 <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
-                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">🎭 8 Races</h3>
+                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">🎭 11 Races</h3>
                   <div className="space-y-2">
                     {Object.entries(races).map(([name, info]) => (
                       <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
@@ -1226,14 +1226,14 @@ const CharacterCreation = () => {
                           <span className="text-2xl">{info.icon}</span>
                           <span className="text-white font-bold">{name}</span>
                         </div>
-                        <p className="text-xs text-gray-400 ml-8">{info.bonus}</p>
+                        <p className="text-xs text-gray-400 ml-8">{getRaceBonusText(name)}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="bg-stone-800/50 rounded-xl p-6 border-2 border-amber-600">
-                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">⚔️ 8 Classes</h3>
+                  <h3 className="text-2xl font-bold text-amber-400 mb-4 text-center">⚔️ 11 Classes</h3>
                   <div className="space-y-2">
                     {Object.entries(classes).map(([name, info]) => (
                       <div key={name} className="bg-stone-900/50 rounded-lg p-3 border border-stone-700">
