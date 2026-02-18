@@ -54,7 +54,7 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import Header from './Header';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -469,9 +469,11 @@ const Dungeon = () => {
   // Préparer un personnage pour le combat
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
     const weaponState = initWeaponCombatState(char, weaponId);
@@ -1237,7 +1239,8 @@ const Dungeon = () => {
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const flatBaseStats = char.baseWithBoosts || baseStats;
     const baseWithoutBonus = (k) => flatBaseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const getRaceDisplayBonus = (k) => {

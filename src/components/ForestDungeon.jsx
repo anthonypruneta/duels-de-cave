@@ -25,7 +25,7 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import {
@@ -478,9 +478,11 @@ const ForestDungeon = () => {
 
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
     const weaponState = initWeaponCombatState(char, weaponId);
@@ -1243,7 +1245,8 @@ const ForestDungeon = () => {
     const passiveDetails = getPassiveDetails(char.mageTowerPassive);
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const baseStats = char.baseWithoutWeapon || char.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
     const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };

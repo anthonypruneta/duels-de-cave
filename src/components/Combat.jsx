@@ -674,7 +674,8 @@ const Combat = () => {
     const computedBase = getBaseWithBoosts(character);
     const baseStats = character.baseWithoutWeapon || computedBase;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+    const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const flatBaseStats = character.baseWithBoosts || computedBase;
     const baseWithoutBonus = (k) => flatBaseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const getRaceDisplayBonus = (k) => {

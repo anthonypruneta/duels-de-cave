@@ -12,7 +12,7 @@ import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
-import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
+import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { classConstants } from '../data/combatMechanics';
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
@@ -345,15 +345,18 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const raceB = participant.bonuses?.race || {};
   const classB = participant.bonuses?.class || {};
   const forestBoosts = getForestBoosts(participant);
-  const baseWithBoosts = applyStatBoosts(participant.base, forestBoosts);
+  const effectiveLevel = participant.level ?? 1;
+  const baseWithBoostsRaw = applyStatBoosts(participant.base, forestBoosts);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, participant.race, effectiveLevel);
   const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null) : baseWithBoosts;
-  const awakeningEffect = getAwakeningEffect(participant.race, participant.level ?? 1);
+  const awakeningEffect = getAwakeningEffect(participant.race, effectiveLevel);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseStats = pClass === 'Bastion'
     ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithAwakening;
   const baseWithPassive = baseStats;
-  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
   const weaponDelta = (k) => weapon?.stats?.[k] ?? 0;
   const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (weapon?.stats?.auto ?? 0);
   const awakeningDelta = (k) => (baseWithAwakening[k] || 0) - (baseWithWeapon[k] || 0);

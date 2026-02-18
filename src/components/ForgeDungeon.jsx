@@ -22,7 +22,7 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect } from '../utils/awakening';
+import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { getWeaponById, RARITY, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
@@ -343,9 +343,11 @@ const ForgeDungeon = () => {
 
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const baseWithBoosts = applyStatBoosts(char.base, char.forestBoosts);
+    const effectiveLevel = char.level ?? 1;
+    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
+    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);

@@ -234,7 +234,8 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const shieldPercent = maxHP > 0 ? Math.min(100, (shieldOverride / maxHP) * 100) : 0;
 
-  const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
+  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
+    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
   const flatBaseStats = character.baseWithBoosts || computedBase;
   const baseWithoutBonus = (k) => (flatBaseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
   const getRaceDisplayBonus = (k) => {
