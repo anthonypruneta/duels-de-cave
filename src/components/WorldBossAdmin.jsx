@@ -37,26 +37,6 @@ function getBossNameFromPath(path) {
 const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
   .sort((a, b) => a.localeCompare(b, 'fr'))
   .map(path => getBossNameFromPath(path));
-        isChampion: true,
-        championData: entry.champion
-      }));
-    }
-  } catch (error) {
-    console.error('Erreur récupération champions:', error);
-  }
-  
-  // Combiner les deux pools
-  const allBosses = [...genericBosses, ...championBosses];
-  
-  if (allBosses.length === 0) {
-    return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
-  }
-  
-  // Sélection déterministe basée sur la semaine
-  const seed = getWeekSeed();
-  const index = seed % allBosses.length;
-  return allBosses[index];
-}
 
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
