@@ -142,26 +142,29 @@ const HallOfFame = () => {
         return (
           <div
             className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto"
-            onClick={() => setSelectedChampion(null)}
+            onClick={() => {
+              setSelectedChampion(null);
+              setFullChampionData(null);
+            }}
           >
             <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
               <UnifiedCharacterCard
-                header={`${selectedChampion.race} • ${selectedChampion.classe} • Niveau ${selectedChampion.level ?? 1}`}
-                name={selectedChampion.nom}
-                image={selectedChampion.characterImage}
+                header={`${fullChampionData.race} • ${fullChampionData.classe || fullChampionData.class} • Niveau ${fullChampionData.level ?? 1}`}
+                name={fullChampionData.nom || fullChampionData.name}
+                image={fullChampionData.characterImage}
                 fallback={<span className="text-7xl">👑</span>}
                 topStats={
                   <>
-                    <span className="text-yellow-300 font-bold">HP: {selectedChampion.base?.hp || 0}</span>
-                    <span className="text-yellow-300 font-bold">VIT: {selectedChampion.base?.spd || 0}</span>
+                    <span className="text-yellow-300 font-bold">HP: {fullChampionData.base?.hp || 0}</span>
+                    <span className="text-yellow-300 font-bold">VIT: {fullChampionData.base?.spd || 0}</span>
                   </>
                 }
                 mainStats={
                   <>
-                    <span className="text-stone-300 font-bold">Auto: {selectedChampion.base?.auto || 0}</span>
-                    <span className="text-stone-300 font-bold">Déf: {selectedChampion.base?.def || 0}</span>
-                    <span className="text-stone-300 font-bold">Cap: {selectedChampion.base?.cap || 0}</span>
-                    <span className="text-stone-300 font-bold">ResC: {selectedChampion.base?.rescap || 0}</span>
+                    <span className="text-stone-300 font-bold">Auto: {fullChampionData.base?.auto || 0}</span>
+                    <span className="text-stone-300 font-bold">Déf: {fullChampionData.base?.def || 0}</span>
+                    <span className="text-stone-300 font-bold">Cap: {fullChampionData.base?.cap || 0}</span>
+                    <span className="text-stone-300 font-bold">ResC: {fullChampionData.base?.rescap || 0}</span>
                   </>
                 }
                 details={
