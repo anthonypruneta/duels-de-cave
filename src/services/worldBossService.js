@@ -525,6 +525,27 @@ function pickRandom(arr) {
  */
 export const launchCataclysm = async (bossName) => {
   try {
+    // 0. Charger un boss champion du Hall of Fame
+    let championBoss = null;
+    let useBossStats = WORLD_BOSS.baseStats; // Fallback
+    let finalBossName = bossName || WORLD_BOSS.nom;
+    
+    try {
+      const hallOfFameResult = await getHallOfFame();
+      if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
+        const weekNumber = getCurrentWeekNumber();
+        championBoss = await getWeeklyChampionBoss(hallOfFameResult.data, weekNumber);
+        
+        if (championBoss && championBoss.baseStats) {
+          useBossStats = championBoss.baseStats;
+          finalBossName = championBoss.nom;
+          console.log('✅ Boss champion chargé:', finalBossName, useBossStats);
+        }
+      }
+    } catch (bossError) {
+      console.error('Erreur chargement boss champion, utilisation du boss par défaut:', bossError);
+    }
+    
     // 1. Reset le leaderboard (supprimer toutes les entrées de dégâts)
     const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
     const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
@@ -535,13 +556,17 @@ export const launchCataclysm = async (bossName) => {
       await retryOperation(async () => batch.commit());
     }
 
-    // 2. Reset et activer l'event
+    // 2. Reset et activer l'event avec les stats du boss champion
     const eventData = {
-      bossId: WORLD_BOSS.id,
-      bossName: bossName || WORLD_BOSS.nom,
+      bossId: championBoss?.id || WORLD_BOSS.id,
+      bossName: finalBossName,
+      bossStats: useBossStats, // Sauvegarder les stats du boss
+      isChampionBoss: championBoss?.isChampionBoss || false,
+      championName: championBoss?.championName || null,
+      originalChampion: championBoss?.originalChampion || null,
       status: EVENT_STATUS.ACTIVE,
-      hpMax: WORLD_BOSS.baseStats.hp,
-      hpRemaining: WORLD_BOSS.baseStats.hp,
+      hpMax: useBossStats.hp,
+      hpRemaining: useBossStats.hp,
       totalDamageDealt: 0,
       totalAttempts: 0,
       startedAt: Timestamp.now(),
@@ -557,9 +582,9 @@ export const launchCataclysm = async (bossName) => {
     // 3. Annonce Discord
     try {
       const { envoyerAnnonceDiscord } = await import('./discordService.js');
-      const announcement = pickRandom(cataclysmAnnouncements)(bossName || WORLD_BOSS.nom);
+      const announcement = pickRandom(cataclysmAnnouncements)(finalBossName);
       await envoyerAnnonceDiscord({
-        titre: `☄️ CATACLYSME — ${(bossName || WORLD_BOSS.nom).toUpperCase()} EST LÀ !!!`,
+        titre: `☄️ CATACLYSME — ${finalBossName.toUpperCase()} EST LÀ !!!`,
         message: announcement,
         mentionEveryone: true
       });
