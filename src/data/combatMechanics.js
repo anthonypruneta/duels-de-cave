@@ -76,18 +76,24 @@ export const classConstants = {
 export const raceConstants = {
   humain: { hp: 10, auto: 1, def: 1, cap: 1, rescap: 1, spd: 1 },
   elfe: { auto: 1, cap: 1, spd: 5, critBonus: 0.20 },
-  orc: { lowHpThreshold: 0.50, damageBonus: 1.22 },
+  orc: { lowHpThreshold: 0.50, damageBonus: 1.20 },  // +20% sous 50% PV (base)
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
   lycan: { bleedPerHit: 1, bleedDivisor: 5 },
   sylvari: { regenPercent: 0.02 },
-  sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
-  gnome: { critIfFaster: 0.20, critDmgIfFaster: 0.20, dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, critIfEqual: 0.05, critDmgIfEqual: 0.05, dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, spd: 5, cap: 5 },
+  sirene: { cap: 10, stackBonus: 0.10, maxStacks: 3 },  // +10 CAP base
+  gnome: { 
+    critIfFaster: 0.20, critDmgIfFaster: 0.20, 
+    dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, 
+    critIfEqual: 0.05, critDmgIfEqual: 0.05, 
+    dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, 
+    spd: 5, cap: 5 
+  },
   mindflayer: {
-    stealSpellCapDamageScale: 0.20,
+    stealSpellCapDamageScale: 0.05,      // +5% de CAP aux dégâts (base)
     ownCooldownReductionTurns: 0,
-    noCooldownSpellBonus: 0.30
+    noCooldownSpellBonus: 0.05           // Sort sans CD: +5% dégâts (base)
   }
 };
 
