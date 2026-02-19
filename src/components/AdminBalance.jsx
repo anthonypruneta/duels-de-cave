@@ -389,7 +389,8 @@ function AdminBalance({ embedded = false }) {
       withTemporaryDraftOverrides(() => {
         const level1 = simulateForLevel(1, duelCount);
         const level100 = simulateForLevel(100, duelCount);
-        setResults({ duelCount, level1, level100 });
+        const level400 = simulateForLevel(400, duelCount);
+        setResults({ duelCount, level1, level100, level400 });
       });
     } finally {
       setRunning(false);
@@ -484,11 +485,11 @@ function AdminBalance({ embedded = false }) {
       </div>
 
         <div className="bg-stone-900/70 border border-amber-600 p-4 mb-6">
-          <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1 et 100)</label>
+          <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1, 100 et 400)</label>
           <div className="flex gap-3 flex-wrap">
             <input type="number" min="10" value={duels} onChange={(e) => setDuels(e.target.value)} className="px-3 py-2 bg-stone-800 border border-stone-600 text-white w-40" />
             <button onClick={handleRun} disabled={running} className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-4 py-2 font-bold">
-              {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100'}
+              {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100 + niv 400'}
             </button>
           </div>
         </div>
@@ -769,7 +770,11 @@ function AdminBalance({ embedded = false }) {
 
         {results && (
           <div className="grid lg:grid-cols-2 gap-6">
-            {[{ key: 'level1', title: 'Résultats Niveau 1' }, { key: 'level100', title: 'Résultats Niveau 100' }].map(({ key, title }) => (
+            {[
+              { key: 'level1', title: 'Résultats Niveau 1' },
+              { key: 'level100', title: 'Résultats Niveau 100' },
+              { key: 'level400', title: 'Résultats Niveau 400' }
+            ].map(({ key, title }) => (
               <div key={key} className="bg-stone-900/70 border border-amber-600 p-4">
                 <h3 className="text-lg text-amber-300 font-bold mb-3">{title} ({results.duelCount} duels)</h3>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
