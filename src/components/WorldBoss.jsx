@@ -27,6 +27,9 @@ import testImage1 from '../assets/characters/test.png';
 // Images du boss cataclysme (piochées par semaine, nom du fichier = nom du boss)
 const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
+// Images des boss champions (ancien champions du Hall of Fame)
+const CHAMPION_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
 const getWeaponImage = (imageFile) => {
