@@ -674,31 +674,57 @@ function getWeekSeed() {
 }
 
 /**
- * Sélectionne un boss de la semaine parmi les boss génériques ET les anciens champions
- * @param {Array} genericBossNames - Liste des noms de boss génériques
+ * Sélectionne un boss de la semaine parmi les boss génériques ET les champions
+ * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
+ * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
  * @returns {Promise<{name: string, isChampion: boolean, championData: object|null}>}
  */
-export const pickWeeklyBossWithChampions = async (genericBossNames = []) => {
-  // Boss génériques
+export const pickWeeklyBossWithChampions = async (genericBossNames = [], championBossNames = []) => {
+  // Boss génériques (noms = noms de fichiers)
   const genericBosses = genericBossNames.map(name => ({
     name,
     isChampion: false,
     championData: null
   }));
   
-  // Récupérer les champions du Hall of Fame
+  // Boss champions (noms = noms de fichiers dans ChampBoss/)
+  // On va essayer de matcher avec le Hall of Fame pour récupérer les stats
   let championBosses = [];
-  try {
-    const hallOfFameResult = await getHallOfFame();
-    if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
-      championBosses = hallOfFameResult.data.map(entry => ({
-        name: `${entry.champion?.nom || entry.champion?.name || 'Champion'} (Champion S${entry.week || '?'})`,
-        isChampion: true,
-        championData: entry.champion
-      }));
+  
+  if (championBossNames.length > 0) {
+    // Récupérer le Hall of Fame pour matcher les stats
+    let hallOfFameData = [];
+    try {
+      const hallOfFameResult = await getHallOfFame();
+      if (hallOfFameResult.success) {
+        hallOfFameData = hallOfFameResult.data;
+      }
+    } catch (error) {
+      console.error('Erreur récupération Hall of Fame:', error);
     }
-  } catch (error) {
-    console.error('Erreur récupération champions pour boss pool:', error);
+    
+    // Pour chaque image ChampBoss, créer une entrée
+    championBosses = championBossNames.map(bossName => {
+      // Essayer de trouver un champion correspondant dans le Hall of Fame
+      // On cherche si le nom du fichier correspond au nom d'un champion
+      const normalizedBossName = bossName.toLowerCase().trim();
+      
+      let matchedChampion = null;
+      for (const entry of hallOfFameData) {
+        const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
+        if (championName && normalizedBossName.includes(championName)) {
+          matchedChampion = entry.champion;
+          console.log(`✅ Match trouvé: "${bossName}" → champion "${championName}"`);
+          break;
+        }
+      }
+      
+      return {
+        name: bossName, // Nom = nom du fichier image
+        isChampion: true,
+        championData: matchedChampion // null si pas de match, sinon les données du champion
+      };
+    });
   }
   
   // Combiner les deux pools
