@@ -98,11 +98,12 @@
 ### P0 - Critique
 - ✅ Correction erreur lint WorldBossAdmin.jsx
 - ✅ Implémentation "Champion aléatoire comme Boss"
+- ✅ Auto-launch lundi 18h inclut les champions dans le pool
 
 ### P1 - Important
-- [ ] Refactoring: Extraire `pickWeeklyBoss` vers un service partagé
+- ✅ Refactoring: `pickWeeklyBossWithChampions` centralisée dans le service
 - [ ] Créer composant `UnifiedCharacterCard` réutilisable
 
 ### P2 - Nice to have
-- [ ] Images personnalisées pour les champions-boss (dossier ChampBoss/)
-- [ ] Améliorer l'auto-launch pour supporter les champions
+- [ ] Images personnalisées pour les champions-boss (dossier ChampBoss/) - 1 image déjà présente
+- [ ] Afficher visuellement si le boss actuel est un champion ou non dans l'UI joueur
