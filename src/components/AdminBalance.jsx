@@ -202,27 +202,7 @@ function AdminBalance({ embedded = false }) {
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
 
-  useEffect(() => {
-    const loadSavedConfig = async () => {
-      const result = await loadPersistedBalanceConfig();
-      if (!result.success || !result.data) return;
-
-      const loadedRaceBonusDraft = deepClone(raceConstants);
-      const loadedClassDraft = deepClone(classConstants);
-      const loadedAwakeningDraft = {};
-      Object.entries(races).forEach(([name, info]) => {
-        loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
-      });
-
-      setRaceBonusDraft(loadedRaceBonusDraft);
-      setClassDraft(loadedClassDraft);
-      setRaceAwakeningDraft(loadedAwakeningDraft);
-      setRaceTextDraft(buildRaceTextDraft(loadedRaceBonusDraft, loadedAwakeningDraft));
-      setClassTextDraft(buildClassTextDraft(loadedClassDraft));
-    };
-
-    loadSavedConfig();
-  }, []);
+  // Les drafts sont initialisés directement depuis le code, pas besoin de charger Firebase
 
   const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
