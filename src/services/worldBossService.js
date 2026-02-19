@@ -360,11 +360,14 @@ const onBossDefeated = async (killerName) => {
     damagesSnap.docs.forEach(d => {
       const data = d.data();
       if (data.characterId && (data.totalDamage || 0) > 0) {
-        rewardBatch.set(doc(db, 'tournamentRewards', data.characterId), {
+        // Utiliser merge pour ne pas écraser les rewards existants
+        const rewardRef = doc(db, 'tournamentRewards', data.characterId);
+        rewardBatch.set(rewardRef, {
           tripleRoll: true,
-          date: Timestamp.now(),
+          cataclysmeWins: increment(1),
+          lastCataclysmeDate: Timestamp.now(),
           source: 'cataclysme'
-        });
+        }, { merge: true });
         participantNames.push(data.characterName);
       }
     });
