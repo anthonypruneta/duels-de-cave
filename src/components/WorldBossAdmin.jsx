@@ -41,14 +41,42 @@ function getWeekSeed() {
   return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
 }
 
-function pickWeeklyBoss() {
-  const entries = Object.entries(CATACLYSM_IMAGES)
-    .sort(([a], [b]) => a.localeCompare(b, 'fr'));
-  if (entries.length === 0) return { name: WORLD_BOSS.nom, image: null };
+// Sélectionne un boss de la semaine parmi les boss génériques ET les anciens champions
+async function pickWeeklyBossWithChampions() {
+  const genericBosses = Object.entries(CATACLYSM_IMAGES)
+    .sort(([a], [b]) => a.localeCompare(b, 'fr'))
+    .map(([path]) => ({
+      name: getBossNameFromPath(path),
+      isChampion: false,
+      championData: null
+    }));
+  
+  // Récupérer les champions du Hall of Fame
+  let championBosses = [];
+  try {
+    const hallOfFameResult = await getHallOfFame();
+    if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
+      championBosses = hallOfFameResult.data.map(entry => ({
+        name: `${entry.champion?.nom || entry.champion?.name || 'Champion'} (Champion S${entry.week || '?'})`,
+        isChampion: true,
+        championData: entry.champion
+      }));
+    }
+  } catch (error) {
+    console.error('Erreur récupération champions:', error);
+  }
+  
+  // Combiner les deux pools
+  const allBosses = [...genericBosses, ...championBosses];
+  
+  if (allBosses.length === 0) {
+    return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
+  }
+  
+  // Sélection déterministe basée sur la semaine
   const seed = getWeekSeed();
-  const index = seed % entries.length;
-  const [sourcePath] = entries[index];
-  return getBossNameFromPath(sourcePath);
+  const index = seed % allBosses.length;
+  return allBosses[index];
 }
 
 const STATUS_LABELS = {
