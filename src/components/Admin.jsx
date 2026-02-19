@@ -526,6 +526,49 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     navigate('/tournament?mode=simulation');
   };
 
+  const loadRerollsData = async () => {
+    setRerollsLoading(true);
+    try {
+      const { db } = await import('../firebase/config');
+      const { collection, getDocs } = await import('firebase/firestore');
+      const { getTripleRollCount } = await import('../services/tournamentService');
+      
+      const rewardsRef = collection(db, 'tournamentRewards');
+      const rewardsSnap = await getDocs(rewardsRef);
+      
+      const rerollsArray = [];
+      for (const rewardDoc of rewardsSnap.docs) {
+        const data = rewardDoc.data();
+        const userId = rewardDoc.id;
+        
+        // Récupérer le nombre de rerolls
+        const rollCount = await getTripleRollCount(userId);
+        if (rollCount > 0) {
+          // Trouver le personnage correspondant
+          const character = characters.find(c => c.id === userId);
+          
+          rerollsArray.push({
+            userId,
+            characterName: character?.name || 'Inconnu',
+            rollCount,
+            tournamentWins: data.tournamentWins || 0,
+            cataclysmeWins: data.cataclysmeWins || 0,
+            source: data.source || 'N/A',
+            lastTournamentDate: data.lastTournamentDate,
+            lastCataclysmeDate: data.lastCataclysmeDate
+          });
+        }
+      }
+      
+      // Trier par nombre de rerolls décroissant
+      rerollsArray.sort((a, b) => b.rollCount - a.rollCount);
+      setRerollsData(rerollsArray);
+    } catch (error) {
+      console.error('Erreur chargement rerolls:', error);
+    }
+    setRerollsLoading(false);
+  };
+
   const handleGrantDungeonRuns = async () => {
     const attempts = Number(dungeonAttemptsToGrant);
     const message = dungeonGrantMessage.trim();
