@@ -47,6 +47,7 @@ export const classConstants = {
   },
   demoniste: {
     capBase: 0.45,         // 45% de Cap
+    capPerCap: 0,          // Pas de scaling supplémentaire
     ignoreResist: 0.45,    // Ignore 45% de la ResC
     stackPerAuto: 0.008    // +0.8% de Cap par auto (cumulable)
   },
