@@ -704,23 +704,24 @@ export const pickWeeklyBossWithChampions = async (genericBossNames = [], champio
     }
     
     // Pour chaque image ChampBoss, créer une entrée
+    // Format attendu du nom de fichier : "NomDuPersonnage, TitreLore.png"
     championBosses = championBossNames.map(bossName => {
-      // Essayer de trouver un champion correspondant dans le Hall of Fame
-      // On cherche si le nom du fichier correspond au nom d'un champion
-      const normalizedBossName = bossName.toLowerCase().trim();
+      // Extraire le nom du personnage (partie avant la virgule)
+      const characterName = bossName.split(',')[0].trim().toLowerCase();
       
       let matchedChampion = null;
       for (const entry of hallOfFameData) {
         const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
-        if (championName && normalizedBossName.includes(championName)) {
+        // Match exact ou si le nom du champion est contenu dans le nom extrait
+        if (championName && (characterName === championName || characterName.includes(championName))) {
           matchedChampion = entry.champion;
-          console.log(`✅ Match trouvé: "${bossName}" → champion "${championName}"`);
+          console.log(`✅ Match trouvé: "${bossName}" (extrait: "${characterName}") → champion "${championName}"`);
           break;
         }
       }
       
       return {
-        name: bossName, // Nom = nom du fichier image
+        name: bossName, // Nom complet du fichier = nom affiché (ex: "Arthas, Le Roi Liche")
         isChampion: true,
         championData: matchedChampion // null si pas de match, sinon les données du champion
       };
