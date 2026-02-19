@@ -272,7 +272,7 @@ const WorldBoss = () => {
   // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
   useEffect(() => {
     const runChecks = async () => {
-      await checkAutoLaunch(GENERIC_BOSS_NAMES);
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       await checkAutoEnd();
     };
 
