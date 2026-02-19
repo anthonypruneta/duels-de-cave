@@ -184,7 +184,7 @@ const WorldBossAdmin = ({ characters }) => {
     
     // Choisir un boss aléatoire de la semaine (peut être un générique OU un champion)
     setCombatLogs(['🔄 Sélection du boss de la semaine...']);
-    const weeklyBoss = await pickWeeklyBossWithChampions(GENERIC_BOSS_NAMES);
+    const weeklyBoss = await pickWeeklyBossWithChampions(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
     console.log('Boss de la semaine choisi:', weeklyBoss);
     
     const result = await launchCataclysm(weeklyBoss);
