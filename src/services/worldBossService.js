@@ -521,81 +521,75 @@ function pickRandom(arr) {
 
 /**
  * Lancer le Cataclysme : reset total + annonce Discord
- * @param {string} bossName - Nom du boss de la semaine
+ * @param {object} bossData - Données du boss { name, isChampion, championData }
  */
-export const launchCataclysm = async (bossName) => {
+export const launchCataclysm = async (bossData) => {
   try {
-    // 0. Choisir un boss (image aléatoire comme avant)
-    // Mais maintenant, chercher si ce boss correspond à un champion
-    let championBoss = null;
-    let useBossStats = WORLD_BOSS.baseStats; // Stats par défaut
-    let finalBossName = bossName || WORLD_BOSS.nom;
+    // Accepter soit un string (ancien format) soit un objet (nouveau format)
+    let finalBossName = WORLD_BOSS.nom;
+    let useBossStats = WORLD_BOSS.baseStats;
     let isChampionBoss = false;
     let championName = null;
     let originalChampion = null;
     
-    // Si un nom de boss est fourni, chercher si c'est un champion
-    if (bossName) {
-      try {
-        const hallOfFameResult = await getHallOfFame();
-        if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
-          // Chercher un champion dont le nom correspond au boss choisi
-          for (const entry of hallOfFameResult.data) {
-            const champion = entry.champion;
-            const championFullName = champion?.nom || champion?.name;
-            
-            // Vérifier si le nom du boss contient le nom du champion
-            if (championFullName && bossName.toLowerCase().includes(championFullName.toLowerCase())) {
-              console.log(`✅ Boss "${bossName}" correspond au champion "${championFullName}"`);
-              
-              // Charger les données complètes du champion depuis archivedCharacters
-              if (champion.userId) {
-                const { db } = await import('../firebase/config');
-                const { collection, query, where, getDocs } = await import('firebase/firestore');
-                
-                const archivedRef = collection(db, 'archivedCharacters');
-                const q = query(
-                  archivedRef,
-                  where('userId', '==', champion.userId),
-                  where('tournamentChampion', '==', true)
-                );
-                
-                const snapshot = await getDocs(q);
-                
-                if (!snapshot.empty) {
-                  const fullChampion = snapshot.docs[0].data();
-                  
-                  // Utiliser les vraies stats du champion !
-                  if (fullChampion.base) {
-                    useBossStats = {
-                      hp: WORLD_BOSS.baseStats.hp, // HP reste à 35k
-                      auto: fullChampion.base.auto || 0,
-                      cap: fullChampion.base.cap || 0,
-                      def: fullChampion.base.def || 0,
-                      rescap: fullChampion.base.rescap || 0,
-                      spd: fullChampion.base.spd || 0
-                    };
-                    
-                    isChampionBoss = true;
-                    championName = championFullName;
-                    originalChampion = {
-                      userId: fullChampion.userId,
-                      ownerPseudo: fullChampion.ownerPseudo,
-                      race: fullChampion.race,
-                      classe: fullChampion.classe || fullChampion.class,
-                      level: fullChampion.level
-                    };
-                    
-                    console.log('✅ Stats du champion chargées:', useBossStats);
-                    break; // On a trouvé le champion, pas besoin de continuer
-                  }
-                }
-              }
-            }
+    if (typeof bossData === 'string') {
+      // Ancien format : juste un nom de boss générique
+      finalBossName = bossData || WORLD_BOSS.nom;
+    } else if (bossData && typeof bossData === 'object') {
+      // Nouveau format avec données complètes
+      finalBossName = bossData.name || WORLD_BOSS.nom;
+      
+      if (bossData.isChampion && bossData.championData) {
+        const champion = bossData.championData;
+        
+        // Charger les stats complètes du champion depuis archivedCharacters
+        try {
+          const archivedRef = collection(db, 'archivedCharacters');
+          const q = query(
+            archivedRef,
+            where('odUserId', '==', champion.odUserId || champion.oduserId)
+          );
+          
+          let snapshot = await getDocs(q);
+          
+          // Si pas trouvé avec odUserId, essayer avec oduserId (différent casing)
+          if (snapshot.empty && champion.oduserId) {
+            const q2 = query(archivedRef, where('odUserId', '==', champion.oduserId));
+            snapshot = await getDocs(q2);
           }
+          
+          if (!snapshot.empty) {
+            const fullChampion = snapshot.docs[0].data();
+            
+            if (fullChampion.base) {
+              useBossStats = {
+                hp: WORLD_BOSS.baseStats.hp, // HP reste à 35k
+                auto: fullChampion.base.auto || 0,
+                cap: fullChampion.base.cap || 0,
+                def: fullChampion.base.def || 0,
+                rescap: fullChampion.base.rescap || 0,
+                spd: fullChampion.base.spd || 0
+              };
+              
+              isChampionBoss = true;
+              championName = champion.nom || champion.name || finalBossName;
+              originalChampion = {
+                odUserId: fullChampion.odUserId,
+                odPseudo: fullChampion.odPseudo,
+                race: fullChampion.race,
+                classe: fullChampion.classe || fullChampion.class,
+                level: fullChampion.level,
+                characterImage: fullChampion.characterImage
+              };
+              
+              console.log('✅ Stats du champion chargées:', useBossStats);
+            }
+          } else {
+            console.log('⚠️ Champion non trouvé dans archivedCharacters, utilisation des stats par défaut');
+          }
+        } catch (championError) {
+          console.error('Erreur chargement stats champion:', championError);
         }
-      } catch (bossError) {
-        console.error('Erreur recherche champion pour le boss, utilisation des stats par défaut:', bossError);
       }
     }
     
