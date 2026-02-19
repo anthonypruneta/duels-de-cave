@@ -577,8 +577,10 @@ export async function terminerTournoi(docId = 'current') {
     // 2. Donner la récompense triple roll au champion
     await setDoc(doc(db, 'tournamentRewards', tournoi.champion.userId), {
       tripleRoll: true,
-      date: serverTimestamp()
-    });
+      tournamentWins: increment(1),
+      lastTournamentDate: serverTimestamp(),
+      source: 'tournoi'
+    }, { merge: true });
 
     // 3. Archiver tous les personnages
     const charsResult = await getAllCharacters();
