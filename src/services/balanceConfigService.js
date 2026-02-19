@@ -3,6 +3,8 @@ import { db } from '../firebase/config';
 import { classConstants, cooldowns, raceConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
+import { weapons } from '../data/weapons';
+import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
 
@@ -61,6 +63,8 @@ export const buildCurrentBalanceConfig = () => {
   return {
     raceConstants: deepClone(raceConstants),
     classConstants: deepClone(classConstants),
+    weaponConstants: deepClone(weapons),
+    mageTowerPassives: deepClone(MAGE_TOWER_PASSIVES),
     raceAwakenings,
     raceTexts,
     classTexts
@@ -164,6 +168,17 @@ export const applyBalanceConfig = (config) => {
 
   if (config.classConstants) {
     applyNumericOverrides(classConstants, config.classConstants);
+  }
+
+  if (config.weaponConstants) {
+    applyNumericOverrides(weapons, config.weaponConstants);
+  }
+
+  if (Array.isArray(config.mageTowerPassives)) {
+    config.mageTowerPassives.forEach((passive, index) => {
+      if (!MAGE_TOWER_PASSIVES[index]) return;
+      applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
+    });
   }
 
   if (config.raceAwakenings) {
