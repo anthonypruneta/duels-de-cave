@@ -216,6 +216,13 @@ function AdminBalance({ embedded = false }) {
     });
   };
 
+  // Applique les modifications à tout le jeu (en mémoire)
+  const handleApplyChanges = () => {
+    applyDraftToLiveData();
+    setApplyMessage('✅ Modifications appliquées ! Les combats utiliseront ces valeurs.');
+    setTimeout(() => setApplyMessage(''), 5000);
+  };
+
   const withTemporaryDraftOverrides = (callback) => {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
