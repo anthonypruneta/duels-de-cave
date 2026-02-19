@@ -18,9 +18,9 @@ export const cooldowns = {
 // Constantes des classes (valeurs réelles utilisées dans le combat)
 export const classConstants = {
   guerrier: {
-    autoBonus: 4,
-    ignoreBase: 0.10,      // 10% ignore résistance de base
-    ignorePerCap: 0.008    // +0,8% par point de Cap
+    autoBonus: 5,
+    ignoreBase: 0.25,      // 25% ignore résistance de base
+    ignorePerCap: 0.01     // +1% par point de Cap
   },
   voleur: {
     spdBonus: 5,
