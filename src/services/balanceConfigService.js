@@ -212,3 +212,41 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
     return { success: false, error: error.message || 'Impossible de sauvegarder la config d’équilibrage.' };
   }
 };
+
+
+/**
+ * Réinitialise la config Firebase avec les valeurs par défaut du code
+ * Utile après une mise à jour du code pour synchroniser Firebase
+ */
+export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
+  try {
+    const defaultConfig = buildCurrentBalanceConfig();
+    await setDoc(BALANCE_DOC_REF, {
+      config: defaultConfig,
+      updatedBy,
+      updatedAt: serverTimestamp(),
+      resetToDefaults: true
+    });
+    
+    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut');
+    return { success: true, config: defaultConfig };
+  } catch (error) {
+    console.error('Erreur reset balance config:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Supprime la config Firebase pour forcer l'utilisation des valeurs par défaut au prochain chargement
+ */
+export const clearPersistedBalanceConfig = async () => {
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(BALANCE_DOC_REF);
+    console.log('✅ Config Firebase supprimée');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur suppression balance config:', error);
+    return { success: false, error: error.message };
+  }
+};
