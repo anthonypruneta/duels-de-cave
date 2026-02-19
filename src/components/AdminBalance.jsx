@@ -12,6 +12,8 @@ import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTow
 import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { weapons, isWaveActive } from '../data/weapons';
+import { getAvailablePassives, getMageTowerPassiveById } from '../data/mageTowerPassives';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -118,6 +120,12 @@ const genLevelBoosts = (level) => {
   return boosts;
 };
 
+const getPassiveLevelForCharacterLevel = (level) => {
+  if (level >= 100) return 3;
+  if (level >= 50) return 2;
+  return 1;
+};
+
 
 const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
   const data = {};
@@ -141,9 +149,11 @@ const buildClassTextDraft = (classDraft) => {
   return data;
 };
 
-const makeCharacter = (id, level) => {
+const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
   const raceName = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
+  const weaponId = availableWeaponIds.length > 0 ? randomItem(availableWeaponIds) : null;
+  const passiveId = availablePassiveIds.length > 0 ? randomItem(availablePassiveIds) : null;
   const raw = genStats();
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
@@ -168,8 +178,8 @@ const makeCharacter = (id, level) => {
     level,
     bonuses: { race: raceBonus, class: classBonus },
     forestBoosts: levelBoosts,
-    mageTowerPassive: null,
-    equippedWeaponId: null
+    mageTowerPassive: passiveId ? { id: passiveId, level: getPassiveLevelForCharacterLevel(level) } : null,
+    equippedWeaponId: weaponId
   };
 };
 
@@ -185,8 +195,13 @@ function AdminBalance({ embedded = false }) {
   // Duel 1v1
   const raceNames = useMemo(() => Object.keys(races), []);
   const classNames = useMemo(() => Object.keys(classes), []);
-  const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
-  const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
+  const availableWeapons = useMemo(() => Object.values(weapons).filter((weapon) => isWaveActive(weapon.vague)), []);
+  const availablePassives = useMemo(() => getAvailablePassives(), []);
+  const defaultWeaponId = availableWeapons[0]?.id || '';
+  const defaultPassiveId = availablePassives[0]?.id || '';
+
+  const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
+  const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
   const [duelOpponent, setDuelOpponent] = useState('pvp');
   const [duelResult, setDuelResult] = useState(null);
 
@@ -299,22 +314,35 @@ function AdminBalance({ embedded = false }) {
   const simulateForLevel = (level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classWins = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const weaponWins = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
+    const passiveWins = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
     const raceAppearances = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classAppearances = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const weaponAppearances = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
+    const passiveAppearances = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
+
+    const availableWeaponIds = availableWeapons.map((weapon) => weapon.id);
+    const availablePassiveIds = availablePassives.map((passive) => passive.id);
 
     for (let i = 0; i < count; i++) {
-      const p1 = makeCharacter(`L${level}-A-${i}`, level);
-      const p2 = makeCharacter(`L${level}-B-${i}`, level);
+      const p1 = makeCharacter(`L${level}-A-${i}`, level, availableWeaponIds, availablePassiveIds);
+      const p2 = makeCharacter(`L${level}-B-${i}`, level, availableWeaponIds, availablePassiveIds);
 
       raceAppearances[p1.race] += 1;
       raceAppearances[p2.race] += 1;
       classAppearances[p1.class] += 1;
       classAppearances[p2.class] += 1;
+      if (p1.equippedWeaponId) weaponAppearances[p1.equippedWeaponId] += 1;
+      if (p2.equippedWeaponId) weaponAppearances[p2.equippedWeaponId] += 1;
+      if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] += 1;
+      if (p2.mageTowerPassive?.id) passiveAppearances[p2.mageTowerPassive.id] += 1;
 
       const match = simulerMatch(p1, p2);
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
       classWins[winner.class] += 1;
+      if (winner.equippedWeaponId) weaponWins[winner.equippedWeaponId] += 1;
+      if (winner.mageTowerPassive?.id) passiveWins[winner.mageTowerPassive.id] += 1;
     }
 
     const sortedRaces = Object.entries(raceWins)
@@ -333,7 +361,23 @@ function AdminBalance({ embedded = false }) {
       })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
-    return { sortedRaces, sortedClasses };
+    const sortedWeapons = Object.entries(weaponWins)
+      .map(([weaponId, wins]) => {
+        const appearances = weaponAppearances[weaponId] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { weaponId, wins, appearances, rate: rate.toFixed(1) };
+      })
+      .sort((a, b) => Number(b.rate) - Number(a.rate));
+
+    const sortedPassives = Object.entries(passiveWins)
+      .map(([passiveId, wins]) => {
+        const appearances = passiveAppearances[passiveId] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { passiveId, wins, appearances, rate: rate.toFixed(1) };
+      })
+      .sort((a, b) => Number(b.rate) - Number(a.rate));
+
+    return { sortedRaces, sortedClasses, sortedWeapons, sortedPassives };
   };
 
   const handleRun = async () => {
@@ -357,7 +401,7 @@ function AdminBalance({ embedded = false }) {
   // - /src/data/combatMechanics.js (classConstants, raceConstants)
   // - /src/data/races.js (awakening effects)
 
-  const makeCustomCharacter = (id, raceName, className, level) => {
+  const makeCustomCharacter = (id, raceName, className, level, weaponId, passiveId, passiveLevel) => {
     const raw = genStats();
     const raceBonus = getRaceBonus(raceName);
     const classBonus = getClassBonus(className);
@@ -375,7 +419,9 @@ function AdminBalance({ embedded = false }) {
       name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
       race: raceName, class: className, base, level,
       bonuses: { race: raceBonus, class: classBonus },
-      forestBoosts: levelBoosts, mageTowerPassive: null, equippedWeaponId: null
+      forestBoosts: levelBoosts,
+      mageTowerPassive: passiveId ? { id: passiveId, level: Math.max(1, Math.min(3, Number(passiveLevel) || 1)) } : null,
+      equippedWeaponId: weaponId || null
     };
   };
 
@@ -410,12 +456,12 @@ function AdminBalance({ embedded = false }) {
 
   const handleDuel = () => {
     withTemporaryDraftOverrides(() => {
-      const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level);
+      const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level, duelP1.weaponId, duelP1.passiveId, duelP1.passiveLevel);
       const p1Final = preparerCombattant(p1);
       const p1Display = { ...p1, base: p1Final.base };
 
       if (duelOpponent === 'pvp') {
-        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level);
+        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level, duelP2.weaponId, duelP2.passiveId, duelP2.passiveLevel);
         const p2Final = preparerCombattant(p2);
         const result = simulerMatch(p1, p2);
         setDuelResult({ ...result, p1: p1Display, p2: { ...p2, base: p2Final.base } });
@@ -604,6 +650,26 @@ function AdminBalance({ embedded = false }) {
                   onChange={(e) => setDuelP1((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
                   className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
               </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Arme
+                <select value={duelP1.weaponId} onChange={(e) => setDuelP1((p) => ({ ...p, weaponId: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Passif Tour de Mage
+                <select value={duelP1.passiveId} onChange={(e) => setDuelP1((p) => ({ ...p, passiveId: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Niveau passif
+                <input type="number" min="1" max="3" value={duelP1.passiveLevel}
+                  onChange={(e) => setDuelP1((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
+                  className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
+              </label>
             </div>
             {duelOpponent === 'pvp' && (
               <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
@@ -628,6 +694,26 @@ function AdminBalance({ embedded = false }) {
                     onChange={(e) => setDuelP2((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
                     className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
                 </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Arme
+                  <select value={duelP2.weaponId} onChange={(e) => setDuelP2((p) => ({ ...p, weaponId: e.target.value }))}
+                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                    {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Passif Tour de Mage
+                  <select value={duelP2.passiveId} onChange={(e) => setDuelP2((p) => ({ ...p, passiveId: e.target.value }))}
+                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                    {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Niveau passif
+                  <input type="number" min="1" max="3" value={duelP2.passiveLevel}
+                    onChange={(e) => setDuelP2((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
+                    className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
+                </label>
               </div>
             )}
           </div>
@@ -641,11 +727,15 @@ function AdminBalance({ embedded = false }) {
                 <div className="text-sm">
                   <span className="text-blue-300 font-bold">{duelResult.p1.name}</span>
                   <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p1.level} — HP:{duelResult.p1.base.hp} ATK:{duelResult.p1.base.auto} DEF:{duelResult.p1.base.def} CAP:{duelResult.p1.base.cap} RES:{duelResult.p1.base.rescap} SPD:{duelResult.p1.base.spd}</span>
+                  <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p1.equippedWeaponId]?.icon} {weapons[duelResult.p1.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p1.mageTowerPassive?.level || 0})</span>
                 </div>
                 <span className="text-stone-500 font-bold">VS</span>
                 <div className="text-sm text-right">
                   <span className="text-red-300 font-bold">{duelResult.p2.name}</span>
                   <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} ATK:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
+                  {!duelResult.isBoss && (
+                    <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p2.equippedWeaponId]?.icon} {weapons[duelResult.p2.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p2.mageTowerPassive?.level || 0})</span>
+                  )}
                 </div>
               </div>
               <div className="text-center text-lg font-bold text-amber-300">
@@ -703,6 +793,31 @@ function AdminBalance({ embedded = false }) {
                           <span>{row.rate}% WR</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-stone-200 mb-2">Armes</div>
+                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {results[key].sortedWeapons.map((row) => (
+                        <div key={`${key}-weapon-${row.weaponId}`} className="flex justify-between text-stone-300">
+                          <span>{weapons[row.weaponId]?.icon} {weapons[row.weaponId]?.nom}</span>
+                          <span>{row.rate}% WR</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-stone-200 mb-2">Passifs Tour de Mage</div>
+                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {results[key].sortedPassives.map((row) => {
+                        const passive = getMageTowerPassiveById(row.passiveId);
+                        return (
+                          <div key={`${key}-passive-${row.passiveId}`} className="flex justify-between text-stone-300">
+                            <span>{passive?.icon} {passive?.name}</span>
+                            <span>{row.rate}% WR</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
