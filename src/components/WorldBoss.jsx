@@ -44,8 +44,13 @@ function getBossNameFromPath(path) {
   return filename.replace(/\.[^/.]+$/, '');
 }
 
-// Liste des noms de boss génériques (pour l'auto-launch)
+// Liste des noms de boss génériques (noms de fichiers)
 const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
   .sort((a, b) => a.localeCompare(b, 'fr'))
   .map(path => getBossNameFromPath(path));
 
