@@ -48,6 +48,7 @@ import {
   modifyCritDamage,
   onAttack,
   onHeal,
+  onPaladinRiposteCast,
   onSpellCast,
   rollHealCrit,
   onTurnStart
@@ -818,6 +819,8 @@ const MageTower = () => {
 
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
       skillUsed = skillUsed || isPlayer;
+      // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
+      onPaladinRiposteCast(att.weaponState, att, def);
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       att.reflect = reflectBase + reflectPerCap * att.base.cap;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);

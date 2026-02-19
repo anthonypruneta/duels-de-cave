@@ -300,6 +300,23 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
  * Retourne le bonus de dégâts de sort pour l'Arbalète du Verdict
  * À appeler AVANT d'infliger les dégâts du sort
  */
+
+/**
+ * Riposte Paladin: ne doit PAS consommer les déclencheurs de double-cast/bonus de sort.
+ *
+ * Sans cette garde, Codex Archon peut "brûler" ses procs 2e/4e sort sur une
+ * compétence défensive sans dégâts/soin direct, ce qui casse la promesse de
+ * double-cast garanti sur les sorts offensifs/soins.
+ */
+export function onPaladinRiposteCast(_weaponState, _caster, _target) {
+  return {
+    doubleCast: false,
+    secondCastDamage: 0,
+    secondCastHeal: 0,
+    log: []
+  };
+}
+
 export function getVerdictSpellBonus(weaponState) {
   if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
     return { damageMultiplier: 1.0, log: [] };
