@@ -95,7 +95,7 @@ const HallOfFame = () => {
                     src={entry.champion.characterImage}
                     alt={entry.champion.nom}
                     className="w-20 h-auto object-contain cursor-pointer hover:opacity-80 transition hover:scale-110"
-                    onClick={() => setSelectedChampion(entry.champion)}
+                    onClick={() => loadFullChampionData(entry.champion)}
                   />
                 )}
                 <div className="flex-1">
