@@ -744,9 +744,10 @@ export const pickWeeklyBossWithChampions = async (genericBossNames = [], champio
 /**
  * Vérifie si le cataclysme doit être lancé automatiquement (lundi 18h)
  * Retourne true si un lancement a été déclenché
- * @param {Array} genericBossNames - Liste des noms de boss génériques (optionnel)
+ * @param {Array} genericBossNames - Liste des noms de boss génériques
+ * @param {Array} championBossNames - Liste des noms de boss champions (depuis ChampBoss/)
  */
-export const checkAutoLaunch = async (genericBossNames = []) => {
+export const checkAutoLaunch = async (genericBossNames = [], championBossNames = []) => {
   try {
     const now = new Date();
     const day = now.getDay(); // 0=dim, 1=lun
@@ -759,7 +760,7 @@ export const checkAutoLaunch = async (genericBossNames = []) => {
     const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
     if (!result.exists()) {
       // Pas d'event, on lance avec sélection aléatoire (génériques + champions)
-      const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames);
+      const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
       console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
       await launchCataclysm(weeklyBoss);
       return { launched: true };
@@ -779,7 +780,7 @@ export const checkAutoLaunch = async (genericBossNames = []) => {
     }
 
     // Lancer avec sélection aléatoire (génériques + champions)
-    const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames);
+    const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
     console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
     await launchCataclysm(weeklyBoss);
     return { launched: true };
