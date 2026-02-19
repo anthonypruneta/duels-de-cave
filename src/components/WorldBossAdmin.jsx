@@ -572,6 +572,13 @@ const WorldBossAdmin = ({ characters }) => {
         >
           📢 Annoncer victoire manuellement
         </button>
+        <button
+          onClick={handleManualRewardsDistribution}
+          disabled={actionLoading}
+          className="bg-purple-700 hover:bg-purple-600 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-purple-500"
+        >
+          🎁 Distribuer rewards manuellement
+        </button>
       </div>
 
       {/* ================================================================ */}
