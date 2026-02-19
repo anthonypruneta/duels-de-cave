@@ -662,9 +662,32 @@ export async function getAllArchivedCharacters() {
 export async function checkTripleRoll(userId) {
   try {
     const rewardDoc = await getDoc(doc(db, 'tournamentRewards', userId));
-    return rewardDoc.exists() && rewardDoc.data().tripleRoll === true;
+    if (!rewardDoc.exists()) return false;
+    
+    const data = rewardDoc.data();
+    // Un joueur a des rerolls s'il a tripleRoll à true (peu importe la source)
+    return data.tripleRoll === true;
   } catch {
     return false;
+  }
+}
+
+export async function getTripleRollCount(userId) {
+  try {
+    const rewardDoc = await getDoc(doc(db, 'tournamentRewards', userId));
+    if (!rewardDoc.exists()) return 0;
+    
+    const data = rewardDoc.data();
+    if (data.tripleRoll !== true) return 0;
+    
+    // Compter le nombre total de rerolls (3 par source)
+    let totalRerolls = 0;
+    if (data.tournamentWins > 0) totalRerolls += 3;
+    if (data.cataclysmeWins > 0) totalRerolls += 3;
+    
+    return totalRerolls;
+  } catch {
+    return 0;
   }
 }
 
