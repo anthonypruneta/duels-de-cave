@@ -169,6 +169,24 @@ const WorldBossAdmin = ({ characters }) => {
     setActionLoading(false);
   };
 
+  const handleTestDiscord = async () => {
+    setActionLoading(true);
+    setCombatLogs(['🔄 Test de l\'envoi Discord...']);
+    try {
+      const { envoyerAnnonceDiscord } = await import('../services/discordService.js');
+      await envoyerAnnonceDiscord({
+        titre: '🧪 TEST WEBHOOK DISCORD',
+        message: `Test d'envoi manuel depuis l'admin.\n\nSi vous voyez ce message, le webhook fonctionne correctement ! ✅\n\nTimestamp: ${new Date().toLocaleString('fr-FR')}`,
+        mentionEveryone: false
+      });
+      setCombatLogs(['✅ Message de test envoyé sur Discord avec succès !']);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur Discord : ${error.message}`]);
+      console.error('Erreur test Discord:', error);
+    }
+    setActionLoading(false);
+  };
+
   // ============================================================================
   // COMBAT
   // ============================================================================
