@@ -522,25 +522,15 @@ function AdminBalance({ embedded = false }) {
           </div>
         </div>
 
-        <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
-          <div className="flex gap-4 mb-4">
-            <button
-              onClick={handleApplyGlobally}
-              disabled={saving || resetting}
-              className="flex-1 bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
-            >
-              {saving ? '⏳ Validation...' : '✅ Valider les modifications'}
-            </button>
-            <button
-              onClick={handleResetToDefaults}
-              disabled={saving || resetting}
-              className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-4 py-3 rounded font-bold"
-              title="Réinitialiser aux valeurs par défaut du code"
-            >
-              {resetting ? '⏳...' : '🔄 Reset défaut'}
-            </button>
+        <div className="bg-stone-900/70 border border-blue-500 rounded-lg p-4 mb-8">
+          <div className="text-blue-300 text-sm">
+            <p className="font-bold mb-2">📁 Mode lecture seule - Valeurs du code</p>
+            <p>Pour modifier l'équilibrage, éditez directement les fichiers :</p>
+            <ul className="list-disc list-inside mt-2 text-stone-400">
+              <li><code className="text-amber-300">src/data/combatMechanics.js</code> → classConstants, raceConstants</li>
+              <li><code className="text-amber-300">src/data/races.js</code> → awakening effects</li>
+            </ul>
           </div>
-          {saveMessage && <p className="text-sm text-green-300">{saveMessage}</p>}
         </div>
 
         {/* Duel 1v1 */}
