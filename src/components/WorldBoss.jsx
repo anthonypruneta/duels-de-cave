@@ -84,6 +84,21 @@ function getCataclysmImageByName(name) {
   return null;
 }
 
+function getChampionBossImage(championName) {
+  if (!championName) return null;
+  const normalized = championName.trim().toLowerCase().replace(/\s+/g, '');
+  const entries = Object.entries(CHAMPION_BOSS_IMAGES);
+  
+  // Chercher une image qui correspond au nom du champion
+  for (const [path, img] of entries) {
+    const pathLower = path.toLowerCase().replace(/\s+/g, '');
+    if (pathLower.includes(normalized)) {
+      return img;
+    }
+  }
+  return null;
+}
+
 function getNextMondayAt18() {
   const now = new Date();
   const target = new Date(now);
