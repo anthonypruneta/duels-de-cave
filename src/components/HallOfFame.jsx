@@ -11,6 +11,7 @@ const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedChampion, setSelectedChampion] = useState(null);
+  const [fullChampionData, setFullChampionData] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
