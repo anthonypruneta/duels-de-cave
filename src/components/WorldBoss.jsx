@@ -260,7 +260,7 @@ const WorldBoss = () => {
       }
 
       // Auto-launch si c'est lundi >= 18h et event inactif (avec champions dans le pool)
-      await checkAutoLaunch(GENERIC_BOSS_NAMES);
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
 
