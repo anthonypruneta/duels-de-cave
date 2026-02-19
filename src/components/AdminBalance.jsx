@@ -216,10 +216,38 @@ function AdminBalance({ embedded = false }) {
     });
   };
 
-  // Applique les modifications à tout le jeu (en mémoire)
-  const handleApplyChanges = () => {
-    applyDraftToLiveData();
-    setApplyMessage('✅ Modifications appliquées ! Les combats utiliseront ces valeurs.');
+  // Applique les modifications à tout le jeu (en mémoire) ET sauvegarde dans les fichiers
+  const handleApplyChanges = async () => {
+    setApplyMessage('⏳ Sauvegarde en cours...');
+    
+    try {
+      // Appliquer en mémoire d'abord
+      applyDraftToLiveData();
+      
+      // Sauvegarder dans les fichiers via le serveur
+      const response = await fetch('http://localhost:8001/api/balance/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classConstants: classDraft,
+          raceConstants: raceBonusDraft,
+          raceAwakenings: raceAwakeningDraft,
+          raceTexts: raceTextDraft
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setApplyMessage('✅ Modifications appliquées et sauvegardées dans les fichiers !');
+      } else {
+        setApplyMessage(`⚠️ Appliqué en mémoire mais erreur fichiers: ${result.error}`);
+      }
+    } catch (error) {
+      // Si le serveur n'est pas lancé, on applique quand même en mémoire
+      setApplyMessage('✅ Appliqué en mémoire (serveur de sauvegarde non disponible)');
+    }
+    
     setTimeout(() => setApplyMessage(''), 5000);
   };
 
