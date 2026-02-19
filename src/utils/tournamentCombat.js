@@ -349,15 +349,17 @@ function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassiv
       break;
     }
     case 'Guerrier': {
-      const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
       const ignore = ignoreBase + ignorePerCap * target.base.cap;
+      const effectiveAuto = Math.round(target.base.auto + autoBonus);
       let raw;
+      // Frappe la résistance la plus FAIBLE
       if (caster.base.def <= caster.base.rescap) {
         const effDef = Math.max(0, Math.round(caster.base.def * (1 - ignore)));
-        raw = dmgPhys(Math.round(target.base.auto), effDef);
+        raw = dmgPhys(effectiveAuto, effDef);
       } else {
         const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
-        raw = dmgCap(Math.round(target.base.cap), effRes);
+        raw = dmgPhys(effectiveAuto, effRes);
       }
       raw += capBonus;
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
