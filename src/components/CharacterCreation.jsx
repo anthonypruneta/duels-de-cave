@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { resetUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
-import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
+import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
