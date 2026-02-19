@@ -563,8 +563,9 @@ const CharacterCreation = () => {
         // Vérifier la récompense triple roll
         const tripleRoll = await checkTripleRoll(currentUser.uid);
         if (tripleRoll) {
+          const rollCount = await getTripleRollCount(currentUser.uid);
           setHasTripleRoll(true);
-          setRollsRemaining(3);
+          setRollsRemaining(rollCount);
         }
       }
 
