@@ -215,17 +215,19 @@ const WorldBossAdmin = ({ characters }) => {
     setCombatLogs([]);
     setAttemptInfo(null);
     
-    // Choisir un boss aléatoire de la semaine
-    const weeklyBossName = pickWeeklyBoss();
-    console.log('Boss de la semaine choisi:', weeklyBossName);
+    // Choisir un boss aléatoire de la semaine (peut être un générique OU un champion)
+    setCombatLogs(['🔄 Sélection du boss de la semaine...']);
+    const weeklyBoss = await pickWeeklyBossWithChampions();
+    console.log('Boss de la semaine choisi:', weeklyBoss);
     
-    const result = await launchCataclysm(weeklyBossName);
+    const result = await launchCataclysm(weeklyBoss);
     if (result.success) {
       const logs = ['✅ Cataclysme lancé ! Annonce Discord envoyée.'];
       if (result.data?.isChampionBoss) {
-        logs.push(`⚔️ Boss champion détecté : ${result.data.championName} avec ses vraies stats !`);
+        logs.push(`⚔️ Boss champion détecté : ${result.data.championName}`);
+        logs.push(`📊 Stats du champion appliquées : Auto ${result.data.bossStats?.auto}, Cap ${result.data.bossStats?.cap}, Déf ${result.data.bossStats?.def}`);
       } else {
-        logs.push(`☄️ Boss générique : ${weeklyBossName}`);
+        logs.push(`☄️ Boss générique : ${weeklyBoss.name}`);
       }
       setCombatLogs(logs);
       await loadData();
