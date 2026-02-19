@@ -187,6 +187,70 @@ const WorldBossAdmin = ({ characters }) => {
     setActionLoading(false);
   };
 
+  const handleManualVictoryAnnouncement = async () => {
+    if (!window.confirm('Envoyer manuellement l\'annonce de victoire du Cataclysme sur Discord ?')) return;
+    
+    setActionLoading(true);
+    setCombatLogs(['🔄 Envoi de l\'annonce de victoire...']);
+    
+    try {
+      // Récupérer les données de l'event et les participants
+      const { db } = await import('../firebase/config');
+      const { doc, getDoc, collection, getDocs } = await import('firebase/firestore');
+      
+      const eventDoc = await getDoc(doc(db, 'worldBossEvent', 'current'));
+      const eventData = eventDoc.exists() ? eventDoc.data() : {};
+      
+      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+      const damagesSnap = await getDocs(damagesRef);
+      
+      const participantNames = [];
+      damagesSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.characterName && (data.totalDamage || 0) > 0) {
+          participantNames.push(data.characterName);
+        }
+      });
+
+      // Déterminer le tueur (celui avec le plus de dégâts ou le dernier)
+      let killerName = 'un héros inconnu';
+      if (damagesSnap.docs.length > 0) {
+        const sortedByDamage = damagesSnap.docs
+          .map(d => d.data())
+          .filter(d => d.totalDamage > 0)
+          .sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0));
+        if (sortedByDamage.length > 0) {
+          killerName = sortedByDamage[0].characterName || killerName;
+        }
+      }
+
+      const { envoyerAnnonceDiscord } = await import('../services/discordService.js');
+      await envoyerAnnonceDiscord({
+        titre: `🎉 VICTOIRE !!! LE CATACLYSME A ÉTÉ VAINCU !!!`,
+        message: `C'EST FINI !!! L'ABOMINATION EST TOMBÉE !!!\n\n` +
+          `Le coup fatal a été porté par **${killerName}** !!! ` +
+          `QUEL HÉROS !!! QUELLE PUISSANCE !!!\n\n` +
+          `📊 **${eventData.totalAttempts || 0} tentatives** au total — **${participantNames.length} combattants** ont participé à cette guerre épique !!!\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** pour tous les participants !!!\n\n` +
+          `${participantNames.map(n => `⚔️ ${n}`).join('\n')}\n\n` +
+          `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
+        mentionEveryone: true
+      });
+      
+      setCombatLogs([
+        '✅ Annonce de victoire envoyée sur Discord !',
+        `👥 ${participantNames.length} participants`,
+        `🎯 ${eventData.totalAttempts || 0} tentatives totales`,
+        `⚔️ Tueur final : ${killerName}`
+      ]);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur lors de l'envoi de l'annonce : ${error.message}`]);
+      console.error('Erreur annonce manuelle:', error);
+    }
+    
+    setActionLoading(false);
+  };
+
   // ============================================================================
   // COMBAT
   // ============================================================================
