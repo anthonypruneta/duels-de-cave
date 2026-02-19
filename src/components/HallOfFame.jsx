@@ -127,10 +127,10 @@ const HallOfFame = () => {
         </div>
       </div>
 
-      {selectedChampion && (() => {
-        const weapon = selectedChampion.equippedWeaponId ? getWeaponById(selectedChampion.equippedWeaponId) : null;
-        const passive = selectedChampion.mageTowerPassive ? getMageTowerPassiveById(selectedChampion.mageTowerPassive.id) : null;
-        const passiveLevel = passive && selectedChampion.mageTowerPassive ? getMageTowerPassiveLevel(selectedChampion.mageTowerPassive.id, selectedChampion.mageTowerPassive.level) : null;
+      {selectedChampion && fullChampionData && (() => {
+        const weapon = fullChampionData.equippedWeaponId ? getWeaponById(fullChampionData.equippedWeaponId) : null;
+        const passive = fullChampionData.mageTowerPassive ? getMageTowerPassiveById(fullChampionData.mageTowerPassive.id) : null;
+        const passiveLevel = passive && fullChampionData.mageTowerPassive ? getMageTowerPassiveLevel(fullChampionData.mageTowerPassive.id, fullChampionData.mageTowerPassive.level) : null;
         
         const formatWeaponStats = (w) => {
           if (!w?.stats) return null;
