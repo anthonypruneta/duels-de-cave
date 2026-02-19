@@ -319,65 +319,10 @@ function AdminBalance({ embedded = false }) {
     }
   };
 
-  const handleApplyGlobally = async () => {
-    setSaving(true);
-    setSaveMessage('');
-
-    try {
-      const config = {
-        raceConstants: deepClone(raceBonusDraft),
-        classConstants: deepClone(classDraft),
-        raceAwakenings: deepClone(raceAwakeningDraft),
-        raceTexts: deepClone(raceTextDraft),
-        classTexts: deepClone(classTextDraft)
-      };
-
-      const saveResult = await savePersistedBalanceConfig({
-        config,
-        updatedBy: 'admin'
-      });
-
-      if (!saveResult.success) {
-        setSaveMessage(`❌ ${saveResult.error}`);
-        return;
-      }
-
-      applyBalanceConfig(config);
-      setSaveMessage('✅ Modifications sauvegardées en base et descriptions synchronisées.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleResetToDefaults = async () => {
-    if (!window.confirm('⚠️ Réinitialiser TOUTES les valeurs aux valeurs par défaut du code ?\n\nCela écrasera vos modifications personnalisées.')) {
-      return;
-    }
-    
-    setResetting(true);
-    setSaveMessage('');
-    
-    try {
-      const result = await resetBalanceConfigToDefaults('admin');
-      
-      if (!result.success) {
-        setSaveMessage(`❌ Erreur: ${result.error}`);
-        return;
-      }
-      
-      // Recharger les drafts avec les nouvelles valeurs
-      const newConfig = result.config;
-      setRaceBonusDraft(deepClone(newConfig.raceConstants));
-      setClassDraft(deepClone(newConfig.classConstants));
-      setRaceAwakeningDraft(deepClone(newConfig.raceAwakenings));
-      setRaceTextDraft(deepClone(newConfig.raceTexts));
-      setClassTextDraft(deepClone(newConfig.classTexts));
-      
-      setSaveMessage('✅ Valeurs réinitialisées aux valeurs par défaut du code et sauvegardées.');
-    } finally {
-      setResetting(false);
-    }
-  };
+  // La page est maintenant en lecture seule - les valeurs viennent directement du code
+  // Pour modifier l'équilibrage, éditez les fichiers:
+  // - /src/data/combatMechanics.js (classConstants, raceConstants)
+  // - /src/data/races.js (awakening effects)
 
   const makeCustomCharacter = (id, raceName, className, level) => {
     const raw = genStats();
