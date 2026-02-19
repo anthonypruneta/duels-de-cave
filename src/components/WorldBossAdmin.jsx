@@ -28,13 +28,21 @@ import { replayCombatSteps } from '../utils/combatReplay';
 // Images du boss cataclysme pour sélection aléatoire
 const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
+// Images des boss champions (noms de fichiers = noms des boss)
+const CHAMPION_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
 function getBossNameFromPath(path) {
   const match = path.match(/\/([^/]+)\.(png|jpg|jpeg|webp)$/i);
-  return match ? match[1] : 'Boss Inconnu';
+  return match ? decodeURIComponent(match[1]) : 'Boss Inconnu';
 }
 
-// Liste des noms de boss génériques
+// Liste des noms de boss génériques (noms de fichiers)
 const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
   .sort((a, b) => a.localeCompare(b, 'fr'))
   .map(path => getBossNameFromPath(path));
 
