@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { getDisabledCharacters } from '../services/characterService';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { races, classes } from '../data/gameData';
 
 const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
