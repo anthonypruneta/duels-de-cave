@@ -12,7 +12,6 @@ const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
