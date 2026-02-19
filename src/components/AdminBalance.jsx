@@ -13,7 +13,7 @@ import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
-import { getAvailablePassives, getMageTowerPassiveById } from '../data/mageTowerPassives';
+import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -214,6 +214,8 @@ function AdminBalance({ embedded = false }) {
     return draft;
   });
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
+  const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
+  const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
   const [raceTextDraft, setRaceTextDraft] = useState(() => buildRaceTextDraft(deepClone(raceConstants), Object.fromEntries(Object.entries(races).map(([name, info]) => [name, deepClone(info?.awakening?.effect || {})]))));
   const [classTextDraft, setClassTextDraft] = useState(() => buildClassTextDraft(deepClone(classConstants)));
 
@@ -228,6 +230,8 @@ function AdminBalance({ embedded = false }) {
 
       setRaceBonusDraft(deepClone(raceConstants));
       setClassDraft(deepClone(classConstants));
+      setWeaponDraft(deepClone(weapons));
+      setPassiveDraft(deepClone(MAGE_TOWER_PASSIVES));
       
       const loadedAwakeningDraft = {};
       Object.entries(races).forEach(([name, info]) => {
@@ -244,6 +248,11 @@ function AdminBalance({ embedded = false }) {
   const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
+    applyNumericOverrides(weapons, weaponDraft);
+    passiveDraft.forEach((passive, index) => {
+      if (!MAGE_TOWER_PASSIVES[index]) return;
+      applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
+    });
 
     Object.entries(raceAwakeningDraft).forEach(([raceName, effectDraft]) => {
       const currentEffect = races?.[raceName]?.awakening?.effect;
@@ -261,6 +270,8 @@ function AdminBalance({ embedded = false }) {
       const config = {
         raceConstants: deepClone(raceBonusDraft),
         classConstants: deepClone(classDraft),
+        weaponConstants: deepClone(weaponDraft),
+        mageTowerPassives: deepClone(passiveDraft),
         raceAwakenings: deepClone(raceAwakeningDraft),
         raceTexts: deepClone(raceTextDraft),
         classTexts: deepClone(classTextDraft)
@@ -288,6 +299,8 @@ function AdminBalance({ embedded = false }) {
   const withTemporaryDraftOverrides = (callback) => {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
+    const previousWeapons = deepClone(weapons);
+    const previousPassives = deepClone(MAGE_TOWER_PASSIVES);
     const previousAwakeningEffects = {};
 
     Object.entries(races).forEach(([name, info]) => {
@@ -303,6 +316,11 @@ function AdminBalance({ embedded = false }) {
 
       Object.keys(classConstants).forEach((key) => delete classConstants[key]);
       Object.assign(classConstants, previousClassConstants);
+
+      Object.keys(weapons).forEach((key) => delete weapons[key]);
+      Object.assign(weapons, previousWeapons);
+
+      MAGE_TOWER_PASSIVES.splice(0, MAGE_TOWER_PASSIVES.length, ...previousPassives);
 
       Object.entries(previousAwakeningEffects).forEach(([name, effect]) => {
         if (!races?.[name]?.awakening) return;
@@ -494,7 +512,7 @@ function AdminBalance({ embedded = false }) {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid lg:grid-cols-2 2xl:grid-cols-4 gap-6 mb-8">
           <div className="bg-stone-900/70 border border-stone-600 p-4">
             <h2 className="text-xl text-amber-300 font-bold mb-3">Races</h2>
             <div className="flex gap-2 mb-4">
@@ -598,6 +616,49 @@ function AdminBalance({ embedded = false }) {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          <div className="bg-stone-900/70 border border-stone-600 p-4">
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Armes légendaires (up/nerf)</h2>
+            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
+              {availableWeapons.map((weapon) => {
+                const draft = weaponDraft[weapon.id];
+                if (!draft) return null;
+                return (
+                  <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
+                    <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
+                    <NumberTreeEditor
+                      value={draft}
+                      onChange={(path, value) => {
+                        setWeaponDraft((prev) => ({
+                          ...prev,
+                          [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path, value)
+                        }));
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-stone-900/70 border border-stone-600 p-4">
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Passifs tour de mage (up/nerf)</h2>
+            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
+              {passiveDraft.map((passive, idx) => (
+                <div key={passive.id} className="bg-stone-950/70 border border-stone-700 p-3">
+                  <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
+                  <NumberTreeEditor
+                    value={passive}
+                    onChange={(path, value) => {
+                      setPassiveDraft((prev) => prev.map((item, itemIdx) => (
+                        itemIdx === idx ? updateNestedValue(item, path, value) : item
+                      )));
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
