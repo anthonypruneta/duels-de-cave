@@ -42,7 +42,8 @@ export const classConstants = {
   },
   mage: {
     autoBase: 1.0,         // 100% de l'attaque de base
-    capBase: 0.80          // +80% de Cap (vs ResC)
+    capBase: 0.80,         // +80% de Cap (vs ResC)
+    capPerCap: 0           // Pas de scaling supplémentaire
   },
   demoniste: {
     capBase: 0.45,         // 45% de Cap
