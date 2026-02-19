@@ -91,17 +91,56 @@ const HallOfFame = () => {
         </div>
       </div>
 
-      {selectedImage && (
+      {selectedChampion && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto"
+          onClick={() => setSelectedChampion(null)}
         >
-          <img
-            src={selectedImage}
-            alt="Personnage agrandi"
-            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <UnifiedCharacterCard
+              header={`${selectedChampion.race} • ${selectedChampion.classe} • Niveau ${selectedChampion.level ?? 1}`}
+              name={selectedChampion.nom}
+              image={selectedChampion.characterImage}
+              fallback={<span className="text-7xl">👑</span>}
+              topStats={
+                <>
+                  <span className="text-yellow-300">HP: {selectedChampion.base?.hp || 0}</span>
+                  <span className="text-yellow-300">VIT: {selectedChampion.base?.spd || 0}</span>
+                </>
+              }
+              mainStats={
+                <>
+                  <span className="text-stone-300 font-bold">Auto: {selectedChampion.base?.auto || 0}</span>
+                  <span className="text-stone-300 font-bold">Déf: {selectedChampion.base?.def || 0}</span>
+                  <span className="text-stone-300 font-bold">Cap: {selectedChampion.base?.cap || 0}</span>
+                  <span className="text-stone-300 font-bold">ResC: {selectedChampion.base?.rescap || 0}</span>
+                </>
+              }
+              details={
+                <div className="space-y-2 text-xs text-stone-300">
+                  <div className="border border-stone-600 bg-stone-900/60 p-2">
+                    <div className="text-amber-200 font-semibold">🏆 Champion du Tournoi</div>
+                    {selectedChampion.ownerPseudo && (
+                      <div className="text-cyan-300 mt-1">Joueur: {selectedChampion.ownerPseudo}</div>
+                    )}
+                  </div>
+                  {selectedChampion.weapon && (
+                    <div className="border border-stone-600 bg-stone-900/60 p-2">
+                      <div className="text-amber-200 font-semibold">{selectedChampion.weapon.nom}</div>
+                      <div className="text-stone-400 text-[11px] mt-1">{selectedChampion.weapon.description}</div>
+                    </div>
+                  )}
+                </div>
+              }
+              cardClassName="shadow-2xl"
+            />
+            <button
+              onClick={() => setSelectedChampion(null)}
+              className="mt-4 w-full bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded-lg transition"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       )}
     </div>
