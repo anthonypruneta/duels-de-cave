@@ -824,10 +824,10 @@ const WorldBoss = () => {
           <div className="bg-stone-800 p-4 border-t border-red-800">
             {/* Stats du boss */}
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-red-300">Auto: {WORLD_BOSS.baseStats.auto}</div>
-              <div className="text-red-300">Déf: {WORLD_BOSS.baseStats.def}</div>
-              <div className="text-red-300">Cap: {WORLD_BOSS.baseStats.cap}</div>
-              <div className="text-red-300">ResC: {WORLD_BOSS.baseStats.rescap}</div>
+              <div className="text-red-300">Auto: {eventData?.bossStats?.auto || WORLD_BOSS.baseStats.auto}</div>
+              <div className="text-red-300">Déf: {eventData?.bossStats?.def || WORLD_BOSS.baseStats.def}</div>
+              <div className="text-red-300">Cap: {eventData?.bossStats?.cap || WORLD_BOSS.baseStats.cap}</div>
+              <div className="text-red-300">ResC: {eventData?.bossStats?.rescap || WORLD_BOSS.baseStats.rescap}</div>
             </div>
             <div className="bg-red-900/50 p-2 text-xs border border-red-700 text-red-300">
               <span className="text-lg">☠️</span> Tour 10 : EXTINCTION — Mort instantanée du joueur
