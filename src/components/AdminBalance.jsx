@@ -580,14 +580,24 @@ function AdminBalance({ embedded = false }) {
         </div>
 
         <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
-          <button
-            onClick={handleApplyGlobally}
-            disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
-          >
-            {saving ? '⏳ Validation...' : '✅ Valider les modifications (appliquer à tout le jeu)'}
-          </button>
-          {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
+          <div className="flex gap-4 mb-4">
+            <button
+              onClick={handleApplyGlobally}
+              disabled={saving || resetting}
+              className="flex-1 bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
+            >
+              {saving ? '⏳ Validation...' : '✅ Valider les modifications'}
+            </button>
+            <button
+              onClick={handleResetToDefaults}
+              disabled={saving || resetting}
+              className="bg-red-600 hover:bg-red-500 disabled:bg-stone-700 text-white px-4 py-3 rounded font-bold"
+              title="Réinitialiser aux valeurs par défaut du code"
+            >
+              {resetting ? '⏳...' : '🔄 Reset défaut'}
+            </button>
+          </div>
+          {saveMessage && <p className="text-sm text-green-300">{saveMessage}</p>}
         </div>
 
         {/* Duel 1v1 */}
