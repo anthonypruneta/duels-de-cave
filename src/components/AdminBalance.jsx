@@ -179,7 +179,8 @@ function AdminBalance({ embedded = false }) {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
   const [raceTab, setRaceTab] = useState('bonus');
-  const [applyMessage, setApplyMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   // Duel 1v1
   const raceNames = useMemo(() => Object.keys(races), []);
