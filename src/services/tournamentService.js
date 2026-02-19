@@ -680,12 +680,17 @@ export async function getTripleRollCount(userId) {
     const data = rewardDoc.data();
     if (data.tripleRoll !== true) return 0;
     
-    // Compter le nombre total de rerolls (3 par source)
-    let totalRerolls = 0;
-    if (data.tournamentWins > 0) totalRerolls += 3;
-    if (data.cataclysmeWins > 0) totalRerolls += 3;
+    // Pour les nouveaux documents avec compteurs
+    if (data.tournamentWins !== undefined || data.cataclysmeWins !== undefined) {
+      let totalRerolls = 0;
+      if (data.tournamentWins > 0) totalRerolls += 3;
+      if (data.cataclysmeWins > 0) totalRerolls += 3;
+      return totalRerolls;
+    }
     
-    return totalRerolls;
+    // Pour les anciens documents (avant la mise à jour) : on donne 3 rerolls par défaut
+    // car ils ont forcément tripleRoll: true d'une source (tournoi ou cataclysme)
+    return 3;
   } catch {
     return 0;
   }
