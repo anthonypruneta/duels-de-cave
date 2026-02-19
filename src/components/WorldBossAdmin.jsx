@@ -251,6 +251,51 @@ const WorldBossAdmin = ({ characters }) => {
     setActionLoading(false);
   };
 
+  const handleManualRewardsDistribution = async () => {
+    if (!window.confirm('Distribuer manuellement les rewards (3 rerolls) à tous les participants du Cataclysme ?')) return;
+    
+    setActionLoading(true);
+    setCombatLogs(['🔄 Distribution des rewards aux participants...']);
+    
+    try {
+      const { db } = await import('../firebase/config');
+      const { doc, collection, getDocs, writeBatch, increment, Timestamp } = await import('firebase/firestore');
+      
+      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+      const damagesSnap = await getDocs(damagesRef);
+      
+      const rewardBatch = writeBatch(db);
+      const participantsList = [];
+
+      damagesSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.characterId && (data.totalDamage || 0) > 0) {
+          const rewardRef = doc(db, 'tournamentRewards', data.characterId);
+          rewardBatch.set(rewardRef, {
+            tripleRoll: true,
+            cataclysmeWins: increment(1),
+            lastCataclysmeDate: Timestamp.now(),
+            source: 'cataclysme'
+          }, { merge: true });
+          participantsList.push(data.characterName);
+        }
+      });
+
+      await rewardBatch.commit();
+      
+      setCombatLogs([
+        '✅ Rewards distribués avec succès !',
+        `🎁 ${participantsList.length} participant(s) ont reçu 3 rerolls`,
+        `👥 Liste : ${participantsList.join(', ')}`
+      ]);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur lors de la distribution : ${error.message}`]);
+      console.error('Erreur distribution rewards:', error);
+    }
+    
+    setActionLoading(false);
+  };
+
   // ============================================================================
   // COMBAT
   // ============================================================================
