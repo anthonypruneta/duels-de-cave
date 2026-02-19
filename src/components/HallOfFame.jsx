@@ -203,7 +203,7 @@ const HallOfFame = () => {
                         <span className="text-lg">{passive.icon}</span>
                         <div className="flex-1">
                           <div className="font-semibold text-amber-200">
-                            {passive.name} — Niveau {selectedChampion.mageTowerPassive.level}
+                            {passive.name} — Niveau {fullChampionData.mageTowerPassive.level}
                           </div>
                           {passiveLevel && (
                             <div className="text-stone-400 text-[11px] mt-1">
@@ -214,13 +214,13 @@ const HallOfFame = () => {
                       </div>
                     )}
 
-                    {selectedChampion.forestBoosts && Object.values(selectedChampion.forestBoosts).some(v => v > 0) && (
+                    {fullChampionData.forestBoosts && Object.values(fullChampionData.forestBoosts).some(v => v > 0) && (
                       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                         <span className="text-lg">🌲</span>
                         <div className="flex-1">
                           <div className="font-semibold text-amber-200">Boosts Forêt</div>
                           <div className="text-green-300 text-[11px] mt-1">
-                            {Object.entries(selectedChampion.forestBoosts)
+                            {Object.entries(fullChampionData.forestBoosts)
                               .filter(([, v]) => v > 0)
                               .map(([stat, v]) => `${stat.toUpperCase()} +${v}`)
                               .join(' • ')}
@@ -229,11 +229,11 @@ const HallOfFame = () => {
                       </div>
                     )}
 
-                    {classes[selectedChampion.classe] && (
+                    {classes[fullChampionData.classe || fullChampionData.class] && (
                       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                        <span className="text-lg">{classes[selectedChampion.classe].icon}</span>
+                        <span className="text-lg">{classes[fullChampionData.classe || fullChampionData.class].icon}</span>
                         <div className="flex-1">
-                          <div className="font-semibold text-amber-200">{classes[selectedChampion.classe].ability}</div>
+                          <div className="font-semibold text-amber-200">{classes[fullChampionData.classe || fullChampionData.class].ability}</div>
                         </div>
                       </div>
                     )}
