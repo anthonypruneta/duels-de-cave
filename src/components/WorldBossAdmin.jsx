@@ -24,6 +24,32 @@ import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
 
+// Images du boss cataclysme pour sélection aléatoire
+const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
+function getBossNameFromPath(path) {
+  const match = path.match(/\/([^/]+)\.(png|jpg|jpeg|webp)$/i);
+  return match ? match[1] : 'Boss Inconnu';
+}
+
+function getWeekSeed() {
+  const now = new Date();
+  const lastSatNoon = new Date(now);
+  lastSatNoon.setDate(now.getDate() - ((now.getDay() + 1) % 7));
+  lastSatNoon.setHours(12, 0, 0, 0);
+  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
+}
+
+function pickWeeklyBoss() {
+  const entries = Object.entries(CATACLYSM_IMAGES)
+    .sort(([a], [b]) => a.localeCompare(b, 'fr'));
+  if (entries.length === 0) return { name: WORLD_BOSS.nom, image: null };
+  const seed = getWeekSeed();
+  const index = seed % entries.length;
+  const [sourcePath] = entries[index];
+  return getBossNameFromPath(sourcePath);
+}
+
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
   [EVENT_STATUS.ACTIVE]: { text: 'Actif', color: 'text-green-400', dot: 'bg-green-500' },
