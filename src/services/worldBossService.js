@@ -525,25 +525,78 @@ function pickRandom(arr) {
  */
 export const launchCataclysm = async (bossName) => {
   try {
-    // 0. Charger un boss champion du Hall of Fame
+    // 0. Choisir un boss (image aléatoire comme avant)
+    // Mais maintenant, chercher si ce boss correspond à un champion
     let championBoss = null;
-    let useBossStats = WORLD_BOSS.baseStats; // Fallback
+    let useBossStats = WORLD_BOSS.baseStats; // Stats par défaut
     let finalBossName = bossName || WORLD_BOSS.nom;
+    let isChampionBoss = false;
+    let championName = null;
+    let originalChampion = null;
     
-    try {
-      const hallOfFameResult = await getHallOfFame();
-      if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
-        const weekNumber = getCurrentWeekNumber();
-        championBoss = await getWeeklyChampionBoss(hallOfFameResult.data, weekNumber);
-        
-        if (championBoss && championBoss.baseStats) {
-          useBossStats = championBoss.baseStats;
-          finalBossName = championBoss.nom;
-          console.log('✅ Boss champion chargé:', finalBossName, useBossStats);
+    // Si un nom de boss est fourni, chercher si c'est un champion
+    if (bossName) {
+      try {
+        const hallOfFameResult = await getHallOfFame();
+        if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
+          // Chercher un champion dont le nom correspond au boss choisi
+          for (const entry of hallOfFameResult.data) {
+            const champion = entry.champion;
+            const championFullName = champion?.nom || champion?.name;
+            
+            // Vérifier si le nom du boss contient le nom du champion
+            if (championFullName && bossName.toLowerCase().includes(championFullName.toLowerCase())) {
+              console.log(`✅ Boss "${bossName}" correspond au champion "${championFullName}"`);
+              
+              // Charger les données complètes du champion depuis archivedCharacters
+              if (champion.userId) {
+                const { db } = await import('../firebase/config');
+                const { collection, query, where, getDocs } = await import('firebase/firestore');
+                
+                const archivedRef = collection(db, 'archivedCharacters');
+                const q = query(
+                  archivedRef,
+                  where('userId', '==', champion.userId),
+                  where('tournamentChampion', '==', true)
+                );
+                
+                const snapshot = await getDocs(q);
+                
+                if (!snapshot.empty) {
+                  const fullChampion = snapshot.docs[0].data();
+                  
+                  // Utiliser les vraies stats du champion !
+                  if (fullChampion.base) {
+                    useBossStats = {
+                      hp: WORLD_BOSS.baseStats.hp, // HP reste à 35k
+                      auto: fullChampion.base.auto || 0,
+                      cap: fullChampion.base.cap || 0,
+                      def: fullChampion.base.def || 0,
+                      rescap: fullChampion.base.rescap || 0,
+                      spd: fullChampion.base.spd || 0
+                    };
+                    
+                    isChampionBoss = true;
+                    championName = championFullName;
+                    originalChampion = {
+                      userId: fullChampion.userId,
+                      ownerPseudo: fullChampion.ownerPseudo,
+                      race: fullChampion.race,
+                      classe: fullChampion.classe || fullChampion.class,
+                      level: fullChampion.level
+                    };
+                    
+                    console.log('✅ Stats du champion chargées:', useBossStats);
+                    break; // On a trouvé le champion, pas besoin de continuer
+                  }
+                }
+              }
+            }
+          }
         }
+      } catch (bossError) {
+        console.error('Erreur recherche champion pour le boss, utilisation des stats par défaut:', bossError);
       }
-    } catch (bossError) {
-      console.error('Erreur chargement boss champion, utilisation du boss par défaut:', bossError);
     }
     
     // 1. Reset le leaderboard (supprimer toutes les entrées de dégâts)
@@ -556,14 +609,14 @@ export const launchCataclysm = async (bossName) => {
       await retryOperation(async () => batch.commit());
     }
 
-    // 2. Reset et activer l'event avec les stats du boss champion
+    // 2. Reset et activer l'event avec les stats appropriées
     const eventData = {
-      bossId: championBoss?.id || WORLD_BOSS.id,
+      bossId: isChampionBoss ? `champion_${originalChampion?.userId}` : WORLD_BOSS.id,
       bossName: finalBossName,
-      bossStats: useBossStats, // Sauvegarder les stats du boss
-      isChampionBoss: championBoss?.isChampionBoss || false,
-      championName: championBoss?.championName || null,
-      originalChampion: championBoss?.originalChampion || null,
+      bossStats: useBossStats, // Stats du champion ou stats génériques
+      isChampionBoss,
+      championName,
+      originalChampion,
       status: EVENT_STATUS.ACTIVE,
       hpMax: useBossStats.hp,
       hpRemaining: useBossStats.hp,
@@ -582,7 +635,13 @@ export const launchCataclysm = async (bossName) => {
     // 3. Annonce Discord
     try {
       const { envoyerAnnonceDiscord } = await import('./discordService.js');
-      const announcement = pickRandom(cataclysmAnnouncements)(finalBossName);
+      let announcement = pickRandom(cataclysmAnnouncements)(finalBossName);
+      
+      // Message spécial si c'est un ancien champion
+      if (isChampionBoss && championName) {
+        announcement += `\n\n⚠️ **ATTENTION** : Ce boss est ${championName}, ancien champion du tournoi ! Il possède ses véritables capacités de combat !`;
+      }
+      
       await envoyerAnnonceDiscord({
         titre: `☄️ CATACLYSME — ${finalBossName.toUpperCase()} EST LÀ !!!`,
         message: announcement,
