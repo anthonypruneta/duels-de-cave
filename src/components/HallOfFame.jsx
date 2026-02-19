@@ -242,7 +242,10 @@ const HallOfFame = () => {
                 cardClassName="shadow-2xl border-2 border-yellow-500"
               />
               <button
-                onClick={() => setSelectedChampion(null)}
+                onClick={() => {
+                  setSelectedChampion(null);
+                  setFullChampionData(null);
+                }}
                 className="mt-4 w-full bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded-lg transition"
               >
                 Fermer
