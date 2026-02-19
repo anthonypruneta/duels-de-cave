@@ -44,6 +44,11 @@ function getBossNameFromPath(path) {
   return filename.replace(/\.[^/.]+$/, '');
 }
 
+// Liste des noms de boss génériques (pour l'auto-launch)
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
 // Retourne un index de semaine qui change le samedi à midi
 function getWeekSeed() {
   const now = new Date();
