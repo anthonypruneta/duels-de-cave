@@ -965,7 +965,7 @@ const CharacterCreation = () => {
 
           <div className={`relative max-w-md mx-auto ${hasForgeUpgrade ? 'forge-lava-border forge-lava-glow' : ''}`} style={{width:'340px'}}>
             <div className={`shadow-2xl ${hasForgeUpgrade ? 'forge-lava-shine' : ''}`}>
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
               <div className="overflow-visible">
