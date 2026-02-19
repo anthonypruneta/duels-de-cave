@@ -508,15 +508,19 @@ function AdminBalance({ embedded = false }) {
           </div>
         </div>
 
-        <div className="bg-stone-900/70 border border-blue-500 rounded-lg p-4 mb-8">
-          <div className="text-blue-300 text-sm">
-            <p className="font-bold mb-2">📁 Mode lecture seule - Valeurs du code</p>
-            <p>Pour modifier l'équilibrage, éditez directement les fichiers :</p>
-            <ul className="list-disc list-inside mt-2 text-stone-400">
-              <li><code className="text-amber-300">src/data/combatMechanics.js</code> → classConstants, raceConstants</li>
-              <li><code className="text-amber-300">src/data/races.js</code> → awakening effects</li>
-            </ul>
-          </div>
+        <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
+          <button
+            onClick={handleApplyChanges}
+            className="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded font-bold"
+          >
+            ✅ Appliquer les modifications (effet immédiat sur tous les combats)
+          </button>
+          {applyMessage && <p className="text-sm text-green-300 mt-3">{applyMessage}</p>}
+          <p className="text-xs text-stone-500 mt-2">
+            Note : Les changements sont en mémoire. Pour les rendre permanents, modifiez les fichiers 
+            <code className="text-amber-400 mx-1">combatMechanics.js</code> et 
+            <code className="text-amber-400 mx-1">races.js</code>
+          </p>
         </div>
 
         {/* Duel 1v1 */}
