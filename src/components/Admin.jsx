@@ -56,6 +56,10 @@ const Admin = () => {
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
 
+  // État pour les rerolls disponibles
+  const [rerollsData, setRerollsData] = useState([]);
+  const [rerollsLoading, setRerollsLoading] = useState(false);
+
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
 
