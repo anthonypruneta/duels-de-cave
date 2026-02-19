@@ -267,14 +267,14 @@ const WorldBoss = () => {
   // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
   useEffect(() => {
     const runChecks = async () => {
-      await checkAutoLaunch(activeBossName);
+      await checkAutoLaunch(GENERIC_BOSS_NAMES);
       await checkAutoEnd();
     };
 
     runChecks();
     const interval = setInterval(runChecks, 60 * 1000);
     return () => clearInterval(interval);
-  }, [activeBossName]);
+  }, []);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
