@@ -26,6 +26,8 @@ import {
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
+import { getWeeklyChampionBoss, getCurrentWeekNumber } from '../data/championBosses.js';
+import { getHallOfFame } from './tournamentService.js';
 
 // ============================================================================
 // HELPER RETRY
