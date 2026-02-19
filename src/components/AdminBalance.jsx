@@ -351,6 +351,36 @@ function AdminBalance({ embedded = false }) {
     }
   };
 
+  const handleResetToDefaults = async () => {
+    if (!window.confirm('⚠️ Réinitialiser TOUTES les valeurs aux valeurs par défaut du code ?\n\nCela écrasera vos modifications personnalisées.')) {
+      return;
+    }
+    
+    setResetting(true);
+    setSaveMessage('');
+    
+    try {
+      const result = await resetBalanceConfigToDefaults('admin');
+      
+      if (!result.success) {
+        setSaveMessage(`❌ Erreur: ${result.error}`);
+        return;
+      }
+      
+      // Recharger les drafts avec les nouvelles valeurs
+      const newConfig = result.config;
+      setRaceBonusDraft(deepClone(newConfig.raceConstants));
+      setClassDraft(deepClone(newConfig.classConstants));
+      setRaceAwakeningDraft(deepClone(newConfig.raceAwakenings));
+      setRaceTextDraft(deepClone(newConfig.raceTexts));
+      setClassTextDraft(deepClone(newConfig.classTexts));
+      
+      setSaveMessage('✅ Valeurs réinitialisées aux valeurs par défaut du code et sauvegardées.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const makeCustomCharacter = (id, raceName, className, level) => {
     const raw = genStats();
     const raceBonus = getRaceBonus(raceName);
