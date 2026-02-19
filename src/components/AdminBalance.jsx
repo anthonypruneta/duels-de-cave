@@ -205,7 +205,26 @@ function AdminBalance({ embedded = false }) {
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
 
-  // Les drafts sont initialisés directement depuis le code, pas besoin de charger Firebase
+  // Charger la config depuis Firebase au démarrage
+  useEffect(() => {
+    const loadSavedConfig = async () => {
+      const result = await loadPersistedBalanceConfig();
+      if (!result.success || !result.data) return;
+
+      setRaceBonusDraft(deepClone(raceConstants));
+      setClassDraft(deepClone(classConstants));
+      
+      const loadedAwakeningDraft = {};
+      Object.entries(races).forEach(([name, info]) => {
+        loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
+      });
+      setRaceAwakeningDraft(loadedAwakeningDraft);
+      setRaceTextDraft(buildRaceTextDraft(deepClone(raceConstants), loadedAwakeningDraft));
+      setClassTextDraft(buildClassTextDraft(deepClone(classConstants)));
+    };
+
+    loadSavedConfig();
+  }, []);
 
   const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
@@ -218,39 +237,37 @@ function AdminBalance({ embedded = false }) {
     });
   };
 
-  // Applique les modifications à tout le jeu (en mémoire) ET sauvegarde dans les fichiers
+  // Sauvegarder dans Firebase et appliquer immédiatement
   const handleApplyChanges = async () => {
-    setApplyMessage('⏳ Sauvegarde en cours...');
-    
+    setSaving(true);
+    setSaveMessage('');
+
     try {
-      // Appliquer en mémoire d'abord
-      applyDraftToLiveData();
-      
-      // Sauvegarder dans les fichiers via le serveur
-      const response = await fetch('http://localhost:8001/api/balance/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classConstants: classDraft,
-          raceConstants: raceBonusDraft,
-          raceAwakenings: raceAwakeningDraft,
-          raceTexts: raceTextDraft
-        })
+      const config = {
+        raceConstants: deepClone(raceBonusDraft),
+        classConstants: deepClone(classDraft),
+        raceAwakenings: deepClone(raceAwakeningDraft),
+        raceTexts: deepClone(raceTextDraft),
+        classTexts: deepClone(classTextDraft)
+      };
+
+      const saveResult = await savePersistedBalanceConfig({
+        config,
+        updatedBy: 'admin'
       });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setApplyMessage('✅ Modifications appliquées et sauvegardées dans les fichiers !');
-      } else {
-        setApplyMessage(`⚠️ Appliqué en mémoire mais erreur fichiers: ${result.error}`);
+
+      if (!saveResult.success) {
+        setSaveMessage(`❌ ${saveResult.error}`);
+        return;
       }
+
+      applyBalanceConfig(config);
+      setSaveMessage('✅ Modifications sauvegardées et appliquées à tout le jeu !');
     } catch (error) {
-      // Si le serveur n'est pas lancé, on applique quand même en mémoire
-      setApplyMessage('✅ Appliqué en mémoire (serveur de sauvegarde non disponible)');
+      setSaveMessage(`❌ Erreur: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
-    
-    setTimeout(() => setApplyMessage(''), 5000);
   };
 
   const withTemporaryDraftOverrides = (callback) => {
