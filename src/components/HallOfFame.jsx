@@ -171,8 +171,8 @@ const HallOfFame = () => {
                   <div className="space-y-2">
                     <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                       <div className="text-amber-200 font-semibold">🏆 Champion du Tournoi</div>
-                      {selectedChampion.ownerPseudo && (
-                        <div className="text-cyan-300 mt-1">Joueur: {selectedChampion.ownerPseudo}</div>
+                      {fullChampionData.ownerPseudo && (
+                        <div className="text-cyan-300 mt-1">Joueur: {fullChampionData.ownerPseudo}</div>
                       )}
                     </div>
                     
