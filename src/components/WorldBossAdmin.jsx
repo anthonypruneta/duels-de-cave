@@ -18,11 +18,33 @@ import {
   canAttemptBoss,
   recordAttemptDamage,
   getLeaderboard,
-  launchCataclysm
+  launchCataclysm,
+  pickWeeklyBossWithChampions
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
+
+// Images du boss cataclysme pour sélection aléatoire
+const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
+// Images des boss champions (noms de fichiers = noms des boss)
+const CHAMPION_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
+function getBossNameFromPath(path) {
+  const match = path.match(/\/([^/]+)\.(png|jpg|jpeg|webp)$/i);
+  return match ? decodeURIComponent(match[1]) : 'Boss Inconnu';
+}
+
+// Liste des noms de boss génériques (noms de fichiers)
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
 
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
@@ -159,13 +181,153 @@ const WorldBossAdmin = ({ characters }) => {
     setCombatResult(null);
     setCombatLogs([]);
     setAttemptInfo(null);
-    const result = await launchCataclysm(WORLD_BOSS.nom);
+    
+    // Choisir un boss aléatoire de la semaine (peut être un générique OU un champion)
+    setCombatLogs(['🔄 Sélection du boss de la semaine...']);
+    const weeklyBoss = await pickWeeklyBossWithChampions(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
+    console.log('Boss de la semaine choisi:', weeklyBoss);
+    
+    const result = await launchCataclysm(weeklyBoss);
     if (result.success) {
-      setCombatLogs(['✅ Cataclysme lancé ! Annonce Discord envoyée.']);
+      const logs = ['✅ Cataclysme lancé ! Annonce Discord envoyée.'];
+      if (result.data?.isChampionBoss) {
+        logs.push(`⚔️ Boss champion détecté : ${result.data.championName}`);
+        logs.push(`📊 Stats du champion appliquées : Auto ${result.data.bossStats?.auto}, Cap ${result.data.bossStats?.cap}, Déf ${result.data.bossStats?.def}`);
+      } else {
+        logs.push(`☄️ Boss générique : ${weeklyBoss.name}`);
+      }
+      setCombatLogs(logs);
       await loadData();
     } else {
       setCombatLogs([`❌ Échec lancement : ${result.error}`]);
     }
+    setActionLoading(false);
+  };
+
+  const handleTestDiscord = async () => {
+    setActionLoading(true);
+    setCombatLogs(['🔄 Test de l\'envoi Discord...']);
+    try {
+      const { envoyerAnnonceDiscord } = await import('../services/discordService.js');
+      await envoyerAnnonceDiscord({
+        titre: '🧪 TEST WEBHOOK DISCORD',
+        message: `Test d'envoi manuel depuis l'admin.\n\nSi vous voyez ce message, le webhook fonctionne correctement ! ✅\n\nTimestamp: ${new Date().toLocaleString('fr-FR')}`,
+        mentionEveryone: false
+      });
+      setCombatLogs(['✅ Message de test envoyé sur Discord avec succès !']);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur Discord : ${error.message}`]);
+      console.error('Erreur test Discord:', error);
+    }
+    setActionLoading(false);
+  };
+
+  const handleManualVictoryAnnouncement = async () => {
+    if (!window.confirm('Envoyer manuellement l\'annonce de victoire du Cataclysme sur Discord ?')) return;
+    
+    setActionLoading(true);
+    setCombatLogs(['🔄 Envoi de l\'annonce de victoire...']);
+    
+    try {
+      // Récupérer les données de l'event et les participants
+      const { db } = await import('../firebase/config');
+      const { doc, getDoc, collection, getDocs } = await import('firebase/firestore');
+      
+      const eventDoc = await getDoc(doc(db, 'worldBossEvent', 'current'));
+      const eventData = eventDoc.exists() ? eventDoc.data() : {};
+      
+      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+      const damagesSnap = await getDocs(damagesRef);
+      
+      const participantNames = [];
+      damagesSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.characterName && (data.totalDamage || 0) > 0) {
+          participantNames.push(data.characterName);
+        }
+      });
+
+      // Déterminer le tueur (celui avec le plus de dégâts ou le dernier)
+      let killerName = 'un héros inconnu';
+      if (damagesSnap.docs.length > 0) {
+        const sortedByDamage = damagesSnap.docs
+          .map(d => d.data())
+          .filter(d => d.totalDamage > 0)
+          .sort((a, b) => (b.totalDamage || 0) - (a.totalDamage || 0));
+        if (sortedByDamage.length > 0) {
+          killerName = sortedByDamage[0].characterName || killerName;
+        }
+      }
+
+      const { envoyerAnnonceDiscord } = await import('../services/discordService.js');
+      await envoyerAnnonceDiscord({
+        titre: `🎉 VICTOIRE !!! LE CATACLYSME A ÉTÉ VAINCU !!!`,
+        message: `C'EST FINI !!! L'ABOMINATION EST TOMBÉE !!!\n\n` +
+          `Le coup fatal a été porté par **${killerName}** !!! ` +
+          `QUEL HÉROS !!! QUELLE PUISSANCE !!!\n\n` +
+          `📊 **${eventData.totalAttempts || 0} tentatives** au total — **${participantNames.length} combattants** ont participé à cette guerre épique !!!\n\n` +
+          `🎁 **RÉCOMPENSE : 3 REROLLS DE PERSONNAGE** pour tous les participants !!!\n\n` +
+          `${participantNames.map(n => `⚔️ ${n}`).join('\n')}\n\n` +
+          `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
+        mentionEveryone: true
+      });
+      
+      setCombatLogs([
+        '✅ Annonce de victoire envoyée sur Discord !',
+        `👥 ${participantNames.length} participants`,
+        `🎯 ${eventData.totalAttempts || 0} tentatives totales`,
+        `⚔️ Tueur final : ${killerName}`
+      ]);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur lors de l'envoi de l'annonce : ${error.message}`]);
+      console.error('Erreur annonce manuelle:', error);
+    }
+    
+    setActionLoading(false);
+  };
+
+  const handleManualRewardsDistribution = async () => {
+    if (!window.confirm('Distribuer manuellement les rewards (3 rerolls) à tous les participants du Cataclysme ?')) return;
+    
+    setActionLoading(true);
+    setCombatLogs(['🔄 Distribution des rewards aux participants...']);
+    
+    try {
+      const { db } = await import('../firebase/config');
+      const { doc, collection, getDocs, writeBatch, increment, Timestamp } = await import('firebase/firestore');
+      
+      const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
+      const damagesSnap = await getDocs(damagesRef);
+      
+      const rewardBatch = writeBatch(db);
+      const participantsList = [];
+
+      damagesSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.characterId && (data.totalDamage || 0) > 0) {
+          const rewardRef = doc(db, 'tournamentRewards', data.characterId);
+          rewardBatch.set(rewardRef, {
+            tripleRoll: true,
+            cataclysmeWins: increment(1),
+            lastCataclysmeDate: Timestamp.now(),
+            source: 'cataclysme'
+          }, { merge: true });
+          participantsList.push(data.characterName);
+        }
+      });
+
+      await rewardBatch.commit();
+      
+      setCombatLogs([
+        '✅ Rewards distribués avec succès !',
+        `🎁 ${participantsList.length} participant(s) ont reçu 3 rerolls`,
+        `👥 Liste : ${participantsList.join(', ')}`
+      ]);
+    } catch (error) {
+      setCombatLogs([`❌ Erreur lors de la distribution : ${error.message}`]);
+      console.error('Erreur distribution rewards:', error);
+    }
+    
     setActionLoading(false);
   };
 
@@ -430,6 +592,27 @@ const WorldBossAdmin = ({ characters }) => {
           className="bg-red-800 hover:bg-red-700 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-red-500"
         >
           ☄️ Lancer le Cataclysme (Reset + Discord)
+        </button>
+        <button
+          onClick={handleTestDiscord}
+          disabled={actionLoading}
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-blue-400"
+        >
+          🧪 Tester webhook Discord
+        </button>
+        <button
+          onClick={handleManualVictoryAnnouncement}
+          disabled={actionLoading}
+          className="bg-green-700 hover:bg-green-600 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-green-500"
+        >
+          📢 Annoncer victoire manuellement
+        </button>
+        <button
+          onClick={handleManualRewardsDistribution}
+          disabled={actionLoading}
+          className="bg-purple-700 hover:bg-purple-600 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-purple-500"
+        >
+          🎁 Distribuer rewards manuellement
         </button>
       </div>
 

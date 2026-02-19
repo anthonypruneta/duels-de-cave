@@ -512,15 +512,35 @@ export async function supprimerTournoiTermine(docId = 'current') {
 // LISTENER TEMPS RÉEL
 // ============================================================================
 
-export function onTournoiUpdate(callback, docId = 'current') {
-  return onSnapshot(doc(db, 'tournaments', docId), (snapshot) => {
+export function onTournoiUpdate(callback, docIdOrOnError = 'current', maybeOnError = null) {
+  const requestedDocId = typeof docIdOrOnError === 'string' ? docIdOrOnError.trim() : '';
+  const docId = requestedDocId || 'current';
+  const onError = typeof docIdOrOnError === 'function'
+    ? docIdOrOnError
+    : maybeOnError;
+
+  let tournoiRef;
+  try {
+    tournoiRef = doc(db, 'tournaments', docId);
+  } catch (error) {
+    console.error('Erreur création référence listener tournoi:', { docId, requestedDocId, error });
+    callback(null);
+    if (typeof onError === 'function') onError(error);
+    return () => {};
+  }
+
+  return onSnapshot(tournoiRef, (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     } else {
       callback(null);
     }
   }, (error) => {
-    console.error('Erreur listener tournoi:', error);
+    console.error('Erreur listener tournoi:', { docId, error });
+    callback(null);
+    if (typeof onError === 'function') {
+      onError(error);
+    }
   });
 }
 
@@ -557,8 +577,10 @@ export async function terminerTournoi(docId = 'current') {
     // 2. Donner la récompense triple roll au champion
     await setDoc(doc(db, 'tournamentRewards', tournoi.champion.userId), {
       tripleRoll: true,
-      date: serverTimestamp()
-    });
+      tournamentWins: increment(1),
+      lastTournamentDate: serverTimestamp(),
+      source: 'tournoi'
+    }, { merge: true });
 
     // 3. Archiver tous les personnages
     const charsResult = await getAllCharacters();
@@ -640,9 +662,37 @@ export async function getAllArchivedCharacters() {
 export async function checkTripleRoll(userId) {
   try {
     const rewardDoc = await getDoc(doc(db, 'tournamentRewards', userId));
-    return rewardDoc.exists() && rewardDoc.data().tripleRoll === true;
+    if (!rewardDoc.exists()) return false;
+    
+    const data = rewardDoc.data();
+    // Un joueur a des rerolls s'il a tripleRoll à true (peu importe la source)
+    return data.tripleRoll === true;
   } catch {
     return false;
+  }
+}
+
+export async function getTripleRollCount(userId) {
+  try {
+    const rewardDoc = await getDoc(doc(db, 'tournamentRewards', userId));
+    if (!rewardDoc.exists()) return 0;
+    
+    const data = rewardDoc.data();
+    if (data.tripleRoll !== true) return 0;
+    
+    // Pour les nouveaux documents avec compteurs
+    if (data.tournamentWins !== undefined || data.cataclysmeWins !== undefined) {
+      let totalRerolls = 0;
+      if (data.tournamentWins > 0) totalRerolls += 3;
+      if (data.cataclysmeWins > 0) totalRerolls += 3;
+      return totalRerolls;
+    }
+    
+    // Pour les anciens documents (avant la mise à jour) : on donne 3 rerolls par défaut
+    // car ils ont forcément tripleRoll: true d'une source (tournoi ou cataclysme)
+    return 3;
+  } catch {
+    return 0;
   }
 }
 
@@ -740,7 +790,7 @@ export async function simulerTournoiTest() {
 
     return {
       success: true,
-      champion: championData ? { nom: championData.nom, race: championData.race, classe: championData.classe, characterImage: championData.characterImage, ownerPseudo: championData.ownerPseudo || null } : null,
+      champion: championData || null,
       nbParticipants: participants.length,
       nbMatchs: resultatsMatchs.length,
       resultatsMatchs,

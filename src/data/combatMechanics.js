@@ -18,57 +18,59 @@ export const cooldowns = {
 // Constantes des classes (valeurs réelles utilisées dans le combat)
 export const classConstants = {
   guerrier: {
-    autoBonus: 4,
-    ignoreBase: 0.10,      // 10% ignore résistance de base
-    ignorePerCap: 0.008    // +0,8% par point de Cap
+    autoBonus: 5,          // +5 ATK quand le sort est utilisé
+    ignoreBase: 0.25,      // 25% ignore résistance de base
+    ignorePerCap: 0.01     // +1% par point de Cap
   },
   voleur: {
-    spdBonus: 5,
-    critPerCap: 0.012      // +1.2% crit par point de Cap
+    spdBonus: 5,           // +5 VIT
+    critPerCap: 0.01       // +1.0% crit par point de Cap
   },
   paladin: {
-    reflectBase: 0.4,      // 40% renvoi de base
-    reflectPerCap: 0.01    // +1% par point de Cap
+    reflectBase: 0.50,     // 50% renvoi de base
+    reflectPerCap: 0.008   // +0.8% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.20, // 20% des PV manquants
-    capScale: 0.5           // 50% de la Cap
+    missingHpPercent: 0.25, // 25% des PV manquants
+    capScale: 0.40          // 40% de la Cap
   },
   archer: {
     hitCount: 2,
-    hit2AutoMultiplier: 1.2,
-    hit2CapMultiplier: 0.2
+    hit1AutoMultiplier: 1.0,  // Premier tir: 100% Auto
+    hit2AutoMultiplier: 1.3,  // Second tir: 130% Auto
+    hit2CapMultiplier: 0.2    // Second tir: +20% Cap (vs ResC)
   },
   mage: {
-    capBase: 0.68,         // 68% de Cap de base
-    capPerCap: 0
+    autoBase: 1.0,         // 100% de l'attaque de base
+    capBase: 0.80,         // +80% de Cap (vs ResC)
+    capPerCap: 0           // Pas de scaling supplémentaire
   },
   demoniste: {
-    capBase: 0.45,         // 45% de Cap de base (pour calcul dégâts)
-    capPerCap: 0,
-    ignoreResist: 0.5,     // Ignore 50% de la ResC
-    stackPerAuto: 0.008    // +0.8% de Cap par auto du Demoniste (cumulable)
+    capBase: 0.45,         // 45% de Cap
+    capPerCap: 0,          // Pas de scaling supplémentaire
+    ignoreResist: 0.45,    // Ignore 45% de la ResC
+    stackPerAuto: 0.008    // +0.8% de Cap par auto (cumulable)
   },
   masochiste: {
     returnBase: 0.09,      // 9% des dégâts accumulés
-    returnPerCap: 0.008,   // +0.8% par point de Cap
-    healPercent: 0.22      // Heal 22% des dégâts encaissés
+    returnPerCap: 0.005,   // +0.5% par point de Cap
+    healPercent: 0.15      // Heal 15% des dégâts accumulés
   },
   briseurSort: {
-    shieldFromSpellDamage: 0.75,
-    shieldFromCap: 0.5,
-    antiHealReduction: 0.25,
-    autoCapBonus: 0.20
+    shieldFromSpellDamage: 0.40,  // 40% des dégâts reçus en bouclier
+    shieldFromCap: 0.25,          // +25% de CAP
+    antiHealReduction: 0.20,      // Réduit soins adverses de 20%
+    autoCapBonus: 0.10            // Auto + 10% CAP
   },
   succube: {
-    capScale: 0.2,
-    nextAttackReduction: 0.4
+    capScale: 0.35,              // +35% CAP
+    nextAttackReduction: 0.50   // -50% dégâts prochaine attaque adverse
   },
   bastion: {
-    defPercentBonus: 0.05,
-    startShieldFromDef: 0.3,
-    capScale: 0.2,
-    defScale: 0.15
+    defPercentBonus: 0.08,       // Passif: +8% DEF
+    startShieldFromDef: 0.30,    // Début combat: bouclier = 30% DEF
+    capScale: 0.50,              // Inflige +50% CAP
+    defScale: 0.50               // Inflige +50% DEF
   }
 };
 
@@ -76,18 +78,24 @@ export const classConstants = {
 export const raceConstants = {
   humain: { hp: 10, auto: 1, def: 1, cap: 1, rescap: 1, spd: 1 },
   elfe: { auto: 1, cap: 1, spd: 5, critBonus: 0.20 },
-  orc: { lowHpThreshold: 0.50, damageBonus: 1.22 },
+  orc: { lowHpThreshold: 0.50, damageBonus: 1.20 },  // +20% sous 50% PV (base)
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
   lycan: { bleedPerHit: 1, bleedDivisor: 5 },
   sylvari: { regenPercent: 0.02 },
-  sirene: { cap: 15, stackBonus: 0.10, maxStacks: 3 },
-  gnome: { critIfFaster: 0.20, critDmgIfFaster: 0.20, dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, critIfEqual: 0.05, critDmgIfEqual: 0.05, dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, spd: 5, cap: 5 },
+  sirene: { cap: 10, stackBonus: 0.10, maxStacks: 3 },  // +10 CAP base
+  gnome: { 
+    critIfFaster: 0.20, critDmgIfFaster: 0.20, 
+    dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, 
+    critIfEqual: 0.05, critDmgIfEqual: 0.05, 
+    dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, 
+    spd: 5, cap: 5 
+  },
   mindflayer: {
-    stealSpellCapDamageScale: 0.20,
+    stealSpellCapDamageScale: 0.05,      // +5% de CAP aux dégâts (base)
     ownCooldownReductionTurns: 0,
-    noCooldownSpellBonus: 0.30
+    noCooldownSpellBonus: 0.05           // Sort sans CD: +5% dégâts (base)
   }
 };
 

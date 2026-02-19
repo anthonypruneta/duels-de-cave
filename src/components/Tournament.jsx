@@ -327,6 +327,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const weapon = participant.equippedWeaponData ||
     (participant.equippedWeaponId ? getWeaponById(participant.equippedWeaponId) : null);
   const pClass = participant.classe || participant.class;
+  const pRace = participant.race;
   const pName = participant.nom || participant.name;
 
   const passiveDetails = (() => {
@@ -391,21 +392,19 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
     const hasBonus = allBonuses !== 0;
     const totalDelta = allBonuses;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-    return hasBonus ? (
+    return (
       <Tooltip content={tooltipContent(statKey)}>
-        <span className={labelClass}>
+        <span className={`${hasBonus ? labelClass : ''} font-bold`}>
           {label}: {displayValue}
         </span>
       </Tooltip>
-    ) : (
-      <span>{label}: {displayValue}</span>
     );
   };
 
   return (
     <div className="relative shadow-2xl overflow-visible">
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 whitespace-nowrap">
-        {participant.race} • {pClass} • Niv. {participant.level ?? 1}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+        {participant.race} • {pClass} • Niveau {participant.level ?? 1}
       </div>
       <div className="overflow-visible">
         <div className="h-auto relative bg-stone-900 flex items-center justify-center">
@@ -444,7 +443,7 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
           </div>
           <div className="space-y-2">
             {weapon && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <Tooltip content={getWeaponTooltipContent(weapon)}>
                   <span className="flex items-center gap-2">
                     {getWeaponImage(weapon.imageFile) ? (
@@ -455,44 +454,57 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
                     <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                   </span>
                 </Tooltip>
+                <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                  <div>{weapon.description}</div>
+                  {weapon.effet && (
+                    <div className="text-amber-200">
+                      Effet: {weapon.effet.nom} — {weapon.effet.description}
+                    </div>
+                  )}
+                  {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                    <div className="text-stone-200">
+                      Stats: {formatWeaponStats(weapon)}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {passiveDetails && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{passiveDetails.icon}</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">
-                    {passiveDetails.name} — Niv. {passiveDetails.level}
+                  <div className="font-semibold text-amber-200">
+                    {passiveDetails.name} — Niveau {passiveDetails.level}
                   </div>
-                  <div className="text-stone-400 text-[10px]">
+                  <div className="text-stone-400 text-[11px]">
                     {passiveDetails.levelData.description}
                   </div>
                 </div>
               </div>
             )}
             {isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">✨</span>
                 <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">
+                  <div className="font-semibold text-amber-200">
                     Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
                   </div>
-                  <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+                  <div className="text-stone-400 text-[11px]">{awakeningInfo.description}</div>
                 </div>
               </div>
             )}
             {raceData && !isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{raceData.icon}</span>
                 <span className="text-stone-300">{raceData.bonus}</span>
               </div>
             )}
             {classData && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{classData.icon}</span>
                 <div className="flex-1">
-                  <div className="text-stone-200 font-semibold mb-1">{classData.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                  <div className="font-semibold text-amber-200">{classData.ability}</div>
+                  <div className="text-stone-400 text-[11px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
                 </div>
               </div>
             )}
@@ -518,6 +530,7 @@ const Tournament = () => {
   // Tournoi state
   const [tournoi, setTournoi] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [listenerError, setListenerError] = useState(null);
 
   // Combat state
   const [combatLog, setCombatLog] = useState([]);
@@ -626,7 +639,11 @@ const Tournament = () => {
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
       setLoading(false);
-    }, docId);
+      setListenerError(null);
+    }, docId, (error) => {
+      setListenerError(error?.message || 'Erreur de synchronisation tournoi');
+      setLoading(false);
+    });
     return () => unsubscribe();
   }, [docId]);
 
@@ -760,10 +777,23 @@ const Tournament = () => {
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Charger le combat log
-    const result = await getCombatLog(matchId, docId);
-    if (!result.success || token.cancelled) {
+    // Charger le combat log (avec retries pour absorber les délais Firestore)
+    let result = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (token.cancelled) { stopAnimation(); return; }
+      result = await getCombatLog(matchId, docId);
+      if (result.success) break;
+      if (attempt < 3) await delay(800 * (attempt + 1));
+    }
+    if (!result?.success || token.cancelled) {
       stopAnimation();
+      // Même en cas d'échec, planifier l'auto-avancement pour ne pas bloquer la simulation
+      if (isAdmin && !replayMatchId) {
+        autoAdvanceRef.current = setTimeout(async () => {
+          autoAdvanceRef.current = null;
+          await avancerMatch(docId);
+        }, 3000);
+      }
       return;
     }
 
@@ -1247,6 +1277,26 @@ const Tournament = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Header />
         <div className="text-amber-400 text-2xl">Chargement du tournoi...</div>
+      </div>
+    );
+  }
+
+  if (listenerError) {
+    return (
+      <div className="min-h-screen p-6">
+        <Header />
+        <div className="max-w-2xl mx-auto pt-20 text-center">
+          <div className="bg-stone-800/90 p-8 border-2 border-red-700 rounded-xl">
+            <p className="text-red-300 text-xl">Impossible de charger le tournoi</p>
+            <p className="text-stone-400 mt-2 text-sm">{listenerError}</p>
+          </div>
+          <button
+            onClick={() => navigate('/admin')}
+            className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition"
+          >
+            ← Retour à l'admin
+          </button>
+        </div>
       </div>
     );
   }

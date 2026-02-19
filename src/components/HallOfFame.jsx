@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { getHallOfFame } from '../services/tournamentService';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { races, classes } from '../data/gameData';
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedChampion, setSelectedChampion] = useState(null);
+  const [fullChampionData, setFullChampionData] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,6 +22,38 @@ const HallOfFame = () => {
     };
     load();
   }, []);
+
+  const loadFullChampionData = async (champion) => {
+    try {
+      // Chercher le personnage archivé complet avec tournamentChampion: true et userId correspondant
+      const { db } = await import('../firebase/config');
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      const archivedRef = collection(db, 'archivedCharacters');
+      const q = query(
+        archivedRef, 
+        where('userId', '==', champion.userId),
+        where('tournamentChampion', '==', true)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // On a trouvé le personnage archivé complet !
+        const fullData = snapshot.docs[0].data();
+        setFullChampionData(fullData);
+      } else {
+        // Pas de données complètes, on utilise ce qu'on a
+        setFullChampionData(champion);
+      }
+      
+      setSelectedChampion(champion);
+    } catch (error) {
+      console.error('Erreur chargement champion complet:', error);
+      setFullChampionData(champion);
+      setSelectedChampion(champion);
+    }
+  };
 
   if (loading) {
     return (
@@ -57,8 +94,8 @@ const HallOfFame = () => {
                   <img
                     src={entry.champion.characterImage}
                     alt={entry.champion.nom}
-                    className="w-20 h-auto object-contain cursor-pointer hover:opacity-80 transition"
-                    onClick={() => setSelectedImage(entry.champion.characterImage)}
+                    className="w-20 h-auto object-contain cursor-pointer hover:opacity-80 transition hover:scale-110"
+                    onClick={() => loadFullChampionData(entry.champion)}
                   />
                 )}
                 <div className="flex-1">
@@ -90,19 +127,133 @@ const HallOfFame = () => {
         </div>
       </div>
 
-      {selectedImage && (
-        <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <img
-            src={selectedImage}
-            alt="Personnage agrandi"
-            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {selectedChampion && fullChampionData && (() => {
+        const weapon = fullChampionData.equippedWeaponId ? getWeaponById(fullChampionData.equippedWeaponId) : null;
+        const passive = fullChampionData.mageTowerPassive ? getMageTowerPassiveById(fullChampionData.mageTowerPassive.id) : null;
+        const passiveLevel = passive && fullChampionData.mageTowerPassive ? getMageTowerPassiveLevel(fullChampionData.mageTowerPassive.id, fullChampionData.mageTowerPassive.level) : null;
+        
+        const formatWeaponStats = (w) => {
+          if (!w?.stats) return null;
+          return Object.entries(w.stats)
+            .map(([stat, value]) => `${stat.toUpperCase()} ${value > 0 ? `+${value}` : value}`)
+            .join(' • ');
+        };
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => {
+              setSelectedChampion(null);
+              setFullChampionData(null);
+            }}
+          >
+            <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <UnifiedCharacterCard
+                header={`${fullChampionData.race} • ${fullChampionData.classe || fullChampionData.class} • Niveau ${fullChampionData.level ?? 1}`}
+                name={fullChampionData.nom || fullChampionData.name}
+                image={fullChampionData.characterImage}
+                fallback={<span className="text-7xl">👑</span>}
+                topStats={
+                  <>
+                    <span className="text-yellow-300 font-bold">HP: {fullChampionData.base?.hp || 0}</span>
+                    <span className="text-yellow-300 font-bold">VIT: {fullChampionData.base?.spd || 0}</span>
+                  </>
+                }
+                mainStats={
+                  <>
+                    <span className="text-stone-300 font-bold">Auto: {fullChampionData.base?.auto || 0}</span>
+                    <span className="text-stone-300 font-bold">Déf: {fullChampionData.base?.def || 0}</span>
+                    <span className="text-stone-300 font-bold">Cap: {fullChampionData.base?.cap || 0}</span>
+                    <span className="text-stone-300 font-bold">ResC: {fullChampionData.base?.rescap || 0}</span>
+                  </>
+                }
+                details={
+                  <div className="space-y-2">
+                    <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                      <div className="text-amber-200 font-semibold">🏆 Champion du Tournoi</div>
+                      {fullChampionData.ownerPseudo && (
+                        <div className="text-cyan-300 mt-1">Joueur: {fullChampionData.ownerPseudo}</div>
+                      )}
+                    </div>
+                    
+                    {weapon && (
+                      <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xl">{weapon.icon}</span>
+                          <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                        </div>
+                        <div className="text-[11px] text-stone-400 space-y-1">
+                          <div>{weapon.description}</div>
+                          {weapon.effet && (
+                            <div className="text-amber-200">
+                              Effet: {weapon.effet.nom} — {weapon.effet.description}
+                            </div>
+                          )}
+                          {weapon.stats && (
+                            <div className="text-stone-200">
+                              Stats: {formatWeaponStats(weapon)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {passive && (
+                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <span className="text-lg">{passive.icon}</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">
+                            {passive.name} — Niveau {fullChampionData.mageTowerPassive.level}
+                          </div>
+                          {passiveLevel && (
+                            <div className="text-stone-400 text-[11px] mt-1">
+                              {passiveLevel.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {fullChampionData.forestBoosts && Object.values(fullChampionData.forestBoosts).some(v => v > 0) && (
+                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <span className="text-lg">🌲</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">Boosts Forêt</div>
+                          <div className="text-green-300 text-[11px] mt-1">
+                            {Object.entries(fullChampionData.forestBoosts)
+                              .filter(([, v]) => v > 0)
+                              .map(([stat, v]) => `${stat.toUpperCase()} +${v}`)
+                              .join(' • ')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {classes[fullChampionData.classe || fullChampionData.class] && (
+                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <span className="text-lg">{classes[fullChampionData.classe || fullChampionData.class].icon}</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">{classes[fullChampionData.classe || fullChampionData.class].ability}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                }
+                cardClassName="shadow-2xl border-2 border-yellow-500"
+              />
+              <button
+                onClick={() => {
+                  setSelectedChampion(null);
+                  setFullChampionData(null);
+                }}
+                className="mt-4 w-full bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded-lg transition"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

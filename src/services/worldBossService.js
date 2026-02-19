@@ -22,10 +22,14 @@ import {
   increment,
   Timestamp,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
+import { getWeeklyChampionBoss, getCurrentWeekNumber } from '../data/championBosses.js';
+import { getHallOfFame } from './tournamentService.js';
 
 // ============================================================================
 // HELPER RETRY
@@ -360,11 +364,14 @@ const onBossDefeated = async (killerName) => {
     damagesSnap.docs.forEach(d => {
       const data = d.data();
       if (data.characterId && (data.totalDamage || 0) > 0) {
-        rewardBatch.set(doc(db, 'tournamentRewards', data.characterId), {
+        // Utiliser merge pour ne pas écraser les rewards existants
+        const rewardRef = doc(db, 'tournamentRewards', data.characterId);
+        rewardBatch.set(rewardRef, {
           tripleRoll: true,
-          date: Timestamp.now(),
+          cataclysmeWins: increment(1),
+          lastCataclysmeDate: Timestamp.now(),
           source: 'cataclysme'
-        });
+        }, { merge: true });
         participantNames.push(data.characterName);
       }
     });
@@ -388,8 +395,12 @@ const onBossDefeated = async (killerName) => {
           `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
         mentionEveryone: true
       });
+      console.log('✅ Annonce Discord de victoire envoyée avec succès !');
     } catch (discordError) {
-      console.error('Erreur annonce Discord victoire:', discordError);
+      console.error('❌ ERREUR ANNONCE DISCORD VICTOIRE:', discordError);
+      console.error('Message d\'erreur:', discordError.message);
+      console.error('Stack:', discordError.stack);
+      // On ne throw pas pour ne pas bloquer les rewards
     }
   } catch (error) {
     console.error('Erreur onBossDefeated:', error);
@@ -512,10 +523,78 @@ function pickRandom(arr) {
 
 /**
  * Lancer le Cataclysme : reset total + annonce Discord
- * @param {string} bossName - Nom du boss de la semaine
+ * @param {object} bossData - Données du boss { name, isChampion, championData }
  */
-export const launchCataclysm = async (bossName) => {
+export const launchCataclysm = async (bossData) => {
   try {
+    // Accepter soit un string (ancien format) soit un objet (nouveau format)
+    let finalBossName = WORLD_BOSS.nom;
+    let useBossStats = WORLD_BOSS.baseStats;
+    let isChampionBoss = false;
+    let championName = null;
+    let originalChampion = null;
+    
+    if (typeof bossData === 'string') {
+      // Ancien format : juste un nom de boss générique
+      finalBossName = bossData || WORLD_BOSS.nom;
+    } else if (bossData && typeof bossData === 'object') {
+      // Nouveau format avec données complètes
+      finalBossName = bossData.name || WORLD_BOSS.nom;
+      
+      if (bossData.isChampion && bossData.championData) {
+        const champion = bossData.championData;
+        
+        // Charger les stats complètes du champion depuis archivedCharacters
+        try {
+          const archivedRef = collection(db, 'archivedCharacters');
+          const q = query(
+            archivedRef,
+            where('odUserId', '==', champion.odUserId || champion.oduserId)
+          );
+          
+          let snapshot = await getDocs(q);
+          
+          // Si pas trouvé avec odUserId, essayer avec oduserId (différent casing)
+          if (snapshot.empty && champion.oduserId) {
+            const q2 = query(archivedRef, where('odUserId', '==', champion.oduserId));
+            snapshot = await getDocs(q2);
+          }
+          
+          if (!snapshot.empty) {
+            const fullChampion = snapshot.docs[0].data();
+            
+            if (fullChampion.base) {
+              useBossStats = {
+                hp: WORLD_BOSS.baseStats.hp, // HP reste à 35k
+                auto: fullChampion.base.auto || 0,
+                cap: fullChampion.base.cap || 0,
+                def: fullChampion.base.def || 0,
+                rescap: fullChampion.base.rescap || 0,
+                spd: fullChampion.base.spd || 0
+              };
+              
+              isChampionBoss = true;
+              championName = champion.nom || champion.name || finalBossName;
+              originalChampion = {
+                odUserId: fullChampion.odUserId,
+                odPseudo: fullChampion.odPseudo,
+                race: fullChampion.race,
+                classe: fullChampion.classe || fullChampion.class,
+                level: fullChampion.level,
+                characterImage: fullChampion.characterImage
+              };
+              
+              console.log('✅ Stats du champion chargées:', useBossStats);
+            }
+          } else {
+            console.log('⚠️ Champion non trouvé dans archivedCharacters, utilisation des stats par défaut');
+          }
+        } catch (championError) {
+          console.error('Erreur chargement stats champion:', championError);
+        }
+      }
+    }
+    
     // 1. Reset le leaderboard (supprimer toutes les entrées de dégâts)
     const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
     const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
@@ -526,13 +605,17 @@ export const launchCataclysm = async (bossName) => {
       await retryOperation(async () => batch.commit());
     }
 
-    // 2. Reset et activer l'event
+    // 2. Reset et activer l'event avec les stats appropriées
     const eventData = {
-      bossId: WORLD_BOSS.id,
-      bossName: bossName || WORLD_BOSS.nom,
+      bossId: isChampionBoss ? `champion_${originalChampion?.userId}` : WORLD_BOSS.id,
+      bossName: finalBossName,
+      bossStats: useBossStats, // Stats du champion ou stats génériques
+      isChampionBoss,
+      championName,
+      originalChampion,
       status: EVENT_STATUS.ACTIVE,
-      hpMax: WORLD_BOSS.baseStats.hp,
-      hpRemaining: WORLD_BOSS.baseStats.hp,
+      hpMax: useBossStats.hp,
+      hpRemaining: useBossStats.hp,
       totalDamageDealt: 0,
       totalAttempts: 0,
       startedAt: Timestamp.now(),
@@ -548,9 +631,15 @@ export const launchCataclysm = async (bossName) => {
     // 3. Annonce Discord
     try {
       const { envoyerAnnonceDiscord } = await import('./discordService.js');
-      const announcement = pickRandom(cataclysmAnnouncements)(bossName || WORLD_BOSS.nom);
+      let announcement = pickRandom(cataclysmAnnouncements)(finalBossName);
+      
+      // Message spécial si c'est un ancien champion
+      if (isChampionBoss && championName) {
+        announcement += `\n\n⚠️ **ATTENTION** : Ce boss est ${championName}, ancien champion du tournoi ! Il possède ses véritables capacités de combat !`;
+      }
+      
       await envoyerAnnonceDiscord({
-        titre: `☄️ CATACLYSME — ${(bossName || WORLD_BOSS.nom).toUpperCase()} EST LÀ !!!`,
+        titre: `☄️ CATACLYSME — ${finalBossName.toUpperCase()} EST LÀ !!!`,
         message: announcement,
         mentionEveryone: true
       });
@@ -565,11 +654,101 @@ export const launchCataclysm = async (bossName) => {
   }
 };
 
+// ============================================================================
+// SÉLECTION ALÉATOIRE DU BOSS (GÉNÉRIQUES + CHAMPIONS)
+// ============================================================================
+
+/**
+ * Retourne un seed de semaine qui change le samedi à midi
+ */
+function getWeekSeed() {
+  const now = new Date();
+  const day = now.getDay();
+  const hour = now.getHours();
+  let daysSinceSat = (day - 6 + 7) % 7;
+  if (daysSinceSat === 0 && hour < 12) daysSinceSat = 7;
+  const lastSatNoon = new Date(now);
+  lastSatNoon.setDate(now.getDate() - daysSinceSat);
+  lastSatNoon.setHours(12, 0, 0, 0);
+  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Sélectionne un boss de la semaine parmi les boss génériques ET les champions
+ * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
+ * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
+ * @returns {Promise<{name: string, isChampion: boolean, championData: object|null}>}
+ */
+export const pickWeeklyBossWithChampions = async (genericBossNames = [], championBossNames = []) => {
+  // Boss génériques (noms = noms de fichiers)
+  const genericBosses = genericBossNames.map(name => ({
+    name,
+    isChampion: false,
+    championData: null
+  }));
+  
+  // Boss champions (noms = noms de fichiers dans ChampBoss/)
+  // On va essayer de matcher avec le Hall of Fame pour récupérer les stats
+  let championBosses = [];
+  
+  if (championBossNames.length > 0) {
+    // Récupérer le Hall of Fame pour matcher les stats
+    let hallOfFameData = [];
+    try {
+      const hallOfFameResult = await getHallOfFame();
+      if (hallOfFameResult.success) {
+        hallOfFameData = hallOfFameResult.data;
+      }
+    } catch (error) {
+      console.error('Erreur récupération Hall of Fame:', error);
+    }
+    
+    // Pour chaque image ChampBoss, créer une entrée
+    // Format attendu du nom de fichier : "NomDuPersonnage, TitreLore.png"
+    championBosses = championBossNames.map(bossName => {
+      // Extraire le nom du personnage (partie avant la virgule)
+      const characterName = bossName.split(',')[0].trim().toLowerCase();
+      
+      let matchedChampion = null;
+      for (const entry of hallOfFameData) {
+        const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
+        // Match exact ou si le nom du champion est contenu dans le nom extrait
+        if (championName && (characterName === championName || characterName.includes(championName))) {
+          matchedChampion = entry.champion;
+          console.log(`✅ Match trouvé: "${bossName}" (extrait: "${characterName}") → champion "${championName}"`);
+          break;
+        }
+      }
+      
+      return {
+        name: bossName, // Nom complet du fichier = nom affiché (ex: "Arthas, Le Roi Liche")
+        isChampion: true,
+        championData: matchedChampion // null si pas de match, sinon les données du champion
+      };
+    });
+  }
+  
+  // Combiner les deux pools
+  const allBosses = [...genericBosses, ...championBosses];
+  
+  if (allBosses.length === 0) {
+    return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
+  }
+  
+  // Sélection déterministe basée sur la semaine
+  const seed = getWeekSeed();
+  const index = seed % allBosses.length;
+  console.log(`🎲 Boss pool: ${allBosses.length} boss (${genericBosses.length} génériques + ${championBosses.length} champions), seed=${seed}, index=${index}`);
+  return allBosses[index];
+};
+
 /**
  * Vérifie si le cataclysme doit être lancé automatiquement (lundi 18h)
  * Retourne true si un lancement a été déclenché
+ * @param {Array} genericBossNames - Liste des noms de boss génériques
+ * @param {Array} championBossNames - Liste des noms de boss champions (depuis ChampBoss/)
  */
-export const checkAutoLaunch = async (bossName) => {
+export const checkAutoLaunch = async (genericBossNames = [], championBossNames = []) => {
   try {
     const now = new Date();
     const day = now.getDay(); // 0=dim, 1=lun
@@ -581,8 +760,10 @@ export const checkAutoLaunch = async (bossName) => {
     // Vérifier l'état actuel de l'event
     const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
     if (!result.exists()) {
-      // Pas d'event, on lance
-      await launchCataclysm(bossName);
+      // Pas d'event, on lance avec sélection aléatoire (génériques + champions)
+      const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
+      console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
+      await launchCataclysm(weeklyBoss);
       return { launched: true };
     }
 
@@ -599,8 +780,10 @@ export const checkAutoLaunch = async (bossName) => {
       if (launchedKey === todayKey) return { launched: false }; // Déjà lancé aujourd'hui
     }
 
-    // Lancer !
-    await launchCataclysm(bossName);
+    // Lancer avec sélection aléatoire (génériques + champions)
+    const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
+    console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
+    await launchCataclysm(weeklyBoss);
     return { launched: true };
   } catch (error) {
     console.error('Erreur auto-launch cataclysme:', error);

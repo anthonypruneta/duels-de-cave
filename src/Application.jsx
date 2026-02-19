@@ -23,7 +23,6 @@ import ForgeDungeon from './components/ForgeDungeon';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
-
   useEffect(() => {
     loadPersistedBalanceConfig();
   }, []);

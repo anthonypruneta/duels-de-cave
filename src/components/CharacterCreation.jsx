@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { resetUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
-import { checkTripleRoll, consumeTripleRoll } from '../services/tournamentService';
+import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -563,8 +563,9 @@ const CharacterCreation = () => {
         // Vérifier la récompense triple roll
         const tripleRoll = await checkTripleRoll(currentUser.uid);
         if (tripleRoll) {
+          const rollCount = await getTripleRollCount(currentUser.uid);
           setHasTripleRoll(true);
-          setRollsRemaining(3);
+          setRollsRemaining(rollCount);
         }
       }
 
@@ -964,7 +965,7 @@ const CharacterCreation = () => {
 
           <div className={`relative max-w-md mx-auto ${hasForgeUpgrade ? 'forge-lava-border forge-lava-glow' : ''}`} style={{width:'340px'}}>
             <div className={`shadow-2xl ${hasForgeUpgrade ? 'forge-lava-shine' : ''}`}>
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
               <div className="overflow-visible">
@@ -995,97 +996,93 @@ const CharacterCreation = () => {
                     <StatLine statKey="cap" label="Cap" />
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
-                  {weapon ? (
-                    <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                      <Tooltip content={getWeaponTooltipContent(weapon)}>
-                        <span className="flex items-center gap-2">
-                          {getWeaponImage(weapon.imageFile) ? (
-                            <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                          ) : (
-                            <span className="text-xl">{weapon.icon}</span>
+                  <div className="space-y-2">
+                    {weapon ? (
+                      <div className="text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                        <Tooltip content={getWeaponTooltipContent(weapon)}>
+                          <span className="flex items-center gap-2">
+                            {getWeaponImage(weapon.imageFile) ? (
+                              <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                            ) : (
+                              <span className="text-xl">{weapon.icon}</span>
+                            )}
+                            <span className={`font-semibold ${hasForgeUpgrade ? 'forge-lava-text' : RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                          </span>
+                        </Tooltip>
+                        <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                          <div>{weapon.description}</div>
+                          {weapon.effet && (
+                            <div className="text-amber-200">
+                              Effet: {weapon.effet.nom} — {weapon.effet.description}
+                            </div>
                           )}
-                          <span className={`font-semibold ${hasForgeUpgrade ? 'forge-lava-text' : RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
-                        </span>
-                      </Tooltip>
-                      <div className="text-[11px] text-stone-400 space-y-1">
-                        <div>{weapon.description}</div>
-                        {weapon.effet && (
-                          <div className="text-amber-200">
-                            Effet: {weapon.effet.nom} — {weapon.effet.description}
-                          </div>
-                        )}
-                        {weapon.stats && Object.keys(weapon.stats).length > 0 && (
-                          <div className="text-stone-200">
-                            Stats: {formatWeaponStats(weapon)}
-                          </div>
-                        )}
-                        {hasForgeUpgrade && (
-                          <div className="text-orange-300 font-semibold">
-                            🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
-                            {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
-                      Aucune arme équipée
-                    </div>
-                  )}
-                  {passiveDetails ? (
-                    <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                      <span className="text-lg">{passiveDetails.icon}</span>
-                      <div>
-                        <div className="font-semibold text-amber-200">
-                          Passif: {passiveDetails.name} (Nv {passiveDetails.level})
-                        </div>
-                        <div className="text-stone-400 text-[11px]">
-                          {passiveDetails.levelData.description}
+                          {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                            <div className="text-stone-200">
+                              Stats: {formatWeaponStats(weapon)}
+                            </div>
+                          )}
+                          {hasForgeUpgrade && (
+                            <div className="text-orange-300 font-semibold">
+                              🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
+                              {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
-                      Aucun passif de Tour du Mage équipé
-                    </div>
-                  )}
-                  {isAwakeningActive && (
-                    <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                      <span className="text-lg">✨</span>
-                      <div>
-                        <div className="font-semibold text-amber-200">
-                          Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
-                        </div>
-                        <div className="text-stone-400 text-[11px]">
-                          {awakeningInfo.description}
-                        </div>
+                    ) : (
+                      <div className="text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
+                        Aucune arme équipée
                       </div>
-                    </div>
-                  )}
-                </div>
-                </div>
-              </div>
-
-            <div className="mt-4 space-y-2 text-sm">
-              {!isAwakeningActive && (
-              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
-                <span className="text-2xl">{races[existingCharacter.race].icon}</span>
-                <div>
-                  <div className="text-amber-200 font-bold mb-1">Race: {existingCharacter.race}</div>
-                  <div className="text-stone-400 text-xs">{getRaceBonusText(existingCharacter.race)}</div>
-                </div>
-              </div>
-              )}
-              <div className="flex items-start gap-2 bg-stone-800/90 p-3 border border-stone-600">
-                <span className="text-2xl">{classes[existingCharacter.class].icon}</span>
-                <div>
-                  <div className="text-amber-200 font-bold mb-1">{existingCharacter.class}: {classes[existingCharacter.class].ability}</div>
-                  <div className="text-stone-400 text-xs">
-                    {getCalculatedDescription(
-                      existingCharacter.class,
-                      finalStats.cap ?? 0,
-                      finalStats.auto ?? 0
                     )}
+                    {passiveDetails ? (
+                      <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                        <span className="text-lg">{passiveDetails.icon}</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">
+                            {passiveDetails.name} — Niveau {passiveDetails.level}
+                          </div>
+                          <div className="text-stone-400 text-[11px]">
+                            {passiveDetails.levelData.description}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
+                        Aucun passif de Tour du Mage équipé
+                      </div>
+                    )}
+                    {isAwakeningActive && (
+                      <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                        <span className="text-lg">✨</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">
+                            Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
+                          </div>
+                          <div className="text-stone-400 text-[11px]">
+                            {awakeningInfo.description}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {!isAwakeningActive && (
+                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <span className="text-lg">{races[existingCharacter.race].icon}</span>
+                        <span className="text-stone-300">{getRaceBonusText(existingCharacter.race)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                      <span className="text-lg">{classes[existingCharacter.class].icon}</span>
+                      <div className="flex-1">
+                        <div className="font-semibold text-amber-200">{classes[existingCharacter.class].ability}</div>
+                        <div className="text-stone-400 text-[11px]">
+                          {getCalculatedDescription(
+                            existingCharacter.class,
+                            finalStats.cap ?? 0,
+                            finalStats.auto ?? 0
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

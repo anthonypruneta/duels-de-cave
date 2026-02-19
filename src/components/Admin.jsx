@@ -56,6 +56,10 @@ const Admin = () => {
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
 
+  // État pour les rerolls disponibles
+  const [rerollsData, setRerollsData] = useState([]);
+  const [rerollsLoading, setRerollsLoading] = useState(false);
+
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
 
@@ -520,6 +524,49 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
     setSimulationLoading(false);
     navigate('/tournament?mode=simulation');
+  };
+
+  const loadRerollsData = async () => {
+    setRerollsLoading(true);
+    try {
+      const { db } = await import('../firebase/config');
+      const { collection, getDocs } = await import('firebase/firestore');
+      const { getTripleRollCount } = await import('../services/tournamentService');
+      
+      const rewardsRef = collection(db, 'tournamentRewards');
+      const rewardsSnap = await getDocs(rewardsRef);
+      
+      const rerollsArray = [];
+      for (const rewardDoc of rewardsSnap.docs) {
+        const data = rewardDoc.data();
+        const userId = rewardDoc.id;
+        
+        // Récupérer le nombre de rerolls
+        const rollCount = await getTripleRollCount(userId);
+        if (rollCount > 0) {
+          // Trouver le personnage correspondant
+          const character = characters.find(c => c.id === userId);
+          
+          rerollsArray.push({
+            userId,
+            characterName: character?.name || 'Inconnu',
+            rollCount,
+            tournamentWins: data.tournamentWins || 0,
+            cataclysmeWins: data.cataclysmeWins || 0,
+            source: data.source || 'N/A',
+            lastTournamentDate: data.lastTournamentDate,
+            lastCataclysmeDate: data.lastCataclysmeDate
+          });
+        }
+      }
+      
+      // Trier par nombre de rerolls décroissant
+      rerollsArray.sort((a, b) => b.rollCount - a.rollCount);
+      setRerollsData(rerollsArray);
+    } catch (error) {
+      console.error('Erreur chargement rerolls:', error);
+    }
+    setRerollsLoading(false);
   };
 
   const handleGrantDungeonRuns = async () => {
@@ -1082,6 +1129,90 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           >
             {tirageLoading ? '⏳ Lancement de l\'event...' : '🚀 Démarrer l\'event'}
           </button>
+        </div>
+
+        {/* Section Rerolls disponibles */}
+        <div className="bg-stone-900/70 border-2 border-green-600 rounded-xl p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-green-400">🎲 Rerolls disponibles</h2>
+            <button
+              onClick={loadRerollsData}
+              disabled={rerollsLoading}
+              className="bg-green-700 hover:bg-green-600 disabled:bg-stone-700 text-white px-4 py-2 rounded-lg font-bold transition"
+            >
+              {rerollsLoading ? '⏳ Chargement...' : '🔄 Actualiser'}
+            </button>
+          </div>
+          
+          <p className="text-stone-400 text-sm mb-4">Liste des joueurs ayant des rerolls disponibles pour leur prochain personnage (Tournoi + Cataclysme)</p>
+
+          {rerollsData.length === 0 && !rerollsLoading && (
+            <div className="text-stone-500 text-center py-8 border border-stone-700 rounded-lg">
+              Aucun reroll disponible. Cliquez sur "Actualiser" pour charger les données.
+            </div>
+          )}
+
+          {rerollsData.length > 0 && (
+            <div className="overflow-x-auto border border-stone-700 rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-800">
+                  <tr className="text-stone-300 text-left">
+                    <th className="px-4 py-3">Personnage</th>
+                    <th className="px-4 py-3 text-center">Rerolls</th>
+                    <th className="px-4 py-3 text-center">🏆 Tournoi</th>
+                    <th className="px-4 py-3 text-center">☄️ Cataclysme</th>
+                    <th className="px-4 py-3">Source</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-800">
+                  {rerollsData.map((item, index) => (
+                    <tr key={item.userId} className={`${index % 2 === 0 ? 'bg-stone-900/50' : 'bg-stone-900/30'} hover:bg-stone-800/50 transition`}>
+                      <td className="px-4 py-3 text-white font-semibold">{item.characterName}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-3 py-1 rounded-full font-bold ${
+                          item.rollCount === 6 ? 'bg-purple-600 text-white' : 
+                          item.rollCount === 3 ? 'bg-green-600 text-white' : 
+                          'bg-stone-600 text-stone-300'
+                        }`}>
+                          {item.rollCount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {item.tournamentWins > 0 ? (
+                          <span className="text-amber-400 font-bold">✓ ({item.tournamentWins})</span>
+                        ) : (
+                          <span className="text-stone-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {item.cataclysmeWins > 0 ? (
+                          <span className="text-red-400 font-bold">✓ ({item.cataclysmeWins})</span>
+                        ) : (
+                          <span className="text-stone-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-stone-400 text-xs">
+                        {item.tournamentWins > 0 && item.cataclysmeWins > 0 ? '🏆 + ☄️' : 
+                         item.tournamentWins > 0 ? '🏆 Tournoi' : 
+                         item.cataclysmeWins > 0 ? '☄️ Cataclysme' : 
+                         item.source}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {rerollsData.length > 0 && (
+            <div className="mt-4 text-sm text-stone-400">
+              <p>📊 Total : <span className="text-white font-bold">{rerollsData.length}</span> joueur(s) avec des rerolls</p>
+              <p className="mt-1">
+                💜 = 6 rerolls (Tournoi + Cataclysme) • 
+                💚 = 3 rerolls (une seule source)
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Section Simulation Tournoi */}

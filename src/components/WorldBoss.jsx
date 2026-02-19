@@ -27,6 +27,9 @@ import testImage1 from '../assets/characters/test.png';
 // Images du boss cataclysme (piochées par semaine, nom du fichier = nom du boss)
 const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
+// Images des boss champions (ancien champions du Hall of Fame)
+const CHAMPION_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
 const getWeaponImage = (imageFile) => {
@@ -40,6 +43,16 @@ function getBossNameFromPath(path) {
   const filename = decodeURIComponent((path.split('/').pop() || '').trim());
   return filename.replace(/\.[^/.]+$/, '');
 }
+
+// Liste des noms de boss génériques (noms de fichiers)
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
 
 // Retourne un index de semaine qui change le samedi à midi
 function getWeekSeed() {
@@ -76,6 +89,21 @@ function getCataclysmImageByName(name) {
   for (const [sourcePath, imagePath] of entries) {
     if (getBossNameFromPath(sourcePath).trim().toLowerCase() === normalized) {
       return imagePath;
+    }
+  }
+  return null;
+}
+
+function getChampionBossImage(championName) {
+  if (!championName) return null;
+  const normalized = championName.trim().toLowerCase().replace(/\s+/g, '');
+  const entries = Object.entries(CHAMPION_BOSS_IMAGES);
+  
+  // Chercher une image qui correspond au nom du champion
+  for (const [path, img] of entries) {
+    const pathLower = path.toLowerCase().replace(/\s+/g, '');
+    if (pathLower.includes(normalized)) {
+      return img;
     }
   }
   return null;
@@ -118,6 +146,26 @@ const getPassiveDetails = (passive) => {
   return { ...base, level: passive.level, levelData };
 };
 
+const getWeaponStatColor = (value) => {
+  if (value > 0) return 'text-green-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-stone-300';
+};
+
+const formatWeaponStats = (weapon) => {
+  if (!weapon?.stats) return null;
+  const entries = Object.entries(weapon.stats);
+  if (entries.length === 0) return null;
+  return entries.map(([stat, value]) => (
+    <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
+      {STAT_LABELS[stat] || stat} {value > 0 ? `+${value}` : value}
+    </span>
+  )).reduce((acc, node, index) => {
+    if (index === 0) return [node];
+    return acc.concat([<span key={`sep-${index}`} className="text-stone-400"> • </span>, node]);
+  }, []);
+};
+
 const getWeaponTooltipContent = (weapon) => {
   if (!weapon) return null;
   const stats = weapon.stats ? Object.entries(weapon.stats) : [];
@@ -154,10 +202,15 @@ const WorldBoss = () => {
   // Boss aléatoire (choisi une fois au montage)
   const boss = useMemo(() => pickWeeklyBoss(), []);
   const activeBossName = eventData?.bossName || boss.name;
-  const activeBossImage = useMemo(
-    () => getCataclysmImageByName(activeBossName) || boss.image,
-    [activeBossName, boss.image]
-  );
+  const activeBossImage = useMemo(() => {
+    // Si c'est un boss champion, chercher son image dans ChampBoss/
+    if (eventData?.isChampionBoss && eventData?.championName) {
+      const championImage = getChampionBossImage(eventData.championName);
+      if (championImage) return championImage;
+    }
+    // Sinon, utiliser l'image normale du cataclysme
+    return getCataclysmImageByName(activeBossName) || boss.image;
+  }, [activeBossName, eventData?.isChampionBoss, eventData?.championName, boss.image]);
 
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);
@@ -206,8 +259,8 @@ const WorldBoss = () => {
         }));
       }
 
-      // Auto-launch si c'est lundi >= 18h et event inactif
-      await checkAutoLaunch(activeBossName);
+      // Auto-launch si c'est lundi >= 18h et event inactif (avec champions dans le pool)
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
 
@@ -219,14 +272,14 @@ const WorldBoss = () => {
   // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
   useEffect(() => {
     const runChecks = async () => {
-      await checkAutoLaunch(activeBossName);
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       await checkAutoEnd();
     };
 
     runChecks();
     const interval = setInterval(runChecks, 60 * 1000);
     return () => clearInterval(interval);
-  }, [activeBossName]);
+  }, []);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {
@@ -669,7 +722,7 @@ const WorldBoss = () => {
       const finalDisplayValue = getDisplayedStatValue(statKey);
       return (
         <Tooltip content={tooltipContent(statKey)}>
-          <span className={totalDelta !== 0 ? labelClass : ''}>
+          <span className={`${totalDelta !== 0 ? labelClass : ''} font-bold`}>
             {label}: {finalDisplayValue}
           </span>
         </Tooltip>
@@ -678,7 +731,7 @@ const WorldBoss = () => {
 
     return (
       <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {char.race} • {char.class} • Niveau {char.level ?? 1}
         </div>
         <div className="overflow-visible">
@@ -712,7 +765,7 @@ const WorldBoss = () => {
             </div>
             <div className="space-y-2">
               {weapon && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <Tooltip content={getWeaponTooltipContent(weapon)}>
                     <span className="flex items-center gap-2">
                       {getWeaponImage(weapon.imageFile) ? (
@@ -723,43 +776,56 @@ const WorldBoss = () => {
                       <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
                     </span>
                   </Tooltip>
+                  <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                    <div>{weapon.description}</div>
+                    {weapon.effet && (
+                      <div className="text-amber-200">
+                        Effet: {weapon.effet.nom} — {weapon.effet.description}
+                      </div>
+                    )}
+                    {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                      <div className="text-stone-200">
+                        Stats: {formatWeaponStats(weapon)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {passiveDetails && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">{passiveDetails.icon}</span>
                   <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
+                    <div className="font-semibold text-amber-200">
                       {passiveDetails.name} — Niveau {passiveDetails.level}
                     </div>
-                    <div className="text-stone-400 text-[10px]">
+                    <div className="text-stone-400 text-[11px]">
                       {passiveDetails.levelData.description}
                     </div>
                   </div>
                 </div>
               )}
               {isAwakeningActive && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">✨</span>
                   <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
+                    <div className="font-semibold text-amber-200">
                       Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
                     </div>
-                    <div className="text-stone-400 text-[10px]">{awakeningInfo.description}</div>
+                    <div className="text-stone-400 text-[11px]">{awakeningInfo.description}</div>
                   </div>
                 </div>
               )}
               {!isAwakeningActive && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                   <span className="text-lg">{races[char.race]?.icon}</span>
                   <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
                 </div>
               )}
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                 <span className="text-lg">{classes[char.class]?.icon}</span>
                 <div className="flex-1">
-                  <div className="text-stone-200 font-semibold mb-1">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[10px]">{getCalculatedDescription(char.class, getDisplayedStatValue('cap'), getDisplayedStatValue('auto'))}</div>
+                  <div className="font-semibold text-amber-200">{classes[char.class]?.ability}</div>
+                  <div className="text-stone-400 text-[11px]">{getCalculatedDescription(char.class, finalStats.cap, finalStats.auto)}</div>
                 </div>
               </div>
             </div>
@@ -791,10 +857,10 @@ const WorldBoss = () => {
           <div className="bg-stone-800 p-4 border-t border-red-800">
             {/* Stats du boss */}
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-red-300">Auto: {WORLD_BOSS.baseStats.auto}</div>
-              <div className="text-red-300">Déf: {WORLD_BOSS.baseStats.def}</div>
-              <div className="text-red-300">Cap: {WORLD_BOSS.baseStats.cap}</div>
-              <div className="text-red-300">ResC: {WORLD_BOSS.baseStats.rescap}</div>
+              <div className="text-red-300">Auto: {eventData?.bossStats?.auto || WORLD_BOSS.baseStats.auto}</div>
+              <div className="text-red-300">Déf: {eventData?.bossStats?.def || WORLD_BOSS.baseStats.def}</div>
+              <div className="text-red-300">Cap: {eventData?.bossStats?.cap || WORLD_BOSS.baseStats.cap}</div>
+              <div className="text-red-300">ResC: {eventData?.bossStats?.rescap || WORLD_BOSS.baseStats.rescap}</div>
             </div>
             <div className="bg-red-900/50 p-2 text-xs border border-red-700 text-red-300">
               <span className="text-lg">☠️</span> Tour 10 : EXTINCTION — Mort instantanée du joueur
