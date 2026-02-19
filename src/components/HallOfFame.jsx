@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { getHallOfFame } from '../services/tournamentService';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedChampion, setSelectedChampion] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
