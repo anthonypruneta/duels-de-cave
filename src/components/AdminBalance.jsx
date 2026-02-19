@@ -180,6 +180,7 @@ function AdminBalance({ embedded = false }) {
   const [results, setResults] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [resetting, setResetting] = useState(false);
   const [raceTab, setRaceTab] = useState('bonus');
 
   // Duel 1v1
