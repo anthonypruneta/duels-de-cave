@@ -300,6 +300,17 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
  * Retourne le bonus de dégâts de sort pour l'Arbalète du Verdict
  * À appeler AVANT d'infliger les dégâts du sort
  */
+
+/**
+ * Compte explicitement la riposte du Paladin comme un sort lancé.
+ *
+ * Utile pour déclencher correctement les armes qui dépendent du nombre
+ * de sorts lancés (Codex Archon, Arbalète du Verdict, etc.).
+ */
+export function onPaladinRiposteCast(weaponState, caster, target) {
+  return onSpellCast(weaponState, caster, target, 0, 'paladin_reflect');
+}
+
 export function getVerdictSpellBonus(weaponState) {
   if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
     return { damageMultiplier: 1.0, log: [] };

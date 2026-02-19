@@ -8,7 +8,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
-  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit,
+  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onPaladinRiposteCast, onSpellCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictSpellBonus, getVerdictCooldownPenalty,
   applyForgeUpgrade
 } from './weaponEffects.js';
@@ -664,6 +664,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal') && !spellStolen) {
     skillUsed = true;
+    // Compte la riposte comme un sort pour les effets d'arme (ex: Codex Archon)
+    onPaladinRiposteCast(att.weaponState, att, def);
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     let reflectValue = reflectBase + reflectPerCap * att.base.cap;
     if (att.race === 'Mindflayer' && getMindflayerSpellCooldown(att, def, 'pal') <= 1) {

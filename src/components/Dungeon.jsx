@@ -32,6 +32,7 @@ import {
   modifyCritDamage,
   onAttack,
   onHeal,
+  onPaladinRiposteCast,
   onSpellCast,
   rollHealCrit,
   onTurnStart
@@ -810,6 +811,8 @@ const Dungeon = () => {
     // Capacité Paladin (riposte)
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
       if (isPlayer) skillUsed = true;
+      // Compte la riposte comme un sort pour les effets d'arme (ex: Codex Archon)
+      onPaladinRiposteCast(att.weaponState, att, def);
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       att.reflect = reflectBase + reflectPerCap * att.base.cap;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
