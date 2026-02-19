@@ -520,6 +520,13 @@ const WorldBossAdmin = ({ characters }) => {
         >
           🧪 Tester webhook Discord
         </button>
+        <button
+          onClick={handleManualVictoryAnnouncement}
+          disabled={actionLoading}
+          className="bg-green-700 hover:bg-green-600 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-green-500"
+        >
+          📢 Annoncer victoire manuellement
+        </button>
       </div>
 
       {/* ================================================================ */}
