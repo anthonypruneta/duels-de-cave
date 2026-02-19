@@ -12,7 +12,7 @@ import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTow
 import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
-import { weapons, isWaveActive } from '../data/weapons';
+import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById } from '../data/mageTowerPassives';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
@@ -195,7 +195,7 @@ function AdminBalance({ embedded = false }) {
   // Duel 1v1
   const raceNames = useMemo(() => Object.keys(races), []);
   const classNames = useMemo(() => Object.keys(classes), []);
-  const availableWeapons = useMemo(() => Object.values(weapons).filter((weapon) => isWaveActive(weapon.vague)), []);
+  const availableWeapons = useMemo(() => Object.values(weapons).filter((weapon) => isWaveActive(weapon.vague) && weapon.rarete === RARITY.LEGENDAIRE), []);
   const availablePassives = useMemo(() => getAvailablePassives(), []);
   const defaultWeaponId = availableWeapons[0]?.id || '';
   const defaultPassiveId = availablePassives[0]?.id || '';
