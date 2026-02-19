@@ -558,16 +558,12 @@ function AdminBalance({ embedded = false }) {
         <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
           <button
             onClick={handleApplyChanges}
-            className="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded font-bold"
+            disabled={saving}
+            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
           >
-            ✅ Appliquer les modifications (effet immédiat sur tous les combats)
+            {saving ? '⏳ Sauvegarde...' : '✅ Sauvegarder et appliquer à tout le jeu'}
           </button>
-          {applyMessage && <p className="text-sm text-green-300 mt-3">{applyMessage}</p>}
-          <p className="text-xs text-stone-500 mt-2">
-            Note : Les changements sont en mémoire. Pour les rendre permanents, modifiez les fichiers 
-            <code className="text-amber-400 mx-1">combatMechanics.js</code> et 
-            <code className="text-amber-400 mx-1">races.js</code>
-          </p>
+          {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
         </div>
 
         {/* Duel 1v1 */}
