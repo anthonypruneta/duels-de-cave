@@ -20,6 +20,7 @@ import {
   getLeaderboard,
   launchCataclysm
 } from '../services/worldBossService';
+import { getHallOfFame } from '../services/tournamentService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
