@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { getHallOfFame } from '../services/tournamentService';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
+import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { races, classes } from '../data/gameData';
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
