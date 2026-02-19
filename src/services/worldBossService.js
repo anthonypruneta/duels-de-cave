@@ -388,8 +388,12 @@ const onBossDefeated = async (killerName) => {
           `GLOIRE ÉTERNELLE AUX HÉROS DU CATACLYSME !!!`,
         mentionEveryone: true
       });
+      console.log('✅ Annonce Discord de victoire envoyée avec succès !');
     } catch (discordError) {
-      console.error('Erreur annonce Discord victoire:', discordError);
+      console.error('❌ ERREUR ANNONCE DISCORD VICTOIRE:', discordError);
+      console.error('Message d\'erreur:', discordError.message);
+      console.error('Stack:', discordError.stack);
+      // On ne throw pas pour ne pas bloquer les rewards
     }
   } catch (error) {
     console.error('Erreur onBossDefeated:', error);
