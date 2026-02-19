@@ -177,8 +177,6 @@ function AdminBalance({ embedded = false }) {
   const [duels, setDuels] = useState(500);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
   const [raceTab, setRaceTab] = useState('bonus');
 
   // Duel 1v1
