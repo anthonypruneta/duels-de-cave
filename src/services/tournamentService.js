@@ -790,7 +790,7 @@ export async function simulerTournoiTest() {
 
     return {
       success: true,
-      champion: championData ? { nom: championData.nom, race: championData.race, classe: championData.classe, characterImage: championData.characterImage, ownerPseudo: championData.ownerPseudo || null } : null,
+      champion: championData || null,
       nbParticipants: participants.length,
       nbMatchs: resultatsMatchs.length,
       resultatsMatchs,
