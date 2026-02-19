@@ -18,9 +18,9 @@ import {
   canAttemptBoss,
   recordAttemptDamage,
   getLeaderboard,
-  launchCataclysm
+  launchCataclysm,
+  pickWeeklyBossWithChampions
 } from '../services/worldBossService';
-import { getHallOfFame } from '../services/tournamentService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -33,31 +33,10 @@ function getBossNameFromPath(path) {
   return match ? match[1] : 'Boss Inconnu';
 }
 
-function getWeekSeed() {
-  const now = new Date();
-  const lastSatNoon = new Date(now);
-  lastSatNoon.setDate(now.getDate() - ((now.getDay() + 1) % 7));
-  lastSatNoon.setHours(12, 0, 0, 0);
-  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
-}
-
-// Sélectionne un boss de la semaine parmi les boss génériques ET les anciens champions
-async function pickWeeklyBossWithChampions() {
-  const genericBosses = Object.entries(CATACLYSM_IMAGES)
-    .sort(([a], [b]) => a.localeCompare(b, 'fr'))
-    .map(([path]) => ({
-      name: getBossNameFromPath(path),
-      isChampion: false,
-      championData: null
-    }));
-  
-  // Récupérer les champions du Hall of Fame
-  let championBosses = [];
-  try {
-    const hallOfFameResult = await getHallOfFame();
-    if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
-      championBosses = hallOfFameResult.data.map(entry => ({
-        name: `${entry.champion?.nom || entry.champion?.name || 'Champion'} (Champion S${entry.week || '?'})`,
+// Liste des noms de boss génériques
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
         isChampion: true,
         championData: entry.champion
       }));
