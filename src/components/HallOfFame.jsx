@@ -23,6 +23,38 @@ const HallOfFame = () => {
     load();
   }, []);
 
+  const loadFullChampionData = async (champion) => {
+    try {
+      // Chercher le personnage archivé complet avec tournamentChampion: true et userId correspondant
+      const { db } = await import('../firebase/config');
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      const archivedRef = collection(db, 'archivedCharacters');
+      const q = query(
+        archivedRef, 
+        where('userId', '==', champion.userId),
+        where('tournamentChampion', '==', true)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // On a trouvé le personnage archivé complet !
+        const fullData = snapshot.docs[0].data();
+        setFullChampionData(fullData);
+      } else {
+        // Pas de données complètes, on utilise ce qu'on a
+        setFullChampionData(champion);
+      }
+      
+      setSelectedChampion(champion);
+    } catch (error) {
+      console.error('Erreur chargement champion complet:', error);
+      setFullChampionData(champion);
+      setSelectedChampion(champion);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
