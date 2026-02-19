@@ -449,6 +449,13 @@ const WorldBossAdmin = ({ characters }) => {
         >
           ☄️ Lancer le Cataclysme (Reset + Discord)
         </button>
+        <button
+          onClick={handleTestDiscord}
+          disabled={actionLoading}
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition border-2 border-blue-400"
+        >
+          🧪 Tester webhook Discord
+        </button>
       </div>
 
       {/* ================================================================ */}
