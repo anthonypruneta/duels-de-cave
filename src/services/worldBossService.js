@@ -22,7 +22,9 @@ import {
   increment,
   Timestamp,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
