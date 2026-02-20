@@ -469,6 +469,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     }
   }
   if (adjusted > 0) {
+    const hadReflectBeforeHit = Boolean(def.reflect);
     def.currentHP -= adjusted;
     tryTriggerOnctionLastStand(def, log, playerColor);
     def.maso_taken = (def.maso_taken || 0) + adjusted;
@@ -479,7 +480,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       triggerMindflayerSpellCopy(att, def, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
     }
 
-    if (def.reflect && def.currentHP > 0) {
+    if (hadReflectBeforeHit && def.currentHP > 0) {
       const back = Math.round(def.reflect * adjusted);
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
