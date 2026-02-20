@@ -53,7 +53,7 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => (
         );
       }
 
-      if (typeof val === 'string') return null;
+      if (typeof val === 'string' && val !== '') return null;
 
       return (
         <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
