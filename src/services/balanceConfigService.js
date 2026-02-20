@@ -8,6 +8,13 @@ import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
 
+/**
+ * À incrémenter à chaque modification des données d'équilibrage dans le code
+ * (combatMechanics, races, classes, weapons, mageTowerPassives).
+ * Si cette version est supérieure à celle en Firestore, le code est appliqué et poussé vers Firestore.
+ */
+export const BALANCE_CONFIG_VERSION = 1;
+
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
   'Guerrier': 'war',
@@ -250,15 +257,24 @@ export const applyBalanceConfig = (config) => {
 export const loadPersistedBalanceConfig = async () => {
   try {
     const snap = await getDoc(BALANCE_DOC_REF);
-    if (!snap.exists()) {
-      return { success: true, data: null };
+    const storedVersion = (snap.exists() && snap.data())?.sourceVersion ?? 0;
+    const config = snap.exists() ? snap.data()?.config : null;
+
+    // Si le code a une version plus récente, le code prime : on l'applique et on pousse vers Firestore
+    if (BALANCE_CONFIG_VERSION > storedVersion) {
+      const codeConfig = buildCurrentBalanceConfig();
+      applyBalanceConfig(codeConfig);
+      await setDoc(BALANCE_DOC_REF, {
+        config: codeConfig,
+        sourceVersion: BALANCE_CONFIG_VERSION,
+        updatedBy: 'code-sync',
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      console.log(`✅ Équilibrage: code (v${BALANCE_CONFIG_VERSION}) appliqué et synchronisé vers Firestore.`);
+      return { success: true, data: codeConfig };
     }
 
-    const payload = snap.data();
-    const config = payload?.config;
-
     if (config) applyBalanceConfig(config);
-
     return { success: true, data: config || null };
   } catch (error) {
     console.error('Erreur chargement balance config:', error);
@@ -270,7 +286,8 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
   try {
     await setDoc(BALANCE_DOC_REF, {
       config,
-      updatedBy,
+      sourceVersion: BALANCE_CONFIG_VERSION,
+      updatedBy: updatedBy ?? 'admin',
       updatedAt: serverTimestamp()
     }, { merge: true });
 
@@ -293,12 +310,14 @@ export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
     const defaultConfig = buildCurrentBalanceConfig();
     await setDoc(BALANCE_DOC_REF, {
       config: defaultConfig,
+      sourceVersion: BALANCE_CONFIG_VERSION,
       updatedBy,
       updatedAt: serverTimestamp(),
       resetToDefaults: true
     });
-    
-    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut');
+
+    applyBalanceConfig(defaultConfig);
+    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut (code)');
     return { success: true, config: defaultConfig };
   } catch (error) {
     console.error('Erreur reset balance config:', error);

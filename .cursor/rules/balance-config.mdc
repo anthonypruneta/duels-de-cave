@@ -1,0 +1,22 @@
+---
+description: Équilibrage du jeu et synchronisation code / Firestore
+globs: src/data/combatMechanics.js, src/data/races.js, src/data/classes.js, src/data/weapons.js, src/data/mageTowerPassives.js, src/data/**/bosses*.js, src/services/balanceConfigService.js
+alwaysApply: false
+---
+
+# Équilibrage et Firestore
+
+Quand tu modifies les **données d'équilibrage** dans le code (stats, constantes de races/classes, armes, passifs tour de mage, bosses), le jeu charge au démarrage la config depuis Firestore. Pour que tes changements dans le code soient pris en compte et poussés vers Firestore :
+
+1. **Incrémenter `BALANCE_CONFIG_VERSION`** dans `src/services/balanceConfigService.js` après chaque modification d’équilibrage.
+2. La constante est en tête de fichier : `export const BALANCE_CONFIG_VERSION = 1;` → passer à `2`, puis `3`, etc.
+
+Fichiers concernés (si tu les modifies, pense à bump la version) :
+- `src/data/combatMechanics.js` (raceConstants, classConstants, cooldowns)
+- `src/data/races.js` (bonus, awakening)
+- `src/data/classes.js`
+- `src/data/weapons.js`
+- `src/data/mageTowerPassives.js`
+- Données de bosses (forêt, tour du mage, etc.)
+
+Sans incrément de version, la config Firestore existante continuera d’écraser le code au chargement.

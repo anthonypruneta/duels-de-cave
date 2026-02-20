@@ -273,3 +273,4 @@ npm run dev      # Serveur dev (pas utilisé)
 3. **Icônes**: Emojis utilisés comme icônes
 4. **Images**: Bordure appliquée via Canvas API dans Admin
 5. **1 personnage/user**: Chaque utilisateur ne peut avoir qu'un seul personnage actif
+6. **Équilibrage (code vs Firestore)**: Au démarrage, si `BALANCE_CONFIG_VERSION` dans `balanceConfigService.js` est supérieure à la version en Firestore, le code est appliqué et poussé vers Firestore. Après une modif d’équilibrage dans le code (combatMechanics, races, classes, weapons, mageTowerPassives), **incrémenter** `BALANCE_CONFIG_VERSION` pour que le code prime au prochain chargement.

@@ -1,5 +1,6 @@
 // Mécaniques de combat centralisées
 // Ce fichier est la source unique de vérité pour tous les calculs de combat.
+// Si tu modifies ce fichier (équilibrage) : incrémenter BALANCE_CONFIG_VERSION dans src/services/balanceConfigService.js.
 
 // Cooldowns des classes (en tours)
 export const cooldowns = {
