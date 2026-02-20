@@ -11,7 +11,7 @@ import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
 import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
-import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
@@ -38,6 +38,66 @@ const updateNestedValue = (obj, path, value) => {
     ...obj,
     [head]: rest.length ? updateNestedValue(obj[head] || {}, rest, value) : value
   };
+};
+
+const getNested = (obj, path) => {
+  let cur = obj;
+  for (const k of path) cur = cur?.[k];
+  return cur;
+};
+
+/** Affiche une description avec les valeurs entre [crochets] éditables inline */
+const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
+  const slotDisplayValue = (rawVal, format) => {
+    const v = Number(rawVal);
+    if (Number.isNaN(v)) return '';
+    switch (format) {
+      case 'percent': return Math.round(v * 100);
+      case 'percent1dec': return (v * 100).toFixed(1);
+      case 'percentMinus1': return Math.round((v - 1) * 100);
+      default: return v;
+    }
+  };
+  const parseSlotValue = (input, format) => {
+    const num = Number(input);
+    if (Number.isNaN(num)) return undefined;
+    switch (format) {
+      case 'percent':
+      case 'percent1dec': return num / 100;
+      case 'percentMinus1': return 1 + num / 100;
+      default: return num;
+    }
+  };
+  return (
+    <div className={`text-xs whitespace-pre-line ${className}`}>
+      {parts.map((part, idx) => {
+        if (part.type === 'text') {
+          return <span key={idx}>{part.value}</span>;
+        }
+        if (part.type === 'slot') {
+          const rawVal = getNested(draft, part.path);
+          const displayVal = slotDisplayValue(rawVal, part.format);
+          return (
+            <span key={idx} className="inline-flex items-center">
+              [
+              <input
+                type="number"
+                step={part.format === 'percent1dec' ? 0.1 : 1}
+                value={displayVal}
+                onChange={(e) => {
+                  const parsed = parseSlotValue(e.target.value, part.format);
+                  if (parsed !== undefined) onSlotChange(part.path, parsed);
+                }}
+                className={`w-14 text-center mx-0.5 px-1 py-0.5 bg-stone-800 border border-amber-600/70 text-amber-200 rounded ${slotInputClass}`}
+              />
+              ]
+            </span>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
 };
 
 const NumberTreeEditor = ({ value, onChange, path = [] }) => (
@@ -221,8 +281,16 @@ function AdminBalance({ embedded = false }) {
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
   const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
   const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
-  const [raceTextDraft, setRaceTextDraft] = useState(() => buildRaceTextDraft(deepClone(raceConstants), Object.fromEntries(Object.entries(races).map(([name, info]) => [name, deepClone(info?.awakening?.effect || {})]))));
-  const [classTextDraft, setClassTextDraft] = useState(() => buildClassTextDraft(deepClone(classConstants)));
+
+  // Textes dérivés des drafts : se mettent à jour automatiquement quand tu modifies une valeur
+  const raceTextDraft = useMemo(
+    () => buildRaceTextDraft(raceBonusDraft, raceAwakeningDraft),
+    [raceBonusDraft, raceAwakeningDraft]
+  );
+  const classTextDraft = useMemo(
+    () => buildClassTextDraft(classDraft),
+    [classDraft]
+  );
 
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
@@ -243,8 +311,6 @@ function AdminBalance({ embedded = false }) {
         loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
       });
       setRaceAwakeningDraft(loadedAwakeningDraft);
-      setRaceTextDraft(buildRaceTextDraft(deepClone(raceConstants), loadedAwakeningDraft));
-      setClassTextDraft(buildClassTextDraft(deepClone(classConstants)));
     };
 
     loadSavedConfig();
@@ -542,25 +608,16 @@ function AdminBalance({ embedded = false }) {
                 const awakeningValues = raceAwakeningDraft[name];
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-1">{info.icon} {name}</div>
+                    <div className="font-bold text-white mb-2">{info.icon} {name}</div>
                     {raceTab === 'bonus' ? (
                       <>
-                        <textarea
-                          className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                          value={`Bonus: ${raceTextDraft[name]?.bonus || ''}`}
-                          readOnly
-                          rows={2}
-                        />
-                        {bonusValues ? (
-                          <NumberTreeEditor
-                            value={bonusValues}
-                            onChange={(path, value) => {
-                              setRaceBonusDraft((prev) => {
-                                const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
-                                setRaceTextDraft(buildRaceTextDraft(next, raceAwakeningDraft));
-                                return next;
-                              });
-                            }}
+                        <div className="text-amber-300/90 text-[11px] mb-1">Bonus</div>
+                        {constantKey && bonusValues ? (
+                          <DescriptionWithEditableSlots
+                            parts={buildRaceBonusDescriptionParts(name, raceBonusDraft[constantKey])}
+                            draft={raceBonusDraft}
+                            onSlotChange={(path, value) => setRaceBonusDraft((prev) => updateNestedValue(prev, path, value))}
+                            className="text-stone-300"
                           />
                         ) : (
                           <div className="text-xs text-stone-500">Aucune valeur numérique mappée pour ce bonus.</div>
@@ -568,21 +625,12 @@ function AdminBalance({ embedded = false }) {
                       </>
                     ) : (
                       <>
-                        <textarea
-                          className="w-full text-xs text-emerald-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                          value={`Awakening: ${raceTextDraft[name]?.awakeningDescription || ''}`}
-                          readOnly
-                          rows={4}
-                        />
-                        <NumberTreeEditor
-                          value={awakeningValues}
-                          onChange={(path, value) => {
-                            setRaceAwakeningDraft((prev) => {
-                              const next = { ...prev, [name]: updateNestedValue(prev[name] || {}, path, value) };
-                              setRaceTextDraft(buildRaceTextDraft(raceBonusDraft, next));
-                              return next;
-                            });
-                          }}
+                        <div className="text-emerald-300/90 text-[11px] mb-1">Awakening</div>
+                        <DescriptionWithEditableSlots
+                          parts={buildRaceAwakeningDescriptionParts(name, raceAwakeningDraft[name])}
+                          draft={raceAwakeningDraft}
+                          onSlotChange={(path, value) => setRaceAwakeningDraft((prev) => updateNestedValue(prev, path, value))}
+                          className="text-emerald-200/90"
                         />
                       </>
                     )}
@@ -593,7 +641,7 @@ function AdminBalance({ embedded = false }) {
           </div>
 
           <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (description auto + valeurs modifiables)</h2>
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (valeurs modifiables entre [crochets])</h2>
             <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
               {classCards.map(([name, info]) => {
                 const constantKey = CLASS_TO_CONSTANT_KEY[name];
@@ -601,22 +649,12 @@ function AdminBalance({ embedded = false }) {
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-xs text-amber-300 mb-1">{classTextDraft[name]?.ability || info.ability}</div>
-                    <textarea
-                      className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                      value={classTextDraft[name]?.description || info.description}
-                      readOnly
-                      rows={3}
-                    />
-                    <NumberTreeEditor
-                      value={classDraft[constantKey]}
-                      onChange={(path, value) => {
-                        setClassDraft((prev) => {
-                          const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
-                          setClassTextDraft(buildClassTextDraft(next));
-                          return next;
-                        });
-                      }}
+                    <div className="text-xs text-amber-300 mb-2">{classTextDraft[name]?.ability || info.ability}</div>
+                    <DescriptionWithEditableSlots
+                      parts={buildClassDescriptionParts(name, classDraft[constantKey])}
+                      draft={classDraft}
+                      onSlotChange={(path, value) => setClassDraft((prev) => updateNestedValue(prev, path, value))}
+                      className="text-stone-300"
                     />
                   </div>
                 );
