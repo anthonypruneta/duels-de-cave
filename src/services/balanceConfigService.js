@@ -131,6 +131,23 @@ const normalizeGnomeConfig = (config) => {
 };
 
 
+const normalizeMageTowerPassivesConfig = (config) => {
+  if (!config || typeof config !== 'object' || !Array.isArray(config.mageTowerPassives)) return;
+
+  const lastStandText = 'Vous survivez à 1 HP (1 fois par combat).';
+  const onctionConfig = config.mageTowerPassives.find((passive) => passive?.id === 'onction_eternite');
+  if (!onctionConfig?.levels) return;
+
+  Object.values(onctionConfig.levels).forEach((levelData) => {
+    if (!levelData || typeof levelData !== 'object') return;
+    const current = typeof levelData.description === 'string' ? levelData.description.trim() : '';
+    if (!current) return;
+    if (!current.includes(lastStandText)) {
+      levelData.description = `${current} ${lastStandText}`.trim();
+    }
+  });
+};
+
 const applyWeaponAndPassiveTextOverrides = (config) => {
   if (config.weaponConstants) {
     Object.entries(config.weaponConstants).forEach(([weaponId, weaponConfig]) => {
@@ -197,6 +214,7 @@ export const applyBalanceConfig = (config) => {
 
   normalizeMindflayerConfig(config);
   normalizeGnomeConfig(config);
+  normalizeMageTowerPassivesConfig(config);
 
   if (config.raceConstants) {
     applyNumericOverrides(raceConstants, config.raceConstants);
