@@ -86,7 +86,7 @@ const getWeaponTooltipContent = (weapon) => {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && (
+      {weapon.effet && typeof weapon.effet === 'object' && (
         <span className="block text-amber-200">
           Effet: {weapon.effet.nom} — {weapon.effet.description}
         </span>
@@ -308,7 +308,7 @@ const CharacterCreation = () => {
                           <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
                           <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
-                          {weapon.effet && (
+                          {weapon.effet && typeof weapon.effet === 'object' && (
                             <div className="text-[11px] text-amber-200">{weapon.effet.nom}: {weapon.effet.description}</div>
                           )}
                         </div>
@@ -1092,7 +1092,7 @@ const CharacterCreation = () => {
                         </Tooltip>
                         <div className="text-[11px] text-stone-400 mt-1 space-y-1">
                           <div>{weapon.description}</div>
-                          {weapon.effet && (
+                          {weapon.effet && typeof weapon.effet === 'object' && (
                             <div className="text-amber-200">
                               Effet: {weapon.effet.nom} — {weapon.effet.description}
                             </div>
