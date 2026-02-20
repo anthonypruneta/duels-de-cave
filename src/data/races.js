@@ -156,11 +156,11 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 5% de votre CAP aux dégâts\nSort sans CD: +5% dégâts',
+    bonus: 'Copie et relance le premier sort reçu et ajoute 5% de votre CAP aux dégâts\nSort sans CD: +5% dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 10% de votre CAP aux dégâts\nPremier sort: -1 de CD\nSort sans CD: +10% dégâts',
+      description: 'Copie et relance le premier sort reçu et ajoute 10% de votre CAP aux dégâts\nPremier sort: -1 de CD\nSort sans CD: +10% dégâts',
       effect: {
         mindflayerStealSpellCapDamageScale: 0.10,
         mindflayerOwnCooldownReductionTurns: 1,
