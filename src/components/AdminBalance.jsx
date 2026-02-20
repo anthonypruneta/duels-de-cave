@@ -53,15 +53,18 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => (
         );
       }
 
-      if (typeof val === 'string' && val !== '') return null;
+      // Ne pas afficher d'input pour les chaînes purement textuelles (ex: descriptions)
+      const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
+      if (!isNumericOrEmpty) return null;
 
+      const displayValue = typeof val === 'number' ? val : (val === '' ? '' : val);
       return (
         <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
           <span className="text-stone-300">{key}</span>
           <input
             type="number"
             step="any"
-            value={val}
+            value={displayValue}
             onChange={(e) => onChange(keyPath, e.target.value)}
             className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
           />
