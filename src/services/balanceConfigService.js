@@ -120,6 +120,10 @@ const normalizeGnomeConfig = (config) => {
     };
   }
 
+  if (awakeningGnome && awakeningGnome.speedDuelCapBonusLow == null && awakeningGnome.speedDuelCapBonusHigh != null) {
+    awakeningGnome.speedDuelCapBonusLow = awakeningGnome.speedDuelCapBonusHigh;
+  }
+
   if (config.raceTexts?.Gnome && (gnome && gnome.critDmgIfFaster == null || awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null)) {
     config.raceTexts.Gnome.bonus = races['Gnome']?.bonus;
     config.raceTexts.Gnome.awakeningDescription = races['Gnome']?.awakening?.description;
