@@ -53,6 +53,8 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => (
         );
       }
 
+      if (typeof val === 'string' && val !== '') return null;
+
       return (
         <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
           <span className="text-stone-300">{key}</span>
@@ -628,6 +630,39 @@ function AdminBalance({ embedded = false }) {
                 return (
                   <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
+                    <label className="block text-xs text-stone-300 mb-2">
+                      Description
+                      <textarea
+                        rows={2}
+                        value={draft.description || ''}
+                        onChange={(e) => {
+                          setWeaponDraft((prev) => ({
+                            ...prev,
+                            [weapon.id]: { ...(prev[weapon.id] || {}), description: e.target.value }
+                          }));
+                        }}
+                        className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                      />
+                    </label>
+                    {draft.effet && (
+                      <label className="block text-xs text-amber-300 mb-2">
+                        Description de l'effet
+                        <textarea
+                          rows={2}
+                          value={draft.effet.description || ''}
+                          onChange={(e) => {
+                            setWeaponDraft((prev) => ({
+                              ...prev,
+                              [weapon.id]: {
+                                ...(prev[weapon.id] || {}),
+                                effet: { ...((prev[weapon.id] || {}).effet || {}), description: e.target.value }
+                              }
+                            }));
+                          }}
+                          className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                        />
+                      </label>
+                    )}
                     <NumberTreeEditor
                       value={draft}
                       onChange={(path, value) => {
@@ -649,6 +684,25 @@ function AdminBalance({ embedded = false }) {
               {passiveDraft.map((passive, idx) => (
                 <div key={passive.id} className="bg-stone-950/70 border border-stone-700 p-3">
                   <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
+                  <div className="space-y-2 mb-3">
+                    {Object.entries(passive.levels || {}).map(([level, levelData]) => (
+                      <label key={`${passive.id}-${level}`} className="block text-xs text-stone-300">
+                        Description niveau {level}
+                        <textarea
+                          rows={2}
+                          value={levelData?.description || ''}
+                          onChange={(e) => {
+                            setPassiveDraft((prev) => prev.map((item, itemIdx) => (
+                              itemIdx === idx
+                                ? updateNestedValue(item, ['levels', level, 'description'], e.target.value)
+                                : item
+                            )));
+                          }}
+                          className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                        />
+                      </label>
+                    ))}
+                  </div>
                   <NumberTreeEditor
                     value={passive}
                     onChange={(path, value) => {

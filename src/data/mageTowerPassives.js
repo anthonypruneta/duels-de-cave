@@ -198,15 +198,15 @@ export const MAGE_TOWER_PASSIVES = [
     vague: 2,
     levels: {
       1: {
-        description: 'Régénère 1% HP max par tour.',
+        description: 'Régénère 1% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.01
       },
       2: {
-        description: 'Régénère 2% HP max par tour.',
+        description: 'Régénère 2% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.02
       },
       3: {
-        description: 'Régénère 3% HP max par tour.',
+        description: 'Régénère 3% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.03
       }
     }

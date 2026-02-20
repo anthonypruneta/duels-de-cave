@@ -119,7 +119,7 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
   const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
   const dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
-  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? raceConstants.gnome.capBonusIfSlower;
+  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? aw.speedDuelCapBonusHigh ?? raceConstants.gnome.capBonusIfSlower;
   const critIfEqual = aw.speedDuelEqualCrit ?? raceConstants.gnome.critIfEqual;
   const critDmgIfEqual = aw.speedDuelEqualCritDmg ?? raceConstants.gnome.critDmgIfEqual;
   const dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
