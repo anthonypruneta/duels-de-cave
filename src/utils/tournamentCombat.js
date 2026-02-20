@@ -418,6 +418,13 @@ function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
   }
 }
 
+
+function flushPendingCombatLogs(fighter, log) {
+  if (!fighter?._pendingCombatLogs || fighter._pendingCombatLogs.length === 0) return;
+  log.push(...fighter._pendingCombatLogs);
+  fighter._pendingCombatLogs = [];
+}
+
 function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isSpellDamage = false) {
   let adjusted = raw;
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
@@ -485,7 +492,8 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
       def.reflect = false;
-      log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+      att._pendingCombatLogs = att._pendingCombatLogs || [];
+      att._pendingCombatLogs.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
     }
   }
   if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
@@ -967,8 +975,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const critText = isCrit ? ' CRITIQUE !' : '';
       const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
       log.push(`${playerColor} 🏹 ${att.name} lance un ${shotLabel} et inflige ${inflicted} points de dégâts${critText}`);
+      flushPendingCombatLogs(att, log);
     } else if (isBonusAttack) {
       log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
+      flushPendingCombatLogs(att, log);
     }
   }
 
@@ -991,6 +1001,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  flushPendingCombatLogs(att, log);
 }
 
 // ============================================================================
