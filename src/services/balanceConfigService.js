@@ -13,7 +13,7 @@ const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle en Firestore, le code est appliqué et poussé vers Firestore.
  */
-export const BALANCE_CONFIG_VERSION = 1;
+export const BALANCE_CONFIG_VERSION = 3;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
