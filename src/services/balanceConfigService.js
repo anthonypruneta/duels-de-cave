@@ -130,6 +130,38 @@ const normalizeGnomeConfig = (config) => {
   }
 };
 
+
+const applyWeaponAndPassiveTextOverrides = (config) => {
+  if (config.weaponConstants) {
+    Object.entries(config.weaponConstants).forEach(([weaponId, weaponConfig]) => {
+      const weapon = weapons[weaponId];
+      if (!weapon || !weaponConfig) return;
+
+      if (typeof weaponConfig.description === 'string') {
+        weapon.description = weaponConfig.description;
+      }
+
+      if (weapon.effet && weaponConfig.effet && typeof weaponConfig.effet.description === 'string') {
+        weapon.effet.description = weaponConfig.effet.description;
+      }
+    });
+  }
+
+  if (Array.isArray(config.mageTowerPassives)) {
+    config.mageTowerPassives.forEach((passiveConfig, index) => {
+      const passive = MAGE_TOWER_PASSIVES[index];
+      if (!passive || !passiveConfig?.levels) return;
+
+      Object.entries(passiveConfig.levels).forEach(([level, levelConfig]) => {
+        if (!passive.levels?.[level] || !levelConfig) return;
+        if (typeof levelConfig.description === 'string') {
+          passive.levels[level].description = levelConfig.description;
+        }
+      });
+    });
+  }
+};
+
 const applyTextOverrides = (config) => {
   if (config.raceTexts) {
     Object.entries(config.raceTexts).forEach(([raceName, raceText]) => {
@@ -193,6 +225,7 @@ export const applyBalanceConfig = (config) => {
     });
   }
 
+  applyWeaponAndPassiveTextOverrides(config);
   applyTextOverrides(config);
 };
 
