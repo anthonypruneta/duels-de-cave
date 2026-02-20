@@ -123,11 +123,11 @@ export const races = {
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +30% dégâts crit, +30% CAP\n- VIT < cible: +30% esquive\n- égalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +30% dégâts crit\n- VIT < cible: +30% esquive, +30% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
         speedDuelCritHigh: 0.30,
         speedDuelCritDmgHigh: 0.30,
-        speedDuelCapBonusHigh: 0.30,
+        speedDuelCapBonusLow: 0.30,
         speedDuelDodgeLow: 0.30,
         speedDuelEqualCrit: 0.10,
         speedDuelEqualCritDmg: 0.10,
