@@ -18,9 +18,9 @@ import {
   canAttemptBoss,
   recordAttemptDamage,
   getLeaderboard,
-  launchCataclysm
+  launchCataclysm,
+  pickWeeklyBossWithChampions
 } from '../services/worldBossService';
-import { getHallOfFame } from '../services/tournamentService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -28,56 +28,23 @@ import { replayCombatSteps } from '../utils/combatReplay';
 // Images du boss cataclysme pour sélection aléatoire
 const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
+// Images des boss champions (noms de fichiers = noms des boss)
+const CHAMPION_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+
 function getBossNameFromPath(path) {
   const match = path.match(/\/([^/]+)\.(png|jpg|jpeg|webp)$/i);
-  return match ? match[1] : 'Boss Inconnu';
+  return match ? decodeURIComponent(match[1]) : 'Boss Inconnu';
 }
 
-function getWeekSeed() {
-  const now = new Date();
-  const lastSatNoon = new Date(now);
-  lastSatNoon.setDate(now.getDate() - ((now.getDay() + 1) % 7));
-  lastSatNoon.setHours(12, 0, 0, 0);
-  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
-}
+// Liste des noms de boss génériques (noms de fichiers)
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
 
-// Sélectionne un boss de la semaine parmi les boss génériques ET les anciens champions
-async function pickWeeklyBossWithChampions() {
-  const genericBosses = Object.entries(CATACLYSM_IMAGES)
-    .sort(([a], [b]) => a.localeCompare(b, 'fr'))
-    .map(([path]) => ({
-      name: getBossNameFromPath(path),
-      isChampion: false,
-      championData: null
-    }));
-  
-  // Récupérer les champions du Hall of Fame
-  let championBosses = [];
-  try {
-    const hallOfFameResult = await getHallOfFame();
-    if (hallOfFameResult.success && hallOfFameResult.data.length > 0) {
-      championBosses = hallOfFameResult.data.map(entry => ({
-        name: `${entry.champion?.nom || entry.champion?.name || 'Champion'} (Champion S${entry.week || '?'})`,
-        isChampion: true,
-        championData: entry.champion
-      }));
-    }
-  } catch (error) {
-    console.error('Erreur récupération champions:', error);
-  }
-  
-  // Combiner les deux pools
-  const allBosses = [...genericBosses, ...championBosses];
-  
-  if (allBosses.length === 0) {
-    return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
-  }
-  
-  // Sélection déterministe basée sur la semaine
-  const seed = getWeekSeed();
-  const index = seed % allBosses.length;
-  return allBosses[index];
-}
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
 
 const STATUS_LABELS = {
   [EVENT_STATUS.INACTIVE]: { text: 'Inactif', color: 'text-stone-400', dot: 'bg-stone-500' },
@@ -217,7 +184,7 @@ const WorldBossAdmin = ({ characters }) => {
     
     // Choisir un boss aléatoire de la semaine (peut être un générique OU un champion)
     setCombatLogs(['🔄 Sélection du boss de la semaine...']);
-    const weeklyBoss = await pickWeeklyBossWithChampions();
+    const weeklyBoss = await pickWeeklyBossWithChampions(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
     console.log('Boss de la semaine choisi:', weeklyBoss);
     
     const result = await launchCataclysm(weeklyBoss);

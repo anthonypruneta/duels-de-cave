@@ -44,6 +44,16 @@ function getBossNameFromPath(path) {
   return filename.replace(/\.[^/.]+$/, '');
 }
 
+// Liste des noms de boss génériques (noms de fichiers)
+const GENERIC_BOSS_NAMES = Object.keys(CATACLYSM_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
+// Liste des noms de boss champions (noms de fichiers dans ChampBoss/)
+const CHAMPION_BOSS_NAMES = Object.keys(CHAMPION_BOSS_IMAGES)
+  .sort((a, b) => a.localeCompare(b, 'fr'))
+  .map(path => getBossNameFromPath(path));
+
 // Retourne un index de semaine qui change le samedi à midi
 function getWeekSeed() {
   const now = new Date();
@@ -249,8 +259,8 @@ const WorldBoss = () => {
         }));
       }
 
-      // Auto-launch si c'est lundi >= 18h et event inactif
-      await checkAutoLaunch(activeBossName);
+      // Auto-launch si c'est lundi >= 18h et event inactif (avec champions dans le pool)
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
 
@@ -262,14 +272,14 @@ const WorldBoss = () => {
   // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
   useEffect(() => {
     const runChecks = async () => {
-      await checkAutoLaunch(activeBossName);
+      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       await checkAutoEnd();
     };
 
     runChecks();
     const interval = setInterval(runChecks, 60 * 1000);
     return () => clearInterval(interval);
-  }, [activeBossName]);
+  }, []);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {

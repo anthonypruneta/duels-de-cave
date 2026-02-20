@@ -349,15 +349,17 @@ function triggerMindflayerSpellTheft(caster, target, log, playerColor, atkPassiv
       break;
     }
     case 'Guerrier': {
-      const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
       const ignore = ignoreBase + ignorePerCap * target.base.cap;
+      const effectiveAuto = Math.round(target.base.auto + autoBonus);
       let raw;
+      // Frappe la résistance la plus FAIBLE
       if (caster.base.def <= caster.base.rescap) {
         const effDef = Math.max(0, Math.round(caster.base.def * (1 - ignore)));
-        raw = dmgPhys(Math.round(target.base.auto), effDef);
+        raw = dmgPhys(effectiveAuto, effDef);
       } else {
         const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
-        raw = dmgCap(Math.round(target.base.cap), effRes);
+        raw = dmgPhys(effectiveAuto, effRes);
       }
       raw += capBonus;
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
@@ -852,14 +854,19 @@ function processPlayerAction(att, def, log, isP1, turn) {
         log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
       }
     } else if (isWar) {
-      const { ignoreBase, ignorePerCap } = classConstants.guerrier;
+      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
       const ignore = ignoreBase + ignorePerCap * att.base.cap;
+      const effectiveAuto = Math.round((att.base.auto + autoBonus) * attackMultiplier);
+      
+      // Frappe la résistance la plus FAIBLE entre Déf et ResC
       if (def.base.def <= def.base.rescap) {
+        // Déf est la plus faible → dégâts physiques avec Auto
         const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
-        raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
+        raw = dmgPhys(effectiveAuto, effDef);
       } else {
+        // ResC est la plus faible → dégâts physiques (Auto vs ResC réduite)
         const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
-        raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
+        raw = dmgPhys(effectiveAuto, effRes);
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'war', log, playerColor);
       // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts

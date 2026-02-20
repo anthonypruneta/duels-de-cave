@@ -12,6 +12,8 @@ import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTow
 import { createBossCombatant } from '../data/bosses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { weapons, isWaveActive, RARITY } from '../data/weapons';
+import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -118,6 +120,12 @@ const genLevelBoosts = (level) => {
   return boosts;
 };
 
+const getPassiveLevelForCharacterLevel = (level) => {
+  if (level >= 100) return 3;
+  if (level >= 50) return 2;
+  return 1;
+};
+
 
 const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
   const data = {};
@@ -141,9 +149,11 @@ const buildClassTextDraft = (classDraft) => {
   return data;
 };
 
-const makeCharacter = (id, level) => {
+const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
   const raceName = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
+  const weaponId = availableWeaponIds.length > 0 ? randomItem(availableWeaponIds) : null;
+  const passiveId = availablePassiveIds.length > 0 ? randomItem(availablePassiveIds) : null;
   const raw = genStats();
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
@@ -168,8 +178,8 @@ const makeCharacter = (id, level) => {
     level,
     bonuses: { race: raceBonus, class: classBonus },
     forestBoosts: levelBoosts,
-    mageTowerPassive: null,
-    equippedWeaponId: null
+    mageTowerPassive: passiveId ? { id: passiveId, level: getPassiveLevelForCharacterLevel(level) } : null,
+    equippedWeaponId: weaponId
   };
 };
 
@@ -178,15 +188,20 @@ function AdminBalance({ embedded = false }) {
   const [duels, setDuels] = useState(500);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
+  const [raceTab, setRaceTab] = useState('bonus');
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [raceTab, setRaceTab] = useState('bonus');
 
   // Duel 1v1
   const raceNames = useMemo(() => Object.keys(races), []);
   const classNames = useMemo(() => Object.keys(classes), []);
-  const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
-  const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1 });
+  const availableWeapons = useMemo(() => Object.values(weapons).filter((weapon) => isWaveActive(weapon.vague) && weapon.rarete === RARITY.LEGENDAIRE), []);
+  const availablePassives = useMemo(() => getAvailablePassives(), []);
+  const defaultWeaponId = availableWeapons[0]?.id || '';
+  const defaultPassiveId = availablePassives[0]?.id || '';
+
+  const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
+  const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
   const [duelOpponent, setDuelOpponent] = useState('pvp');
   const [duelResult, setDuelResult] = useState(null);
 
@@ -199,29 +214,32 @@ function AdminBalance({ embedded = false }) {
     return draft;
   });
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
+  const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
+  const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
   const [raceTextDraft, setRaceTextDraft] = useState(() => buildRaceTextDraft(deepClone(raceConstants), Object.fromEntries(Object.entries(races).map(([name, info]) => [name, deepClone(info?.awakening?.effect || {})]))));
   const [classTextDraft, setClassTextDraft] = useState(() => buildClassTextDraft(deepClone(classConstants)));
 
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
 
+  // Charger la config depuis Firebase au démarrage
   useEffect(() => {
     const loadSavedConfig = async () => {
       const result = await loadPersistedBalanceConfig();
       if (!result.success || !result.data) return;
 
-      const loadedRaceBonusDraft = deepClone(raceConstants);
-      const loadedClassDraft = deepClone(classConstants);
+      setRaceBonusDraft(deepClone(raceConstants));
+      setClassDraft(deepClone(classConstants));
+      setWeaponDraft(deepClone(weapons));
+      setPassiveDraft(deepClone(MAGE_TOWER_PASSIVES));
+      
       const loadedAwakeningDraft = {};
       Object.entries(races).forEach(([name, info]) => {
         loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
       });
-
-      setRaceBonusDraft(loadedRaceBonusDraft);
-      setClassDraft(loadedClassDraft);
       setRaceAwakeningDraft(loadedAwakeningDraft);
-      setRaceTextDraft(buildRaceTextDraft(loadedRaceBonusDraft, loadedAwakeningDraft));
-      setClassTextDraft(buildClassTextDraft(loadedClassDraft));
+      setRaceTextDraft(buildRaceTextDraft(deepClone(raceConstants), loadedAwakeningDraft));
+      setClassTextDraft(buildClassTextDraft(deepClone(classConstants)));
     };
 
     loadSavedConfig();
@@ -230,6 +248,11 @@ function AdminBalance({ embedded = false }) {
   const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
+    applyNumericOverrides(weapons, weaponDraft);
+    passiveDraft.forEach((passive, index) => {
+      if (!MAGE_TOWER_PASSIVES[index]) return;
+      applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
+    });
 
     Object.entries(raceAwakeningDraft).forEach(([raceName, effectDraft]) => {
       const currentEffect = races?.[raceName]?.awakening?.effect;
@@ -238,9 +261,46 @@ function AdminBalance({ embedded = false }) {
     });
   };
 
+  // Sauvegarder dans Firebase et appliquer immédiatement
+  const handleApplyChanges = async () => {
+    setSaving(true);
+    setSaveMessage('');
+
+    try {
+      const config = {
+        raceConstants: deepClone(raceBonusDraft),
+        classConstants: deepClone(classDraft),
+        weaponConstants: deepClone(weaponDraft),
+        mageTowerPassives: deepClone(passiveDraft),
+        raceAwakenings: deepClone(raceAwakeningDraft),
+        raceTexts: deepClone(raceTextDraft),
+        classTexts: deepClone(classTextDraft)
+      };
+
+      const saveResult = await savePersistedBalanceConfig({
+        config,
+        updatedBy: 'admin'
+      });
+
+      if (!saveResult.success) {
+        setSaveMessage(`❌ ${saveResult.error}`);
+        return;
+      }
+
+      applyBalanceConfig(config);
+      setSaveMessage('✅ Modifications sauvegardées et appliquées à tout le jeu !');
+    } catch (error) {
+      setSaveMessage(`❌ Erreur: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const withTemporaryDraftOverrides = (callback) => {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
+    const previousWeapons = deepClone(weapons);
+    const previousPassives = deepClone(MAGE_TOWER_PASSIVES);
     const previousAwakeningEffects = {};
 
     Object.entries(races).forEach(([name, info]) => {
@@ -257,6 +317,11 @@ function AdminBalance({ embedded = false }) {
       Object.keys(classConstants).forEach((key) => delete classConstants[key]);
       Object.assign(classConstants, previousClassConstants);
 
+      Object.keys(weapons).forEach((key) => delete weapons[key]);
+      Object.assign(weapons, previousWeapons);
+
+      MAGE_TOWER_PASSIVES.splice(0, MAGE_TOWER_PASSIVES.length, ...previousPassives);
+
       Object.entries(previousAwakeningEffects).forEach(([name, effect]) => {
         if (!races?.[name]?.awakening) return;
         races[name].awakening.effect = effect;
@@ -267,22 +332,35 @@ function AdminBalance({ embedded = false }) {
   const simulateForLevel = (level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classWins = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const weaponWins = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
+    const passiveWins = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
     const raceAppearances = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classAppearances = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const weaponAppearances = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
+    const passiveAppearances = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
+
+    const availableWeaponIds = availableWeapons.map((weapon) => weapon.id);
+    const availablePassiveIds = availablePassives.map((passive) => passive.id);
 
     for (let i = 0; i < count; i++) {
-      const p1 = makeCharacter(`L${level}-A-${i}`, level);
-      const p2 = makeCharacter(`L${level}-B-${i}`, level);
+      const p1 = makeCharacter(`L${level}-A-${i}`, level, availableWeaponIds, availablePassiveIds);
+      const p2 = makeCharacter(`L${level}-B-${i}`, level, availableWeaponIds, availablePassiveIds);
 
       raceAppearances[p1.race] += 1;
       raceAppearances[p2.race] += 1;
       classAppearances[p1.class] += 1;
       classAppearances[p2.class] += 1;
+      if (p1.equippedWeaponId) weaponAppearances[p1.equippedWeaponId] += 1;
+      if (p2.equippedWeaponId) weaponAppearances[p2.equippedWeaponId] += 1;
+      if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] += 1;
+      if (p2.mageTowerPassive?.id) passiveAppearances[p2.mageTowerPassive.id] += 1;
 
       const match = simulerMatch(p1, p2);
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
       classWins[winner.class] += 1;
+      if (winner.equippedWeaponId) weaponWins[winner.equippedWeaponId] += 1;
+      if (winner.mageTowerPassive?.id) passiveWins[winner.mageTowerPassive.id] += 1;
     }
 
     const sortedRaces = Object.entries(raceWins)
@@ -301,7 +379,23 @@ function AdminBalance({ embedded = false }) {
       })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
-    return { sortedRaces, sortedClasses };
+    const sortedWeapons = Object.entries(weaponWins)
+      .map(([weaponId, wins]) => {
+        const appearances = weaponAppearances[weaponId] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { weaponId, wins, appearances, rate: rate.toFixed(1) };
+      })
+      .sort((a, b) => Number(b.rate) - Number(a.rate));
+
+    const sortedPassives = Object.entries(passiveWins)
+      .map(([passiveId, wins]) => {
+        const appearances = passiveAppearances[passiveId] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { passiveId, wins, appearances, rate: rate.toFixed(1) };
+      })
+      .sort((a, b) => Number(b.rate) - Number(a.rate));
+
+    return { sortedRaces, sortedClasses, sortedWeapons, sortedPassives };
   };
 
   const handleRun = async () => {
@@ -313,44 +407,20 @@ function AdminBalance({ embedded = false }) {
       withTemporaryDraftOverrides(() => {
         const level1 = simulateForLevel(1, duelCount);
         const level100 = simulateForLevel(100, duelCount);
-        setResults({ duelCount, level1, level100 });
+        const level400 = simulateForLevel(400, duelCount);
+        setResults({ duelCount, level1, level100, level400 });
       });
     } finally {
       setRunning(false);
     }
   };
 
-  const handleApplyGlobally = async () => {
-    setSaving(true);
-    setSaveMessage('');
+  // La page est maintenant en lecture seule - les valeurs viennent directement du code
+  // Pour modifier l'équilibrage, éditez les fichiers:
+  // - /src/data/combatMechanics.js (classConstants, raceConstants)
+  // - /src/data/races.js (awakening effects)
 
-    try {
-      const config = {
-        raceConstants: deepClone(raceBonusDraft),
-        classConstants: deepClone(classDraft),
-        raceAwakenings: deepClone(raceAwakeningDraft),
-        raceTexts: deepClone(raceTextDraft),
-        classTexts: deepClone(classTextDraft)
-      };
-
-      const saveResult = await savePersistedBalanceConfig({
-        config,
-        updatedBy: 'admin'
-      });
-
-      if (!saveResult.success) {
-        setSaveMessage(`❌ ${saveResult.error}`);
-        return;
-      }
-
-      applyBalanceConfig(config);
-      setSaveMessage('✅ Modifications sauvegardées en base et descriptions synchronisées.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const makeCustomCharacter = (id, raceName, className, level) => {
+  const makeCustomCharacter = (id, raceName, className, level, weaponId, passiveId, passiveLevel) => {
     const raw = genStats();
     const raceBonus = getRaceBonus(raceName);
     const classBonus = getClassBonus(className);
@@ -368,7 +438,9 @@ function AdminBalance({ embedded = false }) {
       name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
       race: raceName, class: className, base, level,
       bonuses: { race: raceBonus, class: classBonus },
-      forestBoosts: levelBoosts, mageTowerPassive: null, equippedWeaponId: null
+      forestBoosts: levelBoosts,
+      mageTowerPassive: passiveId ? { id: passiveId, level: Math.max(1, Math.min(3, Number(passiveLevel) || 1)) } : null,
+      equippedWeaponId: weaponId || null
     };
   };
 
@@ -403,12 +475,12 @@ function AdminBalance({ embedded = false }) {
 
   const handleDuel = () => {
     withTemporaryDraftOverrides(() => {
-      const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level);
+      const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level, duelP1.weaponId, duelP1.passiveId, duelP1.passiveLevel);
       const p1Final = preparerCombattant(p1);
       const p1Display = { ...p1, base: p1Final.base };
 
       if (duelOpponent === 'pvp') {
-        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level);
+        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level, duelP2.weaponId, duelP2.passiveId, duelP2.passiveLevel);
         const p2Final = preparerCombattant(p2);
         const result = simulerMatch(p1, p2);
         setDuelResult({ ...result, p1: p1Display, p2: { ...p2, base: p2Final.base } });
@@ -431,16 +503,16 @@ function AdminBalance({ embedded = false }) {
       </div>
 
         <div className="bg-stone-900/70 border border-amber-600 p-4 mb-6">
-          <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1 et 100)</label>
+          <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1, 100 et 400)</label>
           <div className="flex gap-3 flex-wrap">
             <input type="number" min="10" value={duels} onChange={(e) => setDuels(e.target.value)} className="px-3 py-2 bg-stone-800 border border-stone-600 text-white w-40" />
             <button onClick={handleRun} disabled={running} className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-4 py-2 font-bold">
-              {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100'}
+              {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100 + niv 400'}
             </button>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid lg:grid-cols-2 2xl:grid-cols-4 gap-6 mb-8">
           <div className="bg-stone-900/70 border border-stone-600 p-4">
             <h2 className="text-xl text-amber-300 font-bold mb-3">Races</h2>
             <div className="flex gap-2 mb-4">
@@ -546,15 +618,58 @@ function AdminBalance({ embedded = false }) {
               })}
             </div>
           </div>
+
+          <div className="bg-stone-900/70 border border-stone-600 p-4">
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Armes légendaires (up/nerf)</h2>
+            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
+              {availableWeapons.map((weapon) => {
+                const draft = weaponDraft[weapon.id];
+                if (!draft) return null;
+                return (
+                  <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
+                    <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
+                    <NumberTreeEditor
+                      value={draft}
+                      onChange={(path, value) => {
+                        setWeaponDraft((prev) => ({
+                          ...prev,
+                          [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path, value)
+                        }));
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-stone-900/70 border border-stone-600 p-4">
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Passifs tour de mage (up/nerf)</h2>
+            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
+              {passiveDraft.map((passive, idx) => (
+                <div key={passive.id} className="bg-stone-950/70 border border-stone-700 p-3">
+                  <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
+                  <NumberTreeEditor
+                    value={passive}
+                    onChange={(path, value) => {
+                      setPassiveDraft((prev) => prev.map((item, itemIdx) => (
+                        itemIdx === idx ? updateNestedValue(item, path, value) : item
+                      )));
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
           <button
-            onClick={handleApplyGlobally}
+            onClick={handleApplyChanges}
             disabled={saving}
             className="w-full bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
           >
-            {saving ? '⏳ Validation...' : '✅ Valider les modifications (appliquer à tout le jeu)'}
+            {saving ? '⏳ Sauvegarde...' : '✅ Sauvegarder et appliquer à tout le jeu'}
           </button>
           {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
         </div>
@@ -597,6 +712,26 @@ function AdminBalance({ embedded = false }) {
                   onChange={(e) => setDuelP1((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
                   className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
               </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Arme
+                <select value={duelP1.weaponId} onChange={(e) => setDuelP1((p) => ({ ...p, weaponId: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Passif Tour de Mage
+                <select value={duelP1.passiveId} onChange={(e) => setDuelP1((p) => ({ ...p, passiveId: e.target.value }))}
+                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                  {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-300">
+                Niveau passif
+                <input type="number" min="1" max="3" value={duelP1.passiveLevel}
+                  onChange={(e) => setDuelP1((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
+                  className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
+              </label>
             </div>
             {duelOpponent === 'pvp' && (
               <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
@@ -621,6 +756,26 @@ function AdminBalance({ embedded = false }) {
                     onChange={(e) => setDuelP2((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
                     className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
                 </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Arme
+                  <select value={duelP2.weaponId} onChange={(e) => setDuelP2((p) => ({ ...p, weaponId: e.target.value }))}
+                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                    {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Passif Tour de Mage
+                  <select value={duelP2.passiveId} onChange={(e) => setDuelP2((p) => ({ ...p, passiveId: e.target.value }))}
+                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
+                    {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-stone-300">
+                  Niveau passif
+                  <input type="number" min="1" max="3" value={duelP2.passiveLevel}
+                    onChange={(e) => setDuelP2((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
+                    className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
+                </label>
               </div>
             )}
           </div>
@@ -634,11 +789,15 @@ function AdminBalance({ embedded = false }) {
                 <div className="text-sm">
                   <span className="text-blue-300 font-bold">{duelResult.p1.name}</span>
                   <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p1.level} — HP:{duelResult.p1.base.hp} ATK:{duelResult.p1.base.auto} DEF:{duelResult.p1.base.def} CAP:{duelResult.p1.base.cap} RES:{duelResult.p1.base.rescap} SPD:{duelResult.p1.base.spd}</span>
+                  <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p1.equippedWeaponId]?.icon} {weapons[duelResult.p1.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p1.mageTowerPassive?.level || 0})</span>
                 </div>
                 <span className="text-stone-500 font-bold">VS</span>
                 <div className="text-sm text-right">
                   <span className="text-red-300 font-bold">{duelResult.p2.name}</span>
                   <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} ATK:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
+                  {!duelResult.isBoss && (
+                    <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p2.equippedWeaponId]?.icon} {weapons[duelResult.p2.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p2.mageTowerPassive?.level || 0})</span>
+                  )}
                 </div>
               </div>
               <div className="text-center text-lg font-bold text-amber-300">
@@ -672,7 +831,11 @@ function AdminBalance({ embedded = false }) {
 
         {results && (
           <div className="grid lg:grid-cols-2 gap-6">
-            {[{ key: 'level1', title: 'Résultats Niveau 1' }, { key: 'level100', title: 'Résultats Niveau 100' }].map(({ key, title }) => (
+            {[
+              { key: 'level1', title: 'Résultats Niveau 1' },
+              { key: 'level100', title: 'Résultats Niveau 100' },
+              { key: 'level400', title: 'Résultats Niveau 400' }
+            ].map(({ key, title }) => (
               <div key={key} className="bg-stone-900/70 border border-amber-600 p-4">
                 <h3 className="text-lg text-amber-300 font-bold mb-3">{title} ({results.duelCount} duels)</h3>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
@@ -696,6 +859,31 @@ function AdminBalance({ embedded = false }) {
                           <span>{row.rate}% WR</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-stone-200 mb-2">Armes</div>
+                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {results[key].sortedWeapons.map((row) => (
+                        <div key={`${key}-weapon-${row.weaponId}`} className="flex justify-between text-stone-300">
+                          <span>{weapons[row.weaponId]?.icon} {weapons[row.weaponId]?.nom}</span>
+                          <span>{row.rate}% WR</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-stone-200 mb-2">Passifs Tour de Mage</div>
+                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {results[key].sortedPassives.map((row) => {
+                        const passive = getMageTowerPassiveById(row.passiveId);
+                        return (
+                          <div key={`${key}-passive-${row.passiveId}`} className="flex justify-between text-stone-300">
+                            <span>{passive?.icon} {passive?.name}</span>
+                            <span>{row.rate}% WR</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

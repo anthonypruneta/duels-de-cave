@@ -40,20 +40,29 @@
 **Date**: 19 février 2026
 
 **Implémentation**:
-1. `WorldBossAdmin.jsx` : Nouvelle fonction `pickWeeklyBossWithChampions()` qui:
-   - Récupère la liste des boss génériques (images dans `/assets/cataclysme/`)
-   - Récupère la liste des champions du Hall of Fame
-   - Combine les deux pools
-   - Sélectionne un boss de manière déterministe basée sur la semaine
+1. `worldBossService.js` : Nouvelle fonction exportée `pickWeeklyBossWithChampions(genericBossNames)` qui:
+   - Prend la liste des noms de boss génériques en paramètre
+   - Récupère la liste des champions du Hall of Fame depuis Firestore
+   - Combine les deux pools (génériques + champions)
+   - Sélectionne un boss de manière déterministe basée sur la semaine (seed = samedi midi)
 
 2. `worldBossService.js` : Fonction `launchCataclysm()` modifiée pour:
    - Accepter soit un string (ancien format) soit un objet `{name, isChampion, championData}`
    - Si c'est un champion, charger ses vraies stats depuis `archivedCharacters`
    - Appliquer les stats du champion (auto, cap, def, rescap, spd) avec HP fixe à 35k
 
+3. `worldBossService.js` : Fonction `checkAutoLaunch()` modifiée pour:
+   - Utiliser `pickWeeklyBossWithChampions()` lors du lancement automatique (lundi 18h)
+   - Les champions sont maintenant dans le pool de boss possibles pour l'auto-launch
+
+4. `WorldBoss.jsx` et `WorldBossAdmin.jsx` : 
+   - Utilisent la fonction centralisée du service
+   - Passent la liste `GENERIC_BOSS_NAMES` extraite des images
+
 **Fichiers modifiés**:
-- `/app/src/components/WorldBossAdmin.jsx`
 - `/app/src/services/worldBossService.js`
+- `/app/src/components/WorldBoss.jsx`
+- `/app/src/components/WorldBossAdmin.jsx`
 
 ## Schéma de données (Firestore)
 
@@ -89,11 +98,12 @@
 ### P0 - Critique
 - ✅ Correction erreur lint WorldBossAdmin.jsx
 - ✅ Implémentation "Champion aléatoire comme Boss"
+- ✅ Auto-launch lundi 18h inclut les champions dans le pool
 
 ### P1 - Important
-- [ ] Refactoring: Extraire `pickWeeklyBoss` vers un service partagé
+- ✅ Refactoring: `pickWeeklyBossWithChampions` centralisée dans le service
 - [ ] Créer composant `UnifiedCharacterCard` réutilisable
 
 ### P2 - Nice to have
-- [ ] Images personnalisées pour les champions-boss (dossier ChampBoss/)
-- [ ] Améliorer l'auto-launch pour supporter les champions
+- [ ] Images personnalisées pour les champions-boss (dossier ChampBoss/) - 1 image déjà présente
+- [ ] Afficher visuellement si le boss actuel est un champion ou non dans l'UI joueur
