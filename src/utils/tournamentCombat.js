@@ -189,6 +189,7 @@ export function preparerCombattant(char) {
     stunnedTurns: 0,
     boneGuardActive: false,
     _labrysBleedPercent: 0,
+    onctionLastStandUsed: false,
     weaponState,
     awakening: buildAwakeningState(awakeningEffect)
   };
@@ -208,6 +209,7 @@ function reviveUndead(target, attacker, log, playerColor) {
       explosion = Math.max(1, Math.round(explosion * attacker.awakening.damageTakenMultiplier));
     }
     attacker.currentHP -= explosion;
+    tryTriggerOnctionLastStand(attacker, log, playerColor);
     if (attacker.awakening?.damageStackBonus) {
       attacker.awakening.damageTakenStacks += 1;
     }
@@ -216,6 +218,17 @@ function reviveUndead(target, attacker, log, playerColor) {
   target.undead = true;
   target.currentHP = revive;
   log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
+}
+
+function tryTriggerOnctionLastStand(target, log, playerColor) {
+  if (!target || target.currentHP > 0 || target.onctionLastStandUsed) return false;
+  const passive = getPassiveDetails(target.mageTowerPassive);
+  if (passive?.id !== 'onction_eternite') return false;
+
+  target.onctionLastStandUsed = true;
+  target.currentHP = 1;
+  log.push(`${playerColor} 🌿 Onction d'Éternité: ${target.name} survit à 1 PV (1 fois par combat).`);
+  return true;
 }
 
 function applyIncomingAwakeningModifiers(defender, damage) {
@@ -453,6 +466,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       if (explosionDamage > 0) {
         explosionDamage = applyIncomingAwakeningModifiers(att, explosionDamage);
         att.currentHP -= explosionDamage;
+        tryTriggerOnctionLastStand(att, log, playerColor);
         if (att.awakening?.damageStackBonus) att.awakening.damageTakenStacks += 1;
         log.push(`${playerColor} 💥 Le bouclier de ${def.name} explose et inflige ${explosionDamage} points de dégâts à ${att.name}`);
         if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
@@ -463,6 +477,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
   }
   if (adjusted > 0) {
     def.currentHP -= adjusted;
+    tryTriggerOnctionLastStand(def, log, playerColor);
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
 
@@ -473,6 +488,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
     if (def.reflect && def.currentHP > 0) {
       const back = Math.round(def.reflect * adjusted);
       att.currentHP -= back;
+      tryTriggerOnctionLastStand(att, log, playerColor);
       def.reflect = false;
       log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
     }
@@ -650,6 +666,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       bleedDmg = Math.max(1, Math.round(bleedDmg * (1 - WORLD_BOSS_CONSTANTS.PERCENT_HP_DAMAGE_REDUCTION)));
     }
     att.currentHP -= bleedDmg;
+    tryTriggerOnctionLastStand(att, log, playerColor);
     log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
   }
@@ -659,6 +676,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const labrysResult = processLabrysBleed(att);
     if (labrysResult.damage > 0) {
       att.currentHP -= labrysResult.damage;
+      tryTriggerOnctionLastStand(att, log, playerColor);
       labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
       if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
     }
@@ -900,6 +918,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = Math.round(raw * (1 + attackerPassive.levelData.autoDamageBonus));
         const hpCost = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.hpCostPercent));
         att.currentHP -= hpCost;
+        tryTriggerOnctionLastStand(att, log, playerColor);
         log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(attackerPassive.levelData.autoDamageBonus * 100)}%)`);
       }
       if (att.race === 'Lycan') {
@@ -928,6 +947,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const fractureDmg = Math.max(1, Math.round(shieldValue * attackerPassive.levelData.shieldExplosionPercent));
       def.shield = 0;
       def.currentHP -= fractureDmg;
+      tryTriggerOnctionLastStand(def, log, playerColor);
       def.maso_taken = (def.maso_taken || 0) + fractureDmg;
       if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
       log.push(`${playerColor} 💥 Rituel de Fracture: ${att.name} brise le bouclier de ${def.name} (${shieldValue}) et inflige ${fractureDmg} dégâts bruts !`);
@@ -937,6 +957,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         let lichExplosion = Math.max(1, Math.round(def.maxHP * 0.2));
         lichExplosion = applyIncomingAwakeningModifiers(att, lichExplosion);
         att.currentHP -= lichExplosion;
+        tryTriggerOnctionLastStand(att, log, playerColor);
         if (att.awakening?.damageStackBonus) att.awakening.damageTakenStacks += 1;
         log.push(`${playerColor} 💥 Le bouclier de liche de ${def.name} explose aussi et inflige ${lichExplosion} dégâts à ${att.name}`);
       }
@@ -976,6 +997,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (attackerPassive?.id === 'elemental_fury' && skillUsed) {
     const lightningDamage = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
     def.currentHP -= lightningDamage;
+    tryTriggerOnctionLastStand(def, log, playerColor);
     log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
