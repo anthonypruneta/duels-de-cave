@@ -94,9 +94,9 @@ export const raceConstants = {
     spd: 5, cap: 5 
   },
   mindflayer: {
-    stealSpellCapDamageScale: 0.05,      // +5% de CAP aux dégâts (base)
+    stealSpellCapDamageScale: 0.05,      // Copie du premier sort reçu: +5% CAP aux dégâts
     ownCooldownReductionTurns: 0,
-    noCooldownSpellBonus: 0.05           // Sort sans CD: +5% dégâts (base)
+    noCooldownSpellBonus: 0              // Bonus dégâts sort sans CD: uniquement à l'éveil
   }
 };
 
