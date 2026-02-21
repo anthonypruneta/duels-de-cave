@@ -299,7 +299,12 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
 
   target.mindflayerSpellCopyUsed = true;
   const targetAwakening = target.awakening || {};
-  const capScale = targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale;
+  // Pré-éveil: toujours +5% CAP sur les dégâts copiés.
+  // Éveil: utilise l'override d'éveil (10% actuellement).
+  const isAwakenedMindflayer = Boolean(target.awakening);
+  const capScale = isAwakenedMindflayer
+    ? (targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale)
+    : raceConstants.mindflayer.stealSpellCapDamageScale;
   const capBonus = Math.max(0, Math.round(target.base.cap * capScale));
 
   const copiedClass = caster.class;
