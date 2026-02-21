@@ -565,6 +565,7 @@ export async function terminerTournoi(docId = 'current') {
 
     const tournoi = tournoiDoc.data();
     if (!tournoi.champion) return { success: false, error: 'Pas de champion désigné' };
+    if (tournoi.archivedAt) return { success: true, alreadyArchived: true };
 
     // 1. Ajouter au Hall of Fame
     await addDoc(collection(db, 'hallOfFame'), {
@@ -582,29 +583,42 @@ export async function terminerTournoi(docId = 'current') {
       source: 'tournoi'
     }, { merge: true });
 
-    // 3. Archiver tous les personnages
+    // 3. Archiver uniquement les personnages actifs (non disabled)
     const charsResult = await getAllCharacters();
     if (charsResult.success) {
-      for (const char of charsResult.data) {
-        // Copier vers archivedCharacters
+      const activeCharacters = charsResult.data.filter(char => !char.disabled && !char.archived);
+
+      for (const char of activeCharacters) {
+        const ownerUserId = char.userId || char.id;
+        if (!ownerUserId) continue;
+
+        // Copier vers archivedCharacters (en forçant userId pour garantir la visibilité côté "anciens personnages")
         await addDoc(collection(db, 'archivedCharacters'), {
           ...char,
+          userId: ownerUserId,
           archivedAt: serverTimestamp(),
-          tournamentChampion: char.userId === tournoi.champion.userId
+          tournamentChampion: ownerUserId === tournoi.champion.userId
         });
 
-        // Supprimer le personnage original
-        await deleteDoc(doc(db, 'characters', char.id || char.userId));
+        // Supprimer le personnage original actif
+        await deleteDoc(doc(db, 'characters', ownerUserId)).catch(() => {});
+        if (char.id && char.id !== ownerUserId) {
+          await deleteDoc(doc(db, 'characters', char.id)).catch(() => {});
+        }
       }
-    }
 
-    // 4. Reset les essais de donjon pour tous les joueurs
-    if (charsResult.success) {
-      for (const char of charsResult.data) {
-        const progressRef = doc(db, 'dungeonProgress', char.userId || char.id);
+      // 4. Reset les essais de donjon pour les joueurs archivés
+      for (const char of activeCharacters) {
+        const ownerUserId = char.userId || char.id;
+        if (!ownerUserId) continue;
+        const progressRef = doc(db, 'dungeonProgress', ownerUserId);
         await deleteDoc(progressRef).catch(() => {});
       }
     }
+
+    await updateDoc(doc(db, 'tournaments', docId), {
+      archivedAt: serverTimestamp(),
+    });
 
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
 

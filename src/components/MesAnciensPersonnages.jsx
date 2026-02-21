@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
-import { getDisabledCharacters } from '../services/characterService';
+import { getArchivedCharacters } from '../services/tournamentService';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { races, classes } from '../data/gameData';
@@ -17,18 +17,15 @@ const MesAnciensPersonnages = () => {
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
-      const result = await getDisabledCharacters(currentUser.uid);
+      const result = await getArchivedCharacters(currentUser.uid);
       if (result.success) {
-        // Dédoublonner par ID (getDisabledCharacters renvoie disabled + archived)
-        const unique = [];
-        const seen = new Set();
-        for (const c of result.data) {
-          if (!seen.has(c.id)) {
-            seen.add(c.id);
-            unique.push(c);
-          }
-        }
-        setCharacters(unique);
+        // Afficher uniquement les personnages réellement archivés par le tournoi
+        const sorted = [...result.data].sort((a, b) => {
+          const aTs = a.archivedAt?.toMillis?.() || 0;
+          const bTs = b.archivedAt?.toMillis?.() || 0;
+          return bTs - aTs;
+        });
+        setCharacters(sorted);
       }
       setLoading(false);
     };
