@@ -54,7 +54,7 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Sylvari': return `Regen ${pct(c.regenPercent, 1)} PV max/tour`;
     case 'Sirène': return `+${c.cap || 0} CAP, subit un spell: +${pct(c.stackBonus, 0)} dégâts/soins des capacités (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
-    case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nSort sans CD: +${pct(c.noCooldownSpellBonus, 0)} dégâts`;
+    case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -73,7 +73,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour, +${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
     case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
-    case 'Mindflayer': return `Vole et relance le premier sort lancé par l'ennemi et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremier sort: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSort sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
+    case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremier sort: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi ce premier sort est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     default: return races[raceName]?.awakening?.description || '';
   }
 };
@@ -240,8 +240,8 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
       ];
     case 'Mindflayer':
       return [
-        text("Vole et relance le premier sort lancé par l'ennemi et ajoute "), slot(['stealSpellCapDamageScale'], 'percent'),
-        text(" de votre CAP aux dégâts\nSort sans CD: +"), slot(['noCooldownSpellBonus'], 'percent'), text(' dégâts')
+        text("Copie et relance le premier sort reçu et ajoute "), slot(['stealSpellCapDamageScale'], 'percent'),
+        text(' de votre CAP aux dégâts')
       ];
     default:
       return [{ type: 'text', value: buildRaceBonusDescription(raceName, c) }];
@@ -308,9 +308,9 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
       ];
     case 'Mindflayer':
       return [
-        text("Vole et relance le premier sort lancé par l'ennemi et ajoute "), slot(['mindflayerStealSpellCapDamageScale'], 'percent'),
+        text("Copie et relance le premier sort reçu et ajoute "), slot(['mindflayerStealSpellCapDamageScale'], 'percent'),
         text(" de votre CAP aux dégâts\nPremier sort: -"), slot(['mindflayerOwnCooldownReductionTurns'], 'raw'),
-        text(' de CD\nSort sans CD: +'), slot(['mindflayerNoCooldownSpellBonus'], 'percent'), text(' dégâts')
+        text(' de CD\nSi ce premier sort est sans CD: +'), slot(['mindflayerNoCooldownSpellBonus'], 'percent'), text(' dégâts')
       ];
     default:
       return [{ type: 'text', value: buildRaceAwakeningDescription(raceName, e) }];
