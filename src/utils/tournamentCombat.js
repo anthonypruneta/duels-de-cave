@@ -184,6 +184,7 @@ export function preparerCombattant(char) {
     spectralMarked: false,
     spectralMarkBonus: 0,
     mindflayerSpellCopyUsed: false,
+    mindflayerNoCooldownBonusUsed: false,
     firstSpellCapBoostUsed: false,
     stunned: false,
     stunnedTurns: 0,
@@ -276,16 +277,18 @@ function getMindflayerSpellCooldown(caster, _target, spellId) {
 
 function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, playerColor) {
   if (caster.race !== 'Mindflayer') return baseDamage;
+  if (caster.mindflayerNoCooldownBonusUsed) return baseDamage;
 
   const effectiveCooldown = getMindflayerSpellCooldown(caster, _target, spellId);
   if (effectiveCooldown > 1) return baseDamage;
 
   const casterAwakening = caster.awakening || {};
-  const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
+  const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? 0;
   if (!bonus || bonus <= 0) return baseDamage;
 
+  caster.mindflayerNoCooldownBonusUsed = true;
   const boosted = Math.round(baseDamage * (1 + bonus));
-  log.push(`${playerColor} 🦑 Sort sans CD — ${caster.name} inflige +${Math.round(bonus * 100)}% de dégâts !`);
+  log.push(`${playerColor} 🦑 Éveil Mindflayer — premier sort sans CD: +${Math.round(bonus * 100)}% de dégâts !`);
   return boosted;
 }
 
@@ -671,15 +674,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal') && !spellStolen) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
-    let reflectValue = reflectBase + reflectPerCap * att.base.cap;
-    if (att.race === 'Mindflayer' && getMindflayerSpellCooldown(att, def, 'pal') <= 1) {
-      const casterAwakening = att.awakening || {};
-      const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
-      if (bonus > 0) {
-        reflectValue *= (1 + bonus);
-        log.push(`${playerColor} 🦑 Sort sans CD — ${att.name} riposte renforcée +${Math.round(bonus * 100)}% !`);
-      }
-    }
+    const reflectValue = reflectBase + reflectPerCap * att.base.cap;
     att.reflect = reflectValue;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
   }
@@ -691,14 +686,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const spellCapMultiplier = consumeAuraSpellCapMultiplier();
     const sireneBoost = att.race === 'Sirène' ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
     let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
-    if (att.race === 'Mindflayer' && getMindflayerSpellCooldown(att, def, 'heal') <= 1) {
-      const casterAwakening = att.awakening || {};
-      const bonus = casterAwakening.mindflayerNoCooldownSpellBonus ?? raceConstants.mindflayer.noCooldownSpellBonus;
-      if (bonus > 0) {
-        baseHeal = Math.round(baseHeal * (1 + bonus));
-        log.push(`${playerColor} 🦑 Sort sans CD — ${att.name} soin renforcé +${Math.round(bonus * 100)}% !`);
-      }
-    }
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
@@ -721,34 +708,44 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ') && !spellStolen) {
     skillUsed = true;
+    const isCrit = Math.random() < calcCritChance(att, def);
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
+    if (isCrit) {
+      const critDamage = Math.round(raw * getCritMultiplier(att, def));
+      raw = modifyCritDamage(att.weaponState, critDamage);
+    }
     // Arbalète du Verdict
     const verdictBonusSucc = getVerdictSpellBonus(att.weaponState);
     if (verdictBonusSucc.damageMultiplier !== 1) {
       raw = Math.round(raw * verdictBonusSucc.damageMultiplier);
       verdictBonusSucc.log.forEach(l => log.push(`${playerColor} ${l}`));
     }
-    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     def.succubeWeakenNextAttack = true;
-    log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts. La prochaine attaque de ${def.name} est affaiblie.`);
+    log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. La prochaine attaque de ${def.name} est affaiblie.`);
   }
 
   const isBastion = !spellStolen && att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast');
   if (isBastion) {
     skillUsed = true;
+    const isCrit = Math.random() < calcCritChance(att, def);
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
+    if (isCrit) {
+      const critDamage = Math.round(raw * getCritMultiplier(att, def));
+      raw = modifyCritDamage(att.weaponState, critDamage);
+    }
     // Arbalète du Verdict
     const verdictBonusBast = getVerdictSpellBonus(att.weaponState);
     if (verdictBonusBast.damageMultiplier !== 1) {
       raw = Math.round(raw * verdictBonusBast.damageMultiplier);
       verdictBonusBast.log.forEach(l => log.push(`${playerColor} ${l}`));
     }
-    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
-    log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart.`);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart${isCrit ? ' CRITIQUE !' : ''}.`);
   }
 
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerSpellCooldown(att, def, 'rog') && !spellStolen) {
