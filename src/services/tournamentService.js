@@ -6,7 +6,7 @@
 import { db } from '../firebase/config';
 import {
   doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, addDoc,
-  query, where, orderBy, onSnapshot, serverTimestamp
+  query, where, orderBy, onSnapshot, serverTimestamp, increment
 } from 'firebase/firestore';
 import { getAllCharacters } from './characterService';
 import { getEquippedWeapon } from './dungeonService';
