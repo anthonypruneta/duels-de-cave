@@ -115,15 +115,6 @@ const buildPartsFromEntries = (entries) => entries.flatMap((entry, index) => {
   ];
 });
 
-const buildAutoDescription = (obj) => {
-  const items = flattenNumericEntries(obj).map(({ key, path, format }) => {
-    const raw = getNested(obj, path);
-    if (format === 'percent') return `${prettifyKey(key)}: ${(Number(raw) * 100).toFixed(Number.isInteger(Number(raw) * 100) ? 0 : 1)}%`;
-    return `${prettifyKey(key)}: ${raw}`;
-  });
-  return items.join(' · ');
-};
-
 /** Affiche une description avec les valeurs entre [crochets] éditables inline */
 const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
   const [editingValues, setEditingValues] = useState({});
@@ -845,20 +836,14 @@ function AdminBalance({ embedded = false }) {
                           parts={effectParts}
                           draft={weaponDraft}
                           onSlotChange={(path, value) => {
-                            setWeaponDraft((prev) => {
-                              const updated = {
-                                ...prev,
-                                [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
-                              };
-                              return {
-                                ...updated,
-                                [weapon.id]: updateNestedValue(updated[weapon.id], ['effet', 'description'], buildAutoDescription(updated[weapon.id].effet?.values || {}))
-                              };
-                            });
+                            setWeaponDraft((prev) => ({
+                              ...prev,
+                              [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
+                            }));
                           }}
                           className="text-amber-200/90 mb-2"
                         />
-                        <div className="text-xs text-amber-300/80">Description auto: {draft.effet.description}</div>
+                        <div className="text-xs text-amber-300/80">Description: {draft.effet.description}</div>
                       </>
                     )}
                     <NumberTreeEditor
@@ -896,19 +881,13 @@ function AdminBalance({ embedded = false }) {
                           parts={buildPartsFromEntries(flattenNumericEntries(levelData || {}, [idx, 'levels', level]))}
                           draft={passiveDraft}
                           onSlotChange={(path, value) => {
-                            setPassiveDraft((prev) => {
-                              const updated = prev.map((item, itemIdx) => (
-                                itemIdx === idx ? updateNestedValue(item, path.slice(1), value) : item
-                              ));
-                              const newDescription = buildAutoDescription(updated[idx].levels?.[level] || {});
-                              return updated.map((item, itemIdx) => (
-                                itemIdx === idx ? updateNestedValue(item, ['levels', level, 'description'], newDescription) : item
-                              ));
-                            });
+                            setPassiveDraft((prev) => prev.map((item, itemIdx) => (
+                              itemIdx === idx ? updateNestedValue(item, path.slice(1), value) : item
+                            )));
                           }}
                           className="text-stone-300"
                         />
-                        <div className="text-[11px] text-stone-500 mt-1">Description auto: {levelData?.description}</div>
+                        <div className="text-[11px] text-stone-500 mt-1">Description: {levelData?.description}</div>
                       </div>
                     ))}
                   </div>
