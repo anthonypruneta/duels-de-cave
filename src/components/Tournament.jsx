@@ -790,7 +790,7 @@ const Tournament = () => {
     if (!result?.success || token.cancelled) {
       stopAnimation();
       // Même en cas d'échec, planifier l'auto-avancement pour ne pas bloquer la simulation
-      if (isAdmin && !replayMatchId) {
+      if (isAdmin && !isReplay) {
         autoAdvanceRef.current = setTimeout(async () => {
           autoAdvanceRef.current = null;
           await avancerMatch(docId);
