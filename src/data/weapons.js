@@ -542,7 +542,7 @@ export const weapons = {
     },
     effet: {
       nom: 'Arcane Majeure',
-      description: 'Au 2e et 4e sort du combat, lance un double-cast (2e cast à 70% de dégâts/soin).',
+      description: 'Votre second et quatrième sort se lancent deux fois et font 70% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
         spellCounts: [2, 4],      // Se déclenche au 2e et 4e sort

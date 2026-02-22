@@ -1,6 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { classConstants, cooldowns, raceConstants } from '../data/combatMechanics';
+import { classConstants, cooldowns, raceConstants, weaponConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { weapons } from '../data/weapons';
@@ -216,6 +216,45 @@ const applyTextOverrides = (config) => {
   });
 };
 
+/**
+ * Synchronise les constantes d'armes (config / admin) vers weaponConstants du combat,
+ * pour que les valeurs modifiées en équilibrage soient utilisées en gameplay.
+ */
+const syncWeaponConstantsToCombat = (configWeaponConstants) => {
+  if (!configWeaponConstants || typeof weaponConstants !== 'object') return;
+
+  const get = (w, ...path) => {
+    let cur = w;
+    for (const k of path) cur = cur?.[k];
+    return cur;
+  };
+
+  const mappings = [
+    { weaponId: 'baton_legendaire', key: 'yggdrasil', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'bouclier_legendaire', key: 'egide', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'epee_legendaire', key: 'zweihander', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'dague_legendaire', key: 'laevateinn', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'marteau_legendaire', key: 'mjollnir', build: (w) => ({ triggerEveryNAttacks: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'lance_legendaire', key: 'gungnir', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'arc_legendaire', key: 'arcCieux', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'tome_legendaire', key: 'codexArchon', build: (w) => ({ doubleCastTriggers: get(w, 'effet', 'trigger', 'spellCounts') ?? [2, 4], ...get(w, 'effet', 'values') }) },
+    { weaponId: 'fleau_legendaire', key: 'fleauAnatheme', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'arbalete_legendaire', key: 'arbaleteVerdict', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'hache_legendaire', key: 'labrysAres', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+  ];
+
+  mappings.forEach(({ weaponId, key, build }) => {
+    const weaponConfig = configWeaponConstants[weaponId];
+    if (!weaponConfig?.effet) return;
+    const built = build(weaponConfig);
+    if (!weaponConstants[key]) return;
+    Object.keys(built).forEach((k) => {
+      const v = built[k];
+      if (v !== undefined && v !== null) weaponConstants[key][k] = v;
+    });
+  });
+};
+
 export const applyBalanceConfig = (config) => {
   if (!config) return;
 
@@ -233,6 +272,7 @@ export const applyBalanceConfig = (config) => {
 
   if (config.weaponConstants) {
     applyNumericOverrides(weapons, config.weaponConstants);
+    syncWeaponConstantsToCombat(config.weaponConstants);
   }
 
   if (Array.isArray(config.mageTowerPassives)) {
