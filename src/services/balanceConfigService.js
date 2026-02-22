@@ -219,8 +219,9 @@ const applyTextOverrides = (config) => {
 /**
  * Synchronise les constantes d'armes (config / admin) vers weaponConstants du combat,
  * pour que les valeurs modifiées en équilibrage soient utilisées en gameplay.
+ * Exporté pour que la page équilibrage puisse l'appliquer au draft avant simulation.
  */
-const syncWeaponConstantsToCombat = (configWeaponConstants) => {
+export const syncWeaponConstantsToCombat = (configWeaponConstants) => {
   if (!configWeaponConstants || typeof weaponConstants !== 'object') return;
 
   const get = (w, ...path) => {

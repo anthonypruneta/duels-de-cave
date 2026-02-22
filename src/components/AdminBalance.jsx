@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { classConstants, raceConstants, weaponConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { getStatPointValue } from '../utils/statPoints';
 import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
 import { createBossCombatant } from '../data/bosses';
-import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
@@ -492,6 +492,7 @@ function AdminBalance({ embedded = false }) {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
     applyNumericOverrides(weapons, weaponDraft);
+    syncWeaponConstantsToCombat(weaponDraft);
     passiveDraft.forEach((passive, index) => {
       if (!MAGE_TOWER_PASSIVES[index]) return;
       applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
@@ -543,6 +544,7 @@ function AdminBalance({ embedded = false }) {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
     const previousWeapons = deepClone(weapons);
+    const previousWeaponConstants = deepClone(weaponConstants);
     const previousPassives = deepClone(MAGE_TOWER_PASSIVES);
     const previousAwakeningEffects = {};
 
@@ -562,6 +564,9 @@ function AdminBalance({ embedded = false }) {
 
       Object.keys(weapons).forEach((key) => delete weapons[key]);
       Object.assign(weapons, previousWeapons);
+
+      Object.keys(weaponConstants).forEach((key) => delete weaponConstants[key]);
+      Object.assign(weaponConstants, previousWeaponConstants);
 
       MAGE_TOWER_PASSIVES.splice(0, MAGE_TOWER_PASSIVES.length, ...previousPassives);
 
