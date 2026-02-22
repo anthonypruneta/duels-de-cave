@@ -901,7 +901,8 @@ const Tournament = () => {
     stopAnimation();
 
     // Annoncer le vainqueur sur Discord après l'animation (admin + vrai tournoi uniquement)
-    if (isAdmin && !isSimulation && !replayMatchId) {
+    // Ne pas annoncer si c'est un replay
+    if (isAdmin && !isSimulation && !isReplay) {
       annoncerFinMatchDiscord(logData).catch(() => {});
     }
 
