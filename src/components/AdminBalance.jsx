@@ -143,14 +143,18 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
               value={displayValue}
               onChange={(e) => {
                 const inputValue = e.target.value;
-                // Stocker la valeur brute pendant l'édition
-                setEditingValues(prev => ({ ...prev, [fullPath]: inputValue }));
+                
+                // Permettre uniquement les caractères numériques, virgule, point et moins
+                const filtered = inputValue.replace(/[^\d.,-]/g, '');
+                
+                // Stocker la valeur filtrée pendant l'édition
+                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
                 
                 // Accepter virgule et point comme séparateur décimal
-                const normalized = inputValue.replace(',', '.');
+                const normalized = filtered.replace(',', '.');
                 
                 // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
-                if (normalized === '' || normalized === '-' || normalized.endsWith('.') || normalized.endsWith(',')) {
+                if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
                   // Valeur incomplète, on attend
                   return;
                 }
@@ -162,6 +166,8 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
               }}
               onBlur={() => {
                 // Quand on quitte le champ, nettoyer la valeur d'édition
+                const currentVal = editingValues[fullPath] !== undefined ? editingValues[fullPath] : displayValue;
+                
                 setEditingValues(prev => {
                   const newState = { ...prev };
                   delete newState[fullPath];
@@ -169,22 +175,10 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                 });
                 
                 // Forcer la propagation de la valeur finale
-                const currentVal = editingValues[fullPath] || displayValue;
                 const normalized = String(currentVal).replace(',', '.');
                 const num = Number(normalized);
                 if (!Number.isNaN(num)) {
                   onChange(keyPath, normalized);
-                }
-              }}
-              onKeyPress={(e) => {
-                // Permettre uniquement : chiffres, point, virgule, signe moins
-                const char = e.key;
-                const isNumber = char >= '0' && char <= '9';
-                const isDecimal = char === '.' || char === ',';
-                const isMinus = char === '-';
-                
-                if (!isNumber && !isDecimal && !isMinus) {
-                  e.preventDefault();
                 }
               }}
               className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
