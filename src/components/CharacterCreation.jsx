@@ -400,7 +400,7 @@ const CharacterCreation = () => {
                     {Object.entries(passive.levels).map(([lvl, lvlData]) => (
                       <div key={`${passive.id}-${lvl}`} className="text-xs">
                         <span className="text-amber-200 font-semibold">Niv {lvl}:</span>{' '}
-                        <span className="text-stone-300">{buildLiveBalanceDescription(lvlData, lvlData.description)}</span>
+                        <span className="text-stone-300">Description: {lvlData.description}</span>
                       </div>
                     ))}
                   </div>
