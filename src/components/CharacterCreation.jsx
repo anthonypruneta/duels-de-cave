@@ -88,7 +88,7 @@ const getWeaponTooltipContent = (weapon) => {
       <span className="block text-stone-300">{weapon.description}</span>
       {weapon.effet && typeof weapon.effet === 'object' && (
         <span className="block text-amber-200">
-          Effet: {weapon.effet.nom} — {weapon.effet.description}
+          Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
         </span>
       )}
       {stats && (
@@ -309,7 +309,7 @@ const CharacterCreation = () => {
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
                           <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
                           {weapon.effet && typeof weapon.effet === 'object' && (
-                            <div className="text-[11px] text-amber-200">{weapon.effet.nom}: {weapon.effet.description}</div>
+                            <div className="text-[11px] text-amber-200">Effet: {weapon.effet.nom} · Description: {weapon.effet.description}</div>
                           )}
                         </div>
                       ))}
@@ -330,7 +330,7 @@ const CharacterCreation = () => {
                     {Object.entries(passive.levels).map(([lvl, lvlData]) => (
                       <div key={`${passive.id}-${lvl}`} className="text-xs">
                         <span className="text-amber-200 font-semibold">Niv {lvl}:</span>{' '}
-                        <span className="text-stone-300">{lvlData.description}</span>
+                        <span className="text-stone-300">Description: {lvlData.description}</span>
                       </div>
                     ))}
                   </div>
@@ -1094,7 +1094,7 @@ const CharacterCreation = () => {
                           <div>{weapon.description}</div>
                           {weapon.effet && typeof weapon.effet === 'object' && (
                             <div className="text-amber-200">
-                              Effet: {weapon.effet.nom} — {weapon.effet.description}
+                              Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
                             </div>
                           )}
                           {weapon.stats && Object.keys(weapon.stats).length > 0 && (
