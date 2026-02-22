@@ -115,20 +115,40 @@ const buildPartsFromEntries = (entries) => entries.flatMap((entry, index) => {
   ];
 });
 
+/** Génère une description à partir des valeurs numériques (pour mise à jour auto armes / passifs) */
+const buildAutoDescription = (values) => {
+  const entries = flattenNumericEntries(values || {}, []);
+  if (entries.length === 0) return '';
+  return entries.map((e) => {
+    const v = getNested(values, e.path);
+    const num = Number(v);
+    if (Number.isNaN(num)) return '';
+    const pct100 = num * 100;
+    const useDecimals = e.format === 'percent1dec' || (e.format === 'percent' && pct100 % 1 !== 0);
+    const display = e.format === 'percent' || e.format === 'percent1dec'
+      ? `${pct100.toFixed(useDecimals ? 1 : 0)}%`
+      : String(num);
+    return `${prettifyKey(e.key)}: ${display}`;
+  }).filter(Boolean).join(' · ');
+};
+
+/** Affiche un nombre avec virgule comme séparateur décimal (français) */
+const formatNumberFr = (val, format) => {
+  const v = Number(val);
+  if (Number.isNaN(v)) return '';
+  switch (format) {
+    case 'percent': return (v * 100) % 1 === 0 ? String(Math.round(v * 100)) : (v * 100).toFixed(1).replace('.', ',');
+    case 'percent1dec': return (v * 100).toFixed(1).replace('.', ',');
+    case 'percentMinus1': return ((v - 1) * 100) % 1 === 0 ? String(Math.round((v - 1) * 100)) : ((v - 1) * 100).toFixed(1).replace('.', ',');
+    default: return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
+  }
+};
+
 /** Affiche une description avec les valeurs entre [crochets] éditables inline */
 const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
   const [editingValues, setEditingValues] = useState({});
 
-  const slotDisplayValue = (rawVal, format) => {
-    const v = Number(rawVal);
-    if (Number.isNaN(v)) return '';
-    switch (format) {
-      case 'percent': return Math.round(v * 100);
-      case 'percent1dec': return (v * 100).toFixed(1);
-      case 'percentMinus1': return Math.round((v - 1) * 100);
-      default: return v;
-    }
-  };
+  const slotDisplayValue = (rawVal, format) => formatNumberFr(rawVal, format);
   const parseSlotValue = (input, format) => {
     // Accepter à la fois virgule et point comme séparateur décimal
     const normalized = String(input).replace(/,/g, '.');
@@ -198,13 +218,7 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
 
 const NumberTreeEditor = ({ value, onChange, path = [] }) => {
   const [editingValues, setEditingValues] = useState({});
-  const parseEditableNumber = (raw) => {
-    const normalized = String(raw).replace(/,/g, '.');
-    const num = Number(normalized);
-    if (Number.isNaN(num)) return undefined;
-    return normalized;
-  };
-  
+
   return (
     <div className="space-y-2">
       {Object.entries(value || {}).map(([key, val]) => {
@@ -224,10 +238,10 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
         const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
         if (!isNumericOrEmpty) return null;
 
-        // Utiliser la valeur en cours d'édition si elle existe, sinon la valeur du state
+        // Utiliser la valeur en cours d'édition si elle existe, sinon la valeur du state (affichage avec virgule si décimal)
         const displayValue = editingValues[fullPath] !== undefined 
           ? editingValues[fullPath] 
-          : (typeof val === 'number' ? val : (val === '' ? '' : val));
+          : (typeof val === 'number' ? (Number.isInteger(val) ? String(val) : String(val).replace('.', ',')) : (val === '' ? '' : String(val).replace('.', ',')));
 
         return (
           <label key={fullPath} className="flex items-center justify-between gap-3 text-xs">
@@ -252,7 +266,8 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                   return;
                 }
                 
-                if (parseEditableNumber(filtered) !== undefined) onChange(keyPath, normalized);
+                const num = Number(normalized);
+                if (!Number.isNaN(num)) onChange(keyPath, num);
               }}
               onBlur={() => {
                 // Quand on quitte le champ, nettoyer la valeur d'édition
@@ -264,9 +279,10 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                   return newState;
                 });
                 
-                // Forcer la propagation de la valeur finale
-                const parsed = parseEditableNumber(currentVal);
-                if (parsed !== undefined) onChange(keyPath, parsed);
+                // Forcer la propagation de la valeur finale (nombre pour cohérence)
+                const normalized = String(currentVal).replace(/,/g, '.');
+                const num = Number(normalized);
+                if (normalized !== '' && !Number.isNaN(num)) onChange(keyPath, num);
               }}
               className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
             />
@@ -836,10 +852,14 @@ function AdminBalance({ embedded = false }) {
                           parts={effectParts}
                           draft={weaponDraft}
                           onSlotChange={(path, value) => {
-                            setWeaponDraft((prev) => ({
-                              ...prev,
-                              [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
-                            }));
+                            setWeaponDraft((prev) => {
+                              const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path.slice(1), value);
+                              const values = updatedWeapon?.effet?.values;
+                              const withDesc = values
+                                ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildAutoDescription(values))
+                                : updatedWeapon;
+                              return { ...prev, [weapon.id]: withDesc };
+                            });
                           }}
                           className="text-amber-200/90 mb-2"
                         />
@@ -881,9 +901,13 @@ function AdminBalance({ embedded = false }) {
                           parts={buildPartsFromEntries(flattenNumericEntries(levelData || {}, [idx, 'levels', level]))}
                           draft={passiveDraft}
                           onSlotChange={(path, value) => {
-                            setPassiveDraft((prev) => prev.map((item, itemIdx) => (
-                              itemIdx === idx ? updateNestedValue(item, path.slice(1), value) : item
-                            )));
+                            setPassiveDraft((prev) => prev.map((item, itemIdx) => {
+                              if (itemIdx !== idx) return item;
+                              const updated = updateNestedValue(item, path.slice(1), value);
+                              const newLevelData = updated.levels?.[level];
+                              const desc = buildAutoDescription(newLevelData || {});
+                              return updateNestedValue(updated, ['levels', level, 'description'], desc);
+                            }));
                           }}
                           className="text-stone-300"
                         />
