@@ -46,8 +46,56 @@ const getNested = (obj, path) => {
   return cur;
 };
 
+const prettifyKey = (key) => key
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
+const inferSlotFormat = (key, value) => {
+  if (typeof value !== 'number') return 'raw';
+  if (Math.abs(value) <= 1 && /(percent|bonus|reduction|multiplier|chance|threshold|scale|outgoing|incoming|regen|damage|heal|crit|ignore|reflect|shield|cost)/i.test(key)) {
+    return 'percent';
+  }
+  return 'raw';
+};
+
+const flattenNumericEntries = (obj, basePath = []) => {
+  const entries = [];
+  Object.entries(obj || {}).forEach(([key, val]) => {
+    if (key === 'description') return;
+    const path = [...basePath, key];
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      entries.push(...flattenNumericEntries(val, path));
+      return;
+    }
+    if (typeof val === 'number') {
+      entries.push({ key, path, format: inferSlotFormat(key, val) });
+    }
+  });
+  return entries;
+};
+
+const buildPartsFromEntries = (entries) => entries.flatMap((entry, index) => {
+  const head = index === 0 ? '' : ' · ';
+  return [
+    { type: 'text', value: `${head}${prettifyKey(entry.key)}: ` },
+    { type: 'slot', path: entry.path, format: entry.format }
+  ];
+});
+
+const buildAutoDescription = (obj) => {
+  const items = flattenNumericEntries(obj).map(({ key, path, format }) => {
+    const raw = getNested(obj, path);
+    if (format === 'percent') return `${prettifyKey(key)}: ${(Number(raw) * 100).toFixed(Number.isInteger(Number(raw) * 100) ? 0 : 1)}%`;
+    return `${prettifyKey(key)}: ${raw}`;
+  });
+  return items.join(' · ');
+};
+
 /** Affiche une description avec les valeurs entre [crochets] éditables inline */
 const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
+  const [editingValues, setEditingValues] = useState({});
+
   const slotDisplayValue = (rawVal, format) => {
     const v = Number(rawVal);
     if (Number.isNaN(v)) return '';
@@ -60,7 +108,7 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
   };
   const parseSlotValue = (input, format) => {
     // Accepter à la fois virgule et point comme séparateur décimal
-    const normalized = String(input).replace(',', '.');
+    const normalized = String(input).replace(/,/g, '.');
     const num = Number(normalized);
     if (Number.isNaN(num)) return undefined;
     switch (format) {
@@ -77,8 +125,9 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
           return <span key={idx}>{part.value}</span>;
         }
         if (part.type === 'slot') {
+          const slotKey = part.path.join('.');
           const rawVal = getNested(draft, part.path);
-          const displayVal = slotDisplayValue(rawVal, part.format);
+          const displayVal = editingValues[slotKey] ?? slotDisplayValue(rawVal, part.format);
           return (
             <span key={idx} className="inline-flex items-center">
               [
@@ -86,8 +135,23 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
                 type="text"
                 value={displayVal}
                 onChange={(e) => {
-                  const parsed = parseSlotValue(e.target.value, part.format);
+                  const inputValue = e.target.value;
+                  setEditingValues((prev) => ({ ...prev, [slotKey]: inputValue }));
+
+                  const parsed = parseSlotValue(inputValue, part.format);
                   if (parsed !== undefined) onSlotChange(part.path, parsed);
+                }}
+                onBlur={() => {
+                  const currentVal = editingValues[slotKey];
+                  const parsed = parseSlotValue(currentVal, part.format);
+
+                  if (parsed !== undefined) onSlotChange(part.path, parsed);
+
+                  setEditingValues((prev) => {
+                    const next = { ...prev };
+                    delete next[slotKey];
+                    return next;
+                  });
                 }}
                 onKeyDown={(e) => {
                   // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab
@@ -110,6 +174,12 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
 
 const NumberTreeEditor = ({ value, onChange, path = [] }) => {
   const [editingValues, setEditingValues] = useState({});
+  const parseEditableNumber = (raw) => {
+    const normalized = String(raw).replace(/,/g, '.');
+    const num = Number(normalized);
+    if (Number.isNaN(num)) return undefined;
+    return normalized;
+  };
   
   return (
     <div className="space-y-2">
@@ -143,34 +213,22 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
               value={displayValue}
               onChange={(e) => {
                 const inputValue = e.target.value;
-                console.log('📝 Input value:', inputValue, 'Display:', displayValue);
                 
                 // Permettre uniquement les caractères numériques, virgule, point et moins
                 const filtered = inputValue.replace(/[^\d.,-]/g, '');
-                console.log('✅ Filtered:', filtered);
                 
                 // Stocker la valeur filtrée pendant l'édition
-                setEditingValues(prev => {
-                  const newState = { ...prev, [fullPath]: filtered };
-                  console.log('💾 Editing values:', newState);
-                  return newState;
-                });
+                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
                 
                 // Accepter virgule et point comme séparateur décimal
-                const normalized = filtered.replace(',', '.');
+                const normalized = filtered.replace(/,/g, '.');
                 
                 // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
                 if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
-                  // Valeur incomplète, on attend
-                  console.log('⏳ Valeur incomplète, on attend');
                   return;
                 }
                 
-                const num = Number(normalized);
-                if (!Number.isNaN(num)) {
-                  console.log('✅ Propagation:', keyPath, normalized);
-                  onChange(keyPath, normalized);
-                }
+                if (parseEditableNumber(filtered) !== undefined) onChange(keyPath, normalized);
               }}
               onBlur={() => {
                 // Quand on quitte le champ, nettoyer la valeur d'édition
@@ -183,11 +241,8 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                 });
                 
                 // Forcer la propagation de la valeur finale
-                const normalized = String(currentVal).replace(',', '.');
-                const num = Number(normalized);
-                if (!Number.isNaN(num)) {
-                  onChange(keyPath, normalized);
-                }
+                const parsed = parseEditableNumber(currentVal);
+                if (parsed !== undefined) onChange(keyPath, parsed);
               }}
               className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
             />
@@ -732,49 +787,60 @@ function AdminBalance({ embedded = false }) {
               {availableWeapons.map((weapon) => {
                 const draft = weaponDraft[weapon.id];
                 if (!draft) return null;
+                const statsParts = buildPartsFromEntries(flattenNumericEntries(draft.stats || {}, [weapon.id, 'stats']));
+                const effectParts = buildPartsFromEntries(flattenNumericEntries(draft.effet?.values || {}, [weapon.id, 'effet', 'values']));
                 return (
                   <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
-                    <label className="block text-xs text-stone-300 mb-2">
-                      Description
-                      <textarea
-                        rows={2}
-                        value={draft.description || ''}
-                        onChange={(e) => {
+                    <div className="text-xs text-stone-400 mb-2">{draft.description}</div>
+                    {statsParts.length > 0 && (
+                      <DescriptionWithEditableSlots
+                        parts={statsParts}
+                        draft={weaponDraft}
+                        onSlotChange={(path, value) => {
                           setWeaponDraft((prev) => ({
                             ...prev,
-                            [weapon.id]: { ...(prev[weapon.id] || {}), description: e.target.value }
+                            [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
                           }));
                         }}
-                        className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                        className="text-stone-300 mb-2"
                       />
-                    </label>
-                    {draft.effet && (
-                      <label className="block text-xs text-amber-300 mb-2">
-                        Description de l'effet
-                        <textarea
-                          rows={2}
-                          value={draft.effet.description || ''}
-                          onChange={(e) => {
-                            setWeaponDraft((prev) => ({
-                              ...prev,
-                              [weapon.id]: {
-                                ...(prev[weapon.id] || {}),
-                                effet: { ...((prev[weapon.id] || {}).effet || {}), description: e.target.value }
-                              }
-                            }));
+                    )}
+                    {draft.effet && effectParts.length > 0 && (
+                      <>
+                        <DescriptionWithEditableSlots
+                          parts={effectParts}
+                          draft={weaponDraft}
+                          onSlotChange={(path, value) => {
+                            setWeaponDraft((prev) => {
+                              const updated = {
+                                ...prev,
+                                [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
+                              };
+                              return {
+                                ...updated,
+                                [weapon.id]: updateNestedValue(updated[weapon.id], ['effet', 'description'], buildAutoDescription(updated[weapon.id].effet?.values || {}))
+                              };
+                            });
                           }}
-                          className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                          className="text-amber-200/90 mb-2"
                         />
-                      </label>
+                        <div className="text-xs text-amber-300/80">Description auto: {draft.effet.description}</div>
+                      </>
                     )}
                     <NumberTreeEditor
                       value={draft}
                       onChange={(path, value) => {
-                        setWeaponDraft((prev) => ({
-                          ...prev,
-                          [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path, value)
-                        }));
+                        setWeaponDraft((prev) => {
+                          const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
+                          const withAutoDescription = updatedWeapon?.effet?.values
+                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildAutoDescription(updatedWeapon.effet.values))
+                            : updatedWeapon;
+                          return {
+                            ...prev,
+                            [weapon.id]: withAutoDescription
+                          };
+                        });
                       }}
                     />
                   </div>
@@ -791,29 +857,38 @@ function AdminBalance({ embedded = false }) {
                   <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
                   <div className="space-y-2 mb-3">
                     {Object.entries(passive.levels || {}).map(([level, levelData]) => (
-                      <label key={`${passive.id}-${level}`} className="block text-xs text-stone-300">
-                        Description niveau {level}
-                        <textarea
-                          rows={2}
-                          value={levelData?.description || ''}
-                          onChange={(e) => {
-                            setPassiveDraft((prev) => prev.map((item, itemIdx) => (
-                              itemIdx === idx
-                                ? updateNestedValue(item, ['levels', level, 'description'], e.target.value)
-                                : item
-                            )));
+                      <div key={`${passive.id}-${level}`} className="text-xs text-stone-300">
+                        <div className="mb-1">Niveau {level}</div>
+                        <DescriptionWithEditableSlots
+                          parts={buildPartsFromEntries(flattenNumericEntries(levelData || {}, [idx, 'levels', level]))}
+                          draft={passiveDraft}
+                          onSlotChange={(path, value) => {
+                            setPassiveDraft((prev) => {
+                              const updated = prev.map((item, itemIdx) => (
+                                itemIdx === idx ? updateNestedValue(item, path.slice(1), value) : item
+                              ));
+                              const newDescription = buildAutoDescription(updated[idx].levels?.[level] || {});
+                              return updated.map((item, itemIdx) => (
+                                itemIdx === idx ? updateNestedValue(item, ['levels', level, 'description'], newDescription) : item
+                              ));
+                            });
                           }}
-                          className="mt-1 w-full px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs"
+                          className="text-stone-300"
                         />
-                      </label>
+                        <div className="text-[11px] text-stone-500 mt-1">Description auto: {levelData?.description}</div>
+                      </div>
                     ))}
                   </div>
                   <NumberTreeEditor
                     value={passive}
                     onChange={(path, value) => {
-                      setPassiveDraft((prev) => prev.map((item, itemIdx) => (
-                        itemIdx === idx ? updateNestedValue(item, path, value) : item
-                      )));
+                      setPassiveDraft((prev) => prev.map((item, itemIdx) => {
+                        if (itemIdx !== idx) return item;
+                        const updated = updateNestedValue(item, path, value);
+                        const [, level] = path;
+                        if (!level) return updated;
+                        return updateNestedValue(updated, ['levels', level, 'description'], buildAutoDescription(updated.levels?.[level] || {}));
+                      }));
                     }}
                   />
                 </div>
