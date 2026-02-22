@@ -150,15 +150,14 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
 
   const slotDisplayValue = (rawVal, format) => formatNumberFr(rawVal, format);
   const parseSlotValue = (input, format) => {
-    // Accepter à la fois virgule et point comme séparateur décimal
+    // Accepter virgule et point. Pour les %, la saisie est toujours en "pourcentage affiché" (2 = 2%, 0,5 = 0,5%)
     const normalized = String(input).replace(/,/g, '.');
     const num = Number(normalized);
     if (Number.isNaN(num)) return undefined;
-    const isRatioInput = Math.abs(num) <= 1;
     switch (format) {
       case 'percent':
-      case 'percent1dec': return isRatioInput ? num : (num / 100);
-      case 'percentMinus1': return 1 + (isRatioInput ? num : (num / 100));
+      case 'percent1dec': return num / 100;
+      case 'percentMinus1': return 1 + (num / 100);
       default: return num;
     }
   };
