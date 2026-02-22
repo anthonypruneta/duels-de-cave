@@ -176,10 +176,14 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                   onChange(keyPath, normalized);
                 }
               }}
-              onKeyDown={(e) => {
-                // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab, signe moins
-                const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-', 'Home', 'End'];
-                if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
+              onKeyPress={(e) => {
+                // Permettre uniquement : chiffres, point, virgule, signe moins
+                const char = e.key;
+                const isNumber = char >= '0' && char <= '9';
+                const isDecimal = char === '.' || char === ',';
+                const isMinus = char === '-';
+                
+                if (!isNumber && !isDecimal && !isMinus) {
                   e.preventDefault();
                 }
               }}
