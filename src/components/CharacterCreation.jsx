@@ -113,6 +113,76 @@ const splitDescriptionLines = (text) => {
     .map((line) => line.startsWith('-') ? line.replace(/^-\s*/, '') : line);
 };
 
+const BALANCE_KEY_LABELS_FR = {
+  healDamagePercent: 'Dégâts depuis soins',
+  regenPercent: 'Régénération',
+  healCritMultiplier: 'Multiplicateur critique soin',
+  defToAtkPercent: 'DEF convertie en ATK',
+  rescapToAtkPercent: 'RESC convertie en ATK',
+  damageBonus: 'Bonus dégâts',
+  n: 'Fréquence (tours/attaques)',
+  shieldPercent: 'Bouclier',
+  damageTakenBonus: 'Dégâts subis bonus',
+  defReduction: 'Réduction DEF',
+  healPercent: 'Soins',
+  lightningPercent: 'Dégâts éclair',
+  outgoing: 'Dégâts infligés',
+  incoming: 'Dégâts reçus',
+  critReduction: 'Réduction dégâts critiques',
+  critThreshold: 'Seuil critique garanti',
+  spellCapBonus: 'Bonus CAP du sort',
+  turns: 'Durée (tours)',
+  hpCostPercent: 'Coût HP',
+  autoDamageBonus: 'Bonus dégâts auto',
+  shieldExplosionPercent: 'Explosion bouclier',
+  healReduction: 'Réduction des soins',
+  initialBleedPercent: 'Saignement initial',
+  bleedDecayPercent: 'Décroissance saignement',
+  stunDuration: 'Durée étourdissement',
+  critChanceBonus: 'Chance critique bonus',
+  critDamageBonus: 'Dégâts critiques bonus',
+  maxStacks: 'Stacks max',
+  chance: 'Chance'
+};
+
+const prettifyBalanceKey = (key) => BALANCE_KEY_LABELS_FR[key] || key
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
+const inferBalanceFormat = (key, value) => {
+  if (typeof value !== 'number') return 'raw';
+  if (Math.abs(value) <= 1 && /(percent|bonus|reduction|multiplier|chance|threshold|scale|outgoing|incoming|regen|damage|heal|crit|ignore|reflect|shield|cost)/i.test(key)) {
+    return 'percent';
+  }
+  return 'raw';
+};
+
+const flattenBalanceNumbers = (obj) => {
+  const out = [];
+  Object.entries(obj || {}).forEach(([key, val]) => {
+    if (key === 'description') return;
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      flattenBalanceNumbers(val).forEach((entry) => out.push(entry));
+      return;
+    }
+    if (typeof val === 'number') out.push({ key, val, format: inferBalanceFormat(key, val) });
+  });
+  return out;
+};
+
+const buildLiveBalanceDescription = (obj, fallback = '') => {
+  const parts = flattenBalanceNumbers(obj).map(({ key, val, format }) => {
+    if (format === 'percent') {
+      const pct = val * 100;
+      const display = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
+      return `${prettifyBalanceKey(key)}: ${display}%`;
+    }
+    return `${prettifyBalanceKey(key)}: ${val}`;
+  });
+  return parts.join(' · ') || fallback;
+};
+
 const CharacterCreation = () => {
   const [loading, setLoading] = useState(true);
   const [existingCharacter, setExistingCharacter] = useState(null);
