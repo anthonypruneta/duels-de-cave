@@ -914,8 +914,8 @@ const Tournament = () => {
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Auto-avancer après 8 secondes (admin seulement)
-    if (isAdmin && !replayMatchId) {
+    // Auto-avancer après 8 secondes (admin seulement, pas en replay)
+    if (isAdmin && !isReplay) {
       autoAdvanceRef.current = setTimeout(async () => {
         autoAdvanceRef.current = null;
         await avancerMatch(docId);
