@@ -132,6 +132,20 @@ const buildAutoDescription = (values) => {
   }).filter(Boolean).join(' · ');
 };
 
+/** Description d'effet pour le Codex Archon : phrase fixe avec le % mis à jour */
+const buildCodexEffetDescription = (values) => {
+  const pct = values?.secondCastDamage != null
+    ? (Number(values.secondCastDamage) * 100).toFixed((Number(values.secondCastDamage) * 100) % 1 === 0 ? 0 : 1)
+    : '70';
+  return `Votre second et quatrième sort se lancent deux fois et font ${pct}% de dégâts.`;
+};
+
+/** Pour une arme, renvoie la description d'effet (template Codex ou auto-générée) */
+const buildWeaponEffetDescription = (weaponId, values) => {
+  if (weaponId === 'tome_legendaire' && values) return buildCodexEffetDescription(values);
+  return buildAutoDescription(values);
+};
+
 /** Affiche un nombre avec virgule comme séparateur décimal (français) */
 const formatNumberFr = (val, format) => {
   const v = Number(val);
@@ -855,7 +869,7 @@ function AdminBalance({ embedded = false }) {
                               const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path.slice(1), value);
                               const values = updatedWeapon?.effet?.values;
                               const withDesc = values
-                                ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildAutoDescription(values))
+                                ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, values))
                                 : updatedWeapon;
                               return { ...prev, [weapon.id]: withDesc };
                             });
@@ -871,7 +885,7 @@ function AdminBalance({ embedded = false }) {
                         setWeaponDraft((prev) => {
                           const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
                           const withAutoDescription = updatedWeapon?.effet?.values
-                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildAutoDescription(updatedWeapon.effet.values))
+                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, updatedWeapon.effet.values))
                             : updatedWeapon;
                           return {
                             ...prev,
