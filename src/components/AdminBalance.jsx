@@ -143,12 +143,18 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
               value={displayValue}
               onChange={(e) => {
                 const inputValue = e.target.value;
+                console.log('📝 Input value:', inputValue, 'Display:', displayValue);
                 
                 // Permettre uniquement les caractères numériques, virgule, point et moins
                 const filtered = inputValue.replace(/[^\d.,-]/g, '');
+                console.log('✅ Filtered:', filtered);
                 
                 // Stocker la valeur filtrée pendant l'édition
-                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
+                setEditingValues(prev => {
+                  const newState = { ...prev, [fullPath]: filtered };
+                  console.log('💾 Editing values:', newState);
+                  return newState;
+                });
                 
                 // Accepter virgule et point comme séparateur décimal
                 const normalized = filtered.replace(',', '.');
@@ -156,11 +162,13 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                 // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
                 if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
                   // Valeur incomplète, on attend
+                  console.log('⏳ Valeur incomplète, on attend');
                   return;
                 }
                 
                 const num = Number(normalized);
                 if (!Number.isNaN(num)) {
+                  console.log('✅ Propagation:', keyPath, normalized);
                   onChange(keyPath, normalized);
                 }
               }}
