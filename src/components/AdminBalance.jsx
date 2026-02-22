@@ -849,10 +849,16 @@ function AdminBalance({ embedded = false }) {
                     <NumberTreeEditor
                       value={draft}
                       onChange={(path, value) => {
-                        setWeaponDraft((prev) => ({
-                          ...prev,
-                          [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path, value)
-                        }));
+                        setWeaponDraft((prev) => {
+                          const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
+                          const withAutoDescription = updatedWeapon?.effet?.values
+                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildAutoDescription(updatedWeapon.effet.values))
+                            : updatedWeapon;
+                          return {
+                            ...prev,
+                            [weapon.id]: withAutoDescription
+                          };
+                        });
                       }}
                     />
                   </div>
@@ -888,9 +894,13 @@ function AdminBalance({ embedded = false }) {
                   <NumberTreeEditor
                     value={passive}
                     onChange={(path, value) => {
-                      setPassiveDraft((prev) => prev.map((item, itemIdx) => (
-                        itemIdx === idx ? updateNestedValue(item, path, value) : item
-                      )));
+                      setPassiveDraft((prev) => prev.map((item, itemIdx) => {
+                        if (itemIdx !== idx) return item;
+                        const updated = updateNestedValue(item, path, value);
+                        const [, level] = path;
+                        if (!level) return updated;
+                        return updateNestedValue(updated, ['levels', level, 'description'], buildAutoDescription(updated.levels?.[level] || {}));
+                      }));
                     }}
                   />
                 </div>
