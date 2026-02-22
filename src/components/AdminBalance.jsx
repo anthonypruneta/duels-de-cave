@@ -109,7 +109,7 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
 };
 
 const NumberTreeEditor = ({ value, onChange, path = [] }) => {
-  const [editingValues, setEditingValues] = React.useState({});
+  const [editingValues, setEditingValues] = useState({});
   
   return (
     <div className="space-y-2">
