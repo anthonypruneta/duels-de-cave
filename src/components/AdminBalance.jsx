@@ -108,49 +108,89 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
   );
 };
 
-const NumberTreeEditor = ({ value, onChange, path = [] }) => (
-  <div className="space-y-2">
-    {Object.entries(value || {}).map(([key, val]) => {
-      const keyPath = [...path, key];
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
+const NumberTreeEditor = ({ value, onChange, path = [] }) => {
+  const [editingValues, setEditingValues] = React.useState({});
+  
+  return (
+    <div className="space-y-2">
+      {Object.entries(value || {}).map(([key, val]) => {
+        const keyPath = [...path, key];
+        const fullPath = keyPath.join('.');
+        
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          return (
+            <div key={fullPath} className="border border-stone-700 p-2 bg-stone-950/50">
+              <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
+              <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
+            </div>
+          );
+        }
+
+        // Ne pas afficher d'input pour les chaînes purement textuelles (ex: descriptions)
+        const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
+        if (!isNumericOrEmpty) return null;
+
+        // Utiliser la valeur en cours d'édition si elle existe, sinon la valeur du state
+        const displayValue = editingValues[fullPath] !== undefined 
+          ? editingValues[fullPath] 
+          : (typeof val === 'number' ? val : (val === '' ? '' : val));
+
         return (
-          <div key={keyPath.join('.')} className="border border-stone-700 p-2 bg-stone-950/50">
-            <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
-            <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
-          </div>
+          <label key={fullPath} className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-stone-300">{key}</span>
+            <input
+              type="text"
+              value={displayValue}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // Stocker la valeur brute pendant l'édition
+                setEditingValues(prev => ({ ...prev, [fullPath]: inputValue }));
+                
+                // Accepter virgule et point comme séparateur décimal
+                const normalized = inputValue.replace(',', '.');
+                
+                // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
+                if (normalized === '' || normalized === '-' || normalized.endsWith('.') || normalized.endsWith(',')) {
+                  // Valeur incomplète, on attend
+                  return;
+                }
+                
+                const num = Number(normalized);
+                if (!Number.isNaN(num)) {
+                  onChange(keyPath, normalized);
+                }
+              }}
+              onBlur={() => {
+                // Quand on quitte le champ, nettoyer la valeur d'édition
+                setEditingValues(prev => {
+                  const newState = { ...prev };
+                  delete newState[fullPath];
+                  return newState;
+                });
+                
+                // Forcer la propagation de la valeur finale
+                const currentVal = editingValues[fullPath] || displayValue;
+                const normalized = String(currentVal).replace(',', '.');
+                const num = Number(normalized);
+                if (!Number.isNaN(num)) {
+                  onChange(keyPath, normalized);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab, signe moins
+                const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-', 'Home', 'End'];
+                if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
+                  e.preventDefault();
+                }
+              }}
+              className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
+            />
+          </label>
         );
-      }
-
-      // Ne pas afficher d'input pour les chaînes purement textuelles (ex: descriptions)
-      const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
-      if (!isNumericOrEmpty) return null;
-
-      const displayValue = typeof val === 'number' ? val : (val === '' ? '' : val);
-      return (
-        <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-stone-300">{key}</span>
-          <input
-            type="text"
-            value={displayValue}
-            onChange={(e) => {
-              // Accepter virgule et point comme séparateur décimal
-              const normalized = e.target.value.replace(',', '.');
-              onChange(keyPath, normalized);
-            }}
-            onKeyDown={(e) => {
-              // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab, signe moins
-              const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-', 'Home', 'End'];
-              if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
-                e.preventDefault();
-              }
-            }}
-            className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
-          />
-        </label>
-      );
-    })}
-  </div>
-);
+      })}
+    </div>
+  );
+};
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
