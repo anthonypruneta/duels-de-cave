@@ -48,6 +48,8 @@ const getNested = (obj, path) => {
 
 /** Affiche une description avec les valeurs entre [crochets] éditables inline */
 const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
+  const [editingValues, setEditingValues] = useState({});
+
   const slotDisplayValue = (rawVal, format) => {
     const v = Number(rawVal);
     if (Number.isNaN(v)) return '';
@@ -60,7 +62,7 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
   };
   const parseSlotValue = (input, format) => {
     // Accepter à la fois virgule et point comme séparateur décimal
-    const normalized = String(input).replace(',', '.');
+    const normalized = String(input).replace(/,/g, '.');
     const num = Number(normalized);
     if (Number.isNaN(num)) return undefined;
     switch (format) {
@@ -77,8 +79,9 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
           return <span key={idx}>{part.value}</span>;
         }
         if (part.type === 'slot') {
+          const slotKey = part.path.join('.');
           const rawVal = getNested(draft, part.path);
-          const displayVal = slotDisplayValue(rawVal, part.format);
+          const displayVal = editingValues[slotKey] ?? slotDisplayValue(rawVal, part.format);
           return (
             <span key={idx} className="inline-flex items-center">
               [
@@ -86,8 +89,23 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
                 type="text"
                 value={displayVal}
                 onChange={(e) => {
-                  const parsed = parseSlotValue(e.target.value, part.format);
+                  const inputValue = e.target.value;
+                  setEditingValues((prev) => ({ ...prev, [slotKey]: inputValue }));
+
+                  const parsed = parseSlotValue(inputValue, part.format);
                   if (parsed !== undefined) onSlotChange(part.path, parsed);
+                }}
+                onBlur={() => {
+                  const currentVal = editingValues[slotKey];
+                  const parsed = parseSlotValue(currentVal, part.format);
+
+                  if (parsed !== undefined) onSlotChange(part.path, parsed);
+
+                  setEditingValues((prev) => {
+                    const next = { ...prev };
+                    delete next[slotKey];
+                    return next;
+                  });
                 }}
                 onKeyDown={(e) => {
                   // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab
@@ -110,6 +128,12 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
 
 const NumberTreeEditor = ({ value, onChange, path = [] }) => {
   const [editingValues, setEditingValues] = useState({});
+  const parseEditableNumber = (raw) => {
+    const normalized = String(raw).replace(/,/g, '.');
+    const num = Number(normalized);
+    if (Number.isNaN(num)) return undefined;
+    return normalized;
+  };
   
   return (
     <div className="space-y-2">
@@ -143,34 +167,22 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
               value={displayValue}
               onChange={(e) => {
                 const inputValue = e.target.value;
-                console.log('📝 Input value:', inputValue, 'Display:', displayValue);
                 
                 // Permettre uniquement les caractères numériques, virgule, point et moins
                 const filtered = inputValue.replace(/[^\d.,-]/g, '');
-                console.log('✅ Filtered:', filtered);
                 
                 // Stocker la valeur filtrée pendant l'édition
-                setEditingValues(prev => {
-                  const newState = { ...prev, [fullPath]: filtered };
-                  console.log('💾 Editing values:', newState);
-                  return newState;
-                });
+                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
                 
                 // Accepter virgule et point comme séparateur décimal
-                const normalized = filtered.replace(',', '.');
+                const normalized = filtered.replace(/,/g, '.');
                 
                 // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
                 if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
-                  // Valeur incomplète, on attend
-                  console.log('⏳ Valeur incomplète, on attend');
                   return;
                 }
                 
-                const num = Number(normalized);
-                if (!Number.isNaN(num)) {
-                  console.log('✅ Propagation:', keyPath, normalized);
-                  onChange(keyPath, normalized);
-                }
+                if (parseEditableNumber(filtered) !== undefined) onChange(keyPath, normalized);
               }}
               onBlur={() => {
                 // Quand on quitte le champ, nettoyer la valeur d'édition
@@ -183,11 +195,8 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => {
                 });
                 
                 // Forcer la propagation de la valeur finale
-                const normalized = String(currentVal).replace(',', '.');
-                const num = Number(normalized);
-                if (!Number.isNaN(num)) {
-                  onChange(keyPath, normalized);
-                }
+                const parsed = parseEditableNumber(currentVal);
+                if (parsed !== undefined) onChange(keyPath, parsed);
               }}
               className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
             />
