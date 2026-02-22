@@ -59,7 +59,9 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
     }
   };
   const parseSlotValue = (input, format) => {
-    const num = Number(input);
+    // Accepter à la fois virgule et point comme séparateur décimal
+    const normalized = String(input).replace(',', '.');
+    const num = Number(normalized);
     if (Number.isNaN(num)) return undefined;
     switch (format) {
       case 'percent':
