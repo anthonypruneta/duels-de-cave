@@ -930,7 +930,7 @@ const Tournament = () => {
       autoAdvanceRef.current = null;
     }
     setReplayMatchId(matchId);
-    await animerMatch(matchId);
+    await animerMatch(matchId, true); // Passer true pour indiquer que c'est un replay
   };
 
   // ============================================================================
