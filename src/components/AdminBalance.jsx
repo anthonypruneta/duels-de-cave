@@ -46,7 +46,39 @@ const getNested = (obj, path) => {
   return cur;
 };
 
-const prettifyKey = (key) => key
+const BALANCE_KEY_LABELS_FR = {
+  healDamagePercent: 'Dégâts depuis soins',
+  regenPercent: 'Régénération',
+  healCritMultiplier: 'Multiplicateur critique soin',
+  defToAtkPercent: 'DEF convertie en ATK',
+  rescapToAtkPercent: 'RESC convertie en ATK',
+  damageBonus: 'Bonus dégâts',
+  n: 'Fréquence (tours/attaques)',
+  shieldPercent: 'Bouclier',
+  damageTakenBonus: 'Dégâts subis bonus',
+  defReduction: 'Réduction DEF',
+  healPercent: 'Soins',
+  lightningPercent: 'Dégâts éclair',
+  outgoing: 'Dégâts infligés',
+  incoming: 'Dégâts reçus',
+  critReduction: 'Réduction dégâts critiques',
+  critThreshold: 'Seuil critique garanti',
+  spellCapBonus: 'Bonus CAP du sort',
+  turns: 'Durée (tours)',
+  hpCostPercent: 'Coût HP',
+  autoDamageBonus: 'Bonus dégâts auto',
+  shieldExplosionPercent: 'Explosion bouclier',
+  healReduction: 'Réduction des soins',
+  initialBleedPercent: 'Saignement initial',
+  bleedDecayPercent: 'Décroissance saignement',
+  stunDuration: 'Durée étourdissement',
+  critChanceBonus: 'Chance critique bonus',
+  critDamageBonus: 'Dégâts critiques bonus',
+  maxStacks: 'Stacks max',
+  chance: 'Chance'
+};
+
+const prettifyKey = (key) => BALANCE_KEY_LABELS_FR[key] || key
   .replace(/([a-z])([A-Z])/g, '$1 $2')
   .replace(/_/g, ' ')
   .replace(/^./, (c) => c.toUpperCase());
@@ -111,10 +143,11 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
     const normalized = String(input).replace(/,/g, '.');
     const num = Number(normalized);
     if (Number.isNaN(num)) return undefined;
+    const isRatioInput = Math.abs(num) <= 1;
     switch (format) {
       case 'percent':
-      case 'percent1dec': return num / 100;
-      case 'percentMinus1': return 1 + num / 100;
+      case 'percent1dec': return isRatioInput ? num : (num / 100);
+      case 'percentMinus1': return 1 + (isRatioInput ? num : (num / 100));
       default: return num;
     }
   };
