@@ -738,7 +738,7 @@ const Tournament = () => {
     animerMatch(matchId);
   }, [tournoi?.matchActuel, tournoi?.statut]);
 
-  const animerMatch = async (matchId) => {
+  const animerMatch = async (matchId, isReplay = false) => {
     if (!matchId) return;
 
     // Cancel previous animation
@@ -763,7 +763,9 @@ const Tournament = () => {
     setIsAnimating(true);
     setCombatLog([]);
     setMatchEnCours(matchId);
-    setReplayMatchId(null);
+    if (!isReplay) {
+      setReplayMatchId(null);
+    }
     setWinner(null);
     setAnnonceActuelle('');
 
