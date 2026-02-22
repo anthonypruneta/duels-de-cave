@@ -130,10 +130,20 @@ const NumberTreeEditor = ({ value, onChange, path = [] }) => (
         <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
           <span className="text-stone-300">{key}</span>
           <input
-            type="number"
-            step="any"
+            type="text"
             value={displayValue}
-            onChange={(e) => onChange(keyPath, e.target.value)}
+            onChange={(e) => {
+              // Accepter virgule et point comme séparateur décimal
+              const normalized = e.target.value.replace(',', '.');
+              onChange(keyPath, normalized);
+            }}
+            onKeyDown={(e) => {
+              // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab, signe moins
+              const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-', 'Home', 'End'];
+              if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
+                e.preventDefault();
+              }
+            }}
             className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
           />
         </label>
