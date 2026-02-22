@@ -83,12 +83,18 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
             <span key={idx} className="inline-flex items-center">
               [
               <input
-                type="number"
-                step={part.format === 'percent1dec' ? 0.1 : 1}
+                type="text"
                 value={displayVal}
                 onChange={(e) => {
                   const parsed = parseSlotValue(e.target.value, part.format);
                   if (parsed !== undefined) onSlotChange(part.path, parsed);
+                }}
+                onKeyDown={(e) => {
+                  // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab
+                  const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-'];
+                  if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
+                    e.preventDefault();
+                  }
                 }}
                 className={`w-14 text-center mx-0.5 px-1 py-0.5 bg-stone-800 border border-amber-600/70 text-amber-200 rounded ${slotInputClass}`}
               />
