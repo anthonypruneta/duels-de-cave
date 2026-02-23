@@ -30,6 +30,7 @@ import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { getWeeklyChampionBoss, getCurrentWeekNumber } from '../data/championBosses.js';
 import { getHallOfFame } from './tournamentService.js';
+import { applyStatBoosts } from '../utils/statPoints.js';
 
 // ============================================================================
 // HELPER RETRY
@@ -559,13 +560,15 @@ export const launchCataclysm = async (bossData) => {
             const fullChampion = snapshot.docs[0].data();
             
             if (fullChampion.base) {
+              // Base + bonus de la forêt (comme pour les persos en combat)
+              const baseWithForest = applyStatBoosts(fullChampion.base, fullChampion.forestBoosts || {});
               useBossStats = {
                 hp: WORLD_BOSS.baseStats.hp, // HP du boss (45k)
-                auto: fullChampion.base.auto || 0,
-                cap: fullChampion.base.cap || 0,
-                def: fullChampion.base.def || 0,
-                rescap: fullChampion.base.rescap || 0,
-                spd: fullChampion.base.spd || 0
+                auto: baseWithForest.auto || 0,
+                cap: baseWithForest.cap || 0,
+                def: baseWithForest.def || 0,
+                rescap: baseWithForest.rescap || 0,
+                spd: baseWithForest.spd || 0
               };
               
               isChampionBoss = true;
