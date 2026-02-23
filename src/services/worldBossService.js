@@ -570,14 +570,15 @@ export const launchCataclysm = async (bossData) => {
               
               isChampionBoss = true;
               championName = champion.nom || champion.name || finalBossName;
+              // Firestore n'accepte pas undefined : n'inclure que des valeurs définies ou null
               originalChampion = {
-                userId: fullChampion.userId,
-                odUserId: fullChampion.odUserId,
-                odPseudo: fullChampion.odPseudo,
-                race: fullChampion.race,
-                classe: fullChampion.classe || fullChampion.class,
-                level: fullChampion.level,
-                characterImage: fullChampion.characterImage
+                userId: fullChampion.userId ?? null,
+                odUserId: fullChampion.odUserId ?? fullChampion.userId ?? null,
+                odPseudo: fullChampion.odPseudo ?? fullChampion.ownerPseudo ?? null,
+                race: fullChampion.race ?? null,
+                classe: fullChampion.classe ?? fullChampion.class ?? null,
+                level: fullChampion.level ?? null,
+                characterImage: fullChampion.characterImage ?? null
               };
               
               console.log('✅ Stats du champion chargées:', useBossStats);
