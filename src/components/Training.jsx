@@ -456,7 +456,7 @@ const Training = () => {
   };
 
   // Descriptions calculées des classes
-  const getCalculatedDescription = (className, cap) => {
+  const getCalculatedDescription = (className, cap, auto) => {
     switch(className) {
       case 'Guerrier': {
         const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
@@ -500,39 +500,108 @@ const Training = () => {
         );
       }
       case 'Healer': {
-        const { healBase, healPerCap } = classConstants.healer;
-        const baseHeal = Math.round(healBase);
-        const capBonus = Math.round(healPerCap * cap);
-        const totalHeal = baseHeal + capBonus;
+        const { missingHpPercent, capScale } = classConstants.healer;
+        const missingPct = Math.round(missingHpPercent * 100);
+        const healValue = Math.round(capScale * cap);
         return (
           <>
-            Soin{' '}
-            <Tooltip content={`Base: ${baseHeal} PV | Bonus (Cap ${cap}): +${capBonus} PV`}>
-              <span className="text-green-400">{totalHeal} PV</span>
+            Heal {missingPct}% PV manquants +{' '}
+            <Tooltip content={`${capScale.toFixed(2)} × Cap (${cap}) = ${healValue}`}>
+              <span className="text-green-400">{healValue}</span>
             </Tooltip>
           </>
         );
       }
       case 'Archer': {
-        const { hitCount } = classConstants.archer;
+        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2Auto = Math.round(hit2AutoMultiplier * auto);
+        const hit2Cap = Math.round(hit2CapMultiplier * cap);
         return (
           <>
-            <span className="text-green-400">{hitCount} attaques</span>
-            {' '}au total (1 Auto + combo hybride)
+            2 attaques: 1 tir normal +{' '}
+            <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap}) vs ResC`}>
+              <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+            </Tooltip>
           </>
         );
       }
       case 'Mage': {
         const { capBase, capPerCap } = classConstants.mage;
-        const basePart = Math.round(capBase * cap);
-        const scalePart = Math.round(capPerCap * cap * cap);
-        const totalDamage = basePart + scalePart;
+        const magicPct = capBase + capPerCap * cap;
+        const magicDmg = Math.round(magicPct * cap);
         return (
           <>
-            Sort magique :{' '}
-            <Tooltip content={`Base: ${basePart} | Scaling (Cap ${cap}): +${scalePart}`}>
-              <span className="text-green-400">{totalDamage} dégâts</span>
+            Dégâts = Auto +{' '}
+            <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
+              <span className="text-green-400">{auto + magicDmg}</span>
             </Tooltip>
+            {' '}(vs ResC)
+          </>
+        );
+      }
+      case 'Demoniste': {
+        const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+        const familierPct = capBase + capPerCap * cap;
+        const familierDmgTotal = Math.round(familierPct * cap);
+        const ignoreResistPct = Math.round(ignoreResist * 100);
+        const stackBonusPct = Math.round(stackPerAuto * 100);
+        return (
+          <>
+            Familier:{' '}
+            <Tooltip content={`${(familierPct * 100).toFixed(1)}% de la Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable)`}>
+              <span className="text-green-400">{familierDmgTotal}</span>
+            </Tooltip>
+            {' '}dégâts / tour (ignore {ignoreResistPct}% ResC)
+          </>
+        );
+      }
+      case 'Masochiste': {
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+        const returnBasePct = Math.round(returnBase * 100);
+        const returnBonusPct = Math.round(returnPerCap * cap * 100);
+        const returnTotalPct = returnBasePct + returnBonusPct;
+        const healPct = Math.round(healPercent * 100);
+        return (
+          <>
+            Renvoie{' '}
+            <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+              <span className="text-green-400">{returnTotalPct}%</span>
+            </Tooltip>
+            {' '}des dégâts accumulés & heal {healPct}%
+          </>
+        );
+      }
+      case 'Briseur de Sort': {
+        const { shieldFromSpellDamage, shieldFromCap, autoCapBonus, antiHealReduction } = classConstants.briseurSort;
+        const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
+        const shieldCapValue = Math.round(shieldFromCap * cap);
+        const autoBonusValue = Math.round(autoCapBonus * cap);
+        const antiHealPct = Math.round(antiHealReduction * 100);
+        return (
+          <>
+            Bouclier après spell:{' '}
+            <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
+            </Tooltip>
+            {' '}| Auto +{' '}
+            <Tooltip content={`${autoCapBonus * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{autoBonusValue}</span>
+            </Tooltip>
+            {' '}| -{antiHealPct}% soins adverses
+          </>
+        );
+      }
+      case 'Succube': {
+        const { capScale, nextAttackReduction } = classConstants.succube;
+        const capDmg = Math.round(capScale * cap);
+        const reductionPct = Math.round(nextAttackReduction * 100);
+        return (
+          <>
+            Auto +{' '}
+            <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
+              <span className="text-green-400">{capDmg}</span>
+            </Tooltip>
+            {' '}CAP | Prochaine attaque adverse -{reductionPct}%
           </>
         );
       }
@@ -709,7 +778,7 @@ const Training = () => {
                   <span className="text-lg">{classes[char.class].icon}</span>
                   <div className="flex-1">
                     <div className="font-semibold text-amber-200">{classes[char.class].ability}</div>
-                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(char.class, char.base.cap)}</div>
+                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(char.class, char.base.cap, char.base.auto)}</div>
                   </div>
                 </div>
               )}

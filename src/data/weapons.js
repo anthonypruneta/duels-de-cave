@@ -723,7 +723,7 @@ export const weapons = {
     },
     effet: {
       nom: 'Saignement d\'Arès',
-      description: 'Votre attaque applique un saignement brut : la cible perd 3% HP max par auto qu\'elle effectue. Réduit de 1% par auto (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
+      description: 'Votre attaque applique un saignement brut : la cible perd 3% HP max à chacun de ses tours d\'action. Réduit de 1% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
