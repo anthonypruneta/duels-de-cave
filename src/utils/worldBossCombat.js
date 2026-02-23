@@ -12,9 +12,12 @@ import { WORLD_BOSS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 
 /**
  * Crée le combattant World Boss pour simulerMatch
+ * @param {Object} [bossStats] - Stats du boss (eventData.bossStats). Si absent, utilise WORLD_BOSS.baseStats.
  */
-export function createWorldBossCombatant() {
-  const stats = WORLD_BOSS.baseStats;
+export function createWorldBossCombatant(bossStats = null) {
+  const stats = bossStats && typeof bossStats === 'object'
+    ? { ...WORLD_BOSS.baseStats, ...bossStats }
+    : WORLD_BOSS.baseStats;
   return {
     name: WORLD_BOSS.nom,
     race: 'Boss',
@@ -41,12 +44,15 @@ export function createWorldBossCombatant() {
  *
  * @param {Object} playerChar - Le personnage du joueur (données Firestore brutes)
  * @param {number} bossCurrentHP - HP restant du boss global
+ * @param {Object} [bossStats] - Stats du boss (eventData.bossStats). Si absent, utilise les stats génériques.
  * @returns {{ steps, combatLog, damageDealt, playerDied, bossHPAfter, p1MaxHP, bossMaxHP }}
  */
-export function simulerWorldBossCombat(playerChar, bossCurrentHP) {
-  const bossChar = createWorldBossCombatant();
+export function simulerWorldBossCombat(playerChar, bossCurrentHP, bossStats = null) {
+  const stats = bossStats && typeof bossStats === 'object' ? bossStats : WORLD_BOSS.baseStats;
+  const bossMaxHP = stats.hp ?? WORLD_BOSS.baseStats.hp;
+  const bossChar = createWorldBossCombatant(bossStats);
   // Le boss utilise ses HP restants globaux (plafonné à son max)
-  const bossHP = Math.min(bossCurrentHP, WORLD_BOSS.baseStats.hp);
+  const bossHP = Math.min(bossCurrentHP, bossMaxHP);
   bossChar.base.hp = bossHP;
 
   // Lancer le combat via le moteur standard

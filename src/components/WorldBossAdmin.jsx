@@ -381,8 +381,8 @@ const WorldBossAdmin = ({ characters }) => {
     if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
 
     try {
-      // Simuler le combat
-      const result = simulerWorldBossCombat(character, eventData.hpRemaining);
+      // Simuler le combat (stats du boss = event, ex. champion)
+      const result = simulerWorldBossCombat(character, eventData.hpRemaining, eventData.bossStats);
 
       // Initialiser HP pour replay
       setReplayPlayerHP(result.p1MaxHP);
@@ -469,7 +469,7 @@ const WorldBossAdmin = ({ characters }) => {
       };
 
       for (let i = 0; i < MASS_SIM_FIGHTS; i++) {
-        const fight = simulerWorldBossCombat(char, bossHP);
+        const fight = simulerWorldBossCombat(char, bossHP, eventData.bossStats);
         charResult.fights.push({
           damage: fight.damageDealt,
           died: fight.playerDied,

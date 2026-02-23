@@ -944,7 +944,7 @@ const WorldBoss = () => {
     replayTokenRef.current++;
     const currentToken = replayTokenRef.current;
 
-    const result = simulerWorldBossCombat(character, eventData.hpRemaining);
+    const result = simulerWorldBossCombat(character, eventData.hpRemaining, eventData.bossStats);
 
     // Init les states de combat pour les cards
     setPlayerState({
