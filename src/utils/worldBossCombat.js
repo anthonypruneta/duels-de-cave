@@ -13,13 +13,15 @@ import { WORLD_BOSS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 /**
  * Crée le combattant World Boss pour simulerMatch
  * @param {Object} [bossStats] - Stats du boss (eventData.bossStats). Si absent, utilise WORLD_BOSS.baseStats.
+ * @param {string} [bossName] - Nom affiché du boss (eventData.bossName). Si absent, utilise WORLD_BOSS.nom.
  */
-export function createWorldBossCombatant(bossStats = null) {
+export function createWorldBossCombatant(bossStats = null, bossName = null) {
   const stats = bossStats && typeof bossStats === 'object'
     ? { ...WORLD_BOSS.baseStats, ...bossStats }
     : WORLD_BOSS.baseStats;
+  const displayName = (bossName && String(bossName).trim()) || WORLD_BOSS.nom;
   return {
-    name: WORLD_BOSS.nom,
+    name: displayName,
     race: 'Boss',
     class: 'Boss',
     level: 1,
@@ -45,12 +47,14 @@ export function createWorldBossCombatant(bossStats = null) {
  * @param {Object} playerChar - Le personnage du joueur (données Firestore brutes)
  * @param {number} bossCurrentHP - HP restant du boss global
  * @param {Object} [bossStats] - Stats du boss (eventData.bossStats). Si absent, utilise les stats génériques.
+ * @param {string} [bossName] - Nom du boss (eventData.bossName). Si absent, utilise WORLD_BOSS.nom.
  * @returns {{ steps, combatLog, damageDealt, playerDied, bossHPAfter, p1MaxHP, bossMaxHP }}
  */
-export function simulerWorldBossCombat(playerChar, bossCurrentHP, bossStats = null) {
+export function simulerWorldBossCombat(playerChar, bossCurrentHP, bossStats = null, bossName = null) {
   const stats = bossStats && typeof bossStats === 'object' ? bossStats : WORLD_BOSS.baseStats;
   const bossMaxHP = stats.hp ?? WORLD_BOSS.baseStats.hp;
-  const bossChar = createWorldBossCombatant(bossStats);
+  const displayName = (bossName && String(bossName).trim()) || WORLD_BOSS.nom;
+  const bossChar = createWorldBossCombatant(bossStats, displayName);
   // Le boss utilise ses HP restants globaux (plafonné à son max)
   const bossHP = Math.min(bossCurrentHP, bossMaxHP);
   bossChar.base.hp = bossHP;
@@ -124,7 +128,7 @@ export function simulerWorldBossCombat(playerChar, bossCurrentHP, bossStats = nu
     // Injecter le step EXTINCTION
     const extinctionLogs = [
       `☠️ --- TOUR ${maxTurn} : EXTINCTION ---`,
-      `💀 ${WORLD_BOSS.nom} concentre une énergie dévastatrice...`,
+      `💀 ${displayName} concentre une énergie dévastatrice...`,
       `🔥 EXTINCTION ! Une vague de destruction pure anéantit tout sur son passage !`,
       `☠️ ${playerChar.name} est instantanément terrassé. Aucune défense ne peut résister.`
     ];
@@ -144,11 +148,11 @@ export function simulerWorldBossCombat(playerChar, bossCurrentHP, bossStats = nu
 
   // Step de fin
   const endLogs = damageDealt > 0
-    ? [`⚔️ ${playerChar.name} a infligé ${damageDealt} dégâts à ${WORLD_BOSS.nom} !`]
-    : [`💨 ${playerChar.name} n'a pas réussi à blesser ${WORLD_BOSS.nom}.`];
+    ? [`⚔️ ${playerChar.name} a infligé ${damageDealt} dégâts à ${displayName} !`]
+    : [`💨 ${playerChar.name} n'a pas réussi à blesser ${displayName}.`];
 
   if (bossHPAtEnd <= 0) {
-    endLogs.push(`🎉 ${WORLD_BOSS.nom} a été vaincu !`);
+    endLogs.push(`🎉 ${displayName} a été vaincu !`);
   }
 
   processedSteps.push({

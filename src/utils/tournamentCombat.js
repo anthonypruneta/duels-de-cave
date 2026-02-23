@@ -697,7 +697,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP -= damageToApply;
       tryTriggerOnctionLastStand(att, log, playerColor);
       if (att.isWorldBoss) {
-        log.push(`${playerColor} 🪓 Saignement d'Arès (Cataclysme): ${att.name} perd ${damageToApply} PV bruts`);
+        log.push(`${playerColor} 🪓 Saignement d'Arès (${att.name}): ${att.name} perd ${damageToApply} PV bruts`);
       } else {
         labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
       }

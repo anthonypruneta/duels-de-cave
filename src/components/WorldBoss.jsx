@@ -630,7 +630,7 @@ const WorldBoss = () => {
         if (part === p1Name) {
           result.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
         } else if (part === p2Name) {
-          result.push(<span key={`name-${key++}`} className="font-bold text-red-400">{part}</span>);
+          result.push(<span key={`name-${key++}`} className="font-bold text-orange-400">{part}</span>);
         } else if (part) {
           const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
           let lastIndex = 0;
@@ -952,7 +952,8 @@ const WorldBoss = () => {
       const championStats = await getChampionBossStatsByUserId(eventData.originalChampion.userId);
       if (championStats) bossStatsToUse = championStats;
     }
-    const result = simulerWorldBossCombat(character, eventData.hpRemaining, bossStatsToUse);
+    const bossNameForSim = eventData.bossName || activeBossName || WORLD_BOSS.nom;
+    const result = simulerWorldBossCombat(character, eventData.hpRemaining, bossStatsToUse, bossNameForSim);
 
     // Init les states de combat pour les cards
     setPlayerState({
@@ -1279,7 +1280,7 @@ const WorldBoss = () => {
                             return (
                               <div key={idx} className="flex justify-center my-4">
                                 <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border-2 border-red-600 animate-pulse">
-                                  {cleanLog}
+                                  {formatLogMessage(cleanLog, false)}
                                 </div>
                               </div>
                             );
@@ -1288,7 +1289,7 @@ const WorldBoss = () => {
                             return (
                               <div key={idx} className="flex justify-center my-4">
                                 <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
-                                  {cleanLog}
+                                  {formatLogMessage(cleanLog, false)}
                                 </div>
                               </div>
                             );
@@ -1304,7 +1305,7 @@ const WorldBoss = () => {
                           }
                           return (
                             <div key={idx} className="flex justify-center">
-                              <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                              <div className="text-stone-400 text-sm italic">{formatLogMessage(cleanLog, false)}</div>
                             </div>
                           );
                         }
