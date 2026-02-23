@@ -686,13 +686,21 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
   }
 
-  // Saignement Labrys d'Arès: dégâts bruts quand la cible attaque
+  // Saignement Labrys d'Arès: dégâts bruts quand la cible attaque (cap Cataclysme comme le bleed Lycan)
   if (att._labrysBleedPercent > 0) {
     const labrysResult = processLabrysBleed(att);
     if (labrysResult.damage > 0) {
-      att.currentHP -= labrysResult.damage;
+      let damageToApply = labrysResult.damage;
+      if (att.isWorldBoss) {
+        damageToApply = Math.max(1, Math.round(damageToApply * (1 - WORLD_BOSS_CONSTANTS.PERCENT_HP_DAMAGE_REDUCTION)));
+      }
+      att.currentHP -= damageToApply;
       tryTriggerOnctionLastStand(att, log, playerColor);
-      labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
+      if (att.isWorldBoss) {
+        log.push(`${playerColor} 🪓 Saignement d'Arès (Cataclysme): ${att.name} perd ${damageToApply} PV bruts`);
+      } else {
+        labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
     }
   }

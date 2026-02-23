@@ -769,6 +769,22 @@ export async function consumeTripleRoll(userId) {
   }
 }
 
+/**
+ * Réinitialise tous les gains de reroll (Tournoi + Cataclysme) pour tous les joueurs.
+ * Supprime tous les documents de la collection tournamentRewards.
+ */
+export async function resetAllRerollGains() {
+  try {
+    const snapshot = await getDocs(collection(db, 'tournamentRewards'));
+    const deletes = snapshot.docs.map((d) => deleteDoc(doc(db, 'tournamentRewards', d.id)));
+    await Promise.all(deletes);
+    return { success: true, count: snapshot.size };
+  } catch (error) {
+    console.error('Erreur reset rerolls:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================================================
 // SIMULATION DE TEST (aucune écriture Firestore, pas de Discord)
 // ============================================================================

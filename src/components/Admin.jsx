@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
-import { creerTournoi, lancerTournoi, getAllArchivedCharacters } from '../services/tournamentService';
+import { creerTournoi, lancerTournoi, getAllArchivedCharacters, resetAllRerollGains } from '../services/tournamentService';
 import {
   ensureWeeklyInfiniteLabyrinth,
   generateWeeklyInfiniteLabyrinth,
@@ -59,6 +59,7 @@ const Admin = () => {
   // État pour les rerolls disponibles
   const [rerollsData, setRerollsData] = useState([]);
   const [rerollsLoading, setRerollsLoading] = useState(false);
+  const [resetRerollsLoading, setResetRerollsLoading] = useState(false);
 
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
@@ -1135,13 +1136,34 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-green-600 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-green-400">🎲 Rerolls disponibles</h2>
-            <button
-              onClick={loadRerollsData}
-              disabled={rerollsLoading}
-              className="bg-green-700 hover:bg-green-600 disabled:bg-stone-700 text-white px-4 py-2 rounded-lg font-bold transition"
-            >
-              {rerollsLoading ? '⏳ Chargement...' : '🔄 Actualiser'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={loadRerollsData}
+                disabled={rerollsLoading}
+                className="bg-green-700 hover:bg-green-600 disabled:bg-stone-700 text-white px-4 py-2 rounded-lg font-bold transition"
+              >
+                {rerollsLoading ? '⏳ Chargement...' : '🔄 Actualiser'}
+              </button>
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Réinitialiser tous les gains de reroll (Tournoi + Cataclysme) pour tous les joueurs ? Cette action est irréversible.')) return;
+                  setResetRerollsLoading(true);
+                  try {
+                    const result = await resetAllRerollGains();
+                    if (result.success) {
+                      setRerollsData([]);
+                      alert(`✅ ${result.count ?? 0} gain(s) de reroll supprimé(s).`);
+                    } else alert(`❌ ${result.error}`);
+                  } finally {
+                    setResetRerollsLoading(false);
+                  }
+                }}
+                disabled={resetRerollsLoading}
+                className="bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 text-white px-4 py-2 rounded-lg font-bold transition"
+              >
+                {resetRerollsLoading ? '⏳ Reset...' : '🗑️ Reset gains de reroll'}
+              </button>
+            </div>
           </div>
           
           <p className="text-stone-400 text-sm mb-4">Liste des joueurs ayant des rerolls disponibles pour leur prochain personnage (Tournoi + Cataclysme)</p>
