@@ -872,11 +872,7 @@ function AdminBalance({ embedded = false }) {
                           onSlotChange={(path, value) => {
                             setWeaponDraft((prev) => {
                               const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path.slice(1), value);
-                              const values = updatedWeapon?.effet?.values;
-                              const withDesc = values
-                                ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, values))
-                                : updatedWeapon;
-                              return { ...prev, [weapon.id]: withDesc };
+                              return { ...prev, [weapon.id]: updatedWeapon };
                             });
                           }}
                           className="text-amber-200/90 mb-2"
@@ -889,13 +885,7 @@ function AdminBalance({ embedded = false }) {
                       onChange={(path, value) => {
                         setWeaponDraft((prev) => {
                           const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
-                          const withAutoDescription = updatedWeapon?.effet?.values
-                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, updatedWeapon.effet.values))
-                            : updatedWeapon;
-                          return {
-                            ...prev,
-                            [weapon.id]: withAutoDescription
-                          };
+                          return { ...prev, [weapon.id]: updatedWeapon };
                         });
                       }}
                     />
