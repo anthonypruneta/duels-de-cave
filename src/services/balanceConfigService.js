@@ -1,12 +1,19 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { classConstants, cooldowns, raceConstants } from '../data/combatMechanics';
+import { classConstants, cooldowns, raceConstants, weaponConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { weapons } from '../data/weapons';
 import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
 const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
+
+/**
+ * À incrémenter à chaque modification des données d'équilibrage dans le code
+ * (combatMechanics, races, classes, weapons, mageTowerPassives).
+ * Si cette version est supérieure à celle en Firestore, le code est appliqué et poussé vers Firestore.
+ */
+export const BALANCE_CONFIG_VERSION = 6;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -120,9 +127,62 @@ const normalizeGnomeConfig = (config) => {
     };
   }
 
+  if (awakeningGnome && awakeningGnome.speedDuelCapBonusLow == null && awakeningGnome.speedDuelCapBonusHigh != null) {
+    awakeningGnome.speedDuelCapBonusLow = awakeningGnome.speedDuelCapBonusHigh;
+  }
+
   if (config.raceTexts?.Gnome && (gnome && gnome.critDmgIfFaster == null || awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null)) {
     config.raceTexts.Gnome.bonus = races['Gnome']?.bonus;
     config.raceTexts.Gnome.awakeningDescription = races['Gnome']?.awakening?.description;
+  }
+};
+
+
+const normalizeMageTowerPassivesConfig = (config) => {
+  if (!config || typeof config !== 'object' || !Array.isArray(config.mageTowerPassives)) return;
+
+  const lastStandText = 'Vous survivez à 1 HP (1 fois par combat).';
+  const onctionConfig = config.mageTowerPassives.find((passive) => passive?.id === 'onction_eternite');
+  if (!onctionConfig?.levels) return;
+
+  Object.values(onctionConfig.levels).forEach((levelData) => {
+    if (!levelData || typeof levelData !== 'object') return;
+    const current = typeof levelData.description === 'string' ? levelData.description.trim() : '';
+    if (!current) return;
+    if (!current.includes(lastStandText)) {
+      levelData.description = `${current} ${lastStandText}`.trim();
+    }
+  });
+};
+
+const applyWeaponAndPassiveTextOverrides = (config) => {
+  if (config.weaponConstants) {
+    Object.entries(config.weaponConstants).forEach(([weaponId, weaponConfig]) => {
+      const weapon = weapons[weaponId];
+      if (!weapon || !weaponConfig) return;
+
+      if (typeof weaponConfig.description === 'string') {
+        weapon.description = weaponConfig.description;
+      }
+
+      if (weapon.effet && weaponConfig.effet && typeof weaponConfig.effet.description === 'string') {
+        weapon.effet.description = weaponConfig.effet.description;
+      }
+    });
+  }
+
+  if (Array.isArray(config.mageTowerPassives)) {
+    config.mageTowerPassives.forEach((passiveConfig, index) => {
+      const passive = MAGE_TOWER_PASSIVES[index];
+      if (!passive || !passiveConfig?.levels) return;
+
+      Object.entries(passiveConfig.levels).forEach(([level, levelConfig]) => {
+        if (!passive.levels?.[level] || !levelConfig) return;
+        if (typeof levelConfig.description === 'string') {
+          passive.levels[level].description = levelConfig.description;
+        }
+      });
+    });
   }
 };
 
@@ -156,11 +216,52 @@ const applyTextOverrides = (config) => {
   });
 };
 
+/**
+ * Synchronise les constantes d'armes (config / admin) vers weaponConstants du combat,
+ * pour que les valeurs modifiées en équilibrage soient utilisées en gameplay.
+ * Exporté pour que la page équilibrage puisse l'appliquer au draft avant simulation.
+ */
+export const syncWeaponConstantsToCombat = (configWeaponConstants) => {
+  if (!configWeaponConstants || typeof weaponConstants !== 'object') return;
+
+  const get = (w, ...path) => {
+    let cur = w;
+    for (const k of path) cur = cur?.[k];
+    return cur;
+  };
+
+  const mappings = [
+    { weaponId: 'baton_legendaire', key: 'yggdrasil', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'bouclier_legendaire', key: 'egide', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'epee_legendaire', key: 'zweihander', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'dague_legendaire', key: 'laevateinn', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'marteau_legendaire', key: 'mjollnir', build: (w) => ({ triggerEveryNAttacks: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'lance_legendaire', key: 'gungnir', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'arc_legendaire', key: 'arcCieux', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
+    { weaponId: 'tome_legendaire', key: 'codexArchon', build: (w) => ({ doubleCastTriggers: get(w, 'effet', 'trigger', 'spellCounts') ?? [2, 4], ...get(w, 'effet', 'values') }) },
+    { weaponId: 'fleau_legendaire', key: 'fleauAnatheme', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'arbalete_legendaire', key: 'arbaleteVerdict', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'hache_legendaire', key: 'labrysAres', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+  ];
+
+  mappings.forEach(({ weaponId, key, build }) => {
+    const weaponConfig = configWeaponConstants[weaponId];
+    if (!weaponConfig?.effet) return;
+    const built = build(weaponConfig);
+    if (!weaponConstants[key]) return;
+    Object.keys(built).forEach((k) => {
+      const v = built[k];
+      if (v !== undefined && v !== null) weaponConstants[key][k] = v;
+    });
+  });
+};
+
 export const applyBalanceConfig = (config) => {
   if (!config) return;
 
   normalizeMindflayerConfig(config);
   normalizeGnomeConfig(config);
+  normalizeMageTowerPassivesConfig(config);
 
   if (config.raceConstants) {
     applyNumericOverrides(raceConstants, config.raceConstants);
@@ -172,6 +273,7 @@ export const applyBalanceConfig = (config) => {
 
   if (config.weaponConstants) {
     applyNumericOverrides(weapons, config.weaponConstants);
+    syncWeaponConstantsToCombat(config.weaponConstants);
   }
 
   if (Array.isArray(config.mageTowerPassives)) {
@@ -189,21 +291,31 @@ export const applyBalanceConfig = (config) => {
     });
   }
 
+  applyWeaponAndPassiveTextOverrides(config);
   applyTextOverrides(config);
 };
 
 export const loadPersistedBalanceConfig = async () => {
   try {
     const snap = await getDoc(BALANCE_DOC_REF);
-    if (!snap.exists()) {
-      return { success: true, data: null };
+    const storedVersion = (snap.exists() && snap.data())?.sourceVersion ?? 0;
+    const config = snap.exists() ? snap.data()?.config : null;
+
+    // Si le code a une version plus récente, le code prime : on l'applique et on pousse vers Firestore
+    if (BALANCE_CONFIG_VERSION > storedVersion) {
+      const codeConfig = buildCurrentBalanceConfig();
+      applyBalanceConfig(codeConfig);
+      await setDoc(BALANCE_DOC_REF, {
+        config: codeConfig,
+        sourceVersion: BALANCE_CONFIG_VERSION,
+        updatedBy: 'code-sync',
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      console.log(`✅ Équilibrage: code (v${BALANCE_CONFIG_VERSION}) appliqué et synchronisé vers Firestore.`);
+      return { success: true, data: codeConfig };
     }
 
-    const payload = snap.data();
-    const config = payload?.config;
-
     if (config) applyBalanceConfig(config);
-
     return { success: true, data: config || null };
   } catch (error) {
     console.error('Erreur chargement balance config:', error);
@@ -215,7 +327,8 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
   try {
     await setDoc(BALANCE_DOC_REF, {
       config,
-      updatedBy,
+      sourceVersion: BALANCE_CONFIG_VERSION,
+      updatedBy: updatedBy ?? 'admin',
       updatedAt: serverTimestamp()
     }, { merge: true });
 
@@ -238,12 +351,14 @@ export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
     const defaultConfig = buildCurrentBalanceConfig();
     await setDoc(BALANCE_DOC_REF, {
       config: defaultConfig,
+      sourceVersion: BALANCE_CONFIG_VERSION,
       updatedBy,
       updatedAt: serverTimestamp(),
       resetToDefaults: true
     });
-    
-    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut');
+
+    applyBalanceConfig(defaultConfig);
+    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut (code)');
     return { success: true, config: defaultConfig };
   } catch (error) {
     console.error('Erreur reset balance config:', error);

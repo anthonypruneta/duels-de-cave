@@ -197,7 +197,7 @@ const getCalculatedDescription = (className, cap, auto) => {
       return (
         <>
           Heal {missingPct}% PV manquants +{' '}
-          <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+          <Tooltip content={`${capScale.toFixed(2)} × Cap (${cap}) = ${healValue}`}>
             <span className="text-green-400">{healValue}</span>
           </Tooltip>
         </>
@@ -210,7 +210,7 @@ const getCalculatedDescription = (className, cap, auto) => {
       return (
         <>
           2 attaques: 1 tir normal +{' '}
-          <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+          <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap}) vs ResC`}>
             <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
           </Tooltip>
         </>
@@ -738,7 +738,7 @@ const Tournament = () => {
     animerMatch(matchId);
   }, [tournoi?.matchActuel, tournoi?.statut]);
 
-  const animerMatch = async (matchId) => {
+  const animerMatch = async (matchId, isReplay = false) => {
     if (!matchId) return;
 
     // Cancel previous animation
@@ -763,7 +763,9 @@ const Tournament = () => {
     setIsAnimating(true);
     setCombatLog([]);
     setMatchEnCours(matchId);
-    setReplayMatchId(null);
+    if (!isReplay) {
+      setReplayMatchId(null);
+    }
     setWinner(null);
     setAnnonceActuelle('');
 
@@ -788,7 +790,7 @@ const Tournament = () => {
     if (!result?.success || token.cancelled) {
       stopAnimation();
       // Même en cas d'échec, planifier l'auto-avancement pour ne pas bloquer la simulation
-      if (isAdmin && !replayMatchId) {
+      if (isAdmin && !isReplay) {
         autoAdvanceRef.current = setTimeout(async () => {
           autoAdvanceRef.current = null;
           await avancerMatch(docId);
@@ -899,7 +901,8 @@ const Tournament = () => {
     stopAnimation();
 
     // Annoncer le vainqueur sur Discord après l'animation (admin + vrai tournoi uniquement)
-    if (isAdmin && !isSimulation && !replayMatchId) {
+    // Ne pas annoncer si c'est un replay
+    if (isAdmin && !isSimulation && !isReplay) {
       annoncerFinMatchDiscord(logData).catch(() => {});
     }
 
@@ -911,8 +914,8 @@ const Tournament = () => {
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Auto-avancer après 8 secondes (admin seulement)
-    if (isAdmin && !replayMatchId) {
+    // Auto-avancer après 8 secondes (admin seulement, pas en replay)
+    if (isAdmin && !isReplay) {
       autoAdvanceRef.current = setTimeout(async () => {
         autoAdvanceRef.current = null;
         await avancerMatch(docId);
@@ -927,7 +930,7 @@ const Tournament = () => {
       autoAdvanceRef.current = null;
     }
     setReplayMatchId(matchId);
-    await animerMatch(matchId);
+    await animerMatch(matchId, true); // Passer true pour indiquer que c'est un replay
   };
 
   // ============================================================================

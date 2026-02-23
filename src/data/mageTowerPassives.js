@@ -146,19 +146,19 @@ export const MAGE_TOWER_PASSIVES = [
     icon: '✨',
     levels: {
       1: {
-        description: 'Tours 1–2 : +5% dégâts. Premier sort du combat : +5% CAP.',
+        description: 'Tours 1–2 : +5% dégâts. Premier sort Mage/Healer du combat : +5% CAP.',
         damageBonus: 0.05,
         spellCapBonus: 0.05,
         turns: 2
       },
       2: {
-        description: 'Tours 1–2 : +10% dégâts. Premier sort du combat : +10% CAP.',
+        description: 'Tours 1–2 : +10% dégâts. Premier sort Mage/Healer du combat : +10% CAP.',
         damageBonus: 0.1,
         spellCapBonus: 0.1,
         turns: 2
       },
       3: {
-        description: 'Tours 1–2 : +20% dégâts. Premier sort du combat : +20% CAP.',
+        description: 'Tours 1–2 : +20% dégâts. Premier sort Mage/Healer du combat : +20% CAP.',
         damageBonus: 0.2,
         spellCapBonus: 0.2,
         turns: 2
@@ -198,15 +198,15 @@ export const MAGE_TOWER_PASSIVES = [
     vague: 2,
     levels: {
       1: {
-        description: 'Régénère 1% HP max par tour.',
+        description: 'Régénère 1% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.01
       },
       2: {
-        description: 'Régénère 2% HP max par tour.',
+        description: 'Régénère 2% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.02
       },
       3: {
-        description: 'Régénère 3% HP max par tour.',
+        description: 'Régénère 3% HP max par tour. Vous survivez à 1 HP (1 fois par combat).',
         regenPercent: 0.03
       }
     }

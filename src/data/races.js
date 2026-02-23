@@ -94,7 +94,7 @@ export const races = {
     }
   },
   'Lycan': {
-    bonus: 'Attaque inflige saignement +1 de dégât/tour',
+    bonus: 'Attaque applique +1 stack de saignement (dégâts = ceil(stacks/5) par tour)',
     icon: '🐺',
     awakening: {
       levelRequired: 100,
@@ -123,11 +123,11 @@ export const races = {
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +30% dégâts crit, +30% CAP\n- VIT < cible: +30% esquive\n- égalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +30% dégâts crit\n- VIT < cible: +30% esquive, +30% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
         speedDuelCritHigh: 0.30,
         speedDuelCritDmgHigh: 0.30,
-        speedDuelCapBonusHigh: 0.30,
+        speedDuelCapBonusLow: 0.30,
         speedDuelDodgeLow: 0.30,
         speedDuelEqualCrit: 0.10,
         speedDuelEqualCritDmg: 0.10,
@@ -141,11 +141,11 @@ export const races = {
     }
   },
   'Sirène': {
-    bonus: '+10 CAP\n- subit un spell: +10% dégâts/soins des capacités (max 3 stacks)',
+    bonus: '+10 CAP\n- subit un spell: +10% dégâts/soins de vos compétences (max 3 stacks)',
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+40 CAP, stacks à +40% dégâts/soins des capacités (max 4)',
+      description: '+40 CAP, stacks à +40% dégâts/soins de vos compétences (max 4)',
       effect: {
         statBonuses: {
           cap: 40
@@ -156,15 +156,15 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 5% de votre CAP aux dégâts\nSort sans CD: +5% dégâts',
+    bonus: 'Copie et relance le premier sort reçu et ajoute 5% de votre CAP aux dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'Vole et relance le premier sort lancé par l\'ennemi et ajoute 10% de votre CAP aux dégâts\nPremier sort: -1 de CD\nSort sans CD: +10% dégâts',
+      description: 'Copie et relance le premier sort reçu et ajoute 10% de votre CAP aux dégâts\nPremier sort: -1 de CD\nSi ce premier sort est sans CD: +100% dégâts',
       effect: {
         mindflayerStealSpellCapDamageScale: 0.10,
         mindflayerOwnCooldownReductionTurns: 1,
-        mindflayerNoCooldownSpellBonus: 0.10
+        mindflayerNoCooldownSpellBonus: 1.00
       }
     }
   }

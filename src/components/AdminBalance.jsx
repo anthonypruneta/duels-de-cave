@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants, raceConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { classConstants, raceConstants, weaponConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { getStatPointValue } from '../utils/statPoints';
 import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
 import { createBossCombatant } from '../data/bosses';
-import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig } from '../services/balanceConfigService';
-import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat } from '../services/balanceConfigService';
+import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
@@ -40,34 +40,271 @@ const updateNestedValue = (obj, path, value) => {
   };
 };
 
-const NumberTreeEditor = ({ value, onChange, path = [] }) => (
-  <div className="space-y-2">
-    {Object.entries(value || {}).map(([key, val]) => {
-      const keyPath = [...path, key];
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
-        return (
-          <div key={keyPath.join('.')} className="border border-stone-700 p-2 bg-stone-950/50">
-            <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
-            <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
-          </div>
-        );
-      }
+const getNested = (obj, path) => {
+  let cur = obj;
+  for (const k of path) cur = cur?.[k];
+  return cur;
+};
 
-      return (
-        <label key={keyPath.join('.')} className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-stone-300">{key}</span>
-          <input
-            type="number"
-            step="any"
-            value={val}
-            onChange={(e) => onChange(keyPath, e.target.value)}
-            className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
-          />
-        </label>
-      );
-    })}
-  </div>
-);
+const BALANCE_KEY_LABELS_FR = {
+  healDamagePercent: 'Dégâts depuis soins',
+  regenPercent: 'Régénération',
+  healCritMultiplier: 'Multiplicateur critique soin',
+  defToAtkPercent: 'DEF convertie en ATK',
+  rescapToAtkPercent: 'RESC convertie en ATK',
+  damageBonus: 'Bonus dégâts',
+  n: 'Fréquence (tours/attaques)',
+  shieldPercent: 'Bouclier',
+  damageTakenBonus: 'Dégâts subis bonus',
+  defReduction: 'Réduction DEF',
+  healPercent: 'Soins',
+  lightningPercent: 'Dégâts éclair',
+  outgoing: 'Dégâts infligés',
+  incoming: 'Dégâts reçus',
+  critReduction: 'Réduction dégâts critiques',
+  critThreshold: 'Seuil critique garanti',
+  spellCapBonus: 'Bonus CAP du sort',
+  turns: 'Durée (tours)',
+  hpCostPercent: 'Coût HP',
+  autoDamageBonus: 'Bonus dégâts auto',
+  shieldExplosionPercent: 'Explosion bouclier',
+  healReduction: 'Réduction des soins',
+  initialBleedPercent: 'Saignement initial',
+  bleedDecayPercent: 'Décroissance saignement',
+  stunDuration: 'Durée étourdissement',
+  critChanceBonus: 'Chance critique bonus',
+  critDamageBonus: 'Dégâts critiques bonus',
+  maxStacks: 'Stacks max',
+  chance: 'Chance'
+};
+
+const prettifyKey = (key) => BALANCE_KEY_LABELS_FR[key] || key
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
+const inferSlotFormat = (key, value) => {
+  if (typeof value !== 'number') return 'raw';
+  if (Math.abs(value) <= 1 && /(percent|bonus|reduction|multiplier|chance|threshold|scale|outgoing|incoming|regen|damage|heal|crit|ignore|reflect|shield|cost)/i.test(key)) {
+    return 'percent';
+  }
+  return 'raw';
+};
+
+const flattenNumericEntries = (obj, basePath = []) => {
+  const entries = [];
+  Object.entries(obj || {}).forEach(([key, val]) => {
+    if (key === 'description') return;
+    const path = [...basePath, key];
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      entries.push(...flattenNumericEntries(val, path));
+      return;
+    }
+    if (typeof val === 'number') {
+      entries.push({ key, path, format: inferSlotFormat(key, val) });
+    }
+  });
+  return entries;
+};
+
+const buildPartsFromEntries = (entries) => entries.flatMap((entry, index) => {
+  const head = index === 0 ? '' : ' · ';
+  return [
+    { type: 'text', value: `${head}${prettifyKey(entry.key)}: ` },
+    { type: 'slot', path: entry.path, format: entry.format }
+  ];
+});
+
+/** Génère une description à partir des valeurs numériques (pour mise à jour auto armes / passifs) */
+const buildAutoDescription = (values) => {
+  const entries = flattenNumericEntries(values || {}, []);
+  if (entries.length === 0) return '';
+  return entries.map((e) => {
+    const v = getNested(values, e.path);
+    const num = Number(v);
+    if (Number.isNaN(num)) return '';
+    const pct100 = num * 100;
+    const useDecimals = e.format === 'percent1dec' || (e.format === 'percent' && pct100 % 1 !== 0);
+    const display = e.format === 'percent' || e.format === 'percent1dec'
+      ? `${pct100.toFixed(useDecimals ? 1 : 0)}%`
+      : String(num);
+    return `${prettifyKey(e.key)}: ${display}`;
+  }).filter(Boolean).join(' · ');
+};
+
+/** Description d'effet pour le Codex Archon : phrase fixe avec le % mis à jour */
+const buildCodexEffetDescription = (values) => {
+  const pct = values?.secondCastDamage != null
+    ? (Number(values.secondCastDamage) * 100).toFixed((Number(values.secondCastDamage) * 100) % 1 === 0 ? 0 : 1)
+    : '70';
+  return `Votre second et quatrième sort se lancent deux fois et font ${pct}% de dégâts.`;
+};
+
+/** Pour une arme, renvoie la description d'effet (template Codex ou auto-générée) */
+const buildWeaponEffetDescription = (weaponId, values) => {
+  if (weaponId === 'tome_legendaire' && values) return buildCodexEffetDescription(values);
+  return buildAutoDescription(values);
+};
+
+/** Affiche un nombre avec virgule comme séparateur décimal (français) */
+const formatNumberFr = (val, format) => {
+  const v = Number(val);
+  if (Number.isNaN(v)) return '';
+  switch (format) {
+    case 'percent': return (v * 100) % 1 === 0 ? String(Math.round(v * 100)) : (v * 100).toFixed(1).replace('.', ',');
+    case 'percent1dec': return (v * 100).toFixed(1).replace('.', ',');
+    case 'percentMinus1': return ((v - 1) * 100) % 1 === 0 ? String(Math.round((v - 1) * 100)) : ((v - 1) * 100).toFixed(1).replace('.', ',');
+    default: return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
+  }
+};
+
+/** Affiche une description avec les valeurs entre [crochets] éditables inline */
+const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
+  const [editingValues, setEditingValues] = useState({});
+
+  const slotDisplayValue = (rawVal, format) => formatNumberFr(rawVal, format);
+  const parseSlotValue = (input, format) => {
+    // Accepter virgule et point. Pour les %, la saisie est toujours en "pourcentage affiché" (2 = 2%, 0,5 = 0,5%)
+    const normalized = String(input).replace(/,/g, '.');
+    const num = Number(normalized);
+    if (Number.isNaN(num)) return undefined;
+    switch (format) {
+      case 'percent':
+      case 'percent1dec': return num / 100;
+      case 'percentMinus1': return 1 + (num / 100);
+      default: return num;
+    }
+  };
+  return (
+    <div className={`text-xs whitespace-pre-line ${className}`}>
+      {parts.map((part, idx) => {
+        if (part.type === 'text') {
+          return <span key={idx}>{part.value}</span>;
+        }
+        if (part.type === 'slot') {
+          const slotKey = part.path.join('.');
+          const rawVal = getNested(draft, part.path);
+          const displayVal = editingValues[slotKey] ?? slotDisplayValue(rawVal, part.format);
+          return (
+            <span key={idx} className="inline-flex items-center">
+              [
+              <input
+                type="text"
+                value={displayVal}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  setEditingValues((prev) => ({ ...prev, [slotKey]: inputValue }));
+
+                  const parsed = parseSlotValue(inputValue, part.format);
+                  if (parsed !== undefined) onSlotChange(part.path, parsed);
+                }}
+                onBlur={() => {
+                  const currentVal = editingValues[slotKey];
+                  const parsed = parseSlotValue(currentVal, part.format);
+
+                  if (parsed !== undefined) onSlotChange(part.path, parsed);
+
+                  setEditingValues((prev) => {
+                    const next = { ...prev };
+                    delete next[slotKey];
+                    return next;
+                  });
+                }}
+                onKeyDown={(e) => {
+                  // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab
+                  const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-'];
+                  if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
+                    e.preventDefault();
+                  }
+                }}
+                className={`w-14 text-center mx-0.5 px-1 py-0.5 bg-stone-800 border border-amber-600/70 text-amber-200 rounded ${slotInputClass}`}
+              />
+              ]
+            </span>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+};
+
+const NumberTreeEditor = ({ value, onChange, path = [] }) => {
+  const [editingValues, setEditingValues] = useState({});
+
+  return (
+    <div className="space-y-2">
+      {Object.entries(value || {}).map(([key, val]) => {
+        const keyPath = [...path, key];
+        const fullPath = keyPath.join('.');
+        
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          return (
+            <div key={fullPath} className="border border-stone-700 p-2 bg-stone-950/50">
+              <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
+              <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
+            </div>
+          );
+        }
+
+        // Ne pas afficher d'input pour les chaînes purement textuelles (ex: descriptions)
+        const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
+        if (!isNumericOrEmpty) return null;
+
+        // Utiliser la valeur en cours d'édition si elle existe, sinon la valeur du state (affichage avec virgule si décimal)
+        const displayValue = editingValues[fullPath] !== undefined 
+          ? editingValues[fullPath] 
+          : (typeof val === 'number' ? (Number.isInteger(val) ? String(val) : String(val).replace('.', ',')) : (val === '' ? '' : String(val).replace('.', ',')));
+
+        return (
+          <label key={fullPath} className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-stone-300">{key}</span>
+            <input
+              type="text"
+              value={displayValue}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                
+                // Permettre uniquement les caractères numériques, virgule, point et moins
+                const filtered = inputValue.replace(/[^\d.,-]/g, '');
+                
+                // Stocker la valeur filtrée pendant l'édition
+                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
+                
+                // Accepter virgule et point comme séparateur décimal
+                const normalized = filtered.replace(/,/g, '.');
+                
+                // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
+                if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
+                  return;
+                }
+                
+                const num = Number(normalized);
+                if (!Number.isNaN(num)) onChange(keyPath, num);
+              }}
+              onBlur={() => {
+                // Quand on quitte le champ, nettoyer la valeur d'édition
+                const currentVal = editingValues[fullPath] !== undefined ? editingValues[fullPath] : displayValue;
+                
+                setEditingValues(prev => {
+                  const newState = { ...prev };
+                  delete newState[fullPath];
+                  return newState;
+                });
+                
+                // Forcer la propagation de la valeur finale (nombre pour cohérence)
+                const normalized = String(currentVal).replace(/,/g, '.');
+                const num = Number(normalized);
+                if (normalized !== '' && !Number.isNaN(num)) onChange(keyPath, num);
+              }}
+              className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
+            />
+          </label>
+        );
+      })}
+    </div>
+  );
+};
 
 const genStats = () => {
   const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
@@ -216,8 +453,16 @@ function AdminBalance({ embedded = false }) {
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
   const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
   const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
-  const [raceTextDraft, setRaceTextDraft] = useState(() => buildRaceTextDraft(deepClone(raceConstants), Object.fromEntries(Object.entries(races).map(([name, info]) => [name, deepClone(info?.awakening?.effect || {})]))));
-  const [classTextDraft, setClassTextDraft] = useState(() => buildClassTextDraft(deepClone(classConstants)));
+
+  // Textes dérivés des drafts : se mettent à jour automatiquement quand tu modifies une valeur
+  const raceTextDraft = useMemo(
+    () => buildRaceTextDraft(raceBonusDraft, raceAwakeningDraft),
+    [raceBonusDraft, raceAwakeningDraft]
+  );
+  const classTextDraft = useMemo(
+    () => buildClassTextDraft(classDraft),
+    [classDraft]
+  );
 
   const raceCards = useMemo(() => Object.entries(races), []);
   const classCards = useMemo(() => Object.entries(classes), []);
@@ -238,8 +483,6 @@ function AdminBalance({ embedded = false }) {
         loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
       });
       setRaceAwakeningDraft(loadedAwakeningDraft);
-      setRaceTextDraft(buildRaceTextDraft(deepClone(raceConstants), loadedAwakeningDraft));
-      setClassTextDraft(buildClassTextDraft(deepClone(classConstants)));
     };
 
     loadSavedConfig();
@@ -249,6 +492,7 @@ function AdminBalance({ embedded = false }) {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
     applyNumericOverrides(weapons, weaponDraft);
+    syncWeaponConstantsToCombat(weaponDraft);
     passiveDraft.forEach((passive, index) => {
       if (!MAGE_TOWER_PASSIVES[index]) return;
       applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
@@ -300,6 +544,7 @@ function AdminBalance({ embedded = false }) {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
     const previousWeapons = deepClone(weapons);
+    const previousWeaponConstants = deepClone(weaponConstants);
     const previousPassives = deepClone(MAGE_TOWER_PASSIVES);
     const previousAwakeningEffects = {};
 
@@ -319,6 +564,9 @@ function AdminBalance({ embedded = false }) {
 
       Object.keys(weapons).forEach((key) => delete weapons[key]);
       Object.assign(weapons, previousWeapons);
+
+      Object.keys(weaponConstants).forEach((key) => delete weaponConstants[key]);
+      Object.assign(weaponConstants, previousWeaponConstants);
 
       MAGE_TOWER_PASSIVES.splice(0, MAGE_TOWER_PASSIVES.length, ...previousPassives);
 
@@ -537,25 +785,16 @@ function AdminBalance({ embedded = false }) {
                 const awakeningValues = raceAwakeningDraft[name];
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-1">{info.icon} {name}</div>
+                    <div className="font-bold text-white mb-2">{info.icon} {name}</div>
                     {raceTab === 'bonus' ? (
                       <>
-                        <textarea
-                          className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                          value={`Bonus: ${raceTextDraft[name]?.bonus || ''}`}
-                          readOnly
-                          rows={2}
-                        />
-                        {bonusValues ? (
-                          <NumberTreeEditor
-                            value={bonusValues}
-                            onChange={(path, value) => {
-                              setRaceBonusDraft((prev) => {
-                                const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
-                                setRaceTextDraft(buildRaceTextDraft(next, raceAwakeningDraft));
-                                return next;
-                              });
-                            }}
+                        <div className="text-amber-300/90 text-[11px] mb-1">Bonus</div>
+                        {constantKey && bonusValues ? (
+                          <DescriptionWithEditableSlots
+                            parts={buildRaceBonusDescriptionParts(name, raceBonusDraft[constantKey])}
+                            draft={raceBonusDraft}
+                            onSlotChange={(path, value) => setRaceBonusDraft((prev) => updateNestedValue(prev, path, value))}
+                            className="text-stone-300"
                           />
                         ) : (
                           <div className="text-xs text-stone-500">Aucune valeur numérique mappée pour ce bonus.</div>
@@ -563,21 +802,12 @@ function AdminBalance({ embedded = false }) {
                       </>
                     ) : (
                       <>
-                        <textarea
-                          className="w-full text-xs text-emerald-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                          value={`Awakening: ${raceTextDraft[name]?.awakeningDescription || ''}`}
-                          readOnly
-                          rows={4}
-                        />
-                        <NumberTreeEditor
-                          value={awakeningValues}
-                          onChange={(path, value) => {
-                            setRaceAwakeningDraft((prev) => {
-                              const next = { ...prev, [name]: updateNestedValue(prev[name] || {}, path, value) };
-                              setRaceTextDraft(buildRaceTextDraft(raceBonusDraft, next));
-                              return next;
-                            });
-                          }}
+                        <div className="text-emerald-300/90 text-[11px] mb-1">Awakening</div>
+                        <DescriptionWithEditableSlots
+                          parts={buildRaceAwakeningDescriptionParts(name, raceAwakeningDraft[name])}
+                          draft={raceAwakeningDraft}
+                          onSlotChange={(path, value) => setRaceAwakeningDraft((prev) => updateNestedValue(prev, path, value))}
+                          className="text-emerald-200/90"
                         />
                       </>
                     )}
@@ -588,7 +818,7 @@ function AdminBalance({ embedded = false }) {
           </div>
 
           <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (description auto + valeurs modifiables)</h2>
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (valeurs modifiables entre [crochets])</h2>
             <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
               {classCards.map(([name, info]) => {
                 const constantKey = CLASS_TO_CONSTANT_KEY[name];
@@ -596,22 +826,12 @@ function AdminBalance({ embedded = false }) {
                 return (
                   <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-xs text-amber-300 mb-1">{classTextDraft[name]?.ability || info.ability}</div>
-                    <textarea
-                      className="w-full text-xs text-stone-300 mb-2 whitespace-pre-line bg-stone-900 border border-stone-700 p-2"
-                      value={classTextDraft[name]?.description || info.description}
-                      readOnly
-                      rows={3}
-                    />
-                    <NumberTreeEditor
-                      value={classDraft[constantKey]}
-                      onChange={(path, value) => {
-                        setClassDraft((prev) => {
-                          const next = { ...prev, [constantKey]: updateNestedValue(prev[constantKey], path, value) };
-                          setClassTextDraft(buildClassTextDraft(next));
-                          return next;
-                        });
-                      }}
+                    <div className="text-xs text-amber-300 mb-2">{classTextDraft[name]?.ability || info.ability}</div>
+                    <DescriptionWithEditableSlots
+                      parts={buildClassDescriptionParts(name, classDraft[constantKey])}
+                      draft={classDraft}
+                      onSlotChange={(path, value) => setClassDraft((prev) => updateNestedValue(prev, path, value))}
+                      className="text-stone-300"
                     />
                   </div>
                 );
@@ -625,16 +845,58 @@ function AdminBalance({ embedded = false }) {
               {availableWeapons.map((weapon) => {
                 const draft = weaponDraft[weapon.id];
                 if (!draft) return null;
+                const statsParts = buildPartsFromEntries(flattenNumericEntries(draft.stats || {}, [weapon.id, 'stats']));
+                const effectParts = buildPartsFromEntries(flattenNumericEntries(draft.effet?.values || {}, [weapon.id, 'effet', 'values']));
                 return (
                   <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
                     <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
+                    <div className="text-xs text-stone-400 mb-2">{draft.description}</div>
+                    {statsParts.length > 0 && (
+                      <DescriptionWithEditableSlots
+                        parts={statsParts}
+                        draft={weaponDraft}
+                        onSlotChange={(path, value) => {
+                          setWeaponDraft((prev) => ({
+                            ...prev,
+                            [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
+                          }));
+                        }}
+                        className="text-stone-300 mb-2"
+                      />
+                    )}
+                    {draft.effet && effectParts.length > 0 && (
+                      <>
+                        <DescriptionWithEditableSlots
+                          parts={effectParts}
+                          draft={weaponDraft}
+                          onSlotChange={(path, value) => {
+                            setWeaponDraft((prev) => {
+                              const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path.slice(1), value);
+                              const values = updatedWeapon?.effet?.values;
+                              const withDesc = values
+                                ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, values))
+                                : updatedWeapon;
+                              return { ...prev, [weapon.id]: withDesc };
+                            });
+                          }}
+                          className="text-amber-200/90 mb-2"
+                        />
+                        <div className="text-xs text-amber-300/80">Description: {draft.effet.description}</div>
+                      </>
+                    )}
                     <NumberTreeEditor
                       value={draft}
                       onChange={(path, value) => {
-                        setWeaponDraft((prev) => ({
-                          ...prev,
-                          [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path, value)
-                        }));
+                        setWeaponDraft((prev) => {
+                          const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
+                          const withAutoDescription = updatedWeapon?.effet?.values
+                            ? updateNestedValue(updatedWeapon, ['effet', 'description'], buildWeaponEffetDescription(weapon.id, updatedWeapon.effet.values))
+                            : updatedWeapon;
+                          return {
+                            ...prev,
+                            [weapon.id]: withAutoDescription
+                          };
+                        });
                       }}
                     />
                   </div>
@@ -649,12 +911,38 @@ function AdminBalance({ embedded = false }) {
               {passiveDraft.map((passive, idx) => (
                 <div key={passive.id} className="bg-stone-950/70 border border-stone-700 p-3">
                   <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
+                  <div className="space-y-2 mb-3">
+                    {Object.entries(passive.levels || {}).map(([level, levelData]) => (
+                      <div key={`${passive.id}-${level}`} className="text-xs text-stone-300">
+                        <div className="mb-1">Niveau {level}</div>
+                        <DescriptionWithEditableSlots
+                          parts={buildPartsFromEntries(flattenNumericEntries(levelData || {}, [idx, 'levels', level]))}
+                          draft={passiveDraft}
+                          onSlotChange={(path, value) => {
+                            setPassiveDraft((prev) => prev.map((item, itemIdx) => {
+                              if (itemIdx !== idx) return item;
+                              const updated = updateNestedValue(item, path.slice(1), value);
+                              const newLevelData = updated.levels?.[level];
+                              const desc = buildAutoDescription(newLevelData || {});
+                              return updateNestedValue(updated, ['levels', level, 'description'], desc);
+                            }));
+                          }}
+                          className="text-stone-300"
+                        />
+                        <div className="text-[11px] text-stone-500 mt-1">Description: {levelData?.description}</div>
+                      </div>
+                    ))}
+                  </div>
                   <NumberTreeEditor
                     value={passive}
                     onChange={(path, value) => {
-                      setPassiveDraft((prev) => prev.map((item, itemIdx) => (
-                        itemIdx === idx ? updateNestedValue(item, path, value) : item
-                      )));
+                      setPassiveDraft((prev) => prev.map((item, itemIdx) => {
+                        if (itemIdx !== idx) return item;
+                        const updated = updateNestedValue(item, path, value);
+                        const [, level] = path;
+                        if (!level) return updated;
+                        return updateNestedValue(updated, ['levels', level, 'description'], buildAutoDescription(updated.levels?.[level] || {}));
+                      }));
                     }}
                   />
                 </div>

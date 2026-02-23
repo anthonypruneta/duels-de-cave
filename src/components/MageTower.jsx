@@ -371,7 +371,7 @@ const MageTower = () => {
         return (
           <>
             Heal {missingPct}% PV manquants +{' '}
-            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+            <Tooltip content={`${capScale.toFixed(2)} × Cap (${cap}) = ${healValue}`}>
               <span className="text-green-400">{healValue}</span>
             </Tooltip>
           </>
@@ -385,7 +385,7 @@ const MageTower = () => {
         return (
           <>
             2 attaques: 1 tir normal +{' '}
-            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+            <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap}) vs ResC`}>
               <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
             </Tooltip>
           </>

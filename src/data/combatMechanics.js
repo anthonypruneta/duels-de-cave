@@ -1,5 +1,6 @@
 // Mécaniques de combat centralisées
 // Ce fichier est la source unique de vérité pour tous les calculs de combat.
+// Si tu modifies ce fichier (équilibrage) : incrémenter BALANCE_CONFIG_VERSION dans src/services/balanceConfigService.js.
 
 // Cooldowns des classes (en tours)
 export const cooldowns = {
@@ -93,9 +94,9 @@ export const raceConstants = {
     spd: 5, cap: 5 
   },
   mindflayer: {
-    stealSpellCapDamageScale: 0.05,      // +5% de CAP aux dégâts (base)
+    stealSpellCapDamageScale: 0.05,      // Copie du premier sort reçu: +5% CAP aux dégâts
     ownCooldownReductionTurns: 0,
-    noCooldownSpellBonus: 0.05           // Sort sans CD: +5% dégâts (base)
+    noCooldownSpellBonus: 0              // Bonus dégâts sort sans CD: uniquement à l'éveil
   }
 };
 
@@ -119,7 +120,7 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
   const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
   const dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
-  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? raceConstants.gnome.capBonusIfSlower;
+  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? aw.speedDuelCapBonusHigh ?? raceConstants.gnome.capBonusIfSlower;
   const critIfEqual = aw.speedDuelEqualCrit ?? raceConstants.gnome.critIfEqual;
   const critDmgIfEqual = aw.speedDuelEqualCritDmg ?? raceConstants.gnome.critDmgIfEqual;
   const dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;

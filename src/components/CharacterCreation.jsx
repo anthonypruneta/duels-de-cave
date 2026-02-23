@@ -86,9 +86,9 @@ const getWeaponTooltipContent = (weapon) => {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && (
+      {weapon.effet && typeof weapon.effet === 'object' && (
         <span className="block text-amber-200">
-          Effet: {weapon.effet.nom} — {weapon.effet.description}
+          Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
         </span>
       )}
       {stats && (
@@ -111,6 +111,76 @@ const splitDescriptionLines = (text) => {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => line.startsWith('-') ? line.replace(/^-\s*/, '') : line);
+};
+
+const BALANCE_KEY_LABELS_FR = {
+  healDamagePercent: 'Dégâts depuis soins',
+  regenPercent: 'Régénération',
+  healCritMultiplier: 'Multiplicateur critique soin',
+  defToAtkPercent: 'DEF convertie en ATK',
+  rescapToAtkPercent: 'RESC convertie en ATK',
+  damageBonus: 'Bonus dégâts',
+  n: 'Fréquence (tours/attaques)',
+  shieldPercent: 'Bouclier',
+  damageTakenBonus: 'Dégâts subis bonus',
+  defReduction: 'Réduction DEF',
+  healPercent: 'Soins',
+  lightningPercent: 'Dégâts éclair',
+  outgoing: 'Dégâts infligés',
+  incoming: 'Dégâts reçus',
+  critReduction: 'Réduction dégâts critiques',
+  critThreshold: 'Seuil critique garanti',
+  spellCapBonus: 'Bonus CAP du sort',
+  turns: 'Durée (tours)',
+  hpCostPercent: 'Coût HP',
+  autoDamageBonus: 'Bonus dégâts auto',
+  shieldExplosionPercent: 'Explosion bouclier',
+  healReduction: 'Réduction des soins',
+  initialBleedPercent: 'Saignement initial',
+  bleedDecayPercent: 'Décroissance saignement',
+  stunDuration: 'Durée étourdissement',
+  critChanceBonus: 'Chance critique bonus',
+  critDamageBonus: 'Dégâts critiques bonus',
+  maxStacks: 'Stacks max',
+  chance: 'Chance'
+};
+
+const prettifyBalanceKey = (key) => BALANCE_KEY_LABELS_FR[key] || key
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/_/g, ' ')
+  .replace(/^./, (c) => c.toUpperCase());
+
+const inferBalanceFormat = (key, value) => {
+  if (typeof value !== 'number') return 'raw';
+  if (Math.abs(value) <= 1 && /(percent|bonus|reduction|multiplier|chance|threshold|scale|outgoing|incoming|regen|damage|heal|crit|ignore|reflect|shield|cost)/i.test(key)) {
+    return 'percent';
+  }
+  return 'raw';
+};
+
+const flattenBalanceNumbers = (obj) => {
+  const out = [];
+  Object.entries(obj || {}).forEach(([key, val]) => {
+    if (key === 'description') return;
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      flattenBalanceNumbers(val).forEach((entry) => out.push(entry));
+      return;
+    }
+    if (typeof val === 'number') out.push({ key, val, format: inferBalanceFormat(key, val) });
+  });
+  return out;
+};
+
+const buildLiveBalanceDescription = (obj, fallback = '') => {
+  const parts = flattenBalanceNumbers(obj).map(({ key, val, format }) => {
+    if (format === 'percent') {
+      const pct = val * 100;
+      const display = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
+      return `${prettifyBalanceKey(key)}: ${display}%`;
+    }
+    return `${prettifyBalanceKey(key)}: ${val}`;
+  });
+  return parts.join(' · ') || fallback;
 };
 
 const CharacterCreation = () => {
@@ -308,8 +378,8 @@ const CharacterCreation = () => {
                           <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
                           <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
-                          {weapon.effet && (
-                            <div className="text-[11px] text-amber-200">{weapon.effet.nom}: {weapon.effet.description}</div>
+                          {weapon.effet && typeof weapon.effet === 'object' && (
+                            <div className="text-[11px] text-amber-200">Effet: {weapon.effet.nom} · Description: {weapon.effet.description}</div>
                           )}
                         </div>
                       ))}
@@ -330,7 +400,7 @@ const CharacterCreation = () => {
                     {Object.entries(passive.levels).map(([lvl, lvlData]) => (
                       <div key={`${passive.id}-${lvl}`} className="text-xs">
                         <span className="text-amber-200 font-semibold">Niv {lvl}:</span>{' '}
-                        <span className="text-stone-300">{lvlData.description}</span>
+                        <span className="text-stone-300">Description: {lvlData.description}</span>
                       </div>
                     ))}
                   </div>
@@ -398,7 +468,7 @@ const CharacterCreation = () => {
         return (
           <>
             Heal {missingPct}% PV manquants +{' '}
-            <Tooltip content={`0.35 × Cap (${cap}) = ${healValue}`}>
+            <Tooltip content={`${capScale.toFixed(2)} × Cap (${cap}) = ${healValue}`}>
               <span className="text-green-400">{healValue}</span>
             </Tooltip>
           </>
@@ -412,7 +482,7 @@ const CharacterCreation = () => {
         return (
           <>
             2 attaques: 1 tir normal +{' '}
-            <Tooltip content={`Hit2 = 1.30×Auto (${auto}) + 0.25×Cap (${cap}) vs ResC`}>
+            <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap}) vs ResC`}>
               <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
             </Tooltip>
           </>
@@ -1092,9 +1162,9 @@ const CharacterCreation = () => {
                         </Tooltip>
                         <div className="text-[11px] text-stone-400 mt-1 space-y-1">
                           <div>{weapon.description}</div>
-                          {weapon.effet && (
+                          {weapon.effet && typeof weapon.effet === 'object' && (
                             <div className="text-amber-200">
-                              Effet: {weapon.effet.nom} — {weapon.effet.description}
+                              Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
                             </div>
                           )}
                           {weapon.stats && Object.keys(weapon.stats).length > 0 && (
