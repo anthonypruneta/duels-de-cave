@@ -689,6 +689,11 @@ const MageTower = () => {
           const back = Math.round(def.reflect * remaining);
           att.currentHP -= back;
           log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+          if (back > 0 && att.class === 'Briseur de Sort') {
+            const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+            att.shield = (att.shield || 0) + shield;
+            log.push(`${playerColor} 🧱 ${att.name} convertit le spell en bouclier (+${shield}).`);
+          }
         }
       }
 

@@ -292,38 +292,47 @@ function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, play
   return boosted;
 }
 
-function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus) {
+function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus, spellMagnitude = null) {
   if (target?.race !== 'Mindflayer') return;
+  if (caster?.race === 'Mindflayer') return; // Ne pas copier si l'adversaire est aussi un Mindflayer
   if (target.mindflayerSpellCopyUsed) return;
   if (target.currentHP <= 0 || caster.currentHP <= 0) return;
 
   target.mindflayerSpellCopyUsed = true;
   const targetAwakening = target.awakening || {};
-  // Pré-éveil: toujours +5% CAP sur les dégâts copiés.
-  // Éveil: utilise l'override d'éveil (10% actuellement).
+  // Même sort en plus fort : intensité reçue (dégâts ou soin adverse) + 10% CAP (éveil) ou 5% CAP (pré-éveil)
   const isAwakenedMindflayer = Boolean(target.awakening);
   const capScale = isAwakenedMindflayer
     ? (targetAwakening.mindflayerStealSpellCapDamageScale ?? raceConstants.mindflayer.stealSpellCapDamageScale)
     : raceConstants.mindflayer.stealSpellCapDamageScale;
   const capBonus = Math.max(0, Math.round(target.base.cap * capScale));
+  const useMagnitude = spellMagnitude != null && spellMagnitude > 0;
 
   const copiedClass = caster.class;
 
   switch (copiedClass) {
     case 'Demoniste': {
-      const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
-      const hit = Math.max(1, Math.round((capBase + capPerCap * target.base.cap) * target.base.cap));
-      const raw = dmgCap(hit, caster.base.rescap * (1 - ignoreResist)) + capBonus;
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : (() => {
+        const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
+        const hit = Math.max(1, Math.round((capBase + capPerCap * target.base.cap) * target.base.cap));
+        return dmgCap(hit, caster.base.rescap * (1 - ignoreResist)) + capBonus;
+      })();
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le familier de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
     case 'Masochiste': {
-      const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
-      const masoTaken = caster.maso_taken || 0;
-      const dmg = Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
-      const healAmount = Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)));
-      target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
+      const healAmount = (() => {
+        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+        const masoTaken = caster.maso_taken || 0;
+        return Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)));
+      })();
+      if (healAmount > 0) target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
+      const dmg = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : (() => {
+        const { returnBase, returnPerCap } = classConstants.masochiste;
+        const masoTaken = caster.maso_taken || 0;
+        return Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
+      })();
       const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !`);
       break;
@@ -337,20 +346,20 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
     case 'Healer': {
       const miss = target.maxHP - target.currentHP;
       const { missingHpPercent, capScale: healCapScale } = classConstants.healer;
-      const heal = Math.max(1, Math.round((missingHpPercent * miss + healCapScale * target.base.cap) * getAntiHealFactor(caster)));
+      const heal = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : Math.max(1, Math.round((missingHpPercent * miss + healCapScale * target.base.cap) * getAntiHealFactor(caster)));
       target.currentHP = Math.min(target.maxHP, target.currentHP + heal);
       log.push(`${playerColor} 🦑 ${target.name} copie le soin de ${caster.name} et récupère ${heal} PV !`);
       break;
     }
     case 'Succube': {
-      const raw = dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       caster.succubeWeakenNextAttack = true;
       log.push(`${playerColor} 🦑 ${target.name} copie le fouet de ${caster.name}, inflige ${inflicted} dégâts et affaiblit sa prochaine attaque !`);
       break;
     }
     case 'Bastion': {
-      const raw = dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie la Charge du Rempart de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
@@ -360,52 +369,58 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
       log.push(`${playerColor} 🦑 ${target.name} copie l'esquive de ${caster.name} et évitera la prochaine attaque !`);
       break;
     case 'Mage': {
-      const { capBase, capPerCap } = classConstants.mage;
-      const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
-      const raw = dmgCap(atkSpell, caster.base.rescap) + capBonus;
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : (() => {
+        const { capBase, capPerCap } = classConstants.mage;
+        const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
+        return dmgCap(atkSpell, caster.base.rescap) + capBonus;
+      })();
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le sort magique de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
     case 'Guerrier': {
-      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
-      const ignore = ignoreBase + ignorePerCap * target.base.cap;
-      const effectiveAuto = Math.round(target.base.auto + autoBonus);
-      let raw;
-      if (caster.base.def <= caster.base.rescap) {
-        const effDef = Math.max(0, Math.round(caster.base.def * (1 - ignore)));
-        raw = dmgPhys(effectiveAuto, effDef);
-      } else {
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : (() => {
+        const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
+        const ignore = ignoreBase + ignorePerCap * target.base.cap;
+        const effectiveAuto = Math.round(target.base.auto + autoBonus);
+        if (caster.base.def <= caster.base.rescap) {
+          const effDef = Math.max(0, Math.round(caster.base.def * (1 - ignore)));
+          return dmgPhys(effectiveAuto, effDef) + capBonus;
+        }
         const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
-        raw = dmgPhys(effectiveAuto, effRes);
-      }
-      raw += capBonus;
+        return dmgPhys(effectiveAuto, effRes) + capBonus;
+      })();
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie la frappe pénétrante de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
     case 'Archer': {
-      const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
-      let totalDmg = 0;
-      for (let i = 0; i < hitCount; i++) {
-        let raw;
-        if (i === 0) {
-          raw = dmgPhys(Math.round(target.base.auto), caster.base.def) + capBonus;
-        } else {
-          const physPart = dmgPhys(Math.round(target.base.auto * hit2AutoMultiplier), caster.base.def);
-          const capPart = dmgCap(Math.round(target.base.cap * hit2CapMultiplier), caster.base.rescap);
-          raw = physPart + capPart + capBonus;
-        }
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : null;
+      if (raw !== null) {
         const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
-        totalDmg += inflicted;
-        if (caster.currentHP <= 0) break;
+        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${inflicted} dégâts !`);
+      } else {
+        const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        let totalDmg = 0;
+        for (let i = 0; i < hitCount; i++) {
+          let r;
+          if (i === 0) r = dmgPhys(Math.round(target.base.auto), caster.base.def) + capBonus;
+          else {
+            const physPart = dmgPhys(Math.round(target.base.auto * hit2AutoMultiplier), caster.base.def);
+            const capPart = dmgCap(Math.round(target.base.cap * hit2CapMultiplier), caster.base.rescap);
+            r = physPart + capPart + capBonus;
+          }
+          const inflicted = applyDamage(target, caster, r, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+          totalDmg += inflicted;
+          if (caster.currentHP <= 0) break;
+        }
+        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${totalDmg} dégâts !`);
       }
-      log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${totalDmg} dégâts !`);
       break;
     }
     default: {
-      const copiedDamage = Math.max(1, Math.round(target.base.cap * capScale));
-      const inflicted = applyDamage(target, caster, copiedDamage, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : Math.max(1, Math.round(target.base.cap * capScale));
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le sort de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -492,7 +507,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
 
     if (isSpellDamage) {
       grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
-      triggerMindflayerSpellCopy(att, def, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost);
+      triggerMindflayerSpellCopy(att, def, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, adjusted);
     }
 
     if (hadReflectBeforeHit && def.currentHP > 0) {
@@ -502,6 +517,12 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       def.reflect = false;
       att._pendingCombatLogs = att._pendingCombatLogs || [];
       att._pendingCombatLogs.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+      // Égide du Briseur de Sort : les dégâts de riposte comptent comme un spell reçu
+      if (back > 0 && att.class === 'Briseur de Sort') {
+        const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+        att.shield = (att.shield || 0) + shield;
+        att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit le spell en bouclier (+${shield}).`);
+      }
     }
   }
   if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
@@ -685,6 +706,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
     att.reflect = reflectValue;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
+    if (def?.race === 'Mindflayer') {
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+    }
   }
 
   if (att.class === 'Healer' && att.cd.heal === getMindflayerSpellCooldown(att, def, 'heal') && !spellStolen) {
@@ -710,6 +734,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
       applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+    }
+    if (def?.race === 'Mindflayer') {
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, heal);
     }
   }
 
@@ -763,6 +790,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     consumeAuraSpellCapMultiplier(); // Premier sort du combat (consomme le bonus même si pas de CAP ici)
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
+    if (def?.race === 'Mindflayer') {
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+    }
   }
 
   // ===== CAPACITÉS SPÉCIALES DES BOSS =====
