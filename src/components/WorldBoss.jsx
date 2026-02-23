@@ -203,14 +203,12 @@ const WorldBoss = () => {
   const boss = useMemo(() => pickWeeklyBoss(), []);
   const activeBossName = eventData?.bossName || boss.name;
   const activeBossImage = useMemo(() => {
-    // Si c'est un boss champion, chercher son image dans ChampBoss/
-    if (eventData?.isChampionBoss && eventData?.championName) {
-      const championImage = getChampionBossImage(eventData.championName);
-      if (championImage) return championImage;
-    }
-    // Sinon, utiliser l'image normale du cataclysme
+    // Toujours essayer l'image champion par nom du boss (au cas où isChampionBoss serait faux côté event mais le nom correspond à un champion)
+    const championImage = getChampionBossImage(activeBossName || eventData?.championName);
+    if (championImage) return championImage;
+    // Sinon, image générique du cataclysme par nom
     return getCataclysmImageByName(activeBossName) || boss.image;
-  }, [activeBossName, eventData?.isChampionBoss, eventData?.championName, boss.image]);
+  }, [activeBossName, eventData?.championName, boss.image]);
 
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);

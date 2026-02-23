@@ -544,21 +544,16 @@ export const launchCataclysm = async (bossData) => {
       if (bossData.isChampion && bossData.championData) {
         const champion = bossData.championData;
         
-        // Charger les stats complètes du champion depuis archivedCharacters
+        // Charger les stats complètes du champion depuis archivedCharacters (même clé que championBosses.js)
         try {
           const archivedRef = collection(db, 'archivedCharacters');
           const q = query(
             archivedRef,
-            where('odUserId', '==', champion.odUserId || champion.oduserId)
+            where('userId', '==', champion.userId),
+            where('tournamentChampion', '==', true)
           );
           
-          let snapshot = await getDocs(q);
-          
-          // Si pas trouvé avec odUserId, essayer avec oduserId (différent casing)
-          if (snapshot.empty && champion.oduserId) {
-            const q2 = query(archivedRef, where('odUserId', '==', champion.oduserId));
-            snapshot = await getDocs(q2);
-          }
+          const snapshot = await getDocs(q);
           
           if (!snapshot.empty) {
             const fullChampion = snapshot.docs[0].data();
@@ -576,6 +571,7 @@ export const launchCataclysm = async (bossData) => {
               isChampionBoss = true;
               championName = champion.nom || champion.name || finalBossName;
               originalChampion = {
+                userId: fullChampion.userId,
                 odUserId: fullChampion.odUserId,
                 odPseudo: fullChampion.odPseudo,
                 race: fullChampion.race,
@@ -701,7 +697,12 @@ export const getAllCataclysmBossOptions = async (genericBossNames = [], champion
       let matchedChampion = null;
       for (const entry of hallOfFameData) {
         const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
-        if (championName && nameFromImage === championName) {
+        if (!championName) continue;
+        // Match exact ou l'un est le préfixe de l'autre (ex: "croc me tender" vs "croc me tender" ou "croc me tender, première championne")
+        const match = nameFromImage === championName ||
+          championName.startsWith(nameFromImage) ||
+          nameFromImage.startsWith(championName);
+        if (match) {
           matchedChampion = entry.champion;
           break;
         }
