@@ -13,20 +13,49 @@ function normaliserCle(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function extraireDateMillis(entry) {
-  const valeurDate = entry?.date;
-  if (!valeurDate) return null;
-  if (typeof valeurDate.toMillis === 'function') return valeurDate.toMillis();
-  if (typeof valeurDate.toDate === 'function') return valeurDate.toDate().getTime();
-  if (typeof valeurDate.seconds === 'number') {
-    return (valeurDate.seconds * 1000) + Math.floor((valeurDate.nanoseconds || 0) / 1e6);
+function extraireTimestampMillis(valeur) {
+  if (!valeur) return null;
+  if (typeof valeur.toMillis === 'function') return valeur.toMillis();
+  if (typeof valeur.toDate === 'function') return valeur.toDate().getTime();
+  if (typeof valeur.seconds === 'number') {
+    return (valeur.seconds * 1000) + Math.floor((valeur.nanoseconds || 0) / 1e6);
   }
-  if (typeof valeurDate === 'number' && Number.isFinite(valeurDate)) return valeurDate;
-  if (typeof valeurDate === 'string') {
-    const parsed = Date.parse(valeurDate);
+  if (typeof valeur === 'number' && Number.isFinite(valeur)) return valeur;
+  if (typeof valeur === 'string') {
+    const parsed = Date.parse(valeur);
     return Number.isNaN(parsed) ? null : parsed;
   }
   return null;
+}
+
+function extraireDateMillis(entry) {
+  return extraireTimestampMillis(entry?.date);
+}
+
+function trouverMeilleureArchive(candidats, dateEntreeMs) {
+  if (!Array.isArray(candidats) || candidats.length === 0) return null;
+  if (candidats.length === 1) return candidats[0];
+
+  // Sans date de référence, on prend la plus récente.
+  if (dateEntreeMs === null) {
+    return [...candidats]
+      .sort((a, b) => (extraireTimestampMillis(b.archivedAt) || 0) - (extraireTimestampMillis(a.archivedAt) || 0))[0];
+  }
+
+  let meilleur = null;
+  let meilleurEcart = Number.POSITIVE_INFINITY;
+
+  for (const candidat of candidats) {
+    const archivedAtMs = extraireTimestampMillis(candidat.archivedAt);
+    if (archivedAtMs === null) continue;
+    const ecart = Math.abs(archivedAtMs - dateEntreeMs);
+    if (ecart < meilleurEcart) {
+      meilleur = candidat;
+      meilleurEcart = ecart;
+    }
+  }
+
+  return meilleur || candidats[0];
 }
 
 function dedoublonnerEntreesHallOfFame(entries) {
@@ -89,30 +118,38 @@ const HallOfFame = () => {
     load();
   }, []);
 
-  const loadFullChampionData = async (champion) => {
+  const loadFullChampionData = async (entry) => {
+    const champion = entry?.champion || entry || {};
     try {
       // Chercher le personnage archivé complet avec tournamentChampion: true et userId correspondant
       const { db } = await import('../firebase/config');
       const { collection, query, where, getDocs } = await import('firebase/firestore');
-      
+      const championUserId = champion.userId || champion.ownerUserId || champion.id;
+
+      if (!championUserId) {
+        setFullChampionData(champion);
+        setSelectedChampion(champion);
+        return;
+      }
+
       const archivedRef = collection(db, 'archivedCharacters');
       const q = query(
-        archivedRef, 
-        where('userId', '==', champion.userId),
+        archivedRef,
+        where('userId', '==', championUserId),
         where('tournamentChampion', '==', true)
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (!snapshot.empty) {
-        // On a trouvé le personnage archivé complet !
-        const fullData = snapshot.docs[0].data();
-        setFullChampionData(fullData);
+        const archives = snapshot.docs.map((docSnap) => docSnap.data());
+        const fullData = trouverMeilleureArchive(archives, extraireDateMillis(entry));
+        setFullChampionData(fullData || champion);
       } else {
         // Pas de données complètes, on utilise ce qu'on a
         setFullChampionData(champion);
       }
-      
+
       setSelectedChampion(champion);
     } catch (error) {
       console.error('Erreur chargement champion complet:', error);
@@ -161,7 +198,7 @@ const HallOfFame = () => {
                     src={entry.champion.characterImage}
                     alt={entry.champion.nom}
                     className="w-20 h-auto object-contain cursor-pointer hover:opacity-80 transition hover:scale-110"
-                    onClick={() => loadFullChampionData(entry.champion)}
+                    onClick={() => loadFullChampionData(entry)}
                   />
                 )}
                 <div className="flex-1">
