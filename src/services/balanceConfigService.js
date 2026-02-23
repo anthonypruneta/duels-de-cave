@@ -1,17 +1,17 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { ref, getBytes, uploadString, deleteObject } from 'firebase/storage';
+import { storage } from '../firebase/config';
 import { classConstants, cooldowns, raceConstants, weaponConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { weapons } from '../data/weapons';
 import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 
-const BALANCE_DOC_REF = doc(db, 'gameConfig', 'balance');
+const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
 
 /**
  * À incrémenter à chaque modification des données d'équilibrage dans le code
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
- * Si cette version est supérieure à celle en Firestore, le code est appliqué et poussé vers Firestore.
+ * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
 export const BALANCE_CONFIG_VERSION = 8;
 
@@ -295,23 +295,39 @@ export const applyBalanceConfig = (config) => {
   applyTextOverrides(config);
 };
 
+/** Charge la config depuis le fichier Storage (gameConfig/balance.json). */
 export const loadPersistedBalanceConfig = async () => {
   try {
-    const snap = await getDoc(BALANCE_DOC_REF);
-    const storedVersion = (snap.exists() && snap.data())?.sourceVersion ?? 0;
-    const config = snap.exists() ? snap.data()?.config : null;
+    const storageRef = ref(storage, BALANCE_STORAGE_PATH);
+    let storedVersion = 0;
+    let config = null;
 
-    // Si le code a une version plus récente, le code prime : on l'applique et on pousse vers Firestore
+    try {
+      const arrayBuffer = await getBytes(storageRef);
+      const json = new TextDecoder().decode(arrayBuffer);
+      const data = JSON.parse(json);
+      storedVersion = data?.sourceVersion ?? 0;
+      config = data?.config ?? null;
+    } catch (storageError) {
+      if (storageError?.code === 'storage/object-not-found') {
+        // Pas encore de fichier : on part du code
+      } else {
+        throw storageError;
+      }
+    }
+
+    // Si le code a une version plus récente, le code prime : on l'applique et on pousse vers Storage
     if (BALANCE_CONFIG_VERSION > storedVersion) {
       const codeConfig = buildCurrentBalanceConfig();
       applyBalanceConfig(codeConfig);
-      await setDoc(BALANCE_DOC_REF, {
+      const payload = {
         config: codeConfig,
         sourceVersion: BALANCE_CONFIG_VERSION,
         updatedBy: 'code-sync',
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      console.log(`✅ Équilibrage: code (v${BALANCE_CONFIG_VERSION}) appliqué et synchronisé vers Firestore.`);
+        updatedAt: new Date().toISOString()
+      };
+      await uploadString(storageRef, JSON.stringify(payload), 'raw');
+      console.log(`✅ Équilibrage: code (v${BALANCE_CONFIG_VERSION}) appliqué et synchronisé vers Storage.`);
       return { success: true, data: codeConfig };
     }
 
@@ -323,14 +339,17 @@ export const loadPersistedBalanceConfig = async () => {
   }
 };
 
+/** Sauvegarde la config dans Storage (écrase le fichier). Utilisé par la page Admin. */
 export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) => {
   try {
-    await setDoc(BALANCE_DOC_REF, {
+    const storageRef = ref(storage, BALANCE_STORAGE_PATH);
+    const payload = {
       config,
       sourceVersion: BALANCE_CONFIG_VERSION,
       updatedBy: updatedBy ?? 'admin',
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+      updatedAt: new Date().toISOString()
+    };
+    await uploadString(storageRef, JSON.stringify(payload), 'raw');
 
     applyBalanceConfig(config);
 
@@ -343,22 +362,23 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
 
 
 /**
- * Réinitialise la config Firebase avec les valeurs par défaut du code
- * Utile après une mise à jour du code pour synchroniser Firebase
+ * Réinitialise la config Storage avec les valeurs par défaut du code.
  */
 export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
   try {
     const defaultConfig = buildCurrentBalanceConfig();
-    await setDoc(BALANCE_DOC_REF, {
+    const storageRef = ref(storage, BALANCE_STORAGE_PATH);
+    const payload = {
       config: defaultConfig,
       sourceVersion: BALANCE_CONFIG_VERSION,
       updatedBy,
-      updatedAt: serverTimestamp(),
+      updatedAt: new Date().toISOString(),
       resetToDefaults: true
-    });
+    };
+    await uploadString(storageRef, JSON.stringify(payload), 'raw');
 
     applyBalanceConfig(defaultConfig);
-    console.log('✅ Config Firebase réinitialisée aux valeurs par défaut (code)');
+    console.log('✅ Config Storage réinitialisée aux valeurs par défaut (code)');
     return { success: true, config: defaultConfig };
   } catch (error) {
     console.error('Erreur reset balance config:', error);
@@ -367,15 +387,18 @@ export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
 };
 
 /**
- * Supprime la config Firebase pour forcer l'utilisation des valeurs par défaut au prochain chargement
+ * Supprime le fichier config dans Storage (au prochain chargement, le code prime).
  */
 export const clearPersistedBalanceConfig = async () => {
   try {
-    const { deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(BALANCE_DOC_REF);
-    console.log('✅ Config Firebase supprimée');
+    const storageRef = ref(storage, BALANCE_STORAGE_PATH);
+    await deleteObject(storageRef);
+    console.log('✅ Config Storage supprimée');
     return { success: true };
   } catch (error) {
+    if (error?.code === 'storage/object-not-found') {
+      return { success: true };
+    }
     console.error('Erreur suppression balance config:', error);
     return { success: false, error: error.message };
   }
