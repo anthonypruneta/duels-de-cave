@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd, getChampionBossStatsByUserId } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -944,7 +944,15 @@ const WorldBoss = () => {
     replayTokenRef.current++;
     const currentToken = replayTokenRef.current;
 
-    const result = simulerWorldBossCombat(character, eventData.hpRemaining, eventData.bossStats);
+    // Pour les boss champions : toujours charger les stats depuis archivedCharacters (source de vérité)
+    // pour éviter dégâts trop hauts / trop bas si l'event a été sauvegardé avec de mauvaises stats.
+    // Sinon utiliser bossStats de l'event (boss générique).
+    let bossStatsToUse = eventData.bossStats;
+    if (eventData.isChampionBoss && eventData.originalChampion?.userId) {
+      const championStats = await getChampionBossStatsByUserId(eventData.originalChampion.userId);
+      if (championStats) bossStatsToUse = championStats;
+    }
+    const result = simulerWorldBossCombat(character, eventData.hpRemaining, bossStatsToUse);
 
     // Init les states de combat pour les cards
     setPlayerState({

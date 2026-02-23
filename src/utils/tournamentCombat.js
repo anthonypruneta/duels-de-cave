@@ -112,7 +112,7 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
     attacker.shield = shieldValue;
     log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
   }
-  if (passiveDetails?.id === 'mind_breach') {
+  if (passiveDetails?.id === 'mind_breach' && !defender.isWorldBoss) {
     const reduction = passiveDetails.levelData.defReduction;
     defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
     log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);

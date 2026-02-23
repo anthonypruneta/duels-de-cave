@@ -93,6 +93,40 @@ export const getWorldBossEvent = async () => {
 };
 
 /**
+ * Récupère les stats du boss champion (base + forêt) depuis archivedCharacters.
+ * Utilisé quand l'event n'a pas bossStats (ex: event créé avant la sauvegarde de bossStats).
+ * @param {string} userId - userId du champion (originalChampion.userId)
+ * @returns {Promise<{ hp: number, auto: number, def: number, cap: number, rescap: number, spd: number } | null>}
+ */
+export const getChampionBossStatsByUserId = async (userId) => {
+  if (!userId) return null;
+  try {
+    const archivedRef = collection(db, 'archivedCharacters');
+    const q = query(
+      archivedRef,
+      where('userId', '==', userId),
+      where('tournamentChampion', '==', true)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const fullChampion = snapshot.docs[0].data();
+    if (!fullChampion.base) return null;
+    const baseWithForest = applyStatBoosts(fullChampion.base, fullChampion.forestBoosts || {});
+    return {
+      hp: WORLD_BOSS.baseStats.hp,
+      auto: baseWithForest.auto || 0,
+      cap: baseWithForest.cap || 0,
+      def: baseWithForest.def || 0,
+      rescap: baseWithForest.rescap || 0,
+      spd: baseWithForest.spd || 0
+    };
+  } catch (error) {
+    console.error('Erreur getChampionBossStatsByUserId:', error);
+    return null;
+  }
+};
+
+/**
  * Démarrer l'event
  */
 export const startWorldBossEvent = async () => {
@@ -796,12 +830,22 @@ export const checkAutoLaunch = async (genericBossNames = [], championBossNames =
 
 /**
  * Écouter les changements de l'event en temps réel (HP du boss, statut, etc.)
- * Retourne une fonction unsubscribe à appeler au démontage
+ * Pour les boss champions, complète bossStats depuis archivedCharacters si absent ou pour cohérence des dégâts.
  */
 export const onWorldBossEventChange = (callback) => {
   return onSnapshot(EVENT_DOC_REF(), (snap) => {
-    if (snap.exists()) {
-      callback(snap.data());
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (data.isChampionBoss && data.originalChampion?.userId) {
+      getChampionBossStatsByUserId(data.originalChampion.userId).then((championStats) => {
+        if (championStats) {
+          callback({ ...data, bossStats: championStats });
+        } else {
+          callback(data);
+        }
+      });
+    } else {
+      callback(data);
     }
   }, (error) => {
     console.error('Erreur listener event world boss:', error);

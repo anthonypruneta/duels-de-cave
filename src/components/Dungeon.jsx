@@ -1078,35 +1078,35 @@ const Dungeon = () => {
   };
 
   // Lancer le combat (timing identique à Combat.jsx)
+  // On passe le personnage BRUT (character) à simulerMatch pour éviter double préparation (forêt/arme appliquées 2x)
   const simulateCombat = async () => {
-    if (!player || !boss || isSimulating) return;
+    if (!player || !boss || !character || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
     ensureDungeonMusic();
 
-    const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
-    const matchResult = simulerMatch(p, b);
+    const matchResult = simulerMatch(character, b);
 
-    // Replay animé des steps
+    // Replay animé des steps : mettre à jour l'état affiché depuis les steps (pas de mutation du perso)
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
-        p.currentHP = step.p1HP;
-        b.currentHP = step.p2HP;
-        setPlayer({ ...p });
-        setBoss({ ...b });
+        setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 } : null);
+        setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 } : null);
       },
       existingLogs: logs,
       speed: 'fast'
     });
     logs.length = 0;
     logs.push(...finalLogs);
+    const lastStep = matchResult.steps[matchResult.steps.length - 1];
+    const playerWon = lastStep && lastStep.p1HP > 0;
     // Résultat du combat
-    if (p.currentHP > 0) {
-      logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);
+    if (playerWon) {
+      logs.push(`🏆 ${player.name} remporte glorieusement le combat contre ${b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
 
@@ -1116,8 +1116,8 @@ const Dungeon = () => {
       if (currentLevel < DUNGEON_CONSTANTS.TOTAL_LEVELS) {
         // Full heal avant le prochain boss
         await new Promise(r => setTimeout(r, 1500));
-        fullHealPlayer(p);
-        logs.push(``, `💚 ${p.name} récupère tous ses points de vie !`);
+        setPlayer((prev) => prev ? { ...prev, currentHP: prev.maxHP, undead: false } : null);
+        logs.push(``, `💚 ${player.name} récupère tous ses points de vie !`);
 
         const nextLevel = currentLevel + 1;
         setCurrentLevel(nextLevel);
@@ -1130,9 +1130,8 @@ const Dungeon = () => {
         nextBoss.stunnedTurns = 0;
       }
 
-        setPlayer({...p});
         setBoss(nextBoss);
-        setCombatLog([...logs, ``, `⚔️ Niveau ${nextLevel}: ${nextLevelData.nom} — ${p.name} vs ${nextBoss.name} !`]);
+        setCombatLog([...logs, ``, `⚔️ Niveau ${nextLevel}: ${nextLevelData.nom} — ${player.name} vs ${nextBoss.name} !`]);
         setCombatResult(null);
       } else {
         // Full clear!
@@ -1150,7 +1149,7 @@ const Dungeon = () => {
         }
       }
     } else {
-      logs.push(`💀 ${p.name} a été vaincu par ${b.name}...`);
+      logs.push(`💀 ${player.name} a été vaincu par ${b.name}...`);
       setCombatLog([...logs]);
       setCombatResult('defeat');
 
