@@ -18,19 +18,8 @@ const HallOfFame = () => {
     const load = async () => {
       const result = await getHallOfFame();
       if (result.success) {
-        // Dédoublonner les champions par userId (ne garder que la victoire la plus récente)
-        const uniqueChampions = [];
-        const seenUserIds = new Set();
-        
-        for (const entry of result.data) {
-          const userId = entry.champion?.userId;
-          if (userId && !seenUserIds.has(userId)) {
-            seenUserIds.add(userId);
-            uniqueChampions.push(entry);
-          }
-        }
-        
-        setChampions(uniqueChampions);
+        // Le Hall of Fame archive chaque victoire de tournoi (même joueur possible plusieurs fois)
+        setChampions(Array.isArray(result.data) ? result.data : []);
       }
       setLoading(false);
     };
