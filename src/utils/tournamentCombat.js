@@ -681,7 +681,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
     onPaladinRiposteCast(att.weaponState, att, def);
     const { reflectBase, reflectPerCap } = classConstants.paladin;
-    const reflectValue = reflectBase + reflectPerCap * att.base.cap;
+    const spellCapMult = consumeAuraSpellCapMultiplier();
+    const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
     att.reflect = reflectValue;
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
   }
@@ -715,8 +716,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Succube' && att.cd.succ === getMindflayerSpellCooldown(att, def, 'succ') && !spellStolen) {
     skillUsed = true;
+    const spellCapMultSucc = consumeAuraSpellCapMultiplier();
     const isCrit = Math.random() < calcCritChance(att, def);
-    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.succube.capScale), def.base.rescap);
+    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'succ', log, playerColor);
     if (isCrit) {
@@ -737,8 +739,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const isBastion = !spellStolen && att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast');
   if (isBastion) {
     skillUsed = true;
+    const spellCapMultBast = consumeAuraSpellCapMultiplier();
     const isCrit = Math.random() < calcCritChance(att, def);
-    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
+    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerSpellMod(att, def, raw, 'bast', log, playerColor);
     if (isCrit) {
@@ -757,6 +760,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerSpellCooldown(att, def, 'rog') && !spellStolen) {
     skillUsed = true;
+    consumeAuraSpellCapMultiplier(); // Premier sort du combat (consomme le bonus même si pas de CAP ici)
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
   }
@@ -861,7 +865,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
     } else if (isWar) {
       const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
-      const ignore = ignoreBase + ignorePerCap * att.base.cap;
+      const spellCapMultWar = consumeAuraSpellCapMultiplier();
+      const ignore = ignoreBase + ignorePerCap * att.base.cap * spellCapMultWar;
       const effectiveAuto = Math.round((att.base.auto + autoBonus) * attackMultiplier);
       
       // Frappe la résistance la plus FAIBLE entre Déf et ResC
@@ -887,8 +892,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
       } else {
         const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const spellCapMultArc = consumeAuraSpellCapMultiplier();
         const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
-        const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
+        const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
         raw = physPart + capPart;
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'arc', log, playerColor);

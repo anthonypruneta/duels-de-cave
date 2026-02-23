@@ -822,7 +822,8 @@ const MageTower = () => {
       // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
       onPaladinRiposteCast(att.weaponState, att, def);
       const { reflectBase, reflectPerCap } = classConstants.paladin;
-      att.reflect = reflectBase + reflectPerCap * att.base.cap;
+      const spellCapMult = consumeAuraSpellCapMultiplier();
+      att.reflect = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
@@ -855,6 +856,7 @@ const MageTower = () => {
 
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
       skillUsed = skillUsed || isPlayer;
+      consumeAuraSpellCapMultiplier(); // Premier sort du combat
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -901,7 +903,8 @@ const MageTower = () => {
           log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
         }
       } else if (isWar) {
-        const ignore = classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerCap * att.base.cap;
+        const spellCapMultWar = consumeAuraSpellCapMultiplier();
+        const ignore = classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerCap * att.base.cap * spellCapMultWar;
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
@@ -914,8 +917,9 @@ const MageTower = () => {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
         } else {
           const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+          const spellCapMultArc = consumeAuraSpellCapMultiplier();
           const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
-          const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
+          const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
           raw = physPart + capPart;
         }
       } else {

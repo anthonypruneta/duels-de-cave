@@ -814,7 +814,8 @@ const Dungeon = () => {
       // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
       onPaladinRiposteCast(att.weaponState, att, def);
       const { reflectBase, reflectPerCap } = classConstants.paladin;
-      att.reflect = reflectBase + reflectPerCap * att.base.cap;
+      const spellCapMult = consumeAuraSpellCapMultiplier();
+      att.reflect = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
@@ -846,6 +847,7 @@ const Dungeon = () => {
     // Capacité Voleur (esquive)
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
       if (isPlayer) skillUsed = true;
+      consumeAuraSpellCapMultiplier(); // Premier sort du combat
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -919,7 +921,8 @@ const Dungeon = () => {
           }
         } else if (isWar) {
         const { ignoreBase, ignorePerCap } = classConstants.guerrier;
-        const ignore = ignoreBase + ignorePerCap * att.base.cap;
+        const spellCapMultWar = consumeAuraSpellCapMultiplier();
+        const ignore = ignoreBase + ignorePerCap * att.base.cap * spellCapMultWar;
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), effDef);
@@ -933,8 +936,9 @@ const Dungeon = () => {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
         } else {
           const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+          const spellCapMultArc = consumeAuraSpellCapMultiplier();
           const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
-          const capPart = dmgCap(Math.round(att.base.cap * hit2CapMultiplier * attackMultiplier), def.base.rescap);
+          const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
           raw = physPart + capPart;
         }
       } else {
