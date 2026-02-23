@@ -25,7 +25,7 @@ export const classConstants = {
   },
   voleur: {
     spdBonus: 5,           // +5 VIT
-    critPerCap: 0.01       // +1.0% crit par point de Cap
+    critPerCap: 0.005      // +0.5% crit par point de Cap
   },
   paladin: {
     reflectBase: 0.50,     // 50% renvoi de base
