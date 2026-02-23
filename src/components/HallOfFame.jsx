@@ -7,6 +7,67 @@ import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { races, classes } from '../data/gameData';
 
+const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
+
+function normaliserCle(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function extraireDateMillis(entry) {
+  const valeurDate = entry?.date;
+  if (!valeurDate) return null;
+  if (typeof valeurDate.toMillis === 'function') return valeurDate.toMillis();
+  if (typeof valeurDate.toDate === 'function') return valeurDate.toDate().getTime();
+  if (typeof valeurDate.seconds === 'number') {
+    return (valeurDate.seconds * 1000) + Math.floor((valeurDate.nanoseconds || 0) / 1e6);
+  }
+  if (typeof valeurDate === 'number' && Number.isFinite(valeurDate)) return valeurDate;
+  if (typeof valeurDate === 'string') {
+    const parsed = Date.parse(valeurDate);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function dedoublonnerEntreesHallOfFame(entries) {
+  const uniques = [];
+  const datesParSignature = new Map();
+  const signaturesSansDate = new Set();
+
+  for (const entry of entries) {
+    const champion = entry?.champion || {};
+    const signature = [
+      normaliserCle(champion.userId || champion.ownerUserId),
+      normaliserCle(champion.nom || champion.name),
+      normaliserCle(champion.race),
+      normaliserCle(champion.classe || champion.class),
+      Number(entry?.nbParticipants || 0),
+      Number(entry?.nbMatchs || 0),
+    ].join('|');
+
+    const dateMs = extraireDateMillis(entry);
+    if (dateMs === null) {
+      if (signaturesSansDate.has(signature)) continue;
+      signaturesSansDate.add(signature);
+      uniques.push(entry);
+      continue;
+    }
+
+    const datesConnues = datesParSignature.get(signature) || [];
+    const estDoublon = datesConnues.some((dateExistante) =>
+      Math.abs(dateExistante - dateMs) <= FENETRE_DOUBLON_MS
+    );
+
+    if (estDoublon) continue;
+
+    datesConnues.push(dateMs);
+    datesParSignature.set(signature, datesConnues);
+    uniques.push(entry);
+  }
+
+  return uniques;
+}
+
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,8 +79,10 @@ const HallOfFame = () => {
     const load = async () => {
       const result = await getHallOfFame();
       if (result.success) {
-        // Le Hall of Fame archive chaque victoire de tournoi (même joueur possible plusieurs fois)
-        setChampions(Array.isArray(result.data) ? result.data : []);
+        // On garde les victoires multiples légitimes, mais on filtre les doublons
+        // créés par un archivage répété du même tournoi.
+        const entries = Array.isArray(result.data) ? result.data : [];
+        setChampions(dedoublonnerEntreesHallOfFame(entries));
       }
       setLoading(false);
     };

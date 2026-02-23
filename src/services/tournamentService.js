@@ -544,6 +544,50 @@ export function onTournoiUpdate(callback, docIdOrOnError = 'current', maybeOnErr
   });
 }
 
+function toMillis(value) {
+  if (!value) return null;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value.seconds === 'number') {
+    return (value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1e6);
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function sanitizeDocIdPart(value, fallback = 'inconnu') {
+  const cleaned = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return cleaned || fallback;
+}
+
+function buildHallOfFameEntryId(tournoi) {
+  const championId = sanitizeDocIdPart(tournoi?.champion?.userId || tournoi?.champion?.nom, 'champion');
+  const createdAtMs = toMillis(tournoi?.createdAt);
+  if (createdAtMs !== null) {
+    return `hof_${createdAtMs}_${championId}`;
+  }
+
+  // Fallback legacy déterministe si createdAt est absent.
+  const participantsSeed = (tournoi?.participantsList || [])
+    .map((p) => p?.userId || p?.participantId || p?.nom || '')
+    .sort()
+    .join('|');
+  const fallbackSeed = `${championId}|${tournoi?.matchOrder?.length || 0}|${tournoi?.participantsList?.length || 0}|${participantsSeed}`;
+  let hash = 0;
+  for (let i = 0; i < fallbackSeed.length; i += 1) {
+    hash = ((hash << 5) - hash + fallbackSeed.charCodeAt(i)) >>> 0;
+  }
+  return `hof_legacy_${championId}_${hash.toString(36)}`;
+}
+
 // ============================================================================
 // TERMINER LE TOURNOI (archiver personnages + hall of fame)
 // ============================================================================
@@ -568,12 +612,15 @@ export async function terminerTournoi(docId = 'current') {
     if (tournoi.archivedAt) return { success: true, alreadyArchived: true };
 
     // 1. Ajouter au Hall of Fame
-    await addDoc(collection(db, 'hallOfFame'), {
+    const hallOfFameEntryId = buildHallOfFameEntryId(tournoi);
+    await setDoc(doc(db, 'hallOfFame', hallOfFameEntryId), {
       champion: tournoi.champion,
       nbParticipants: tournoi.participantsList.length,
       nbMatchs: tournoi.matchOrder.length,
+      sourceTournamentId: docId,
+      sourceTournamentCreatedAt: tournoi.createdAt || null,
       date: serverTimestamp()
-    });
+    }, { merge: true });
 
     // 2. Donner la récompense triple roll au champion
     await setDoc(doc(db, 'tournamentRewards', tournoi.champion.userId), {
@@ -618,6 +665,7 @@ export async function terminerTournoi(docId = 'current') {
 
     await updateDoc(doc(db, 'tournaments', docId), {
       archivedAt: serverTimestamp(),
+      hallOfFameEntryId,
     });
 
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
