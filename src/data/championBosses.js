@@ -6,10 +6,10 @@
 /**
  * Génère un boss à partir d'un champion du Hall of Fame
  * @param {Object} champion - Champion du Hall of Fame ou personnage archivé
- * @param {number} bossHP - HP du boss (par défaut 35000)
+ * @param {number} bossHP - HP du boss (par défaut 45000)
  * @returns {Object} Boss prêt pour le Cataclysme
  */
-export const generateChampionBoss = (champion, bossHP = 35000) => {
+export const generateChampionBoss = (champion, bossHP = 45000) => {
   if (!champion || !champion.base) {
     return null;
   }
@@ -48,7 +48,7 @@ export const generateChampionBoss = (champion, bossHP = 35000) => {
  * @param {number} bossHP - HP du boss
  * @returns {Object} Boss champion
  */
-export const getRandomChampionBoss = async (hallOfFameChampions, bossHP = 35000) => {
+export const getRandomChampionBoss = async (hallOfFameChampions, bossHP = 45000) => {
   if (!hallOfFameChampions || hallOfFameChampions.length === 0) {
     return null;
   }
@@ -93,7 +93,7 @@ export const getRandomChampionBoss = async (hallOfFameChampions, bossHP = 35000)
  * @param {number} bossHP - HP du boss
  * @returns {Object} Boss champion de la semaine
  */
-export const getWeeklyChampionBoss = async (hallOfFameChampions, weekNumber, bossHP = 35000) => {
+export const getWeeklyChampionBoss = async (hallOfFameChampions, weekNumber, bossHP = 45000) => {
   if (!hallOfFameChampions || hallOfFameChampions.length === 0) {
     return null;
   }

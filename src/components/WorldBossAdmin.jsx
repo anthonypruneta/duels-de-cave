@@ -19,7 +19,7 @@ import {
   recordAttemptDamage,
   getLeaderboard,
   launchCataclysm,
-  pickWeeklyBossWithChampions
+  getAllCataclysmBossOptions
 } from '../services/worldBossService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
@@ -87,9 +87,25 @@ const WorldBossAdmin = ({ characters }) => {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
 
+  // Choix du boss pour le prochain Cataclysme
+  const [bossOptions, setBossOptions] = useState([]);
+  const [selectedBoss, setSelectedBoss] = useState(null);
+
   // Chargement initial
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Charger la liste des boss (génériques + champions) pour le sélecteur
+  useEffect(() => {
+    let cancelled = false;
+    getAllCataclysmBossOptions(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES).then((opts) => {
+      if (!cancelled && opts.length) {
+        setBossOptions(opts);
+        setSelectedBoss(opts[0]);
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   // Auto-scroll logs
@@ -176,25 +192,26 @@ const WorldBossAdmin = ({ characters }) => {
   };
 
   const handleLaunchCataclysm = async () => {
-    if (!window.confirm('Lancer le Cataclysme ? (Reset total + annonce Discord @everyone)')) return;
+    const bossToLaunch = selectedBoss ?? bossOptions[0];
+    if (!bossToLaunch) {
+      setCombatLogs(['❌ Aucun boss disponible. Chargez la page ou vérifiez les assets.']);
+      return;
+    }
+    if (!window.confirm(`Lancer le Cataclysme avec le boss « ${bossToLaunch.name} » ? (Reset total + annonce Discord @everyone)`)) return;
     setActionLoading(true);
     setCombatResult(null);
     setCombatLogs([]);
     setAttemptInfo(null);
-    
-    // Choisir un boss aléatoire de la semaine (peut être un générique OU un champion)
-    setCombatLogs(['🔄 Sélection du boss de la semaine...']);
-    const weeklyBoss = await pickWeeklyBossWithChampions(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
-    console.log('Boss de la semaine choisi:', weeklyBoss);
-    
-    const result = await launchCataclysm(weeklyBoss);
+
+    setCombatLogs(['🔄 Lancement du Cataclysme...']);
+    const result = await launchCataclysm(bossToLaunch);
     if (result.success) {
       const logs = ['✅ Cataclysme lancé ! Annonce Discord envoyée.'];
       if (result.data?.isChampionBoss) {
-        logs.push(`⚔️ Boss champion détecté : ${result.data.championName}`);
-        logs.push(`📊 Stats du champion appliquées : Auto ${result.data.bossStats?.auto}, Cap ${result.data.bossStats?.cap}, Déf ${result.data.bossStats?.def}`);
+        logs.push(`⚔️ Boss champion : ${result.data.championName}`);
+        logs.push(`📊 Stats du champion : Auto ${result.data.bossStats?.auto}, Cap ${result.data.bossStats?.cap}, Déf ${result.data.bossStats?.def}`);
       } else {
-        logs.push(`☄️ Boss générique : ${weeklyBoss.name}`);
+        logs.push(`☄️ Boss générique : ${bossToLaunch.name}`);
       }
       setCombatLogs(logs);
       await loadData();
@@ -555,6 +572,29 @@ const WorldBossAdmin = ({ characters }) => {
       </div>
 
       {/* ================================================================ */}
+      {/* Choix du boss pour le prochain Cataclysme */}
+      {bossOptions.length > 0 && (
+        <div className="mb-4 p-3 bg-stone-800/60 rounded-lg border border-stone-600">
+          <label className="block text-sm font-medium text-stone-300 mb-2">
+            Boss à affronter (pour le prochain lancement du Cataclysme)
+          </label>
+          <select
+            value={selectedBoss?.name ?? ''}
+            onChange={(e) => {
+              const boss = bossOptions.find((b) => b.name === e.target.value);
+              if (boss) setSelectedBoss(boss);
+            }}
+            className="bg-stone-700 text-stone-100 border border-stone-600 rounded px-3 py-2 min-w-[220px]"
+          >
+            {bossOptions.map((boss) => (
+              <option key={boss.name} value={boss.name}>
+                {boss.isChampion ? '⚔️ ' : '☄️ '}{boss.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* BOUTONS ADMIN */}
       {/* ================================================================ */}
       <div className="flex flex-wrap gap-3 mb-6">

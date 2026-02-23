@@ -565,7 +565,7 @@ export const launchCataclysm = async (bossData) => {
             
             if (fullChampion.base) {
               useBossStats = {
-                hp: WORLD_BOSS.baseStats.hp, // HP reste à 35k
+                hp: WORLD_BOSS.baseStats.hp, // HP du boss (45k)
                 auto: fullChampion.base.auto || 0,
                 cap: fullChampion.base.cap || 0,
                 def: fullChampion.base.def || 0,
@@ -677,68 +677,61 @@ function getWeekSeed() {
  * Sélectionne un boss de la semaine parmi les boss génériques ET les champions
  * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
  * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
- * @returns {Promise<{name: string, isChampion: boolean, championData: object|null}>}
+ * @returns {Promise<Array<{name: string, isChampion: boolean, championData: object|null}>>}
  */
-export const pickWeeklyBossWithChampions = async (genericBossNames = [], championBossNames = []) => {
-  // Boss génériques (noms = noms de fichiers)
+export const getAllCataclysmBossOptions = async (genericBossNames = [], championBossNames = []) => {
   const genericBosses = genericBossNames.map(name => ({
     name,
     isChampion: false,
     championData: null
   }));
-  
-  // Boss champions (noms = noms de fichiers dans ChampBoss/)
-  // On va essayer de matcher avec le Hall of Fame pour récupérer les stats
+
   let championBosses = [];
-  
   if (championBossNames.length > 0) {
-    // Récupérer le Hall of Fame pour matcher les stats
     let hallOfFameData = [];
     try {
       const hallOfFameResult = await getHallOfFame();
-      if (hallOfFameResult.success) {
-        hallOfFameData = hallOfFameResult.data;
-      }
+      if (hallOfFameResult.success) hallOfFameData = hallOfFameResult.data;
     } catch (error) {
       console.error('Erreur récupération Hall of Fame:', error);
     }
-    
-    // Pour chaque image ChampBoss, créer une entrée
-    // Format attendu du nom de fichier : "NomDuPersonnage, TitreLore.png"
     championBosses = championBossNames.map(bossName => {
-      // Extraire le nom du personnage (partie avant la virgule)
       const characterName = bossName.split(',')[0].trim().toLowerCase();
-      
       let matchedChampion = null;
       for (const entry of hallOfFameData) {
         const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
-        // Match exact ou si le nom du champion est contenu dans le nom extrait
         if (championName && (characterName === championName || characterName.includes(championName))) {
           matchedChampion = entry.champion;
-          console.log(`✅ Match trouvé: "${bossName}" (extrait: "${characterName}") → champion "${championName}"`);
           break;
         }
       }
-      
-      return {
-        name: bossName, // Nom complet du fichier = nom affiché (ex: "Arthas, Le Roi Liche")
-        isChampion: true,
-        championData: matchedChampion // null si pas de match, sinon les données du champion
-      };
+      return { name: bossName, isChampion: true, championData: matchedChampion };
     });
   }
-  
-  // Combiner les deux pools
+
   const allBosses = [...genericBosses, ...championBosses];
-  
+  if (allBosses.length === 0) {
+    return [{ name: WORLD_BOSS.nom, isChampion: false, championData: null }];
+  }
+  return allBosses;
+};
+
+/**
+ * Choisit un boss de la semaine (déterministe) parmi génériques + champions.
+ * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
+ * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
+ * @returns {Promise<{name: string, isChampion: boolean, championData: object|null}>}
+ */
+export const pickWeeklyBossWithChampions = async (genericBossNames = [], championBossNames = []) => {
+  const allBosses = await getAllCataclysmBossOptions(genericBossNames, championBossNames);
   if (allBosses.length === 0) {
     return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
   }
-  
-  // Sélection déterministe basée sur la semaine
   const seed = getWeekSeed();
   const index = seed % allBosses.length;
-  console.log(`🎲 Boss pool: ${allBosses.length} boss (${genericBosses.length} génériques + ${championBosses.length} champions), seed=${seed}, index=${index}`);
+  const genericCount = genericBossNames.length;
+  const championCount = championBossNames.length;
+  console.log(`🎲 Boss pool: ${allBosses.length} boss (${genericCount} génériques + ${championCount} champions), seed=${seed}, index=${index}`);
   return allBosses[index];
 };
 
