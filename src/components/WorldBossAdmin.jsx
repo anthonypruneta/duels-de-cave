@@ -579,19 +579,28 @@ const WorldBossAdmin = ({ characters }) => {
             Boss à affronter (pour le prochain lancement du Cataclysme)
           </label>
           <select
-            value={selectedBoss?.name ?? ''}
+            value={(() => {
+              if (selectedBoss == null) return 0;
+              const i = bossOptions.findIndex((b) => b.name === selectedBoss.name && b.isChampion === selectedBoss.isChampion);
+              return i >= 0 ? i : 0;
+            })()}
             onChange={(e) => {
-              const boss = bossOptions.find((b) => b.name === e.target.value);
-              if (boss) setSelectedBoss(boss);
+              const index = Number(e.target.value);
+              if (index >= 0 && index < bossOptions.length) setSelectedBoss(bossOptions[index]);
             }}
             className="bg-stone-700 text-stone-100 border border-stone-600 rounded px-3 py-2 min-w-[220px]"
           >
-            {bossOptions.map((boss) => (
-              <option key={boss.name} value={boss.name}>
+            {bossOptions.map((boss, index) => (
+              <option key={`${boss.isChampion ? 'champ' : 'gen'}-${boss.name}`} value={index}>
                 {boss.isChampion ? '⚔️ ' : '☄️ '}{boss.name}
               </option>
             ))}
           </select>
+          {selectedBoss?.isChampion && selectedBoss?.championData && (
+            <p className="text-xs text-stone-400 mt-2">
+              Champion : <strong className="text-amber-400">{selectedBoss.championData.nom || selectedBoss.championData.name}</strong>
+            </p>
+          )}
         </div>
       )}
 

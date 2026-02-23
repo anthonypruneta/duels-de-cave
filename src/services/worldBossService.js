@@ -696,23 +696,16 @@ export const getAllCataclysmBossOptions = async (genericBossNames = [], champion
       console.error('Erreur récupération Hall of Fame:', error);
     }
     championBosses = championBossNames.map(bossName => {
-      const characterName = bossName.split(',')[0].trim().toLowerCase();
-      let exactMatch = null;
-      let bestIncludesMatch = null;
-      let bestIncludesLength = 0;
+      // Début du nom de l'image (avant la virgule) = "Croc Me Tender" pour "Croc Me Tender, Première Championne.png"
+      const nameFromImage = bossName.split(',')[0].trim().toLowerCase();
+      let matchedChampion = null;
       for (const entry of hallOfFameData) {
         const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
-        if (!championName) continue;
-        if (characterName === championName) {
-          exactMatch = entry.champion;
+        if (championName && nameFromImage === championName) {
+          matchedChampion = entry.champion;
           break;
         }
-        if (characterName.includes(championName) && championName.length > bestIncludesLength) {
-          bestIncludesMatch = entry.champion;
-          bestIncludesLength = championName.length;
-        }
       }
-      const matchedChampion = exactMatch || bestIncludesMatch;
       return { name: bossName, isChampion: true, championData: matchedChampion };
     });
   }
