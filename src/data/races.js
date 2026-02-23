@@ -56,12 +56,13 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+10% PV max, +4% Déf',
+      description: '+10% PV max, +4% Déf, subit -10% de dégâts',
       effect: {
         statMultipliers: {
           hp: 1.10,
           def: 1.04
-        }
+        },
+        damageTakenMultiplier: 0.9
       }
     }
   },
