@@ -50,9 +50,9 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Nain': return `+${c.hp || 0} PV & +${c.def || 0} Déf`;
     case 'Dragonkin': return `+${c.hp || 0} PV & +${c.rescap || 0} ResC`;
     case 'Mort-vivant': return `Revient à ${pct(c.revivePercent, 0)} PV (1x)`;
-    case 'Lycan': return `Attaque inflige saignement +${c.bleedPerHit || 0} de dégât/tour`;
+    case 'Lycan': return `Attaque applique +${c.bleedPerHit || 0} stack de saignement (dégâts = ceil(stacks/${c.bleedDivisor || 1}) par tour)`;
     case 'Sylvari': return `Regen ${pct(c.regenPercent, 1)} PV max/tour`;
-    case 'Sirène': return `+${c.cap || 0} CAP, subit un spell: +${pct(c.stackBonus, 0)} dégâts/soins des capacités (max ${c.maxStacks || 0} stacks)`;
+    case 'Sirène': return `+${c.cap || 0} CAP, subit un spell: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
     default: return races[raceName]?.bonus || '';
@@ -71,7 +71,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Mort-vivant': return `Première mort: explosion ${pct(e?.explosionPercent, 0)} PV max + résurrection ${pct(e?.revivePercent, 0)} PV max`;
     case 'Lycan': return `Chaque auto: +${e?.bleedStacksPerHit || 0} stack de saignement (${pct(e?.bleedPercentPerStack, 1)} PV max par tour)`;
     case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour, +${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
-    case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins des capacités (max ${e?.sireneMaxStacks || 0})`;
+    case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremier sort: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi ce premier sort est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     default: return races[raceName]?.awakening?.description || '';
@@ -223,13 +223,17 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
     case 'Mort-vivant':
       return [text('Revient à '), slot(['revivePercent'], 'percent'), text(' PV (1x)')];
     case 'Lycan':
-      return [text('Attaque inflige saignement +'), slot(['bleedPerHit'], 'raw'), text(' de dégât/tour')];
+      return [
+        text('Attaque applique +'), slot(['bleedPerHit'], 'raw'),
+        text(' stack de saignement (dégâts = ceil(stacks/'), slot(['bleedDivisor'], 'raw'),
+        text(') par tour)')
+      ];
     case 'Sylvari':
       return [text('Regen '), slot(['regenPercent'], 'percent1dec'), text(' PV max/tour')];
     case 'Sirène':
       return [
         text('+'), slot(['cap'], 'raw'), text(' CAP, subit un spell: +'), slot(['stackBonus'], 'percent'),
-        text(' dégâts/soins des capacités (max '), slot(['maxStacks'], 'raw'), text(' stacks)')
+        text(' dégâts/soins de vos compétences (max '), slot(['maxStacks'], 'raw'), text(' stacks)')
       ];
     case 'Gnome':
       return [
@@ -297,7 +301,7 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
     case 'Sirène':
       return [
         text('+'), slot(['statBonuses', 'cap'], 'raw'), text(' CAP, stacks à +'), slot(['sireneStackBonus'], 'percent'),
-        text(' dégâts/soins des capacités (max '), slot(['sireneMaxStacks'], 'raw'), text(')')
+        text(' dégâts/soins de vos compétences (max '), slot(['sireneMaxStacks'], 'raw'), text(')')
       ];
     case 'Gnome':
       return [

@@ -94,7 +94,7 @@ export const races = {
     }
   },
   'Lycan': {
-    bonus: 'Attaque inflige saignement +1 de dégât/tour',
+    bonus: 'Attaque applique +1 stack de saignement (dégâts = ceil(stacks/5) par tour)',
     icon: '🐺',
     awakening: {
       levelRequired: 100,
@@ -141,11 +141,11 @@ export const races = {
     }
   },
   'Sirène': {
-    bonus: '+10 CAP\n- subit un spell: +10% dégâts/soins des capacités (max 3 stacks)',
+    bonus: '+10 CAP\n- subit un spell: +10% dégâts/soins de vos compétences (max 3 stacks)',
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+40 CAP, stacks à +40% dégâts/soins des capacités (max 4)',
+      description: '+40 CAP, stacks à +40% dégâts/soins de vos compétences (max 4)',
       effect: {
         statBonuses: {
           cap: 40
