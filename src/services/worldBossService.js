@@ -127,22 +127,108 @@ export const getChampionBossStatsByUserId = async (userId) => {
 };
 
 /**
- * Démarrer l'event
+ * Construit les champs event liés au boss (nom, stats, champion) à partir du boss choisi.
+ * Utilisé par startWorldBossEvent et launchCataclysm.
+ * @param {object} [bossData] - { name, isChampion, championData } ou string (nom générique)
+ * @returns {Promise<{ bossId, bossName, bossStats, isChampionBoss, championName, originalChampion }>}
  */
-export const startWorldBossEvent = async () => {
+async function buildBossEventPayload(bossData) {
+  let finalBossName = WORLD_BOSS.nom;
+  let useBossStats = WORLD_BOSS.baseStats;
+  let isChampionBoss = false;
+  let championName = null;
+  let originalChampion = null;
+
+  if (typeof bossData === 'string') {
+    finalBossName = bossData || WORLD_BOSS.nom;
+  } else if (bossData && typeof bossData === 'object') {
+    finalBossName = bossData.name || WORLD_BOSS.nom;
+    if (bossData.isChampion && bossData.championData) {
+      const champion = bossData.championData;
+      try {
+        const archivedRef = collection(db, 'archivedCharacters');
+        const q = query(
+          archivedRef,
+          where('userId', '==', champion.userId),
+          where('tournamentChampion', '==', true)
+        );
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const fullChampion = snapshot.docs[0].data();
+          if (fullChampion.base) {
+            const baseWithForest = applyStatBoosts(fullChampion.base, fullChampion.forestBoosts || {});
+            useBossStats = {
+              hp: WORLD_BOSS.baseStats.hp,
+              auto: baseWithForest.auto || 0,
+              cap: baseWithForest.cap || 0,
+              def: baseWithForest.def || 0,
+              rescap: baseWithForest.rescap || 0,
+              spd: baseWithForest.spd || 0
+            };
+            isChampionBoss = true;
+            championName = champion.nom || champion.name || finalBossName;
+            originalChampion = {
+              userId: fullChampion.userId ?? null,
+              odUserId: fullChampion.odUserId ?? fullChampion.userId ?? null,
+              odPseudo: fullChampion.odPseudo ?? fullChampion.ownerPseudo ?? null,
+              race: fullChampion.race ?? null,
+              classe: fullChampion.classe ?? fullChampion.class ?? null,
+              level: fullChampion.level ?? null,
+              characterImage: fullChampion.characterImage ?? null
+            };
+          }
+        }
+      } catch (e) {
+        console.error('Erreur buildBossEventPayload:', e);
+      }
+    }
+  }
+
+  return {
+    bossId: isChampionBoss ? `champion_${originalChampion?.userId}` : WORLD_BOSS.id,
+    bossName: finalBossName,
+    bossStats: useBossStats,
+    isChampionBoss,
+    championName,
+    originalChampion
+  };
+}
+
+/**
+ * Démarrer l'event (avec ou sans boss choisi).
+ * @param {object} [bossData] - Boss sélectionné { name, isChampion, championData }. Si absent, boss générique.
+ */
+export const startWorldBossEvent = async (bossData = null) => {
   try {
-    const eventData = {
-      bossId: WORLD_BOSS.id,
-      bossName: WORLD_BOSS.nom,
-      status: EVENT_STATUS.ACTIVE,
-      hpMax: WORLD_BOSS.baseStats.hp,
-      hpRemaining: WORLD_BOSS.baseStats.hp,
-      totalDamageDealt: 0,
-      totalAttempts: 0,
-      startedAt: Timestamp.now(),
-      endedAt: null,
-      updatedAt: Timestamp.now()
-    };
+    let eventData;
+    if (bossData) {
+      const payload = await buildBossEventPayload(bossData);
+      eventData = {
+        ...payload,
+        status: EVENT_STATUS.ACTIVE,
+        hpMax: payload.bossStats.hp,
+        hpRemaining: payload.bossStats.hp,
+        totalDamageDealt: 0,
+        totalAttempts: 0,
+        startedAt: Timestamp.now(),
+        endedAt: null,
+        updatedAt: Timestamp.now()
+      };
+    } else {
+      eventData = {
+        bossId: WORLD_BOSS.id,
+        bossName: WORLD_BOSS.nom,
+        bossStats: WORLD_BOSS.baseStats,
+        status: EVENT_STATUS.ACTIVE,
+        hpMax: WORLD_BOSS.baseStats.hp,
+        hpRemaining: WORLD_BOSS.baseStats.hp,
+        totalDamageDealt: 0,
+        totalAttempts: 0,
+        startedAt: Timestamp.now(),
+        endedAt: null,
+        updatedAt: Timestamp.now()
+      };
+    }
 
     await retryOperation(async () => {
       await setDoc(EVENT_DOC_REF(), eventData);
@@ -562,73 +648,9 @@ function pickRandom(arr) {
  */
 export const launchCataclysm = async (bossData) => {
   try {
-    // Accepter soit un string (ancien format) soit un objet (nouveau format)
-    let finalBossName = WORLD_BOSS.nom;
-    let useBossStats = WORLD_BOSS.baseStats;
-    let isChampionBoss = false;
-    let championName = null;
-    let originalChampion = null;
-    
-    if (typeof bossData === 'string') {
-      // Ancien format : juste un nom de boss générique
-      finalBossName = bossData || WORLD_BOSS.nom;
-    } else if (bossData && typeof bossData === 'object') {
-      // Nouveau format avec données complètes
-      finalBossName = bossData.name || WORLD_BOSS.nom;
-      
-      if (bossData.isChampion && bossData.championData) {
-        const champion = bossData.championData;
-        
-        // Charger les stats complètes du champion depuis archivedCharacters (même clé que championBosses.js)
-        try {
-          const archivedRef = collection(db, 'archivedCharacters');
-          const q = query(
-            archivedRef,
-            where('userId', '==', champion.userId),
-            where('tournamentChampion', '==', true)
-          );
-          
-          const snapshot = await getDocs(q);
-          
-          if (!snapshot.empty) {
-            const fullChampion = snapshot.docs[0].data();
-            
-            if (fullChampion.base) {
-              // Base + bonus de la forêt (comme pour les persos en combat)
-              const baseWithForest = applyStatBoosts(fullChampion.base, fullChampion.forestBoosts || {});
-              useBossStats = {
-                hp: WORLD_BOSS.baseStats.hp, // HP du boss (45k)
-                auto: baseWithForest.auto || 0,
-                cap: baseWithForest.cap || 0,
-                def: baseWithForest.def || 0,
-                rescap: baseWithForest.rescap || 0,
-                spd: baseWithForest.spd || 0
-              };
-              
-              isChampionBoss = true;
-              championName = champion.nom || champion.name || finalBossName;
-              // Firestore n'accepte pas undefined : n'inclure que des valeurs définies ou null
-              originalChampion = {
-                userId: fullChampion.userId ?? null,
-                odUserId: fullChampion.odUserId ?? fullChampion.userId ?? null,
-                odPseudo: fullChampion.odPseudo ?? fullChampion.ownerPseudo ?? null,
-                race: fullChampion.race ?? null,
-                classe: fullChampion.classe ?? fullChampion.class ?? null,
-                level: fullChampion.level ?? null,
-                characterImage: fullChampion.characterImage ?? null
-              };
-              
-              console.log('✅ Stats du champion chargées:', useBossStats);
-            }
-          } else {
-            console.log('⚠️ Champion non trouvé dans archivedCharacters, utilisation des stats par défaut');
-          }
-        } catch (championError) {
-          console.error('Erreur chargement stats champion:', championError);
-        }
-      }
-    }
-    
+    const payload = await buildBossEventPayload(bossData);
+    const { bossName: finalBossName, bossStats: useBossStats, isChampionBoss, championName, originalChampion } = payload;
+
     // 1. Reset le leaderboard (supprimer toutes les entrées de dégâts)
     const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
     const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
@@ -641,12 +663,7 @@ export const launchCataclysm = async (bossData) => {
 
     // 2. Reset et activer l'event avec les stats appropriées
     const eventData = {
-      bossId: isChampionBoss ? `champion_${originalChampion?.userId}` : WORLD_BOSS.id,
-      bossName: finalBossName,
-      bossStats: useBossStats, // Stats du champion ou stats génériques
-      isChampionBoss,
-      championName,
-      originalChampion,
+      ...payload,
       status: EVENT_STATUS.ACTIVE,
       hpMax: useBossStats.hp,
       hpRemaining: useBossStats.hp,

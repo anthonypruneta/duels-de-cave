@@ -140,9 +140,13 @@ const WorldBossAdmin = ({ characters }) => {
   // ============================================================================
   const handleStart = async () => {
     setActionLoading(true);
-    const result = await startWorldBossEvent();
+    const bossToUse = selectedBoss ?? bossOptions[0] ?? null;
+    const result = await startWorldBossEvent(bossToUse);
     if (result.success) {
       await loadData();
+      if (bossToUse) {
+        setCombatLogs([`✅ Event démarré avec le boss « ${bossToUse.name} ».`]);
+      }
     } else {
       console.error('Échec démarrage event:', result.error);
       setCombatLogs([`❌ Échec démarrage event : ${result.error}`]);
