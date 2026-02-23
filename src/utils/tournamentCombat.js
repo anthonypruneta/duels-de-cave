@@ -692,7 +692,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (labrysResult.damage > 0) {
       let damageToApply = labrysResult.damage;
       if (att.isWorldBoss) {
-        damageToApply = Math.max(1, Math.round(damageToApply * (1 - WORLD_BOSS_CONSTANTS.PERCENT_HP_DAMAGE_REDUCTION)));
+        damageToApply = Math.max(1, Math.round(damageToApply * (1 - WORLD_BOSS_CONSTANTS.LABRYS_CATACLYSM_DAMAGE_REDUCTION)));
       }
       att.currentHP -= damageToApply;
       tryTriggerOnctionLastStand(att, log, playerColor);
