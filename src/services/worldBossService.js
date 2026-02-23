@@ -697,14 +697,22 @@ export const getAllCataclysmBossOptions = async (genericBossNames = [], champion
     }
     championBosses = championBossNames.map(bossName => {
       const characterName = bossName.split(',')[0].trim().toLowerCase();
-      let matchedChampion = null;
+      let exactMatch = null;
+      let bestIncludesMatch = null;
+      let bestIncludesLength = 0;
       for (const entry of hallOfFameData) {
         const championName = (entry.champion?.nom || entry.champion?.name || '').toLowerCase().trim();
-        if (championName && (characterName === championName || characterName.includes(championName))) {
-          matchedChampion = entry.champion;
+        if (!championName) continue;
+        if (characterName === championName) {
+          exactMatch = entry.champion;
           break;
         }
+        if (characterName.includes(championName) && championName.length > bestIncludesLength) {
+          bestIncludesMatch = entry.champion;
+          bestIncludesLength = championName.length;
+        }
       }
+      const matchedChampion = exactMatch || bestIncludesMatch;
       return { name: bossName, isChampion: true, championData: matchedChampion };
     });
   }
