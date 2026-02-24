@@ -47,7 +47,7 @@ import {
   modifyCritDamage,
   onAttack,
   onHeal,
-  onSpellCast,
+  onCapacityCast,
   rollHealCrit,
   onTurnStart
 } from '../utils/weaponEffects';
@@ -528,7 +528,7 @@ const ForestDungeon = () => {
       shield: 0,
       spectralMarked: false,
       spectralMarkBonus: 0,
-      firstSpellCapBoostUsed: false,
+      firstCapacityCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
       weaponState,
@@ -545,7 +545,7 @@ const ForestDungeon = () => {
     p.bleedPercentPerStack = 0;
     p.maso_taken = 0;
     p.familiarStacks = 0;
-    p.firstSpellCapBoostUsed = false;
+    p.firstCapacityCapBoostUsed = false;
     p.stunned = false;
     p.stunnedTurns = 0;
     if (p.awakening) {
@@ -631,10 +631,10 @@ const ForestDungeon = () => {
     const playerPassive = getPassiveDetails(playerChar.mageTowerPassive);
     const unicornData = getUnicornPactTurnData(playerPassive, turn);
     const auraBonus = getAuraBonus(playerPassive, turn);
-    const consumeAuraSpellCapMultiplier = () => {
+    const consumeAuraCapacityCapMultiplier = () => {
       if (!isPlayer || playerPassive?.id !== 'aura_overload') return 1;
-      if (att.firstSpellCapBoostUsed) return 1;
-      att.firstSpellCapBoostUsed = true;
+      if (att.firstCapacityCapBoostUsed) return 1;
+      att.firstCapacityCapBoostUsed = true;
       return 1 + (playerPassive?.levelData?.spellCapBonus ?? 0);
     };
     let skillUsed = false;
@@ -778,7 +778,7 @@ const ForestDungeon = () => {
       raw = applyBossIncomingModifier(def, raw, turn);
       const inflicted = applyMageTowerDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
-      const demonSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'demoniste');
+      const demonSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'demoniste');
       if (demonSpellEffects.doubleCast && demonSpellEffects.secondCastDamage > 0) {
         let extra = demonSpellEffects.secondCastDamage;
         extra = applyBossOutgoingModifier(att, extra, turn);
@@ -810,7 +810,7 @@ const ForestDungeon = () => {
         raw = applyBossOutgoingModifier(att, raw, turn);
         raw = applyBossIncomingModifier(def, raw, turn);
         const inflicted = applyMageTowerDamage(raw, false);
-        const masoSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'maso', { healAmount });
+        const masoSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'maso', { healAmount });
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
         if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
           let extraRaw = masoSpellEffects.secondCastDamage;
@@ -847,10 +847,10 @@ const ForestDungeon = () => {
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
       if (isPlayer) skillUsed = true;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
-      const spellCapMult = consumeAuraSpellCapMultiplier();
+      const spellCapMult = consumeAuraCapacityCapMultiplier();
       const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
       att.reflect = reflectValue;
-      const paladinSpellEffects = onSpellCast(att.weaponState, att, def, reflectValue, 'paladin');
+      const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
       if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
         att.riposteTwice = true;
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
@@ -862,16 +862,16 @@ const ForestDungeon = () => {
       if (isPlayer) skillUsed = true;
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
-      const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+      const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
       const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier * getAntiHealFactor(def)));
       const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
       const heal = healCritResult.amount;
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-      log.push(`${playerColor} ✚ ${att.name} lance un sort de soin puissant et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
-      const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
+      log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+      const healSpellEffects = onCapacityCast(att.weaponState, att, def, heal, 'heal');
       if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
         att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
-        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un sort de soin puissant et récupère ${healSpellEffects.secondCastHeal} points de vie`);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance sa capacité de soin puissante et récupère ${healSpellEffects.secondCastHeal} points de vie`);
       }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
@@ -885,7 +885,7 @@ const ForestDungeon = () => {
 
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
       if (isPlayer) skillUsed = true;
-      consumeAuraSpellCapMultiplier(); // Première capacité du combat
+      consumeAuraCapacityCapMultiplier(); // Première capacité du combat
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -920,20 +920,20 @@ const ForestDungeon = () => {
 
       if (isMage) {
         const { capBase, capPerCap } = classConstants.mage;
-        const spellCapMultiplier = consumeAuraSpellCapMultiplier();
+        const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
         const scaledCap = att.base.cap * spellCapMultiplier;
         const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
-        const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
+        const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
           let extra = spellEffects.secondCastDamage;
           extra = applyBossOutgoingModifier(att, extra, turn);
           extra = applyBossIncomingModifier(def, extra, turn);
           const inflictedCodex = applyMageTowerDamage(extra, false, false);
-          log.push(`${playerColor} 📜 Codex Archon : ${att.name} invoque un puissant sort magique et inflige ${inflictedCodex} points de dégâts`);
+          log.push(`${playerColor} 📜 Codex Archon : ${att.name} utilise sa capacité magique et inflige ${inflictedCodex} points de dégâts`);
         }
       } else if (isWar) {
-        const spellCapMultWar = consumeAuraSpellCapMultiplier();
+        const spellCapMultWar = consumeAuraCapacityCapMultiplier();
         const ignore = classConstants.guerrier.ignoreBase + classConstants.guerrier.ignorePerCap * att.base.cap * spellCapMultWar;
         if (def.base.def <= def.base.rescap) {
           const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
@@ -943,7 +943,7 @@ const ForestDungeon = () => {
           raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
         }
         if (i === 0) {
-          const warSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'war');
+          const warSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'war');
           if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
             let extra = warSpellEffects.secondCastDamage;
             extra = applyBossOutgoingModifier(att, extra, turn);
@@ -957,13 +957,13 @@ const ForestDungeon = () => {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
         } else {
           const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
-          const spellCapMultArc = consumeAuraSpellCapMultiplier();
+          const spellCapMultArc = consumeAuraCapacityCapMultiplier();
           const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
           const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
           raw = physPart + capPart;
         }
         if (i === 1) {
-          const arcSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'arc');
+          const arcSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'arc');
           if (arcSpellEffects.doubleCast && arcSpellEffects.secondCastDamage > 0) {
             let extra = arcSpellEffects.secondCastDamage;
             extra = applyBossOutgoingModifier(att, extra, turn);

@@ -43,11 +43,11 @@ export function initWeaponCombatState(combatant, weaponId) {
   const counters = {
     turnCount: 0,           // Compteur de tours (pour Zweihänder, Lævateinn, Arc des Cieux)
     attackCount: 0,         // Compteur d'attaques (pour Mjöllnir)
-    spellCount: 0,          // Compteur de capacités (Codex Archon, Arbalète du Verdict)
+    capacityCount: 0,       // Compteur de capacités (Codex Archon, Arbalète du Verdict)
     firstHitDone: false,    // Premier coup effectué (pour Gungnir, Fléau d'Anathème)
     gungnirApplied: false,  // Debuff Gungnir appliqué (non cumulable)
     anathemeApplied: false,  // Debuff Fléau d'Anathème appliqué
-    verdictSpellsUsed: 0,    // Nombre de capacités boostées par l'Arbalète du Verdict
+    verdictCapacitiesUsed: 0, // Nombre de capacités boostées par l'Arbalète du Verdict
     labrysBleedActive: false, // Saignement Labrys actif sur la cible
   };
 
@@ -260,7 +260,7 @@ export function onAttack(weaponState, attacker, defender, damage) {
  * Hook appelé après chaque capacité lancée.
  * options.healAmount : pour le masochiste, montant du soin à dupliquer (Codex Archon).
  */
-export function onSpellCast(weaponState, caster, target, damage, spellType, options = {}) {
+export function onCapacityCast(weaponState, caster, target, damage, capacityType, options = {}) {
   const effects = {
     doubleCast: false,
     secondCastDamage: 0,
@@ -271,20 +271,20 @@ export function onSpellCast(weaponState, caster, target, damage, spellType, opti
 
   if (!weaponState.isLegendary) return effects;
 
-  weaponState.counters.spellCount++;
-  const spellCount = weaponState.counters.spellCount;
+  weaponState.counters.capacityCount++;
+  const capacityCount = weaponState.counters.capacityCount;
 
   switch (weaponState.weaponId) {
     case 'tome_legendaire': {
       // Codex Archon: à la 2e et 4e capacité, double-cast (le combat affiche le texte exact de la capacité dédoublée)
-      if (weaponConstants.codexArchon.doubleCastTriggers.includes(spellCount)) {
+      if (weaponConstants.codexArchon.doubleCastTriggers.includes(capacityCount)) {
         effects.doubleCast = true;
         const ratio = weaponConstants.codexArchon.secondCastDamage;
-        if (spellType === 'paladin') {
+        if (capacityType === 'paladin') {
           effects.riposteTwice = true;
-        } else if (spellType === 'heal') {
+        } else if (capacityType === 'heal') {
           effects.secondCastHeal = Math.round(damage * ratio);
-        } else if (spellType === 'maso') {
+        } else if (capacityType === 'maso') {
           effects.secondCastDamage = Math.round(damage * ratio);
           effects.secondCastHeal = Math.round((options.healAmount || 0) * ratio);
         } else {
@@ -297,7 +297,6 @@ export function onSpellCast(weaponState, caster, target, damage, spellType, opti
     case 'arbalete_legendaire': {
       // Arbalète du Verdict: les 2 premières capacités infligent +70% dégâts
       // (Le comptage est géré ici, le bonus de dégâts est appliqué dans le combat)
-      // Le spellCount est déjà incrémenté ci-dessus
       break;
     }
   }
@@ -306,12 +305,12 @@ export function onSpellCast(weaponState, caster, target, damage, spellType, opti
 }
 
 /**
- * Retourne le bonus de dégâts de sort pour l'Arbalète du Verdict
- * À appeler AVANT d'infliger les dégâts du sort
+ * Retourne le bonus de dégâts de capacité pour l'Arbalète du Verdict
+ * À appeler AVANT d'infliger les dégâts de la capacité
  */
 
 /**
- * Riposte Paladin avec Codex : si onSpellCast est appelé avec spellType 'paladin'
+ * Riposte Paladin avec Codex : si onCapacityCast est appelé avec capacityType 'paladin'
  * et que le Codex proc, effects.riposteTwice = true et la riposte s'appliquera deux fois.
  */
 export function onPaladinRiposteCast(_weaponState, _caster, _target) {
@@ -324,18 +323,18 @@ export function onPaladinRiposteCast(_weaponState, _caster, _target) {
   };
 }
 
-export function getVerdictSpellBonus(weaponState) {
+export function getVerdictCapacityBonus(weaponState) {
   if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
     return { damageMultiplier: 1.0, log: [] };
   }
 
-  weaponState.counters.verdictSpellsUsed = (weaponState.counters.verdictSpellsUsed || 0) + 1;
-  const spellIndex = weaponState.counters.verdictSpellsUsed;
+  weaponState.counters.verdictCapacitiesUsed = (weaponState.counters.verdictCapacitiesUsed || 0) + 1;
+  const capacityIndex = weaponState.counters.verdictCapacitiesUsed;
 
-  if (spellIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
+  if (capacityIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
     return {
       damageMultiplier: 1 + weaponConstants.arbaleteVerdict.spellDamageBonus,
-      log: [`⚖️ Arbalète du Verdict: Capacité ${spellIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
+      log: [`⚖️ Arbalète du Verdict: Capacité ${capacityIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
     };
   }
 

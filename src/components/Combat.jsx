@@ -373,7 +373,7 @@ const Combat = () => {
         const antiHealPct = Math.round(antiHealReduction * 100);
         return (
           <>
-            Bouclier après spell:{' '}
+            Bouclier après capacité:{' '}
             <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
               <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
             </Tooltip>
