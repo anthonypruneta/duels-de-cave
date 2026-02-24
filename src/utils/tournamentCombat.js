@@ -46,15 +46,43 @@ function getPassiveDetails(passive) {
   return { ...base, level: passive.level, levelData };
 }
 
+/** Liste des passifs d'un combattant (principal + extension) pour appliquer les deux en combat. */
+function getPassiveDetailsList(fighter) {
+  const primary = getPassiveDetails(fighter?.mageTowerPassive);
+  const extension = getPassiveDetails(fighter?.mageTowerExtensionPassive);
+  return [primary, extension].filter(Boolean);
+}
+
+/** Premier passif de la liste ayant cet id (principal ou extension). */
+function getPassiveById(list, id) {
+  return list?.find((p) => p?.id === id) ?? null;
+}
+
 function getUnicornPactTurnData(passiveDetails, turn) {
   if (!passiveDetails || passiveDetails.id !== 'unicorn_pact') return null;
   const isTurnA = turn % 2 === 1;
   return isTurnA ? { label: 'Tour A', ...passiveDetails.levelData.turnA } : { label: 'Tour B', ...passiveDetails.levelData.turnB };
 }
 
+/** Pacte Licorne : pris sur le premier passif (principal ou extension) qui l'a. */
+function getUnicornPactTurnDataFromList(passiveList, turn) {
+  if (!passiveList?.length) return null;
+  for (const p of passiveList) {
+    const data = getUnicornPactTurnData(p, turn);
+    if (data) return data;
+  }
+  return null;
+}
+
 function getAuraBonus(passiveDetails, turn) {
   if (!passiveDetails || passiveDetails.id !== 'aura_overload') return 0;
   return turn <= passiveDetails.levelData.turns ? passiveDetails.levelData.damageBonus : 0;
+}
+
+/** Bonus Aura : somme des bonus de tous les passifs aura_overload (principal + extension). */
+function getAuraBonusFromList(passiveList, turn) {
+  if (!passiveList?.length) return 0;
+  return passiveList.reduce((sum, p) => sum + getAuraBonus(p, turn), 0);
 }
 
 function mergeAwakeningEffects(effects = []) {
@@ -299,7 +327,12 @@ function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, play
   return boosted;
 }
 
-function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBonus, spellMagnitude = null) {
+function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBonus, spellMagnitude = null) {
+  const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
+  const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
+  // Quand le Mindflayer (target) copie et attaque caster: nouvel attaquant = target, défenseur = caster → passifs attaquant = defList, défenseur = atkList
+  const targetPassives = defList;
+  const casterPassives = atkList;
   if (target?.race !== 'Mindflayer') return;
   if (caster?.race === 'Mindflayer') return; // Ne pas copier si l'adversaire est aussi un Mindflayer
   if (target.mindflayerSpellCopyUsed) return;
@@ -324,7 +357,7 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
         const hit = Math.max(1, Math.round((capBase + capPerCap * target.base.cap) * target.base.cap));
         return dmgCap(hit, caster.base.rescap * (1 - ignoreResist)) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le familier de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -340,7 +373,7 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
         const masoTaken = caster.maso_taken || 0;
         return Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !`);
       break;
     }
@@ -360,14 +393,14 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
     }
     case 'Succube': {
       const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       caster.succubeWeakenNextAttack = true;
       log.push(`${playerColor} 🦑 ${target.name} copie le fouet de ${caster.name}, inflige ${inflicted} dégâts et affaiblit sa prochaine attaque !`);
       break;
     }
     case 'Bastion': {
       const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie la Charge du Rempart de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -381,7 +414,7 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
         const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
         return dmgCap(atkSpell, caster.base.rescap) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le sort magique de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -397,14 +430,14 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
         const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
         return dmgPhys(effectiveAuto, effRes) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie la frappe pénétrante de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
     case 'Archer': {
       const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : null;
       if (raw !== null) {
-        const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+        const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
         log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${inflicted} dégâts !`);
       } else {
         const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
@@ -417,7 +450,7 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
             const capPart = dmgCap(Math.round(target.base.cap * hit2CapMultiplier), caster.base.rescap);
             r = physPart + capPart + capBonus;
           }
-          const inflicted = applyDamage(target, caster, r, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+          const inflicted = applyDamage(target, caster, r, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
           totalDmg += inflicted;
           if (caster.currentHP <= 0) break;
         }
@@ -427,7 +460,7 @@ function triggerMindflayerSpellCopy(caster, target, log, playerColor, atkPassive
     }
     default: {
       const raw = useMagnitude ? Math.max(1, spellMagnitude + capBonus) : Math.max(1, Math.round(target.base.cap * capScale));
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, defPassive, atkPassive, defUnicorn, atkUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, targetPassives, casterPassives, defUnicorn, atkUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🦑 ${target.name} copie le sort de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -455,13 +488,16 @@ function flushPendingCombatLogs(fighter, log) {
   fighter._pendingCombatLogs = [];
 }
 
-function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isSpellDamage = false) {
+function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isSpellDamage = false) {
+  const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
+  const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
   let adjusted = raw;
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
   if (defUnicorn) adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
-  if (defPassive?.id === 'obsidian_skin' && isCrit) adjusted = Math.round(adjusted * (1 - defPassive.levelData.critReduction));
+  const defObsidian = defList.find((p) => p?.id === 'obsidian_skin');
+  if (defObsidian && isCrit) adjusted = Math.round(adjusted * (1 - (defObsidian.levelData?.critReduction ?? 0)));
   if (def?.ability?.type === 'bone_guard' && def.boneGuardActive) {
     adjusted = Math.round(adjusted * 0.7);
   }
@@ -514,7 +550,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
 
     if (isSpellDamage) {
       grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor);
-      triggerMindflayerSpellCopy(att, def, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, adjusted);
+      triggerMindflayerSpellCopy(att, def, log, playerColor, atkList, defList, atkUnicorn, defUnicorn, auraBoost, adjusted);
     }
 
     if (hadReflectBeforeHit && def.currentHP > 0) {
@@ -543,20 +579,27 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       def.riposteTwice = false;
     }
   }
-  if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
-    def.spectralMarked = true;
-    def.spectralMarkBonus = atkPassive.levelData.damageTakenBonus;
-    log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
+  if (applyOnHitPassives && adjusted > 0 && !def.spectralMarked) {
+    const spectralPassive = atkList.find((p) => p?.id === 'spectral_mark');
+    if (spectralPassive) {
+      def.spectralMarked = true;
+      const bonus = Math.max(...atkList.filter((p) => p?.id === 'spectral_mark').map((p) => p.levelData?.damageTakenBonus ?? 0));
+      def.spectralMarkBonus = bonus;
+      log.push(`${playerColor} 🟣 ${def.name} est marqué et subira +${Math.round(def.spectralMarkBonus * 100)}% dégâts.`);
+    }
   }
-  if (applyOnHitPassives && atkPassive?.id === 'essence_drain' && adjusted > 0) {
-    const heal = Math.max(1, Math.round(adjusted * atkPassive.levelData.healPercent * getAntiHealFactor(def)));
-    att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-    log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
-    const healEffects = onHeal(att.weaponState, att, heal, def);
-    if (healEffects.bonusDamage > 0) {
-      const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, atkPassive, defPassive, atkUnicorn, defUnicorn, auraBoost, false, false);
-      log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+  if (applyOnHitPassives && adjusted > 0) {
+    for (const p of atkList) {
+      if (p?.id !== 'essence_drain') continue;
+      const heal = Math.max(1, Math.round(adjusted * (p.levelData?.healPercent ?? 0) * getAntiHealFactor(def)));
+      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+      log.push(`${playerColor} 🩸 ${att.name} siphonne ${heal} points de vie grâce au Vol d'essence`);
+      const healEffects = onHeal(att.weaponState, att, heal, def);
+      if (healEffects.bonusDamage > 0) {
+        const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+        applyDamage(att, def, bonusDmg, false, log, playerColor, atkList, defList, atkUnicorn, defUnicorn, auraBoost, false, false);
+        log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+      }
     }
   }
 
@@ -574,16 +617,17 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (att.userId === 'training-dummy') return;
 
   const playerColor = isP1 ? '[P1]' : '[P2]';
-  const attackerPassive = getPassiveDetails(att.mageTowerPassive);
-  const defenderPassive = getPassiveDetails(def.mageTowerPassive);
-  const attackerUnicorn = getUnicornPactTurnData(attackerPassive, turn);
-  const defenderUnicorn = getUnicornPactTurnData(defenderPassive, turn);
-  const auraBonus = getAuraBonus(attackerPassive, turn);
+  const attackerPassiveList = getPassiveDetailsList(att);
+  const defenderPassiveList = getPassiveDetailsList(def);
+  const attackerUnicorn = getUnicornPactTurnDataFromList(attackerPassiveList, turn);
+  const defenderUnicorn = getUnicornPactTurnDataFromList(defenderPassiveList, turn);
+  const auraBonus = getAuraBonusFromList(attackerPassiveList, turn);
+  const auraOverloadPassive = getPassiveById(attackerPassiveList, 'aura_overload');
   const consumeAuraSpellCapMultiplier = () => {
-    if (attackerPassive?.id !== 'aura_overload') return 1;
+    if (!auraOverloadPassive) return 1;
     if (att.firstSpellCapBoostUsed) return 1;
     att.firstSpellCapBoostUsed = true;
-    return 1 + (attackerPassive?.levelData?.spellCapBonus ?? 0);
+    return 1 + (auraOverloadPassive?.levelData?.spellCapBonus ?? 0);
   };
   let skillUsed = false;
 
@@ -627,20 +671,21 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
 
   // Onction d'Éternité: regen % HP max par tour
-  if (attackerPassive?.id === 'onction_eternite') {
-    const onctionHeal = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.regenPercent * getAntiHealFactor(def)));
+  const onctionPassive = getPassiveById(attackerPassiveList, 'onction_eternite');
+  if (onctionPassive) {
+    const onctionHeal = Math.max(1, Math.round(att.maxHP * onctionPassive.levelData.regenPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + onctionHeal);
     log.push(`${playerColor} 🌿 Onction d'Éternité: ${att.name} régénère ${onctionHeal} points de vie`);
     const healEffects = onHeal(att.weaponState, att, onctionHeal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
   }
@@ -652,11 +697,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
     raw = applyMindflayerSpellMod(att, def, raw, 'dem', log, playerColor);
     raw = Math.round(raw * consumeWeaponDamageBonus());
-    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
     const demonSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'demoniste');
     if (demonSpellEffects.doubleCast && demonSpellEffects.secondCastDamage > 0) {
-      const inflictedCodex = applyDamage(att, def, demonSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      const inflictedCodex = applyDamage(att, def, demonSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
       log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
     }
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
@@ -672,7 +717,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
       if (masoHealEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(masoHealEffects.bonusDamage, def.base.rescap);
-        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
         log.push(`${playerColor} ${masoHealEffects.log.join(' ')}`);
       }
       att.maso_taken = 0;
@@ -684,12 +729,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
         spellDmg = Math.round(spellDmg * verdictBonusMaso.damageMultiplier);
         verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
-      const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso', { healAmount });
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
       if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
         const inflicted2 = masoSpellEffects.secondCastDamage > 0
-          ? applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false)
+          ? applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false)
           : 0;
         if (masoSpellEffects.secondCastHeal > 0) {
           att.currentHP = Math.min(att.maxHP, att.currentHP + masoSpellEffects.secondCastHeal);
@@ -747,7 +792,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     if (def?.race === 'Mindflayer') {
-      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus);
     }
   }
 
@@ -771,11 +816,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
       const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
-      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
+      applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
     if (def?.race === 'Mindflayer') {
-      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, heal);
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, heal);
     }
   }
 
@@ -797,12 +842,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = Math.round(raw * verdictBonusSucc.damageMultiplier);
       verdictBonusSucc.log.forEach(l => log.push(`${playerColor} ${l}`));
     }
-    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     def.succubeWeakenNextAttack = true;
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. La prochaine attaque de ${def.name} est affaiblie.`);
     const succSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'succ');
     if (succSpellEffects.doubleCast && succSpellEffects.secondCastDamage > 0) {
-      const inflictedCodex = applyDamage(att, def, succSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      const inflictedCodex = applyDamage(att, def, succSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} fouette ${def.name} et inflige ${inflictedCodex} points de dégâts`);
     }
   }
@@ -825,11 +870,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = Math.round(raw * verdictBonusBast.damageMultiplier);
       verdictBonusBast.log.forEach(l => log.push(`${playerColor} ${l}`));
     }
-    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart${isCrit ? ' CRITIQUE !' : ''}.`);
     const bastSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'bast');
     if (bastSpellEffects.doubleCast && bastSpellEffects.secondCastDamage > 0) {
-      const inflictedCodex = applyDamage(att, def, bastSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      const inflictedCodex = applyDamage(att, def, bastSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} percute ${def.name} et inflige ${inflictedCodex} points de dégâts avec la Charge du Rempart`);
     }
   }
@@ -840,7 +885,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     if (def?.race === 'Mindflayer') {
-      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
+      triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus);
     }
   }
 
@@ -859,7 +904,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.bossId === 'dragon' && att.cd.boss_ability >= att.ability.cooldown) {
       const spellDmg = Math.round(att.base.cap * (1 + (att.ability.effect?.damageBonus || 0.5)));
       const raw = dmgCap(spellDmg, def.base.rescap);
-      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, att, log, playerColor);
@@ -872,7 +917,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const capScale = att.ability.effect?.capScale || 0.5;
       const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
       const raw = dmgCap(spellDmg, def.base.rescap);
-      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} invoque l'Appel du dieu de la forge et inflige ${inflicted} points de dégâts`);
       if (def.currentHP > 0) {
         const stunDuration = att.ability.effect?.stunDuration || 1;
@@ -897,7 +942,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
           spellDmg = Math.round(att.base.auto * (spell.damage.autoScale || 1) + att.base.cap * (spell.damage.capScale || 0));
         }
         const raw = dmgCap(spellDmg, def.base.rescap);
-        const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+        const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
         const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
         log.push(`${playerColor} ${emoji} ${att.name} lance ${spell.name} et inflige ${inflicted} points de dégâts`);
         if (def.currentHP > 0 && spell.stun > 0) {
@@ -944,7 +989,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
   let total = 0;
   let wasCrit = false;
 
-  const forceCrit = attackerPassive?.id === 'obsidian_skin' && att.currentHP <= att.maxHP * attackerPassive.levelData.critThreshold;
+  const obsidianPassive = getPassiveById(attackerPassiveList, 'obsidian_skin');
+  const forceCrit = obsidianPassive && att.currentHP <= att.maxHP * (obsidianPassive.levelData?.critThreshold ?? 0);
   let fractureUsedThisTurn = false;
 
   for (let i = 0; i < totalHits; i++) {
@@ -971,7 +1017,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
-        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} invoque un puissant sort magique et inflige ${inflictedCodex} points de dégâts`);
       }
     } else if (isWar) {
@@ -1001,7 +1047,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
         const warSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'war');
         if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
-          const inflictedCodex = applyDamage(att, def, warSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+          const inflictedCodex = applyDamage(att, def, warSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
         }
       }
@@ -1027,7 +1073,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (i === 1) {
         const arcSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'arc');
         if (arcSpellEffects.doubleCast && arcSpellEffects.secondCastDamage > 0) {
-          const inflictedCodex = applyDamage(att, def, arcSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+          const inflictedCodex = applyDamage(att, def, arcSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un tir renforcé et inflige ${inflictedCodex} points de dégâts`);
         }
       }
@@ -1035,12 +1081,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const autoCapBonus = getBriseurAutoBonus(att);
       raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
       // Orbe du Sacrifice Sanguin: +Y% dégâts autos, -X% HP max
-      if (attackerPassive?.id === 'orbe_sacrifice') {
-        raw = Math.round(raw * (1 + attackerPassive.levelData.autoDamageBonus));
-        const hpCost = Math.max(1, Math.round(att.maxHP * attackerPassive.levelData.hpCostPercent));
+      const orbePassive = getPassiveById(attackerPassiveList, 'orbe_sacrifice');
+      if (orbePassive) {
+        raw = Math.round(raw * (1 + orbePassive.levelData.autoDamageBonus));
+        const hpCost = Math.max(1, Math.round(att.maxHP * orbePassive.levelData.hpCostPercent));
         att.currentHP -= hpCost;
         tryTriggerOnctionLastStand(att, log, playerColor);
-        log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(attackerPassive.levelData.autoDamageBonus * 100)}%)`);
+        log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(orbePassive.levelData.autoDamageBonus * 100)}%)`);
       }
       if (att.race === 'Lycan') {
         const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
@@ -1062,10 +1109,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
 
     // Rituel de Fracture: explose le bouclier ennemi sur auto (1 fois par tour)
-    if (attackerPassive?.id === 'rituel_fracture' && !fractureUsedThisTurn && !isMage && !isWar && def.shield > 0) {
+    const fracturePassive = getPassiveById(attackerPassiveList, 'rituel_fracture');
+    if (fracturePassive && !fractureUsedThisTurn && !isMage && !isWar && def.shield > 0) {
       fractureUsedThisTurn = true;
       const shieldValue = def.shield;
-      const fractureDmg = Math.max(1, Math.round(shieldValue * attackerPassive.levelData.shieldExplosionPercent));
+      const fractureDmg = Math.max(1, Math.round(shieldValue * (fracturePassive.levelData?.shieldExplosionPercent ?? 0)));
       def.shield = 0;
       def.currentHP -= fractureDmg;
       tryTriggerOnctionLastStand(def, log, playerColor);
@@ -1084,7 +1132,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
     }
 
-    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)));
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)));
     if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
       att.familiarStacks = (att.familiarStacks || 0) + 1;
     }
@@ -1117,8 +1165,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
-  if (attackerPassive?.id === 'elemental_fury' && skillUsed) {
-    const lightningDamage = Math.max(1, Math.round(att.base.auto * attackerPassive.levelData.lightningPercent));
+  const elementalFuryPassive = getPassiveById(attackerPassiveList, 'elemental_fury');
+  if (elementalFuryPassive && skillUsed) {
+    const lightningDamage = Math.max(1, Math.round(att.base.auto * (elementalFuryPassive.levelData?.lightningPercent ?? 0)));
     def.currentHP -= lightningDamage;
     tryTriggerOnctionLastStand(def, log, playerColor);
     log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
@@ -1173,8 +1222,8 @@ export function simulerMatch(char1, char2) {
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
     // Turn start
     const turnStartLogs = [`--- Début du tour ${turn} ---`];
-    const p1Unicorn = getUnicornPactTurnData(getPassiveDetails(p1.mageTowerPassive), turn);
-    const p2Unicorn = getUnicornPactTurnData(getPassiveDetails(p2.mageTowerPassive), turn);
+    const p1Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p1), turn);
+    const p2Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p2), turn);
     if (p1Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
     if (p2Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
 
