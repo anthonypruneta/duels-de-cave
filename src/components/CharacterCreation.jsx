@@ -409,6 +409,30 @@ const CharacterCreation = () => {
               ))}
             </div>
           </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">🔨 Amélioration des armes (Forge des Légendes)</h3>
+            <div className="space-y-3 text-stone-300 text-sm">
+              <p>
+                La <strong className="text-amber-200">Forge des Légendes</strong> est un donjon optionnel affrontant <strong>Ornn, le Dieu de la Forge</strong>. Il est accessible uniquement si vous équipez une <strong>arme légendaire</strong>.
+              </p>
+              <p>
+                En cas de victoire, votre arme reçoit un <strong className="text-emerald-300">upgrade permanent</strong> : des bonus en pourcentage sont appliqués sur chaque stat positive de l’arme (Auto, VIT, CAP, HP, DEF, ResC). Les plages de bonus sont tirées aléatoirement (environ +10 % à +20 % par stat concernée). Certaines armes peuvent aussi recevoir un <strong className="text-amber-300">malus</strong> sur une stat (par exemple la Vitesse), réduisant légèrement cette stat en échange des autres bonus. Les bonus et malus s’appliquent sur les stats totales du personnage en combat. Une fois forgée, l’arme conserve cet upgrade pour tous vos futurs combats.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-stone-800/70 border border-stone-600 p-5">
+            <h3 className="text-xl text-amber-300 font-bold mb-3">✨ Fusion des passifs (Extension du Territoire)</h3>
+            <div className="space-y-3 text-stone-300 text-sm">
+              <p>
+                L’<strong className="text-amber-200">Extension du Territoire</strong> est un donjon optionnel affrontant <strong>Satoru Gojo</strong>. Il est accessible uniquement si vous avez un <strong>passif Tour du Mage au niveau 3</strong>.
+              </p>
+              <p>
+                En cas de victoire, vous <strong className="text-emerald-300">conservez votre passif actuel</strong> (niveau 3) et vous gagnez un <strong className="text-emerald-300">second passif au niveau 1</strong>, tiré aléatoirement parmi les autres passifs du Tour du Mage. Le nom affiché est une <strong>fusion</strong> des deux passifs (ex. « Orbe du Sacrifice Sanguin », « Barrière de la Licorne »). Vous cumulez ainsi les effets de votre passif principal (niv. 3) et ceux du passif secondaire (niv. 1) pour tous vos combats.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
