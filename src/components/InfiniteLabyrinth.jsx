@@ -332,6 +332,7 @@ const InfiniteLabyrinth = () => {
         ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
         : null,
       equippedWeaponData: weapon,
+      forgeUpgrade: shownEnemyFloor?.bossKit?.forgeUpgrade || null,
       characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
       currentHP: replayP2HP || shownEnemyFloor.stats.hp,
       maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp,

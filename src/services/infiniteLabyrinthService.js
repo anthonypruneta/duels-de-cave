@@ -3,6 +3,7 @@ import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'fire
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
+import { generateForgeUpgradeRollSeeded } from '../data/forgeDungeon';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getEquippedWeapon } from './dungeonService';
@@ -42,6 +43,9 @@ const BOSS_MULTIPLIER = {
   hp: 1.4,
   otherStats: 1.15
 };
+
+/** Bonus HP réservé au boss de l'étage 100 (scaling final) */
+const BOSS_FLOOR_100_EXTRA_HP = 200;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -249,13 +253,15 @@ function pickBossKit(phase, floorNumber, rng) {
   }
 
   const weapon = pickSeeded(LEGENDARY_WEAPONS, rng);
+  const forgeUpgrade = floorNum === 100 ? generateForgeUpgradeRollSeeded(weapon.id, rng) : null;
   return {
     spellId: spell.id,
     spellClass: spell.class,
     passiveId: passive.id,
     passiveLevel,
     weaponId: weapon.id,
-    awakeningRaces
+    awakeningRaces,
+    forgeUpgrade
   };
 }
 
@@ -281,7 +287,10 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
     const picked = type === 'boss' ? bossPool.shift() : pickSeeded(mobs, rng);
 
     const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
-    const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
+    let finalStats = type === 'boss' ? computeBossStats(stats) : stats;
+    if (type === 'boss' && floorNumber === 100) {
+      finalStats = { ...finalStats, hp: finalStats.hp + BOSS_FLOOR_100_EXTRA_HP };
+    }
     const bossKit = type === 'boss' ? pickBossKit(phase, floorNumber, rng) : null;
 
     return {
@@ -428,6 +437,7 @@ function buildFloorEnemy(floor) {
       level: floor.bossKit.passiveLevel || 1
     } : null,
     equippedWeaponId: floor.bossKit?.weaponId || null,
+    forgeUpgrade: floor.bossKit?.forgeUpgrade || null,
     awakeningForced: awakeningRaces.length > 0
   };
 }

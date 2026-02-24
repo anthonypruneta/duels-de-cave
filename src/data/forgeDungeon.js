@@ -86,6 +86,9 @@ export const UPGRADE_RANGES = {
 
 const rollPct = (range) => parseFloat((Math.random() * (range.max - range.min) + range.min).toFixed(4));
 
+const rollPctWithRng = (range, rng) =>
+  parseFloat((rng() * (range.max - range.min) + range.min).toFixed(4));
+
 /**
  * Génère un roll d'upgrade aléatoire pour une arme légendaire.
  * Les % sont appliqués aux stats totales du personnage (voir applyForgeUpgrade dans weaponEffects).
@@ -108,6 +111,37 @@ export function generateForgeUpgradeRoll(weaponId) {
     } else if (statValue < 0) {
       const range = negativePctByWeapon[weaponId]?.[statKey] || negativePctDefault;
       statPenaltyPct[statKey] = rollPct(range);
+    }
+  }
+
+  return {
+    statBonusesPct,
+    statPenaltyPct,
+  };
+}
+
+/**
+ * Même logique que generateForgeUpgradeRoll mais avec un RNG déterministe (ex. labyrinthe hebdo).
+ * @param {string} weaponId - ID de l'arme légendaire
+ * @param {function(): number} rng - Fonction retournant un nombre dans [0, 1)
+ * @returns {{ statBonusesPct: Object<string, number>, statPenaltyPct: Object<string, number> }}
+ */
+export function generateForgeUpgradeRollSeeded(weaponId, rng) {
+  const weapon = getWeaponById(weaponId);
+  if (!weapon?.stats || !rng) {
+    return { statBonusesPct: {}, statPenaltyPct: {} };
+  }
+
+  const { positivePct, negativePctByWeapon, negativePctDefault } = UPGRADE_RANGES;
+  const statBonusesPct = {};
+  const statPenaltyPct = {};
+
+  for (const [statKey, statValue] of Object.entries(weapon.stats)) {
+    if (statValue > 0) {
+      statBonusesPct[statKey] = rollPctWithRng(positivePct, rng);
+    } else if (statValue < 0) {
+      const range = negativePctByWeapon[weaponId]?.[statKey] || negativePctDefault;
+      statPenaltyPct[statKey] = rollPctWithRng(range, rng);
     }
   }
 
