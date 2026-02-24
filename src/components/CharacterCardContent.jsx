@@ -184,6 +184,19 @@ export default function CharacterCardContent({
           </div>
         </div>
       )}
+      {character?.additionalAwakeningRaces?.length > 0 && character.additionalAwakeningRaces[0] && races[character.additionalAwakeningRaces[0]]?.awakening && (
+        <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+          <span className="text-lg">✨</span>
+          <div className="flex-1">
+            <div className="font-semibold text-amber-200">
+              Éveil racial actif — {character.additionalAwakeningRaces[0]} (Niv {races[character.additionalAwakeningRaces[0]].awakening.levelRequired}+)
+            </div>
+            <div className="text-stone-400 text-[11px]">
+              {races[character.additionalAwakeningRaces[0]].awakening.description}
+            </div>
+          </div>
+        </div>
+      )}
       {!isAwakeningActive && character?.race && races[character.race] && (
         <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
           <span className="text-lg">{races[character.race].icon}</span>
@@ -204,9 +217,14 @@ export default function CharacterCardContent({
     </div>
   );
 
+  const headerRacePart = (character?.additionalAwakeningRaces?.length > 0 && character?.race)
+    ? `${character.race} + ${character.additionalAwakeningRaces[0]}`
+    : (character?.race ?? '');
+  const header = `${headerRacePart} • ${character?.class ?? ''} • Niveau ${character?.level ?? 1}`;
+
   return (
     <UnifiedCharacterCard
-      header={`${character?.race ?? ''} • ${character?.class ?? ''} • Niveau ${character?.level ?? 1}`}
+      header={header}
       name={displayName}
       image={displayImage}
       fallback={character?.race && races[character.race] ? <div className="h-96 w-full flex items-center justify-center"><div className="text-9xl opacity-20">{races[character.race].icon}</div></div> : <div className="h-48 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>}

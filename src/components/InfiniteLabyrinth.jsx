@@ -7,7 +7,8 @@ import {
   getCurrentWeekId,
   getUserLabyrinthProgress,
   launchLabyrinthCombat,
-  resolveLabyrinthFloorImagePath
+  resolveLabyrinthFloorImagePath,
+  BOSS_FLOOR_100_EXTRA_HP
 } from '../services/infiniteLabyrinthService';
 import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
@@ -319,6 +320,9 @@ const InfiniteLabyrinth = () => {
       awakeningRaces = first ? [first, other] : [pool[0], pool[1] || pool[0]].slice(0, 2);
     }
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
+    const isBoss100 = floorNum === 100 && shownEnemyFloor?.type === 'boss';
+    const baseStats = isBoss100 ? { ...shownEnemyFloor.stats, hp: shownEnemyFloor.stats.hp + BOSS_FLOOR_100_EXTRA_HP } : shownEnemyFloor.stats;
+    const maxHP = baseStats.hp;
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
@@ -326,7 +330,7 @@ const InfiniteLabyrinth = () => {
       additionalAwakeningRaces: awakeningRaces.slice(1),
       class: shownEnemyFloor?.bossKit?.spellClass || null,
       level: shownEnemyFloor.floorNumber,
-      base: shownEnemyFloor.stats,
+      base: baseStats,
       bonuses: { race: {}, class: {} },
       mageTowerPassive: shownEnemyFloor?.bossKit?.passiveId
         ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
@@ -334,8 +338,8 @@ const InfiniteLabyrinth = () => {
       equippedWeaponData: weapon,
       forgeUpgrade: shownEnemyFloor?.bossKit?.forgeUpgrade || null,
       characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
-      currentHP: replayP2HP || shownEnemyFloor.stats.hp,
-      maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp,
+      currentHP: replayP2HP ?? maxHP,
+      maxHP: replayP2MaxHP ?? maxHP,
       awakeningForced: awakeningRaces.length > 0
     };
   }, [shownEnemyFloor, replayP2HP, replayP2MaxHP]);

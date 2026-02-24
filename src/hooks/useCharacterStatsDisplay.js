@@ -11,7 +11,7 @@
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
-import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
+import { applyAwakeningToBase, getAwakeningEffect, mergeAwakeningEffects, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -67,7 +67,10 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
   const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
-  const awakeningEffect = getAwakeningEffect(character.race, character.level ?? 1);
+  const effectiveLevel = character.level ?? 1;
+  const mainAwakeningEffect = getAwakeningEffect(character.race, effectiveLevel);
+  const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
+  const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
   const finalStatsBeforeForge = applyAwakeningToBase(baseWithPassive, awakeningEffect);
   const finalStats = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
     ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)

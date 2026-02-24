@@ -44,8 +44,8 @@ const BOSS_MULTIPLIER = {
   otherStats: 1.15
 };
 
-/** Bonus HP réservé au boss de l'étage 100 (scaling final) */
-const BOSS_FLOOR_100_EXTRA_HP = 200;
+/** Bonus HP réservé au boss de l'étage 100 (appliqué en buildFloorEnemy + affichage, anciens et nouveaux labyrinthes) */
+export const BOSS_FLOOR_100_EXTRA_HP = 200;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -287,10 +287,7 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
     const picked = type === 'boss' ? bossPool.shift() : pickSeeded(mobs, rng);
 
     const stats = computeLabyrinthStats(BASE_DUNGEON_LEVEL_1_STATS, floorNumber);
-    let finalStats = type === 'boss' ? computeBossStats(stats) : stats;
-    if (type === 'boss' && floorNumber === 100) {
-      finalStats = { ...finalStats, hp: finalStats.hp + BOSS_FLOOR_100_EXTRA_HP };
-    }
+    const finalStats = type === 'boss' ? computeBossStats(stats) : stats;
     const bossKit = type === 'boss' ? pickBossKit(phase, floorNumber, rng) : null;
 
     return {
@@ -424,13 +421,17 @@ function buildFloorEnemy(floor) {
   const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || null;
 
+  const baseStats = (floorNum === 100 && floor.type === 'boss')
+    ? { ...floor.stats, hp: floor.stats.hp + BOSS_FLOOR_100_EXTRA_HP }
+    : floor.stats;
+
   return {
     name: floor.enemyName,
     race,
     additionalAwakeningRaces,
     class: enemyClass,
     level: floor.floorNumber,
-    base: floor.stats,
+    base: baseStats,
     bonuses: { race: {}, class: {} },
     mageTowerPassive: floor.bossKit?.passiveId ? {
       id: floor.bossKit.passiveId,
