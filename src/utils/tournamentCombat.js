@@ -646,6 +646,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+    raw = applyMindflayerSpellMod(att, def, raw, 'dem', log, playerColor);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
@@ -888,10 +889,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
   // Mindflayer éveillé: marquer le flag après la première capacité lancée (le -1 CD ne s'applique qu'une fois)
+  // et réinitialiser le CD de la capacité utilisée à 0 pour que le prochain cycle utilise le CD complet
   if (skillUsed && att.race === 'Mindflayer' && !att.mindflayerFirstCDUsed) {
     const aw = att.awakening || {};
     const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
-    if (reduction > 0) att.mindflayerFirstCDUsed = true;
+    if (reduction > 0) {
+      att.mindflayerFirstCDUsed = true;
+      if (isMage) att.cd.mag = 0;
+      else if (isWar) att.cd.war = 0;
+      else if (isArcher) att.cd.arc = 0;
+    }
   }
 
   let mult = 1.0;
