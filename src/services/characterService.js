@@ -287,19 +287,28 @@ export const updateCharacterBaseStats = async (userId, baseStats) => {
   }
 };
 
-// Mettre à jour les boosts de stats de la forêt (avec level cap si actif)
+// Mettre à jour les boosts de stats de la forêt (avec level cap si actif).
+// À niveau 400+, les boosts ne sont pas modifiés (donjon forêt bloqué).
 export const updateCharacterForestBoosts = async (userId, forestBoosts, level = null) => {
   try {
-    const { clampLevel } = await import('../data/featureFlags.js');
+    const { clampLevel, MAX_LEVEL } = await import('../data/featureFlags.js');
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
-      const updateData = {
-        forestBoosts,
-        updatedAt: Timestamp.now()
-      };
-      if (level !== null) {
-        updateData.level = clampLevel(level);
+      const updateData = { updatedAt: Timestamp.now() };
+
+      const effectiveLevel = level !== null ? clampLevel(level) : null;
+      if (effectiveLevel !== null) {
+        updateData.level = effectiveLevel;
       }
+
+      if (effectiveLevel !== null && effectiveLevel >= MAX_LEVEL) {
+        const snap = await getDoc(characterRef);
+        const existing = snap.exists() ? snap.data() : {};
+        updateData.forestBoosts = existing.forestBoosts ?? forestBoosts;
+      } else {
+        updateData.forestBoosts = forestBoosts;
+      }
+
       await setDoc(characterRef, updateData, { merge: true });
     });
     return { success: true };

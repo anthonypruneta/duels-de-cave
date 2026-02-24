@@ -35,7 +35,7 @@ import {
   createForestBossCombatant
 } from '../data/forestDungeons';
 import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } from '../utils/statPoints';
-import { clampLevel } from '../data/featureFlags';
+import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import {
   applyGungnirDebuff,
   applyMjollnirStun,
@@ -1025,9 +1025,23 @@ const ForestDungeon = () => {
     return { updatedBoosts, gainsByStat };
   };
 
+  /** Un seul point de stats (un roll) — utilisé quand le gain doit être plafonné à 400. */
+  const rollOneStatPoint = (baseBoosts = character.forestBoosts) => {
+    const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
+    const stat = statsPool[Math.floor(Math.random() * statsPool.length)];
+    const updatedBoosts = { ...getEmptyStatBoosts(), ...(baseBoosts || {}) };
+    const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, 1);
+    return { updatedBoosts: updatedStats, gainsByStat: { [stat]: delta } };
+  };
+
   const handleStartRun = async () => {
     setError(null);
     setInstantMessage(null);
+    const currentLevelChar = character?.level ?? 1;
+    if (currentLevelChar >= MAX_LEVEL) {
+      setError('Le donjon de la forêt est bloqué au niveau maximum (400).');
+      return;
+    }
     const result = await startDungeonRun(currentUser.uid);
 
     if (!result.success) {
@@ -1060,6 +1074,11 @@ const ForestDungeon = () => {
   const handleInstantFinishRun = async () => {
     setError(null);
     setInstantMessage(null);
+    const currentLevelChar = character?.level ?? 1;
+    if (currentLevelChar >= MAX_LEVEL) {
+      setError('Le donjon de la forêt est bloqué au niveau maximum (400).');
+      return;
+    }
 
     const startResult = await startDungeonRun(currentUser.uid);
     if (!startResult.success) {
@@ -1070,30 +1089,40 @@ const ForestDungeon = () => {
     await markDungeonCompleted(currentUser.uid, 'forest');
     setCanInstantFinish(true);
 
-    const generateFullRunReward = () => {
-      let boosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
-      const totalGains = {};
-      let totalLevelGain = 0;
-      for (const levelData of getAllForestLevels()) {
-        const result = rollForestRewards(levelData, boosts);
-        boosts = result.updatedBoosts;
-        totalLevelGain += levelData.rewardRolls;
-        Object.entries(result.gainsByStat).forEach(([stat, value]) => {
-          totalGains[stat] = (totalGains[stat] || 0) + value;
-        });
-      }
-      return { updatedBoosts: boosts, gainsByStat: totalGains, totalLevelGain };
-    };
+    const fullLevelGain = getAllForestLevels().reduce((acc, l) => acc + l.rewardRolls, 0);
+    const allowedLevelGain = Math.min(fullLevelGain, MAX_LEVEL - currentLevelChar);
 
-    const option1 = generateFullRunReward();
-    const option2 = generateFullRunReward();
+    let option1, option2;
+    if (allowedLevelGain <= 0) {
+      const noGain = { updatedBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }, gainsByStat: {} };
+      option1 = option2 = noGain;
+    } else if (allowedLevelGain < fullLevelGain) {
+      option1 = rollOneStatPoint(character?.forestBoosts);
+      option2 = rollOneStatPoint(character?.forestBoosts);
+    } else {
+      const generateFullRunReward = () => {
+        let boosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
+        const totalGains = {};
+        for (const levelData of getAllForestLevels()) {
+          const result = rollForestRewards(levelData, boosts);
+          boosts = result.updatedBoosts;
+          Object.entries(result.gainsByStat).forEach(([stat, value]) => {
+            totalGains[stat] = (totalGains[stat] || 0) + value;
+          });
+        }
+        return { updatedBoosts: boosts, gainsByStat: totalGains };
+      };
+      option1 = generateFullRunReward();
+      option2 = generateFullRunReward();
+    }
 
     setRewardSummary({
       options: [
         { updatedBoosts: option1.updatedBoosts, gainsByStat: option1.gainsByStat },
         { updatedBoosts: option2.updatedBoosts, gainsByStat: option2.gainsByStat }
       ],
-      levelGain: option1.totalLevelGain,
+      levelGain: allowedLevelGain <= 0 ? 0 : (allowedLevelGain < fullLevelGain ? 1 : fullLevelGain),
+      allowedLevelGain,
       hasNextLevel: false,
       nextLevel: getAllForestLevels().length + 1
     });
@@ -1133,9 +1162,21 @@ const ForestDungeon = () => {
       setCombatResult('victory');
 
       const levelData = getForestLevelByNumber(currentLevel);
-      const rewardOption1 = rollForestRewards(levelData);
-      const rewardOption2 = rollForestRewards(levelData);
-      const levelGain = levelData.rewardRolls;
+      const currentLevelChar = character?.level ?? 1;
+      const rawLevelGain = levelData.rewardRolls;
+      const allowedLevelGain = Math.min(rawLevelGain, MAX_LEVEL - currentLevelChar);
+
+      let rewardOption1, rewardOption2;
+      if (allowedLevelGain <= 0) {
+        const noGain = { updatedBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }, gainsByStat: {} };
+        rewardOption1 = rewardOption2 = noGain;
+      } else if (allowedLevelGain < rawLevelGain) {
+        rewardOption1 = rollOneStatPoint(character?.forestBoosts);
+        rewardOption2 = rollOneStatPoint(character?.forestBoosts);
+      } else {
+        rewardOption1 = rollForestRewards(levelData);
+        rewardOption2 = rollForestRewards(levelData);
+      }
 
       const nextLevel = currentLevel + 1;
       if (nextLevel > getAllForestLevels().length) {
@@ -1147,7 +1188,7 @@ const ForestDungeon = () => {
           { updatedBoosts: rewardOption1.updatedBoosts, gainsByStat: rewardOption1.gainsByStat },
           { updatedBoosts: rewardOption2.updatedBoosts, gainsByStat: rewardOption2.gainsByStat }
         ],
-        levelGain,
+        levelGain: allowedLevelGain,
         hasNextLevel: nextLevel <= getAllForestLevels().length,
         nextLevel
       });
@@ -1165,10 +1206,11 @@ const ForestDungeon = () => {
   const handleForestChoice = (optionIndex) => {
     if (!rewardSummary || !rewardSummary.options?.[optionIndex]) return;
     const chosen = rewardSummary.options[optionIndex];
+    const levelGain = rewardSummary.levelGain ?? 0;
 
     const updatedCharacter = {
       ...character,
-      level: clampLevel((character.level ?? 1) + rewardSummary.levelGain),
+      level: clampLevel((character.level ?? 1) + levelGain),
       forestBoosts: chosen.updatedBoosts
     };
     setCharacter(updatedCharacter);
@@ -1808,27 +1850,34 @@ const ForestDungeon = () => {
           </div>
         )}
 
+        {(character?.level ?? 0) >= MAX_LEVEL && (
+          <div className="bg-amber-900/40 border border-amber-600 p-4 mb-6 text-center">
+            <p className="text-amber-200 font-semibold">Donjon bloqué : niveau maximum (400) atteint.</p>
+            <p className="text-stone-400 text-sm mt-1">Aucun gain possible au-delà du niveau 400.</p>
+          </div>
+        )}
+
         <div className="flex gap-4 justify-center">
           <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
             Retour
           </button>
           <button
             onClick={handleStartRun}
-            disabled={!dungeonSummary?.runsRemaining}
+            disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
             className={`px-12 py-4 font-bold text-xl ${
-              dungeonSummary?.runsRemaining > 0
+              dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
                 ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la forêt' : 'Plus de runs'}
+            {dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL ? 'Entrer dans la forêt' : (character?.level ?? 0) >= MAX_LEVEL ? 'Bloqué (niveau max)' : 'Plus de runs'}
           </button>
           {canInstantFinish && (
             <button
               onClick={handleInstantFinishRun}
-              disabled={!dungeonSummary?.runsRemaining}
+              disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
               className={`px-8 py-4 font-bold border ${
-                dungeonSummary?.runsRemaining > 0
+                dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
               }`}
