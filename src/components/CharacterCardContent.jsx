@@ -7,7 +7,8 @@
 import React from 'react';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
+import { getRaceBonusText } from '../utils/descriptionBuilders';
+import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import { formatUpgradePct, extractForgeUpgrade } from '../data/forgeDungeon';
 import { useCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay';
 import SharedTooltip from './SharedTooltip';
@@ -195,7 +196,7 @@ export default function CharacterCardContent({
           <div className="flex-1">
             <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
             <div className="text-stone-400 text-[11px]">
-              {getClassDescriptionText(character.class)}
+              {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0)}
             </div>
           </div>
         </div>
