@@ -130,9 +130,14 @@ function mergeAwakeningEffects(effects = []) {
     if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
 
     if (effect.reviveOnce) acc.reviveOnce = true;
+    if (typeof effect.damageBonus === 'number') acc.damageBonus = effect.damageBonus;
 
     return acc;
   }, {});
+}
+
+function hasMortVivantRevive(fighter) {
+  return (fighter.race === 'Mort-vivant' || (fighter.awakening?.revivePercent ?? 0) > 0) && !fighter.undead;
 }
 
 function applyStartOfCombatPassives(attacker, defender, log, label) {
@@ -301,7 +306,7 @@ function getMindflayerCapacityCooldown(caster, _target, capacityId) {
     adjustedCooldown += verdictPenalty;
   }
 
-  if (caster.race === 'Mindflayer' && adjustedCooldown > 1 && !caster.mindflayerFirstCDUsed) {
+  if ((caster.race === 'Mindflayer' || caster.awakening?.mindflayerOwnCooldownReductionTurns != null) && adjustedCooldown > 1 && !caster.mindflayerFirstCDUsed) {
     const casterAwakening = caster.awakening || {};
     const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
     if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
@@ -311,7 +316,7 @@ function getMindflayerCapacityCooldown(caster, _target, capacityId) {
 }
 
 function applyMindflayerCapacityMod(caster, _target, baseDamage, capacityId, log, playerColor) {
-  if (caster.race !== 'Mindflayer') return baseDamage;
+  if (caster.race !== 'Mindflayer' && (caster.awakening?.mindflayerNoCooldownSpellBonus == null)) return baseDamage;
   if (caster.mindflayerNoCooldownBonusUsed) return baseDamage;
 
   const effectiveCooldown = getMindflayerCapacityCooldown(caster, _target, capacityId);
@@ -331,8 +336,10 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
   // Le Mindflayer copie la capacité uniquement, pas les passifs de la tour. Attaquant = Mindflayer → passifs vides. Défenseur = caster → garde ses passifs défensifs.
   const attackerPassives = [];
   const defenderPassives = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
-  if (target?.race !== 'Mindflayer') return;
-  if (caster?.race === 'Mindflayer') return; // Ne pas copier si l'adversaire est aussi un Mindflayer
+  const targetHasMindflayer = target?.race === 'Mindflayer' || target?.awakening?.mindflayerStealSpellCapDamageScale != null;
+  const casterHasMindflayer = caster?.race === 'Mindflayer' || caster?.awakening?.mindflayerStealSpellCapDamageScale != null;
+  if (!targetHasMindflayer) return;
+  if (casterHasMindflayer) return; // Ne pas copier si l'adversaire est aussi un Mindflayer
   if (target.mindflayerCapacityCopyUsed) return;
   if (target.currentHP <= 0 || caster.currentHP <= 0) return;
 
@@ -467,7 +474,7 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
 
 function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
   if (adjusted <= 0) return;
-  if (def.race === 'Sirène') {
+  if (def.race === 'Sirène' || def.awakening?.sireneMaxStacks != null) {
     const maxStacks = def.awakening?.sireneMaxStacks ?? raceConstants.sirene.maxStacks;
     def.sireneStacks = Math.min(maxStacks, (def.sireneStacks || 0) + 1);
     log.push(`${playerColor} 🧜 ${def.name} gagne un stack Sirène (${def.sireneStacks}/${maxStacks}).`);
@@ -533,7 +540,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         tryTriggerOnctionLastStand(att, log, playerColor);
         if (att.awakening?.damageStackBonus) att.awakening.damageTakenStacks += 1;
         log.push(`${playerColor} 💥 Le bouclier de ${def.name} explose et inflige ${explosionDamage} points de dégâts à ${att.name}`);
-        if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
+        if (att.currentHP <= 0 && hasMortVivantRevive(att)) {
           reviveUndead(att, def, log, playerColor);
         }
       }
@@ -661,7 +668,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.currentHP = Math.min(att.maxHP, att.currentHP + weaponRegen);
   }
 
-  if (att.race === 'Sylvari') {
+  // Sylvari (race principale ou éveil additionnel) : régen % PV max par tour
+  if (att.race === 'Sylvari' || (att.awakening?.regenPercent ?? 0) > 0) {
     const regenPercent = att.awakening ? (att.awakening.regenPercent ?? 0) : raceConstants.sylvari.regenPercent;
     const heal = Math.max(1, Math.round(att.maxHP * regenPercent * getAntiHealFactor(def)));
     att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -702,7 +710,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const inflictedCodex = applyDamage(att, def, demonSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
       log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
     }
-    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
+    if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
   }
 
   if (att.class === 'Masochiste' && !capacityStolen) {
@@ -739,9 +747,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
         }
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} renvoie les dégâts accumulés: inflige ${inflicted2} points de dégâts et récupère ${masoSpellEffects.secondCastHeal} points de vie`);
       }
-      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
-    }
+    if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
   }
+}
 
   if (att.bleed_stacks > 0) {
     let bleedDmg = att.bleedPercentPerStack
@@ -755,7 +763,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.currentHP -= bleedDmg;
     tryTriggerOnctionLastStand(att, log, playerColor);
     log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
-    if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
+    if (att.currentHP <= 0 && hasMortVivantRevive(att)) reviveUndead(att, def, log, playerColor);
   }
 
   // Saignement Labrys d'Arès: dégâts bruts quand la cible attaque (cap Cataclysme comme le bleed Lycan)
@@ -773,9 +781,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       } else {
         labrysResult.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
-      if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) reviveUndead(att, def, log, playerColor);
-    }
+    if (att.currentHP <= 0 && hasMortVivantRevive(att)) reviveUndead(att, def, log, playerColor);
   }
+}
 
   if (att.class === 'Paladin' && att.cd.pal === getMindflayerCapacityCooldown(att, def, 'pal') && !capacityStolen) {
     skillUsed = true;
@@ -789,7 +797,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
     }
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
-    if (def?.race === 'Mindflayer') {
+    if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus);
     }
   }
@@ -799,7 +807,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
-    const sireneBoost = att.race === 'Sirène' ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
+    const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
     let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
@@ -817,7 +825,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false);
       log.push(`${playerColor} ${healEffects.log.join(' ')}`);
     }
-    if (def?.race === 'Mindflayer') {
+    if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, heal);
     }
   }
@@ -882,7 +890,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     consumeAuraCapacityCapMultiplier(); // Première capacité du combat (consomme le bonus même si pas de CAP ici)
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
-    if (def?.race === 'Mindflayer') {
+    if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus);
     }
   }
@@ -904,7 +912,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const raw = dmgCap(spellDmg, def.base.rescap);
       const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
-      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
         reviveUndead(def, att, log, playerColor);
       }
       att.cd.boss_ability = 0;
@@ -923,7 +931,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         def.stunnedTurns = stunDuration;
         log.push(`${playerColor} 😵 ${def.name} est étourdi pendant ${stunDuration} tour !`);
       }
-      if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
         reviveUndead(def, att, log, playerColor);
       }
       att.cd.boss_ability = 0;
@@ -948,7 +956,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
           def.stunnedTurns = spell.stun;
           log.push(`${playerColor} 😵 ${def.name} est étourdi pendant ${spell.stun} tour !`);
         }
-        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+        if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
           reviveUndead(def, att, log, playerColor);
         }
         return;
@@ -963,7 +971,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   // Mindflayer éveillé: marquer le flag après la première capacité lancée (le -1 CD ne s'applique qu'une fois)
   // et réinitialiser le CD de la capacité utilisée à 0 pour que le prochain cycle utilise le CD complet
-  if (skillUsed && att.race === 'Mindflayer' && !att.mindflayerFirstCDUsed) {
+  if (skillUsed && (att.race === 'Mindflayer' || att.awakening?.mindflayerOwnCooldownReductionTurns != null) && !att.mindflayerFirstCDUsed) {
     const aw = att.awakening || {};
     const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
     if (reduction > 0) {
@@ -986,7 +994,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.succubeWeakenNextAttack = false;
     log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
   }
-  if (att.race === 'Orc' && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP) mult = raceConstants.orc.damageBonus;
+  const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
+  if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
 
   const baseHits = isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
@@ -1093,7 +1102,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         tryTriggerOnctionLastStand(att, log, playerColor);
         log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(orbePassive.levelData.autoDamageBonus * 100)}%)`);
       }
-      if (att.race === 'Lycan') {
+      if (att.race === 'Lycan' || (att.awakening?.bleedStacksPerHit ?? 0) > 0) {
         const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
         if (bleedStacks > 0) {
           def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
@@ -1102,7 +1111,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
     }
 
-    if ((isMage || isWar || (isArcher && !isBonusAttack)) && att.race === 'Sirène' && (att.sireneStacks || 0) > 0) {
+    if ((isMage || isWar || (isArcher && !isBonusAttack)) && (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
       const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
       raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
     }
@@ -1161,7 +1170,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       flushPendingCombatLogs(att, log);
     }
 
-    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+    if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
       reviveUndead(def, att, log, playerColor);
     } else if (def.currentHP <= 0) {
       total += inflicted;
@@ -1177,7 +1186,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     def.currentHP -= lightningDamage;
     tryTriggerOnctionLastStand(def, log, playerColor);
     log.push(`${playerColor} ⚡ Furie élémentaire déclenche un éclair et inflige ${lightningDamage} dégâts bruts`);
-    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
+    if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
   }
 
   if (!isArcher && total > 0) {
