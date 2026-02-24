@@ -217,10 +217,11 @@ function pickBossKit(phase, floorNumber, rng) {
   const passive = pickSeeded(MAGE_TOWER_PASSIVES, rng);
   let awakeningRaces = [];
 
-  if (floorNumber === 90 || floorNumber === 100) {
+  const floorNum = Number(floorNumber);
+  if (floorNum === 90 || floorNum === 100) {
     const firstRace = pickSeeded(AWAKENING_RACE_POOL, rng);
     awakeningRaces = [firstRace];
-    if (floorNumber === 100) {
+    if (floorNum === 100) {
       const remaining = AWAKENING_RACE_POOL.filter((raceName) => raceName !== firstRace);
       const secondRace = remaining.length ? pickSeeded(remaining, rng) : firstRace;
       awakeningRaces.push(secondRace);
@@ -402,7 +403,14 @@ async function getPreparedUserCharacter(userId) {
 }
 
 function buildFloorEnemy(floor) {
-  const awakeningRaces = floor.bossKit?.awakeningRaces || [];
+  let awakeningRaces = floor.bossKit?.awakeningRaces || [];
+  const floorNum = Number(floor.floorNumber);
+  // Boss étage 100 : toujours 2 éveils raciaux (rattrapage si ancienne config n'en avait qu'un)
+  if (floorNum === 100 && floor.type === 'boss' && awakeningRaces.length < 2) {
+    const first = awakeningRaces[0];
+    const other = AWAKENING_RACE_POOL.find((r) => r !== first) || first;
+    awakeningRaces = first ? [first, other] : [other, AWAKENING_RACE_POOL[0]].slice(0, 2);
+  }
   const race = awakeningRaces[0] || null;
   const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || null;

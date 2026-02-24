@@ -310,12 +310,20 @@ const InfiniteLabyrinth = () => {
 
   const enemyCharacter = useMemo(() => {
     if (!shownEnemyFloor) return null;
+    let awakeningRaces = shownEnemyFloor?.bossKit?.awakeningRaces || [];
+    const floorNum = Number(shownEnemyFloor.floorNumber);
+    if (floorNum === 100 && shownEnemyFloor?.type === 'boss' && awakeningRaces.length < 2) {
+      const pool = Object.keys(races).filter((name) => races[name]?.awakening);
+      const first = awakeningRaces[0];
+      const other = pool.find((r) => r !== first) || first;
+      awakeningRaces = first ? [first, other] : [pool[0], pool[1] || pool[0]].slice(0, 2);
+    }
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
       name: shownEnemyFloor.enemyName,
-      race: shownEnemyFloor?.bossKit?.awakeningRaces?.[0] || null,
-      additionalAwakeningRaces: shownEnemyFloor?.bossKit?.awakeningRaces?.slice(1) || [],
+      race: awakeningRaces[0] || null,
+      additionalAwakeningRaces: awakeningRaces.slice(1),
       class: shownEnemyFloor?.bossKit?.spellClass || null,
       level: shownEnemyFloor.floorNumber,
       base: shownEnemyFloor.stats,
@@ -327,7 +335,7 @@ const InfiniteLabyrinth = () => {
       characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
       currentHP: replayP2HP || shownEnemyFloor.stats.hp,
       maxHP: replayP2MaxHP || shownEnemyFloor.stats.hp,
-      awakeningForced: (shownEnemyFloor?.bossKit?.awakeningRaces || []).length > 0
+      awakeningForced: awakeningRaces.length > 0
     };
   }, [shownEnemyFloor, replayP2HP, replayP2MaxHP]);
 
