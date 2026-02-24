@@ -1150,14 +1150,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
     }
 
-    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
-      reviveUndead(def, att, log, playerColor);
-    } else if (def.currentHP <= 0) {
-      total += inflicted;
-      break;
-    }
-
-    total += inflicted;
+    // Log du tir / attaque bonus avant le test de mort : si le second tir est létal, on doit quand même afficher ses dégâts
     if (isArcher && !isBonusAttack) {
       const critText = isCrit ? ' CRITIQUE !' : '';
       const shotLabel = i === 0 ? 'tir' : 'tir renforcé';
@@ -1167,6 +1160,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} 🌟 Attaque bonus: ${att.name} inflige ${inflicted} points de dégâts`);
       flushPendingCombatLogs(att, log);
     }
+
+    if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+      reviveUndead(def, att, log, playerColor);
+    } else if (def.currentHP <= 0) {
+      total += inflicted;
+      break;
+    }
+
+    total += inflicted;
   }
 
   const elementalFuryPassive = getPassiveById(attackerPassiveList, 'elemental_fury');
