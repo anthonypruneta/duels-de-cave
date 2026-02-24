@@ -108,16 +108,19 @@ function mergeAwakeningEffects(effects = []) {
 }
 
 function applyStartOfCombatPassives(attacker, defender, log, label) {
-  const passiveDetails = getPassiveDetails(attacker.mageTowerPassive);
-  if (passiveDetails?.id === 'arcane_barrier') {
-    const shieldValue = Math.max(1, Math.round(attacker.maxHP * passiveDetails.levelData.shieldPercent));
-    attacker.shield = shieldValue;
-    log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
-  }
-  if (passiveDetails?.id === 'mind_breach' && !defender.isWorldBoss) {
-    const reduction = passiveDetails.levelData.defReduction;
-    defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
-    log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+  const passives = [attacker.mageTowerPassive, attacker.mageTowerExtensionPassive].filter(Boolean);
+  for (const p of passives) {
+    const passiveDetails = getPassiveDetails(p);
+    if (passiveDetails?.id === 'arcane_barrier') {
+      const shieldValue = Math.max(1, Math.round(attacker.maxHP * passiveDetails.levelData.shieldPercent));
+      attacker.shield = (attacker.shield || 0) + shieldValue;
+      log.push(`${label} 🛡️ Barrière arcanique: ${attacker.name} gagne un bouclier de ${shieldValue} PV.`);
+    }
+    if (passiveDetails?.id === 'mind_breach' && !defender.isWorldBoss) {
+      const reduction = passiveDetails.levelData.defReduction;
+      defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
+      log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
+    }
   }
 
   if (attacker?.ability?.type === 'lich_shield') {
@@ -881,6 +884,32 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       att.cd.boss_ability = 0;
     }
+
+    // Gojo (Extension du Territoire) : sorts fixes aux tours 2, 4, 6
+    if (att.bossId === 'gojo' && att.ability?.spells) {
+      const spell = att.ability.spells[turn];
+      if (spell) {
+        let spellDmg;
+        if (spell.damage.targetHpPercent != null) {
+          spellDmg = Math.round(att.base.auto + def.currentHP * spell.damage.targetHpPercent);
+        } else {
+          spellDmg = Math.round(att.base.auto * (spell.damage.autoScale || 1) + att.base.cap * (spell.damage.capScale || 0));
+        }
+        const raw = dmgCap(spellDmg, def.base.rescap);
+        const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+        const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
+        log.push(`${playerColor} ${emoji} ${att.name} lance ${spell.name} et inflige ${inflicted} points de dégâts`);
+        if (def.currentHP > 0 && spell.stun > 0) {
+          def.stunned = true;
+          def.stunnedTurns = spell.stun;
+          log.push(`${playerColor} 😵 ${def.name} est étourdi pendant ${spell.stun} tour !`);
+        }
+        if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
+          reviveUndead(def, att, log, playerColor);
+        }
+        return;
+      }
+    }
   }
 
   const isMage = !spellStolen && att.class === 'Mage' && att.cd.mag === getMindflayerSpellCooldown(att, def, 'mag');
@@ -1171,8 +1200,25 @@ export function simulerMatch(char1, char2) {
     } else {
       first = p1.base.spd >= p2.base.spd ? p1 : p2;
     }
-    const second = first === p1 ? p2 : p1;
-    const firstIsP1 = first === p1;
+    let second = first === p1 ? p2 : p1;
+    let firstIsP1 = first === p1;
+
+    // Gojo (Extension du Territoire) : tour 2 et 6 il attaque en premier, tour 4 en second
+    const gojoFighter = p1.bossId === 'gojo' ? p1 : (p2.bossId === 'gojo' ? p2 : null);
+    if (gojoFighter && (turn === 2 || turn === 4 || turn === 6)) {
+      const spell = gojoFighter.ability?.spells?.[turn];
+      if (spell) {
+        if (spell.attackFirst) {
+          first = gojoFighter;
+          second = gojoFighter === p1 ? p2 : p1;
+          firstIsP1 = first === p1;
+        } else {
+          first = gojoFighter === p1 ? p2 : p1;
+          second = gojoFighter;
+          firstIsP1 = first === p1;
+        }
+      }
+    }
 
     // First player action
     const firstActionLogs = [];

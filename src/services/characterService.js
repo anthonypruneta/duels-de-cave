@@ -335,6 +335,23 @@ export const updateCharacterMageTowerPassive = async (userId, mageTowerPassive) 
   }
 };
 
+// Mettre à jour le passif secondaire (Extension du Territoire)
+export const updateCharacterMageTowerExtensionPassive = async (userId, mageTowerExtensionPassive) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        mageTowerExtensionPassive: mageTowerExtensionPassive || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du passif extension:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour l'arme équipée (stockée dans le personnage)
 export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   try {

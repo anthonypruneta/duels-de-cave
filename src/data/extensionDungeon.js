@@ -1,0 +1,153 @@
+/**
+ * Donjon Extension du Territoire
+ *
+ * Boss unique : Satoru Gojo
+ * Accessible uniquement avec un passif Tour du Mage niveau 3.
+ * Récompense : garder son passif actuel + ajout d'un passif niveau 1 (nom mixé).
+ */
+
+import { getMageTowerPassiveById, getAvailablePassives } from './mageTowerPassives';
+
+export const EXTENSION_BOSS = {
+  id: 'gojo',
+  nom: 'Satoru Gojo',
+  icon: '👁️',
+  imageFile: 'Satoru Gojo.png',
+  stats: {
+    hp: 430,
+    auto: 120,
+    def: 80,
+    cap: 120,
+    rescap: 80,
+    spd: 120,
+  },
+  spells: {
+    2: {
+      name: 'Sort Originel, Bleu',
+      color: 'bleu',
+      description: 'Attaque en premier. Inflige Auto + 50% CAP en dégâts.',
+      attackFirst: true,
+      damage: { autoScale: 1, capScale: 0.5 },
+      stun: 0,
+    },
+    4: {
+      name: 'Sort Inversé, Rouge',
+      color: 'rouge',
+      description: 'Attaque en second. Inflige Auto + 25% CAP et étourdit 1 tour.',
+      attackFirst: false,
+      damage: { autoScale: 1, capScale: 0.25 },
+      stun: 1,
+    },
+    6: {
+      name: 'Équation Imaginaire, Violet',
+      color: 'violet',
+      description: 'Inflige Auto + 50% de la vie actuelle de l\'adversaire.',
+      attackFirst: true,
+      damage: { autoScale: 1, targetHpPercent: 0.5 },
+      stun: 0,
+    },
+  },
+};
+
+/**
+ * Noms mixés pour l'affichage (passif principal + passif secondaire)
+ * Clé = id1_id2 (ordre alphabétique pour unicité)
+ */
+const MIXED_PASSIVE_NAMES = {
+  arcane_barrier_elemental_fury: 'Barrière de Foudre',
+  arcane_barrier_essence_drain: 'Barrière Sanguine',
+  arcane_barrier_mind_breach: 'Barrière Brèche',
+  arcane_barrier_obsidian_skin: 'Barrière d\'Obsidienne',
+  arcane_barrier_spectral_mark: 'Barrière Spectrale',
+  arcane_barrier_unicorn_pact: 'Pacte Arcanique',
+  arcane_barrier_aura_overload: 'Barrière Surchargée',
+  elemental_fury_essence_drain: 'Furie Sanguine',
+  elemental_fury_mind_breach: 'Furie Brèche',
+  elemental_fury_obsidian_skin: 'Furie d\'Obsidienne',
+  elemental_fury_spectral_mark: 'Furie Spectrale',
+  elemental_fury_unicorn_pact: 'Furie de la Licorne',
+  elemental_fury_aura_overload: 'Furie Surchargée',
+  essence_drain_mind_breach: 'Vol Brèche',
+  essence_drain_obsidian_skin: 'Vol d\'Obsidienne',
+  essence_drain_spectral_mark: 'Vol Spectral',
+  essence_drain_unicorn_pact: 'Pacte Sanguin',
+  essence_drain_aura_overload: 'Vol Surchargé',
+  mind_breach_obsidian_skin: 'Brèche d\'Obsidienne',
+  mind_breach_spectral_mark: 'Brèche Spectrale',
+  mind_breach_unicorn_pact: 'Brèche du Pacte',
+  mind_breach_aura_overload: 'Brèche Surchargée',
+  obsidian_skin_spectral_mark: 'Obsidienne Spectrale',
+  obsidian_skin_unicorn_pact: 'Pacte d\'Obsidienne',
+  obsidian_skin_aura_overload: 'Obsidienne Surchargée',
+  spectral_mark_unicorn_pact: 'Marque du Pacte',
+  spectral_mark_aura_overload: 'Marque Surchargée',
+  unicorn_pact_aura_overload: 'Pacte Surchargé',
+  // Vague 2
+  orbe_sacrifice_elemental_fury: 'Sacrifice de Foudre',
+  orbe_sacrifice_obsidian_skin: 'Sacrifice d\'Obsidienne',
+  onction_eternite_arcane_barrier: 'Onction Arcanique',
+  onction_eternite_essence_drain: 'Onction Sanguine',
+  rituel_fracture_mind_breach: 'Rituel Brèche',
+  rituel_fracture_obsidian_skin: 'Rituel d\'Obsidienne',
+};
+
+function getMixedKey(id1, id2) {
+  if (!id1 || !id2) return null;
+  const sorted = [id1, id2].sort();
+  return `${sorted[0]}_${sorted[1]}`;
+}
+
+/**
+ * Retourne le nom mixé pour l'affichage (passif principal + passif secondaire)
+ */
+export function getMixedPassiveDisplayName(primaryPassiveId, secondaryPassiveId) {
+  const key = getMixedKey(primaryPassiveId, secondaryPassiveId);
+  return (key && MIXED_PASSIVE_NAMES[key]) || null;
+}
+
+/**
+ * Retourne les passifs éligibles comme secondaire (niveau 1) : tous sauf le passif actuel.
+ */
+export function getExtensionPassiveOptions(currentPassiveId) {
+  const available = getAvailablePassives();
+  return available
+    .filter((p) => p.id !== currentPassiveId)
+    .map((p) => ({ id: p.id, name: p.name, icon: p.icon, level: 1 }));
+}
+
+/**
+ * Crée le combattant Gojo pour le combat
+ */
+export function createExtensionBossCombatant() {
+  return {
+    name: EXTENSION_BOSS.nom,
+    bossId: EXTENSION_BOSS.id,
+    isBoss: true,
+    base: { ...EXTENSION_BOSS.stats },
+    currentHP: EXTENSION_BOSS.stats.hp,
+    maxHP: EXTENSION_BOSS.stats.hp,
+    ability: { type: 'gojo_turn_spells', spells: EXTENSION_BOSS.spells },
+    imageFile: EXTENSION_BOSS.imageFile,
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
+    undead: false,
+    dodge: false,
+    reflect: false,
+    bleed_stacks: 0,
+    bleedPercentPerStack: 0,
+    maso_taken: 0,
+    familiarStacks: 0,
+    shield: 0,
+    spectralMarked: false,
+    spectralMarkBonus: 0,
+    stunned: false,
+    stunnedTurns: 0,
+    _labrysBleedPercent: 0,
+  };
+}
+
+/**
+ * Indique si le joueur a accès au donjon (passif niveau 3)
+ */
+export function canAccessExtensionDungeon(mageTowerPassive) {
+  return mageTowerPassive?.level === 3 && mageTowerPassive?.id;
+}

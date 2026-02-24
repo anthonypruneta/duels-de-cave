@@ -20,6 +20,7 @@ import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
 import ForgeDungeon from './components/ForgeDungeon';
+import ExtensionDungeon from './components/ExtensionDungeon';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -139,6 +140,16 @@ function Application() {
               <ProtectedRoute>
                 <ModeAvailabilityRoute>
                   <ForgeDungeon />
+                </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/extension"
+            element={
+              <ProtectedRoute>
+                <ModeAvailabilityRoute>
+                  <ExtensionDungeon />
                 </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
