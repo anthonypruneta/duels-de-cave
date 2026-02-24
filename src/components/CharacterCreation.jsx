@@ -15,7 +15,7 @@ import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS }
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
-import { applyPassiveWeaponStats } from '../utils/weaponEffects';
+import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
@@ -33,7 +33,7 @@ const Tooltip = ({ children, content }) => {
   return (
     <span className="relative group cursor-help">
       {children}
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-900 border border-amber-500 rounded-lg text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[100] shadow-lg">
         {content}
         <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-500"></span>
       </span>
@@ -1039,7 +1039,10 @@ const CharacterCreation = () => {
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive, skipWeaponFlat) : baseStats;
     const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
     const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
-    const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+    let finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+    if (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade)) {
+      finalStats = applyForgeUpgrade(finalStats, forgeUpgrade);
+    }
 
     const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
     const getRaceDisplayBonus = (k) => {
