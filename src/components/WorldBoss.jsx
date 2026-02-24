@@ -25,6 +25,7 @@ import {
   getClassBonus
 } from '../data/combatMechanics';
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
+import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 
 // Images du boss cataclysme (piochées par semaine, nom du fichier = nom du boss)
@@ -657,194 +658,6 @@ const WorldBoss = () => {
     return processText(text);
   };
 
-  // === CharacterCard joueur (identique à Combat.jsx) ===
-  const PlayerCard = ({ char }) => {
-    if (!char) return null;
-    const safeMaxHP = Math.max(1, char.maxHP || 1);
-    const hpRatio = Math.max(0, Math.min(1, (char.currentHP || 0) / safeMaxHP));
-    const hpPercent = hpRatio * 100;
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((char.shield || 0) / safeMaxHP) * 100) : 0;
-    const raceB = getRaceBonus(char.race);
-    const classB = getClassBonus(char.class);
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const forestBoosts = getForestBoosts(char);
-    const weapon = char.equippedWeaponData;
-    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
-    const awakeningInfo = races[char.race]?.awakening || null;
-    const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStatsRaw = applyStatBoosts(char.base, forestBoosts);
-    const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, char.race, char.level ?? 1);
-    const rawBase = char.base;
-    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-    const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive, skipWeaponFlat) : baseStats;
-    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + weaponStatValue('auto'));
-    const awakeningEffect = getAwakeningEffect(char.race, char.level ?? 1);
-    const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
-    const baseWithoutBonus = (k) => (rawBase?.[k] ?? 0) - totalBonus(k);
-
-    const getRaceDisplayBonus = (k) => {
-      if (!isAwakeningActive) return raceB[k] || 0;
-
-      const classBonus = classB[k] || 0;
-      const forestBonus = forestBoosts[k] || 0;
-      const weaponBonus = weaponStatValue(k);
-      const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
-      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
-      return (finalStats[k] ?? 0) - subtotalWithoutRace;
-    };
-
-    const tooltipContent = (k) => {
-      const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-      if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
-      if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
-
-      const raceDisplayBonus = getRaceDisplayBonus(k);
-      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
-      if (isForgeActive() && char.forgeUpgrade) {
-        const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
-        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
-        const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
-        if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
-      }
-      return parts.join(' | ');
-    };
-
-    const getDisplayedStatValue = (statKey) => {
-      return finalStats[statKey] ?? 0;
-    };
-
-    const displayedMaxHP = Math.max(1, getDisplayedStatValue('hp'));
-    const displayedCurrentHP = Math.max(0, Math.round(displayedMaxHP * hpRatio));
-    const characterImage = char.characterImage || testImage1;
-
-    const StatWithTooltip = ({ statKey, label }) => {
-      const weaponDelta = weaponStatValue(statKey);
-      const passiveBonus = statKey === 'auto' ? passiveAutoBonus : 0;
-      const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveBonus;
-      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-      const finalDisplayValue = getDisplayedStatValue(statKey);
-      return (
-        <Tooltip content={tooltipContent(statKey)}>
-          <span className={`${totalDelta !== 0 ? labelClass : ''} font-bold`}>
-            {label}: {finalDisplayValue}
-          </span>
-        </Tooltip>
-      );
-    };
-
-    return (
-      <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-          {char.race} • {char.class} • Niveau {char.level ?? 1}
-        </div>
-        <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            <img src={characterImage} alt={char.name} className="w-full h-auto object-contain" />
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-white font-bold text-xl text-center">{char.name}</div>
-            </div>
-          </div>
-          <div className="bg-stone-800 p-4 border-t border-stone-600">
-            <div className="mb-3">
-              <div className="flex justify-between text-sm text-white mb-2">
-                <StatWithTooltip statKey="hp" label="HP" />
-                <StatWithTooltip statKey="spd" label="VIT" />
-              </div>
-              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {displayedCurrentHP}/{displayedMaxHP}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
-              </div>
-              {(char.shield || 0) > 0 && (
-                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                  <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-              <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
-            </div>
-            <div className="space-y-2">
-              {weapon && (
-                <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                  <Tooltip content={getWeaponTooltipContent(weapon)}>
-                    <span className="flex items-center gap-2">
-                      {getWeaponImage(weapon.imageFile) ? (
-                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                      ) : (
-                        <span className="text-xl">{weapon.icon}</span>
-                      )}
-                      <span className="flex flex-col items-start">
-                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
-                      </span>
-                    </span>
-                  </Tooltip>
-                  <div className="text-[11px] text-stone-400 mt-1 space-y-1">
-                    <div>{weapon.description}</div>
-                    {weapon.effet && (
-                      <div className="text-amber-200">
-                        Effet: {weapon.effet.nom} — {weapon.effet.description}
-                      </div>
-                    )}
-                    {weapon.stats && Object.keys(weapon.stats).length > 0 && (
-                      <div className="text-stone-200">
-                        Stats: {formatWeaponStats(weapon)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {passiveDetails && (
-                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                  <span className="text-lg">{passiveDetails.icon}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold text-amber-200">
-                      {passiveDetails.name} — Niveau {passiveDetails.level}
-                    </div>
-                    <div className="text-stone-400 text-[11px]">
-                      {passiveDetails.levelData.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {isAwakeningActive && (
-                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                  <span className="text-lg">✨</span>
-                  <div className="flex-1">
-                    <div className="font-semibold text-amber-200">
-                      Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
-                    </div>
-                    <div className="text-stone-400 text-[11px]">{awakeningInfo.description}</div>
-                  </div>
-                </div>
-              )}
-              {!isAwakeningActive && (
-                <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                  <span className="text-lg">{races[char.race]?.icon}</span>
-                  <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
-                </div>
-              )}
-              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <span className="text-lg">{classes[char.class]?.icon}</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-amber-200">{classes[char.class]?.ability}</div>
-                  <div className="text-stone-400 text-[11px]">{getCalculatedDescription(char.class, finalStats.cap, finalStats.auto)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // === Carte du Boss (image plus grande) ===
   const BossCard = () => {
     const bossCurrentHP = bossState?.currentHP ?? 0;
@@ -1189,7 +1002,7 @@ const WorldBoss = () => {
 
               {/* Aperçu joueur */}
               <div className="w-full md:w-[340px] md:flex-shrink-0 order-1 md:order-2">
-                <PlayerCard char={{ ...character, currentHP: character.base?.hp || 0, maxHP: character.base?.hp || 0, shield: 0 }} />
+                <CharacterCardContent character={{ ...character, currentHP: character.base?.hp ?? 0, maxHP: character.base?.hp ?? 0, shield: 0 }} showHpBar={true} imageOverride={character.characterImage || testImage1} />
               </div>
 
               {/* Zone centrale */}
@@ -1234,7 +1047,7 @@ const WorldBoss = () => {
 
             {/* Joueur */}
             <div className="order-1 md:order-2 w-full md:w-[340px] md:flex-shrink-0">
-              {playerState && <PlayerCard char={playerState} />}
+              {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} />}
             </div>
 
             {/* Zone centrale : boutons + logs */}

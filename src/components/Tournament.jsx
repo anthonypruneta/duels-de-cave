@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
+import CharacterCardContent from './CharacterCardContent';
 import {
   onTournoiUpdate, getCombatLog, creerTournoi, lancerTournoi,
   avancerMatch, terminerTournoi, annoncerFinMatchDiscord, supprimerTournoiTermine
@@ -316,215 +317,6 @@ const getCalculatedDescription = (className, cap, auto) => {
     default:
       return classes[className]?.description || '';
   }
-};
-
-// ============================================================================
-// CARTE PERSONNAGE TOURNOI (même style que Combat.jsx)
-// ============================================================================
-
-const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) => {
-  if (!participant) return null;
-  const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 100;
-  const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-  const shieldPercent = maxHP > 0 ? Math.min(100, (shield / maxHP) * 100) : 0;
-  const weapon = participant.equippedWeaponData ||
-    (participant.equippedWeaponId ? getWeaponById(participant.equippedWeaponId) : null);
-  const pClass = participant.classe || participant.class;
-  const pRace = participant.race;
-  const pName = participant.nom || participant.name;
-
-  const passiveDetails = (() => {
-    if (!participant.mageTowerPassive) return null;
-    const base = getMageTowerPassiveById(participant.mageTowerPassive.id);
-    const levelData = base ? getMageTowerPassiveLevel(participant.mageTowerPassive.id, participant.mageTowerPassive.level) : null;
-    if (!base || !levelData) return null;
-    return { ...base, level: participant.mageTowerPassive.level, levelData };
-  })();
-
-  const raceData = races[participant.race];
-  const classData = classes[pClass];
-  const awakeningInfo = raceData?.awakening || null;
-  const isAwakeningActive = awakeningInfo && (participant.level ?? 1) >= awakeningInfo.levelRequired;
-
-  // Pipeline de stats (même ordre que preparerCombattant: forest → weapon → awakening → bastion)
-  const raceB = participant.bonuses?.race || {};
-  const classB = participant.bonuses?.class || {};
-  const forestBoosts = getForestBoosts(participant);
-  const effectiveLevel = participant.level ?? 1;
-  const baseWithBoostsRaw = applyStatBoosts(participant.base, forestBoosts);
-  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, participant.race, effectiveLevel);
-  const skipWeaponFlat = isForgeActive() && participant.forgeUpgrade && hasAnyForgeUpgrade(participant.forgeUpgrade);
-  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null, skipWeaponFlat) : baseWithBoosts;
-  const awakeningEffect = getAwakeningEffect(participant.race, effectiveLevel);
-  const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-  const baseStats = pClass === 'Bastion'
-    ? { ...baseWithAwakening, def: Math.max(1, Math.round(baseWithAwakening.def * (1 + classConstants.bastion.defPercentBonus))) }
-    : baseWithAwakening;
-  const baseWithPassive = baseStats;
-  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
-    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
-  const weaponDelta = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
-  const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0));
-  const awakeningDelta = (k) => (baseWithAwakening[k] || 0) - (baseWithWeapon[k] || 0);
-  const bastionDelta = (k) => (baseStats[k] || 0) - (baseWithAwakening[k] || 0);
-  const baseWithoutBonus = (k) => baseWithBoosts[k] - totalBonus(k) - (forestBoosts[k] || 0);
-  const getRaceDisplayBonus = (k) => {
-    if (!isAwakeningActive) return raceB[k] || 0;
-    const classBonus = classB[k] || 0;
-    const forestBonus = forestBoosts[k] || 0;
-    const weaponBonus = weaponDelta(k);
-    const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
-    return (baseStats[k] || 0) - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus + bastionDelta(k));
-  };
-  const tooltipContent = (k) => {
-    const parts = [`Base: ${baseWithoutBonus(k)}`];
-    if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-    if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-    if (weaponDelta(k) !== 0) parts.push(`Arme: ${weaponDelta(k) > 0 ? `+${weaponDelta(k)}` : weaponDelta(k)}`);
-    if (k === 'auto' && passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-    const raceDisplayBonus = getRaceDisplayBonus(k);
-    if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
-    if (bastionDelta(k) !== 0) parts.push(`Bastion: ${bastionDelta(k) > 0 ? `+${bastionDelta(k)}` : bastionDelta(k)}`);
-    if (isForgeActive() && participant.forgeUpgrade) {
-      const { bonuses, penalties } = extractForgeUpgrade(participant.forgeUpgrade);
-      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k) + bastionDelta(k);
-      const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
-      if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
-    }
-    return parts.join(' | ');
-  };
-
-  const StatWithTooltip = ({ statKey, label }) => {
-    const displayValue = baseStats[statKey];
-    const raceDisplayBonus = getRaceDisplayBonus(statKey);
-    const allBonuses = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta(statKey)
-      + (statKey === 'auto' ? passiveAutoBonus : 0) + bastionDelta(statKey);
-    const hasBonus = allBonuses !== 0;
-    const totalDelta = allBonuses;
-    const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-    return (
-      <Tooltip content={tooltipContent(statKey)}>
-        <span className={`${hasBonus ? labelClass : ''} font-bold`}>
-          {label}: {displayValue}
-        </span>
-      </Tooltip>
-    );
-  };
-
-  return (
-    <div className="relative shadow-2xl overflow-visible">
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-        {participant.race} • {pClass} • Niveau {participant.level ?? 1}
-      </div>
-      <div className="overflow-visible">
-        <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-          {participant.characterImage ? (
-            <img src={participant.characterImage} alt={pName} className="w-full h-auto object-contain" />
-          ) : (
-            <div className="w-full h-48 bg-stone-800 flex items-center justify-center">
-              <span className="text-6xl">{raceData?.icon || '❓'}</span>
-            </div>
-          )}
-          <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-            <div className="text-white font-bold text-xl text-center">{pName}</div>
-          </div>
-        </div>
-        <div className="bg-stone-800 p-4 border-t border-stone-600">
-          <div className="mb-3">
-            <div className="flex justify-between text-sm text-white mb-2">
-              <StatWithTooltip statKey="hp" label="HP" />
-              <StatWithTooltip statKey="spd" label="VIT" />
-            </div>
-            <div className="text-xs text-stone-400 mb-2">{pName} — PV {Math.max(0, currentHP)}/{maxHP}</div>
-            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-              <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${Math.max(0, hpPercent)}%`}} />
-            </div>
-            {shield > 0 && (
-              <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-            <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="def" label="Déf" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="cap" label="Cap" /></div>
-            <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="ResC" /></div>
-          </div>
-          <div className="space-y-2">
-            {weapon && (
-              <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <Tooltip content={getWeaponTooltipContent(weapon)}>
-                  <span className="flex items-center gap-2">
-                    {getWeaponImage(weapon.imageFile) ? (
-                      <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                    ) : (
-                      <span className="text-xl">{weapon.icon}</span>
-                    )}
-                    <span className="flex flex-col items-start">
-                      <WeaponNameWithForge weapon={weapon} forgeUpgrade={participant.forgeUpgrade} />
-                    </span>
-                  </span>
-                </Tooltip>
-                <div className="text-[11px] text-stone-400 mt-1 space-y-1">
-                  <div>{weapon.description}</div>
-                  {weapon.effet && (
-                    <div className="text-amber-200">
-                      Effet: {weapon.effet.nom} — {weapon.effet.description}
-                    </div>
-                  )}
-                  {weapon.stats && Object.keys(weapon.stats).length > 0 && (
-                    <div className="text-stone-200">
-                      Stats: {formatWeaponStats(weapon)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {passiveDetails && (
-              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <span className="text-lg">{passiveDetails.icon}</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-amber-200">
-                    {passiveDetails.name} — Niveau {passiveDetails.level}
-                  </div>
-                  <div className="text-stone-400 text-[11px]">
-                    {passiveDetails.levelData.description}
-                  </div>
-                </div>
-              </div>
-            )}
-            {isAwakeningActive && (
-              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <span className="text-lg">✨</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-amber-200">
-                    Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
-                  </div>
-                  <div className="text-stone-400 text-[11px]">{awakeningInfo.description}</div>
-                </div>
-              </div>
-            )}
-            {raceData && !isAwakeningActive && (
-              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <span className="text-lg">{raceData.icon}</span>
-                <span className="text-stone-300">{raceData.bonus}</span>
-              </div>
-            )}
-            {classData && (
-              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                <span className="text-lg">{classData.icon}</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-amber-200">{classData.ability}</div>
-                  <div className="text-stone-400 text-[11px]">{getCalculatedDescription(pClass, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // ============================================================================
@@ -1177,11 +969,13 @@ const Tournament = () => {
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
         {/* Carte joueur 1 */}
         <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-          <TournamentCharacterCard
-            participant={p1Data}
+          <CharacterCardContent
+            character={p1Data}
+            showHpBar
             currentHP={p1HP}
             maxHP={p1MaxHP}
             shield={p1Shield}
+            nameOverride={p1Data?.nom ?? p1Data?.name}
           />
         </div>
 
@@ -1272,11 +1066,13 @@ const Tournament = () => {
 
         {/* Carte joueur 2 */}
         <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-          <TournamentCharacterCard
-            participant={p2Data}
+          <CharacterCardContent
+            character={p2Data}
+            showHpBar
             currentHP={p2HP}
             maxHP={p2MaxHP}
             shield={p2Shield}
+            nameOverride={p2Data?.nom ?? p2Data?.name}
           />
         </div>
       </div>

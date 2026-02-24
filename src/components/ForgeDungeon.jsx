@@ -34,6 +34,7 @@ import {
 import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS } from '../data/forgeDungeon';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
+import CharacterCardContent from './CharacterCardContent';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
@@ -503,110 +504,6 @@ const ForgeDungeon = () => {
     );
   };
 
-  const PlayerCard = ({ char }) => {
-    if (!char) return null;
-    const hpPercent = (char.currentHP / char.maxHP) * 100;
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const raceB = getRaceBonus(char.race);
-    const classB = getClassBonus(char.class);
-    const weapon = char.equippedWeaponData;
-    const passiveDetails = getPassiveDetails(char.mageTowerPassive);
-    const awakeningInfo = races[char.race]?.awakening || null;
-    const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
-    const baseStats = char.baseWithoutWeapon || char.base;
-    const characterImage = char.characterImage || null;
-
-    return (
-      <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-stone-200 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10">
-          {char.race} • {char.class} • Niveau {char.level ?? 1}
-        </div>
-        <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {characterImage ? (
-              <img src={characterImage} alt={char.name} className="w-full h-auto object-contain" />
-            ) : (
-              <div className="w-full h-48 flex items-center justify-center">
-                <span className="text-7xl">{races[char.race]?.icon || '❓'}</span>
-              </div>
-            )}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-white font-bold text-xl text-center">{char.name}</div>
-            </div>
-          </div>
-          <div className="bg-stone-800 p-4 border-t border-stone-600">
-            <div className="mb-3">
-              <div className="flex justify-between text-sm text-white mb-2">
-                <span>HP: {char.base.hp}</span>
-                <span>VIT: {char.base.spd}</span>
-              </div>
-              <div className="text-xs text-stone-400 mb-2">{char.name} — PV {Math.max(0, char.currentHP)}/{char.maxHP}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${hpPercent}%` }} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {char.base.auto}</div>
-              <div className="text-stone-400">DEF: {char.base.def}</div>
-              <div className="text-stone-400">CAP: {char.base.cap}</div>
-              <div className="text-stone-400">RESC: {char.base.rescap}</div>
-            </div>
-            <div className="space-y-2">
-              {weapon && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <Tooltip content={getWeaponTooltipContent(weapon)}>
-                    <span className="flex items-center gap-2">
-                      {getWeaponImage(weapon.imageFile) ? (
-                        <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                      ) : (
-                        <span className="text-xl">{weapon.icon}</span>
-                      )}
-                      <span className="flex flex-col items-start">
-                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
-                      </span>
-                    </span>
-                  </Tooltip>
-                </div>
-              )}
-              {passiveDetails && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{passiveDetails.icon}</span>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
-                      {passiveDetails.name} — Niveau {passiveDetails.level}
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {passiveDetails.levelData.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {isAwakeningActive && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">✨</span>
-                  <div className="flex-1">
-                    <div className="text-amber-300 font-semibold mb-1">
-                      Eveil racial actif (Niv {awakeningInfo.levelRequired}+)
-                    </div>
-                    <div className="text-stone-400 text-[10px]">
-                      {awakeningInfo.description}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!isAwakeningActive && races[char.race] && (
-                <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                  <span className="text-lg">{races[char.race].icon}</span>
-                  <span className="text-stone-300">{getRaceBonusText(char.race)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const BossCard = ({ bossChar }) => {
     if (!bossChar) return null;
     const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
@@ -819,7 +716,7 @@ const ForgeDungeon = () => {
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <PlayerCard char={player} />
+              <CharacterCardContent character={player} showHpBar />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">

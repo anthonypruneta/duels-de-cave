@@ -18,6 +18,7 @@ import { getRaceBonusText } from '../utils/descriptionBuilders';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import CharacterCardContent from './CharacterCardContent';
 import { isForgeActive } from '../data/featureFlags';
 import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
@@ -228,201 +229,6 @@ const getCalculatedDescription = (className, cap, auto) => {
     default:
       return classes[className]?.description || '';
   }
-};
-
-const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOverride = 0, showRaceDetails = true, showClassDetails = true, headerLabel = null }) => {
-  if (!character) return null;
-
-  const raceB = getRaceBonus(character.race);
-  const classB = getClassBonus(character.class);
-  const forestBoosts = getForestBoosts(character);
-  const weapon = character.equippedWeaponData;
-  const passiveDetails = getPassiveDetails(character.mageTowerPassive);
-  const awakeningRaces = [character.race, ...(character.additionalAwakeningRaces || [])].filter(Boolean);
-  const effectiveLevel = character.awakeningForced ? 999 : (character.level ?? 1);
-  const activeAwakenings = awakeningRaces
-    .map((raceName) => ({ raceName, info: races[raceName]?.awakening }))
-    .filter(({ info }) => info && effectiveLevel >= info.levelRequired);
-  const raceAwakeningInfo = races[character.race]?.awakening || null;
-  const isAwakeningActive = Boolean(raceAwakeningInfo && effectiveLevel >= raceAwakeningInfo.levelRequired);
-  const hasAwakeningState = Boolean(character.awakening)
-    || (Array.isArray(character.additionalAwakeningRaces) && character.additionalAwakeningRaces.length > 0)
-    || Boolean(raceAwakeningInfo && effectiveLevel >= raceAwakeningInfo.levelRequired);
-  const displayedAwakenings = activeAwakenings.length > 0
-    ? activeAwakenings
-    : (hasAwakeningState && raceAwakeningInfo ? [{ raceName: character.race, info: raceAwakeningInfo }] : []);
-
-  const baseWithBoostsRaw = getBaseWithBoosts(character);
-  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, character.race, effectiveLevel);
-  const additionalAwakeningEffects = (character.additionalAwakeningRaces || [])
-    .map((race) => getAwakeningEffect(race, effectiveLevel));
-  const awakeningEffect = mergeAwakeningEffects([
-    getAwakeningEffect(character.race, effectiveLevel),
-    ...additionalAwakeningEffects
-  ]);
-  const computedBase = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-  const baseStats = character.baseWithoutWeapon || computedBase;
-  const skipWeaponFlat = isForgeActive() && character.forgeUpgrade && hasAnyForgeUpgrade(character.forgeUpgrade);
-  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
-
-  const currentHP = currentHPOverride ?? character.currentHP ?? baseStats.hp;
-  const maxHP = maxHPOverride ?? character.maxHP ?? baseStats.hp;
-  const hpPercent = maxHP > 0 ? (currentHP / maxHP) * 100 : 0;
-  const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-  const shieldPercent = maxHP > 0 ? Math.min(100, (shieldOverride / maxHP) * 100) : 0;
-
-  const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
-    const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
-  const flatBaseStats = character.baseWithBoosts || baseWithBoosts;
-  const baseWithoutBonus = (k) => (flatBaseStats[k] || 0) - totalBonus(k) - (forestBoosts[k] || 0);
-  const getRaceDisplayBonus = (k) => {
-    if (!isAwakeningActive) return raceB[k] || 0;
-    const classBonus = classB[k] || 0;
-    const forestBonus = forestBoosts[k] || 0;
-    const weaponBonus = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
-    const passiveBonus = k === 'auto'
-      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
-      : 0;
-    const displayValue = (baseStats[k] || 0) + weaponBonus + passiveBonus;
-    return displayValue - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus);
-  };
-  const tooltipContent = (k) => {
-    const parts = [`Base: ${baseWithoutBonus(k)}`];
-    if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-    if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-    const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
-    if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
-    if (k === 'auto') {
-      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
-      if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
-    }
-    const raceDisplayBonus = getRaceDisplayBonus(k);
-    if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
-    if (isForgeActive() && character.forgeUpgrade) {
-      const { bonuses, penalties } = extractForgeUpgrade(character.forgeUpgrade);
-      const passiveForK = k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0))) : 0;
-      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta + passiveForK + getRaceDisplayBonus(k);
-      const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
-      if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
-    }
-    return parts.join(' | ');
-  };
-
-  const StatWithTooltip = ({ statKey, label }) => {
-    const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[statKey] ?? 0);
-    const passiveAutoBonus = statKey === 'auto'
-      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
-      : 0;
-    const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
-    const raceDisplayBonus = getRaceDisplayBonus(statKey);
-    const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponDelta + passiveAutoBonus;
-    const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
-    return (
-      <Tooltip content={tooltipContent(statKey)}>
-        <span className={`${labelClass} font-bold`}>{label}: {displayValue}</span>
-      </Tooltip>
-    );
-  };
-
-  const characterImage = character.characterImage || character.imagePath || null;
-
-  return (
-    <div className="w-full max-w-[340px] mx-auto">
-      <div className="relative shadow-2xl">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-          {headerLabel || ((showRaceDetails || showClassDetails) ? `${character.race || '—'} • ${character.class || '—'}` : 'Créature du labyrinthe')} • Niveau {character.level ?? 1}
-        </div>
-
-        <div className="overflow-visible border border-stone-600 bg-stone-900">
-          <div className="relative bg-stone-900 flex items-center justify-center">
-            {characterImage ? (
-              <img src={characterImage} alt={character.name} className="w-full h-auto object-contain" />
-            ) : (
-              <div className="w-full h-[420px] flex items-center justify-center text-stone-500">Image manquante</div>
-            )}
-            <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
-              <div className="text-white font-bold text-3xl leading-tight text-center">{character.name}</div>
-            </div>
-          </div>
-
-          <div className="bg-stone-800 p-3 border-t border-stone-600">
-            <div className="flex justify-between text-xs text-white mb-2 font-bold">
-              <StatWithTooltip statKey="hp" label="HP" />
-              <StatWithTooltip statKey="spd" label="VIT" />
-            </div>
-            <div className="text-xs text-stone-400 mb-2">{character.name} — PV {Math.max(0, currentHP)}/{maxHP}</div>
-            <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
-              <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
-            </div>
-            {shieldOverride > 0 && (
-              <div className="mt-1 mb-3 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                <div className="h-full transition-all duration-500 bg-blue-500" style={{ width: `${shieldPercent}%` }} />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
-              <StatWithTooltip statKey="auto" label="Auto" />
-              <StatWithTooltip statKey="def" label="Déf" />
-              <StatWithTooltip statKey="cap" label="Cap" />
-              <StatWithTooltip statKey="rescap" label="ResC" />
-            </div>
-
-            <div className="space-y-2">
-              {weapon && (
-                <div className="mt-2 space-y-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                  <Tooltip content={getWeaponTooltipContent(weapon)}>
-                    <span className="flex items-center gap-2">
-                      {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
-                      <span className="flex flex-col items-start">
-                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={character.forgeUpgrade} />
-                      </span>
-                    </span>
-                  </Tooltip>
-                </div>
-              )}
-
-              {passiveDetails && (
-                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                  <span className="text-lg">{passiveDetails.icon}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold text-amber-200">{passiveDetails.name} — Niveau {passiveDetails.level}</div>
-                    <div className="text-stone-400 text-[11px]">{passiveDetails.levelData.description}</div>
-                  </div>
-                </div>
-              )}
-
-              {showRaceDetails && displayedAwakenings.map(({ raceName, info }) => (
-                <div key={`awakening-${raceName}`} className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                  <span className="text-lg">✨</span>
-                  <div className="flex-1">
-                    <div className="font-semibold text-amber-200">Éveil racial actif ({raceName}) (Niv {info.levelRequired}+)</div>
-                    <div className="text-stone-400 text-[11px]">{info.description}</div>
-                  </div>
-                </div>
-              ))}
-
-              {showRaceDetails && !hasAwakeningState && races[character.race] && (
-                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                  <span className="text-lg">{races[character.race].icon}</span>
-                  <span className="text-stone-300">{getRaceBonusText(character.race)}</span>
-                </div>
-              )}
-
-              {showClassDetails && classes[character.class] && (
-                <div className="mt-2 flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                  <span className="text-lg">{classes[character.class].icon}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
-                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(character.class, baseStats.cap + (skipWeaponFlat ? 0 : (weapon?.stats?.cap ?? 0)), baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const InfiniteLabyrinth = () => {
@@ -807,7 +613,7 @@ const InfiniteLabyrinth = () => {
 
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCard character={playerCharacter} currentHPOverride={replayP1HP || playerCharacter?.base?.hp} maxHPOverride={replayP1MaxHP || playerCharacter?.base?.hp} shieldOverride={replayP1Shield} />
+            <CharacterCardContent character={playerCharacter} showHpBar currentHP={replayP1HP || (playerCharacter?.currentHP ?? playerCharacter?.base?.hp)} maxHP={replayP1MaxHP || (playerCharacter?.maxHP ?? playerCharacter?.base?.hp)} shield={replayP1Shield} />
           </div>
 
           <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -860,14 +666,13 @@ const InfiniteLabyrinth = () => {
           </div>
 
           <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCard
+            <CharacterCardContent
               character={enemyCharacter}
-              currentHPOverride={replayP2HP || enemyCharacter?.base?.hp}
-              maxHPOverride={replayP2MaxHP || enemyCharacter?.base?.hp}
-              shieldOverride={replayP2Shield}
-              headerLabel={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
-              showRaceDetails={shownEnemyFloor?.type === 'boss'}
-              showClassDetails={Boolean(shownEnemyFloor?.bossKit?.spellClass)}
+              showHpBar
+              currentHP={replayP2HP || (enemyCharacter?.currentHP ?? enemyCharacter?.base?.hp)}
+              maxHP={replayP2MaxHP || (enemyCharacter?.maxHP ?? enemyCharacter?.base?.hp)}
+              shield={replayP2Shield}
+              nameOverride={shownEnemyFloor?.type === 'boss' ? 'Boss du labyrinthe' : 'Créature du labyrinthe'}
             />
           </div>
         </div>
