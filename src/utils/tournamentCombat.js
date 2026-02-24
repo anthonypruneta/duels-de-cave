@@ -185,7 +185,9 @@ export function preparerCombattant(char) {
   const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
   const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
   const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-  const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+  // Boss / NPC avec forge (ex. labyrinthe 100) : même logique que joueur avec forge (skip flat, appliquer %)
+  const hasForgeData = char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+  const skipWeaponFlat = hasForgeData && (isForgeActive() || char.awakeningForced);
   const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
   const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));

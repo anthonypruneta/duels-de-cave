@@ -62,8 +62,10 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
   const forgeUpgrade = character.forgeUpgrade;
   const forgeLabel = (statKey) => FORGE_STAT_LABELS[statKey] || statKey.toUpperCase();
-  const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
-  const skipWeaponFlat = isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade);
+  // Boss / NPC avec forge (ex. labyrinthe étage 100) : afficher et appliquer même si isForgeActive() est false
+  const hasForgeData = hasAnyForgeUpgrade(forgeUpgrade);
+  const hasForgeUpgrade = hasForgeData && (isForgeActive() || character.awakeningForced);
+  const skipWeaponFlat = hasForgeUpgrade && forgeUpgrade;
   const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
   const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
@@ -72,7 +74,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
   const finalStatsBeforeForge = applyAwakeningToBase(baseWithPassive, awakeningEffect);
-  const finalStats = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
+  const finalStats = hasForgeUpgrade && forgeUpgrade
     ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
     : finalStatsBeforeForge;
 
@@ -97,7 +99,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
 
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+` : ''}${raceDisplayBonus}`);
-    if (isForgeActive() && forgeUpgrade) {
+    if (hasForgeUpgrade && forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
@@ -110,7 +112,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     const displayValue = finalStats[statKey] ?? 0;
     const raceDisplayBonus = getRaceDisplayBonus(statKey);
     const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
-    const forgeDeltaForStat = (isForgeActive() && forgeUpgrade) ? (() => {
+    const forgeDeltaForStat = (hasForgeUpgrade && forgeUpgrade) ? (() => {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
     })() : 0;
