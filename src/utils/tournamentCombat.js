@@ -968,7 +968,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
     if (reduction > 0) {
       att.mindflayerFirstCDUsed = true;
-      if (isMage) att.cd.mag = 0;
+      if (att.class === 'Paladin') att.cd.pal = 0;
+      else if (att.class === 'Healer') att.cd.heal = 0;
+      else if (att.class === 'Succube') att.cd.succ = 0;
+      else if (att.class === 'Bastion') att.cd.bast = 0;
+      else if (att.class === 'Voleur') att.cd.rog = 0;
+      else if (att.class === 'Masochiste') att.cd.maso = 0;
+      else if (isMage) att.cd.mag = 0;
       else if (isWar) att.cd.war = 0;
       else if (isArcher) att.cd.arc = 0;
     }

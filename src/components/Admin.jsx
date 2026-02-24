@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateHpStat4To6 } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi, getAllArchivedCharacters, resetAllRerollGains } from '../services/tournamentService';
@@ -63,6 +63,9 @@ const Admin = () => {
 
   // État pour le reset de progression
   const [resetProgressionLoading, setResetProgressionLoading] = useState(false);
+
+  // État pour la migration PV 4→6
+  const [migrationHpLoading, setMigrationHpLoading] = useState(false);
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
@@ -1265,6 +1268,31 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           <>
         {/* Canvas caché pour le traitement */}
         <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+        {/* Migrations (PV 4→6) */}
+        <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl p-4 mb-6">
+          <h2 className="text-lg font-bold text-amber-400 mb-2">🔄 Migrations données</h2>
+          <p className="text-stone-400 text-sm mb-3">Applique la mise à jour des PV (+6 par point de stat au lieu de +4) aux personnages non encore migrés. Les personnages déjà migrés sont ignorés.</p>
+          <button
+            onClick={async () => {
+              if (!window.confirm('Lancer la migration PV 4→6 sur tous les personnages actifs non encore migrés ?')) return;
+              setMigrationHpLoading(true);
+              try {
+                const result = await migrateHpStat4To6();
+                if (result.success) {
+                  alert(`✅ Migration terminée : ${result.migrated} migré(s), ${result.skipped} ignoré(s) / ${result.total} total.`);
+                  loadCharacters();
+                } else alert(`❌ ${result.error}`);
+              } finally {
+                setMigrationHpLoading(false);
+              }
+            }}
+            disabled={migrationHpLoading}
+            className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition"
+          >
+            {migrationHpLoading ? '⏳ Migration...' : '🩺 Migration PV 4→6'}
+          </button>
+        </div>
 
         {/* Onglets Actifs / Désactivés / Archivés */}
         {(() => {
