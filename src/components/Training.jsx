@@ -23,7 +23,7 @@ import {
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
@@ -323,7 +323,8 @@ const Training = () => {
     const effectiveLevel = char.level ?? 1;
     const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
     const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
+    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
     const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
@@ -642,15 +643,16 @@ const Training = () => {
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
+    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive, skipWeaponFlat) : baseStats;
     const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
     const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const flatBaseStats = char.baseWithBoosts || baseStats;
     const baseWithoutBonus = (k) => flatBaseStats[k] - totalBonus(k) - (forestBoosts[k] || 0);
     const getDisplayedStatValue = (statKey) => {
-      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[statKey] ?? 0);
       const passiveAutoBonus = statKey === 'auto'
-        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
         : 0;
       return baseStats[statKey] + weaponDelta + passiveAutoBonus;
     };
@@ -658,9 +660,9 @@ const Training = () => {
       if (!isAwakeningActive) return raceB[k] || 0;
       const classBonus = classB[k] || 0;
       const forestBonus = forestBoosts[k] || 0;
-      const weaponBonus = weapon?.stats?.[k] ?? 0;
+      const weaponBonus = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
       const passiveBonus = k === 'auto'
-        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
         : 0;
       return getDisplayedStatValue(k) - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus);
     };
@@ -668,17 +670,17 @@ const Training = () => {
       const parts = [`Base: ${baseWithoutBonus(k)}`];
       if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
       if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
       if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
       if (k === 'auto') {
-        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+        const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
         if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
       }
       const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       if (isForgeActive() && char.forgeUpgrade) {
         const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
-        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta + (k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0)) : 0) + getRaceDisplayBonus(k);
+        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta + (k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0))) : 0) + getRaceDisplayBonus(k);
         const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
         if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
       }
@@ -686,9 +688,9 @@ const Training = () => {
     };
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[statKey] ?? 0);
       const passiveAutoBonus = statKey === 'auto'
-        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
         : 0;
       const displayValue = getDisplayedStatValue(statKey);
       const raceDisplayBonus = getRaceDisplayBonus(statKey);

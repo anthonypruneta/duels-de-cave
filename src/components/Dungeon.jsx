@@ -24,7 +24,7 @@ import {
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
@@ -496,7 +496,8 @@ const Dungeon = () => {
     const effectiveLevel = char.level ?? 1;
     const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
     const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
+    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
     const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
@@ -1272,7 +1273,8 @@ const Dungeon = () => {
     const awakeningInfo = races[char.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (char.level ?? 1) >= awakeningInfo.levelRequired;
     const baseStats = char.baseWithoutWeapon || getBaseWithBoosts(char);
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive) : baseStats;
+    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, char.class, char.race, char.mageTowerPassive, skipWeaponFlat) : baseStats;
     const flatBaseStats = char.baseWithBoosts || baseStats;
     const getRaceDisplayBonus = (k) => {
       if (!isAwakeningActive) return raceB[k] || 0;
@@ -1281,9 +1283,9 @@ const Dungeon = () => {
     const tooltipContent = (k) => {
       const classBonus = classB[k] || 0;
       const forestBonus = forestBoosts[k] || 0;
-      const weaponDelta = weapon?.stats?.[k] ?? 0;
+      const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
       const passiveAutoBonus = k === 'auto'
-        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+        ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
         : 0;
       const raceDisplayBonus = getRaceDisplayBonus(k);
       const displayValue = (baseStats[k] ?? 0) + weaponDelta + passiveAutoBonus;
@@ -1309,7 +1311,7 @@ const Dungeon = () => {
     const characterImage = char.characterImage || null;
 
     const StatWithTooltip = ({ statKey, label }) => {
-      const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+      const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[statKey] ?? 0);
       const passiveAutoBonus = statKey === 'auto'
         ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
         : 0;

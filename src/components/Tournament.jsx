@@ -11,7 +11,7 @@ import { classes } from '../data/classes';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -353,7 +353,8 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const effectiveLevel = participant.level ?? 1;
   const baseWithBoostsRaw = applyStatBoosts(participant.base, forestBoosts);
   const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, participant.race, effectiveLevel);
-  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null) : baseWithBoosts;
+  const skipWeaponFlat = isForgeActive() && participant.forgeUpgrade && hasAnyForgeUpgrade(participant.forgeUpgrade);
+  const baseWithWeapon = weapon ? applyPassiveWeaponStats(baseWithBoosts, weapon.id, pClass, pRace, null, skipWeaponFlat) : baseWithBoosts;
   const awakeningEffect = getAwakeningEffect(participant.race, effectiveLevel);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseStats = pClass === 'Bastion'
@@ -362,8 +363,8 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
   const baseWithPassive = baseStats;
   const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
     const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
-  const weaponDelta = (k) => weapon?.stats?.[k] ?? 0;
-  const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (weapon?.stats?.auto ?? 0);
+  const weaponDelta = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
+  const passiveAutoBonus = baseWithWeapon.auto - baseWithBoosts.auto - (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0));
   const awakeningDelta = (k) => (baseWithAwakening[k] || 0) - (baseWithWeapon[k] || 0);
   const bastionDelta = (k) => (baseStats[k] || 0) - (baseWithAwakening[k] || 0);
   const baseWithoutBonus = (k) => baseWithBoosts[k] - totalBonus(k) - (forestBoosts[k] || 0);

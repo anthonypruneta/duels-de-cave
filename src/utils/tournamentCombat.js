@@ -18,6 +18,8 @@ import {
 } from '../data/combatMechanics.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from './awakening.js';
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
+import { isForgeActive } from '../data/featureFlags.js';
+import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
 
 // ============================================================================
 // HELPERS
@@ -147,7 +149,8 @@ export function preparerCombattant(char) {
   const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
   const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
   const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive);
+  const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
   const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([

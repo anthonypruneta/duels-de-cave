@@ -74,9 +74,11 @@ function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassi
 // ============================================================================
 /**
  * Applique les modifications de stats passives des armes légendaires
- * À appeler après le calcul des stats de base
+ * À appeler après le calcul des stats de base.
+ * Si skipFlatStats est true (ex. arme améliorée par Ornn), les bonus plats de l'arme ne sont pas ajoutés :
+ * ils sont remplacés par l'effet % Forge appliqué plus tard.
  */
-export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combatantRace, mageTowerPassive) {
+export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combatantRace, mageTowerPassive, skipFlatStats = false) {
   if (!weaponId) return { ...stats };
 
   const weapon = getWeaponById(weaponId);
@@ -84,10 +86,12 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
 
   const modifiedStats = { ...stats };
 
-  // Ajouter les bonus de stats de l'arme
-  for (const [stat, value] of Object.entries(weapon.stats)) {
-    if (modifiedStats[stat] !== undefined) {
-      modifiedStats[stat] += value;
+  // Ajouter les bonus de stats de l'arme (sauf si arme améliorée : les plats sont remplacés par le % Forge)
+  if (!skipFlatStats) {
+    for (const [stat, value] of Object.entries(weapon.stats)) {
+      if (modifiedStats[stat] !== undefined) {
+        modifiedStats[stat] += value;
+      }
     }
   }
 

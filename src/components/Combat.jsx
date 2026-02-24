@@ -12,7 +12,7 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -678,7 +678,8 @@ const Combat = () => {
     const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
     const computedBase = getBaseWithBoosts(character);
     const baseStats = character.baseWithoutWeapon || computedBase;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
+    const skipWeaponFlat = isForgeActive() && character.forgeUpgrade && hasAnyForgeUpgrade(character.forgeUpgrade);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
     const raceFlatBonus = (k) => (isAwakeningActive ? 0 : (raceB[k] || 0));
     const totalBonus = (k) => raceFlatBonus(k) + (classB[k] || 0);
     const flatBaseStats = character.baseWithBoosts || computedBase;

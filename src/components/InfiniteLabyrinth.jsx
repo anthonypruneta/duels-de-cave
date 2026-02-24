@@ -19,7 +19,7 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -262,7 +262,8 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
   ]);
   const computedBase = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   const baseStats = character.baseWithoutWeapon || computedBase;
-  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive) : baseStats;
+  const skipWeaponFlat = isForgeActive() && character.forgeUpgrade && hasAnyForgeUpgrade(character.forgeUpgrade);
+  const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
 
   const currentHP = currentHPOverride ?? character.currentHP ?? baseStats.hp;
   const maxHP = maxHPOverride ?? character.maxHP ?? baseStats.hp;
@@ -278,9 +279,9 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     if (!isAwakeningActive) return raceB[k] || 0;
     const classBonus = classB[k] || 0;
     const forestBonus = forestBoosts[k] || 0;
-    const weaponBonus = weapon?.stats?.[k] ?? 0;
+    const weaponBonus = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
     const passiveBonus = k === 'auto'
-      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
       : 0;
     const displayValue = (baseStats[k] || 0) + weaponBonus + passiveBonus;
     return displayValue - (baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus);
@@ -289,17 +290,17 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     const parts = [`Base: ${baseWithoutBonus(k)}`];
     if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-    const weaponDelta = weapon?.stats?.[k] ?? 0;
+    const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0);
     if (weaponDelta !== 0) parts.push(`Arme: ${weaponDelta > 0 ? `+${weaponDelta}` : weaponDelta}`);
     if (k === 'auto') {
-      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+      const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
       if (passiveAutoBonus !== 0) parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
     }
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
     if (isForgeActive() && character.forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(character.forgeUpgrade);
-      const passiveForK = k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0)) : 0;
+      const passiveForK = k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0))) : 0;
       const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta + passiveForK + getRaceDisplayBonus(k);
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
       if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
@@ -308,9 +309,9 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
   };
 
   const StatWithTooltip = ({ statKey, label }) => {
-    const weaponDelta = weapon?.stats?.[statKey] ?? 0;
+    const weaponDelta = skipWeaponFlat ? 0 : (weapon?.stats?.[statKey] ?? 0);
     const passiveAutoBonus = statKey === 'auto'
-      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0))
+      ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))
       : 0;
     const displayValue = (baseStats[statKey] || 0) + weaponDelta + passiveAutoBonus;
     const raceDisplayBonus = getRaceDisplayBonus(statKey);
@@ -412,7 +413,7 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
                   <span className="text-lg">{classes[character.class].icon}</span>
                   <div className="flex-1">
                     <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
-                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(character.class, baseStats.cap + (weapon?.stats?.cap ?? 0), baseStats.auto + (weapon?.stats?.auto ?? 0))}</div>
+                    <div className="text-stone-400 text-[11px]">{getCalculatedDescription(character.class, baseStats.cap + (skipWeaponFlat ? 0 : (weapon?.stats?.cap ?? 0)), baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)))}</div>
                   </div>
                 </div>
               )}

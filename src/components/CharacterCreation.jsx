@@ -1035,7 +1035,8 @@ const CharacterCreation = () => {
     const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive) : baseStats;
+    const skipWeaponFlat = isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade);
+    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive, skipWeaponFlat) : baseStats;
     const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
     const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
     const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
@@ -1101,8 +1102,8 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <div className={`relative max-w-md mx-auto ${hasForgeUpgrade ? 'forge-lava-border forge-lava-glow' : ''}`} style={{width:'340px'}}>
-            <div className={`shadow-2xl ${hasForgeUpgrade ? 'forge-lava-shine' : ''}`}>
+          <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
+            <div className="shadow-2xl">
               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
@@ -1135,39 +1136,52 @@ const CharacterCreation = () => {
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
                   <div className="space-y-2">
-                    {weapon ? (
-                      <div className="text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                        <Tooltip content={getWeaponTooltipContent(weapon)}>
-                          <span className="flex items-center gap-2">
-                            {getWeaponImage(weapon.imageFile) ? (
-                              <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
-                            ) : (
-                              <span className="text-xl">{weapon.icon}</span>
+                    {weapon ? (() => {
+                      const weaponContent = (
+                        <>
+                          <Tooltip content={getWeaponTooltipContent(weapon)}>
+                            <span className="flex items-center gap-2">
+                              {getWeaponImage(weapon.imageFile) ? (
+                                <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
+                              ) : (
+                                <span className="text-xl">{weapon.icon}</span>
+                              )}
+                              <span className={`font-semibold ${hasForgeUpgrade ? 'forge-lava-text' : RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                            </span>
+                          </Tooltip>
+                          <div className="text-[11px] text-stone-400 mt-1 space-y-1">
+                            <div>{weapon.description}</div>
+                            {weapon.effet && typeof weapon.effet === 'object' && (
+                              <div className="text-amber-200">
+                                Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
+                              </div>
                             )}
-                            <span className={`font-semibold ${hasForgeUpgrade ? 'forge-lava-text' : RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
-                          </span>
-                        </Tooltip>
-                        <div className="text-[11px] text-stone-400 mt-1 space-y-1">
-                          <div>{weapon.description}</div>
-                          {weapon.effet && typeof weapon.effet === 'object' && (
-                            <div className="text-amber-200">
-                              Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
-                            </div>
-                          )}
-                          {weapon.stats && Object.keys(weapon.stats).length > 0 && (
-                            <div className="text-stone-200">
-                              Stats: {formatWeaponStats(weapon)}
-                            </div>
-                          )}
-                          {hasForgeUpgrade && (
-                            <div className="text-orange-300 font-semibold">
-                              🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
-                              {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
-                            </div>
-                          )}
+                            {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                              <div className="text-stone-200">
+                                Stats: {formatWeaponStats(weapon)}
+                              </div>
+                            )}
+                            {hasForgeUpgrade && (
+                              <div className="text-orange-300 font-semibold">
+                                🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}
+                                {Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ') ? ` • ${Object.entries(extractForgeUpgrade(forgeUpgrade).penalties).map(([k, pct]) => `${forgeLabel(k)} -${formatUpgradePct(pct)}`).join(' • ')}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                      return hasForgeUpgrade ? (
+                        <div className="forge-lava-border forge-lava-glow overflow-visible">
+                          <div className="text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 forge-lava-shine">
+                            {weaponContent}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
+                      ) : (
+                        <div className="text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                          {weaponContent}
+                        </div>
+                      );
+                    })() : (
                       <div className="text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
                         Aucune arme équipée
                       </div>
