@@ -29,6 +29,7 @@ import {
   createExtensionBossCombatant,
   rollExtensionPassive,
   getMixedPassiveDisplayName,
+  getFusedPassiveDisplayData,
   canAccessExtensionDungeon,
 } from '../data/extensionDungeon';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
@@ -377,7 +378,7 @@ const ExtensionDungeon = () => {
     const primaryPassive = character.mageTowerPassive;
     const primaryDetails = getPassiveDetails(primaryPassive);
     const mixedName = rolledExtensionPassive
-      ? (getMixedPassiveDisplayName(primaryPassive?.id, rolledExtensionPassive.id) || rolledExtensionPassive.name)
+      ? (getMixedPassiveDisplayName(primaryPassive?.id, rolledExtensionPassive.id) || `${primaryDetails?.name ?? ''} + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name ?? rolledExtensionPassive.name}`)
       : '';
 
     return (
@@ -402,7 +403,7 @@ const ExtensionDungeon = () => {
             >
               <p className="text-white font-bold text-lg">✨ Passif étendu — Bleu, Rouge, Violet ✨</p>
               <p className="text-stone-300 text-sm mt-2">
-                {primaryDetails?.name} (Niv.3) + {getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)
+                {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)`}
               </p>
             </div>
           )}
@@ -449,7 +450,7 @@ const ExtensionDungeon = () => {
                 <div className="bg-violet-900/30 border border-violet-600 p-4">
                   <p className="text-violet-300 font-bold mb-2">Nouveau passif ajouté !</p>
                   <p className="text-white">
-                    {primaryDetails?.name} (Niv.3) + {getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)
+                    {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)`}
                   </p>
                 </div>
               ) : (
@@ -699,24 +700,38 @@ const ExtensionDungeon = () => {
           </div>
         </div>
 
-        {character.mageTowerExtensionPassive && (
-          <div className="bg-stone-800 border border-violet-600 p-4 mb-8">
-            <h3 className="text-lg font-bold text-violet-400 mb-3 text-center">👁️ Extension actuelle</h3>
-            <div className="flex flex-wrap justify-center gap-4 items-center">
-              {getPassiveDetails(character.mageTowerPassive) && (
-                <span className="text-amber-300 font-semibold">
-                  {getPassiveDetails(character.mageTowerPassive).icon} {getPassiveDetails(character.mageTowerPassive).name} (Niv.3)
-                </span>
-              )}
-              <span className="text-stone-500">+</span>
-              {getPassiveDetails(character.mageTowerExtensionPassive) && (
-                <span className="text-violet-300 font-semibold">
-                  {getPassiveDetails(character.mageTowerExtensionPassive).icon} {getPassiveDetails(character.mageTowerExtensionPassive).name} (Niv.1)
-                </span>
+        {character.mageTowerExtensionPassive && (() => {
+          const fused = getFusedPassiveDisplayData(character);
+          return (
+            <div className="bg-stone-800 border border-violet-600 p-4 mb-8">
+              <h3 className="text-lg font-bold text-violet-400 mb-3 text-center">👁️ Extension actuelle</h3>
+              <div className="flex flex-wrap justify-center gap-4 items-center">
+                {fused ? (
+                  <span className="text-amber-300 font-semibold">
+                    {fused.primaryDetails.icon} {fused.mixedName}
+                  </span>
+                ) : (
+                  <>
+                    {getPassiveDetails(character.mageTowerPassive) && (
+                      <span className="text-amber-300 font-semibold">
+                        {getPassiveDetails(character.mageTowerPassive).icon} {getPassiveDetails(character.mageTowerPassive).name} (Niv.3)
+                      </span>
+                    )}
+                    <span className="text-stone-500">+</span>
+                    {getPassiveDetails(character.mageTowerExtensionPassive) && (
+                      <span className="text-violet-300 font-semibold">
+                        {getPassiveDetails(character.mageTowerExtensionPassive).icon} {getPassiveDetails(character.mageTowerExtensionPassive).name} (Niv.1)
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              {fused && (
+                <p className="text-stone-400 text-sm mt-2 text-center">Niv.{fused.primaryDetails.level} (principal) + Niv.{fused.extensionDetails.level} (extension)</p>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div className="bg-stone-800 border border-violet-600/50 p-4 mb-8 flex justify-between items-center">
           <div>

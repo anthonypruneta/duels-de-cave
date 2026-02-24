@@ -50,45 +50,76 @@ export const EXTENSION_BOSS = {
 };
 
 /**
- * Noms mixés pour l'affichage (passif principal + passif secondaire)
- * Clé = id1_id2 (ordre alphabétique pour unicité)
+ * Noms mixés pour l'affichage (passif principal + passif secondaire).
+ * Clé = id1_id2 (ordre alphabétique pour unicité).
+ * Ex. Orbe du Sacrifice Sanguin + Pacte de la Licorne → Orbe du Sacrifice de la Licorne
  */
 const MIXED_PASSIVE_NAMES = {
+  // Barrière arcanique + ...
+  arcane_barrier_aura_overload: 'Barrière Surchargée',
   arcane_barrier_elemental_fury: 'Barrière de Foudre',
   arcane_barrier_essence_drain: 'Barrière Sanguine',
   arcane_barrier_mind_breach: 'Barrière Brèche',
   arcane_barrier_obsidian_skin: 'Barrière d\'Obsidienne',
+  arcane_barrier_onction_eternite: 'Onction Arcanique',
+  arcane_barrier_orbe_sacrifice: 'Barrière du Sacrifice',
+  arcane_barrier_rituel_fracture: 'Barrière de Fracture',
   arcane_barrier_spectral_mark: 'Barrière Spectrale',
-  arcane_barrier_unicorn_pact: 'Pacte Arcanique',
-  arcane_barrier_aura_overload: 'Barrière Surchargée',
+  arcane_barrier_unicorn_pact: 'Barrière de la Licorne',
+  // Surcharge d'aura + ...
+  aura_overload_elemental_fury: 'Furie Surchargée',
+  aura_overload_essence_drain: 'Vol Surchargé',
+  aura_overload_mind_breach: 'Brèche Surchargée',
+  aura_overload_obsidian_skin: 'Obsidienne Surchargée',
+  aura_overload_onction_eternite: 'Onction Surchargée',
+  aura_overload_orbe_sacrifice: 'Sacrifice Surchargé',
+  aura_overload_rituel_fracture: 'Rituel Surchargé',
+  aura_overload_spectral_mark: 'Marque Surchargée',
+  aura_overload_unicorn_pact: 'Pacte Surchargé',
+  // Furie élémentaire + ...
   elemental_fury_essence_drain: 'Furie Sanguine',
   elemental_fury_mind_breach: 'Furie Brèche',
   elemental_fury_obsidian_skin: 'Furie d\'Obsidienne',
+  elemental_fury_onction_eternite: 'Furie d\'Éternité',
+  elemental_fury_orbe_sacrifice: 'Orbe du Sacrifice de Foudre',
+  elemental_fury_rituel_fracture: 'Furie de Fracture',
   elemental_fury_spectral_mark: 'Furie Spectrale',
   elemental_fury_unicorn_pact: 'Furie de la Licorne',
-  elemental_fury_aura_overload: 'Furie Surchargée',
+  // Vol d'essence + ...
   essence_drain_mind_breach: 'Vol Brèche',
   essence_drain_obsidian_skin: 'Vol d\'Obsidienne',
+  essence_drain_onction_eternite: 'Onction Sanguine',
+  essence_drain_orbe_sacrifice: 'Orbe du Sacrifice Sanguin',
+  essence_drain_rituel_fracture: 'Vol de Fracture',
   essence_drain_spectral_mark: 'Vol Spectral',
   essence_drain_unicorn_pact: 'Pacte Sanguin',
-  essence_drain_aura_overload: 'Vol Surchargé',
+  // Brèche mentale + ...
   mind_breach_obsidian_skin: 'Brèche d\'Obsidienne',
+  mind_breach_onction_eternite: 'Brèche d\'Éternité',
+  mind_breach_orbe_sacrifice: 'Brèche du Sacrifice',
+  mind_breach_rituel_fracture: 'Rituel Brèche',
   mind_breach_spectral_mark: 'Brèche Spectrale',
-  mind_breach_unicorn_pact: 'Brèche du Pacte',
-  mind_breach_aura_overload: 'Brèche Surchargée',
+  mind_breach_unicorn_pact: 'Brèche de la Licorne',
+  // Peau d'obsidienne + ...
+  obsidian_skin_onction_eternite: 'Onction d\'Obsidienne',
+  obsidian_skin_orbe_sacrifice: 'Sacrifice d\'Obsidienne',
+  obsidian_skin_rituel_fracture: 'Rituel d\'Obsidienne',
   obsidian_skin_spectral_mark: 'Obsidienne Spectrale',
   obsidian_skin_unicorn_pact: 'Pacte d\'Obsidienne',
-  obsidian_skin_aura_overload: 'Obsidienne Surchargée',
-  spectral_mark_unicorn_pact: 'Marque du Pacte',
-  spectral_mark_aura_overload: 'Marque Surchargée',
-  unicorn_pact_aura_overload: 'Pacte Surchargé',
-  // Vague 2
-  orbe_sacrifice_elemental_fury: 'Sacrifice de Foudre',
-  orbe_sacrifice_obsidian_skin: 'Sacrifice d\'Obsidienne',
-  onction_eternite_arcane_barrier: 'Onction Arcanique',
-  onction_eternite_essence_drain: 'Onction Sanguine',
-  rituel_fracture_mind_breach: 'Rituel Brèche',
-  rituel_fracture_obsidian_skin: 'Rituel d\'Obsidienne',
+  // Onction d'Éternité + ...
+  onction_eternite_orbe_sacrifice: 'Onction du Sacrifice',
+  onction_eternite_rituel_fracture: 'Onction de Fracture',
+  onction_eternite_spectral_mark: 'Onction Spectrale',
+  onction_eternite_unicorn_pact: 'Onction de la Licorne',
+  // Orbe du Sacrifice Sanguin + ...
+  orbe_sacrifice_rituel_fracture: 'Orbe du Sacrifice de Fracture',
+  orbe_sacrifice_spectral_mark: 'Orbe du Sacrifice Spectrale',
+  orbe_sacrifice_unicorn_pact: 'Orbe du Sacrifice de la Licorne',
+  // Rituel de Fracture + ...
+  rituel_fracture_spectral_mark: 'Rituel Spectrale',
+  rituel_fracture_unicorn_pact: 'Rituel de la Licorne',
+  // Marque spectrale + Pacte de la Licorne
+  spectral_mark_unicorn_pact: 'Marque de la Licorne',
 };
 
 function getMixedKey(id1, id2) {
