@@ -116,6 +116,15 @@ export function getExtensionPassiveOptions(currentPassiveId) {
 }
 
 /**
+ * Tire un passif niveau 1 aléatoire parmi les éligibles (tous sauf le passif actuel).
+ */
+export function rollExtensionPassive(currentPassiveId) {
+  const options = getExtensionPassiveOptions(currentPassiveId);
+  if (options.length === 0) return null;
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+/**
  * Crée le combattant Gojo pour le combat
  */
 export function createExtensionBossCombatant() {
