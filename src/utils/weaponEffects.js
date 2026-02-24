@@ -400,18 +400,11 @@ export function onHeal(weaponState, healer, healAmount, target) {
 // HOOKS DE COMBAT - MODIFICATION DES CRITIQUES
 // ============================================================================
 /**
- * Modifie les dégâts critiques
+ * Modifie les dégâts critiques (effets spéciaux uniquement).
+ * Les bonus % (ex. Lævateinn) sont déjà inclus additivement dans getCritMultiplier.
  */
 export function modifyCritDamage(weaponState, baseCritDamage) {
-  if (!weaponState.isLegendary) return baseCritDamage;
-
-  switch (weaponState.weaponId) {
-    case 'dague_legendaire': {
-      // Lævateinn: tous les crits +30% dégâts (passif permanent)
-      return Math.round(baseCritDamage * (1 + weaponConstants.laevateinn.critDamageBonus));
-    }
-  }
-
+  // Bonus % dégâts crit des armes sont appliqués dans getCritMultiplier (additif avec classe/éveil)
   return baseCritDamage;
 }
 

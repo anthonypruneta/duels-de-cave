@@ -154,7 +154,12 @@ export const calcCritChance = (attacker, defender = null) => {
 export const getCritMultiplier = (attacker, defender = null) => {
   const bonus = attacker?.awakening?.critDamageBonus ?? 0;
   const speedDuelBonus = getSpeedDuelBonuses(attacker, defender).critDamage;
-  return generalConstants.critMultiplier * (1 + bonus + speedDuelBonus);
+  // Bonus arme (ex. Lævateinn) additionné aux autres, pas multiplié séparément
+  const weaponCritBonus =
+    attacker?.weaponState?.isLegendary && attacker.weaponState.weaponId === 'dague_legendaire'
+      ? weaponConstants.laevateinn.critDamageBonus
+      : 0;
+  return generalConstants.critMultiplier * (1 + bonus + speedDuelBonus + weaponCritBonus);
 };
 
 // Bonus de stats par race
