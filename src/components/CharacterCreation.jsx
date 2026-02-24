@@ -79,9 +79,9 @@ const formatWeaponStats = (weapon) => {
   }, []);
 };
 
-const getWeaponTooltipContent = (weapon) => {
+const getWeaponTooltipContent = (weapon, hideFlatStats = false) => {
   if (!weapon) return null;
-  const stats = formatWeaponStats(weapon);
+  const stats = hideFlatStats ? null : formatWeaponStats(weapon);
   return (
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
@@ -1033,11 +1033,11 @@ const CharacterCreation = () => {
     const forgeUpgrade = existingCharacter.forgeUpgrade;
     const forgeLabel = (statKey) => FORGE_STAT_LABELS[statKey] || statKey.toUpperCase();
     const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
-    const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
-    const rawBase = existingCharacter.base;
     const skipWeaponFlat = isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade);
+    const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
+    const rawBase = existingCharacter.base;
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive, skipWeaponFlat) : baseStats;
-    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0));
+    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
     const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
     const finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
 
@@ -1139,7 +1139,7 @@ const CharacterCreation = () => {
                     {weapon ? (() => {
                       const weaponContent = (
                         <>
-                          <Tooltip content={getWeaponTooltipContent(weapon)}>
+                          <Tooltip content={getWeaponTooltipContent(weapon, hasForgeUpgrade)}>
                             <span className="flex items-center gap-2">
                               {getWeaponImage(weapon.imageFile) ? (
                                 <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" />
@@ -1156,7 +1156,7 @@ const CharacterCreation = () => {
                                 Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
                               </div>
                             )}
-                            {weapon.stats && Object.keys(weapon.stats).length > 0 && (
+                            {weapon.stats && Object.keys(weapon.stats).length > 0 && !hasForgeUpgrade && (
                               <div className="text-stone-200">
                                 Stats: {formatWeaponStats(weapon)}
                               </div>
