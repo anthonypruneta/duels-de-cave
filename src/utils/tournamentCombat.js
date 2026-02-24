@@ -170,6 +170,7 @@ export function preparerCombattant(char) {
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
     ...char,
+    _storedBase: char.base,
     base: baseWithClassPassive,
     baseWithoutWeapon,
     baseWithBoosts,

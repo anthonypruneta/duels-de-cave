@@ -46,7 +46,9 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const classB = getClassBonus(character.class);
   const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
   const forestBoosts = { ...getEmptyStatBoosts(), ...(character.forestBoosts || {}) };
-  const baseStatsRaw = applyStatBoosts(character.base, forestBoosts);
+  // En PvP / Tournoi / Entraînement, character.base = stats de combat ; _storedBase = base fiche perso pour tooltip et recalcul
+  const rawBase = character._storedBase ?? character.base;
+  const baseStatsRaw = applyStatBoosts(rawBase, forestBoosts);
   const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, character.race, character.level ?? 1);
   const weapon = weaponOverride ?? character.equippedWeaponData ?? null;
   const mageTowerPassive = character.mageTowerPassive || null;
@@ -60,7 +62,6 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
   const skipWeaponFlat = isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade);
   const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
-  const rawBase = character.base;
   const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
   const awakeningEffect = getAwakeningEffect(character.race, character.level ?? 1);
