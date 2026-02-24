@@ -1039,10 +1039,10 @@ const CharacterCreation = () => {
     const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive, skipWeaponFlat) : baseStats;
     const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
     const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
-    let finalStats = applyAwakeningToBase(baseWithPassive, awakeningEffect);
-    if (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade)) {
-      finalStats = applyForgeUpgrade(finalStats, forgeUpgrade);
-    }
+    const finalStatsBeforeForge = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+    const finalStats = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
+      ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
+      : finalStatsBeforeForge;
 
     const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
     const getRaceDisplayBonus = (k) => {
@@ -1053,7 +1053,8 @@ const CharacterCreation = () => {
       const weaponBonus = weaponStatValue(k);
       const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
       const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
-      return (finalStats[k] ?? 0) - subtotalWithoutRace;
+      // Utiliser les stats avant forge pour ne pas mettre le bonus Forge dans "Race"
+      return (finalStatsBeforeForge[k] ?? 0) - subtotalWithoutRace;
     };
 
     const tooltipContent = (k) => {
@@ -1076,8 +1077,10 @@ const CharacterCreation = () => {
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const displayValue = finalStats[statKey] ?? 0;
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0);
-      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0);
+      const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
+      const forgeDeltaForStat = (isForgeActive() && forgeUpgrade) ? (() => { const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade); return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]); })() : 0;
+      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || forgeDeltaForStat !== 0;
+      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + forgeDeltaForStat;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
