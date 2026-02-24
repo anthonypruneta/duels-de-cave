@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
+import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
@@ -99,8 +100,12 @@ export const getUserCharacter = async (userId) => {
     });
 
     if (result.exists()) {
-      console.log('✅ Personnage trouvé:', result.data());
-      return { success: true, data: result.data() };
+      const data = result.data();
+      console.log('✅ Personnage trouvé:', data);
+      // Rétroactivité: migration PV +4 → +6 par point de stat
+      const characterRef = doc(db, 'characters', userId);
+      const migratedData = await applyHpStat6MigrationIfNeeded(characterRef, data);
+      return { success: true, data: migratedData };
     } else {
       console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
       return { success: true, data: null };
@@ -499,6 +504,57 @@ export const updateCharacterOwnerPseudo = async (userId, ownerPseudo) => {
   }
 };
 
+// Migration: gains PV +4 → +6 par point de stat (base.hp et forestBoosts.hp)
+const HP_STAT_MIGRATION_FLAG = 'migrationHpStat6Applied';
+const OLD_HP_PER_POINT = 4;
+const NEW_HP_PER_POINT = 6;
+
+/**
+ * Calcule les valeurs base.hp et forestBoosts.hp après migration 4→6 PV/point.
+ * Retourne { newBaseHp, newForestBoostsHp } ou null si rien à migrer.
+ */
+export const computeHpStat6Migration = (char) => {
+  if (!char?.base) return null;
+  const raceHp = (char.bonuses?.race?.hp ?? getRaceBonus(char.race || '').hp) || 0;
+  const classHp = (char.bonuses?.class?.hp ?? getClassBonus(char.class || '').hp) || 0;
+  const rawHp = (char.base.hp ?? 0) - raceHp - classHp;
+  const pointsHpBase = rawHp >= 120 ? Math.floor((rawHp - 120) / OLD_HP_PER_POINT) : 0;
+  const newBaseHp = (char.base.hp ?? 0) + pointsHpBase * (NEW_HP_PER_POINT - OLD_HP_PER_POINT);
+
+  const forestHpOld = char.forestBoosts?.hp ?? 0;
+  const pointsForest = Math.round(forestHpOld / OLD_HP_PER_POINT);
+  const newForestBoostsHp = pointsForest * NEW_HP_PER_POINT;
+
+  return { newBaseHp, newForestBoostsHp, pointsHpBase, pointsForest };
+};
+
+/**
+ * Applique la migration HP 4→6 sur un personnage (écrit en Firestore si pas déjà fait).
+ * À appeler après getDoc dans getUserCharacter pour rétroactivité à la lecture.
+ */
+const applyHpStat6MigrationIfNeeded = async (characterRef, data) => {
+  if (data[HP_STAT_MIGRATION_FLAG]) return data;
+  const computed = computeHpStat6Migration(data);
+  if (!computed) return data;
+
+  const updatedBase = { ...data.base, hp: computed.newBaseHp };
+  const updatedForestBoosts = { ...(data.forestBoosts || {}), hp: computed.newForestBoostsHp };
+
+  await setDoc(characterRef, {
+    base: updatedBase,
+    forestBoosts: updatedForestBoosts,
+    [HP_STAT_MIGRATION_FLAG]: true,
+    updatedAt: Timestamp.now()
+  }, { merge: true });
+
+  return {
+    ...data,
+    base: updatedBase,
+    forestBoosts: updatedForestBoosts,
+    [HP_STAT_MIGRATION_FLAG]: true
+  };
+};
+
 // Migration: convertir les forestBoosts HP de 3/point à 4/point
 // Pour chaque personnage, forestBoosts.hp passe de X à X*4/3 (ajoute X/3)
 export const migrateForestHpBoosts = async () => {
@@ -536,6 +592,48 @@ export const migrateForestHpBoosts = async () => {
     return { success: true, migrated, skipped, total: characters.length };
   } catch (error) {
     console.error('Erreur migration HP forêt:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Migration bulk: gains PV +4 → +6 (base.hp + forestBoosts.hp) pour tous les personnages
+export const migrateHpStat4To6 = async () => {
+  try {
+    const allResult = await getAllCharacters();
+    if (!allResult.success) return { success: false, error: allResult.error };
+
+    const characters = allResult.data;
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const char of characters) {
+      if (char.disabled) { skipped++; continue; }
+      if (char[HP_STAT_MIGRATION_FLAG]) { skipped++; continue; }
+
+      const computed = computeHpStat6Migration(char);
+      if (!computed || (computed.pointsHpBase === 0 && computed.pointsForest === 0)) {
+        skipped++;
+        continue;
+      }
+
+      const updatedBase = { ...char.base, hp: computed.newBaseHp };
+      const updatedForestBoosts = { ...(char.forestBoosts || {}), hp: computed.newForestBoostsHp };
+
+      const characterRef = doc(db, 'characters', char.id);
+      await setDoc(characterRef, {
+        base: updatedBase,
+        forestBoosts: updatedForestBoosts,
+        [HP_STAT_MIGRATION_FLAG]: true,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+
+      console.log(`Migration HP 4→6: ${char.name} (${char.id}): base.hp +${computed.pointsHpBase * 2}, forestBoosts.hp ${char.forestBoosts?.hp ?? 0} → ${computed.newForestBoostsHp}`);
+      migrated++;
+    }
+
+    return { success: true, migrated, skipped, total: characters.length };
+  } catch (error) {
+    console.error('Erreur migration HP 4→6:', error);
     return { success: false, error: error.message };
   }
 };
