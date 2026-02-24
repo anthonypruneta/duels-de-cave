@@ -31,7 +31,8 @@ import {
   initWeaponCombatState,
   applyForgeUpgrade,
 } from '../utils/weaponEffects';
-import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct } from '../data/forgeDungeon';
+import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS } from '../data/forgeDungeon';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -112,39 +113,7 @@ const Tooltip = ({ children, content }) => {
 };
 
 
-const UPGRADE_STAT_LABELS = {
-  auto: 'ATK',
-  spd: 'VIT',
-  cap: 'CAP',
-  hp: 'HP',
-  def: 'DEF',
-  rescap: 'RESC'
-};
-
-const extractForgeUpgrade = (roll) => {
-  if (!roll) return { bonuses: {}, penalties: {} };
-
-  // Nouveau format
-  if (roll.statBonusesPct || roll.statPenaltyPct) {
-    return {
-      bonuses: { ...(roll.statBonusesPct || {}) },
-      penalties: { ...(roll.statPenaltyPct || {}) }
-    };
-  }
-
-  // Compat legacy
-  const bonuses = {};
-  const penalties = {};
-  if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
-  if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
-  if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
-  return { bonuses, penalties };
-};
-
-const hasAnyForgeUpgrade = (roll) => {
-  const { bonuses, penalties } = extractForgeUpgrade(roll);
-  return Object.values(bonuses).some(v => v > 0) || Object.values(penalties).some(v => v > 0);
-};
+const UPGRADE_STAT_LABELS = FORGE_STAT_LABELS;
 
 const getPassiveDetails = (passive) => {
   if (!passive) return null;
@@ -592,8 +561,8 @@ const ForgeDungeon = () => {
                       ) : (
                         <span className="text-xl">{weapon.icon}</span>
                       )}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>
-                        {weapon.nom}
+                      <span className="flex flex-col items-start">
+                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
                       </span>
                     </span>
                   </Tooltip>

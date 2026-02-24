@@ -4,6 +4,7 @@ import Header from './Header';
 import { getHallOfFame } from '../services/tournamentService';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { races, classes } from '../data/gameData';
 
@@ -283,7 +284,9 @@ const HallOfFame = () => {
                       <div className="border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xl">{weapon.icon}</span>
-                          <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                          <span className="flex flex-col items-start">
+                            <WeaponNameWithForge weapon={weapon} forgeUpgrade={fullChampionData.forgeUpgrade} />
+                          </span>
                         </div>
                         <div className="text-[11px] text-stone-400 space-y-1">
                           <div>{weapon.description}</div>

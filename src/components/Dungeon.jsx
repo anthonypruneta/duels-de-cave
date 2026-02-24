@@ -22,6 +22,9 @@ import {
   RARITY_BORDER_COLORS,
   RARITY_BG_COLORS
 } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
@@ -1295,6 +1298,11 @@ const Dungeon = () => {
         parts.push(`Passif: ${passiveAutoBonus > 0 ? `+${passiveAutoBonus}` : passiveAutoBonus}`);
       }
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      if (isForgeActive() && char.forgeUpgrade) {
+        const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
+        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+      }
       return parts.join(' | ');
     };
 
@@ -1307,7 +1315,9 @@ const Dungeon = () => {
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const forgeBonus = (isForgeActive() && char.forgeUpgrade && extractForgeUpgrade(char.forgeUpgrade).bonuses[statKey]) || 0;
+      const forgePenalty = (isForgeActive() && char.forgeUpgrade && extractForgeUpgrade(char.forgeUpgrade).penalties[statKey]) || 0;
+      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0 || forgeBonus > 0 || forgePenalty > 0;
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
@@ -1336,7 +1346,9 @@ const Dungeon = () => {
                 <Tooltip content={getWeaponTooltipContent(weapon)}>
                   <span className="flex items-center gap-2">
                     {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
-                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    <span className="flex flex-col items-start">
+                      <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
+                    </span>
                   </span>
                 </Tooltip>
                 <div className="text-[11px] text-stone-400 mt-1 space-y-1">
@@ -1833,9 +1845,9 @@ const Dungeon = () => {
                   )}
                   <div className="flex-1">
                     <p className="text-sm text-gray-400">Arme équipée</p>
-                    <p className={`text-xl font-bold ${RARITY_COLORS[dungeonSummary.equippedWeaponData.rarete]}`}>
-                      {dungeonSummary.equippedWeaponData.nom}
-                    </p>
+                    <div className="text-xl font-bold">
+                      <WeaponNameWithForge weapon={dungeonSummary.equippedWeaponData} forgeUpgrade={character?.forgeUpgrade} />
+                    </div>
                   </div>
                 </div>
               </Tooltip>

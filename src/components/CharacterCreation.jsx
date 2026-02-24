@@ -19,7 +19,7 @@ import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
-import { formatUpgradePct } from '../data/forgeDungeon';
+import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS } from '../data/forgeDungeon';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -1031,26 +1031,7 @@ const CharacterCreation = () => {
     const awakeningInfo = races[existingCharacter.race]?.awakening || null;
     const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
     const forgeUpgrade = existingCharacter.forgeUpgrade;
-    const extractForgeUpgrade = (roll) => {
-      if (!roll) return { bonuses: {}, penalties: {} };
-      if (roll.statBonusesPct || roll.statPenaltyPct) {
-        return {
-          bonuses: { ...(roll.statBonusesPct || {}) },
-          penalties: { ...(roll.statPenaltyPct || {}) }
-        };
-      }
-      const bonuses = {};
-      const penalties = {};
-      if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
-      if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
-      if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
-      return { bonuses, penalties };
-    };
-    const hasAnyForgeUpgrade = (roll) => {
-      const { bonuses, penalties } = extractForgeUpgrade(roll);
-      return Object.values(bonuses).some(v => v > 0) || Object.values(penalties).some(v => v > 0);
-    };
-    const forgeLabel = (statKey) => ({ auto: 'ATK', spd: 'VIT', cap: 'CAP', hp: 'HP', def: 'DEF', rescap: 'RESC' }[statKey] || statKey.toUpperCase());
+    const forgeLabel = (statKey) => FORGE_STAT_LABELS[statKey] || statKey.toUpperCase();
     const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
     const weaponStatValue = (k) => weapon?.stats?.[k] ?? 0;
     const rawBase = existingCharacter.base;
@@ -1080,6 +1061,11 @@ const CharacterCreation = () => {
 
       const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      if (isForgeActive() && forgeUpgrade) {
+        const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
+        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+      }
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {

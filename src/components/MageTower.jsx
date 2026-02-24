@@ -27,6 +27,9 @@ import {
 } from '../data/combatMechanics';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import {
   MAGE_TOWER_DIFFICULTY_COLORS,
   getAllMageTowerLevels,
@@ -1307,6 +1310,11 @@ const MageTower = () => {
       }
       const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      if (isForgeActive() && char.forgeUpgrade) {
+        const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
+        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+      }
       return parts.join(' | ');
     };
 
@@ -1317,7 +1325,9 @@ const MageTower = () => {
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const forgeBonus = (isForgeActive() && char.forgeUpgrade && extractForgeUpgrade(char.forgeUpgrade).bonuses[statKey]) || 0;
+      const forgePenalty = (isForgeActive() && char.forgeUpgrade && extractForgeUpgrade(char.forgeUpgrade).penalties[statKey]) || 0;
+      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0 || forgeBonus > 0 || forgePenalty > 0;
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return (
@@ -1375,8 +1385,8 @@ const MageTower = () => {
                       ) : (
                         <span className="text-xl">{weapon.icon}</span>
                       )}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>
-                        {weapon.nom}
+                      <span className="flex flex-col items-start">
+                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
                       </span>
                     </span>
                   </Tooltip>

@@ -21,6 +21,9 @@ import {
 import {
   RARITY_COLORS,
 } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
@@ -673,6 +676,11 @@ const Training = () => {
       }
       const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      if (isForgeActive() && char.forgeUpgrade) {
+        const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
+        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+      }
       return parts.join(' | ');
     };
 
@@ -731,7 +739,9 @@ const Training = () => {
                       ) : (
                         <span className="text-xl">{weapon.icon}</span>
                       )}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                      <span className="flex flex-col items-start">
+                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={char.forgeUpgrade} />
+                      </span>
                     </span>
                   </Tooltip>
                   <div className="text-[11px] text-stone-400 mt-1 space-y-1">

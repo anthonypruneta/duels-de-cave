@@ -34,27 +34,61 @@ export const FORGE_BOSS = {
 };
 
 /**
- * Plages de % pour les upgrades d'armes
+ * Labels des stats pour l'affichage des upgrades Forge (partagé partout)
+ */
+export const FORGE_STAT_LABELS = {
+  auto: 'ATK',
+  spd: 'VIT',
+  cap: 'CAP',
+  hp: 'HP',
+  def: 'DEF',
+  rescap: 'RESC',
+};
+
+/**
+ * Extrait bonus et malus % d'un roll d'upgrade (nouveau format + legacy)
+ */
+export function extractForgeUpgrade(roll) {
+  if (!roll) return { bonuses: {}, penalties: {} };
+  if (roll.statBonusesPct || roll.statPenaltyPct) {
+    return {
+      bonuses: { ...(roll.statBonusesPct || {}) },
+      penalties: { ...(roll.statPenaltyPct || {}) },
+    };
+  }
+  const bonuses = {};
+  const penalties = {};
+  if (roll.upgradeAutoPct) bonuses.auto = roll.upgradeAutoPct;
+  if (roll.upgradeVitPct) bonuses.spd = roll.upgradeVitPct;
+  if (roll.upgradeVitPenaltyPct) penalties.spd = roll.upgradeVitPenaltyPct;
+  return { bonuses, penalties };
+}
+
+/**
+ * Indique si le roll contient au moins un bonus ou un malus
+ */
+export function hasAnyForgeUpgrade(roll) {
+  const { bonuses, penalties } = extractForgeUpgrade(roll);
+  return Object.values(bonuses).some((v) => v > 0) || Object.values(penalties).some((v) => v > 0);
+}
+
+/**
+ * Plages de % pour les upgrades d'armes (tirage aléatoire)
  */
 export const UPGRADE_RANGES = {
-  // Bonus standard pour les stats positives de l'arme légendaire équipée
   positivePct: { min: 0.10, max: 0.20 },
-
-  // Fluctuation négative pour les stats négatives de l'arme
-  // (pas de bonus positif sur ces stats)
   negativePctByWeapon: {
     epee_legendaire: { spd: { min: 0, max: 0.10 } },
     marteau_legendaire: { spd: { min: 0, max: 0.05 } },
   },
-
-  // Fallback si une future arme a une stat négative sans configuration dédiée
   negativePctDefault: { min: 0, max: 0.10 },
 };
 
 const rollPct = (range) => parseFloat((Math.random() * (range.max - range.min) + range.min).toFixed(4));
 
 /**
- * Génère un roll d'upgrade aléatoire pour une arme légendaire
+ * Génère un roll d'upgrade aléatoire pour une arme légendaire.
+ * Les % sont appliqués aux stats totales du personnage (voir applyForgeUpgrade dans weaponEffects).
  * @param {string} weaponId - ID de l'arme légendaire équipée
  * @returns {{ statBonusesPct: Object<string, number>, statPenaltyPct: Object<string, number> }}
  */
@@ -71,10 +105,7 @@ export function generateForgeUpgradeRoll(weaponId) {
   for (const [statKey, statValue] of Object.entries(weapon.stats)) {
     if (statValue > 0) {
       statBonusesPct[statKey] = rollPct(positivePct);
-      continue;
-    }
-
-    if (statValue < 0) {
+    } else if (statValue < 0) {
       const range = negativePctByWeapon[weaponId]?.[statKey] || negativePctDefault;
       statPenaltyPct[statKey] = rollPct(range);
     }

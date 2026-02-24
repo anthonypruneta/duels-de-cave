@@ -10,6 +10,9 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -593,8 +596,8 @@ const Combat = () => {
                     ) : (
                       <span className="text-base">{selectedChar.equippedWeaponData.icon}</span>
                     )}
-                    <span className={`font-semibold ${RARITY_COLORS[selectedChar.equippedWeaponData.rarete]}`}>
-                      {selectedChar.equippedWeaponData.nom}
+                    <span className="flex flex-col items-start">
+                      <WeaponNameWithForge weapon={selectedChar.equippedWeaponData} forgeUpgrade={selectedChar.forgeUpgrade} />
                     </span>
                   </span>
                 </Tooltip>
@@ -707,6 +710,11 @@ const Combat = () => {
       }
       const raceDisplayBonus = getRaceDisplayBonus(k);
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+      if (isForgeActive() && character.forgeUpgrade) {
+        const { bonuses, penalties } = extractForgeUpgrade(character.forgeUpgrade);
+        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+      }
       return parts.join(' | ');
     };
     // Utiliser l'image du personnage si elle existe, sinon utiliser l'image par défaut
@@ -719,7 +727,9 @@ const Combat = () => {
         : 0;
       const displayValue = baseStats[statKey] + weaponDelta + passiveAutoBonus;
       const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0;
+      const forgeBonus = (isForgeActive() && character.forgeUpgrade && extractForgeUpgrade(character.forgeUpgrade).bonuses[statKey]) || 0;
+      const forgePenalty = (isForgeActive() && character.forgeUpgrade && extractForgeUpgrade(character.forgeUpgrade).penalties[statKey]) || 0;
+      const hasBonus = raceDisplayBonus !== 0 || (classB[statKey] || 0) > 0 || forestBoosts[statKey] > 0 || weaponDelta !== 0 || passiveAutoBonus !== 0 || forgeBonus > 0 || forgePenalty > 0;
       const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + forestBoosts[statKey] + weaponDelta + passiveAutoBonus;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
@@ -767,7 +777,9 @@ const Combat = () => {
                     ) : (
                       <span className="text-xl">{weapon.icon}</span>
                     )}
-                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    <span className="flex flex-col items-start">
+                      <WeaponNameWithForge weapon={weapon} forgeUpgrade={character.forgeUpgrade} />
+                    </span>
                   </span>
                 </Tooltip>
               </div>

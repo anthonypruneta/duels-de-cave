@@ -17,6 +17,9 @@ import { classConstants, getRaceBonus, getClassBonus } from '../data/combatMecha
 import { getRaceBonusText } from '../utils/descriptionBuilders';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -294,6 +297,11 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
     }
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
+    if (isForgeActive() && character.forgeUpgrade) {
+      const { bonuses, penalties } = extractForgeUpgrade(character.forgeUpgrade);
+      if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+      if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+    }
     return parts.join(' | ');
   };
 
@@ -362,7 +370,9 @@ const CharacterCard = ({ character, currentHPOverride, maxHPOverride, shieldOver
                   <Tooltip content={getWeaponTooltipContent(weapon)}>
                     <span className="flex items-center gap-2">
                       {getWeaponImage(weapon.imageFile) ? <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-8 h-auto" /> : <span className="text-xl">{weapon.icon}</span>}
-                      <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                      <span className="flex flex-col items-start">
+                        <WeaponNameWithForge weapon={weapon} forgeUpgrade={character.forgeUpgrade} />
+                      </span>
                     </span>
                   </Tooltip>
                 </div>

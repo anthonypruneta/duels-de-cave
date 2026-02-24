@@ -9,6 +9,9 @@ import {
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
+import WeaponNameWithForge from './WeaponWithForgeDisplay';
+import { isForgeActive } from '../data/featureFlags';
+import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
@@ -381,6 +384,11 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
     if (bastionDelta(k) !== 0) parts.push(`Bastion: ${bastionDelta(k) > 0 ? `+${bastionDelta(k)}` : bastionDelta(k)}`);
+    if (isForgeActive() && participant.forgeUpgrade) {
+      const { bonuses, penalties } = extractForgeUpgrade(participant.forgeUpgrade);
+      if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
+      if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+    }
     return parts.join(' | ');
   };
 
@@ -451,7 +459,9 @@ const TournamentCharacterCard = ({ participant, currentHP, maxHP, shield = 0 }) 
                     ) : (
                       <span className="text-xl">{weapon.icon}</span>
                     )}
-                    <span className={`font-semibold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</span>
+                    <span className="flex flex-col items-start">
+                      <WeaponNameWithForge weapon={weapon} forgeUpgrade={participant.forgeUpgrade} />
+                    </span>
                   </span>
                 </Tooltip>
                 <div className="text-[11px] text-stone-400 mt-1 space-y-1">
