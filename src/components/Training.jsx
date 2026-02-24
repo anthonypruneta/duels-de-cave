@@ -23,7 +23,7 @@ import {
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
@@ -678,8 +678,9 @@ const Training = () => {
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       if (isForgeActive() && char.forgeUpgrade) {
         const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
-        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
-        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponDelta + (k === 'auto' ? (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (weapon?.stats?.auto ?? 0)) : 0) + getRaceDisplayBonus(k);
+        const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
+        if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
       }
       return parts.join(' | ');
     };

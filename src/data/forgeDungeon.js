@@ -154,3 +154,18 @@ export function formatUpgradePct(value) {
   const pct = (value * 100).toFixed(1);
   return `${pct.endsWith('.0') ? pct.slice(0, -2) : pct}%`;
 }
+
+/**
+ * Calcule le gain (ou perte) réel en points de stat appliqué par la Forge.
+ * Même ordre que applyForgeUpgrade : bonus puis malus.
+ * @param {number} valueBeforeForge - Valeur de la stat avant application Forge
+ * @param {number} bonusPct - Bonus (ex. 0.15 pour +15%)
+ * @param {number} penaltyPct - Malus (ex. 0.10 pour -10%)
+ * @returns {number} Delta (ex. +12 ou -5)
+ */
+export function computeForgeStatDelta(valueBeforeForge, bonusPct = 0, penaltyPct = 0) {
+  if (valueBeforeForge == null || (!bonusPct && !penaltyPct)) return 0;
+  const afterBonus = bonusPct ? Math.round(valueBeforeForge * (1 + bonusPct)) : valueBeforeForge;
+  const afterPenalty = penaltyPct ? Math.round(afterBonus * (1 - penaltyPct)) : afterBonus;
+  return afterPenalty - valueBeforeForge;
+}

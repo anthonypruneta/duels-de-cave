@@ -19,7 +19,7 @@ import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
-import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS } from '../data/forgeDungeon';
+import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -1063,8 +1063,9 @@ const CharacterCreation = () => {
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       if (isForgeActive() && forgeUpgrade) {
         const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
-        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
-        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
+        const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
+        if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
       }
       return parts.join(' | ');
     };

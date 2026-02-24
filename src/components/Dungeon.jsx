@@ -24,7 +24,7 @@ import {
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, formatUpgradePct } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
@@ -1300,8 +1300,8 @@ const Dungeon = () => {
       if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
       if (isForgeActive() && char.forgeUpgrade) {
         const { bonuses, penalties } = extractForgeUpgrade(char.forgeUpgrade);
-        if (bonuses[k] > 0) parts.push(`Forge: +${formatUpgradePct(bonuses[k])}`);
-        if (penalties[k] > 0) parts.push(`Forge: -${formatUpgradePct(penalties[k])}`);
+        const forgeDelta = computeForgeStatDelta(displayValue, bonuses[k], penalties[k]);
+        if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
       }
       return parts.join(' | ');
     };
