@@ -135,3 +135,77 @@ body.cataclysm-bg::before {
 .forge-lava-glow {
   box-shadow: 0 0 15px rgba(249, 115, 22, 0.3), 0 0 30px rgba(239, 68, 68, 0.15);
 }
+
+/* ===== Extension du Territoire — Passif fusionné (bleu, rouge, violet) ===== */
+
+.extension-territory-text {
+  background: linear-gradient(90deg, #3b82f6, #ef4444, #8b5cf6, #ef4444, #3b82f6);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: extension-territory-flow 3s ease-in-out infinite;
+}
+
+@keyframes extension-territory-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.extension-territory-border {
+  position: relative;
+  overflow: visible;
+}
+
+.extension-territory-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #3b82f6, #ef4444, #8b5cf6, #ef4444, #3b82f6);
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: extension-territory-glow 4s ease-in-out infinite;
+}
+
+@keyframes extension-territory-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.extension-territory-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.extension-territory-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(59, 130, 246, 0.06) 45%,
+    rgba(139, 92, 246, 0.12) 50%,
+    rgba(239, 68, 68, 0.06) 55%,
+    transparent 60%
+  );
+  animation: extension-territory-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes extension-territory-sweep {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.extension-territory-glow {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25), 0 0 20px rgba(239, 68, 68, 0.15), 0 0 20px rgba(139, 92, 246, 0.25);
+}

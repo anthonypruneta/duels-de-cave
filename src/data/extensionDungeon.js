@@ -6,7 +6,7 @@
  * Récompense : garder son passif actuel + ajout d'un passif niveau 1 (nom mixé).
  */
 
-import { getMageTowerPassiveById, getAvailablePassives } from './mageTowerPassives';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel, getAvailablePassives } from './mageTowerPassives';
 
 export const EXTENSION_BOSS = {
   id: 'gojo',
@@ -159,4 +159,26 @@ export function createExtensionBossCombatant() {
  */
 export function canAccessExtensionDungeon(mageTowerPassive) {
   return mageTowerPassive?.level === 3 && mageTowerPassive?.id;
+}
+
+/**
+ * Données pour l'affichage du passif fusionné (principal + extension).
+ * @param {Object} character - { mageTowerPassive, mageTowerExtensionPassive }
+ * @returns {{ mixedName: string, primaryDetails: Object, extensionDetails: Object } | null}
+ */
+export function getFusedPassiveDisplayData(character) {
+  const primary = character?.mageTowerPassive;
+  const extension = character?.mageTowerExtensionPassive;
+  if (!primary?.id || !extension?.id) return null;
+  const primaryBase = getMageTowerPassiveById(primary.id);
+  const primaryLevelData = getMageTowerPassiveLevel(primary.id, primary.level);
+  const extensionBase = getMageTowerPassiveById(extension.id);
+  const extensionLevelData = getMageTowerPassiveLevel(extension.id, extension.level ?? 1);
+  if (!primaryBase || !primaryLevelData || !extensionBase || !extensionLevelData) return null;
+  const mixedName = getMixedPassiveDisplayName(primary.id, extension.id) || `${primaryBase.name} + ${extensionBase.name}`;
+  return {
+    mixedName,
+    primaryDetails: { ...primaryBase, level: primary.level, levelData: primaryLevelData },
+    extensionDetails: { ...extensionBase, level: extension.level ?? 1, levelData: extensionLevelData },
+  };
 }

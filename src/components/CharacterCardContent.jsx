@@ -34,6 +34,7 @@ export default function CharacterCardContent({
     forgeUpgrade,
     forgeLabel,
     passiveDetails,
+    fusedPassiveDisplay,
     awakeningInfo,
     isAwakeningActive,
     weapon,
@@ -137,7 +138,22 @@ export default function CharacterCardContent({
   const details = (
     <div className="space-y-2">
       {weaponContent}
-      {passiveDetails ? (
+      {fusedPassiveDisplay ? (
+        <div className="extension-territory-border extension-territory-glow overflow-visible">
+          <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 extension-territory-shine">
+            <span className="text-lg">{fusedPassiveDisplay.primaryDetails.icon}</span>
+            <div className="flex-1">
+              <div className="font-semibold extension-territory-text">
+                {fusedPassiveDisplay.mixedName}
+              </div>
+              <div className="text-stone-400 text-[11px] mt-1 space-y-1">
+                <div><span className="text-amber-300/90">Niv.{fusedPassiveDisplay.primaryDetails.level} —</span> {fusedPassiveDisplay.primaryDetails.levelData.description}</div>
+                <div><span className="text-violet-300/90">Niv.{fusedPassiveDisplay.extensionDetails.level} (Extension) —</span> {fusedPassiveDisplay.extensionDetails.levelData.description}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : passiveDetails ? (
         <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
           <span className="text-lg">{passiveDetails.icon}</span>
           <div className="flex-1">

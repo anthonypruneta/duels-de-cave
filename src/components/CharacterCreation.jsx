@@ -14,6 +14,7 @@ import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils
 import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -1192,23 +1193,47 @@ const CharacterCreation = () => {
                         Aucune arme équipée
                       </div>
                     )}
-                    {passiveDetails ? (
-                      <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
-                        <span className="text-lg">{passiveDetails.icon}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-amber-200">
-                            {passiveDetails.name} — Niveau {passiveDetails.level}
+                    {(() => {
+                      const fused = getFusedPassiveDisplayData(existingCharacter);
+                      if (fused) {
+                        return (
+                          <div className="extension-territory-border extension-territory-glow overflow-visible">
+                            <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 extension-territory-shine">
+                              <span className="text-lg">{fused.primaryDetails.icon}</span>
+                              <div className="flex-1">
+                                <div className="font-semibold extension-territory-text">
+                                  {fused.mixedName}
+                                </div>
+                                <div className="text-stone-400 text-[11px] mt-1 space-y-1">
+                                  <div><span className="text-amber-300/90">Niv.{fused.primaryDetails.level} —</span> {fused.primaryDetails.levelData.description}</div>
+                                  <div><span className="text-violet-300/90">Niv.{fused.extensionDetails.level} (Extension) —</span> {fused.extensionDetails.levelData.description}</div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-stone-400 text-[11px]">
-                            {passiveDetails.levelData.description}
+                        );
+                      }
+                      if (passiveDetails) {
+                        return (
+                          <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
+                            <span className="text-lg">{passiveDetails.icon}</span>
+                            <div className="flex-1">
+                              <div className="font-semibold text-amber-200">
+                                {passiveDetails.name} — Niveau {passiveDetails.level}
+                              </div>
+                              <div className="text-stone-400 text-[11px]">
+                                {passiveDetails.levelData.description}
+                              </div>
+                            </div>
                           </div>
+                        );
+                      }
+                      return (
+                        <div className="text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
+                          Aucun passif de Tour du Mage équipé
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-stone-500 border border-stone-600 bg-stone-900/60 p-2">
-                        Aucun passif de Tour du Mage équipé
-                      </div>
-                    )}
+                      );
+                    })()}
                     {isAwakeningActive && (
                       <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2">
                         <span className="text-lg">✨</span>

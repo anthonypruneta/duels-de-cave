@@ -6,6 +6,7 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import { races, classes } from '../data/gameData';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
@@ -233,6 +234,7 @@ const HallOfFame = () => {
 
       {selectedChampion && fullChampionData && (() => {
         const weapon = fullChampionData.equippedWeaponId ? getWeaponById(fullChampionData.equippedWeaponId) : null;
+        const fused = getFusedPassiveDisplayData(fullChampionData);
         const passive = fullChampionData.mageTowerPassive ? getMageTowerPassiveById(fullChampionData.mageTowerPassive.id) : null;
         const passiveLevel = passive && fullChampionData.mageTowerPassive ? getMageTowerPassiveLevel(fullChampionData.mageTowerPassive.id, fullChampionData.mageTowerPassive.level) : null;
         
@@ -304,7 +306,20 @@ const HallOfFame = () => {
                       </div>
                     )}
 
-                    {passive && (
+                    {fused ? (
+                      <div className="extension-territory-border extension-territory-glow overflow-visible">
+                        <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 extension-territory-shine">
+                          <span className="text-lg">{fused.primaryDetails.icon}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold extension-territory-text">{fused.mixedName}</div>
+                            <div className="text-stone-400 text-[11px] mt-1 space-y-1">
+                              <div><span className="text-amber-300/90">Niv.{fused.primaryDetails.level} —</span> {fused.primaryDetails.levelData.description}</div>
+                              <div><span className="text-violet-300/90">Niv.{fused.extensionDetails.level} (Extension) —</span> {fused.extensionDetails.levelData.description}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : passive && (
                       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                         <span className="text-lg">{passive.icon}</span>
                         <div className="flex-1">

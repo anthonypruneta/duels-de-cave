@@ -15,6 +15,7 @@ import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAw
 import { isForgeActive } from '../data/featureFlags';
 import { extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import { races } from '../data/races';
 
 export function useCharacterStatsDisplay(character, weaponOverride = null) {
@@ -32,6 +33,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
       forgeLabel: () => '',
       passiveAutoBonus: 0,
       passiveDetails: null,
+      fusedPassiveDisplay: null,
       awakeningInfo: null,
       isAwakeningActive: false,
       weapon: null,
@@ -55,6 +57,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
   const passiveLevel = mageTowerPassive ? getMageTowerPassiveLevel(mageTowerPassive.id, mageTowerPassive.level) : null;
   const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
+  const fusedPassiveDisplay = getFusedPassiveDisplayData(character);
   const awakeningInfo = character.race ? (races[character.race]?.awakening ?? null) : null;
   const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
   const forgeUpgrade = character.forgeUpgrade;
@@ -134,6 +137,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     forgeLabel,
     passiveAutoBonus,
     passiveDetails,
+    fusedPassiveDisplay,
     awakeningInfo,
     isAwakeningActive,
     weapon,
