@@ -8,7 +8,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
-  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onPaladinRiposteCast, onSpellCast, onTurnStart, rollHealCrit,
+  initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onSpellCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictSpellBonus, getVerdictCooldownPenalty,
   applyForgeUpgrade
 } from './weaponEffects.js';
@@ -263,7 +263,7 @@ function getMindflayerSpellCooldown(caster, _target, spellId) {
   const baseCooldown = cooldowns[spellId] ?? 1;
   let adjustedCooldown = baseCooldown;
 
-  // Arbalète du Verdict: +1 CD sur tous les sorts
+  // Arbalète du Verdict: +1 CD sur toutes les capacités
   const verdictPenalty = getVerdictCooldownPenalty(caster.weaponState);
   if (verdictPenalty > 0) {
     adjustedCooldown += verdictPenalty;
@@ -291,7 +291,7 @@ function applyMindflayerSpellMod(caster, _target, baseDamage, spellId, log, play
 
   caster.mindflayerNoCooldownBonusUsed = true;
   const boosted = Math.round(baseDamage * (1 + bonus));
-  log.push(`${playerColor} 🦑 Éveil Mindflayer — premier sort sans CD: +${Math.round(bonus * 100)}% de dégâts !`);
+  log.push(`${playerColor} 🦑 Éveil Mindflayer — première capacité sans CD: +${Math.round(bonus * 100)}% de dégâts !`);
   return boosted;
 }
 
@@ -440,7 +440,7 @@ function grantOnSpellHitDefenderEffects(def, adjusted, log, playerColor) {
   if (def.class === 'Briseur de Sort') {
     const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + def.base.cap * classConstants.briseurSort.shieldFromCap));
     def.shield = (def.shield || 0) + shield;
-    log.push(`${playerColor} 🧱 ${def.name} convertit le spell en bouclier (+${shield}).`);
+    log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
   }
 }
 
@@ -517,15 +517,26 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassive, defPas
       const back = Math.round(def.reflect * adjusted);
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
-      def.reflect = false;
       att._pendingCombatLogs = att._pendingCombatLogs || [];
       att._pendingCombatLogs.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-      // Égide du Briseur de Sort : les dégâts de riposte comptent comme un spell reçu
+      // Égide du Briseur de Sort : les dégâts de riposte comptent comme une capacité reçue
       if (back > 0 && att.class === 'Briseur de Sort') {
         const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
         att.shield = (att.shield || 0) + shield;
-        att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit le spell en bouclier (+${shield}).`);
+        att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield}).`);
       }
+      if (def.riposteTwice && back > 0) {
+        att.currentHP -= back;
+        tryTriggerOnctionLastStand(att, log, playerColor);
+        att._pendingCombatLogs.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+        if (att.class === 'Briseur de Sort') {
+          const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+          att.shield = (att.shield || 0) + shield2;
+          att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield2}).`);
+        }
+      }
+      def.reflect = false;
+      def.riposteTwice = false;
     }
   }
   if (applyOnHitPassives && atkPassive?.id === 'spectral_mark' && adjusted > 0 && !def.spectralMarked) {
@@ -585,7 +596,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.cd[k] = (att.cd[k] % effectiveCd) + 1;
   }
 
-  // La copie de sort du Mindflayer est déclenchée après avoir reçu un sort (dans applyDamage).
+  // La copie de capacité du Mindflayer est déclenchée après avoir reçu une capacité (dans applyDamage).
   let spellStolen = false;
 
   const turnEffects = onTurnStart(att.weaponState, att, turn);
@@ -638,6 +649,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     raw = Math.round(raw * consumeWeaponDamageBonus());
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
+    const demonSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'demoniste');
+    if (demonSpellEffects.doubleCast && demonSpellEffects.secondCastDamage > 0) {
+      const inflictedCodex = applyDamage(att, def, demonSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
+    }
     if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
   }
 
@@ -664,12 +680,17 @@ function processPlayerAction(att, def, log, isP1, turn) {
         verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
-      const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso');
-      if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-        applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
-        log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
-      }
+      const masoSpellEffects = onSpellCast(att.weaponState, att, def, dmg, 'maso', { healAmount });
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
+      if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
+        const inflicted2 = masoSpellEffects.secondCastDamage > 0
+          ? applyDamage(att, def, masoSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false)
+          : 0;
+        if (masoSpellEffects.secondCastHeal > 0) {
+          att.currentHP = Math.min(att.maxHP, att.currentHP + masoSpellEffects.secondCastHeal);
+        }
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} renvoie les dégâts accumulés: inflige ${inflicted2} points de dégâts et récupère ${masoSpellEffects.secondCastHeal} points de vie`);
+      }
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) reviveUndead(def, att, log, playerColor);
     }
   }
@@ -710,12 +731,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Paladin' && att.cd.pal === getMindflayerSpellCooldown(att, def, 'pal') && !spellStolen) {
     skillUsed = true;
-    // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
-    onPaladinRiposteCast(att.weaponState, att, def);
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     const spellCapMult = consumeAuraSpellCapMultiplier();
     const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
     att.reflect = reflectValue;
+    const paladinSpellEffects = onSpellCast(att.weaponState, att, def, reflectValue, 'paladin');
+    if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
+      att.riposteTwice = true;
+      log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
+    }
     log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     if (def?.race === 'Mindflayer') {
       triggerMindflayerSpellCopy(att, def, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus);
@@ -737,8 +761,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
     if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
-      log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
-      log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+      log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un sort de soin puissant et récupère ${healSpellEffects.secondCastHeal} points de vie`);
     }
     const healEffects = onHeal(att.weaponState, att, heal, def);
     if (healEffects.bonusDamage > 0) {
@@ -772,6 +795,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     def.succubeWeakenNextAttack = true;
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. La prochaine attaque de ${def.name} est affaiblie.`);
+    const succSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'succ');
+    if (succSpellEffects.doubleCast && succSpellEffects.secondCastDamage > 0) {
+      const inflictedCodex = applyDamage(att, def, succSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      log.push(`${playerColor} 📜 Codex Archon : ${att.name} fouette ${def.name} et inflige ${inflictedCodex} points de dégâts`);
+    }
   }
 
   const isBastion = !spellStolen && att.class === 'Bastion' && att.cd.bast === getMindflayerSpellCooldown(att, def, 'bast');
@@ -794,11 +822,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart${isCrit ? ' CRITIQUE !' : ''}.`);
+    const bastSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'bast');
+    if (bastSpellEffects.doubleCast && bastSpellEffects.secondCastDamage > 0) {
+      const inflictedCodex = applyDamage(att, def, bastSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+      log.push(`${playerColor} 📜 Codex Archon : ${att.name} percute ${def.name} et inflige ${inflictedCodex} points de dégâts avec la Charge du Rempart`);
+    }
   }
 
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerSpellCooldown(att, def, 'rog') && !spellStolen) {
     skillUsed = true;
-    consumeAuraSpellCapMultiplier(); // Premier sort du combat (consomme le bonus même si pas de CAP ici)
+    consumeAuraSpellCapMultiplier(); // Première capacité du combat (consomme le bonus même si pas de CAP ici)
     att.dodge = true;
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     if (def?.race === 'Mindflayer') {
@@ -854,7 +887,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const isArcher = !spellStolen && att.class === 'Archer' && att.cd.arc === getMindflayerSpellCooldown(att, def, 'arc');
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
-  // Mindflayer éveillé: marquer le flag après le premier sort lancé (le -1 CD ne s'applique qu'une fois)
+  // Mindflayer éveillé: marquer le flag après la première capacité lancée (le -1 CD ne s'applique qu'une fois)
   if (skillUsed && att.race === 'Mindflayer' && !att.mindflayerFirstCDUsed) {
     const aw = att.awakening || {};
     const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
@@ -893,16 +926,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = dmgCap(atkSpell, def.base.rescap);
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} invoque un puissant sort magique`);
       raw = applyMindflayerSpellMod(att, def, raw, 'mag', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts
+      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
       const verdictBonus = getVerdictSpellBonus(att.weaponState);
       if (verdictBonus.damageMultiplier !== 1) {
         raw = Math.round(raw * verdictBonus.damageMultiplier);
         verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
-      if (spellEffects.doubleCast) {
-        applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
-        log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
+      if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
+        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} invoque un puissant sort magique et inflige ${inflictedCodex} points de dégâts`);
       }
     } else if (isWar) {
       const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
@@ -921,13 +954,20 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = dmgPhys(effectiveAuto, effRes);
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'war', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts
+      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
       const verdictBonusWar = getVerdictSpellBonus(att.weaponState);
       if (verdictBonusWar.damageMultiplier !== 1) {
         raw = Math.round(raw * verdictBonusWar.damageMultiplier);
         verdictBonusWar.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
-      if (i === 0) log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
+      if (i === 0) {
+        log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
+        const warSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'war');
+        if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
+          const inflictedCodex = applyDamage(att, def, warSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+          log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
+        }
+      }
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
@@ -939,12 +979,19 @@ function processPlayerAction(att, def, log, isP1, turn) {
         raw = physPart + capPart;
       }
       raw = applyMindflayerSpellMod(att, def, raw, 'arc', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premiers sorts (1 seul usage par activation skill)
+      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités (1 seul usage par activation skill)
       if (i === 0) {
         const verdictBonusArc = getVerdictSpellBonus(att.weaponState);
         if (verdictBonusArc.damageMultiplier !== 1) {
           raw = Math.round(raw * verdictBonusArc.damageMultiplier);
           verdictBonusArc.log.forEach(l => log.push(`${playerColor} ${l}`));
+        }
+      }
+      if (i === 1) {
+        const arcSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'arc');
+        if (arcSpellEffects.doubleCast && arcSpellEffects.secondCastDamage > 0) {
+          const inflictedCodex = applyDamage(att, def, arcSpellEffects.secondCastDamage, false, log, playerColor, attackerPassive, defenderPassive, attackerUnicorn, defenderUnicorn, auraBonus, false);
+          log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un tir renforcé et inflige ${inflictedCodex} points de dégâts`);
         }
       }
     } else {

@@ -37,7 +37,7 @@ export const FORGE_BOSS = {
  * Labels des stats pour l'affichage des upgrades Forge (partagé partout)
  */
 export const FORGE_STAT_LABELS = {
-  auto: 'ATK',
+  auto: 'Auto',
   spd: 'VIT',
   cap: 'CAP',
   hp: 'HP',

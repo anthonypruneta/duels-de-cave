@@ -54,7 +54,7 @@ const STAT_DESCRIPTIONS = {
   hp: "Points de vie max. Quand tu tombes à 0, le combat est perdu.",
   auto: "Puissance des attaques de base (et certaines compétences qui scalent dessus).",
   def: "Réduit les dégâts physiques reçus.",
-  cap: "Puissance des sorts/compétences CAP et scaling de plusieurs effets.",
+  cap: "Puissance des capacités (CAP) et scaling de plusieurs effets.",
   rescap: "Réduit les dégâts magiques/CAP reçus.",
   spd: "Détermine l'ordre d'action (le plus rapide joue en premier)."
 };
@@ -117,8 +117,8 @@ const BALANCE_KEY_LABELS_FR = {
   healDamagePercent: 'Dégâts depuis soins',
   regenPercent: 'Régénération',
   healCritMultiplier: 'Multiplicateur critique soin',
-  defToAtkPercent: 'DEF convertie en ATK',
-  rescapToAtkPercent: 'RESC convertie en ATK',
+  defToAtkPercent: 'DEF convertie en Auto',
+  rescapToAtkPercent: 'RESC convertie en Auto',
   damageBonus: 'Bonus dégâts',
   n: 'Fréquence (tours/attaques)',
   shieldPercent: 'Bouclier',
@@ -130,7 +130,7 @@ const BALANCE_KEY_LABELS_FR = {
   incoming: 'Dégâts reçus',
   critReduction: 'Réduction dégâts critiques',
   critThreshold: 'Seuil critique garanti',
-  spellCapBonus: 'Bonus CAP du sort',
+  spellCapBonus: 'Bonus CAP de la capacité',
   turns: 'Durée (tours)',
   hpCostPercent: 'Coût HP',
   autoDamageBonus: 'Bonus dégâts auto',
@@ -546,7 +546,7 @@ const CharacterCreation = () => {
         const antiHealPct = Math.round(antiHealReduction * 100);
         return (
           <>
-            Bouclier après spell:{' '}
+            Bouclier après capacité:{' '}
             <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
               <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
             </Tooltip>

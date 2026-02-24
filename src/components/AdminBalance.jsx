@@ -50,8 +50,8 @@ const BALANCE_KEY_LABELS_FR = {
   healDamagePercent: 'Dégâts depuis soins',
   regenPercent: 'Régénération',
   healCritMultiplier: 'Multiplicateur critique soin',
-  defToAtkPercent: 'DEF convertie en ATK',
-  rescapToAtkPercent: 'RESC convertie en ATK',
+  defToAtkPercent: 'DEF convertie en Auto',
+  rescapToAtkPercent: 'RESC convertie en Auto',
   damageBonus: 'Bonus dégâts',
   n: 'Fréquence (tours/attaques)',
   shieldPercent: 'Bouclier',
@@ -63,7 +63,7 @@ const BALANCE_KEY_LABELS_FR = {
   incoming: 'Dégâts reçus',
   critReduction: 'Réduction dégâts critiques',
   critThreshold: 'Seuil critique garanti',
-  spellCapBonus: 'Bonus CAP du sort',
+  spellCapBonus: 'Bonus CAP de la capacité',
   turns: 'Durée (tours)',
   hpCostPercent: 'Coût HP',
   autoDamageBonus: 'Bonus dégâts auto',
@@ -137,21 +137,21 @@ const buildCodexEffetDescription = (values) => {
   const pct = values?.secondCastDamage != null
     ? (Number(values.secondCastDamage) * 100).toFixed((Number(values.secondCastDamage) * 100) % 1 === 0 ? 0 : 1)
     : '70';
-  return `Votre second et quatrième sort se lancent deux fois et font ${pct}% de dégâts.`;
+  return `Votre 2e et 4e capacité se lancent deux fois et font ${pct}% de dégâts.`;
 };
 
 /** Templates de description d'effet (français) avec placeholders {{clé}} — seuls les nombres sont mis à jour */
 const WEAPON_EFFET_DESCRIPTION_TEMPLATES = {
   baton_legendaire: 'Si le personnage peut se soigner, ses soins peuvent crit, sont conservés et infligent aussi {{healDamagePercent}}% de dégâts. Sinon, régénère {{regenPercent}}% HP max par tour.',
-  bouclier_legendaire: 'Ajoute {{defToAtkPercent}}% de la DEF et {{rescapToAtkPercent}}% de la RESC à l\'ATK.',
+  bouclier_legendaire: 'Ajoute {{defToAtkPercent}}% de la DEF et {{rescapToAtkPercent}}% de la RESC à l\'Auto.',
   epee_legendaire: 'Tous les {{n}} tours, frappe en premier et inflige +{{damageBonus}}% de dégâts.',
   dague_legendaire: 'Tous les {{n}} tours, critique garanti. Tous les critiques infligent +{{critDamageBonus}}% de dégâts.',
   marteau_legendaire: 'Toutes les {{n}} attaques, étourdit l\'ennemi pendant {{stunDuration}} tour.',
-  lance_legendaire: 'Au premier coup du combat, applique -{{atkReductionPercent}}% ATK permanent à l\'ennemi (non cumulable).',
+  lance_legendaire: 'Au premier coup du combat, applique -{{atkReductionPercent}}% Auto permanent à l\'ennemi (non cumulable).',
   arc_legendaire: 'Tous les {{n}} tours, effectue une attaque supplémentaire à {{bonusAttackDamage}}% de dégâts.',
   tome_legendaire: null, // géré par buildCodexEffetDescription
   fleau_legendaire: 'Après votre première attaque, la cible perd {{defReductionPercent}}% DEF et {{rescapReductionPercent}}% ResC pour le reste du combat.',
-  arbalete_legendaire: 'Vos {{spellBonusCount}} premiers sorts infligent +{{spellDamageBonus}}% dégâts mais ont +{{cooldownPenalty}} CD.',
+  arbalete_legendaire: 'Vos {{spellBonusCount}} premières capacités infligent +{{spellDamageBonus}}% dégâts mais ont +{{cooldownPenalty}} CD.',
   hache_legendaire: 'Votre attaque applique un saignement brut : la cible perd {{initialBleedPercent}}% HP max à chacun de ses tours d\'action. Réduit de {{bleedDecayPercent}}% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
 };
 
@@ -1108,13 +1108,13 @@ function AdminBalance({ embedded = false }) {
               <div className="flex items-center justify-between bg-stone-950/70 border border-stone-600 p-3">
                 <div className="text-sm">
                   <span className="text-blue-300 font-bold">{duelResult.p1.name}</span>
-                  <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p1.level} — HP:{duelResult.p1.base.hp} ATK:{duelResult.p1.base.auto} DEF:{duelResult.p1.base.def} CAP:{duelResult.p1.base.cap} RES:{duelResult.p1.base.rescap} SPD:{duelResult.p1.base.spd}</span>
+                  <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p1.level} — HP:{duelResult.p1.base.hp} Auto:{duelResult.p1.base.auto} DEF:{duelResult.p1.base.def} CAP:{duelResult.p1.base.cap} RES:{duelResult.p1.base.rescap} SPD:{duelResult.p1.base.spd}</span>
                   <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p1.equippedWeaponId]?.icon} {weapons[duelResult.p1.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p1.mageTowerPassive?.level || 0})</span>
                 </div>
                 <span className="text-stone-500 font-bold">VS</span>
                 <div className="text-sm text-right">
                   <span className="text-red-300 font-bold">{duelResult.p2.name}</span>
-                  <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} ATK:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
+                  <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} Auto:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
                   {!duelResult.isBoss && (
                     <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p2.equippedWeaponId]?.icon} {weapons[duelResult.p2.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p2.mageTowerPassive?.level || 0})</span>
                   )}

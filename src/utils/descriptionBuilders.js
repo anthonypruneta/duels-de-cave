@@ -52,9 +52,9 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Mort-vivant': return `Revient à ${pct(c.revivePercent, 0)} PV (1x)`;
     case 'Lycan': return `Attaque applique +${c.bleedPerHit || 0} stack de saignement (dégâts = ceil(stacks/${c.bleedDivisor || 1}) par tour)`;
     case 'Sylvari': return `Regen ${pct(c.regenPercent, 1)} PV max/tour`;
-    case 'Sirène': return `+${c.cap || 0} CAP, subit un spell: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
+    case 'Sirène': return `+${c.cap || 0} CAP, subit une capacité: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
-    case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
+    case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -73,7 +73,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour, +${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
     case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
-    case 'Mindflayer': return `Copie et relance le premier sort reçu et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremier sort: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi ce premier sort est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
+    case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     default: return races[raceName]?.awakening?.description || '';
   }
 };
@@ -85,7 +85,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
 export const buildClassDescription = (className, constants = null) => {
   const c = constants || classConstants[CLASS_TO_CONSTANT_KEY[className]] || {};
   switch (className) {
-    case 'Guerrier': return `Frappe la résistance la plus faible. Ignore ${(c.ignoreBase || 0) * 100}% de la résistance ennemie + ${(c.ignorePerCap || 0) * 100}% de votre Cap. Gagne +${c.autoBonus || 0} ATK.`;
+    case 'Guerrier': return `Frappe la résistance la plus faible. Ignore ${(c.ignoreBase || 0) * 100}% de la résistance ennemie + ${(c.ignorePerCap || 0) * 100}% de votre Cap. Gagne +${c.autoBonus || 0} Auto.`;
     case 'Voleur': return `Esquive la prochaine attaque. Gagne +${c.spdBonus || 0} VIT et +${((c.critPerCap || 0) * 100).toFixed(1)}% de votre Cap en chance de critique.`;
     case 'Paladin': return `Renvoie ${(c.reflectBase || 0) * 100}% des dégâts reçus + ${(c.reflectPerCap || 0) * 100}% de votre Cap.`;
     case 'Healer': return `Soigne ${(c.missingHpPercent || 0) * 100}% des PV manquants + ${(c.capScale || 0) * 100}% de votre Cap.`;
@@ -93,7 +93,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap (vs RésCap).`;
     case 'Demoniste': return `Chaque tour, votre familier inflige ${(c.capBase || 0) * 100}% de votre Cap et ignore ${(c.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(c.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
     case 'Masochiste': return `Renvoie ${(c.returnBase || 0) * 100}% des dégâts accumulés + ${(c.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(c.healPercent || 0) * 100}% des dégâts accumulés.`;
-    case 'Briseur de Sort': return `Après avoir subi un spell, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
+    case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     default: return classes[className]?.description || '';
@@ -126,7 +126,7 @@ export const buildClassDescriptionParts = (className, constants = null) => {
       return [
         text('Frappe la résistance la plus faible. Ignore '), slot(['ignoreBase'], 'percent'),
         text('% de la résistance ennemie + '), slot(['ignorePerCap'], 'percent'),
-        text('% de votre Cap. Gagne +'), slot(['autoBonus'], 'raw'), text(' ATK.')
+        text('% de votre Cap. Gagne +'), slot(['autoBonus'], 'raw'), text(' Auto.')
       ];
     case 'Voleur':
       return [
@@ -173,7 +173,7 @@ export const buildClassDescriptionParts = (className, constants = null) => {
       ];
     case 'Briseur de Sort':
       return [
-        text('Après avoir subi un spell, gagne un bouclier égal à '), slot(['shieldFromSpellDamage'], 'percent'),
+        text('Après avoir subi une capacité, gagne un bouclier égal à '), slot(['shieldFromSpellDamage'], 'percent'),
         text('% des dégâts reçus + '), slot(['shieldFromCap'], 'percent'),
         text('% de votre CAP. Réduit les soins adverses de '), slot(['antiHealReduction'], 'percent'),
         text('%. Auto + '), slot(['autoCapBonus'], 'percent'), text('% CAP.')
@@ -232,7 +232,7 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
       return [text('Regen '), slot(['regenPercent'], 'percent1dec'), text(' PV max/tour')];
     case 'Sirène':
       return [
-        text('+'), slot(['cap'], 'raw'), text(' CAP, subit un spell: +'), slot(['stackBonus'], 'percent'),
+        text('+'), slot(['cap'], 'raw'), text(' CAP, subit une capacité: +'), slot(['stackBonus'], 'percent'),
         text(' dégâts/soins de vos compétences (max '), slot(['maxStacks'], 'raw'), text(' stacks)')
       ];
     case 'Gnome':
@@ -244,7 +244,7 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
       ];
     case 'Mindflayer':
       return [
-        text("Copie et relance le premier sort reçu et ajoute "), slot(['stealSpellCapDamageScale'], 'percent'),
+        text("Copie et relance la première capacité reçue et ajoute "), slot(['stealSpellCapDamageScale'], 'percent'),
         text(' de votre CAP aux dégâts')
       ];
     default:
@@ -312,9 +312,9 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
       ];
     case 'Mindflayer':
       return [
-        text("Copie et relance le premier sort reçu et ajoute "), slot(['mindflayerStealSpellCapDamageScale'], 'percent'),
-        text(" de votre CAP aux dégâts\nPremier sort: -"), slot(['mindflayerOwnCooldownReductionTurns'], 'raw'),
-        text(' de CD\nSi ce premier sort est sans CD: +'), slot(['mindflayerNoCooldownSpellBonus'], 'percent'), text(' dégâts')
+        text("Copie et relance la première capacité reçue et ajoute "), slot(['mindflayerStealSpellCapDamageScale'], 'percent'),
+        text(" de votre CAP aux dégâts\nPremière capacité: -"), slot(['mindflayerOwnCooldownReductionTurns'], 'raw'),
+        text(' de CD\nSi cette première capacité est sans CD: +'), slot(['mindflayerNoCooldownSpellBonus'], 'percent'), text(' dégâts')
       ];
     default:
       return [{ type: 'text', value: buildRaceAwakeningDescription(raceName, e) }];

@@ -44,7 +44,7 @@ export const applyStatPoints = (baseStats, statKey, points) => {
 
 export const getStatLabels = () => ({
   hp: 'HP',
-  auto: 'ATK',
+  auto: 'Auto',
   def: 'DEF',
   rescap: 'RESC',
   spd: 'VIT',

@@ -4,7 +4,7 @@
  * 8 familles d'armes × 3 raretés = 24 armes
  * Raretés: commune, rare, légendaire
  *
- * Stats: auto (ATK), def (DEF), rescap (RESC), spd (VIT), hp (HP), cap (CAP)
+ * Stats: auto (Auto), def (DEF), rescap (RESC), spd (VIT), hp (HP), cap (CAP)
  *
  * Les armes légendaires ont un effet spécial avec un trigger.
  */
@@ -15,7 +15,7 @@
 export const TRIGGER_TYPES = {
   EVERY_N_TURNS: 'every_n_turns',       // Tous les N tours
   EVERY_N_ATTACKS: 'every_n_attacks',   // Toutes les N attaques
-  EVERY_N_SPELLS: 'every_n_spells',     // Tous les N sorts lancés
+  EVERY_N_SPELLS: 'every_n_spells',     // Tous les N capacités lancées
   FIRST_HIT: 'first_hit',               // Premier coup du combat
   PASSIVE: 'passive',                   // Effet passif permanent
   ON_HEAL: 'on_heal',                   // Quand le personnage se soigne
@@ -195,13 +195,13 @@ export const weapons = {
     },
     effet: {
       nom: 'Protection Divine',
-      description: 'Ajoute 10% de la DEF et 10% de la RESC à l\'ATK.',
+      description: 'Ajoute 10% de la DEF et 10% de la RESC à l\'Auto.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        defToAtkPercent: 0.1,    // 10% DEF → ATK
-        rescapToAtkPercent: 0.1, // 10% RESC → ATK
+        defToAtkPercent: 0.1,    // 10% DEF → Auto
+        rescapToAtkPercent: 0.1, // 10% RESC → Auto
       },
     },
     description: 'Le bouclier légendaire de la déesse de la guerre.',
@@ -427,12 +427,12 @@ export const weapons = {
     },
     effet: {
       nom: 'Serment d\'Odin',
-      description: 'Au premier coup du combat, applique -10% ATK permanent à l\'ennemi (non cumulable).',
+      description: 'Au premier coup du combat, applique -10% Auto permanent à l\'ennemi (non cumulable).',
       trigger: {
         type: TRIGGER_TYPES.FIRST_HIT,
       },
       values: {
-        atkReductionPercent: 0.1, // -10% ATK ennemi
+        atkReductionPercent: 0.1, // -10% Auto ennemi
         stackable: false,         // Non cumulable
       },
     },
@@ -512,7 +512,7 @@ export const weapons = {
       cap: 3,
     },
     effet: null,
-    description: 'Un grimoire contenant des sorts élémentaires basiques.',
+    description: 'Un grimoire contenant des capacités élémentaires basiques.',
   },
 
   tome_rare: {
@@ -542,10 +542,10 @@ export const weapons = {
     },
     effet: {
       nom: 'Arcane Majeure',
-      description: 'Votre second et quatrième sort se lancent deux fois et font 70% de dégâts.',
+      description: 'Votre 2e et 4e capacité se lancent deux fois et font 70% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
-        spellCounts: [2, 4],      // Se déclenche au 2e et 4e sort
+        spellCounts: [2, 4],      // Se déclenche à la 2e et 4e capacité
       },
       values: {
         doubleCast: true,
@@ -663,7 +663,7 @@ export const weapons = {
     },
     effet: {
       nom: 'Verdict',
-      description: 'Vos deux premiers sorts infligent +70% dégâts mais ont +1 CD.',
+      description: 'Vos deux premières capacités infligent +70% dégâts mais ont +1 CD.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },

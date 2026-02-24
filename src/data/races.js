@@ -142,7 +142,7 @@ export const races = {
     }
   },
   'Sirène': {
-    bonus: '+10 CAP\n- subit un spell: +10% dégâts/soins de vos compétences (max 3 stacks)',
+    bonus: '+10 CAP\n- subit une capacité: +10% dégâts/soins de vos compétences (max 3 stacks)',
     icon: '🧜',
     awakening: {
       levelRequired: 100,
@@ -157,11 +157,11 @@ export const races = {
     }
   },
   'Mindflayer': {
-    bonus: 'Copie et relance le premier sort reçu et ajoute 5% de votre CAP aux dégâts',
+    bonus: 'Copie et relance la première capacité reçue et ajoute 5% de votre CAP aux dégâts',
     icon: '🦑',
     awakening: {
       levelRequired: 100,
-      description: 'Copie et relance le premier sort reçu et ajoute 10% de votre CAP aux dégâts\nPremier sort: -1 de CD\nSi ce premier sort est sans CD: +100% dégâts',
+      description: 'Copie et relance la première capacité reçue et ajoute 10% de votre CAP aux dégâts\nPremière capacité: -1 de CD\nSi cette première capacité est sans CD: +100% dégâts',
       effect: {
         mindflayerStealSpellCapDamageScale: 0.10,
         mindflayerOwnCooldownReductionTurns: 1,

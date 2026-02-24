@@ -47,7 +47,6 @@ import {
   modifyCritDamage,
   onAttack,
   onHeal,
-  onPaladinRiposteCast,
   onSpellCast,
   rollHealCrit,
   onTurnStart
@@ -71,7 +70,7 @@ const getWeaponImage = (imageFile) => {
 
 const STAT_LABELS = {
   hp: 'HP',
-  auto: 'ATK',
+  auto: 'Auto',
   def: 'DEF',
   cap: 'CAP',
   rescap: 'RESC',
@@ -688,8 +687,19 @@ const ForestDungeon = () => {
           if (back > 0 && att.class === 'Briseur de Sort') {
             const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
             att.shield = (att.shield || 0) + shield;
-            log.push(`${playerColor} 🧱 ${att.name} convertit le spell en bouclier (+${shield}).`);
+            log.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield}).`);
           }
+          if (def.riposteTwice && back > 0) {
+            att.currentHP -= back;
+            log.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
+            if (att.class === 'Briseur de Sort') {
+              const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+              att.shield = (att.shield || 0) + shield2;
+              log.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield2}).`);
+            }
+          }
+          def.reflect = false;
+          def.riposteTwice = false;
         }
       }
 
@@ -767,6 +777,14 @@ const ForestDungeon = () => {
       raw = applyBossIncomingModifier(def, raw, turn);
       const inflicted = applyMageTowerDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
+      const demonSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'demoniste');
+      if (demonSpellEffects.doubleCast && demonSpellEffects.secondCastDamage > 0) {
+        let extra = demonSpellEffects.secondCastDamage;
+        extra = applyBossOutgoingModifier(att, extra, turn);
+        extra = applyBossIncomingModifier(def, extra, turn);
+        const inflictedCodex = applyMageTowerDamage(extra, false, false);
+        log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
+      }
       if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
         reviveUndead(def, att, log, playerColor);
       }
@@ -791,12 +809,20 @@ const ForestDungeon = () => {
         raw = applyBossOutgoingModifier(att, raw, turn);
         raw = applyBossIncomingModifier(def, raw, turn);
         const inflicted = applyMageTowerDamage(raw, false);
-        const masoSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'maso');
-        if (masoSpellEffects.doubleCast && masoSpellEffects.secondCastDamage > 0) {
-          applyMageTowerDamage(masoSpellEffects.secondCastDamage, false, false);
-          log.push(`${playerColor} ${masoSpellEffects.log.join(' ')}`);
-        }
+        const masoSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'maso', { healAmount });
         log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
+        if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
+          let extraRaw = masoSpellEffects.secondCastDamage;
+          if (extraRaw > 0) {
+            extraRaw = applyBossOutgoingModifier(att, extraRaw, turn);
+            extraRaw = applyBossIncomingModifier(def, extraRaw, turn);
+          }
+          const inflicted2 = extraRaw > 0 ? applyMageTowerDamage(extraRaw, false, false) : 0;
+          if (masoSpellEffects.secondCastHeal > 0) {
+            att.currentHP = Math.min(att.maxHP, att.currentHP + masoSpellEffects.secondCastHeal);
+          }
+          log.push(`${playerColor} 📜 Codex Archon : ${att.name} renvoie les dégâts accumulés: inflige ${inflicted2} points de dégâts et récupère ${masoSpellEffects.secondCastHeal} points de vie`);
+        }
         if (def.currentHP <= 0 && def.race === 'Mort-vivant' && !def.undead) {
           reviveUndead(def, att, log, playerColor);
         }
@@ -819,11 +845,15 @@ const ForestDungeon = () => {
 
     if (att.class === 'Paladin' && att.cd.pal === cooldowns.pal) {
       if (isPlayer) skillUsed = true;
-      // Enregistre l'usage de riposte sans consommer les procs de sort (Codex/Arbalète)
-      onPaladinRiposteCast(att.weaponState, att, def);
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       const spellCapMult = consumeAuraSpellCapMultiplier();
-      att.reflect = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      att.reflect = reflectValue;
+      const paladinSpellEffects = onSpellCast(att.weaponState, att, def, reflectValue, 'paladin');
+      if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
+        att.riposteTwice = true;
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
+      }
       log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
     }
 
@@ -840,8 +870,7 @@ const ForestDungeon = () => {
       const healSpellEffects = onSpellCast(att.weaponState, att, def, heal, 'heal');
       if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
         att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
-        log.push(`${playerColor} ✚ Double-cast: ${att.name} récupère ${healSpellEffects.secondCastHeal} points de vie supplémentaires`);
-        log.push(`${playerColor} ${healSpellEffects.log.join(' ')}`);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un sort de soin puissant et récupère ${healSpellEffects.secondCastHeal} points de vie`);
       }
       const healEffects = onHeal(att.weaponState, att, heal, def);
       if (healEffects.bonusDamage > 0) {
@@ -855,7 +884,7 @@ const ForestDungeon = () => {
 
     if (att.class === 'Voleur' && att.cd.rog === cooldowns.rog) {
       if (isPlayer) skillUsed = true;
-      consumeAuraSpellCapMultiplier(); // Premier sort du combat
+      consumeAuraSpellCapMultiplier(); // Première capacité du combat
       att.dodge = true;
       log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     }
@@ -895,12 +924,12 @@ const ForestDungeon = () => {
         const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
         const spellEffects = onSpellCast(att.weaponState, att, def, raw, 'mage');
-        if (spellEffects.doubleCast) {
+        if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
           let extra = spellEffects.secondCastDamage;
           extra = applyBossOutgoingModifier(att, extra, turn);
           extra = applyBossIncomingModifier(def, extra, turn);
-          applyMageTowerDamage(extra, false, false);
-          log.push(`${playerColor} ${spellEffects.log.join(' ')}`);
+          const inflictedCodex = applyMageTowerDamage(extra, false, false);
+          log.push(`${playerColor} 📜 Codex Archon : ${att.name} invoque un puissant sort magique et inflige ${inflictedCodex} points de dégâts`);
         }
       } else if (isWar) {
         const spellCapMultWar = consumeAuraSpellCapMultiplier();
@@ -912,6 +941,16 @@ const ForestDungeon = () => {
           const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
           raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
         }
+        if (i === 0) {
+          const warSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'war');
+          if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
+            let extra = warSpellEffects.secondCastDamage;
+            extra = applyBossOutgoingModifier(att, extra, turn);
+            extra = applyBossIncomingModifier(def, extra, turn);
+            const inflictedCodex = applyMageTowerDamage(extra, false, false);
+            log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
+          }
+        }
       } else if (isArcher && !isBonusAttack) {
         if (i === 0) {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
@@ -921,6 +960,16 @@ const ForestDungeon = () => {
           const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
           const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
           raw = physPart + capPart;
+        }
+        if (i === 1) {
+          const arcSpellEffects = onSpellCast(att.weaponState, att, def, raw, 'arc');
+          if (arcSpellEffects.doubleCast && arcSpellEffects.secondCastDamage > 0) {
+            let extra = arcSpellEffects.secondCastDamage;
+            extra = applyBossOutgoingModifier(att, extra, turn);
+            extra = applyBossIncomingModifier(def, extra, turn);
+            const inflictedCodex = applyMageTowerDamage(extra, false, false);
+            log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un tir renforcé et inflige ${inflictedCodex} points de dégâts`);
+          }
         }
       } else {
         const autoCapBonus = getBriseurAutoBonus(att);
@@ -1408,7 +1457,7 @@ const ForestDungeon = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="ATK" /></div>
+              <div className="text-stone-400"><StatWithTooltip statKey="auto" label="Auto" /></div>
               <div className="text-stone-400"><StatWithTooltip statKey="def" label="DEF" /></div>
               <div className="text-stone-400"><StatWithTooltip statKey="cap" label="CAP" /></div>
               <div className="text-stone-400"><StatWithTooltip statKey="rescap" label="RESC" /></div>
@@ -1530,7 +1579,7 @@ const ForestDungeon = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">ATK: {bossChar.base.auto}</div>
+              <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
               <div className="text-stone-400">DEF: {bossChar.base.def}</div>
               <div className="text-stone-400">CAP: {bossChar.base.cap}</div>
               <div className="text-stone-400">RESC: {bossChar.base.rescap}</div>

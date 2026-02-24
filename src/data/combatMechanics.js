@@ -19,7 +19,7 @@ export const cooldowns = {
 // Constantes des classes (valeurs réelles utilisées dans le combat)
 export const classConstants = {
   guerrier: {
-    autoBonus: 5,          // +5 ATK quand le sort est utilisé
+    autoBonus: 5,          // +5 Auto quand la capacité est utilisée
     ignoreBase: 0.25,      // 25% ignore résistance de base
     ignorePerCap: 0.01     // +1% par point de Cap
   },
@@ -94,9 +94,9 @@ export const raceConstants = {
     spd: 5, cap: 5 
   },
   mindflayer: {
-    stealSpellCapDamageScale: 0.05,      // Copie du premier sort reçu: +5% CAP aux dégâts
+    stealSpellCapDamageScale: 0.05,      // Copie de la première capacité reçue: +5% CAP aux dégâts
     ownCooldownReductionTurns: 0,
-    noCooldownSpellBonus: 0              // Bonus dégâts sort sans CD: uniquement à l'éveil
+    noCooldownSpellBonus: 0              // Bonus dégâts capacité sans CD: uniquement à l'éveil
   }
 };
 
@@ -228,8 +228,8 @@ export const weaponConstants = {
 
   // Égide d'Athéna (Bouclier légendaire)
   egide: {
-    defToAtkPercent: 0.1,     // 10% DEF → ATK
-    rescapToAtkPercent: 0.1,  // 10% RESC → ATK
+    defToAtkPercent: 0.1,     // 10% DEF → Auto
+    rescapToAtkPercent: 0.1,  // 10% RESC → Auto
   },
 
   // Zweihänder (Épée légendaire)
@@ -254,7 +254,7 @@ export const weaponConstants = {
 
   // Gungnir (Lance légendaire)
   gungnir: {
-    atkReductionPercent: 0.1,  // -10% ATK ennemi au premier coup
+    atkReductionPercent: 0.1,  // -10% Auto ennemi au premier coup
   },
 
   // Arc des Cieux (Arc légendaire)
@@ -266,7 +266,7 @@ export const weaponConstants = {
 
   // Codex Archon (Tome légendaire)
   codexArchon: {
-    doubleCastTriggers: [2, 4], // Se déclenche au 2e et 4e sort
+    doubleCastTriggers: [2, 4], // Se déclenche à la 2e et 4e capacité
     secondCastDamage: 0.7,      // 70% des dégâts/soins
   },
 
@@ -278,9 +278,9 @@ export const weaponConstants = {
 
   // Arbalète du Verdict (Arbalète légendaire) — Vague 2
   arbaleteVerdict: {
-    spellDamageBonus: 0.7,       // +70% dégâts sur les 2 premiers sorts
-    spellBonusCount: 2,          // Nombre de sorts bonus
-    cooldownPenalty: 1,          // +1 CD sur tous les sorts
+    spellDamageBonus: 0.7,       // +70% dégâts sur les 2 premières capacités
+    spellBonusCount: 2,          // Nombre de capacités bonus
+    cooldownPenalty: 1,          // +1 CD sur toutes les capacités
   },
 
   // Labrys d'Arès (Hache légendaire) — Vague 2
@@ -311,7 +311,7 @@ export const bossConstants = {
   // Chef Gobelin (Boss niveau 2)
   chefGobelin: {
     abilityTrigger: 4,         // Tous les 4 tours
-    summonDamagePercent: 0.3,  // 30% ATK en dégâts bonus
+    summonDamagePercent: 0.3,  // 30% Auto en dégâts bonus
     physicalReduction: 0.1,    // -10% dégâts physiques (passif)
   },
 
@@ -320,7 +320,7 @@ export const bossConstants = {
     abilityTrigger: 3,         // Tous les 3 tours
     breathDamagePercent: 0.8,  // 80% CAP en dégâts magiques
     enrageThreshold: 0.25,     // À 25% HP
-    enrageStatBonus: 0.25,     // +25% ATK et CAP en enrage
+    enrageStatBonus: 0.25,     // +25% Auto et CAP en enrage
     lowHpReduction: 0.15,      // -15% dégâts sous 30% HP (passif)
     lowHpThreshold: 0.3,
   },

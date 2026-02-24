@@ -52,7 +52,7 @@ const getWeaponImage = (imageFile) => {
 
 const STAT_LABELS = {
   hp: 'HP',
-  auto: 'ATK',
+  auto: 'Auto',
   def: 'DEF',
   cap: 'CAP',
   rescap: 'RESC',
@@ -546,7 +546,7 @@ const ForgeDungeon = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">ATK: {char.base.auto}</div>
+              <div className="text-stone-400">Auto: {char.base.auto}</div>
               <div className="text-stone-400">DEF: {char.base.def}</div>
               <div className="text-stone-400">CAP: {char.base.cap}</div>
               <div className="text-stone-400">RESC: {char.base.rescap}</div>
@@ -643,7 +643,7 @@ const ForgeDungeon = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">ATK: {bossChar.base.auto}</div>
+              <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
               <div className="text-stone-400">DEF: {bossChar.base.def}</div>
               <div className="text-stone-400">CAP: {bossChar.base.cap}</div>
               <div className="text-stone-400">RESC: {bossChar.base.rescap}</div>

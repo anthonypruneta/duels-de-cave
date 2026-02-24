@@ -43,11 +43,11 @@ export function initWeaponCombatState(combatant, weaponId) {
   const counters = {
     turnCount: 0,           // Compteur de tours (pour Zweihänder, Lævateinn, Arc des Cieux)
     attackCount: 0,         // Compteur d'attaques (pour Mjöllnir)
-    spellCount: 0,          // Compteur de sorts (pour Codex Archon, Arbalète du Verdict)
+    spellCount: 0,          // Compteur de capacités (Codex Archon, Arbalète du Verdict)
     firstHitDone: false,    // Premier coup effectué (pour Gungnir, Fléau d'Anathème)
     gungnirApplied: false,  // Debuff Gungnir appliqué (non cumulable)
     anathemeApplied: false,  // Debuff Fléau d'Anathème appliqué
-    verdictSpellsUsed: 0,    // Nombre de sorts boostés par l'Arbalète du Verdict
+    verdictSpellsUsed: 0,    // Nombre de capacités boostées par l'Arbalète du Verdict
     labrysBleedActive: false, // Saignement Labrys actif sur la cible
   };
 
@@ -99,7 +99,7 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
   if (weapon.rarete === RARITY.LEGENDAIRE) {
     switch (weapon.id) {
       case 'bouclier_legendaire': {
-        // Égide d'Athéna: +10% DEF et +10% RESC → ATK
+        // Égide d'Athéna: +10% DEF et +10% RESC → Auto
         const atkBonus = Math.round(
           modifiedStats.def * weaponConstants.egide.defToAtkPercent +
           modifiedStats.rescap * weaponConstants.egide.rescapToAtkPercent
@@ -220,12 +220,12 @@ export function onAttack(weaponState, attacker, defender, damage) {
     }
 
     case 'lance_legendaire': {
-      // Gungnir: premier coup, -10% ATK permanent
+      // Gungnir: premier coup, -10% Auto permanent
       if (!weaponState.counters.firstHitDone && !weaponState.counters.gungnirApplied) {
         weaponState.counters.firstHitDone = true;
         weaponState.counters.gungnirApplied = true;
         effects.atkDebuff = weaponConstants.gungnir.atkReductionPercent;
-        effects.log.push(`✨ Gungnir: Serment d'Odin - ATK ennemie réduite de 10%`);
+        effects.log.push(`✨ Gungnir: Serment d'Odin - Auto ennemie réduite de 10%`);
       }
       break;
     }
@@ -257,13 +257,15 @@ export function onAttack(weaponState, attacker, defender, damage) {
 // HOOKS DE COMBAT - APRÈS SORT
 // ============================================================================
 /**
- * Hook appelé après chaque sort lancé
+ * Hook appelé après chaque capacité lancée.
+ * options.healAmount : pour le masochiste, montant du soin à dupliquer (Codex Archon).
  */
-export function onSpellCast(weaponState, caster, target, damage, spellType) {
+export function onSpellCast(weaponState, caster, target, damage, spellType, options = {}) {
   const effects = {
     doubleCast: false,
     secondCastDamage: 0,
     secondCastHeal: 0,
+    riposteTwice: false,
     log: []
   };
 
@@ -274,23 +276,26 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
 
   switch (weaponState.weaponId) {
     case 'tome_legendaire': {
-      // Codex Archon: au 2e et 4e sort, double-cast
+      // Codex Archon: à la 2e et 4e capacité, double-cast (le combat affiche le texte exact de la capacité dédoublée)
       if (weaponConstants.codexArchon.doubleCastTriggers.includes(spellCount)) {
         effects.doubleCast = true;
-        const secondCastValue = Math.round(damage * weaponConstants.codexArchon.secondCastDamage);
-        if (spellType === 'heal') {
-          effects.secondCastHeal = secondCastValue;
-          effects.log.push(`📜 Codex Archon: Arcane Majeure - Double-cast ! (${effects.secondCastHeal} soins bonus)`);
+        const ratio = weaponConstants.codexArchon.secondCastDamage;
+        if (spellType === 'paladin') {
+          effects.riposteTwice = true;
+        } else if (spellType === 'heal') {
+          effects.secondCastHeal = Math.round(damage * ratio);
+        } else if (spellType === 'maso') {
+          effects.secondCastDamage = Math.round(damage * ratio);
+          effects.secondCastHeal = Math.round((options.healAmount || 0) * ratio);
         } else {
-          effects.secondCastDamage = secondCastValue;
-          effects.log.push(`📜 Codex Archon: Arcane Majeure - Double-cast ! (${effects.secondCastDamage} dégâts bonus)`);
+          effects.secondCastDamage = Math.round(damage * ratio);
         }
       }
       break;
     }
 
     case 'arbalete_legendaire': {
-      // Arbalète du Verdict: les 2 premiers sorts infligent +70% dégâts
+      // Arbalète du Verdict: les 2 premières capacités infligent +70% dégâts
       // (Le comptage est géré ici, le bonus de dégâts est appliqué dans le combat)
       // Le spellCount est déjà incrémenté ci-dessus
       break;
@@ -306,17 +311,15 @@ export function onSpellCast(weaponState, caster, target, damage, spellType) {
  */
 
 /**
- * Riposte Paladin: ne doit PAS consommer les déclencheurs de double-cast/bonus de sort.
- *
- * Sans cette garde, Codex Archon peut "brûler" ses procs 2e/4e sort sur une
- * compétence défensive sans dégâts/soin direct, ce qui casse la promesse de
- * double-cast garanti sur les sorts offensifs/soins.
+ * Riposte Paladin avec Codex : si onSpellCast est appelé avec spellType 'paladin'
+ * et que le Codex proc, effects.riposteTwice = true et la riposte s'appliquera deux fois.
  */
 export function onPaladinRiposteCast(_weaponState, _caster, _target) {
   return {
     doubleCast: false,
     secondCastDamage: 0,
     secondCastHeal: 0,
+    riposteTwice: false,
     log: []
   };
 }
@@ -332,7 +335,7 @@ export function getVerdictSpellBonus(weaponState) {
   if (spellIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
     return {
       damageMultiplier: 1 + weaponConstants.arbaleteVerdict.spellDamageBonus,
-      log: [`⚖️ Arbalète du Verdict: Sort ${spellIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
+      log: [`⚖️ Arbalète du Verdict: Capacité ${spellIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
     };
   }
 
