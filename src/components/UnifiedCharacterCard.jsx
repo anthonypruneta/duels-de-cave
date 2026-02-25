@@ -14,23 +14,16 @@ const UnifiedCharacterCard = ({
   details,
   cardClassName = ''
 }) => {
-  // Style gravé en relief sur la carte (sans fond opaque)
-  const engravedStyle = {
-    textShadow: '1px 1px 0 rgba(0,0,0,0.85), -1px -1px 0 rgba(255,255,255,0.08), 0 0 4px rgba(0,0,0,0.5)',
-    color: 'rgb(253 230 138)', // amber-200
-  };
-  const engravedNameStyle = {
-    ...engravedStyle,
+  // Nom : police stylisée + contour noir (classe CSS .character-card-name)
+  const nameStyle = {
     color: 'rgb(254 243 199)', // amber-100
+    textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
   };
 
   return (
     <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
       <div className="relative shadow-2xl">
-        <div
-          className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-center whitespace-nowrap px-2 py-0.5 text-[11px] font-bold tracking-wide"
-          style={engravedStyle}
-        >
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {header}
         </div>
 
@@ -41,11 +34,8 @@ const UnifiedCharacterCard = ({
             ) : (
               <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
             )}
-            <div
-              className="absolute bottom-2 left-2 right-2 py-1 text-center"
-              style={engravedNameStyle}
-            >
-              <div className="font-bold text-lg leading-tight" style={engravedNameStyle}>{name}</div>
+            <div className="absolute bottom-2 left-2 right-2 py-1 text-center">
+              <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
             </div>
           </div>
 

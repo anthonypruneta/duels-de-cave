@@ -1,66 +1,99 @@
 /**
- * Wrapper pour la carte personnage sur la page d'accueil uniquement.
- * Permet d'observer la carte avec la souris (effet parallax 3D) et de la retourner pour afficher le verso.
+ * Wrapper pour la zone image de la carte personnage (page d'accueil uniquement).
+ * Déplacement 3D au clic-maintenu + glisser. Clic simple = retourner la carte (verso).
+ * N'enveloppe que la zone image (pas les stats/armes/passifs).
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 import cardBackImage from '../assets/backgrounds/BG.png';
 
-const PARALLAX_SENSITIVITY = 12;
-const PARALLAX_MAX = 15;
+const PARALLAX_SENSITIVITY = 0.25;
+const PARALLAX_MAX = 18;
 
 export default function InteractiveCharacterCard({ children, className = '' }) {
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0 });
+  const didDragRef = useRef(false);
   const cardRef = useRef(null);
 
+  const handleMouseDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    didDragRef.current = false;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      rotateX,
+      rotateY,
+    };
+  }, [rotateX, rotateY]);
+
   const handleMouseMove = useCallback((e) => {
-    const el = cardRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const percentX = (e.clientX - centerX) / (rect.width / 2);
-    const percentY = (e.clientY - centerY) / (rect.height / 2);
-    setRotateY(Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, percentX * PARALLAX_SENSITIVITY)));
-    setRotateX(Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, -percentY * PARALLAX_SENSITIVITY)));
+    if (!isDragging) return;
+    const { x, y, rotateX: startRX, rotateY: startRY } = dragStartRef.current;
+    const deltaX = e.clientX - x;
+    const deltaY = e.clientY - y;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) didDragRef.current = true;
+    const newRY = Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, startRY + deltaX * PARALLAX_SENSITIVITY));
+    const newRX = Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, startRX - deltaY * PARALLAX_SENSITIVITY));
+    setRotateY(newRY);
+    setRotateX(newRX);
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
   }, []);
 
   const handleMouseLeave = useCallback(() => {
-    setRotateX(0);
-    setRotateY(0);
+    setIsDragging(false);
   }, []);
 
-  const toggleFlip = useCallback(() => {
+  useEffect(() => {
+    if (!isDragging) return;
+    const onUp = () => setIsDragging(false);
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [isDragging]);
+
+  const toggleFlip = useCallback((e) => {
+    e.stopPropagation();
     setIsFlipped((prev) => !prev);
   }, []);
+
+  const handleClick = useCallback((e) => {
+    if (didDragRef.current) return;
+    toggleFlip(e);
+  }, [toggleFlip]);
 
   const flipDeg = isFlipped ? 180 : 0;
   const transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateY(${flipDeg}deg)`;
 
   return (
     <div
-      className={`relative w-full max-w-[340px] mx-auto ${className}`.trim()}
+      className={`relative w-full ${className}`.trim()}
       style={{ perspective: '1200px' }}
     >
       <div
         ref={cardRef}
-        className="relative w-full cursor-pointer transition-transform duration-200 ease-out"
+        className="relative w-full select-none cursor-grab active:cursor-grabbing transition-transform duration-150 ease-out"
         style={{
           transformStyle: 'preserve-3d',
           transform,
         }}
+        onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        onClick={toggleFlip}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFlip(); } }}
+        onClick={handleClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFlip(e); } }}
         role="button"
         tabIndex={0}
         aria-label={isFlipped ? 'Retourner la carte (face personnage)' : 'Retourner la carte (voir le verso)'}
       >
-        {/* Face avant : contenu de la carte */}
         <div
           className="relative w-full"
           style={{
@@ -71,7 +104,6 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
           {children}
         </div>
 
-        {/* Face arrière : verso (BG.png) */}
         <div
           className="absolute inset-0 w-full border border-stone-600 bg-stone-900 overflow-hidden rounded-sm"
           style={{
@@ -86,7 +118,7 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
       </div>
 
       <p className="text-center text-stone-500 text-xs mt-2">
-        Clique pour retourner la carte · Bouge la souris pour l’observer
+        Clic maintenu + glisser pour observer · Clic pour retourner
       </p>
     </div>
   );

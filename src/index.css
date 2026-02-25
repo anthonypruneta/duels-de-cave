@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Nom du personnage sur la carte : police stylisée (contour noir via text-shadow dans le composant) */
+.character-card-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+}
+
 body {
   margin: 0;
   padding: 0;

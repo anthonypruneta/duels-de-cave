@@ -1138,34 +1138,33 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <InteractiveCharacterCard>
+          <div className="relative max-w-md mx-auto" style={{ width: '340px' }}>
             <div className="shadow-2xl">
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-center whitespace-nowrap px-2 py-0.5 text-[11px] font-bold tracking-wide"
-                style={{ textShadow: '1px 1px 0 rgba(0,0,0,0.85), -1px -1px 0 rgba(255,255,255,0.08), 0 0 4px rgba(0,0,0,0.5)', color: 'rgb(253 230 138)' }}
-              >
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
               <div className="overflow-visible border border-stone-600 bg-stone-900">
-                <div className="relative bg-stone-900 flex items-center justify-center">
-                  {existingCharacter.characterImage ? (
-                    <img
-                      src={existingCharacter.characterImage}
-                      alt={existingCharacter.name}
-                      className="w-full h-auto object-contain"
-                    />
-                  ) : (
-                    <div className="h-96 w-full flex items-center justify-center">
-                      <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                <InteractiveCharacterCard>
+                  <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
+                    {existingCharacter.characterImage ? (
+                      <img
+                        src={existingCharacter.characterImage}
+                        alt={existingCharacter.name}
+                        className="w-full h-auto object-contain"
+                      />
+                    ) : (
+                      <div className="h-96 w-full flex items-center justify-center">
+                        <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                      </div>
+                    )}
+                    <div
+                      className="absolute bottom-2 left-2 right-2 py-1 text-center"
+                      style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
+                    >
+                      <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
                     </div>
-                  )}
-                  <div
-                    className="absolute bottom-2 left-2 right-2 py-1 text-center"
-                    style={{ textShadow: '1px 1px 0 rgba(0,0,0,0.85), -1px -1px 0 rgba(255,255,255,0.08), 0 0 4px rgba(0,0,0,0.5)', color: 'rgb(254 243 199)' }}
-                  >
-                    <div className="font-bold text-lg leading-tight">{existingCharacter.name}</div>
                   </div>
-                </div>
+                </InteractiveCharacterCard>
                 <div className="bg-stone-800 p-3 border-t border-stone-600">
                   <div className="flex justify-between text-xs text-white mb-2 font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
@@ -1317,7 +1316,7 @@ const CharacterCreation = () => {
                 </div>
               </div>
             </div>
-          </InteractiveCharacterCard>
+          </div>
 
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
