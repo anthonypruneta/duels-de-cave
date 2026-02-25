@@ -180,6 +180,37 @@ const ExtensionDungeon = () => {
     if (isMuted && volume === 0) setVolume(0.05);
   };
 
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-violet-600 text-white border border-violet-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-violet-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={toggleMute} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-full accent-violet-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const canAccess = character && canAccessExtensionDungeon(character.mageTowerPassive);
 
   const handleStartRun = async () => {
@@ -379,6 +410,7 @@ const ExtensionDungeon = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <SoundControl />
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
@@ -410,6 +442,7 @@ const ExtensionDungeon = () => {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
+        <SoundControl />
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
@@ -504,6 +537,7 @@ const ExtensionDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
@@ -527,32 +561,7 @@ const ExtensionDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-          <button
-            type="button"
-            onClick={() => setIsSoundOpen((prev) => !prev)}
-            className="bg-violet-600 text-white border border-violet-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-violet-500"
-          >
-            {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-          </button>
-          {isSoundOpen && (
-            <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-              <button type="button" onClick={toggleMute} className="text-lg" aria-label="Mute">
-                {isMuted ? '🔇' : '🔊'}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="w-full accent-violet-500"
-              />
-              <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
-            </div>
-          )}
-        </div>
+        <SoundControl />
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
@@ -685,6 +694,7 @@ const ExtensionDungeon = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <SoundControl />
       <audio id="extension-music" loop>
         <source src="/assets/music/extension.mp3" type="audio/mpeg" />
       </audio>
