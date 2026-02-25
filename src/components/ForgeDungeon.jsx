@@ -297,10 +297,10 @@ const ForgeDungeon = () => {
   );
 
   useEffect(() => {
-    if (gameState === 'fighting') {
+    if (gameState === 'lobby' || gameState === 'fighting') {
       ensureForgeMusic();
     }
-    if (gameState === 'victory' || gameState === 'defeat' || gameState === 'lobby') {
+    if (gameState === 'victory' || gameState === 'defeat') {
       stopForgeMusic();
     }
   }, [gameState]);

@@ -161,8 +161,8 @@ const ExtensionDungeon = () => {
   }, [currentUser, navigate]);
 
   useEffect(() => {
-    if (gameState === 'fighting') ensureExtensionMusic();
-    if (['victory', 'defeat', 'lobby'].includes(gameState)) stopExtensionMusic();
+    if (gameState === 'lobby' || gameState === 'fighting') ensureExtensionMusic();
+    if (gameState === 'victory' || gameState === 'defeat') stopExtensionMusic();
   }, [gameState]);
 
   useEffect(() => {
