@@ -1,22 +1,22 @@
 /**
  * Wrapper pour la zone image de la carte personnage (page d'accueil uniquement).
- * Glisser = déplacement libre (rotation 3D). Clic = remet la carte en position par défaut. Double-clic = retourner (verso).
- * N'enveloppe que la zone image (pas les stats/armes/passifs).
+ * Glisser horizontal = passer recto/verso. Glisser vertical = inclinaison 3D. Clic = position par défaut.
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 import cardBackImage from '../assets/backgrounds/BG.png';
 
-const PARALLAX_SENSITIVITY = 0.25;
-const PARALLAX_MAX = 18;
+const TILT_SENSITIVITY = 0.25;
+const TILT_MAX = 18;
+const FLIP_SENSITIVITY = 1.2; // degrés par pixel (glisser ~150px = retourner)
 
 export default function InteractiveCharacterCard({ children, className = '' }) {
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
+  const [flipAngle, setFlipAngle] = useState(0); // 0 = recto, 180 = verso (continu pendant le drag)
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0, rotateX: 0, rotateY: 0, flipAngle: 0 });
   const cardRef = useRef(null);
 
   const handleMouseDown = useCallback((e) => {
@@ -27,31 +27,42 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
       y: e.clientY,
       rotateX,
       rotateY,
+      flipAngle,
     };
-  }, [rotateX, rotateY]);
+  }, [rotateX, rotateY, flipAngle]);
 
   const handleMouseMove = useCallback((e) => {
     if (!isDragging) return;
-    const { x, y, rotateX: startRX, rotateY: startRY } = dragStartRef.current;
+    const { x, y, rotateX: startRX, rotateY: startRY, flipAngle: startFlip } = dragStartRef.current;
     const deltaX = e.clientX - x;
     const deltaY = e.clientY - y;
-    const newRY = Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, startRY + deltaX * PARALLAX_SENSITIVITY));
-    const newRX = Math.max(-PARALLAX_MAX, Math.min(PARALLAX_MAX, startRX - deltaY * PARALLAX_SENSITIVITY));
+    const newFlip = Math.max(0, Math.min(180, startFlip + deltaX * FLIP_SENSITIVITY));
+    const newRY = Math.max(-TILT_MAX, Math.min(TILT_MAX, startRY + deltaX * TILT_SENSITIVITY));
+    const newRX = Math.max(-TILT_MAX, Math.min(TILT_MAX, startRX - deltaY * TILT_SENSITIVITY));
+    setFlipAngle(newFlip);
     setRotateY(newRY);
     setRotateX(newRX);
   }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
+    if (!isDragging) return;
     setIsDragging(false);
-  }, []);
+    setFlipAngle((current) => (current >= 90 ? 180 : 0));
+  }, [isDragging]);
 
   const handleMouseLeave = useCallback(() => {
+    if (isDragging) {
+      setFlipAngle((current) => (current >= 90 ? 180 : 0));
+    }
     setIsDragging(false);
-  }, []);
+  }, [isDragging]);
 
   useEffect(() => {
     if (!isDragging) return;
-    const onUp = () => setIsDragging(false);
+    const onUp = () => {
+      setIsDragging(false);
+      setFlipAngle((current) => (current >= 90 ? 180 : 0));
+    };
     window.addEventListener('mouseup', onUp);
     return () => window.removeEventListener('mouseup', onUp);
   }, [isDragging]);
@@ -61,21 +72,11 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
     setRotateY(0);
   }, []);
 
-  const toggleFlip = useCallback((e) => {
-    e?.stopPropagation?.();
-    setIsFlipped((prev) => !prev);
-  }, []);
-
   const handleClick = useCallback((e) => {
-    if (e.detail === 2) {
-      toggleFlip(e);
-      return;
-    }
     resetRotation();
-  }, [toggleFlip, resetRotation]);
+  }, [resetRotation]);
 
-  const flipDeg = isFlipped ? 180 : 0;
-  const transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateY(${flipDeg}deg)`;
+  const transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateY(${flipAngle}deg)`;
 
   return (
     <div
@@ -97,7 +98,7 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (e.repeat) return; resetRotation(); } }}
         role="button"
         tabIndex={0}
-        aria-label="Glisser pour observer, clic pour position par défaut, double-clic pour retourner"
+        aria-label="Glisser pour observer ou retourner la carte, clic pour position par défaut"
       >
         <div
           className="relative w-full"
@@ -121,10 +122,6 @@ export default function InteractiveCharacterCard({ children, className = '' }) {
           }}
         />
       </div>
-
-      <p className="text-center text-stone-500 text-xs mt-2">
-        Glisser pour observer · Clic = position par défaut · Double-clic pour retourner la carte
-      </p>
     </div>
   );
 }
