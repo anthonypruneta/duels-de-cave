@@ -1079,13 +1079,27 @@ const ForestDungeon = () => {
     return { updatedBoosts, gainsByStat };
   };
 
-  /** Un seul point de stats (un roll) — utilisé quand le gain doit être plafonné à 400. */
+  /** Un seul point de stats (un roll). */
   const rollOneStatPoint = (baseBoosts = character.forestBoosts) => {
     const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
     const stat = statsPool[Math.floor(Math.random() * statsPool.length)];
     const updatedBoosts = { ...getEmptyStatBoosts(), ...(baseBoosts || {}) };
     const { updatedStats, delta } = applyStatPoints(updatedBoosts, stat, 1);
     return { updatedBoosts: updatedStats, gainsByStat: { [stat]: delta } };
+  };
+
+  /** N rolls de stats (un par niveau accordé) — quand le gain est plafonné sous le full run. */
+  const rollNStatPoints = (baseBoosts, n) => {
+    let boosts = { ...getEmptyStatBoosts(), ...(baseBoosts || {}) };
+    const totalGains = {};
+    for (let i = 0; i < n; i++) {
+      const result = rollOneStatPoint(boosts);
+      boosts = result.updatedBoosts;
+      Object.entries(result.gainsByStat || {}).forEach(([stat, value]) => {
+        totalGains[stat] = (totalGains[stat] || 0) + value;
+      });
+    }
+    return { updatedBoosts: boosts, gainsByStat: totalGains };
   };
 
   const handleStartRun = async () => {
@@ -1151,8 +1165,8 @@ const ForestDungeon = () => {
       const noGain = { updatedBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }, gainsByStat: {} };
       option1 = option2 = noGain;
     } else if (allowedLevelGain < fullLevelGain) {
-      option1 = rollOneStatPoint(character?.forestBoosts);
-      option2 = rollOneStatPoint(character?.forestBoosts);
+      option1 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
+      option2 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
     } else {
       const generateFullRunReward = () => {
         let boosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
@@ -1175,7 +1189,7 @@ const ForestDungeon = () => {
         { updatedBoosts: option1.updatedBoosts, gainsByStat: option1.gainsByStat },
         { updatedBoosts: option2.updatedBoosts, gainsByStat: option2.gainsByStat }
       ],
-      levelGain: allowedLevelGain <= 0 ? 0 : (allowedLevelGain < fullLevelGain ? 1 : fullLevelGain),
+      levelGain: allowedLevelGain <= 0 ? 0 : Math.min(allowedLevelGain, fullLevelGain),
       allowedLevelGain,
       hasNextLevel: false,
       nextLevel: getAllForestLevels().length + 1
@@ -1225,8 +1239,8 @@ const ForestDungeon = () => {
         const noGain = { updatedBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }, gainsByStat: {} };
         rewardOption1 = rewardOption2 = noGain;
       } else if (allowedLevelGain < rawLevelGain) {
-        rewardOption1 = rollOneStatPoint(character?.forestBoosts);
-        rewardOption2 = rollOneStatPoint(character?.forestBoosts);
+        rewardOption1 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
+        rewardOption2 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
       } else {
         rewardOption1 = rollForestRewards(levelData);
         rewardOption2 = rollForestRewards(levelData);
