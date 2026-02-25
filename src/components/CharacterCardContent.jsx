@@ -145,7 +145,7 @@ export default function CharacterCardContent({
             <span className="text-lg">{fusedPassiveDisplay.primaryDetails.icon}</span>
             <div className="flex-1">
               <div className="font-semibold extension-territory-text">
-                {fusedPassiveDisplay.mixedName}
+                {fusedPassiveDisplay.displayLabel}
               </div>
               <div className="text-stone-400 text-[11px] mt-1 space-y-1">
                 <div><span className="text-amber-300/90">Niv.{fusedPassiveDisplay.primaryDetails.level} —</span> {fusedPassiveDisplay.primaryDetails.levelData.description}</div>

@@ -240,7 +240,7 @@ const ExtensionDungeon = () => {
   const handleAcceptNewPassive = async () => {
     if (!rolledExtensionPassive) return;
     setSavingChoice(true);
-    const newExtension = { id: rolledExtensionPassive.id, level: 1 };
+    const newExtension = { id: rolledExtensionPassive.id, level: rolledExtensionPassive.level ?? 1 };
     const result = await updateCharacterMageTowerExtensionPassive(currentUser.uid, newExtension);
     if (result.success) {
       setCharacter((prev) => (prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev));
@@ -377,9 +377,12 @@ const ExtensionDungeon = () => {
     const alreadyChose = extensionChoice !== null;
     const primaryPassive = character.mageTowerPassive;
     const primaryDetails = getPassiveDetails(primaryPassive);
-    const mixedName = rolledExtensionPassive
+    const baseMixedName = rolledExtensionPassive
       ? (getMixedPassiveDisplayName(primaryPassive?.id, rolledExtensionPassive.id) || `${primaryDetails?.name ?? ''} + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name ?? rolledExtensionPassive.name}`)
       : '';
+    const mixedName = rolledExtensionPassive && rolledExtensionPassive.level > 1
+      ? `${baseMixedName}, niveau ${rolledExtensionPassive.level}`
+      : baseMixedName;
 
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
@@ -403,7 +406,7 @@ const ExtensionDungeon = () => {
             >
               <p className="text-white font-bold text-lg">✨ Passif étendu — Bleu, Rouge, Violet ✨</p>
               <p className="text-stone-300 text-sm mt-2">
-                {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)`}
+                {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.${rolledExtensionPassive?.level ?? 1})`}
               </p>
             </div>
           )}
@@ -418,7 +421,7 @@ const ExtensionDungeon = () => {
                 <span className="text-4xl">{rolledExtensionPassive.icon}</span>
                 <div className="text-left">
                   <p className="text-violet-300 font-semibold">Récompense : {mixedName}</p>
-                  <p className="text-stone-400 text-sm">({rolledExtensionPassive.name} — Niveau 1)</p>
+                  <p className="text-stone-400 text-sm">({rolledExtensionPassive.name} — Niveau {rolledExtensionPassive.level})</p>
                 </div>
               </div>
 
@@ -450,7 +453,7 @@ const ExtensionDungeon = () => {
                 <div className="bg-violet-900/30 border border-violet-600 p-4">
                   <p className="text-violet-300 font-bold mb-2">Nouveau passif ajouté !</p>
                   <p className="text-white">
-                    {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.1)`}
+                    {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.${rolledExtensionPassive?.level ?? 1})`}
                   </p>
                 </div>
               ) : (
@@ -708,7 +711,7 @@ const ExtensionDungeon = () => {
               <div className="flex flex-wrap justify-center gap-4 items-center">
                 {fused ? (
                   <span className="text-amber-300 font-semibold">
-                    {fused.primaryDetails.icon} {fused.mixedName}
+                    {fused.primaryDetails.icon} {fused.displayLabel}
                   </span>
                 ) : (
                   <>
@@ -720,7 +723,7 @@ const ExtensionDungeon = () => {
                     <span className="text-stone-500">+</span>
                     {getPassiveDetails(character.mageTowerExtensionPassive) && (
                       <span className="text-violet-300 font-semibold">
-                        {getPassiveDetails(character.mageTowerExtensionPassive).icon} {getPassiveDetails(character.mageTowerExtensionPassive).name} (Niv.1)
+                        {getPassiveDetails(character.mageTowerExtensionPassive).icon} {getPassiveDetails(character.mageTowerExtensionPassive).name} (Niv.{character.mageTowerExtensionPassive?.level ?? 1})
                       </span>
                     )}
                   </>

@@ -131,7 +131,7 @@ const MesAnciensPersonnages = () => {
                             <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 extension-territory-shine">
                               <span className="text-lg">{fused.primaryDetails.icon}</span>
                               <div className="flex-1">
-                                <div className="font-semibold extension-territory-text">{fused.mixedName}</div>
+                                <div className="font-semibold extension-territory-text">{fused.displayLabel}</div>
                                 <div className="text-stone-400 text-[11px] mt-1 space-y-1">
                                   <div><span className="text-amber-300/90">Niv.{fused.primaryDetails.level} —</span> {fused.primaryDetails.levelData.description}</div>
                                   <div><span className="text-violet-300/90">Niv.{fused.extensionDetails.level} (Extension) —</span> {fused.extensionDetails.levelData.description}</div>

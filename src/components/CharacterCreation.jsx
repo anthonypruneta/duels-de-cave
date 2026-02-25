@@ -1226,7 +1226,7 @@ const CharacterCreation = () => {
                               <span className="text-lg">{fused.primaryDetails.icon}</span>
                               <div className="flex-1">
                                 <div className="font-semibold extension-territory-text">
-                                  {fused.mixedName}
+                                  {fused.displayLabel}
                                 </div>
                                 <div className="text-stone-400 text-[11px] mt-1 space-y-1">
                                   <div><span className="text-amber-300/90">Niv.{fused.primaryDetails.level} —</span> {fused.primaryDetails.levelData.description}</div>

@@ -136,23 +136,43 @@ export function getMixedPassiveDisplayName(primaryPassiveId, secondaryPassiveId)
   return (key && MIXED_PASSIVE_NAMES[key]) || null;
 }
 
+/** Taux de drop du niveau du passif d'extension : 90% niv.1, 9% niv.2, 1% niv.3 */
+const EXTENSION_LEVEL_DROP_RATES = [
+  { level: 1, threshold: 0.90 },
+  { level: 2, threshold: 0.99 },  // 90% + 9%
+  { level: 3, threshold: 1.00 },   // + 1%
+];
+
 /**
- * Retourne les passifs éligibles comme secondaire (niveau 1) : tous sauf le passif actuel.
+ * Retourne les passifs éligibles comme secondaire : tous sauf le passif actuel.
  */
 export function getExtensionPassiveOptions(currentPassiveId) {
   const available = getAvailablePassives();
   return available
     .filter((p) => p.id !== currentPassiveId)
-    .map((p) => ({ id: p.id, name: p.name, icon: p.icon, level: 1 }));
+    .map((p) => ({ id: p.id, name: p.name, icon: p.icon }));
 }
 
 /**
- * Tire un passif niveau 1 aléatoire parmi les éligibles (tous sauf le passif actuel).
+ * Tire un niveau pour le passif d'extension (90% niv.1, 9% niv.2, 1% niv.3).
+ */
+export function rollExtensionPassiveLevel() {
+  const r = Math.random();
+  for (const { level, threshold } of EXTENSION_LEVEL_DROP_RATES) {
+    if (r < threshold) return level;
+  }
+  return 1;
+}
+
+/**
+ * Tire un passif d'extension aléatoire parmi les éligibles, avec un niveau tiré (90% niv.1, 9% niv.2, 1% niv.3).
  */
 export function rollExtensionPassive(currentPassiveId) {
   const options = getExtensionPassiveOptions(currentPassiveId);
   if (options.length === 0) return null;
-  return options[Math.floor(Math.random() * options.length)];
+  const picked = options[Math.floor(Math.random() * options.length)];
+  const level = rollExtensionPassiveLevel();
+  return { ...picked, level };
 }
 
 /**
@@ -195,7 +215,7 @@ export function canAccessExtensionDungeon(mageTowerPassive) {
 /**
  * Données pour l'affichage du passif fusionné (principal + extension).
  * @param {Object} character - { mageTowerPassive, mageTowerExtensionPassive }
- * @returns {{ mixedName: string, primaryDetails: Object, extensionDetails: Object } | null}
+ * @returns {{ mixedName: string, displayLabel: string, primaryDetails: Object, extensionDetails: Object } | null}
  */
 export function getFusedPassiveDisplayData(character) {
   const primary = character?.mageTowerPassive;
@@ -203,13 +223,16 @@ export function getFusedPassiveDisplayData(character) {
   if (!primary?.id || !extension?.id) return null;
   const primaryBase = getMageTowerPassiveById(primary.id);
   const primaryLevelData = getMageTowerPassiveLevel(primary.id, primary.level);
+  const extLevel = extension.level ?? 1;
   const extensionBase = getMageTowerPassiveById(extension.id);
-  const extensionLevelData = getMageTowerPassiveLevel(extension.id, extension.level ?? 1);
+  const extensionLevelData = getMageTowerPassiveLevel(extension.id, extLevel);
   if (!primaryBase || !primaryLevelData || !extensionBase || !extensionLevelData) return null;
   const mixedName = getMixedPassiveDisplayName(primary.id, extension.id) || `${primaryBase.name} + ${extensionBase.name}`;
+  const displayLabel = extLevel > 1 ? `${mixedName}, niveau ${extLevel}` : mixedName;
   return {
     mixedName,
+    displayLabel,
     primaryDetails: { ...primaryBase, level: primary.level, levelData: primaryLevelData },
-    extensionDetails: { ...extensionBase, level: extension.level ?? 1, levelData: extensionLevelData },
+    extensionDetails: { ...extensionBase, level: extLevel, levelData: extensionLevelData },
   };
 }

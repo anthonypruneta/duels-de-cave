@@ -615,7 +615,7 @@ const Combat = () => {
                       <span className="flex items-center justify-center gap-2">
                         <span className="text-base">{fused.primaryDetails.icon}</span>
                         <span className="font-semibold extension-territory-text">
-                          {fused.mixedName}
+                          {fused.displayLabel}
                         </span>
                       </span>
                       <div className="text-[10px] text-stone-400 mt-1 space-y-1">
