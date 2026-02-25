@@ -125,6 +125,14 @@ const ExtensionDungeon = () => {
     }
   };
 
+  const applyExtensionVolume = () => {
+    const el = document.getElementById('extension-music');
+    if (el) {
+      el.volume = volume;
+      el.muted = isMuted;
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!currentUser) return;
@@ -164,6 +172,10 @@ const ExtensionDungeon = () => {
     if (gameState === 'lobby' || gameState === 'fighting') ensureExtensionMusic();
     if (gameState === 'victory' || gameState === 'defeat') stopExtensionMusic();
   }, [gameState]);
+
+  useEffect(() => {
+    applyExtensionVolume();
+  }, [volume, isMuted, gameState]);
 
   useEffect(() => {
     return () => stopExtensionMusic();
