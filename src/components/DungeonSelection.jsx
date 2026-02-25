@@ -102,7 +102,7 @@ const DungeonSelection = () => {
             <div className="bg-stone-900/50 p-4 border border-violet-600/50 text-center">
               <div className="text-4xl mb-2">👁️</div>
               <p className="text-violet-300 font-bold text-lg">Extension du Territoire</p>
-              <p className="text-sm text-stone-400 mb-4">Passif niv.3 + second passif niv.1 (Gojo)</p>
+              <p className="text-sm text-stone-400 mb-4">Passif niv.3 + second passif niv.1 à 3 (90%/9%/1%) — Gojo</p>
               <button
                 onClick={() => navigate('/extension')}
                 className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 font-bold border border-violet-500"

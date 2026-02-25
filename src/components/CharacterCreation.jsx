@@ -430,7 +430,10 @@ const CharacterCreation = () => {
                 L’<strong className="text-amber-200">Extension du Territoire</strong> est un donjon optionnel affrontant <strong>Satoru Gojo</strong>. Il est accessible uniquement si vous avez un <strong>passif Tour du Mage au niveau 3</strong>.
               </p>
               <p>
-                En cas de victoire, vous <strong className="text-emerald-300">conservez votre passif actuel</strong> (niveau 3) et vous gagnez un <strong className="text-emerald-300">second passif au niveau 1</strong>, tiré aléatoirement parmi les autres passifs du Tour du Mage. Le nom affiché est une <strong>fusion</strong> des deux passifs (ex. « Orbe du Sacrifice Sanguin », « Barrière de la Licorne »). Vous cumulez ainsi les effets de votre passif principal (niv. 3) et ceux du passif secondaire (niv. 1) pour tous vos combats.
+                En cas de victoire, vous <strong className="text-emerald-300">conservez votre passif actuel</strong> (niveau 3) et vous gagnez un <strong className="text-emerald-300">second passif</strong>, tiré aléatoirement parmi les autres passifs du Tour du Mage. Le <strong>niveau</strong> du passif d’extension est lui aussi tiré au sort : <strong className="text-amber-200">90 % niveau 1</strong>, <strong className="text-amber-200">9 % niveau 2</strong>, <strong className="text-amber-200">1 % niveau 3</strong>.
+              </p>
+              <p>
+                Le nom affiché est une <strong>fusion</strong> des deux passifs (ex. « Orbe du Sacrifice de la Licorne », « Barrière du Sacrifice »). Si le passif d’extension est niveau 2 ou 3, le niveau apparaît à côté du nom (ex. « Barrière du Sacrifice, niveau 2 »). Au survol du nom fusionné, vous pouvez voir le détail des deux passifs. Vous cumulez les effets de votre passif principal (niv. 3) et ceux du passif secondaire (niv. 1, 2 ou 3) pour tous vos combats.
               </p>
             </div>
           </div>
