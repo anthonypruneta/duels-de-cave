@@ -8,7 +8,8 @@ import {
   getUserLabyrinthProgress,
   launchLabyrinthCombat,
   resolveLabyrinthFloorImagePath,
-  BOSS_FLOOR_100_EXTRA_HP
+  BOSS_TOP_FLOORS_EXTRA_HP,
+  BOSS_TOP_FLOORS
 } from '../services/infiniteLabyrinthService';
 import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
@@ -313,15 +314,15 @@ const InfiniteLabyrinth = () => {
     if (!shownEnemyFloor) return null;
     let awakeningRaces = shownEnemyFloor?.bossKit?.awakeningRaces || [];
     const floorNum = Number(shownEnemyFloor.floorNumber);
-    if (floorNum === 100 && shownEnemyFloor?.type === 'boss' && awakeningRaces.length < 2) {
+    if (BOSS_TOP_FLOORS.includes(floorNum) && shownEnemyFloor?.type === 'boss' && awakeningRaces.length < 2) {
       const pool = Object.keys(races).filter((name) => races[name]?.awakening);
       const first = awakeningRaces[0];
       const other = pool.find((r) => r !== first) || first;
       awakeningRaces = first ? [first, other] : [pool[0], pool[1] || pool[0]].slice(0, 2);
     }
     const weapon = shownEnemyFloor?.bossKit?.weaponId ? getWeaponById(shownEnemyFloor.bossKit.weaponId) : null;
-    const isBoss100 = floorNum === 100 && shownEnemyFloor?.type === 'boss';
-    const baseStats = isBoss100 ? { ...shownEnemyFloor.stats, hp: shownEnemyFloor.stats.hp + BOSS_FLOOR_100_EXTRA_HP } : shownEnemyFloor.stats;
+    const isTopBoss = BOSS_TOP_FLOORS.includes(floorNum) && shownEnemyFloor?.type === 'boss';
+    const baseStats = isTopBoss ? { ...shownEnemyFloor.stats, hp: shownEnemyFloor.stats.hp + BOSS_TOP_FLOORS_EXTRA_HP } : shownEnemyFloor.stats;
     const maxHP = baseStats.hp;
     return {
       id: `enemy-${shownEnemyFloor.floorNumber}`,
@@ -334,6 +335,9 @@ const InfiniteLabyrinth = () => {
       bonuses: { race: {}, class: {} },
       mageTowerPassive: shownEnemyFloor?.bossKit?.passiveId
         ? { id: shownEnemyFloor.bossKit.passiveId, level: shownEnemyFloor.bossKit.passiveLevel || 1 }
+        : null,
+      mageTowerExtensionPassive: shownEnemyFloor?.bossKit?.extensionPassiveId
+        ? { id: shownEnemyFloor.bossKit.extensionPassiveId, level: shownEnemyFloor.bossKit.extensionPassiveLevel ?? 1 }
         : null,
       equippedWeaponData: weapon,
       forgeUpgrade: shownEnemyFloor?.bossKit?.forgeUpgrade || null,

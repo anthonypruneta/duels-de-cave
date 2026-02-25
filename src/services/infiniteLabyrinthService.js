@@ -9,7 +9,7 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getEquippedWeapon } from './dungeonService';
 import { announceFirstLabyrinthFloorClear } from './milestoneAnnouncementService';
 
-const FLOOR_COUNT = 100;
+const FLOOR_COUNT = 120;
 const BOSS_FLOOR_STEP = 10;
 const BOSS_FLOOR_COUNT = FLOOR_COUNT / BOSS_FLOOR_STEP;
 
@@ -44,8 +44,10 @@ const BOSS_MULTIPLIER = {
   otherStats: 1.15
 };
 
-/** Bonus HP réservé au boss de l'étage 100 (appliqué en buildFloorEnemy + affichage, anciens et nouveaux labyrinthes) */
-export const BOSS_FLOOR_100_EXTRA_HP = 200;
+/** Bonus HP pour les boss 100, 110, 120 (appliqué en buildFloorEnemy + affichage) */
+export const BOSS_TOP_FLOORS_EXTRA_HP = 200;
+/** Étages boss avec 2 éveils + bonus HP (et 110/120 = passif fusionné, 120 = forge) */
+export const BOSS_TOP_FLOORS = [100, 110, 120];
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -173,7 +175,7 @@ export function getCurrentWeekId(referenceDate = new Date()) {
 export function getLabyrinthPhase(floorNumber) {
   if (floorNumber <= 40) return 1;
   if (floorNumber <= 70) return 2;
-  return 3;
+  return 3; // 71-120
 }
 
 export function computeLabyrinthStats(baseStats, floorNumber) {
@@ -186,11 +188,9 @@ export function computeLabyrinthStats(baseStats, floorNumber) {
   } else if (phase === 2) {
     multiplier = 1.72 + floorInPhase * 0.032;
   } else {
-    // Phase hard (71-100): montée plus agressive pour que 70/80/90/100 soient réellement exigeants
-    // Exemple: 71 ≈ 2.92x, 80 ≈ 3.50x, 90 ≈ 4.40x, 100 ≈ 5.50x
+    // Phase hard (71-120): même scaling, 110 et 120 prolongent la courbe
     multiplier = 2.92 + floorInPhase * 0.086;
     if (floorNumber >= 90) {
-      // Palier final: accentuer le mur de difficulté sur les 10 derniers étages
       multiplier *= 1.12;
     }
   }
@@ -222,14 +222,25 @@ function pickBossKit(phase, floorNumber, rng) {
   let awakeningRaces = [];
 
   const floorNum = Number(floorNumber);
-  if (floorNum === 90 || floorNum === 100) {
+  const hasTwoAwakenings = BOSS_TOP_FLOORS.includes(floorNum);
+  if (floorNum === 90 || hasTwoAwakenings) {
     const firstRace = pickSeeded(AWAKENING_RACE_POOL, rng);
     awakeningRaces = [firstRace];
-    if (floorNum === 100) {
+    if (hasTwoAwakenings) {
       const remaining = AWAKENING_RACE_POOL.filter((raceName) => raceName !== firstRace);
       const secondRace = remaining.length ? pickSeeded(remaining, rng) : firstRace;
       awakeningRaces.push(secondRace);
     }
+  }
+
+  const hasFusedPassive = floorNum === 110 || floorNum === 120;
+  let extensionPassiveId = null;
+  let extensionPassiveLevel = null;
+  if (hasFusedPassive) {
+    const otherPassives = MAGE_TOWER_PASSIVES.filter((p) => p.id !== passive.id);
+    const extensionPassive = otherPassives.length ? pickSeeded(otherPassives, rng) : passive;
+    extensionPassiveId = extensionPassive.id;
+    extensionPassiveLevel = phase;
   }
 
   if (phase === 1) {
@@ -253,7 +264,7 @@ function pickBossKit(phase, floorNumber, rng) {
   }
 
   const weapon = pickSeeded(LEGENDARY_WEAPONS, rng);
-  const forgeUpgrade = floorNum === 100 ? generateForgeUpgradeRollSeeded(weapon.id, rng) : null;
+  const forgeUpgrade = floorNum === 120 ? generateForgeUpgradeRollSeeded(weapon.id, rng) : null;
   return {
     spellId: spell.id,
     spellClass: spell.class,
@@ -261,6 +272,8 @@ function pickBossKit(phase, floorNumber, rng) {
     passiveLevel,
     weaponId: weapon.id,
     awakeningRaces,
+    extensionPassiveId: extensionPassiveId || undefined,
+    extensionPassiveLevel: extensionPassiveLevel ?? undefined,
     forgeUpgrade
   };
 }
@@ -411,8 +424,8 @@ async function getPreparedUserCharacter(userId) {
 function buildFloorEnemy(floor) {
   let awakeningRaces = floor.bossKit?.awakeningRaces || [];
   const floorNum = Number(floor.floorNumber);
-  // Boss étage 100 : toujours 2 éveils raciaux (rattrapage si ancienne config n'en avait qu'un)
-  if (floorNum === 100 && floor.type === 'boss' && awakeningRaces.length < 2) {
+  // Boss 100/110/120 : rattrapage 2 éveils si ancienne config
+  if (BOSS_TOP_FLOORS.includes(floorNum) && floor.type === 'boss' && awakeningRaces.length < 2) {
     const first = awakeningRaces[0];
     const other = AWAKENING_RACE_POOL.find((r) => r !== first) || first;
     awakeningRaces = first ? [first, other] : [other, AWAKENING_RACE_POOL[0]].slice(0, 2);
@@ -421,9 +434,18 @@ function buildFloorEnemy(floor) {
   const additionalAwakeningRaces = awakeningRaces.slice(1);
   const enemyClass = floor.bossKit?.spellClass || null;
 
-  const baseStats = (floorNum === 100 && floor.type === 'boss')
-    ? { ...floor.stats, hp: floor.stats.hp + BOSS_FLOOR_100_EXTRA_HP }
+  const baseStats = (BOSS_TOP_FLOORS.includes(floorNum) && floor.type === 'boss')
+    ? { ...floor.stats, hp: floor.stats.hp + BOSS_TOP_FLOORS_EXTRA_HP }
     : floor.stats;
+
+  const mageTowerPassive = floor.bossKit?.passiveId ? {
+    id: floor.bossKit.passiveId,
+    level: floor.bossKit.passiveLevel || 1
+  } : null;
+  const mageTowerExtensionPassive = floor.bossKit?.extensionPassiveId ? {
+    id: floor.bossKit.extensionPassiveId,
+    level: floor.bossKit.extensionPassiveLevel ?? 1
+  } : null;
 
   return {
     name: floor.enemyName,
@@ -433,10 +455,8 @@ function buildFloorEnemy(floor) {
     level: floor.floorNumber,
     base: baseStats,
     bonuses: { race: {}, class: {} },
-    mageTowerPassive: floor.bossKit?.passiveId ? {
-      id: floor.bossKit.passiveId,
-      level: floor.bossKit.passiveLevel || 1
-    } : null,
+    mageTowerPassive,
+    mageTowerExtensionPassive,
     equippedWeaponId: floor.bossKit?.weaponId || null,
     forgeUpgrade: floor.bossKit?.forgeUpgrade || null,
     awakeningForced: awakeningRaces.length > 0
@@ -477,7 +497,7 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
       updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
       updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
 
-      if ([80, 90, 100].includes(floor.floorNumber)) {
+      if ([80, 90, 100, 110, 120].includes(floor.floorNumber)) {
         await announceFirstLabyrinthFloorClear({
           userId,
           weekId: resolvedWeekId,
