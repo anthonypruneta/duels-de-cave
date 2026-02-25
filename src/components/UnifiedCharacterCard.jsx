@@ -34,7 +34,7 @@ const UnifiedCharacterCard = ({
             ) : (
               <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
             )}
-            <div className="absolute bottom-2 left-2 right-2 py-1 text-center">
+            <div className="absolute bottom-5 left-2 right-2 py-1 text-center">
               <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
             </div>
           </div>

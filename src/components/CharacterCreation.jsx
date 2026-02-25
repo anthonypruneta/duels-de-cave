@@ -1158,7 +1158,7 @@ const CharacterCreation = () => {
                       </div>
                     )}
                     <div
-                      className="absolute bottom-2 left-2 right-2 py-1 text-center"
+                      className="absolute bottom-5 left-2 right-2 py-1 text-center"
                       style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
                     >
                       <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
