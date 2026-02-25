@@ -15,6 +15,7 @@ import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS }
 import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
+import SharedTooltip from './SharedTooltip';
 import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -1225,9 +1226,21 @@ const CharacterCreation = () => {
                             <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 extension-territory-shine">
                               <span className="text-lg">{fused.primaryDetails.icon}</span>
                               <div className="flex-1">
-                                <div className="font-semibold extension-territory-text">
-                                  {fused.displayLabel}
-                                </div>
+                                <SharedTooltip
+                                  content={
+                                    <span className="whitespace-normal block text-left max-w-[260px]">
+                                      <span className="text-amber-300 font-semibold">{fused.primaryDetails.icon} {fused.primaryDetails.name}</span>
+                                      <span className="text-stone-400"> — Niv.{fused.primaryDetails.level} (principal)</span>
+                                      <br />
+                                      <span className="text-violet-300 font-semibold">{fused.extensionDetails.icon} {fused.extensionDetails.name}</span>
+                                      <span className="text-stone-400"> — Niv.{fused.extensionDetails.level} (extension)</span>
+                                    </span>
+                                  }
+                                >
+                                  <div className="font-semibold extension-territory-text cursor-help">
+                                    {fused.displayLabel}
+                                  </div>
+                                </SharedTooltip>
                                 <div className="text-stone-400 text-[11px] mt-1 space-y-1">
                                   <div><span className="text-amber-300/90">Niv.{fused.primaryDetails.level} —</span> {fused.primaryDetails.levelData.description}</div>
                                   <div><span className="text-violet-300/90">Niv.{fused.extensionDetails.level} (Extension) —</span> {fused.extensionDetails.levelData.description}</div>

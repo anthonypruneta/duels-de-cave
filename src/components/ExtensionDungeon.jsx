@@ -31,12 +31,15 @@ import {
   getMixedPassiveDisplayName,
   getFusedPassiveDisplayData,
   canAccessExtensionDungeon,
+  EXTENSION_LEVEL_DROP_LABEL,
 } from '../data/extensionDungeon';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
+import SharedTooltip from './SharedTooltip';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { envoyerAnnonceDiscord } from '../services/discordService';
 
 const extensionImageModules = import.meta.glob('../assets/extension/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -246,6 +249,17 @@ const ExtensionDungeon = () => {
       setCharacter((prev) => (prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev));
       setExtensionChoice('new');
       setShowUpgradeAnimation(true);
+      if (newExtension.level === 3) {
+        const primaryName = getMageTowerPassiveById(character.mageTowerPassive?.id)?.name ?? 'Passif principal';
+        const extensionName = getMageTowerPassiveById(newExtension.id)?.name ?? 'Passif extension';
+        const mixedName = getMixedPassiveDisplayName(character.mageTowerPassive?.id, newExtension.id) || `${primaryName} + ${extensionName}`;
+        envoyerAnnonceDiscord({
+          titre: '👁️ MESDAMES ET MESSIEURS — DROP LEGENDAIRE !!!',
+          message: `**INCREDIBLE!!!** La foule en délire!!! **${character?.name ?? 'Un combattant'}** vient de décrocher le graal : un passif d'extension **NIVEAU TROIS**!!!\n\n` +
+            `*"Quelle rareté!!! Une chance sur cent!!! On n'avait jamais vu ça depuis le début du Tenka— euh, de l'Extension du Territoire!!!"*\n\n` +
+            `**${mixedName}** — la fusion de ${primaryName} et ${extensionName} — résonne dans l'arène!!! QUELLE PUISSANCE!!!`,
+        }).catch((err) => console.warn('Annonce Discord extension niv.3:', err));
+      }
     } else {
       setError('Erreur lors de la sauvegarde du passif.');
     }
@@ -336,13 +350,22 @@ const ExtensionDungeon = () => {
                 const spell = EXTENSION_BOSS.spells[t];
                 const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
                 return (
-                  <div key={t} className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-violet-600/30">
-                    <span className="text-lg">{emoji}</span>
-                    <div>
-                      <div className="text-violet-300 font-semibold">Tour {t}: {spell.name}</div>
-                      <div className="text-stone-400 text-[10px]">{spell.description}</div>
+                  <SharedTooltip
+                    key={t}
+                    content={
+                      <span className="whitespace-normal block text-left max-w-[220px]">
+                        {spell.description}
+                      </span>
+                    }
+                  >
+                    <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-violet-600/30 cursor-help">
+                      <span className="text-lg">{emoji}</span>
+                      <div>
+                        <div className="text-violet-300 font-semibold">Tour {t}: {spell.name}</div>
+                        <div className="text-stone-400 text-[10px]">{spell.description}</div>
+                      </div>
                     </div>
-                  </div>
+                  </SharedTooltip>
                 );
               })}
             </div>
@@ -393,7 +416,7 @@ const ExtensionDungeon = () => {
         <div className="bg-stone-800 border border-violet-600 p-8 max-w-2xl w-full text-center">
           <div className="text-6xl mb-4">👁️</div>
           <h2 className="text-3xl font-bold text-violet-400 mb-2">Satoru Gojo est vaincu !</h2>
-          <p className="text-stone-300 mb-6">Extension du Territoire : vous avez obtenu un passif niveau 1 aléatoire.</p>
+          <p className="text-stone-300 mb-6">Extension du Territoire : vous avez obtenu un passif aléatoire (niveau 1, 2 ou 3 selon le drop).</p>
 
           {showUpgradeAnimation && rolledExtensionPassive && (
             <div
@@ -681,7 +704,8 @@ const ExtensionDungeon = () => {
             />
           )}
           <h3 className="text-2xl font-bold text-violet-300 mb-2">{EXTENSION_BOSS.nom}</h3>
-          <p className="text-stone-400 mb-4">Accédez à un second passif niveau 1. Obligation d'avoir un passif Tour du Mage niveau 3.</p>
+          <p className="text-stone-400 mb-2">Accédez à un second passif (niveau 1, 2 ou 3). Obligation d'avoir un passif Tour du Mage niveau 3.</p>
+          <p className="text-stone-500 text-sm mb-4">Taux de drop : {EXTENSION_LEVEL_DROP_LABEL}</p>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-lg mx-auto text-sm">
             {Object.entries(EXTENSION_BOSS.stats).map(([stat, val]) => (
               <div key={stat} className="bg-stone-900/60 border border-stone-700 p-2 text-center">
@@ -695,9 +719,18 @@ const ExtensionDungeon = () => {
               const spell = EXTENSION_BOSS.spells[t];
               const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
               return (
-                <div key={t} className="bg-stone-900/60 border border-violet-600/30 px-3 py-2">
-                  <span className="text-violet-300 font-semibold">{emoji} Tour {t}: {spell.name}</span>
-                </div>
+                <SharedTooltip
+                  key={t}
+                  content={
+                    <span className="whitespace-normal block text-left max-w-[220px]">
+                      {spell.description}
+                    </span>
+                  }
+                >
+                  <div className="bg-stone-900/60 border border-violet-600/30 px-3 py-2 cursor-help">
+                    <span className="text-violet-300 font-semibold">{emoji} Tour {t}: {spell.name}</span>
+                  </div>
+                </SharedTooltip>
               );
             })}
           </div>
@@ -710,9 +743,21 @@ const ExtensionDungeon = () => {
               <h3 className="text-lg font-bold text-violet-400 mb-3 text-center">👁️ Extension actuelle</h3>
               <div className="flex flex-wrap justify-center gap-4 items-center">
                 {fused ? (
-                  <span className="text-amber-300 font-semibold">
-                    {fused.primaryDetails.icon} {fused.displayLabel}
-                  </span>
+                  <SharedTooltip
+                    content={
+                      <span className="whitespace-normal block text-left max-w-[260px]">
+                        <span className="text-amber-300 font-semibold">{fused.primaryDetails.icon} {fused.primaryDetails.name}</span>
+                        <span className="text-stone-400"> — Niv.{fused.primaryDetails.level} (principal)</span>
+                        <br />
+                        <span className="text-violet-300 font-semibold">{fused.extensionDetails.icon} {fused.extensionDetails.name}</span>
+                        <span className="text-stone-400"> — Niv.{fused.extensionDetails.level} (extension)</span>
+                      </span>
+                    }
+                  >
+                    <span className="text-amber-300 font-semibold cursor-help">
+                      {fused.primaryDetails.icon} {fused.displayLabel}
+                    </span>
+                  </SharedTooltip>
                 ) : (
                   <>
                     {getPassiveDetails(character.mageTowerPassive) && (
@@ -730,7 +775,9 @@ const ExtensionDungeon = () => {
                 )}
               </div>
               {fused && (
-                <p className="text-stone-400 text-sm mt-2 text-center">Niv.{fused.primaryDetails.level} (principal) + Niv.{fused.extensionDetails.level} (extension)</p>
+                <p className="text-stone-400 text-sm mt-2 text-center">
+                  Niv.{fused.primaryDetails.level} (principal) + Niv.{fused.extensionDetails.level} (extension, 1 à 3)
+                </p>
               )}
             </div>
           );

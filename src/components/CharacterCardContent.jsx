@@ -144,9 +144,21 @@ export default function CharacterCardContent({
           <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 extension-territory-shine">
             <span className="text-lg">{fusedPassiveDisplay.primaryDetails.icon}</span>
             <div className="flex-1">
-              <div className="font-semibold extension-territory-text">
-                {fusedPassiveDisplay.displayLabel}
-              </div>
+              <SharedTooltip
+                content={
+                  <span className="whitespace-normal block text-left max-w-[260px]">
+                    <span className="text-amber-300 font-semibold">{fusedPassiveDisplay.primaryDetails.icon} {fusedPassiveDisplay.primaryDetails.name}</span>
+                    <span className="text-stone-400"> — Niv.{fusedPassiveDisplay.primaryDetails.level} (principal)</span>
+                    <br />
+                    <span className="text-violet-300 font-semibold">{fusedPassiveDisplay.extensionDetails.icon} {fusedPassiveDisplay.extensionDetails.name}</span>
+                    <span className="text-stone-400"> — Niv.{fusedPassiveDisplay.extensionDetails.level} (extension)</span>
+                  </span>
+                }
+              >
+                <div className="font-semibold extension-territory-text cursor-help">
+                  {fusedPassiveDisplay.displayLabel}
+                </div>
+              </SharedTooltip>
               <div className="text-stone-400 text-[11px] mt-1 space-y-1">
                 <div><span className="text-amber-300/90">Niv.{fusedPassiveDisplay.primaryDetails.level} —</span> {fusedPassiveDisplay.primaryDetails.levelData.description}</div>
                 <div><span className="text-violet-300/90">Niv.{fusedPassiveDisplay.extensionDetails.level} (Extension) —</span> {fusedPassiveDisplay.extensionDetails.levelData.description}</div>

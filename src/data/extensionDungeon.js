@@ -143,6 +143,9 @@ const EXTENSION_LEVEL_DROP_RATES = [
   { level: 3, threshold: 1.00 },   // + 1%
 ];
 
+/** Libellé des taux pour affichage (90% niv.1, 9% niv.2, 1% niv.3) */
+export const EXTENSION_LEVEL_DROP_LABEL = '90% niv.1, 9% niv.2, 1% niv.3';
+
 /**
  * Retourne les passifs éligibles comme secondaire : tous sauf le passif actuel.
  */

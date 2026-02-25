@@ -31,12 +31,13 @@ import {
   initWeaponCombatState,
   applyForgeUpgrade,
 } from '../utils/weaponEffects';
-import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS } from '../data/forgeDungeon';
+import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, isForgeRollHighPerfection, FORGE_STAT_LABELS } from '../data/forgeDungeon';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { envoyerAnnonceDiscord } from '../services/discordService';
 
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -392,6 +393,19 @@ const ForgeDungeon = () => {
       setCurrentUpgrade(newUpgradeRoll);
       setCharacter(prev => ({ ...prev, forgeUpgrade: newUpgradeRoll }));
       setUpgradeChoice('new');
+      if (isForgeRollHighPerfection(newUpgradeRoll, 0.9)) {
+        const { bonuses, penalties } = extractForgeUpgrade(newUpgradeRoll);
+        const bonusStr = Object.entries(bonuses).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} +${formatUpgradePct(v)}`).join(', ');
+        const penaltyStr = Object.entries(penalties).filter(([, v]) => v > 0).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} -${formatUpgradePct(v)}`).join(', ');
+        const rollDesc = [bonusStr, penaltyStr].filter(Boolean).join(' • ');
+        const weaponName = character?.equippedWeaponData?.nom ?? character?.equippedWeaponId ?? 'arme légendaire';
+        envoyerAnnonceDiscord({
+          titre: '🔨 MESDAMES ET MESSIEURS — LA FORGE A PARLÉ !!!',
+          message: `**INCROYABLE!!!** Le dieu Ornn lui-même doit être impressionné!!! **${character?.name ?? 'Un combattant'}** vient de produire une forge **AU-DESSUS DE 90% DE PERFECTION**!!!\n\n` +
+            `*"Regardez-moi ça!!! Une telle qualité!!! On dirait presque une arme des dieux!!! La foule n'en revient pas!!!"*\n\n` +
+            `**${weaponName}** : ${rollDesc} — QUELLE ŒUVRE!!!`,
+        }).catch((err) => console.warn('Annonce Discord forge perfection:', err));
+      }
     } else {
       setError('Erreur lors de la sauvegarde de l\'upgrade.');
     }

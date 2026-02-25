@@ -72,6 +72,29 @@ export function hasAnyForgeUpgrade(roll) {
   return Object.values(bonuses).some((v) => v > 0) || Object.values(penalties).some((v) => v > 0);
 }
 
+/** Plage des bonus positifs (pour calcul perfection) */
+const FORGE_BONUS_RANGE = { min: 0.10, max: 0.20 };
+
+/**
+ * Perfection d'un bonus : 0 si à 10%, 1 si à 20%. Ex. 19% → 0.9 (90%).
+ * @param {number} bonusPct - Valeur du bonus (ex. 0.19)
+ * @returns {number} Perfection dans [0, 1]
+ */
+export function getForgeBonusPerfection(bonusPct) {
+  if (bonusPct == null) return 0;
+  const { min, max } = FORGE_BONUS_RANGE;
+  return Math.max(0, Math.min(1, (bonusPct - min) / (max - min)));
+}
+
+/**
+ * Indique si le roll a au moins un bonus avec une perfection >= seuil (ex. 0.9 pour 90%).
+ * +19% sur un stat = 90% perfection, +20% = 100%.
+ */
+export function isForgeRollHighPerfection(roll, threshold = 0.9) {
+  const { bonuses } = extractForgeUpgrade(roll);
+  return Object.values(bonuses).some((pct) => getForgeBonusPerfection(pct) >= threshold);
+}
+
 /**
  * Plages de % pour les upgrades d'armes (tirage aléatoire)
  */
