@@ -156,6 +156,7 @@ export async function creerTournoi(docId = 'current') {
         equippedWeaponId: p.equippedWeaponId || null,
         equippedWeaponData: p.equippedWeaponData || null,
         mageTowerPassive: p.mageTowerPassive || null,
+        mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
         name: p.name,
@@ -320,6 +321,7 @@ export async function lancerTournoi(docId = 'current') {
         equippedWeaponId: p.equippedWeaponId || null,
         equippedWeaponData: p.equippedWeaponData || null,
         mageTowerPassive: p.mageTowerPassive || null,
+        mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
       };
@@ -816,6 +818,7 @@ export async function simulerTournoiTest() {
         equippedWeaponId: p.equippedWeaponId || null,
         equippedWeaponData: p.equippedWeaponData || null,
         mageTowerPassive: p.mageTowerPassive || null,
+        mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
         name: p.name,
