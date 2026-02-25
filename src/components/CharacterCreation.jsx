@@ -16,6 +16,7 @@ import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConst
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import SharedTooltip from './SharedTooltip';
+import InteractiveCharacterCard from './InteractiveCharacterCard';
 import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -1137,12 +1138,15 @@ const CharacterCreation = () => {
             </div>
           </div>
 
-          <div className="relative max-w-md mx-auto" style={{width:'340px'}}>
+          <InteractiveCharacterCard>
             <div className="shadow-2xl">
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-center whitespace-nowrap px-2 py-0.5 text-[11px] font-bold tracking-wide"
+                style={{ textShadow: '1px 1px 0 rgba(0,0,0,0.85), -1px -1px 0 rgba(255,255,255,0.08), 0 0 4px rgba(0,0,0,0.5)', color: 'rgb(253 230 138)' }}
+              >
                 {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
               </div>
-              <div className="overflow-visible">
+              <div className="overflow-visible border border-stone-600 bg-stone-900">
                 <div className="relative bg-stone-900 flex items-center justify-center">
                   {existingCharacter.characterImage ? (
                     <img
@@ -1155,11 +1159,14 @@ const CharacterCreation = () => {
                       <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
                     </div>
                   )}
-                  <div className="absolute bottom-3 left-3 right-3 bg-black/80 p-3">
-                    <div className="text-white font-bold text-lg text-center">{existingCharacter.name}</div>
+                  <div
+                    className="absolute bottom-2 left-2 right-2 py-1 text-center"
+                    style={{ textShadow: '1px 1px 0 rgba(0,0,0,0.85), -1px -1px 0 rgba(255,255,255,0.08), 0 0 4px rgba(0,0,0,0.5)', color: 'rgb(254 243 199)' }}
+                  >
+                    <div className="font-bold text-lg leading-tight">{existingCharacter.name}</div>
                   </div>
                 </div>
-                <div className="bg-stone-800 p-3">
+                <div className="bg-stone-800 p-3 border-t border-stone-600">
                   <div className="flex justify-between text-xs text-white mb-2 font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
                     <StatLine statKey="spd" label="VIT" valueClassName="text-white" />
@@ -1310,7 +1317,7 @@ const CharacterCreation = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </InteractiveCharacterCard>
 
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <button
