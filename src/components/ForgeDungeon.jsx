@@ -388,7 +388,8 @@ const ForgeDungeon = () => {
     if (!newUpgradeRoll) return;
     setSavingUpgrade(true);
 
-    const result = await saveWeaponUpgrade(currentUser.uid, newUpgradeRoll);
+    const weaponId = character?.equippedWeaponId || equippedWeapon?.id;
+    const result = await saveWeaponUpgrade(currentUser.uid, { ...newUpgradeRoll, weaponId });
     if (result.success) {
       setCurrentUpgrade(newUpgradeRoll);
       setCharacter(prev => ({ ...prev, forgeUpgrade: newUpgradeRoll }));

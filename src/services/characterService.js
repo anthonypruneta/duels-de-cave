@@ -14,6 +14,7 @@ import {
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { clearWeaponUpgrade } from './forgeService';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
@@ -104,7 +105,14 @@ export const getUserCharacter = async (userId) => {
       console.log('✅ Personnage trouvé:', data);
       // Rétroactivité: migration PV +4 → +6 par point de stat
       const characterRef = doc(db, 'characters', userId);
-      const migratedData = await applyHpStat6MigrationIfNeeded(characterRef, data);
+      let migratedData = await applyHpStat6MigrationIfNeeded(characterRef, data);
+      // Upgrade Forge orphelin : si l'upgrade est lié à une arme différente de l'équipée, on le supprime
+      const forgeWeaponId = migratedData.forgeUpgrade?.weaponId;
+      const equippedId = migratedData.equippedWeaponId ?? null;
+      if (forgeWeaponId != null && forgeWeaponId !== equippedId) {
+        await clearWeaponUpgrade(userId);
+        migratedData = { ...migratedData, forgeUpgrade: null };
+      }
       return { success: true, data: migratedData };
     } else {
       console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
