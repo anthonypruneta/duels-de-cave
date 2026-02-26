@@ -13,7 +13,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
-export const BALANCE_CONFIG_VERSION = 12;
+export const BALANCE_CONFIG_VERSION = 13;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -129,6 +129,13 @@ const normalizeGnomeConfig = (config) => {
 
   if (awakeningGnome && awakeningGnome.speedDuelCapBonusLow == null && awakeningGnome.speedDuelCapBonusHigh != null) {
     awakeningGnome.speedDuelCapBonusLow = awakeningGnome.speedDuelCapBonusHigh;
+  }
+
+  // Aligner l’esquive (et CAP) éveillé sur la description : 30 % (pas 20 %)
+  if (awakeningGnome) {
+    if (awakeningGnome.speedDuelDodgeLow === 0.20) awakeningGnome.speedDuelDodgeLow = 0.30;
+    if (awakeningGnome.speedDuelCapBonusLow === 0.20) awakeningGnome.speedDuelCapBonusLow = 0.30;
+    if (awakeningGnome.speedDuelCapBonusHigh === 0.20) awakeningGnome.speedDuelCapBonusHigh = 0.30;
   }
 
   if (config.raceTexts?.Gnome && (gnome && gnome.critDmgIfFaster == null || awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null)) {
