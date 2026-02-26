@@ -10,7 +10,7 @@ import { getStatPointValue } from '../utils/statPoints';
 import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
 import { createBossCombatant } from '../data/bosses';
-import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat } from '../services/balanceConfigService';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
@@ -466,6 +466,8 @@ function AdminBalance({ embedded = false }) {
   const [raceTab, setRaceTab] = useState('bonus');
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   // Duel 1v1
   const raceNames = useMemo(() => Object.keys(races), []);
@@ -575,6 +577,23 @@ function AdminBalance({ embedded = false }) {
       setSaveMessage(`❌ Erreur: ${error.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleForceSyncFromCode = async () => {
+    setSyncMessage('');
+    setSyncing(true);
+    try {
+      const result = await forceSyncFromCode('admin-forced');
+      if (result.success) {
+        setSyncMessage('✅ Fichier Storage mis à jour avec les valeurs du code. Rechargez la page ou vérifiez le fichier.');
+      } else {
+        setSyncMessage(`❌ ${result.error}`);
+      }
+    } catch (error) {
+      setSyncMessage(`❌ Erreur: ${error.message}`);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -992,6 +1011,18 @@ function AdminBalance({ embedded = false }) {
             {saving ? '⏳ Sauvegarde...' : '✅ Sauvegarder et appliquer à tout le jeu'}
           </button>
           {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
+          <div className="mt-4 pt-4 border-t border-stone-600">
+            <p className="text-xs text-stone-400 mb-2">Si le fichier balance.json ne se met pas à jour au chargement (toujours ancienne date) :</p>
+            <button
+              type="button"
+              onClick={handleForceSyncFromCode}
+              disabled={syncing}
+              className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 text-white py-2 rounded text-sm font-medium"
+            >
+              {syncing ? '⏳ Synchro...' : '🔄 Forcer synchro code → Storage'}
+            </button>
+            {syncMessage && <p className="text-sm text-amber-200 mt-2">{syncMessage}</p>}
+          </div>
         </div>
 
         {/* Duel 1v1 */}

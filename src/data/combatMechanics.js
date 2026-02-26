@@ -119,12 +119,21 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
   const aw = attacker?.awakening || {};
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
   const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
-  const dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
-  const capBonusIfSlower = aw.speedDuelCapBonusLow ?? aw.speedDuelCapBonusHigh ?? raceConstants.gnome.capBonusIfSlower;
+  let dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
+  let capBonusIfSlower = aw.speedDuelCapBonusLow ?? aw.speedDuelCapBonusHigh ?? raceConstants.gnome.capBonusIfSlower;
   const critIfEqual = aw.speedDuelEqualCrit ?? raceConstants.gnome.critIfEqual;
   const critDmgIfEqual = aw.speedDuelEqualCritDmg ?? raceConstants.gnome.critDmgIfEqual;
-  const dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
-  const capBonusIfEqual = aw.speedDuelEqualCapBonus ?? raceConstants.gnome.capBonusIfEqual;
+  let dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
+  let capBonusIfEqual = aw.speedDuelEqualCapBonus ?? raceConstants.gnome.capBonusIfEqual;
+
+  // Gnome éveillé : aligner sur la description (30 % / 10 %) si la config a encore les valeurs de base (20 % / 5 %)
+  const hasAwakeningValues = aw.speedDuelCritHigh != null || aw.speedDuelDodgeLow != null;
+  if (hasAwakeningValues) {
+    if (dodgeIfSlower === 0.20) dodgeIfSlower = 0.30;
+    if (capBonusIfSlower === 0.20) capBonusIfSlower = 0.30;
+    if (dodgeIfEqual === 0.05) dodgeIfEqual = 0.10;
+    if (capBonusIfEqual === 0.05) capBonusIfEqual = 0.10;
+  }
 
   if (attacker.base.spd > defender.base.spd) {
     bonuses.crit += critIfFaster;
