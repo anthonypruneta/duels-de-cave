@@ -302,6 +302,8 @@ export const applyBalanceConfig = (config) => {
   applyTextOverrides(config);
 };
 
+const UPLOAD_METADATA = { cacheControl: 'no-cache' };
+
 /** Charge la config depuis le fichier Storage (gameConfig/balance.json). */
 export const loadPersistedBalanceConfig = async () => {
   try {
@@ -313,7 +315,7 @@ export const loadPersistedBalanceConfig = async () => {
       const arrayBuffer = await getBytes(storageRef);
       const json = new TextDecoder().decode(arrayBuffer);
       const data = JSON.parse(json);
-      storedVersion = data?.sourceVersion ?? 0;
+      storedVersion = Number(data?.sourceVersion ?? 0);
       config = data?.config ?? null;
     } catch (storageError) {
       if (storageError?.code === 'storage/object-not-found') {
@@ -323,18 +325,23 @@ export const loadPersistedBalanceConfig = async () => {
       }
     }
 
-    // Si le code a une version plus récente, le code prime : on l'applique et on pousse vers Storage
-    if (BALANCE_CONFIG_VERSION > storedVersion) {
+    const codeVersion = BALANCE_CONFIG_VERSION;
+    if (codeVersion > storedVersion) {
       const codeConfig = buildCurrentBalanceConfig();
       applyBalanceConfig(codeConfig);
       const payload = {
         config: codeConfig,
-        sourceVersion: BALANCE_CONFIG_VERSION,
+        sourceVersion: codeVersion,
         updatedBy: 'code-sync',
         updatedAt: new Date().toISOString()
       };
-      await uploadString(storageRef, JSON.stringify(payload), 'raw');
-      console.log(`✅ Équilibrage: code (v${BALANCE_CONFIG_VERSION}) appliqué et synchronisé vers Storage.`);
+      try {
+        await uploadString(storageRef, JSON.stringify(payload), 'raw', UPLOAD_METADATA);
+        console.log(`✅ Équilibrage: code (v${codeVersion}) appliqué et synchronisé vers Storage (stored was v${storedVersion}).`);
+      } catch (uploadError) {
+        console.error('❌ Équilibrage: échec de l’upload vers Storage — le fichier n’a pas été mis à jour.', uploadError);
+        throw uploadError;
+      }
       return { success: true, data: codeConfig };
     }
 
@@ -356,7 +363,7 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
       updatedBy: updatedBy ?? 'admin',
       updatedAt: new Date().toISOString()
     };
-    await uploadString(storageRef, JSON.stringify(payload), 'raw');
+    await uploadString(storageRef, JSON.stringify(payload), 'raw', UPLOAD_METADATA);
 
     applyBalanceConfig(config);
 
@@ -371,7 +378,11 @@ export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) =
 /**
  * Réinitialise la config Storage avec les valeurs par défaut du code.
  */
-export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
+/**
+ * Force la synchro du fichier Storage avec les valeurs du code (sans condition de version).
+ * Utile si le fichier ne se met pas à jour au chargement (cache, erreur silencieuse, etc.).
+ */
+export const forceSyncFromCode = async (updatedBy = 'code-sync-forced') => {
   try {
     const defaultConfig = buildCurrentBalanceConfig();
     const storageRef = ref(storage, BALANCE_STORAGE_PATH);
@@ -380,17 +391,25 @@ export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
       sourceVersion: BALANCE_CONFIG_VERSION,
       updatedBy,
       updatedAt: new Date().toISOString(),
-      resetToDefaults: true
+      forceSync: true
     };
-    await uploadString(storageRef, JSON.stringify(payload), 'raw');
-
+    await uploadString(storageRef, JSON.stringify(payload), 'raw', UPLOAD_METADATA);
     applyBalanceConfig(defaultConfig);
-    console.log('✅ Config Storage réinitialisée aux valeurs par défaut (code)');
+    console.log(`✅ Équilibrage: synchro forcée vers Storage (v${BALANCE_CONFIG_VERSION})`);
     return { success: true, config: defaultConfig };
   } catch (error) {
-    console.error('Erreur reset balance config:', error);
+    console.error('Erreur force sync balance config:', error);
     return { success: false, error: error.message };
   }
+};
+
+/** Réinitialise la config Storage avec les valeurs par défaut du code (alias pratique). */
+export const resetBalanceConfigToDefaults = async (updatedBy = 'system') => {
+  const result = await forceSyncFromCode(updatedBy);
+  if (result.success && result.config) {
+    return { ...result, config: result.config };
+  }
+  return result;
 };
 
 /**
