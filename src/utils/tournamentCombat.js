@@ -334,7 +334,7 @@ function applyMindflayerCapacityMod(caster, _target, baseDamage, capacityId, log
   return boosted;
 }
 
-function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBonus, capacityMagnitude = null) {
+function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBonus, capacityMagnitude = null, healMagnitude = null) {
   // Le Mindflayer copie la capacité uniquement, pas les passifs de la tour. Attaquant = Mindflayer → passifs vides. Défenseur = caster → garde ses passifs défensifs.
   const attackerPassives = [];
   const defenderPassives = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
@@ -369,11 +369,14 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
       break;
     }
     case 'Masochiste': {
-      const healAmount = (() => {
-        const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
-        const masoTaken = caster.maso_taken || 0;
-        return Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)));
-      })();
+      // Soin copié : si healMagnitude fourni (appel depuis le bloc Masochiste), on l'utilise et on ajoute le +10% CAP
+      const healAmount = healMagnitude != null && healMagnitude >= 0
+        ? Math.max(1, Math.round(healMagnitude) + capBonus)
+        : (() => {
+            const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
+            const masoTaken = caster.maso_taken || 0;
+            return Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)) + capBonus);
+          })();
       if (healAmount > 0) target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
       const dmg = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const { returnBase, returnPerCap } = classConstants.masochiste;
@@ -557,7 +560,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
 
     if (isCapacityDamage) {
       grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor);
-      triggerMindflayerCapacityCopy(att, def, log, playerColor, atkList, defList, atkUnicorn, defUnicorn, auraBoost, adjusted);
+      // Masochiste : la copie (dégâts + soin avec +10%) est déclenchée depuis le bloc capacité, pas ici
+      if (att.class !== 'Masochiste') {
+        triggerMindflayerCapacityCopy(att, def, log, playerColor, atkList, defList, atkUnicorn, defUnicorn, auraBoost, adjusted);
+      }
     }
 
     if (hadReflectBeforeHit && def.currentHP > 0) {
@@ -738,6 +744,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
         verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
+        triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, dmg, healAmount);
+      }
       const masoSpellEffects = onCapacityCast(att.weaponState, att, def, dmg, 'maso', { healAmount });
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
       if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
