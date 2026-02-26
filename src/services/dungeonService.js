@@ -33,6 +33,7 @@ import {
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
 import { getUserCharacter, updateCharacterEquippedWeapon } from './characterService';
+import { clearWeaponUpgrade } from './forgeService';
 import { announceFirstDungeonFinalBossKill } from './milestoneAnnouncementService';
 
 // ============================================================================
@@ -341,6 +342,12 @@ export const equipWeapon = async (userId, weaponId) => {
       return { success: false, error: 'Arme invalide' };
     }
 
+    // Si on change d'arme, l'upgrade Forge (Ornn) est perdu
+    const { success: progressOk, data: progress } = await getDungeonProgress(userId);
+    if (progressOk && progress?.equippedWeapon && progress.equippedWeapon !== weaponId) {
+      await clearWeaponUpgrade(userId);
+    }
+
     await retryOperation(async () => {
       const progressRef = doc(db, 'dungeonProgress', userId);
       await updateDoc(progressRef, {
@@ -365,6 +372,9 @@ export const equipWeapon = async (userId, weaponId) => {
 export const unequipWeapon = async (userId) => {
   try {
     console.log('🔄 Déséquipement arme:', userId);
+
+    // Déséquiper = l'arme perd son upgrade Forge (Ornn)
+    await clearWeaponUpgrade(userId);
 
     await retryOperation(async () => {
       const progressRef = doc(db, 'dungeonProgress', userId);
