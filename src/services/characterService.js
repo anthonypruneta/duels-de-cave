@@ -106,14 +106,11 @@ export const getUserCharacter = async (userId) => {
       // Rétroactivité: migration PV +4 → +6 par point de stat
       const characterRef = doc(db, 'characters', userId);
       let migratedData = await applyHpStat6MigrationIfNeeded(characterRef, data);
-      // Upgrade Forge orphelin : supprimer si l'upgrade ne correspond pas à l'arme équipée
-      // 1) Roll lié à une arme (weaponId) différente de l'équipée → clear
-      // 2) Roll legacy (sans weaponId) alors qu'une arme est équipée → clear (ancien roll d'une autre arme)
+      // Upgrade Forge orphelin : supprimer UNIQUEMENT si l'upgrade a un weaponId différent de l'arme équipée.
+      // On ne touche PAS aux rolls "legacy" (sans weaponId) pour ne pas effacer des upgrades valides.
       const forgeWeaponId = migratedData.forgeUpgrade?.weaponId;
       const equippedId = migratedData.equippedWeaponId ?? null;
-      const isOrphan = (forgeWeaponId != null && forgeWeaponId !== equippedId) ||
-        (migratedData.forgeUpgrade && forgeWeaponId == null && equippedId != null);
-      if (isOrphan) {
+      if (forgeWeaponId != null && forgeWeaponId !== equippedId) {
         await clearWeaponUpgrade(userId);
         migratedData = { ...migratedData, forgeUpgrade: null };
       }
