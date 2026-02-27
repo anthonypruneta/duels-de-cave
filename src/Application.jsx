@@ -21,6 +21,7 @@ import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
 import ForgeDungeon from './components/ForgeDungeon';
 import ExtensionDungeon from './components/ExtensionDungeon';
+import SubclassDungeon from './components/SubclassDungeon';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -150,6 +151,16 @@ function Application() {
               <ProtectedRoute>
                 <ModeAvailabilityRoute>
                   <ExtensionDungeon />
+                </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sous-classe"
+            element={
+              <ProtectedRoute>
+                <ModeAvailabilityRoute>
+                  <SubclassDungeon />
                 </ModeAvailabilityRoute>
               </ProtectedRoute>
             }

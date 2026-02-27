@@ -215,3 +215,77 @@ body.cataclysm-bg::before {
 .extension-territory-glow {
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.25), 0 0 20px rgba(239, 68, 68, 0.15), 0 0 20px rgba(139, 92, 246, 0.25);
 }
+
+/* ===== Sous-classe (Collège Kunugigaoka) — Effets visuels gold ===== */
+
+.subclass-gold-text {
+  background: linear-gradient(90deg, #d97706, #f59e0b, #eab308, #fbbf24, #f59e0b, #d97706);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: subclass-gold-flow 3s ease-in-out infinite;
+}
+
+@keyframes subclass-gold-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.subclass-gold-border {
+  position: relative;
+  overflow: visible;
+}
+
+.subclass-gold-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #d97706, #f59e0b, #eab308, #fbbf24, #f59e0b, #d97706);
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: subclass-gold-glow 4s ease-in-out infinite;
+}
+
+@keyframes subclass-gold-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.subclass-gold-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.subclass-gold-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(251, 191, 36, 0.08) 45%,
+    rgba(245, 158, 11, 0.15) 50%,
+    rgba(251, 191, 36, 0.08) 55%,
+    transparent 60%
+  );
+  animation: subclass-gold-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes subclass-gold-sweep {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.subclass-gold-glow {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3), 0 0 25px rgba(234, 179, 8, 0.2);
+}

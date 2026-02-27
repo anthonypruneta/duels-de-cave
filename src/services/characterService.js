@@ -366,6 +366,23 @@ export const updateCharacterMageTowerExtensionPassive = async (userId, mageTower
   }
 };
 
+// Mettre à jour la sous-classe (Collège Kunugigaoka)
+export const updateCharacterSubclass = async (userId, subclass) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        subclass: subclass ? { id: subclass.id, name: subclass.name } : null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la sous-classe:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Mettre à jour l'arme équipée (stockée dans le personnage)
 export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   try {

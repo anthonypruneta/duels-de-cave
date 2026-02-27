@@ -15,6 +15,7 @@ import SharedTooltip from './SharedTooltip';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLORS } from '../utils/weaponDisplayUtils';
+import { getAbilityDisplayLabel } from '../data/subclasses';
 
 export default function CharacterCardContent({
   character,
@@ -216,15 +217,29 @@ export default function CharacterCardContent({
         </div>
       )}
       {character?.class && classes[character.class] && (
-        <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-          <span className="text-lg">{classes[character.class].icon}</span>
-          <div className="flex-1">
-            <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
-            <div className="text-stone-400 text-[11px]">
-              {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0)}
+        character.subclass ? (
+          <div className="subclass-gold-border subclass-gold-glow overflow-visible">
+            <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
+              <span className="text-lg">{classes[character.class].icon}</span>
+              <div className="flex-1">
+                <div className="font-semibold subclass-gold-text">{getAbilityDisplayLabel(character.class, character.subclass)}</div>
+                <div className="text-stone-400 text-[11px]">
+                  {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0)}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+            <span className="text-lg">{classes[character.class].icon}</span>
+            <div className="flex-1">
+              <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
+              <div className="text-stone-400 text-[11px]">
+                {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0)}
+              </div>
+            </div>
+          </div>
+        )
       )}
     </div>
   );

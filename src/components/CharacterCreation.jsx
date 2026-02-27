@@ -23,6 +23,7 @@ import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAw
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
+import { getAbilityDisplayLabel } from '../data/subclasses';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -1299,19 +1300,37 @@ const CharacterCreation = () => {
                         <span className="text-stone-300">{getRaceBonusText(existingCharacter.race)}</span>
                       </div>
                     )}
-                    <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                      <span className="text-lg">{classes[existingCharacter.class].icon}</span>
-                      <div className="flex-1">
-                        <div className="font-semibold text-amber-200">{classes[existingCharacter.class].ability}</div>
-                        <div className="text-stone-400 text-[11px]">
-                          {getCalculatedDescription(
-                            existingCharacter.class,
-                            finalStats.cap ?? 0,
-                            finalStats.auto ?? 0
-                          )}
+                    {existingCharacter.subclass ? (
+                      <div className="subclass-gold-border subclass-gold-glow overflow-visible">
+                        <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
+                          <span className="text-lg">{classes[existingCharacter.class].icon}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold subclass-gold-text">{getAbilityDisplayLabel(existingCharacter.class, existingCharacter.subclass)}</div>
+                            <div className="text-stone-400 text-[11px]">
+                              {getCalculatedDescription(
+                                existingCharacter.class,
+                                finalStats.cap ?? 0,
+                                finalStats.auto ?? 0
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                        <span className="text-lg">{classes[existingCharacter.class].icon}</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-200">{classes[existingCharacter.class].ability}</div>
+                          <div className="text-stone-400 text-[11px]">
+                            {getCalculatedDescription(
+                              existingCharacter.class,
+                              finalStats.cap ?? 0,
+                              finalStats.auto ?? 0
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

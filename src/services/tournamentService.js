@@ -159,6 +159,7 @@ export async function creerTournoi(docId = 'current') {
         mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
+        subclass: p.subclass || null,
         name: p.name,
         class: p.class,
         ownerPseudo: p.ownerPseudo || null
@@ -324,6 +325,7 @@ export async function lancerTournoi(docId = 'current') {
         mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
+        subclass: p.subclass || null,
       };
     }
 
@@ -821,6 +823,7 @@ export async function simulerTournoiTest() {
         mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
+        subclass: p.subclass || null,
         name: p.name,
         class: p.class,
         ownerPseudo: p.ownerPseudo || null

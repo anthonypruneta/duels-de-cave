@@ -9,6 +9,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import SharedTooltip from './SharedTooltip';
 import { races, classes } from '../data/gameData';
+import { getAbilityDisplayLabel } from '../data/subclasses';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
 
@@ -364,12 +365,23 @@ const HallOfFame = () => {
                     )}
 
                     {classes[fullChampionData.classe || fullChampionData.class] && (
-                      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
-                        <span className="text-lg">{classes[fullChampionData.classe || fullChampionData.class].icon}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-amber-200">{classes[fullChampionData.classe || fullChampionData.class].ability}</div>
+                      fullChampionData.subclass ? (
+                        <div className="subclass-gold-border subclass-gold-glow overflow-visible">
+                          <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
+                            <span className="text-lg">{classes[fullChampionData.classe || fullChampionData.class].icon}</span>
+                            <div className="flex-1">
+                              <div className="font-semibold subclass-gold-text">{getAbilityDisplayLabel(fullChampionData.classe || fullChampionData.class, fullChampionData.subclass)}</div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
+                          <span className="text-lg">{classes[fullChampionData.classe || fullChampionData.class].icon}</span>
+                          <div className="flex-1">
+                            <div className="font-semibold text-amber-200">{classes[fullChampionData.classe || fullChampionData.class].ability}</div>
+                          </div>
+                        </div>
+                      )
                     )}
                   </div>
                 }

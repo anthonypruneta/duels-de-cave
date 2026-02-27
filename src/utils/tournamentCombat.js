@@ -20,6 +20,7 @@ import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBa
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { isForgeActive } from '../data/featureFlags.js';
 import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
+import { getSubclassStatBonuses } from '../data/subclasses.js';
 
 // ============================================================================
 // HELPERS
@@ -167,9 +168,10 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
   }
 
   if (attacker.class === 'Bastion') {
-    const shieldValue = Math.max(1, Math.round(attacker.base.def * classConstants.bastion.startShieldFromDef));
+    const startPct = attacker.subclass?.id === 'rempart_fer' ? 0.50 : classConstants.bastion.startShieldFromDef;
+    const shieldValue = Math.max(1, Math.round(attacker.base.def * startPct));
     attacker.shield = (attacker.shield || 0) + shieldValue;
-    log.push(`${label} 🏰 Rempart initial: ${attacker.name} gagne un bouclier de ${shieldValue} PV (${Math.round(classConstants.bastion.startShieldFromDef * 100)}% DEF).`);
+    log.push(`${label} 🏰 Rempart initial: ${attacker.name} gagne un bouclier de ${shieldValue} PV (${Math.round(startPct * 100)}% DEF).`);
   }
 
   defender.spectralMarked = false;
@@ -202,15 +204,26 @@ export function preparerCombattant(char) {
   const baseWithClassPassive = char.class === 'Bastion'
     ? { ...baseWithForge, def: Math.max(1, Math.round(baseWithForge.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithForge;
+  // Bonus de stats des sous-classes (Collège Kunugigaoka)
+  let baseFinal = baseWithClassPassive;
+  const subclassBonuses = getSubclassStatBonuses(char.subclass?.id);
+  if (subclassBonuses && typeof char.subclass?.id === 'string') {
+    baseFinal = { ...baseWithClassPassive };
+    for (const [stat, pct] of Object.entries(subclassBonuses)) {
+      if (baseFinal[stat] != null && pct) {
+        baseFinal[stat] = Math.max(1, Math.round(baseFinal[stat] * (1 + pct)));
+      }
+    }
+  }
   const weaponState = initWeaponCombatState(char, weaponId);
   return {
     ...char,
     _storedBase: char.base,
-    base: baseWithClassPassive,
+    base: baseFinal,
     baseWithoutWeapon,
     baseWithBoosts,
-    currentHP: baseWithClassPassive.hp,
-    maxHP: baseWithClassPassive.hp,
+    currentHP: baseFinal.hp,
+    maxHP: baseFinal.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
@@ -488,6 +501,15 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
     const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + def.base.cap * classConstants.briseurSort.shieldFromCap));
     def.shield = (def.shield || 0) + shield;
     log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
+    if (def.subclass?.id === 'stratege_arcanique') {
+      def.nextSpellReduction = 0.20;
+      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de 20%.`);
+    }
+    if (def.subclass?.id === 'mentaliste') {
+      def.mentalisteDefStack = (def.mentalisteDefStack || 0) + 0.05;
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 1.05)) };
+      log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +5% DEF (stackable).`);
+    }
   }
 }
 
@@ -502,6 +524,17 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
   const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
   let adjusted = raw;
+  // Koro Sensei (Collège Kunugigaoka) : Leçon du maître — réduction sur la prochaine attaque de la cible
+  if (att.trainerNextAttackReduction != null && att.trainerNextAttackReduction > 0) {
+    adjusted = Math.max(1, Math.round(adjusted * (1 - att.trainerNextAttackReduction)));
+    log.push(`${playerColor} 📉 Leçon du maître : l'attaque de ${att.name} inflige -${Math.round(att.trainerNextAttackReduction * 100)}% de dégâts.`);
+    att.trainerNextAttackReduction = undefined;
+  }
+  if (att.paladinNextAttackReduction != null && att.paladinNextAttackReduction > 0) {
+    adjusted = Math.max(1, Math.round(adjusted * (1 - att.paladinNextAttackReduction)));
+    log.push(`${playerColor} ✨ Croisé lumineux : l'attaque de ${att.name} inflige -${Math.round(att.paladinNextAttackReduction * 100)}% de dégâts.`);
+    att.paladinNextAttackReduction = undefined;
+  }
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
@@ -513,6 +546,18 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   }
   adjusted = applyOutgoingAwakeningBonus(att, adjusted);
   adjusted = applyIncomingAwakeningModifiers(def, adjusted);
+  if (def.arcanisteDamageTakenStack != null && def.arcanisteDamageTakenStack > 0) {
+    adjusted = Math.max(1, Math.round(adjusted * (1 + def.arcanisteDamageTakenStack)));
+  }
+  if (att.sorcierNeantBurn) {
+    adjusted = Math.max(1, Math.round(adjusted * 0.90));
+    log.push(`${playerColor} 🌑 Brûlure du Néant: ${att.name} inflige -10% dégâts.`);
+  }
+  if (def.nextSpellReduction != null && def.nextSpellReduction > 0 && isCapacityDamage) {
+    adjusted = Math.max(1, Math.round(adjusted * (1 - def.nextSpellReduction)));
+    log.push(`${playerColor} 📐 Stratège Arcanique: le sort inflige -${Math.round(def.nextSpellReduction * 100)}% de dégâts.`);
+    def.nextSpellReduction = undefined;
+  }
 
   if (def.dodge) {
     def.dodge = false;
@@ -705,10 +750,21 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   if (att.class === 'Demoniste' && !capacityStolen) {
-    const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+    const isMaitreInvocateur = att.subclass?.id === 'maitre_invocateur';
+    const isPacteSombre = att.subclass?.id === 'pacte_sombre';
+    const capBase = isMaitreInvocateur ? 0.55 : (isPacteSombre ? 0.45 : classConstants.demoniste.capBase);
+    const ignoreResist = isMaitreInvocateur ? 0.55 : (isPacteSombre ? 0.45 : classConstants.demoniste.ignoreResist);
+    const stackPerAuto = isMaitreInvocateur ? 0.01 : (isPacteSombre ? 0.008 : classConstants.demoniste.stackPerAuto);
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
-    const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
+    const hit = Math.max(1, Math.round((capBase + stackBonus) * att.base.cap));
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
+    if (isPacteSombre) {
+      const stolen = Math.max(0, Math.round(def.base.cap * 0.02));
+      if (stolen > 0) {
+        def.base = { ...def.base, cap: Math.max(1, def.base.cap - stolen) };
+        log.push(`${playerColor} 💠 Pacte Sombre: ${att.name} vole ${stolen} CAP à ${def.name}.`);
+      }
+    }
     raw = applyMindflayerCapacityMod(att, def, raw, 'dem', log, playerColor);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
@@ -728,6 +784,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
       const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
+      if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
+        att.flagellantApplied = true;
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 0.80)), auto: Math.round(att.base.auto * 1.20) };
+        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -20% DEF, +20% Auto pour le reste du combat.`);
+      }
+      if (att.subclass?.id === 'ecorche_fer') {
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 1.10)), rescap: Math.max(1, Math.round(att.base.rescap * 1.10)) };
+        log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +10% DEF et ResC.`);
+      }
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
       if (masoHealEffects.bonusDamage > 0) {
         const bonusDmg = dmgCap(masoHealEffects.bonusDamage, def.base.rescap);
@@ -802,6 +867,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const spellCapMult = consumeAuraCapacityCapMultiplier();
     const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
     att.reflect = reflectValue;
+    if (att.subclass?.id === 'croise_lumineux') {
+      def.paladinNextAttackReduction = 0.20;
+      log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -20% de dégâts.`);
+    }
+    if (att.subclass?.id === 'juge_implacable') {
+      def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + 0.05;
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 0.95)) };
+      log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 5% (stackable).`);
+    }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
     if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
       att.riposteTwice = true;
@@ -817,14 +891,30 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
+    if (att.subclass?.id === 'latum') {
+      const latumDmg = Math.max(1, Math.round(miss * 0.25));
+      const inflicted = applyDamage(att, def, latumDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
+      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (25% PV manquants) à ${def.name}.`);
+    }
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
     let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
-    att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
-    log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+    if (att.subclass?.id === 'luxum') {
+      const overflow = Math.max(0, (att.currentHP + heal) - att.maxHP);
+      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+      if (overflow > 0) {
+        att.shield = (att.shield || 0) + overflow;
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}; ${overflow} en bouclier (overheal).`);
+      } else {
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+      }
+    } else {
+      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+      log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+    }
     const healSpellEffects = onCapacityCast(att.weaponState, att, def, heal, 'heal');
     if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
@@ -845,7 +935,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (att.class === 'Succube' && att.cd.succ === getMindflayerCapacityCooldown(att, def, 'succ') && !capacityStolen) {
     skillUsed = true;
     const spellCapMultSucc = consumeAuraCapacityCapMultiplier();
-    const isCrit = Math.random() < calcCritChance(att, def);
+    const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
+    const isCrit = forceCritAme || Math.random() < calcCritChance(att, def);
+    if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
+    if (att.subclass?.id === 'dompteuse_chair') {
+      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + 0.05;
+      def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.95)) };
+      log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 5% (stackable).`);
+    }
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'succ', log, playerColor);
@@ -898,8 +995,22 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerCapacityCooldown(att, def, 'rog') && !capacityStolen) {
     skillUsed = true;
-    consumeAuraCapacityCapMultiplier(); // Première capacité du combat (consomme le bonus même si pas de CAP ici)
+    consumeAuraCapacityCapMultiplier();
     att.dodge = true;
+    if (att.subclass?.id === 'assassin') {
+      att.voleurGuaranteedCrit = true;
+      log.push(`${playerColor} 🗡️ Assassin: la prochaine attaque de ${att.name} sera un critique.`);
+    }
+    if (att.subclass?.id === 'roublard') {
+      const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
+      const stat = stats[Math.floor(Math.random() * stats.length)];
+      const stolen = Math.max(0, Math.round(def.base[stat] * 0.10));
+      if (stolen > 0) {
+        def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
+        att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
+        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 10% ${stat} (${stolen}) à ${def.name}.`);
+      }
+    }
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
     if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus);
@@ -942,6 +1053,22 @@ function processPlayerAction(att, def, log, isP1, turn) {
         def.stunnedTurns = stunDuration;
         log.push(`${playerColor} 😵 ${def.name} est étourdi pendant ${stunDuration} tour !`);
       }
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
+        reviveUndead(def, att, log, playerColor);
+      }
+      att.cd.boss_ability = 0;
+    }
+
+    // Koro Sensei (Collège Kunugigaoka) : Leçon du maître — Auto + 30% CAP, réduit prochaine attaque adverse de 15%, CD 4
+    if (att.bossId === 'koro_sensei' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 0.3;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
+      log.push(`${playerColor} 🎓 ${att.name} donne une Leçon du maître et inflige ${inflicted} points de dégâts`);
+      const reduction = att.ability.effect?.nextAttackReduction ?? 0.15;
+      def.trainerNextAttackReduction = reduction;
+      log.push(`${playerColor} 📉 La prochaine attaque de ${def.name} infligera -${Math.round(reduction * 100)}% de dégâts.`);
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
         reviveUndead(def, att, log, playerColor);
       }
@@ -1019,7 +1146,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
-    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : Math.random() < calcCritChance(att, def);
+    const subclassCritBonus = (att.subclass?.id === 'chasseur_fantome' || att.subclass?.id === 'ame_tentatrice') ? 0.10 : 0;
+    const critChance = calcCritChance(att, def) + subclassCritBonus;
+    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
     if (isCrit) wasCrit = true;
     let raw = 0;
     const weaponBonus = i === 0 ? consumeWeaponDamageBonus() : 1;
@@ -1031,6 +1160,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const scaledCap = att.base.cap * spellCapMultiplier;
       const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
       raw = dmgCap(atkSpell, def.base.rescap);
+      if (att.subclass?.id === 'arcaniste_instable' && i === 0) {
+        def.arcanisteDamageTakenStack = (def.arcanisteDamageTakenStack || 0) + 0.05;
+        log.push(`${playerColor} 💥 Arcaniste Instable: ${def.name} subira +5% dégâts (stackable).`);
+      }
+      if (att.subclass?.id === 'sorcier_neant' && i === 0) {
+        def.sorcierNeantBurn = true;
+        log.push(`${playerColor} 🌑 Brûlure du Néant: ${def.name} infligera -10% dégâts Auto et perd 2% PV/tour.`);
+      }
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} utilise sa capacité magique`);
       raw = applyMindflayerCapacityMod(att, def, raw, 'mag', log, playerColor);
       // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
@@ -1045,20 +1182,23 @@ function processPlayerAction(att, def, log, isP1, turn) {
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} utilise sa capacité magique et inflige ${inflictedCodex} points de dégâts`);
       }
     } else if (isWar) {
-      const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
-      const spellCapMultWar = consumeAuraCapacityCapMultiplier();
-      const ignore = ignoreBase + ignorePerCap * att.base.cap * spellCapMultWar;
-      const effectiveAuto = Math.round((att.base.auto + autoBonus) * attackMultiplier);
-      
-      // Frappe la résistance la plus FAIBLE entre Déf et ResC
-      if (def.base.def <= def.base.rescap) {
-        // Déf est la plus faible → dégâts physiques avec Auto
-        const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
-        raw = dmgPhys(effectiveAuto, effDef);
+      // Maître d'armes (sous-classe) : ignore 100% def/resC, inflige Auto + 10% CAP
+      if (att.subclass?.id === 'maitre_armes') {
+        const spellCapMultWar = consumeAuraCapacityCapMultiplier();
+        raw = Math.max(1, Math.round((att.base.auto + att.base.cap * 0.10) * spellCapMultWar * attackMultiplier));
       } else {
-        // ResC est la plus faible → dégâts physiques (Auto vs ResC réduite)
-        const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
-        raw = dmgPhys(effectiveAuto, effRes);
+        const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
+        const spellCapMultWar = consumeAuraCapacityCapMultiplier();
+        const ignore = ignoreBase + ignorePerCap * att.base.cap * spellCapMultWar;
+        const effectiveAuto = Math.round((att.base.auto + autoBonus) * attackMultiplier);
+        // Frappe la résistance la plus FAIBLE entre Déf et ResC
+        if (def.base.def <= def.base.rescap) {
+          const effDef = Math.max(0, Math.round(def.base.def * (1 - ignore)));
+          raw = dmgPhys(effectiveAuto, effDef);
+        } else {
+          const effRes = Math.max(0, Math.round(def.base.rescap * (1 - ignore)));
+          raw = dmgPhys(effectiveAuto, effRes);
+        }
       }
       raw = applyMindflayerCapacityMod(att, def, raw, 'war', log, playerColor);
       // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
@@ -1074,16 +1214,30 @@ function processPlayerAction(att, def, log, isP1, turn) {
           const inflictedCodex = applyDamage(att, def, warSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false);
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
         }
+        if (att.subclass?.id === 'duracier') {
+          const duracierShield = Math.max(1, Math.round(att.base.auto * 0.15));
+          att.shield = (att.shield || 0) + duracierShield;
+          log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto).`);
+        }
       }
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
       } else {
-        const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
+        const hit2AutoMult = att.subclass?.id === 'sniper' ? 1.50 : classConstants.archer.hit2AutoMultiplier;
+        const { hit2CapMultiplier } = classConstants.archer;
         const spellCapMultArc = consumeAuraCapacityCapMultiplier();
-        const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMultiplier * attackMultiplier), def.base.def);
+        const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMult * attackMultiplier), def.base.def);
         const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
         raw = physPart + capPart;
+        if (att.subclass?.id === 'chasseur_fantome' && att.ghostHunterNextDamageCapBonus) {
+          raw += Math.max(0, Math.round(att.base.cap * att.ghostHunterNextDamageCapBonus));
+          log.push(`${playerColor} 👻 Chasseur Fantôme: +20% CAP aux dégâts après le crit.`);
+          att.ghostHunterNextDamageCapBonus = undefined;
+        }
+      }
+      if (att.subclass?.id === 'chasseur_fantome' && isCrit && i === 0) {
+        att.ghostHunterNextDamageCapBonus = 0.20;
       }
       raw = applyMindflayerCapacityMod(att, def, raw, 'arc', log, playerColor);
       // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités (1 seul usage par activation skill)
@@ -1252,6 +1406,16 @@ export function simulerMatch(char1, char2) {
     const p2Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p2), turn);
     if (p1Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);
     if (p2Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p2.name}: ${p2Unicorn.label}`);
+    if (p1.sorcierNeantBurn && p1.currentHP > 0) {
+      const burn = Math.max(1, Math.round(p1.currentHP * 0.02));
+      p1.currentHP -= burn;
+      turnStartLogs.push(`🌑 Brûlure du Néant: ${p1.name} perd ${burn} PV (2%).`);
+    }
+    if (p2.sorcierNeantBurn && p2.currentHP > 0) {
+      const burn = Math.max(1, Math.round(p2.currentHP * 0.02));
+      p2.currentHP -= burn;
+      turnStartLogs.push(`🌑 Brûlure du Néant: ${p2.name} perd ${burn} PV (2%).`);
+    }
 
     allLogs.push(...turnStartLogs);
     steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
@@ -1272,6 +1436,10 @@ export function simulerMatch(char1, char2) {
     } else if (p1HasPriority && !p2HasPriority) {
       first = p1;
     } else if (p2HasPriority && !p1HasPriority) {
+      first = p2;
+    } else if (p1.class === 'Bastion' && p1.cd.bast === 0 && p1.subclass?.id === 'mur_implacable') {
+      first = p1;
+    } else if (p2.class === 'Bastion' && p2.cd.bast === 0 && p2.subclass?.id === 'mur_implacable') {
       first = p2;
     } else {
       first = p1.base.spd >= p2.base.spd ? p1 : p2;
