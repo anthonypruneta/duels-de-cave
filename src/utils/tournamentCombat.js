@@ -1028,6 +1028,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.bossId === 'bandit' && att.cd.boss_ability >= att.ability.cooldown) {
       def.bleed_stacks = (def.bleed_stacks || 0) + (att.ability.effect?.stacksPerHit || 1);
       log.push(`${playerColor} 🗡️ ${att.name} empoisonne sa lame et applique un saignement !`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, defenderUnicorn, attackerUnicorn, auraBonus);
       att.cd.boss_ability = 0;
     }
 
@@ -1037,6 +1038,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const raw = dmgCap(spellDmg, def.base.rescap);
       const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} lance un Souffle de Flammes dévastateur et inflige ${inflicted} points de dégâts`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, defenderUnicorn, attackerUnicorn, auraBonus, inflicted);
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) {
         reviveUndead(def, att, log, playerColor);
       }
@@ -1050,6 +1052,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const raw = dmgCap(spellDmg, def.base.rescap);
       const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🔥 ${att.name} invoque l'Appel du dieu de la forge et inflige ${inflicted} points de dégâts`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, defenderUnicorn, attackerUnicorn, auraBonus, inflicted);
       if (def.currentHP > 0) {
         const stunDuration = att.ability.effect?.stunDuration || 1;
         def.stunned = true;
@@ -1069,6 +1072,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const raw = dmgCap(spellDmg, def.base.rescap);
       const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       log.push(`${playerColor} 🎓 ${att.name} donne une Leçon du maître et inflige ${inflicted} points de dégâts`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, defenderUnicorn, attackerUnicorn, auraBonus, inflicted);
       const reduction = att.ability.effect?.nextAttackReduction ?? 0.15;
       def.trainerNextAttackReduction = reduction;
       log.push(`${playerColor} 📉 La prochaine attaque de ${def.name} infligera -${Math.round(reduction * 100)}% de dégâts.`);
@@ -1092,6 +1096,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
         const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
         log.push(`${playerColor} ${emoji} ${att.name} lance ${spell.name} et inflige ${inflicted} points de dégâts`);
+        triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, defenderUnicorn, attackerUnicorn, auraBonus, inflicted);
         if (def.currentHP > 0 && spell.stun > 0) {
           def.stunned = true;
           def.stunnedTurns = spell.stun;
