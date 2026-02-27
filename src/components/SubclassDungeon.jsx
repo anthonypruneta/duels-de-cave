@@ -18,6 +18,7 @@ import {
 import { getSubclassesForClass } from '../data/subclasses';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { isSubclassDungeonVisible } from '../data/featureFlags';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 
@@ -48,6 +49,10 @@ const SubclassDungeon = () => {
 
   useEffect(() => {
     if (!currentUser) return;
+    if (!isSubclassDungeonVisible()) {
+      navigate('/dungeons', { replace: true });
+      return;
+    }
     const loadData = async () => {
       setLoading(true);
       const charResult = await getUserCharacter(currentUser.uid);

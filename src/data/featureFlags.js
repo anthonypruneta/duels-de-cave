@@ -35,3 +35,15 @@ export function clampLevel(level) {
   if (!isLevelCapActive()) return level;
   return Math.min(level, MAX_LEVEL);
 }
+
+// Date à partir de laquelle le donjon Collège Kunugigaoka (sous-classes) est visible et accessible
+// Modifier cette date pour l'ouverture officielle (ex. lundi suivant le tournoi)
+const SUBCLASS_DUNGEON_VISIBLE_DATE = new Date('2026-03-02T00:00:00+01:00');
+
+/**
+ * Vérifie si le donjon sous-classe (Collège Kunugigaoka) est visible dans la liste et accessible.
+ * Masqué jusqu'à la date d'ouverture pour garder la surprise.
+ */
+export function isSubclassDungeonVisible() {
+  return new Date() >= SUBCLASS_DUNGEON_VISIBLE_DATE;
+}

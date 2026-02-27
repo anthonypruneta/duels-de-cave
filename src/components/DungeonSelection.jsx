@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlayerDungeonSummary } from '../services/dungeonService';
-import { isForgeActive } from '../data/featureFlags';
+import { isForgeActive, isSubclassDungeonVisible } from '../data/featureFlags';
 import Header from './Header';
 
 const DungeonSelection = () => {
@@ -110,17 +110,19 @@ const DungeonSelection = () => {
                 Étendre le territoire
               </button>
             </div>
-            <div className="bg-stone-900/50 p-4 border border-amber-600/50 text-center">
-              <div className="text-4xl mb-2">🎓</div>
-              <p className="text-amber-300 font-bold text-lg">Collège Kunugigaoka</p>
-              <p className="text-sm text-stone-400 mb-4">Sous-classe — Niveau 400 requis</p>
-              <button
-                onClick={() => navigate('/sous-classe')}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-              >
-                Entrer au Collège
-              </button>
-            </div>
+            {isSubclassDungeonVisible() && (
+              <div className="bg-stone-900/50 p-4 border border-amber-600/50 text-center">
+                <div className="text-4xl mb-2">🎓</div>
+                <p className="text-amber-300 font-bold text-lg">Collège Kunugigaoka</p>
+                <p className="text-sm text-stone-400 mb-4">Sous-classe — Niveau 400 requis</p>
+                <button
+                  onClick={() => navigate('/sous-classe')}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
+                >
+                  Entrer au Collège
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
