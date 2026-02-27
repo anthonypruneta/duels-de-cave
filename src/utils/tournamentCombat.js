@@ -29,8 +29,9 @@ import { getSubclassStatBonuses } from '../data/subclasses.js';
 function getAntiHealFactor(opponent) {
   let factor = 1;
   if (opponent?.class === 'Briseur de Sort') factor *= (1 - classConstants.briseurSort.antiHealReduction);
-  const passive = getPassiveDetails(opponent?.mageTowerPassive);
-  if (passive?.id === 'rituel_fracture') factor *= (1 - (passive.levelData.healReduction || 0));
+  const list = getPassiveDetailsList(opponent);
+  const passive = getPassiveById(list, 'rituel_fracture');
+  if (passive) factor *= (1 - (passive.levelData.healReduction || 0));
   return factor;
 }
 
@@ -190,7 +191,8 @@ export function preparerCombattant(char) {
   // Boss / NPC avec forge (ex. labyrinthe 100) : même logique que joueur avec forge (skip flat, appliquer %)
   const hasForgeData = char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
   const skipWeaponFlat = hasForgeData && (isForgeActive() || char.awakeningForced);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
+  const passiveList = getPassiveDetailsList(char);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, passiveList, skipWeaponFlat);
   const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([

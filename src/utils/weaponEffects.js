@@ -63,10 +63,12 @@ export function initWeaponCombatState(combatant, weaponId) {
 
 const YGGDRASIL_HEAL_PASSIVES = new Set(['essence_drain', 'onction_eternite']);
 
-function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassive) {
+/** mageTowerPassiveOrList: un passif { id } ou une liste de passifs (principal + extension). */
+function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassiveOrList) {
   if (combatantClass === 'Healer' || combatantClass === 'Masochiste') return true;
   if (combatantRace === 'Sylvari') return true;
-  return YGGDRASIL_HEAL_PASSIVES.has(mageTowerPassive?.id);
+  if (Array.isArray(mageTowerPassiveOrList)) return mageTowerPassiveOrList.some((p) => YGGDRASIL_HEAL_PASSIVES.has(p?.id));
+  return YGGDRASIL_HEAL_PASSIVES.has(mageTowerPassiveOrList?.id);
 }
 
 // ============================================================================
@@ -77,8 +79,9 @@ function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassi
  * À appeler après le calcul des stats de base.
  * Si skipFlatStats est true (ex. arme améliorée par Ornn), les bonus plats de l'arme ne sont pas ajoutés :
  * ils sont remplacés par l'effet % Forge appliqué plus tard.
+ * mageTowerPassiveOrList: un passif { id } ou une liste [principal, extension] pour prendre en compte la fusion.
  */
-export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combatantRace, mageTowerPassive, skipFlatStats = false) {
+export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combatantRace, mageTowerPassiveOrList, skipFlatStats = false) {
   if (!weaponId) return { ...stats };
 
   const weapon = getWeaponById(weaponId);
@@ -111,7 +114,7 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
       case 'baton_legendaire': {
         // Branche d'Yggdrasil: dégâts bonus sur toute source de soin personnelle
         // (Healer, Masochiste, Sylvari, Vol d'essence, Onction d'Éternité), sinon regen passive.
-        const hasOffensiveHeal = canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassive);
+        const hasOffensiveHeal = canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassiveOrList);
         modifiedStats._yggdrasilRegen = !hasOffensiveHeal;
         modifiedStats._yggdrasilHealDamage = hasOffensiveHeal;
         break;
