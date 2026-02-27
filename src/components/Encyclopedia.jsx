@@ -55,7 +55,7 @@ function Encyclopedia() {
   const weaponFamilies = getWeaponFamilyInfo();
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-200">
+    <div className="min-h-screen text-stone-200">
       <Header />
       <div className="pt-24 pb-12 px-4 max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-amber-400 mb-2 text-center">📚 Encyclopédie du jeu</h1>
@@ -99,27 +99,32 @@ function Encyclopedia() {
           {activeTab === 'races' && (
             <section>
               <h2 className="text-xl text-amber-300 font-bold mb-4">🎭 Races & Awakening</h2>
-              <div className="grid md:grid-cols-2 gap-4">
+              <p className="text-stone-400 text-sm mb-6">
+                Chaque race apporte des bonus de base. L'Awakening (éveil) se débloque au niveau indiqué et renforce ces effets.
+              </p>
+              <div className="space-y-6">
                 {Object.entries(races).map(([name, info]) => {
                   const bonusLines = splitDescriptionLines(getRaceBonusText(name));
                   const awakeningLines = splitDescriptionLines(buildRaceAwakeningDescription(name));
                   return (
-                    <div key={name} className="bg-stone-800/80 border border-stone-700 p-4 rounded-lg">
-                      <div className="font-bold text-white mb-3">{info.icon} {name}</div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-stone-400 text-xs font-semibold mb-1 uppercase">Bonus racial</div>
-                          <ul className="text-stone-300 text-sm space-y-0.5">
+                    <div key={name} className="bg-stone-800/80 border border-stone-700 rounded-lg overflow-hidden">
+                      <div className="bg-stone-700/50 px-4 py-2 font-bold text-amber-200 border-b border-stone-600">
+                        {info.icon} {name}
+                      </div>
+                      <div className="p-4 grid md:grid-cols-2 gap-4">
+                        <div className="bg-stone-900/60 border border-stone-700 p-4 rounded-lg">
+                          <div className="text-stone-400 text-xs font-semibold mb-2 uppercase">Bonus racial</div>
+                          <ul className="text-stone-300 text-sm space-y-1">
                             {bonusLines.map((line, idx) => (
                               <li key={`${name}-bonus-${idx}`}>• {line}</li>
                             ))}
                           </ul>
                         </div>
-                        <div>
-                          <div className="text-emerald-400 text-xs font-semibold mb-1 uppercase">
+                        <div className="bg-stone-900/60 border border-stone-700 p-4 rounded-lg">
+                          <div className="text-emerald-400 text-xs font-semibold mb-2 uppercase">
                             Awakening (Niv. {info.awakening?.levelRequired})
                           </div>
-                          <ul className="text-emerald-200/90 text-sm space-y-0.5">
+                          <ul className="text-emerald-200/90 text-sm space-y-1">
                             {awakeningLines.map((line, idx) => (
                               <li key={`${name}-awak-${idx}`}>• {line}</li>
                             ))}
