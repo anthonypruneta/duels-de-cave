@@ -206,7 +206,6 @@ const CharacterCreation = () => {
   const [rollsRemaining, setRollsRemaining] = useState(0);
   const [allRolls, setAllRolls] = useState([]);
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
-  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
   const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
   const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
@@ -295,13 +294,13 @@ const CharacterCreation = () => {
     <div className="mt-10">
       <button
         type="button"
-        onClick={() => setShowEncyclopedia(prev => !prev)}
-        className="w-full bg-stone-900/80 border-2 border-amber-600 px-5 py-4 text-amber-300 font-bold text-lg hover:border-amber-400 transition"
+        onClick={() => navigate('/encyclopedie')}
+        className="w-full bg-stone-900/80 border-2 border-amber-600 px-5 py-4 text-amber-300 font-bold text-lg hover:border-amber-400 transition rounded-lg"
       >
-        {showEncyclopedia ? '▼' : '▶'} 📚 Encyclopédie du jeu
+        📚 Voir l'encyclopédie du jeu (races, classes, sous-classes, armes…)
       </button>
 
-      {showEncyclopedia && (
+      {false && (
         <div className="mt-4 space-y-6">
           <div className="bg-stone-800/70 border border-stone-600 p-5">
             <h3 className="text-xl text-amber-300 font-bold mb-3">📊 Description des stats</h3>

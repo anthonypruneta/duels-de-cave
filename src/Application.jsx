@@ -22,6 +22,7 @@ import WorldBoss from './components/WorldBoss';
 import ForgeDungeon from './components/ForgeDungeon';
 import ExtensionDungeon from './components/ExtensionDungeon';
 import SubclassDungeon from './components/SubclassDungeon';
+import Encyclopedia from './components/Encyclopedia';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -113,6 +114,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <MesAnciensPersonnages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/encyclopedie"
+            element={
+              <ProtectedRoute>
+                <Encyclopedia />
               </ProtectedRoute>
             }
           />
