@@ -48,12 +48,12 @@ const UnifiedCharacterCard = ({
             {hpText && <div className="text-xs text-stone-400 mb-2">{hpText}</div>}
             {typeof hpPercent === 'number' && (
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
-                <div className={`h-full transition-all duration-500 ${hpClass || 'bg-green-500'}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
+                <div className={`h-full transition-all duration-500 ease-out ${hpClass || 'bg-green-500'}`} style={{ width: `${Math.max(0, Math.min(100, hpPercent))}%` }} />
               </div>
             )}
             {shieldPercent > 0 && (
               <div className="mt-1 mb-3 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                <div className="h-full transition-all duration-500 bg-blue-500" style={{ width: `${shieldPercent}%` }} />
+                <div className="h-full transition-all duration-500 ease-out bg-blue-500" style={{ width: `${shieldPercent}%` }} />
               </div>
             )}
 

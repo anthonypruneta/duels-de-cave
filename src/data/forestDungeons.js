@@ -15,7 +15,7 @@ export const FOREST_LEVELS = [
       nom: 'Sanglier',
       icon: '🐗',
       imageFile: 'sanglier.png',
-      stats: { hp: 150, auto: 20, def: 15, rescap: 10, spd: 10, cap: 10 },
+      stats: { hp: 165, auto: 22, def: 17, rescap: 11, spd: 11, cap: 11 },
       ability: null
     },
     rewardRolls: 1
@@ -30,7 +30,7 @@ export const FOREST_LEVELS = [
       nom: 'Ours',
       icon: '🐻',
       imageFile: 'ours.png',
-      stats: { hp: 200, auto: 28, def: 28, rescap: 28, spd: 28, cap: 28 },
+      stats: { hp: 220, auto: 31, def: 31, rescap: 31, spd: 31, cap: 31 },
       ability: {
         type: 'bear_rage',
         name: 'Rage',
@@ -49,7 +49,7 @@ export const FOREST_LEVELS = [
       nom: 'Licorne',
       icon: '🦄',
       imageFile: 'licorne.png',
-      stats: { hp: 250, auto: 34, def: 34, rescap: 34, spd: 34, cap: 34 },
+      stats: { hp: 275, auto: 37, def: 37, rescap: 37, spd: 37, cap: 37 },
       ability: {
         type: 'unicorn_cycle',
         name: 'Alternance mystique',

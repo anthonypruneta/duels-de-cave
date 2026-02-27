@@ -17,12 +17,12 @@ const MOB_IMAGES = import.meta.glob('../assets/labyrinthe/mobs/*.{png,jpg,jpeg,w
 const BOSS_IMAGES = import.meta.glob('../assets/labyrinthe/bosses/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
 const BASE_DUNGEON_LEVEL_1_STATS = {
-  hp: 120,
-  auto: 15,
-  def: 15,
-  cap: 15,
-  rescap: 15,
-  spd: 15
+  hp: 132,
+  auto: 17,
+  def: 17,
+  cap: 17,
+  rescap: 17,
+  spd: 17
 };
 
 const LEGENDARY_WEAPONS = getWeaponsByRarity(RARITY.LEGENDAIRE);

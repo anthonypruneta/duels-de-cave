@@ -35,6 +35,7 @@ import { FORGE_BOSS, createForgeBossCombatant, generateForgeUpgradeRoll, formatU
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
@@ -525,59 +526,36 @@ const ForgeDungeon = () => {
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getForgeImage(bossChar.imageFile);
-
     return (
-      <div className="relative shadow-2xl overflow-visible">
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-orange-400 px-5 py-1.5 text-sm font-bold shadow-lg border border-orange-600 z-10">
-          Boss • Forge des Légendes
-        </div>
-        <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {bossImg ? (
-              <img src={bossImg} alt={bossChar.name} className="w-full h-auto object-contain" />
-            ) : (
-              <div className="w-full h-48 flex items-center justify-center">
-                <span className="text-7xl">{FORGE_BOSS.icon}</span>
-              </div>
-            )}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-orange-300 font-bold text-xl text-center">{bossChar.name}</div>
+      <UnifiedCharacterCard
+        header="Boss • Forge des Légendes"
+        name={bossChar.name}
+        image={bossImg}
+        fallback={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
+        topStats={<><span>HP: {bossChar.base.hp}</span><span>VIT: {bossChar.base.spd}</span></>}
+        hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
+        hpPercent={hpPercent}
+        hpClass={hpClass}
+        shieldPercent={shieldPercent}
+        mainStats={
+          <>
+            <div>Auto: {bossChar.base.auto}</div>
+            <div>DEF: {bossChar.base.def}</div>
+            <div>CAP: {bossChar.base.cap}</div>
+            <div>RESC: {bossChar.base.rescap}</div>
+          </>
+        }
+        details={bossChar.ability ? (
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+            <span className="text-lg">🔥</span>
+            <div className="flex-1">
+              <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.name}</div>
+              <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
             </div>
           </div>
-          <div className="bg-stone-800 p-4 border-t border-orange-600/50">
-            <div className="mb-3">
-              <div className="flex justify-between text-sm text-white mb-2">
-                <span>HP: {bossChar.base.hp}</span>
-                <span>VIT: {bossChar.base.spd}</span>
-              </div>
-              <div className="text-xs text-stone-400 mb-2">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ease-out ${hpClass}`} style={{ width: `${hpPercent}%` }} />
-              </div>
-              {(bossChar.shield ?? 0) > 0 && (
-                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                  <div className="h-full transition-all duration-500 ease-out bg-blue-500" style={{ width: `${shieldPercent}%` }} />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
-              <div className="text-stone-400">DEF: {bossChar.base.def}</div>
-              <div className="text-stone-400">CAP: {bossChar.base.cap}</div>
-              <div className="text-stone-400">RESC: {bossChar.base.rescap}</div>
-            </div>
-            {bossChar.ability && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-orange-600/30">
-                <span className="text-lg">🔥</span>
-                <div className="flex-1">
-                  <div className="text-orange-300 font-semibold mb-1">{bossChar.ability.name}</div>
-                  <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        ) : null}
+        cardClassName="border-2 border-orange-600/50"
+      />
     );
   };
 

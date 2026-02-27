@@ -21,6 +21,7 @@ import { replayCombatSteps } from '../utils/combatReplay';
 import { isSubclassDungeonVisible } from '../data/featureFlags';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
+import UnifiedCharacterCard from './UnifiedCharacterCard';
 
 const subclassImageModules = import.meta.glob('../assets/subclass/*.png', { eager: true, import: 'default' });
 const getSubclassImage = (imageFile) => {
@@ -175,22 +176,38 @@ const SubclassDungeon = () => {
     if (!bossChar) return null;
     const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getSubclassImage(bossChar.imageFile);
     return (
-      <div className="bg-stone-800 border border-amber-600/50 p-4 rounded-lg">
-        <div className="flex items-center gap-3">
-          {bossImg && <img src={bossImg} alt={bossChar.name} className="w-16 h-16 object-contain" />}
-          <div className="flex-1">
-            <div className="text-xs text-stone-400 mb-1">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
-            <div className="w-full bg-stone-700 rounded-full h-2">
-              <div className={`h-2 rounded-full ${hpClass}`} style={{ width: `${hpPercent}%` }} />
+      <UnifiedCharacterCard
+        header={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
+        name={bossChar.name}
+        image={bossImg}
+        fallback={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
+        topStats={<><span>HP: {bossChar.base.hp}</span><span>VIT: {bossChar.base.spd}</span></>}
+        hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
+        hpPercent={hpPercent}
+        hpClass={hpClass}
+        shieldPercent={shieldPercent}
+        mainStats={
+          <>
+            <div>Auto: {bossChar.base.auto}</div>
+            <div>DEF: {bossChar.base.def}</div>
+            <div>CAP: {bossChar.base.cap}</div>
+            <div>RESC: {bossChar.base.rescap}</div>
+          </>
+        }
+        details={bossChar.ability ? (
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+            <span className="text-lg">🎓</span>
+            <div className="flex-1">
+              <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.name}</div>
+              <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
             </div>
           </div>
-        </div>
-        {bossChar.ability && (
-          <div className="text-stone-400 text-[10px] mt-2">{bossChar.ability.description}</div>
-        )}
-      </div>
+        ) : null}
+        cardClassName="border-2 border-amber-600/50"
+      />
     );
   };
 

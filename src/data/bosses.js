@@ -24,14 +24,14 @@ export const bosses = {
     icon: '🗡️',
     imageFile: 'bandit.png',
 
-    // Stats fixes
+    // Stats fixes (+10% donjon)
     baseStats: {
-      hp: 180,
-      auto: 30,
-      def: 30,
-      cap: 30,
-      rescap: 30,
-      spd: 30,
+      hp: 198,
+      auto: 33,
+      def: 33,
+      cap: 33,
+      rescap: 33,
+      spd: 33,
     },
 
     // Capacité spéciale du boss
@@ -61,14 +61,14 @@ export const bosses = {
     icon: '👺',
     imageFile: 'gobelin.png',
 
-    // Stats fixes
+    // Stats fixes (+10% donjon)
     baseStats: {
-      hp: 120,
-      auto: 15,
-      def: 15,
-      cap: 15,
-      rescap: 15,
-      spd: 15,
+      hp: 132,
+      auto: 17,
+      def: 17,
+      cap: 17,
+      rescap: 17,
+      spd: 17,
     },
 
     // Pas de capacité spéciale
@@ -88,14 +88,14 @@ export const bosses = {
     icon: '🐲',
     imageFile: 'dragon.png',
 
-    // Stats fixes
+    // Stats fixes (+10% donjon)
     baseStats: {
-      hp: 336,
-      auto: 42,
-      def: 42,
-      cap: 42,
-      rescap: 42,
-      spd: 42,
+      hp: 370,
+      auto: 46,
+      def: 46,
+      cap: 46,
+      rescap: 46,
+      spd: 46,
     },
 
     // Capacité spéciale du boss
