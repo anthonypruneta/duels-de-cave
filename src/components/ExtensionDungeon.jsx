@@ -486,12 +486,31 @@ const ExtensionDungeon = () => {
 
           {!alreadyChose && rolledExtensionPassive ? (
             <>
-              <div className="mb-6 p-4 bg-stone-700/50 border border-violet-600/50 rounded flex items-center justify-center gap-3">
-                <span className="text-4xl">{rolledExtensionPassive.icon}</span>
-                <div className="text-left">
-                  <p className="text-violet-300 font-semibold">Récompense : {mixedName}</p>
-                  <p className="text-stone-400 text-sm">({rolledExtensionPassive.name} — Niveau {rolledExtensionPassive.level})</p>
-                </div>
+              {/* Ancien vs nouveau second passif avec effets */}
+              <div className="mb-6 space-y-4">
+                {hasExistingExtension && (() => {
+                  const oldExt = character.mageTowerExtensionPassive;
+                  const oldDetails = getPassiveDetails(oldExt);
+                  const oldMixedName = getMixedPassiveDisplayName(primaryPassive?.id, oldExt?.id) || (oldDetails && `${primaryDetails?.name ?? ''} + ${oldDetails.name}`);
+                  return oldDetails ? (
+                    <div className="p-4 bg-amber-900/20 border border-amber-600/60 rounded text-left">
+                      <p className="text-amber-300 font-semibold mb-1">🟡 Ancien second passif (actuel)</p>
+                      <p className="text-white font-medium">{oldMixedName} — Niv.{oldExt?.level ?? 1}</p>
+                      <p className="text-stone-400 text-sm mt-2">{oldDetails.levelData?.description ?? '—'}</p>
+                    </div>
+                  ) : null;
+                })()}
+                {(() => {
+                  const newLevelData = getMageTowerPassiveLevel(rolledExtensionPassive.id, rolledExtensionPassive.level ?? 1);
+                  const newMixedName = getMixedPassiveDisplayName(primaryPassive?.id, rolledExtensionPassive.id) || `${primaryDetails?.name ?? ''} + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name ?? rolledExtensionPassive.name}`;
+                  return (
+                    <div className="p-4 bg-violet-900/20 border border-violet-600/60 rounded text-left">
+                      <p className="text-violet-300 font-semibold mb-1">🟣 Nouveau second passif (récompense)</p>
+                      <p className="text-white font-medium">{newMixedName} — Niv.{rolledExtensionPassive.level ?? 1}</p>
+                      <p className="text-stone-400 text-sm mt-2">{newLevelData?.description ?? '—'}</p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-3">
@@ -500,7 +519,7 @@ const ExtensionDungeon = () => {
                   disabled={savingChoice}
                   className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-stone-600 text-white px-8 py-3 font-bold border border-violet-500"
                 >
-                  {savingChoice ? 'Sauvegarde...' : 'Accepter ce passif'}
+                  {savingChoice ? 'Sauvegarde...' : 'Accepter le nouveau passif'}
                 </button>
                 {hasExistingExtension && (
                   <button
