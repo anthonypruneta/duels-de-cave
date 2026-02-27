@@ -353,19 +353,19 @@ const ForgeDungeon = () => {
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
-        p.currentHP = step.p1HP;
-        b.currentHP = step.p2HP;
-        setPlayer({ ...p });
-        setBoss({ ...b });
+        setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? 0 } : null);
+        setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
       existingLogs: logs,
-      speed: 'fast'
+      speed: 'normal'
     });
     logs.length = 0;
     logs.push(...finalLogs);
+    const lastStep = matchResult.steps[matchResult.steps.length - 1];
+    const playerWon = lastStep && lastStep.p1HP > 0;
 
-    if (p.currentHP > 0) {
-      logs.push(`🏆 ${p.name} terrasse ${b.name} !`);
+    if (playerWon) {
+      logs.push(`🏆 ${player?.name ?? p.name} terrasse ${boss?.name ?? b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
 
@@ -375,7 +375,7 @@ const ForgeDungeon = () => {
       setNewUpgradeRoll(roll);
       setGameState('reward');
     } else {
-      logs.push(`💀 ${p.name} a ete vaincu par ${b.name}...`);
+      logs.push(`💀 ${player?.name ?? p.name} a été vaincu par ${boss?.name ?? b.name}...`);
       setCombatLog([...logs]);
       setCombatResult('defeat');
       setGameState('defeat');
@@ -521,14 +521,15 @@ const ForgeDungeon = () => {
 
   const BossCard = ({ bossChar }) => {
     if (!bossChar) return null;
-    const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
+    const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getForgeImage(bossChar.imageFile);
 
     return (
       <div className="relative shadow-2xl overflow-visible">
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-orange-400 px-5 py-1.5 text-sm font-bold shadow-lg border border-orange-600 z-10">
-          Boss • Forge des Legendes
+          Boss • Forge des Légendes
         </div>
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
@@ -551,8 +552,13 @@ const ForgeDungeon = () => {
               </div>
               <div className="text-xs text-stone-400 mb-2">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{ width: `${hpPercent}%` }} />
+                <div className={`h-full transition-all duration-500 ease-out ${hpClass}`} style={{ width: `${hpPercent}%` }} />
               </div>
+              {(bossChar.shield ?? 0) > 0 && (
+                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
+                  <div className="h-full transition-all duration-500 ease-out bg-blue-500" style={{ width: `${shieldPercent}%` }} />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
               <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
