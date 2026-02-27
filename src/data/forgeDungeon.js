@@ -87,12 +87,18 @@ export function getForgeBonusPerfection(bonusPct) {
 }
 
 /**
- * Indique si le roll a au moins un bonus avec une perfection >= seuil (ex. 0.9 pour 90%).
- * +19% sur un stat = 90% perfection, +20% = 100%.
+ * Perfection totale du roll = somme des perfections de chaque bonus.
+ * Max possible = nombre de stats bonus (chaque stat au max = 1).
+ * Indique si la perfection totale >= seuil (ex. 0.9) × valeur max.
+ * Ex. 2 stats : il faut que la somme des deux perfections >= 90% de 2 = 1,8 (ex. 19%+19% = 0,9+0,9).
  */
 export function isForgeRollHighPerfection(roll, threshold = 0.9) {
   const { bonuses } = extractForgeUpgrade(roll);
-  return Object.values(bonuses).some((pct) => getForgeBonusPerfection(pct) >= threshold);
+  const values = Object.values(bonuses);
+  if (values.length === 0) return false;
+  const sumPerfection = values.reduce((acc, pct) => acc + getForgeBonusPerfection(pct), 0);
+  const maxPossible = values.length;
+  return sumPerfection >= threshold * maxPossible;
 }
 
 /**
