@@ -148,6 +148,8 @@ const MageTower = () => {
   const [currentLevel, setCurrentLevel] = useState(1);
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
+  const [playerCombatBase, setPlayerCombatBase] = useState(null);
+  const [bossCombatBase, setBossCombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -1117,6 +1119,8 @@ const MageTower = () => {
 
     setPlayer(playerReady);
     setBoss(bossReady);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
@@ -1151,6 +1155,8 @@ const MageTower = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     ensureTowerMusic();
 
     const p = { ...player };
@@ -1163,6 +1169,8 @@ const MageTower = () => {
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
+        setPlayerCombatBase(step.p1Base ?? undefined);
+        setBossCombatBase(step.p2Base ?? undefined);
         p.currentHP = step.p1HP;
         b.currentHP = step.p2HP;
         setPlayer({ ...p });
@@ -1307,8 +1315,9 @@ const MageTower = () => {
     return processText(text);
   };
 
-  const BossCard = ({ bossChar }) => {
+  const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
+    const base = bossCombatBaseOverride ?? bossChar.base;
     const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const levelData = getMageTowerLevelByNumber(currentLevel);
@@ -1335,8 +1344,8 @@ const MageTower = () => {
           <div className="bg-stone-800 p-4 border-t border-stone-600">
             <div className="mb-3">
               <div className="flex justify-between text-sm text-white mb-2">
-                <span>HP: {bossChar.base.hp}</span>
-                <span>VIT: {bossChar.base.spd}</span>
+                <span>HP: {base.hp}</span>
+                <span>VIT: {base.spd}</span>
               </div>
               <div className="text-xs text-stone-400 mb-2">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
@@ -1344,10 +1353,10 @@ const MageTower = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {bossChar.base.auto}</div>
-              <div className="text-stone-400">DEF: {bossChar.base.def}</div>
-              <div className="text-stone-400">CAP: {bossChar.base.cap}</div>
-              <div className="text-stone-400">RESC: {bossChar.base.rescap}</div>
+              <div className="text-stone-400">Auto: {base.auto}</div>
+              <div className="text-stone-400">DEF: {base.def}</div>
+              <div className="text-stone-400">CAP: {base.cap}</div>
+              <div className="text-stone-400">RESC: {base.rescap}</div>
             </div>
             {bossChar.ability && (
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
@@ -1506,7 +1515,7 @@ const MageTower = () => {
           {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -1636,7 +1645,7 @@ const MageTower = () => {
             </div>
 
             <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-              <BossCard bossChar={boss} />
+              <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>
         </div>

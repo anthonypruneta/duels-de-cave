@@ -278,8 +278,9 @@ function reviveUndead(target, attacker, log, playerColor) {
 
 function tryTriggerOnctionLastStand(target, log, playerColor) {
   if (!target || target.currentHP > 0 || target.onctionLastStandUsed) return false;
-  const passive = getPassiveDetails(target.mageTowerPassive);
-  if (passive?.id !== 'onction_eternite') return false;
+  const passiveList = getPassiveDetailsList(target);
+  const passive = getPassiveById(passiveList, 'onction_eternite');
+  if (!passive) return false;
 
   target.onctionLastStandUsed = true;
   target.currentHP = 1;
@@ -1396,7 +1397,8 @@ export function simulerMatch(char1, char2) {
   applyStartOfCombatPassives(p1, p2, introLogs, '[P1]');
   applyStartOfCombatPassives(p2, p1, introLogs, '[P2]');
   allLogs.push(...introLogs);
-  steps.push({ phase: 'intro', logs: introLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
+  const snapshotBase = (b) => (b?.base ? { hp: b.base.hp, auto: b.base.auto, def: b.base.def, cap: b.base.cap, rescap: b.base.rescap, spd: b.base.spd } : undefined);
+  steps.push({ phase: 'intro', logs: introLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2) });
 
   let turn = 1;
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
@@ -1418,7 +1420,7 @@ export function simulerMatch(char1, char2) {
     }
 
     allLogs.push(...turnStartLogs);
-    steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
+    steps.push({ phase: 'turn_start', turn, logs: turnStartLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2) });
 
     // Determine order
     const p1HasPriority = p1.weaponState?.isLegendary
@@ -1470,7 +1472,7 @@ export function simulerMatch(char1, char2) {
     allLogs.push(...firstActionLogs);
     p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
     p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
-    steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
+    steps.push({ phase: 'action', player: firstIsP1 ? 1 : 2, logs: firstActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2) });
 
     // Second player action
     if (p1.currentHP > 0 && p2.currentHP > 0) {
@@ -1479,7 +1481,7 @@ export function simulerMatch(char1, char2) {
       allLogs.push(...secondActionLogs);
       p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
       p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
-      steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
+      steps.push({ phase: 'action', player: !firstIsP1 ? 1 : 2, logs: secondActionLogs.slice(), p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2) });
     }
 
     turn++;
@@ -1490,7 +1492,7 @@ export function simulerMatch(char1, char2) {
   const loser = winnerIsP1 ? p2 : p1;
   const victoryLog = `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
   allLogs.push(victoryLog);
-  steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield });
+  steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2) });
 
   return {
     combatLog: allLogs,

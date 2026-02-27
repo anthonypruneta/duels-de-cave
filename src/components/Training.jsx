@@ -189,6 +189,8 @@ const Training = () => {
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting
   const [player, setPlayer] = useState(null);
   const [dummy, setDummy] = useState(null);
+  const [playerCombatBase, setPlayerCombatBase] = useState(null);
+  const [dummyCombatBase, setDummyCombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -369,6 +371,8 @@ const Training = () => {
 
     setPlayer(playerReady);
     setDummy(dummyReady);
+    setPlayerCombatBase(null);
+    setDummyCombatBase(null);
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
   };
 
@@ -377,6 +381,8 @@ const Training = () => {
     if (!player || !dummy || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    setPlayerCombatBase(null);
+    setDummyCombatBase(null);
     setDpsStats(null);
 
     const p = { ...player };
@@ -393,6 +399,8 @@ const Training = () => {
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
+        setPlayerCombatBase(step.p1Base ?? undefined);
+        setDummyCombatBase(step.p2Base ?? undefined);
         p.currentHP = step.p1HP;
         d.currentHP = step.p2HP;
         setPlayer({ ...p });
@@ -631,8 +639,9 @@ const Training = () => {
   // ============================================================================
   // CARTE MANNEQUIN
   // ============================================================================
-  const DummyCard = () => {
+  const DummyCard = ({ combatBaseOverride: dummyCombatBaseOverride }) => {
     if (!dummy) return null;
+    const base = dummyCombatBaseOverride ?? dummy.base;
     const totalDmgTaken = DUMMY_HP - dummy.currentHP;
 
     return (
@@ -651,7 +660,7 @@ const Training = () => {
             <div className="mb-3">
               <div className="flex justify-between text-sm text-white mb-2">
                 <span className="text-orange-400">PV infinis</span>
-                <span className="text-stone-400">VIT: {dummy.base.spd}</span>
+                <span className="text-stone-400">VIT: {base.spd}</span>
               </div>
               <div className="text-xs text-stone-400 mb-2">Mannequin — Incassable</div>
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
@@ -659,10 +668,10 @@ const Training = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {dummy.base.auto}</div>
-              <div className="text-stone-400">Déf: {dummy.base.def}</div>
-              <div className="text-stone-400">Cap: {dummy.base.cap}</div>
-              <div className="text-stone-400">ResC: {dummy.base.rescap}</div>
+              <div className="text-stone-400">Auto: {base.auto}</div>
+              <div className="text-stone-400">Déf: {base.def}</div>
+              <div className="text-stone-400">Cap: {base.cap}</div>
+              <div className="text-stone-400">ResC: {base.rescap}</div>
             </div>
             <div className="space-y-2">
               <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
@@ -786,7 +795,7 @@ const Training = () => {
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} />
             </div>
 
             {/* Zone centrale */}
@@ -904,7 +913,7 @@ const Training = () => {
 
             {/* Carte mannequin */}
             <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-              <DummyCard />
+              <DummyCard combatBaseOverride={dummyCombatBase} />
             </div>
           </div>
         </div>

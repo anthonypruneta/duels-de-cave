@@ -122,6 +122,8 @@ const Combat = () => {
   // États pour le combat
   const [player1, setPlayer1] = useState(null);
   const [player2, setPlayer2] = useState(null);
+  const [p1CombatBase, setP1CombatBase] = useState(null);
+  const [p2CombatBase, setP2CombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [winner, setWinner] = useState(null);
@@ -431,6 +433,8 @@ const Combat = () => {
 
     setPlayer1(p1);
     setPlayer2(p2);
+    setP1CombatBase(null);
+    setP2CombatBase(null);
     setPhase('combat');
     setCombatLog([]);
     setWinner(null);
@@ -458,6 +462,8 @@ const Combat = () => {
     await replayCombatSteps(result.steps, {
       setCombatLog,
       onStepHP: (step) => {
+        setP1CombatBase(step.p1Base ?? undefined);
+        setP2CombatBase(step.p2Base ?? undefined);
         setPlayer1(prev => ({ ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 }));
         setPlayer2(prev => ({ ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 }));
       },
@@ -487,6 +493,8 @@ const Combat = () => {
     setPhase('selection');
     setPlayer1(null);
     setPlayer2(null);
+    setP1CombatBase(null);
+    setP2CombatBase(null);
     setCombatLog([]);
     setWinner(null);
     setIsSimulating(false);
@@ -791,7 +799,7 @@ const Combat = () => {
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           {/* Carte joueur 1 - Gauche */}
           <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} />
+            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} combatBaseOverride={p1CombatBase} />
           </div>
 
           {/* Zone centrale - Boutons + Chat */}
@@ -901,7 +909,7 @@ const Combat = () => {
 
           {/* Carte joueur 2 - Droite */}
           <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} />
+            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} combatBaseOverride={p2CombatBase} />
           </div>
         </div>
       </div>

@@ -17,6 +17,10 @@ import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLORS } from '../utils/weaponDisplayUtils';
 import { getAbilityDisplayLabel } from '../data/subclasses';
 
+const STAT_KEYS_TOP = ['hp', 'spd'];
+const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
+const STAT_LABELS_MAP = { hp: 'HP', spd: 'VIT', auto: 'Auto', def: 'Déf', cap: 'Cap', rescap: 'ResC' };
+
 export default function CharacterCardContent({
   character,
   weaponOverride = null,
@@ -27,6 +31,8 @@ export default function CharacterCardContent({
   maxHP,
   shield,
   cardClassName = '',
+  /** Base de combat courante (ex. après debuffs) : affiche ces valeurs au lieu de finalStats pour les stats. */
+  combatBaseOverride = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -44,7 +50,7 @@ export default function CharacterCardContent({
 
   const displayName = nameOverride ?? character?.name ?? '';
   const displayImage = imageOverride ?? character?.characterImage ?? null;
-  const safeMaxHP = Math.max(1, maxHP ?? character?.maxHP ?? finalStats.hp ?? 1);
+  const safeMaxHP = Math.max(1, maxHP ?? character?.maxHP ?? (combatBaseOverride?.hp ?? finalStats.hp) ?? 1);
   const rawCurrentHP = currentHP ?? character?.currentHP ?? safeMaxHP;
   const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, Math.round(rawCurrentHP)));
   const hpRatio = safeMaxHP > 0 ? safeCurrentHP / safeMaxHP : 1;
@@ -68,14 +74,32 @@ export default function CharacterCardContent({
     );
   };
 
-  const topStats = (
+  const CombatStatLine = ({ statKey, valueClassName = '' }) => {
+    const v = combatBaseOverride?.[statKey];
+    const label = STAT_LABELS_MAP[statKey] ?? statKey;
+    return (
+      <div className={valueClassName || ''}>
+        {label} : <span className="text-white font-bold">{v != null ? v : '—'}</span>
+      </div>
+    );
+  };
+
+  const topStats = combatBaseOverride ? (
+    <>
+      {STAT_KEYS_TOP.map((k) => <CombatStatLine key={k} statKey={k} valueClassName="text-white" />)}
+    </>
+  ) : (
     <>
       <StatLine statKey="hp" label="HP" valueClassName="text-white" />
       <StatLine statKey="spd" label="VIT" valueClassName="text-white" />
     </>
   );
 
-  const mainStats = (
+  const mainStats = combatBaseOverride ? (
+    <>
+      {STAT_KEYS_MAIN.map((k) => <CombatStatLine key={k} statKey={k} />)}
+    </>
+  ) : (
     <>
       <StatLine statKey="auto" label="Auto" />
       <StatLine statKey="def" label="Déf" />

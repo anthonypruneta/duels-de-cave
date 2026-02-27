@@ -29,6 +29,7 @@ import {
   getResetAnchor,
   getResetPeriodsSince,
   getRunsSinceWeekStart,
+  getInitialRunsForNewPlayer,
   DUNGEON_CONSTANTS
 } from '../data/dungeons.js';
 import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
@@ -141,10 +142,11 @@ export const getDungeonProgress = async (userId) => {
       return { success: true, data };
     } else {
       // Initialiser la progression si elle n'existe pas
-      // On attribue tous les essais depuis le lundi matin de la semaine
+      // Dimanche (Paris) = 0 runs pour fresh restart le lundi ; sinon rattrapage depuis lundi
       console.log('ℹ️ Aucune progression, initialisation...');
-      const initialRuns = getRunsSinceWeekStart(new Date());
-      console.log(`🎁 Nouveau joueur: ${initialRuns} essais attribués (rattrapage depuis lundi)`);
+      const now = new Date();
+      const initialRuns = getInitialRunsForNewPlayer(now);
+      console.log(`🎁 Nouveau joueur: ${initialRuns} essais attribués${initialRuns === 0 ? ' (dimanche, fresh restart lundi)' : ' (rattrapage depuis lundi)'}`);
       const initialProgress = {
         userId,
         equippedWeapon: null,
@@ -496,6 +498,7 @@ export const markDungeonCompleted = async (userId, dungeonKey) => {
           updatedAt: Timestamp.now()
         });
       } catch {
+        const now = new Date();
         await setDoc(progressRef, {
           userId,
           dungeonCompletions: {
@@ -504,13 +507,13 @@ export const markDungeonCompleted = async (userId, dungeonKey) => {
           updatedAt: Timestamp.now(),
           createdAt: Timestamp.now(),
           runsToday: 0,
-          runsAvailable: getRunsSinceWeekStart(new Date()),
+          runsAvailable: getInitialRunsForNewPlayer(now),
           totalRuns: 0,
           bestRun: 0,
           totalBossKills: 0,
           equippedWeapon: null,
           lastRunDate: null,
-          lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date()))
+          lastCreditDate: Timestamp.fromDate(getResetAnchor(now))
         }, { merge: true });
       }
     });

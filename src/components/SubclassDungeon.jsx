@@ -39,6 +39,8 @@ const SubclassDungeon = () => {
   const [gameState, setGameState] = useState('lobby');
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
+  const [playerCombatBase, setPlayerCombatBase] = useState(null);
+  const [bossCombatBase, setBossCombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -102,6 +104,8 @@ const SubclassDungeon = () => {
     const bossReady = preparerCombattant(createSubclassBossCombatant());
     setPlayer(playerReady);
     setBoss(bossReady);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     setCombatLog([`⚔️ ${SUBCLASS_DUNGEON_NAME} — ${playerReady.name} vs ${SUBCLASS_BOSS.nom} !`]);
   };
 
@@ -109,11 +113,15 @@ const SubclassDungeon = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     const logs = [...combatLog, `--- Combat contre ${boss.name} ---`];
     const matchResult = simulerMatch(character, createSubclassBossCombatant());
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
+        setPlayerCombatBase(step.p1Base ?? undefined);
+        setBossCombatBase(step.p2Base ?? undefined);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
@@ -172,8 +180,9 @@ const SubclassDungeon = () => {
     });
   };
 
-  const BossCard = ({ bossChar }) => {
+  const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
+    const base = bossCombatBaseOverride ?? bossChar.base;
     const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
@@ -184,17 +193,17 @@ const SubclassDungeon = () => {
         name={bossChar.name}
         image={bossImg}
         fallback={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
-        topStats={<><span>HP: {bossChar.base.hp}</span><span>VIT: {bossChar.base.spd}</span></>}
+        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
         hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
         hpPercent={hpPercent}
         hpClass={hpClass}
         shieldPercent={shieldPercent}
         mainStats={
           <>
-            <div>Auto: {bossChar.base.auto}</div>
-            <div>DEF: {bossChar.base.def}</div>
-            <div>CAP: {bossChar.base.cap}</div>
-            <div>RESC: {bossChar.base.rescap}</div>
+            <div>Auto: {base.auto}</div>
+            <div>DEF: {base.def}</div>
+            <div>CAP: {base.cap}</div>
+            <div>RESC: {base.rescap}</div>
           </>
         }
         details={bossChar.ability ? (
@@ -241,7 +250,7 @@ const SubclassDungeon = () => {
                 {(player.shield ?? 0) > 0 && <span className="text-stone-400"> • Bouclier {player.shield}</span>}
               </div>
             </div>
-            <BossCard bossChar={boss} />
+            <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
           </div>
           <div className="bg-stone-900 border border-stone-600 p-4 rounded-lg max-h-64 overflow-y-auto mb-6">
             {combatLog.map((line, i) => (

@@ -217,6 +217,8 @@ const WorldBoss = () => {
   // Combat - player state pour CharacterCard
   const [playerState, setPlayerState] = useState(null);
   const [bossState, setBossState] = useState(null);
+  const [playerCombatBase, setPlayerCombatBase] = useState(null);
+  const [bossCombatBase, setBossCombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [combatResult, setCombatResult] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -781,6 +783,8 @@ const WorldBoss = () => {
     const result = simulerWorldBossCombat(character, eventData.hpRemaining, bossStatsToUse, bossNameForSim);
 
     // Init les states de combat pour les cards
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     setPlayerState({
       ...character,
       currentHP: result.p1MaxHP,
@@ -800,6 +804,8 @@ const WorldBoss = () => {
       },
       onStepHP: (step) => {
         if (replayTokenRef.current !== currentToken) return;
+        setPlayerCombatBase(step.p1Base ?? undefined);
+        setBossCombatBase(step.p2Base ?? undefined);
         setPlayerState(prev => prev ? { ...prev, currentHP: Math.min(prev.maxHP, Math.max(0, step.p1HP)), shield: step.p1Shield || 0 } : prev);
         setBossState(prev => prev ? { ...prev, currentHP: Math.min(prev.maxHP, Math.max(0, step.p2HP)), shield: step.p2Shield || 0 } : prev);
       },
@@ -1047,7 +1053,7 @@ const WorldBoss = () => {
 
             {/* Joueur */}
             <div className="order-1 md:order-2 w-full md:w-[340px] md:flex-shrink-0">
-              {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} />}
+              {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} combatBaseOverride={playerCombatBase} />}
             </div>
 
             {/* Zone centrale : boutons + logs */}
@@ -1062,7 +1068,7 @@ const WorldBoss = () => {
                   {isSimulating ? '⚔️ En cours...' : '▶️ Relancer'}
                 </button>
                 <button
-                  onClick={() => { setPhase('pre'); setCombatLog([]); setWinner(null); setCombatResult(null); setPlayerState(null); setBossState(null); }}
+                  onClick={() => { setPhase('pre'); setCombatLog([]); setWinner(null); setCombatResult(null); setPlayerState(null); setBossState(null); setPlayerCombatBase(null); setBossCombatBase(null); }}
                   className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base transition-all shadow-lg border border-stone-500"
                 >
                   ← Retour

@@ -142,9 +142,25 @@ export function isNewDay(lastRunDate) {
   return last < currentAnchor;
 }
 
-function isParisSunday(date) {
+/** Dimanche en heure de Paris (pour ne pas créditer de runs le dimanche). */
+export function isParisSunday(date) {
   const str = new Date(date).toLocaleString('en-US', { timeZone: 'Europe/Paris' });
   return new Date(str).getDay() === 0;
+}
+
+/** Samedi 18h ou plus tard, ou dimanche, en heure de Paris (après le tournoi = zone fresh restart). */
+export function isParisPostTournament(date = new Date()) {
+  const tz = 'Europe/Paris';
+  const parts = new Intl.DateTimeFormat('fr-FR', { timeZone: tz, weekday: 'short', hour: 'numeric', hour12: false }).formatToParts(date);
+  let weekday = '';
+  let hour = 0;
+  for (const p of parts) {
+    if (p.type === 'weekday') weekday = p.value;
+    if (p.type === 'hour') hour = parseInt(p.value, 10);
+  }
+  if (weekday === 'dim.') return true;
+  if (weekday === 'sam.' && hour >= 18) return true;
+  return false;
 }
 
 export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
@@ -182,6 +198,15 @@ export function getRunsSinceWeekStart(now = new Date()) {
   const periods = getResetPeriodsSince(monday, now);
   // +1 car la période courante (lundi matin) compte aussi
   return (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+}
+
+/**
+ * Runs à attribuer à un nouveau joueur (première init ou après reset).
+ * Samedi soir (18h Paris) et dimanche : 0 run pour que tout le monde reparte à égalité le lundi (fresh restart après le tournoi).
+ */
+export function getInitialRunsForNewPlayer(now = new Date()) {
+  if (isParisPostTournament(now)) return 0;
+  return getRunsSinceWeekStart(now);
 }
 
 /**

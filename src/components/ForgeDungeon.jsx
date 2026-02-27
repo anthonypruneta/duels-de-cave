@@ -136,6 +136,8 @@ const ForgeDungeon = () => {
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting, reward, victory, defeat
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
+  const [playerCombatBase, setPlayerCombatBase] = useState(null);
+  const [bossCombatBase, setBossCombatBase] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -336,6 +338,8 @@ const ForgeDungeon = () => {
 
     setPlayer(playerReady);
     setBoss(bossReady);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     setCombatLog([`⚔️ Forge des Legendes — ${playerReady.name} vs ${FORGE_BOSS.nom} !`]);
   };
 
@@ -343,6 +347,8 @@ const ForgeDungeon = () => {
     if (!player || !boss || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
+    setPlayerCombatBase(null);
+    setBossCombatBase(null);
     ensureForgeMusic();
 
     const p = { ...player };
@@ -354,6 +360,8 @@ const ForgeDungeon = () => {
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
+        setPlayerCombatBase(step.p1Base ?? undefined);
+        setBossCombatBase(step.p2Base ?? undefined);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
@@ -520,8 +528,9 @@ const ForgeDungeon = () => {
     );
   };
 
-  const BossCard = ({ bossChar }) => {
+  const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
+    const base = bossCombatBaseOverride ?? bossChar.base;
     const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
     const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
@@ -532,17 +541,17 @@ const ForgeDungeon = () => {
         name={bossChar.name}
         image={bossImg}
         fallback={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
-        topStats={<><span>HP: {bossChar.base.hp}</span><span>VIT: {bossChar.base.spd}</span></>}
+        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
         hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
         hpPercent={hpPercent}
         hpClass={hpClass}
         shieldPercent={shieldPercent}
         mainStats={
           <>
-            <div>Auto: {bossChar.base.auto}</div>
-            <div>DEF: {bossChar.base.def}</div>
-            <div>CAP: {bossChar.base.cap}</div>
-            <div>RESC: {bossChar.base.rescap}</div>
+            <div>Auto: {base.auto}</div>
+            <div>DEF: {base.def}</div>
+            <div>CAP: {base.cap}</div>
+            <div>RESC: {base.rescap}</div>
           </>
         }
         details={bossChar.ability ? (
@@ -715,7 +724,7 @@ const ForgeDungeon = () => {
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -836,7 +845,7 @@ const ForgeDungeon = () => {
             </div>
 
             <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-              <BossCard bossChar={boss} />
+              <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>
         </div>
