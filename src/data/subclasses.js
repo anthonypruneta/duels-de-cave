@@ -32,8 +32,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'mentaliste', name: 'Mentaliste', bonus: '+10% ResC', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 40% dégâts + 25% CAP, augmente votre DEF de 5% (stackable). Réduit les soins adverses de 20%. Auto + 10% CAP.' },
   ],
   'Masochiste': [
-    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: null, abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Réduit votre DEF de 20% mais augmente votre Auto de 20% pour le reste du combat.' },
-    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: null, abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 10%.' },
+    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Réduit votre DEF de 20% mais augmente votre Auto de 20% pour le reste du combat.' },
+    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+10% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 10%.' },
   ],
   'Succube': [
     { id: 'dompteuse_chair', name: 'Dompteuse de Chair', bonus: '+10% CAP', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 35% CAP. La prochaine attaque adverse inflige -50% dégâts et réduit l\'Auto ennemi de 5% (stackable).' },
@@ -45,7 +45,7 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Voleur': [
     { id: 'assassin', name: 'Assassin', bonus: '+10% Auto', abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en chance de critique. Prochaine attaque critique garantie.' },
-    { id: 'roublard', name: 'Roublard', bonus: null, abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en critique. Vole 10% d\'une stat ennemie aléatoire (jusqu\'au prochain proc, pas stackable).' },
+    { id: 'roublard', name: 'Roublard', bonus: '+10% Auto', abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en critique. Vole 10% d\'une stat ennemie aléatoire (jusqu\'au prochain proc, pas stackable).' },
   ],
   'Healer': [
     { id: 'luxum', name: 'Luxum', bonus: '+10% CAP', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Soigne 25% des PV manquants + 40% Cap. Convertit l\'overheal en bouclier.' },
@@ -73,8 +73,11 @@ export const SUBCLASS_STAT_BONUSES = {
   rempart_fer: { def: 0.15 },
   mur_implacable: { rescap: 0.08, def: 0.08 },
   assassin: { auto: 0.10 },
+  roublard: { auto: 0.10 },
   luxum: { cap: 0.10 },
   latum: { auto: 0.10 },
+  flagellant_sanglant: { cap: 0.10 },
+  ecorche_fer: { hp: 0.10 },
 };
 
 /**
