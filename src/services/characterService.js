@@ -15,6 +15,8 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { clearWeaponUpgrade } from './forgeService';
+import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
+import { getEmptyStatBoosts } from '../utils/statPoints';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
@@ -114,6 +116,9 @@ export const getUserCharacter = async (userId) => {
         await clearWeaponUpgrade(userId);
         migratedData = { ...migratedData, forgeUpgrade: null };
       }
+      // Niveau plafonné à la lecture (rétroactivité : persos > 400 avant activation du cap)
+      const rawLevel = migratedData.level ?? 1;
+      migratedData = { ...migratedData, level: clampLevel(rawLevel) };
       return { success: true, data: migratedData };
     } else {
       console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
@@ -197,10 +202,13 @@ export const getAllCharacters = async () => {
     });
 
     const characters = [];
-    querySnapshot.forEach((doc) => {
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const rawLevel = data.level ?? 1;
       characters.push({
-        id: doc.id,
-        ...doc.data()
+        id: docSnap.id,
+        ...data,
+        level: clampLevel(rawLevel)
       });
     });
 
@@ -305,7 +313,6 @@ export const updateCharacterBaseStats = async (userId, baseStats) => {
 // À niveau 400+, les boosts ne sont pas modifiés (donjon forêt bloqué).
 export const updateCharacterForestBoosts = async (userId, forestBoosts, level = null) => {
   try {
-    const { clampLevel, MAX_LEVEL } = await import('../data/featureFlags.js');
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
       const updateData = { updatedAt: Timestamp.now() };
@@ -667,7 +674,6 @@ export const migrateHpStat4To6 = async () => {
 // Mettre à jour le niveau du personnage (avec level cap si actif)
 export const updateCharacterLevel = async (userId, level) => {
   try {
-    const { clampLevel } = await import('../data/featureFlags.js');
     const clampedLevel = clampLevel(level);
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
@@ -679,6 +685,90 @@ export const updateCharacterLevel = async (userId, level) => {
     return { success: true };
   } catch (error) {
     console.error('Erreur lors de la mise à jour du niveau:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Admin : plafonner le niveau en base à MAX_LEVEL (retourne true si modif)
+export const clampCharacterLevelInDb = async (userId) => {
+  try {
+    await waitForFirestore();
+    const characterRef = doc(db, 'characters', userId);
+    const snap = await getDoc(characterRef);
+    if (!snap.exists()) return { success: true, updated: false };
+    const rawLevel = snap.data().level;
+    if (rawLevel == null || rawLevel <= MAX_LEVEL) return { success: true, updated: false };
+    await updateCharacterLevel(userId, MAX_LEVEL);
+    return { success: true, updated: true };
+  } catch (error) {
+    console.error('Erreur clamp niveau:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Admin : plafonner le niveau à 400 pour tous les persos > 400
+export const clampAllCharactersLevelInDb = async () => {
+  try {
+    await waitForFirestore();
+    const ref = collection(db, 'characters');
+    const snapshot = await getDocs(ref);
+    let updated = 0;
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      const rawLevel = data.level;
+      if (rawLevel != null && rawLevel > MAX_LEVEL) {
+        const res = await updateCharacterLevel(d.id, MAX_LEVEL);
+        if (res.success) updated++;
+      }
+    }
+    return { success: true, updated };
+  } catch (error) {
+    console.error('Erreur clamp niveau tous:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Admin : enlever le même nombre de points par stat (Forêt), plancher 0
+export const reduceCharacterForestStats = async (userId, pointsPerStat) => {
+  try {
+    await waitForFirestore();
+    const characterRef = doc(db, 'characters', userId);
+    const snap = await getDoc(characterRef);
+    if (!snap.exists()) return { success: false, error: 'Personnage introuvable' };
+    const current = snap.data().forestBoosts || {};
+    const base = getEmptyStatBoosts();
+    const newBoosts = { ...base };
+    for (const key of Object.keys(base)) {
+      newBoosts[key] = Math.max(0, (current[key] ?? 0) - pointsPerStat);
+    }
+    return await updateCharacterForestBoosts(userId, newBoosts, null);
+  } catch (error) {
+    console.error('Erreur réduction stats forêt:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Admin : enlever le même nombre de points par stat (Forêt) pour tous les persos
+export const reduceAllCharactersForestStats = async (pointsPerStat) => {
+  try {
+    await waitForFirestore();
+    const ref = collection(db, 'characters');
+    const snapshot = await getDocs(ref);
+    let updated = 0;
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      const current = data.forestBoosts || {};
+      const base = getEmptyStatBoosts();
+      const newBoosts = { ...base };
+      for (const key of Object.keys(base)) {
+        newBoosts[key] = Math.max(0, (current[key] ?? 0) - pointsPerStat);
+      }
+      const res = await updateCharacterForestBoosts(d.id, newBoosts, null);
+      if (res.success) updated++;
+    }
+    return { success: true, updated };
+  } catch (error) {
+    console.error('Erreur réduction stats forêt tous:', error);
     return { success: false, error: error.message };
   }
 };

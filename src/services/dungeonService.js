@@ -14,6 +14,7 @@ import {
   getDoc,
   getDocs,
   increment,
+  runTransaction,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -203,52 +204,84 @@ export const canStartDungeonRun = async (userId) => {
 };
 
 // ============================================================================
-// DÉMARRER UNE RUN DE DONJON
+// DÉMARRER UNE RUN DE DONJON (transaction atomique = anti-spam / pas de double run)
 // ============================================================================
 export const startDungeonRun = async (userId) => {
   try {
-    const canStartResult = await canStartDungeonRun(userId);
+    await waitForFirestore();
+    const progressRef = doc(db, 'dungeonProgress', userId);
 
-    if (!canStartResult.canStart) {
-      return {
-        success: false,
-        error: 'Plus de runs disponibles aujourd\'hui',
-        runsRemaining: 0
-      };
-    }
+    let runsRemainingAfter = 0;
 
-    console.log('🏰 Démarrage d\'une run de donjon');
+    await runTransaction(db, async (transaction) => {
+      const progressSnap = await transaction.get(progressRef);
+      const currentData = progressSnap.exists() ? progressSnap.data() : null;
 
-    // Incrémenter le compteur de runs
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      const progressSnap = await getDoc(progressRef);
-      const currentData = progressSnap.data();
-
-      // Reset si nouveau jour
-      const runsToday = isNewDay(currentData.lastRunDate) ? 1 : currentData.runsToday + 1;
-      const currentAvailable = Number.isFinite(currentData.runsAvailable)
-        ? currentData.runsAvailable
-        : getRemainingRuns(currentData.runsToday || 0, currentData.lastRunDate);
-      const runsAvailable = Math.max(0, currentAvailable - 1);
-
-      await updateDoc(progressRef, {
-        runsToday,
-        runsAvailable,
-        lastRunDate: Timestamp.now(),
-        totalRuns: (currentData.totalRuns || 0) + 1,
+      const now = new Date();
+      const initialProgress = {
+        userId,
+        runsToday: 0,
+        runsAvailable: getInitialRunsForNewPlayer(now),
+        lastRunDate: null,
+        lastCreditDate: Timestamp.fromDate(getResetAnchor(now)),
+        totalRuns: 0,
+        bestRun: 0,
+        totalBossKills: 0,
+        equippedWeapon: null,
+        createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      });
+      };
+
+      const data = currentData || initialProgress;
+      const runsToday = isNewDay(data.lastRunDate) ? 0 : (data.runsToday || 0);
+      const currentAvailable = Number.isFinite(data.runsAvailable)
+        ? data.runsAvailable
+        : getRemainingRuns(runsToday, data.lastRunDate);
+
+      if (currentAvailable <= 0) {
+        throw new Error('NO_RUNS_LEFT');
+      }
+
+      const newRunsToday = isNewDay(data.lastRunDate) ? 1 : (data.runsToday || 0) + 1;
+      const newRunsAvailable = currentAvailable - 1;
+      runsRemainingAfter = newRunsAvailable;
+
+      if (!progressSnap.exists()) {
+        transaction.set(progressRef, {
+          ...initialProgress,
+          runsToday: 1,
+          runsAvailable: getInitialRunsForNewPlayer(now) - 1,
+          lastRunDate: Timestamp.now(),
+          totalRuns: 1,
+          updatedAt: Timestamp.now()
+        });
+      } else {
+        transaction.update(progressRef, {
+          runsToday: newRunsToday,
+          runsAvailable: newRunsAvailable,
+          lastRunDate: Timestamp.now(),
+          totalRuns: (data.totalRuns || 0) + 1,
+          updatedAt: Timestamp.now()
+        });
+      }
     });
 
+    console.log('🏰 Démarrage d\'une run de donjon (ok)');
     return {
       success: true,
-      runsRemaining: canStartResult.runsRemaining - 1,
+      runsRemaining: runsRemainingAfter,
       startingLevel: 1
     };
   } catch (error) {
+    if (error?.message === 'NO_RUNS_LEFT') {
+      return {
+        success: false,
+        error: 'Plus de runs disponibles',
+        runsRemaining: 0
+      };
+    }
     console.error('❌ Erreur démarrage run:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message || 'Erreur démarrage run' };
   }
 };
 

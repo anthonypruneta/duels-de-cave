@@ -198,6 +198,7 @@ const ForestDungeon = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const [canInstantFinish, setCanInstantFinish] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [volume, setVolume] = useState(0.05);
@@ -1107,19 +1108,26 @@ const ForestDungeon = () => {
   const handleStartRun = async () => {
     setError(null);
     setInstantMessage(null);
-    const currentLevelChar = character?.level ?? 1;
+    const charResult = await getUserCharacter(currentUser.uid);
+    const currentLevelChar = (charResult.success && charResult.data) ? (charResult.data.level ?? 1) : (character?.level ?? 1);
     if (currentLevelChar >= MAX_LEVEL) {
       setError('Le donjon de la forêt est bloqué au niveau maximum (400).');
       return;
     }
-    const result = await startDungeonRun(currentUser.uid);
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
 
-    if (!result.success) {
-      setError(result.error);
-      return;
-    }
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
 
-    setGameState('fighting');
+      if (result.runsRemaining !== undefined && dungeonSummary != null) {
+        setDungeonSummary((prev) => prev ? { ...prev, runsRemaining: result.runsRemaining } : prev);
+      }
+
+      setGameState('fighting');
     setCurrentLevel(1);
     setCombatResult(null);
     setCurrentAction(null);
@@ -1141,22 +1149,31 @@ const ForestDungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+    } finally {
+      setIsStartingRun(false);
+    }
   };
 
   const handleInstantFinishRun = async () => {
     setError(null);
     setInstantMessage(null);
-    const currentLevelChar = character?.level ?? 1;
+    const charResult = await getUserCharacter(currentUser.uid);
+    const currentLevelChar = (charResult.success && charResult.data) ? (charResult.data.level ?? 1) : (character?.level ?? 1);
     if (currentLevelChar >= MAX_LEVEL) {
       setError('Le donjon de la forêt est bloqué au niveau maximum (400).');
       return;
     }
 
-    const startResult = await startDungeonRun(currentUser.uid);
-    if (!startResult.success) {
-      setError(startResult.error);
-      return;
-    }
+    setIsStartingRun(true);
+    try {
+      const startResult = await startDungeonRun(currentUser.uid);
+      if (!startResult.success) {
+        setError(startResult.error);
+        return;
+      }
+      if (startResult.runsRemaining !== undefined && dungeonSummary != null) {
+        setDungeonSummary((prev) => prev ? { ...prev, runsRemaining: startResult.runsRemaining } : prev);
+      }
 
     await markDungeonCompleted(currentUser.uid, 'forest');
     setCanInstantFinish(true);
@@ -1198,7 +1215,10 @@ const ForestDungeon = () => {
       hasNextLevel: false,
       nextLevel: getAllForestLevels().length + 1
     });
-    setGameState('reward');
+      setGameState('reward');
+    } finally {
+      setIsStartingRun(false);
+    }
   };
 
   const simulateCombat = async () => {
@@ -1321,7 +1341,7 @@ const ForestDungeon = () => {
     }
   };
 
-  const handleBackToLobby = () => {
+  const handleBackToLobby = async () => {
     stopForestMusic();
     setGameState('lobby');
     setCurrentLevel(1);

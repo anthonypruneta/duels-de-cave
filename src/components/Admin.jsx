@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateHpStat4To6 } from '../services/characterService';
+import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateHpStat4To6, clampCharacterLevelInDb, clampAllCharactersLevelInDb, reduceCharacterForestStats, reduceAllCharactersForestStats } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { creerTournoi, lancerTournoi, getAllArchivedCharacters, resetAllRerollGains } from '../services/tournamentService';
@@ -66,6 +66,13 @@ const Admin = () => {
 
   // État pour la migration PV 4→6
   const [migrationHpLoading, setMigrationHpLoading] = useState(false);
+
+  // Niveau / stats Forêt (admin)
+  const [clampLevelLoading, setClampLevelLoading] = useState(false);
+  const [clampAllLevelLoading, setClampAllLevelLoading] = useState(false);
+  const [reduceStatsPoints, setReduceStatsPoints] = useState(10);
+  const [reduceStatsLoading, setReduceStatsLoading] = useState(false);
+  const [reduceAllStatsLoading, setReduceAllStatsLoading] = useState(false);
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
@@ -662,6 +669,81 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       alert('Erreur lors du reset: ' + error.message);
     } finally {
       setResetProgressionLoading(false);
+    }
+  };
+
+  // Plafonner le niveau à 400 (perso sélectionné)
+  const handleClampLevel = async () => {
+    if (!selectedCharacter || selectedCharacter._source === 'archived') return;
+    setClampLevelLoading(true);
+    try {
+      const res = await clampCharacterLevelInDb(selectedCharacter.id);
+      if (res.success) {
+        if (res.updated) {
+          setCharacters(prev => prev.map(c => c.id === selectedCharacter.id ? { ...c, level: 400 } : c));
+          setSelectedCharacter(prev => prev ? { ...prev, level: 400 } : prev);
+          alert('Niveau plafonné à 400 pour ce personnage.');
+        } else {
+          alert('Ce personnage avait déjà un niveau ≤ 400.');
+        }
+      } else alert('Erreur: ' + res.error);
+    } finally {
+      setClampLevelLoading(false);
+    }
+  };
+
+  // Plafonner le niveau à 400 pour tous (niveau > 400)
+  const handleClampAllLevels = async () => {
+    if (!window.confirm('Plafonner le niveau à 400 pour tous les personnages actuellement > 400 ?')) return;
+    setClampAllLevelLoading(true);
+    try {
+      const res = await clampAllCharactersLevelInDb();
+      if (res.success) {
+        alert(`${res.updated} personnage(s) mis à niveau 400.`);
+        loadCharacters();
+      } else alert('Erreur: ' + res.error);
+    } finally {
+      setClampAllLevelLoading(false);
+    }
+  };
+
+  // Enlever X points par stat Forêt (perso sélectionné)
+  const handleReduceStats = async () => {
+    if (!selectedCharacter || selectedCharacter._source === 'archived') return;
+    const pts = Math.max(0, Number(reduceStatsPoints) || 0);
+    if (pts <= 0) {
+      alert('Indiquez un nombre de points à enlever par stat (≥ 1).');
+      return;
+    }
+    setReduceStatsLoading(true);
+    try {
+      const res = await reduceCharacterForestStats(selectedCharacter.id, pts);
+      if (res.success) {
+        alert(`${pts} points enlevés par stat (Forêt) pour "${selectedCharacter.name}".`);
+        loadCharacters();
+      } else alert('Erreur: ' + res.error);
+    } finally {
+      setReduceStatsLoading(false);
+    }
+  };
+
+  // Enlever X points par stat Forêt (tous)
+  const handleReduceAllStats = async () => {
+    const pts = Math.max(0, Number(reduceStatsPoints) || 0);
+    if (pts <= 0) {
+      alert('Indiquez un nombre de points à enlever par stat (≥ 1).');
+      return;
+    }
+    if (!window.confirm(`Enlever ${pts} points par stat Forêt pour TOUS les personnages ?`)) return;
+    setReduceAllStatsLoading(true);
+    try {
+      const res = await reduceAllCharactersForestStats(pts);
+      if (res.success) {
+        alert(`${res.updated} personnage(s) mis à jour.`);
+        loadCharacters();
+      } else alert('Erreur: ' + res.error);
+    } finally {
+      setReduceAllStatsLoading(false);
     }
   };
 
@@ -1704,6 +1786,53 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 {resetProgressionLoading ? '⏳ Réinitialisation...' : '🔄 Reset progression (donjon, armes, boosts)'}
               </button>
             )}
+
+            {/* Niveau / Stats Forêt (admin) */}
+            <div className="border border-stone-600 rounded-lg p-4 mb-4 bg-stone-900/50">
+              <p className="text-stone-300 font-bold mb-3">📊 Niveau & stats Forêt</p>
+              <div className="space-y-2 mb-3">
+                <button
+                  onClick={handleClampLevel}
+                  disabled={clampLevelLoading || selectedCharacter._source === 'archived'}
+                  className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-gray-600 text-white py-2 rounded font-bold text-sm"
+                >
+                  {clampLevelLoading ? '⏳...' : 'Plafonner niveau à 400 (ce perso)'}
+                </button>
+                <button
+                  onClick={handleClampAllLevels}
+                  disabled={clampAllLevelLoading}
+                  className="w-full bg-amber-800 hover:bg-amber-700 disabled:bg-gray-600 text-white py-2 rounded font-bold text-sm"
+                >
+                  {clampAllLevelLoading ? '⏳...' : 'Plafonner niveau à 400 pour tous (> 400)'}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className="text-stone-400 text-sm whitespace-nowrap">Points à enlever par stat :</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={reduceStatsPoints}
+                  onChange={(e) => setReduceStatsPoints(e.target.value)}
+                  className="w-20 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-white text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleReduceStats}
+                  disabled={reduceStatsLoading || selectedCharacter._source === 'archived'}
+                  className="flex-1 bg-stone-600 hover:bg-stone-500 disabled:bg-gray-600 text-white py-2 rounded font-bold text-sm"
+                >
+                  {reduceStatsLoading ? '⏳' : 'Enlever (ce perso)'}
+                </button>
+                <button
+                  onClick={handleReduceAllStats}
+                  disabled={reduceAllStatsLoading}
+                  className="flex-1 bg-stone-600 hover:bg-stone-500 disabled:bg-gray-600 text-white py-2 rounded font-bold text-sm"
+                >
+                  {reduceAllStatsLoading ? '⏳' : 'Enlever (tous)'}
+                </button>
+              </div>
+            </div>
 
             {/* Bouton suppression (pas pour les archivés) */}
             {selectedCharacter._source !== 'archived' && (
