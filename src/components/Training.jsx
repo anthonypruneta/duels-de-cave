@@ -197,7 +197,7 @@ const Training = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
   const [dpsStats, setDpsStats] = useState(null);
-  const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
 
   // Audio
   const [volume, setVolume] = useState(0.05);
@@ -314,11 +314,11 @@ const Training = () => {
     loadData();
   }, [currentUser, navigate]);
 
-  // Scroll auto du log (desktop uniquement)
+  // Scroll auto du journal : uniquement le conteneur du log, pas la page
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    if (!window.matchMedia('(min-width: 768px)').matches) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof window === 'undefined' || !logContainerRef.current) return;
+    const el = logContainerRef.current;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [combatLog]);
 
   // Préparer le joueur pour le combat (même pattern que Dungeon.jsx)
@@ -843,7 +843,7 @@ const Training = () => {
                 <div className="bg-stone-900 p-3 border-b border-stone-600">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">🎯 Entraînement en direct</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer l'entraînement" pour commencer...</p>
                   ) : (
@@ -912,7 +912,6 @@ const Training = () => {
                           );
                         }
                       })}
-                      <div ref={logEndRef} />
                     </>
                   )}
                 </div>
