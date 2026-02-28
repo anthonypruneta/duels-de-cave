@@ -68,7 +68,7 @@ export default function CharacterCardContent({
   const combatBuffsDebuffs = (showHpBar && (opponent || combatModifiers || combatStatus)) ? getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus) : [];
   const aboveHpBar = combatBuffsDebuffs.length > 0 ? (
     combatBuffsDebuffs.map((eff) => (
-      <SharedTooltip key={eff.id} content={<span className="whitespace-normal block text-left max-w-[200px]">{eff.description}</span>}>
+      <SharedTooltip key={eff.id} content={<span className="whitespace-normal block text-left max-w-[320px]">{eff.description}</span>}>
         <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-stone-700 border border-stone-500 text-base cursor-help" title={eff.label}>
           {eff.icon}
         </span>
