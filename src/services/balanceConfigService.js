@@ -326,6 +326,8 @@ export const loadPersistedBalanceConfig = async () => {
     }
 
     const codeVersion = BALANCE_CONFIG_VERSION;
+    console.log(`[Balance] Storage v${storedVersion}, code v${codeVersion}${codeVersion > storedVersion ? ' → synchro code vers Storage' : ' → on garde le fichier Storage'}.`);
+
     if (codeVersion > storedVersion) {
       const codeConfig = buildCurrentBalanceConfig();
       applyBalanceConfig(codeConfig);
