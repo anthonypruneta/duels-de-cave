@@ -345,10 +345,15 @@ export function getVerdictCapacityBonus(weaponState) {
 }
 
 /**
- * Retourne la pénalité de cooldown de l'Arbalète du Verdict
+ * Retourne la pénalité de cooldown de l'Arbalète du Verdict.
+ * La pénalité (+1 CD) ne s'applique que sur les 2 premières capacités (celles qui ont le bonus dégâts).
  */
 export function getVerdictCooldownPenalty(weaponState) {
   if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
+    return 0;
+  }
+  const used = weaponState.counters?.verdictCapacitiesUsed ?? 0;
+  if (used >= weaponConstants.arbaleteVerdict.spellBonusCount) {
     return 0;
   }
   return weaponConstants.arbaleteVerdict.cooldownPenalty;
