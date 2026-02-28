@@ -13,7 +13,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
-export const BALANCE_CONFIG_VERSION = 14;
+export const BALANCE_CONFIG_VERSION = 15;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -108,7 +108,7 @@ const normalizeGnomeConfig = (config) => {
   const gnome = config?.raceConstants?.gnome;
   if (gnome && gnome.critDmgIfFaster == null) {
     config.raceConstants.gnome = {
-      critIfFaster: 0.20, critDmgIfFaster: 0.20,
+      critIfFaster: 0.20, critDmgIfFaster: 0.10,
       dodgeIfSlower: 0.20, capBonusIfSlower: 0.20,
       critIfEqual: 0.05, critDmgIfEqual: 0.05,
       dodgeIfEqual: 0.05, capBonusIfEqual: 0.05,

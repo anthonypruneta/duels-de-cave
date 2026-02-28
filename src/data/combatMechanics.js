@@ -87,9 +87,9 @@ export const raceConstants = {
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 10, stackBonus: 0.10, maxStacks: 3 },  // +10 CAP base
   gnome: { 
-    critIfFaster: 0.20, critDmgIfFaster: 0.20, 
+    critIfFaster: 0.20, critDmgIfFaster: 0.10,   // 10% dégâts crit (était 20%)
     dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, 
-    critIfEqual: 0.05, critDmgIfEqual: 0.05, 
+    critIfEqual: 0.05, critDmgIfEqual: 0.05,     // égalité inchangé
     dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, 
     spd: 5, cap: 5 
   },
@@ -251,7 +251,7 @@ export const weaponConstants = {
   // Lævateinn (Dague légendaire)
   laevateinn: {
     triggerEveryNTurns: 4,
-    critDamageBonus: 0.3,      // +30% dégâts sur tous les crits
+    critDamageBonus: 0.20,    // +20% dégâts sur tous les crits (était 30%)
     guaranteedCrit: true,
   },
 

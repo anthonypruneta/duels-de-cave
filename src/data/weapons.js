@@ -310,14 +310,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Flamme de Surtr',
-      description: 'Tous les 4 tours, critique garanti. Tous les critiques infligent +30% de dégâts.',
+      description: 'Tous les 4 tours, critique garanti. Tous les critiques infligent +20% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_TURNS,
         n: 4,
       },
       values: {
         guaranteedCrit: true,     // Crit garanti tous les 4 tours
-        critDamageBonus: 0.3,     // +30% sur TOUS les crits (passif)
+        critDamageBonus: 0.20,    // +20% sur TOUS les crits (était 30%)
       },
     },
     description: 'La dague enflammée du géant Surtr, annonciatrice du Ragnarök.',

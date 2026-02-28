@@ -24,7 +24,7 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '+3% Auto, +3% Cap, +5 VIT, +20% crit, +15% dégâts crit',
+      description: '+3% Auto, +3% Cap, +5 VIT, +20% crit, +10% dégâts crit',
       effect: {
         statMultipliers: {
           auto: 1.03,
@@ -34,7 +34,7 @@ export const races = {
           spd: 5
         },
         critChanceBonus: 0.20,
-        critDamageBonus: 0.15
+        critDamageBonus: 0.10   // 10% (était 15%)
       }
     }
   },
@@ -120,18 +120,18 @@ export const races = {
     }
   },
   'Gnome': {
-    bonus: '- +5 VIT\n- +5 CAP\n- VIT > cible: +20% crit, +20% dégâts crit\n- VIT < cible: +20% esquive, +20% CAP\n- égalité: +5% crit/dégâts crit/esquive/CAP',
+    bonus: '- +5 VIT\n- +5 CAP\n- VIT > cible: +20% crit, +10% dégâts crit\n- VIT < cible: +20% esquive, +20% CAP\n- égalité: +5% crit/dégâts crit/esquive/CAP',
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +30% dégâts crit\n- VIT < cible: +30% esquive, +30% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +20% dégâts crit\n- VIT < cible: +30% esquive, +30% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
         speedDuelCritHigh: 0.30,
-        speedDuelCritDmgHigh: 0.30,
+        speedDuelCritDmgHigh: 0.20,   // 20% (était 30%)
         speedDuelCapBonusLow: 0.30,
         speedDuelDodgeLow: 0.30,
         speedDuelEqualCrit: 0.10,
-        speedDuelEqualCritDmg: 0.10,
+        speedDuelEqualCritDmg: 0.10,  // égalité inchangé
         speedDuelEqualDodge: 0.10,
         speedDuelEqualCapBonus: 0.10,
         statMultipliers: {
