@@ -254,6 +254,12 @@ const InfiniteLabyrinth = () => {
   const [replayP2MaxHP, setReplayP2MaxHP] = useState(0);
   const [replayP1Shield, setReplayP1Shield] = useState(0);
   const [replayP2Shield, setReplayP2Shield] = useState(0);
+  const [replayP1Base, setReplayP1Base] = useState(null);
+  const [replayP2Base, setReplayP2Base] = useState(null);
+  const [replayP1Modifiers, setReplayP1Modifiers] = useState(null);
+  const [replayP2Modifiers, setReplayP2Modifiers] = useState(null);
+  const [replayP1Status, setReplayP1Status] = useState(null);
+  const [replayP2Status, setReplayP2Status] = useState(null);
 
   const replayTimeoutRef = useRef(null);
   const replayTokenRef = useRef(null);
@@ -447,6 +453,12 @@ const InfiniteLabyrinth = () => {
     setReplayP2MaxHP(data.p2MaxHP || 0);
     setReplayP1HP(data.p1MaxHP || 0);
     setReplayP2HP(data.p2MaxHP || 0);
+    setReplayP1Base(null);
+    setReplayP2Base(null);
+    setReplayP1Modifiers(null);
+    setReplayP2Modifiers(null);
+    setReplayP1Status(null);
+    setReplayP2Status(null);
 
     const steps = data.steps || [];
     if (steps.length > 0) {
@@ -463,6 +475,12 @@ const InfiniteLabyrinth = () => {
         setReplayP2HP(step.p2HP ?? 0);
         setReplayP1Shield(step.p1Shield ?? 0);
         setReplayP2Shield(step.p2Shield ?? 0);
+        setReplayP1Base(step.p1Base ?? null);
+        setReplayP2Base(step.p2Base ?? null);
+        setReplayP1Modifiers(step.p1Modifiers ?? null);
+        setReplayP2Modifiers(step.p2Modifiers ?? null);
+        setReplayP1Status(step.p1Status ?? null);
+        setReplayP2Status(step.p2Status ?? null);
 
         if (step.phase === 'turnStart') await delayReplay(800);
         else if (step.phase === 'action') await delayReplay(2000);
@@ -630,7 +648,17 @@ const InfiniteLabyrinth = () => {
 
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCardContent character={playerCharacter} showHpBar currentHP={replayP1HP || (playerCharacter?.currentHP ?? playerCharacter?.base?.hp)} maxHP={replayP1MaxHP || (playerCharacter?.maxHP ?? playerCharacter?.base?.hp)} shield={replayP1Shield} />
+            <CharacterCardContent
+              character={playerCharacter}
+              showHpBar
+              currentHP={replayP1HP || (playerCharacter?.currentHP ?? playerCharacter?.base?.hp)}
+              maxHP={replayP1MaxHP || (playerCharacter?.maxHP ?? playerCharacter?.base?.hp)}
+              shield={replayP1Shield}
+              combatBaseOverride={replayP1Base}
+              combatModifiers={replayP1Modifiers}
+              opponent={enemyCharacter}
+              combatStatus={replayP1Status}
+            />
           </div>
 
           <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -690,6 +718,10 @@ const InfiniteLabyrinth = () => {
               maxHP={replayP2MaxHP || (enemyCharacter?.maxHP ?? enemyCharacter?.base?.hp)}
               shield={replayP2Shield}
               nameOverride={null}
+              combatBaseOverride={replayP2Base}
+              combatModifiers={replayP2Modifiers}
+              opponent={playerCharacter}
+              combatStatus={replayP2Status}
             />
           </div>
         </div>
