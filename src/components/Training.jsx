@@ -192,6 +192,7 @@ const Training = () => {
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [dummyCombatBase, setDummyCombatBase] = useState(null);
   const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
+  const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -375,6 +376,7 @@ const Training = () => {
     setPlayerCombatBase(null);
     setDummyCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
   };
 
@@ -386,6 +388,7 @@ const Training = () => {
     setPlayerCombatBase(null);
     setDummyCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     setDpsStats(null);
 
     const p = { ...player };
@@ -405,6 +408,7 @@ const Training = () => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setDummyCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
+        setPlayerCombatStatus(step.p1Status ?? null);
         p.currentHP = step.p1HP;
         d.currentHP = step.p2HP;
         setPlayer({ ...p });
@@ -799,7 +803,7 @@ const Training = () => {
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} />
             </div>
 
             {/* Zone centrale */}

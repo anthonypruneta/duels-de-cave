@@ -209,6 +209,7 @@ const Dungeon = () => {
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [bossCombatBase, setBossCombatBase] = useState(null);
   const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
+  const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -1099,6 +1100,7 @@ const Dungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
@@ -1134,6 +1136,7 @@ const Dungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     ensureDungeonMusic();
 
     const b = { ...boss };
@@ -1148,6 +1151,7 @@ const Dungeon = () => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setBossCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
+        setPlayerCombatStatus(step.p1Status ?? null);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 } : null);
       },
@@ -1556,7 +1560,7 @@ const Dungeon = () => {
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur - Gauche */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
             {/* Zone centrale - Boutons + Chat */}

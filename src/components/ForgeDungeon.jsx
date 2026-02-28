@@ -139,6 +139,7 @@ const ForgeDungeon = () => {
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [bossCombatBase, setBossCombatBase] = useState(null);
   const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
+  const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -342,6 +343,7 @@ const ForgeDungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     setCombatLog([`⚔️ Forge des Legendes — ${playerReady.name} vs ${FORGE_BOSS.nom} !`]);
   };
 
@@ -352,6 +354,7 @@ const ForgeDungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     ensureForgeMusic();
 
     const p = { ...player };
@@ -366,6 +369,7 @@ const ForgeDungeon = () => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setBossCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
+        setPlayerCombatStatus(step.p1Status ?? null);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
@@ -728,7 +732,7 @@ const ForgeDungeon = () => {
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">

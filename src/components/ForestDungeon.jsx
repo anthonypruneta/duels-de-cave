@@ -190,6 +190,7 @@ const ForestDungeon = () => {
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [bossCombatBase, setBossCombatBase] = useState(null);
   const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
+  const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -1150,6 +1151,7 @@ const ForestDungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
     } finally {
       setIsStartingRun(false);
@@ -1230,6 +1232,7 @@ const ForestDungeon = () => {
     setPlayerCombatBase(null);
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     ensureForestMusic();
 
     const p = { ...player };
@@ -1245,6 +1248,7 @@ const ForestDungeon = () => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setBossCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
+        setPlayerCombatStatus(step.p1Status ?? null);
         p.currentHP = step.p1HP;
         b.currentHP = step.p2HP;
         setPlayer({ ...p });
@@ -1580,7 +1584,7 @@ const ForestDungeon = () => {
           {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">

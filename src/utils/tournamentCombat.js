@@ -1415,7 +1415,24 @@ export function simulerMatch(char1, char2) {
     p2Modifiers.def = [{ label: 'Brèche mentale', value: p2.base.def - p2DefBefore }];
   }
   const snapshotBase = (b) => (b?.base ? { hp: b.base.hp, auto: b.base.auto, def: b.base.def, cap: b.base.cap, rescap: b.base.rescap, spd: b.base.spd } : undefined);
-  const stepExtras = () => ({ p1Modifiers, p2Modifiers });
+  const snapshotStatus = (b) => (b ? {
+    stunned: !!b.stunned,
+    stunnedTurns: b.stunnedTurns ?? 0,
+    bleed_stacks: b.bleed_stacks ?? 0,
+    bleedPercentPerStack: b.bleedPercentPerStack ?? 0,
+    spectralMarked: !!b.spectralMarked,
+    spectralMarkBonus: b.spectralMarkBonus ?? 0,
+    dodge: !!b.dodge,
+    reflect: typeof b.reflect === 'number' ? b.reflect : 0,
+    sorcierNeantBurn: !!b.sorcierNeantBurn,
+    undead: !!b.undead,
+    boneGuardActive: !!b.boneGuardActive,
+    sireneStacks: b.sireneStacks ?? 0,
+    succubeWeakenNextAttack: !!b.succubeWeakenNextAttack,
+    familiarStacks: b.familiarStacks ?? 0,
+    nextSpellReduction: typeof b.nextSpellReduction === 'number' ? b.nextSpellReduction : 0,
+  } : undefined);
+  const stepExtras = () => ({ p1Modifiers, p2Modifiers, p1Status: snapshotStatus(p1), p2Status: snapshotStatus(p2) });
 
   let turn = 1;
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {

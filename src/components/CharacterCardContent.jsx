@@ -16,6 +16,7 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLORS } from '../utils/weaponDisplayUtils';
 import { getAbilityDisplayLabel } from '../data/subclasses';
+import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -35,6 +36,10 @@ export default function CharacterCardContent({
   combatBaseOverride = null,
   /** Modificateurs de combat par stat pour l'info-bulle. Ex: { def: [{ label: 'Brèche mentale', value: -8 }] } */
   combatModifiers = null,
+  /** Adversaire (boss ou autre joueur) qui applique des debuffs sur ce personnage — pour afficher les icônes buffs/debuffs */
+  opponent = null,
+  /** État de combat courant du personnage (stun, saignement, marque, esquive, riposte, brûlure Néant) — ex. step.p1Status */
+  combatStatus = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -59,6 +64,17 @@ export default function CharacterCardContent({
   const hpPercent = hpRatio * 100;
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((shield ?? character?.shield ?? 0) / safeMaxHP) * 100) : 0;
+
+  const combatBuffsDebuffs = (showHpBar && (opponent || combatModifiers || combatStatus)) ? getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus) : [];
+  const aboveHpBar = combatBuffsDebuffs.length > 0 ? (
+    combatBuffsDebuffs.map((eff) => (
+      <SharedTooltip key={eff.id} content={<span className="whitespace-normal block text-left max-w-[200px]">{eff.description}</span>}>
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-stone-700 border border-stone-500 text-base cursor-help" title={eff.label}>
+          {eff.icon}
+        </span>
+      </SharedTooltip>
+    ))
+  ) : null;
 
   const StatLine = ({ statKey, label, valueClassName = '' }) => {
     const props = getStatLineProps(statKey, label, valueClassName);
@@ -313,6 +329,7 @@ export default function CharacterCardContent({
       hpPercent={showHpBar ? hpPercent : undefined}
       hpClass={showHpBar ? hpClass : undefined}
       shieldPercent={showHpBar ? shieldPercent : undefined}
+      aboveHpBar={aboveHpBar}
       cardClassName={cardClassName}
     />
   );

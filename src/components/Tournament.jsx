@@ -349,6 +349,8 @@ const Tournament = () => {
   const [p2CombatBase, setP2CombatBase] = useState(null);
   const [p1CombatModifiers, setP1CombatModifiers] = useState(null);
   const [p2CombatModifiers, setP2CombatModifiers] = useState(null);
+  const [p1CombatStatus, setP1CombatStatus] = useState(null);
+  const [p2CombatStatus, setP2CombatStatus] = useState(null);
   const [winner, setWinner] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [annonceActuelle, setAnnonceActuelle] = useState('');
@@ -618,6 +620,8 @@ const Tournament = () => {
     setP2CombatBase(null);
     setP1CombatModifiers(null);
     setP2CombatModifiers(null);
+    setP1CombatStatus(null);
+    setP2CombatStatus(null);
 
     // Annonce de début
     setAnnonceActuelle(logData.annonceDebut);
@@ -649,6 +653,8 @@ const Tournament = () => {
           setP2CombatBase(step.p2Base ?? undefined);
           setP1CombatModifiers(step.p1Modifiers ?? null);
           setP2CombatModifiers(step.p2Modifiers ?? null);
+          setP1CombatStatus(step.p1Status ?? null);
+          setP2CombatStatus(step.p2Status ?? null);
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
           setP1Shield(step.p1Shield || 0);
@@ -666,6 +672,8 @@ const Tournament = () => {
           setP2CombatBase(step.p2Base ?? undefined);
           setP1CombatModifiers(step.p1Modifiers ?? null);
           setP2CombatModifiers(step.p2Modifiers ?? null);
+          setP1CombatStatus(step.p1Status ?? null);
+          setP2CombatStatus(step.p2Status ?? null);
           setP1Shield(step.p1Shield || 0);
           setP2Shield(step.p2Shield || 0);
           await delay(800);
@@ -681,6 +689,8 @@ const Tournament = () => {
           setP2CombatBase(step.p2Base ?? undefined);
           setP1CombatModifiers(step.p1Modifiers ?? null);
           setP2CombatModifiers(step.p2Modifiers ?? null);
+          setP1CombatStatus(step.p1Status ?? null);
+          setP2CombatStatus(step.p2Status ?? null);
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
           setP1Shield(step.p1Shield || 0);
@@ -698,6 +708,8 @@ const Tournament = () => {
           setP2CombatBase(step.p2Base ?? undefined);
           setP1CombatModifiers(step.p1Modifiers ?? null);
           setP2CombatModifiers(step.p2Modifiers ?? null);
+          setP1CombatStatus(step.p1Status ?? null);
+          setP2CombatStatus(step.p2Status ?? null);
           setP1HP(step.p1HP);
           setP2HP(step.p2HP);
           setP1Shield(step.p1Shield || 0);
@@ -1002,6 +1014,8 @@ const Tournament = () => {
             nameOverride={p1Data?.nom ?? p1Data?.name}
             combatBaseOverride={p1CombatBase}
             combatModifiers={p1CombatModifiers}
+            opponent={p2Data}
+            combatStatus={p1CombatStatus}
           />
         </div>
 
@@ -1101,6 +1115,8 @@ const Tournament = () => {
             nameOverride={p2Data?.nom ?? p2Data?.name}
             combatBaseOverride={p2CombatBase}
             combatModifiers={p2CombatModifiers}
+            opponent={p1Data}
+            combatStatus={p2CombatStatus}
           />
         </div>
       </div>

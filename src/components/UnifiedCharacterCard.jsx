@@ -37,7 +37,9 @@ const UnifiedCharacterCard = ({
   shieldPercent = 0,
   mainStats,
   details,
-  cardClassName = ''
+  cardClassName = '',
+  /** Contenu affiché au-dessus de la barre de vie (ex. icônes buffs/debuffs) */
+  aboveHpBar = null,
 }) => {
   const targetHp = typeof hpPercent === 'number' ? Math.max(0, Math.min(100, hpPercent)) : null;
   const targetShield = Math.max(0, Math.min(100, shieldPercent));
@@ -105,6 +107,7 @@ const UnifiedCharacterCard = ({
               </div>
             )}
             {hpText && <div className="text-xs text-stone-400 mb-2">{hpText}</div>}
+            {aboveHpBar && <div className="flex flex-wrap gap-1 mb-2 justify-center">{aboveHpBar}</div>}
             {typeof hpPercent === 'number' && (
               <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600 mb-3">
                 <div className={`h-full ${hpClass || 'bg-green-500'}`} style={{ width: `${displayedHp}%` }} />
