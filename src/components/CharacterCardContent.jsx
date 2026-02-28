@@ -82,14 +82,15 @@ export default function CharacterCardContent({
     const parts = [];
     if (v != null) parts.push(`En combat : ${v}`);
     if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
-      const delta = v - fiche;
       parts.push(`Fiche : ${fiche}`);
-      parts.push(`Modificateurs : ${delta > 0 ? '+' : ''}${delta} (passifs de combat)`);
     }
     const mods = combatModifiers?.[statKey];
     if (mods?.length) {
       const malusLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
       parts.push(`Malus/Bonus : ${malusLines}`);
+    } else if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
+      const delta = v - fiche;
+      parts.push(`Modificateurs : ${delta > 0 ? '+' : ''}${delta} (passifs de combat)`);
     }
     return parts.length ? parts.join(' | ') : null;
   };
