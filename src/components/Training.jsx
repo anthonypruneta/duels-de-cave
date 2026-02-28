@@ -191,6 +191,7 @@ const Training = () => {
   const [dummy, setDummy] = useState(null);
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [dummyCombatBase, setDummyCombatBase] = useState(null);
+  const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -373,6 +374,7 @@ const Training = () => {
     setDummy(dummyReady);
     setPlayerCombatBase(null);
     setDummyCombatBase(null);
+    setPlayerCombatModifiers(null);
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
   };
 
@@ -383,6 +385,7 @@ const Training = () => {
     setCombatResult(null);
     setPlayerCombatBase(null);
     setDummyCombatBase(null);
+    setPlayerCombatModifiers(null);
     setDpsStats(null);
 
     const p = { ...player };
@@ -401,6 +404,7 @@ const Training = () => {
       onStepHP: (step) => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setDummyCombatBase(step.p2Base ?? undefined);
+        setPlayerCombatModifiers(step.p1Modifiers ?? null);
         p.currentHP = step.p1HP;
         d.currentHP = step.p2HP;
         setPlayer({ ...p });
@@ -795,7 +799,7 @@ const Training = () => {
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
             </div>
 
             {/* Zone centrale */}

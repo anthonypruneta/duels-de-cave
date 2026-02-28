@@ -33,6 +33,8 @@ export default function CharacterCardContent({
   cardClassName = '',
   /** Base de combat courante (ex. après debuffs) : affiche ces valeurs au lieu de finalStats pour les stats. */
   combatBaseOverride = null,
+  /** Modificateurs de combat par stat pour l'info-bulle. Ex: { def: [{ label: 'Brèche mentale', value: -8 }] } */
+  combatModifiers = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -74,13 +76,37 @@ export default function CharacterCardContent({
     );
   };
 
+  const getCombatStatTooltip = (statKey) => {
+    const v = combatBaseOverride?.[statKey];
+    const fiche = finalStats[statKey];
+    const parts = [];
+    if (v != null) parts.push(`En combat : ${v}`);
+    if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
+      const delta = v - fiche;
+      parts.push(`Fiche : ${fiche}`);
+      parts.push(`Modificateurs : ${delta > 0 ? '+' : ''}${delta} (passifs de combat)`);
+    }
+    const mods = combatModifiers?.[statKey];
+    if (mods?.length) {
+      const malusLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
+      parts.push(`Malus/Bonus : ${malusLines}`);
+    }
+    return parts.length ? parts.join(' | ') : null;
+  };
+
   const CombatStatLine = ({ statKey, valueClassName = '' }) => {
     const v = combatBaseOverride?.[statKey];
     const label = STAT_LABELS_MAP[statKey] ?? statKey;
-    return (
+    const tooltip = getCombatStatTooltip(statKey);
+    const line = (
       <div className={valueClassName || ''}>
         {label} : <span className="text-white font-bold">{v != null ? v : '—'}</span>
       </div>
+    );
+    return tooltip ? (
+      <SharedTooltip content={tooltip}>{line}</SharedTooltip>
+    ) : (
+      line
     );
   };
 

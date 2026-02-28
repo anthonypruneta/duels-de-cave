@@ -208,6 +208,7 @@ const Dungeon = () => {
   const [boss, setBoss] = useState(null);
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [bossCombatBase, setBossCombatBase] = useState(null);
+  const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -1097,6 +1098,7 @@ const Dungeon = () => {
     setBoss(bossReady);
     setPlayerCombatBase(null);
     setBossCombatBase(null);
+    setPlayerCombatModifiers(null);
     setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
@@ -1131,6 +1133,7 @@ const Dungeon = () => {
     setCombatResult(null);
     setPlayerCombatBase(null);
     setBossCombatBase(null);
+    setPlayerCombatModifiers(null);
     ensureDungeonMusic();
 
     const b = { ...boss };
@@ -1144,6 +1147,7 @@ const Dungeon = () => {
       onStepHP: (step) => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setBossCombatBase(step.p2Base ?? undefined);
+        setPlayerCombatModifiers(step.p1Modifiers ?? null);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield || 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 } : null);
       },
@@ -1552,7 +1556,7 @@ const Dungeon = () => {
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur - Gauche */}
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} />
             </div>
 
             {/* Zone centrale - Boutons + Chat */}
