@@ -10,7 +10,7 @@ import { getStatPointValue } from '../utils/statPoints';
 import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
 import { createBossCombatant } from '../data/bosses';
-import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode, BALANCE_CONFIG_VERSION, getLastLoadedStoredVersion } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
@@ -1012,6 +1012,12 @@ function AdminBalance({ embedded = false }) {
           </button>
           {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
           <div className="mt-4 pt-4 border-t border-stone-600">
+            <p className="text-xs text-stone-400 mb-2">
+              Version config : <strong className="text-amber-200">code v{BALANCE_CONFIG_VERSION}</strong>
+              {getLastLoadedStoredVersion() != null && (
+                <> · fichier Storage (au chargement) : <strong className="text-amber-200">v{getLastLoadedStoredVersion()}</strong></>
+              )}
+            </p>
             <p className="text-xs text-stone-400 mb-2">Si le fichier balance.json ne se met pas à jour au chargement (toujours ancienne date) :</p>
             <button
               type="button"

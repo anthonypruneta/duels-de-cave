@@ -304,6 +304,12 @@ export const applyBalanceConfig = (config) => {
 
 const UPLOAD_METADATA = { cacheControl: 'no-cache' };
 
+/** Dernière version lue depuis le fichier Storage (pour affichage admin). */
+let lastLoadedStoredVersion = null;
+
+/** Version du fichier Storage au dernier chargement (ou null si pas encore chargé / erreur). */
+export const getLastLoadedStoredVersion = () => lastLoadedStoredVersion;
+
 /** Charge la config depuis le fichier Storage (gameConfig/balance.json). */
 export const loadPersistedBalanceConfig = async () => {
   try {
@@ -325,6 +331,7 @@ export const loadPersistedBalanceConfig = async () => {
       }
     }
 
+    lastLoadedStoredVersion = storedVersion;
     const codeVersion = BALANCE_CONFIG_VERSION;
     console.log(`[Balance] Storage v${storedVersion}, code v${codeVersion}${codeVersion > storedVersion ? ' → synchro code vers Storage' : ' → on garde le fichier Storage'}.`);
 
