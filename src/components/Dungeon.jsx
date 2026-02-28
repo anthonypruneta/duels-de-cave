@@ -61,7 +61,7 @@ import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBa
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CharacterCardContent from './CharacterCardContent';
-import { simulerMatch } from '../utils/tournamentCombat';
+import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
 // Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
@@ -529,6 +529,7 @@ const Dungeon = () => {
       firstCapacityCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
+      onctionLastStandUsed: false,
       weaponState,
       awakening: buildAwakeningState(awakeningEffect)
     };
@@ -588,6 +589,7 @@ const Dungeon = () => {
         explosion = Math.max(1, Math.round(explosion * attacker.awakening.damageTakenMultiplier));
       }
       attacker.currentHP -= explosion;
+      tryTriggerOnctionLastStand(attacker, log, playerColor);
       if (attacker.awakening?.damageStackBonus) {
         attacker.awakening.damageTakenStacks += 1;
       }
@@ -642,6 +644,10 @@ const Dungeon = () => {
     const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true, isCapacityDamage = false) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
+      if (isPlayer && playerPassive?.id === 'onction_eternite' && playerPassive?.levelData?.outgoingDamageMultiplier != null && att.onctionLastStandUsed) {
+        adjusted = Math.max(1, Math.round(adjusted * playerPassive.levelData.outgoingDamageMultiplier));
+      }
+
       if (isPlayer) {
         if (unicornData) {
           adjusted = Math.round(adjusted * (1 + unicornData.outgoing));
@@ -676,6 +682,7 @@ const Dungeon = () => {
 
       if (adjusted > 0) {
         def.currentHP -= adjusted;
+        tryTriggerOnctionLastStand(def, log, playerColor);
         def.maso_taken = (def.maso_taken || 0) + adjusted;
         if (def.awakening?.damageStackBonus) {
           def.awakening.damageTakenStacks += 1;
@@ -690,6 +697,7 @@ const Dungeon = () => {
         if (def.reflect && def.currentHP > 0) {
           const back = Math.round(def.reflect * adjusted);
           att.currentHP -= back;
+          tryTriggerOnctionLastStand(att, log, playerColor);
           log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
           if (back > 0 && att.class === 'Briseur de Sort') {
             const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
@@ -698,6 +706,7 @@ const Dungeon = () => {
           }
           if (def.riposteTwice && back > 0) {
             att.currentHP -= back;
+            tryTriggerOnctionLastStand(att, log, playerColor);
             log.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
             if (att.class === 'Briseur de Sort') {
               const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
@@ -836,6 +845,7 @@ const Dungeon = () => {
         bleedDmg = Math.max(1, Math.round(bleedDmg * att.awakening.damageTakenMultiplier));
       }
       att.currentHP -= bleedDmg;
+      tryTriggerOnctionLastStand(att, log, playerColor);
       log.push(`${playerColor} 🩸 ${att.name} saigne abondamment et perd ${bleedDmg} points de vie`);
       if (att.currentHP <= 0 && att.race === 'Mort-vivant' && !att.undead) {
         reviveUndead(att, def, log, playerColor);

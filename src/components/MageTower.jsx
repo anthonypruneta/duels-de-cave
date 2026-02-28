@@ -627,6 +627,10 @@ const MageTower = () => {
     const resolveDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
+      if (isPlayer && playerPassive?.id === 'onction_eternite' && playerPassive?.levelData?.outgoingDamageMultiplier != null && att.onctionLastStandUsed) {
+        adjusted = Math.max(1, Math.round(adjusted * playerPassive.levelData.outgoingDamageMultiplier));
+      }
+
       if (isPlayer) {
         if (unicornData) {
           adjusted = Math.round(adjusted * (1 + unicornData.outgoing));

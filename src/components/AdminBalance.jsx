@@ -74,6 +74,7 @@ const BALANCE_KEY_LABELS_FR = {
   stunDuration: 'Durée étourdissement',
   critChanceBonus: 'Chance critique bonus',
   critDamageBonus: 'Dégâts critiques bonus',
+  outgoingDamageMultiplier: 'Multiplicateur dégâts infligés (ex. 0.8 = -20%)',
   maxStacks: 'Stacks max',
   chance: 'Chance'
 };

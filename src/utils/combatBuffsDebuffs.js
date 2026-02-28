@@ -172,6 +172,14 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         description: `Stratège Arcanique : les dégâts du prochain sort que vous subissez sont réduits de ${pct}%.`,
       });
     }
+    if (combatStatus.onctionLastStandUsed) {
+      list.push({
+        id: 'onction_debuff',
+        icon: '📉',
+        label: 'Onction : -dégâts',
+        description: 'Onction d\'Éternité : vous avez survécu à 1 PV. Vos dégâts infligés sont réduits jusqu\'à la fin du combat.',
+      });
+    }
   }
 
   return list;

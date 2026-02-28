@@ -278,7 +278,7 @@ function reviveUndead(target, attacker, log, playerColor) {
   log.push(`${playerColor} ☠️ ${target.name} ressuscite d'entre les morts et revient avec ${revive} points de vie !`);
 }
 
-function tryTriggerOnctionLastStand(target, log, playerColor) {
+export function tryTriggerOnctionLastStand(target, log, playerColor) {
   if (!target || target.currentHP > 0 || target.onctionLastStandUsed) return false;
   const passiveList = getPassiveDetailsList(target);
   const passive = getPassiveById(passiveList, 'onction_eternite');
@@ -542,6 +542,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
   if (defUnicorn) adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
+  const atkOnction = getPassiveById(atkList, 'onction_eternite');
+  if (atkOnction?.levelData?.outgoingDamageMultiplier != null && att.onctionLastStandUsed) {
+    adjusted = Math.max(1, Math.round(adjusted * atkOnction.levelData.outgoingDamageMultiplier));
+  }
   const defObsidian = defList.find((p) => p?.id === 'obsidian_skin');
   if (defObsidian && isCrit) adjusted = Math.round(adjusted * (1 - (defObsidian.levelData?.critReduction ?? 0)));
   if (def?.ability?.type === 'bone_guard' && def.boneGuardActive) {
@@ -1431,6 +1435,7 @@ export function simulerMatch(char1, char2) {
     succubeWeakenNextAttack: !!b.succubeWeakenNextAttack,
     familiarStacks: b.familiarStacks ?? 0,
     nextSpellReduction: typeof b.nextSpellReduction === 'number' ? b.nextSpellReduction : 0,
+    onctionLastStandUsed: !!b.onctionLastStandUsed,
   } : undefined);
   const stepExtras = () => ({ p1Modifiers, p2Modifiers, p1Status: snapshotStatus(p1), p2Status: snapshotStatus(p2) });
 
