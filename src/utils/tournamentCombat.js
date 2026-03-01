@@ -505,13 +505,13 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
     def.shield = (def.shield || 0) + shield;
     log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
     if (def.subclass?.id === 'stratege_arcanique') {
-      def.nextSpellReduction = 0.20;
-      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de 20%.`);
+      def.nextSpellReduction = 0.30;
+      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de 30%.`);
     }
     if (def.subclass?.id === 'mentaliste') {
-      def.mentalisteDefStack = (def.mentalisteDefStack || 0) + 0.05;
-      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 1.05)) };
-      log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +5% DEF (stackable).`);
+      def.mentalisteDefStack = (def.mentalisteDefStack || 0) + 0.08;
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 1.08)) };
+      log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +8% DEF (stackable).`);
     }
   }
 }
@@ -767,7 +767,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const hit = Math.max(1, Math.round((capBase + stackBonus) * att.base.cap));
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
     if (isPacteSombre) {
-      const stolen = Math.max(0, Math.round(def.base.cap * 0.02));
+      const stolen = Math.max(0, Math.round(def.base.cap * 0.03));
       if (stolen > 0) {
         def.base = { ...def.base, cap: Math.max(1, def.base.cap - stolen) };
         log.push(`${playerColor} 💠 Pacte Sombre: ${att.name} vole ${stolen} CAP à ${def.name}.`);
@@ -911,13 +911,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
+      const capShield = Math.max(1, Math.round(att.base.cap * 0.10));
+      att.shield = (att.shield || 0) + capShield;
       const overflow = Math.max(0, (att.currentHP + heal) - att.maxHP);
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       if (overflow > 0) {
         att.shield = (att.shield || 0) + overflow;
-        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}; ${overflow} en bouclier (overheal).`);
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (10% CAP); ${overflow} en bouclier (overheal).`);
       } else {
-        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (10% CAP).`);
       }
     } else {
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -947,9 +949,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const isCrit = forceCritAme || Math.random() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     if (att.subclass?.id === 'dompteuse_chair') {
-      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + 0.05;
-      def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.95)) };
-      log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 5% (stackable).`);
+      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + 0.06;
+      def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
+      log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
     }
     let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
@@ -1229,9 +1231,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
         }
         if (att.subclass?.id === 'duracier') {
-          const duracierShield = Math.max(1, Math.round(att.base.auto * 0.15));
+          const duracierShield = Math.max(1, Math.round(att.base.auto * 0.15 + att.base.cap * 0.005));
           att.shield = (att.shield || 0) + duracierShield;
-          log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto).`);
+          log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto + 0,5% CAP).`);
         }
       }
     } else if (isArcher && !isBonusAttack) {
