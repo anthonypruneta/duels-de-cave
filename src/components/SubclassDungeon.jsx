@@ -49,6 +49,41 @@ const SubclassDungeon = () => {
   const [selectedSubclass, setSelectedSubclass] = useState(null);
   const [savingSubclass, setSavingSubclass] = useState(false);
   const logEndRef = useRef(null);
+  const [volume, setVolume] = useState(0.05);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const ensureSubclassMusic = () => {
+    const el = document.getElementById('subclass-dungeon-music');
+    if (el) {
+      el.volume = volume;
+      el.muted = isMuted;
+      if (el.paused) el.play().catch(() => {});
+    }
+  };
+
+  const stopSubclassMusic = () => {
+    const el = document.getElementById('subclass-dungeon-music');
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    const el = document.getElementById('subclass-dungeon-music');
+    if (el) {
+      el.volume = volume;
+      el.muted = isMuted;
+    }
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (gameState === 'fighting' || gameState === 'reward' || gameState === 'defeat') {
+      ensureSubclassMusic();
+      return () => stopSubclassMusic();
+    }
+    stopSubclassMusic();
+  }, [gameState]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -276,6 +311,9 @@ const SubclassDungeon = () => {
               </button>
             </div>
           )}
+        <audio id="subclass-dungeon-music" loop>
+          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+        </audio>
         </div>
       </div>
     );
@@ -293,6 +331,9 @@ const SubclassDungeon = () => {
             Retour au lobby
           </button>
         </div>
+        <audio id="subclass-dungeon-music" loop>
+          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+        </audio>
       </div>
     );
   }
@@ -336,6 +377,9 @@ const SubclassDungeon = () => {
               </button>
             </div>
           )}
+        <audio id="subclass-dungeon-music" loop>
+          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+        </audio>
         </div>
       </div>
     );
