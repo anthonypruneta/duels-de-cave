@@ -691,6 +691,9 @@ const CharacterCreation = () => {
         const pseudoValue = normalized.ownerPseudo || accountPseudo || storedPseudo;
         setOwnerPseudo(pseudoValue);
         setShowPseudoModal(!pseudoValue);
+        if (normalized.ownerPseudo) {
+          saveOwnerPseudoToAccount(currentUser.uid, normalizePseudo(normalized.ownerPseudo));
+        }
         const weaponId = normalized.equippedWeaponId || null;
         const weaponData = weaponId ? getWeaponById(weaponId) : null;
         setEquippedWeapon(weaponData);
