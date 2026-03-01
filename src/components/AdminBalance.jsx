@@ -14,6 +14,7 @@ import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceCon
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { SUBCLASSES_BY_CLASS, getSubclassesForClass, getSubclassById } from '../data/subclasses';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -428,6 +429,8 @@ const buildClassTextDraft = (classDraft) => {
 const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
   const raceName = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
+  const subclassesForClass = getSubclassesForClass(className);
+  const subclass = subclassesForClass.length > 0 ? randomItem(subclassesForClass) : null;
   const weaponId = availableWeaponIds.length > 0 ? randomItem(availableWeaponIds) : null;
   const passiveId = availablePassiveIds.length > 0 ? randomItem(availablePassiveIds) : null;
   const raw = genStats();
@@ -450,6 +453,7 @@ const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
     name: id,
     race: raceName,
     class: className,
+    subclass: subclass ? { id: subclass.id, name: subclass.name } : null,
     base,
     level,
     bonuses: { race: raceBonus, class: classBonus },
@@ -635,13 +639,20 @@ function AdminBalance({ embedded = false }) {
     }
   };
 
+  const allSubclassIds = useMemo(
+    () => Object.values(SUBCLASSES_BY_CLASS).flat().map((s) => s.id),
+    []
+  );
+
   const simulateForLevel = (level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classWins = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const subclassWins = Object.fromEntries(allSubclassIds.map((id) => [id, 0]));
     const weaponWins = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
     const passiveWins = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
     const raceAppearances = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classAppearances = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
+    const subclassAppearances = Object.fromEntries(allSubclassIds.map((id) => [id, 0]));
     const weaponAppearances = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
     const passiveAppearances = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
 
@@ -656,6 +667,8 @@ function AdminBalance({ embedded = false }) {
       raceAppearances[p2.race] += 1;
       classAppearances[p1.class] += 1;
       classAppearances[p2.class] += 1;
+      if (p1.subclass?.id) subclassAppearances[p1.subclass.id] += 1;
+      if (p2.subclass?.id) subclassAppearances[p2.subclass.id] += 1;
       if (p1.equippedWeaponId) weaponAppearances[p1.equippedWeaponId] += 1;
       if (p2.equippedWeaponId) weaponAppearances[p2.equippedWeaponId] += 1;
       if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] += 1;
@@ -665,6 +678,7 @@ function AdminBalance({ embedded = false }) {
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
       classWins[winner.class] += 1;
+      if (winner.subclass?.id) subclassWins[winner.subclass.id] += 1;
       if (winner.equippedWeaponId) weaponWins[winner.equippedWeaponId] += 1;
       if (winner.mageTowerPassive?.id) passiveWins[winner.mageTowerPassive.id] += 1;
     }
@@ -685,6 +699,15 @@ function AdminBalance({ embedded = false }) {
       })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
+    const sortedSubclasses = allSubclassIds
+      .map((subclassId) => {
+        const wins = subclassWins[subclassId] || 0;
+        const appearances = subclassAppearances[subclassId] || 0;
+        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
+        return { subclassId, wins, appearances, rate: rate.toFixed(1) };
+      })
+      .sort((a, b) => Number(b.rate) - Number(a.rate));
+
     const sortedWeapons = Object.entries(weaponWins)
       .map(([weaponId, wins]) => {
         const appearances = weaponAppearances[weaponId] || 0;
@@ -701,7 +724,7 @@ function AdminBalance({ embedded = false }) {
       })
       .sort((a, b) => Number(b.rate) - Number(a.rate));
 
-    return { sortedRaces, sortedClasses, sortedWeapons, sortedPassives };
+    return { sortedRaces, sortedClasses, sortedSubclasses, sortedWeapons, sortedPassives };
   };
 
   const handleRun = async () => {
@@ -1217,6 +1240,20 @@ function AdminBalance({ embedded = false }) {
                           <span>{row.rate}% WR</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-stone-200 mb-2">Sous-classes</div>
+                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                      {results[key].sortedSubclasses.map((row) => {
+                        const sub = getSubclassById(row.subclassId);
+                        return (
+                          <div key={`${key}-subclass-${row.subclassId}`} className="flex justify-between text-stone-300">
+                            <span title={sub?.className}>{sub?.name ?? row.subclassId}</span>
+                            <span>{row.rate}% WR</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
