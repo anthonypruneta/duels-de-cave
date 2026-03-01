@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, getDisabledCharacters } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
 import { resetUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
@@ -665,6 +665,9 @@ const CharacterCreation = () => {
 
       setLoading(true);
       const { success, data } = await getUserCharacter(currentUser.uid);
+      const accountPseudoResult = await getOwnerPseudoFromAccount(currentUser.uid);
+      const accountPseudo = accountPseudoResult.success ? (accountPseudoResult.ownerPseudo || '') : '';
+      const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
 
       if (success && data && !data.disabled) {
         const normalized = normalizeCharacterBonuses(data);
@@ -685,10 +688,9 @@ const CharacterCreation = () => {
           level,
           forgeUpgrade: forgeUpgradeData,
         });
-        const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
-        const pseudoValue = normalized.ownerPseudo || storedPseudo;
+        const pseudoValue = normalized.ownerPseudo || accountPseudo || storedPseudo;
         setOwnerPseudo(pseudoValue);
-        setShowPseudoModal(!normalized.ownerPseudo);
+        setShowPseudoModal(!pseudoValue);
         const weaponId = normalized.equippedWeaponId || null;
         const weaponData = weaponId ? getWeaponById(weaponId) : null;
         setEquippedWeapon(weaponData);
@@ -697,9 +699,9 @@ const CharacterCreation = () => {
         // Vérifier si l'utilisateur peut créer un personnage
         const canCreateResult = await canCreateCharacter(currentUser.uid);
         setCanCreate(canCreateResult.canCreate);
-        const storedPseudo = localStorage.getItem(`ownerPseudo:${currentUser.uid}`) || '';
-        setOwnerPseudo(storedPseudo);
-        setShowPseudoModal(!storedPseudo);
+        const pseudoValue = accountPseudo || storedPseudo;
+        setOwnerPseudo(pseudoValue);
+        setShowPseudoModal(!pseudoValue);
         if (!canCreateResult.canCreate && canCreateResult.daysRemaining) {
           setDaysRemaining(canCreateResult.daysRemaining);
         }
@@ -982,7 +984,9 @@ const CharacterCreation = () => {
         await deletePendingRoll(currentUser.uid);
         await resetDungeonRuns(currentUser.uid);
         await resetUserLabyrinthProgress(currentUser.uid);
-        if (pseudoStorageKey) localStorage.setItem(pseudoStorageKey, normalizePseudo(ownerPseudo));
+        const normalizedPseudo = normalizePseudo(ownerPseudo);
+        if (pseudoStorageKey) localStorage.setItem(pseudoStorageKey, normalizedPseudo);
+        await saveOwnerPseudoToAccount(currentUser.uid, normalizedPseudo);
         setExistingCharacter(newChar);
         setEquippedWeapon(null);
         setCanCreate(false);

@@ -520,7 +520,38 @@ export const toggleCharacterDisabled = async (userId, disabled) => {
 };
 
 
-// Mettre à jour le pseudo propriétaire du personnage
+// Récupérer le pseudo enregistré sur le compte (Firestore)
+export const getOwnerPseudoFromAccount = async (userId) => {
+  try {
+    await waitForFirestore();
+    const prefsRef = doc(db, 'userPreferences', userId);
+    const snap = await getDoc(prefsRef);
+    const pseudo = snap.exists() ? (snap.data().ownerPseudo || '') : '';
+    return { success: true, ownerPseudo: pseudo };
+  } catch (error) {
+    console.error('Erreur lecture pseudo compte:', error);
+    return { success: false, ownerPseudo: '' };
+  }
+};
+
+// Enregistrer le pseudo sur le compte (lié au userId, réutilisé à chaque création)
+export const saveOwnerPseudoToAccount = async (userId, ownerPseudo) => {
+  try {
+    await retryOperation(async () => {
+      const prefsRef = doc(db, 'userPreferences', userId);
+      await setDoc(prefsRef, {
+        ownerPseudo: (ownerPseudo || '').trim().slice(0, 24) || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur sauvegarde pseudo compte:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Mettre à jour le pseudo propriétaire du personnage (et sur le compte)
 export const updateCharacterOwnerPseudo = async (userId, ownerPseudo) => {
   try {
     await retryOperation(async () => {
@@ -530,6 +561,8 @@ export const updateCharacterOwnerPseudo = async (userId, ownerPseudo) => {
         updatedAt: Timestamp.now()
       }, { merge: true });
     });
+    const saveAccount = await saveOwnerPseudoToAccount(userId, ownerPseudo);
+    if (!saveAccount.success) return saveAccount;
     return { success: true };
   } catch (error) {
     console.error('Erreur lors de la mise à jour du pseudo propriétaire:', error);
