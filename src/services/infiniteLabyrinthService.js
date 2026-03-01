@@ -265,17 +265,18 @@ function pickBossKit(phase, floorNumber, rng) {
 
   const weapon = pickSeeded(LEGENDARY_WEAPONS, rng);
   const forgeUpgrade = floorNum === 120 ? generateForgeUpgradeRollSeeded(weapon.id, rng) : null;
-  return {
+  const result = {
     spellId: spell.id,
     spellClass: spell.class,
     passiveId: passive.id,
     passiveLevel,
     weaponId: weapon.id,
     awakeningRaces,
-    extensionPassiveId: extensionPassiveId || undefined,
-    extensionPassiveLevel: extensionPassiveLevel ?? undefined,
     forgeUpgrade
   };
+  if (extensionPassiveId != null) result.extensionPassiveId = extensionPassiveId;
+  if (extensionPassiveLevel != null) result.extensionPassiveLevel = extensionPassiveLevel;
+  return result;
 }
 
 export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
@@ -325,15 +326,30 @@ export function buildInfiniteLabyrinth(weekId, rerollVersion = 0) {
   };
 }
 
+/** Retire les champs undefined (Firestore les refuse). Récurse sur objets et tableaux uniquement. */
+function stripUndefined(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined);
+  if (typeof obj !== 'object') return obj;
+  if (Object.getPrototypeOf(obj) !== Object.prototype) return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    out[k] = stripUndefined(v);
+  }
+  return out;
+}
+
 export async function generateWeeklyInfiniteLabyrinth(forceWeekId = null, rerollVersion = null) {
   try {
     const weekId = forceWeekId || getCurrentWeekId();
     const effectiveRerollVersion = rerollVersion ?? 0;
     const labyrinth = buildInfiniteLabyrinth(weekId, effectiveRerollVersion);
-    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
+    const payload = stripUndefined({
       ...labyrinth,
       generatedAt: serverTimestamp()
-    }, { merge: true });
+    });
+    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), payload, { merge: true });
     return { success: true, weekId, labyrinth };
   } catch (error) {
     return { success: false, error: error.message };
@@ -348,10 +364,11 @@ export async function resetWeeklyInfiniteLabyrinthEnemyPool(forceWeekId = null) 
     const nextRerollVersion = currentRerollVersion + 1;
     const labyrinth = buildInfiniteLabyrinth(weekId, nextRerollVersion);
 
-    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), {
+    const payload = stripUndefined({
       ...labyrinth,
       generatedAt: serverTimestamp()
-    }, { merge: true });
+    });
+    await setDoc(doc(db, 'weeklyInfiniteLabyrinths', weekId), payload, { merge: true });
 
     return { success: true, weekId, labyrinth };
   } catch (error) {
