@@ -189,14 +189,12 @@ const HallOfFame = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {champions.map((entry, idx) => (
+            {champions.map((entry) => (
               <div
                 key={entry.id}
-                className={`bg-stone-800/90 border-2 ${idx === 0 ? 'border-yellow-500' : 'border-stone-600'} rounded-xl p-6 flex items-center gap-6`}
+                className="bg-stone-800/90 border-2 border-stone-600 rounded-xl p-6 flex items-center gap-6"
               >
-                <div className="text-4xl">
-                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏆'}
-                </div>
+                <div className="text-4xl">🏆</div>
                 {entry.champion?.characterImage && (
                   <img
                     src={entry.champion.characterImage}
