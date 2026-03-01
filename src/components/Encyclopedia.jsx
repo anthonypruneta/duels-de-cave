@@ -207,17 +207,19 @@ function Encyclopedia() {
                               {weapon.nom}
                             </div>
                             <div className="text-xs text-stone-500 mb-1 capitalize">{weapon.rarete}</div>
-                            <div className="text-xs text-stone-300 mb-1">
-                              {Object.entries(weapon.stats || {})
-                                .filter(([, v]) => v !== 0)
-                                .map(([k, v]) => `${STAT_LABELS[k] || k} ${v > 0 ? `+${v}` : v}`)
-                                .join(' • ')}
-                            </div>
-                            {weapon.effet && typeof weapon.effet === 'object' && (
+                            {(Object.entries(weapon.stats || {}).filter(([, v]) => v !== 0).length > 0) && (
+                              <div className="text-xs text-stone-300 mb-1">
+                                {Object.entries(weapon.stats || {})
+                                  .filter(([, v]) => v !== 0)
+                                  .map(([k, v]) => `${STAT_LABELS[k] || k} ${v > 0 ? `+${v}` : v}`)
+                                  .join(' • ')}
+                              </div>
+                            )}
+                            {weapon.effet && typeof weapon.effet === 'object' ? (
                               <div className="text-xs text-amber-200 mt-1">
                                 Effet: {weapon.effet.nom} — {weapon.effet.description}
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         ))}
                       </div>
