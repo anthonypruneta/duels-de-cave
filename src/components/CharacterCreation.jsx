@@ -90,11 +90,11 @@ const getWeaponTooltipContent = (weapon, hideFlatStats = false) => {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && typeof weapon.effet === 'object' && (
+      {weapon.effet && typeof weapon.effet === 'object' ? (
         <span className="block text-amber-200">
           Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
         </span>
-      )}
+      ) : null}
       {stats && (
         <span className="block text-stone-200">
           Stats: {stats}
@@ -381,9 +381,9 @@ const CharacterCreation = () => {
                           <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
                           <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).filter(([, v]) => v !== 0).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
-                          {weapon.effet && typeof weapon.effet === 'object' && (
+                          {weapon.effet && typeof weapon.effet === 'object' ? (
                             <div className="text-[11px] text-amber-200">Effet: {weapon.effet.nom} · Description: {weapon.effet.description}</div>
-                          )}
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -1199,16 +1199,16 @@ const CharacterCreation = () => {
                           </Tooltip>
                           <div className="text-[11px] text-stone-400 mt-1 space-y-1">
                             <div>{weapon.description}</div>
-                            {weapon.effet && typeof weapon.effet === 'object' && (
+                            {weapon.effet && typeof weapon.effet === 'object' ? (
                               <div className="text-amber-200">
                                 Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
                               </div>
-                            )}
-                            {weapon.stats && Object.keys(weapon.stats).length > 0 && !hasForgeUpgrade && (
+                            ) : null}
+                            {weapon.stats && Object.keys(weapon.stats).length > 0 && !hasForgeUpgrade ? (
                               <div className="text-stone-200">
                                 Stats: {formatWeaponStats(weapon)}
                               </div>
-                            )}
+                            ) : null}
                             {hasForgeUpgrade && (
                               <div className="text-orange-300 font-semibold">
                                 🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}

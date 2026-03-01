@@ -37,16 +37,16 @@ export function getWeaponTooltipContent(weapon, hideFlatStats = false) {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && typeof weapon.effet === 'object' && (
+      {weapon.effet && typeof weapon.effet === 'object' ? (
         <span className="block text-amber-200">
           Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
         </span>
-      )}
-      {stats && (
+      ) : null}
+      {stats ? (
         <span className="block text-stone-200">
           Stats: {stats}
         </span>
-      )}
+      ) : null}
     </span>
   );
 }

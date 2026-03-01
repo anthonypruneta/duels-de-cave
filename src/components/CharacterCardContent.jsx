@@ -171,16 +171,16 @@ export default function CharacterCardContent({
           </SharedTooltip>
           <div className="text-[11px] text-stone-400 mt-1 space-y-1">
             <div>{weapon.description}</div>
-            {weapon.effet && typeof weapon.effet === 'object' && (
+            {weapon.effet && typeof weapon.effet === 'object' ? (
               <div className="text-amber-200">
                 Effet: {weapon.effet.nom}<br />Description: {weapon.effet.description}
               </div>
-            )}
-            {weapon.stats && Object.keys(weapon.stats).length > 0 && !hasForgeUpgrade && (
+            ) : null}
+            {weapon.stats && Object.keys(weapon.stats).length > 0 && !hasForgeUpgrade ? (
               <div className="text-stone-200">
                 Stats: {formatWeaponStats(weapon)}
               </div>
-            )}
+            ) : null}
             {hasForgeUpgrade && forgeUpgrade && (
               <div className="text-orange-300 font-semibold">
                 🔨 Forge: {Object.entries(extractForgeUpgrade(forgeUpgrade).bonuses).map(([k, pct]) => `${forgeLabel(k)} +${formatUpgradePct(pct)}`).join(' • ')}

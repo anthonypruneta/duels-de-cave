@@ -137,11 +137,11 @@ const getWeaponTooltipContent = (weapon) => {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && (
+      {weapon.effet && typeof weapon.effet === 'object' ? (
         <span className="block text-amber-200">
           Effet: {weapon.effet.nom} — {weapon.effet.description}
         </span>
-      )}
+      ) : null}
       {stats && (
         <span className="block text-stone-200">
           Stats: {stats}

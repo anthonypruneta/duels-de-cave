@@ -293,16 +293,16 @@ const HallOfFame = () => {
                         </div>
                         <div className="text-[11px] text-stone-400 space-y-1">
                           <div>{weapon.description}</div>
-                          {weapon.effet && (
+                          {weapon.effet && typeof weapon.effet === 'object' ? (
                             <div className="text-amber-200">
                               Effet: {weapon.effet.nom} — {weapon.effet.description}
                             </div>
-                          )}
-                          {weapon.stats && (
+                          ) : null}
+                          {weapon.stats && Object.keys(weapon.stats || {}).length > 0 ? (
                             <div className="text-stone-200">
                               Stats: {formatWeaponStats(weapon)}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     )}

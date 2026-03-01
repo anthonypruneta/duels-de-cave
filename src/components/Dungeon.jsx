@@ -130,11 +130,11 @@ const getWeaponTooltipContent = (weapon) => {
     <span className="block whitespace-normal text-xs">
       <span className="block font-semibold text-white">{weapon.nom}</span>
       <span className="block text-stone-300">{weapon.description}</span>
-      {weapon.effet && (
+      {weapon.effet && typeof weapon.effet === 'object' ? (
         <span className="block text-amber-200">
           Effet: {weapon.effet.nom} — {weapon.effet.description}
         </span>
-      )}
+      ) : null}
       {stats && (
         <span className="block text-stone-200">
           Stats: {stats}
@@ -1455,12 +1455,12 @@ const Dungeon = () => {
           ))}
         </div>
 
-        {weapon.effet && (
+        {weapon.effet && typeof weapon.effet === 'object' ? (
           <div className="mt-3 bg-amber-900/30 border border-amber-600 p-2">
             <p className="text-amber-300 font-bold text-sm">{weapon.effet.nom}</p>
             <p className="text-amber-200 text-xs">{weapon.effet.description}</p>
           </div>
-        )}
+        ) : null}
       </button>
     );
 
