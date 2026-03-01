@@ -335,9 +335,13 @@ export function getVerdictCapacityBonus(weaponState) {
   const capacityIndex = weaponState.counters.verdictCapacitiesUsed;
 
   if (capacityIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
+    // spellDamageBonus en décimal (0.7 = 70%). Si > 1, traiter comme pourcentage (100 → 100%)
+    const bonus = weaponConstants.arbaleteVerdict.spellDamageBonus ?? 0;
+    const bonusDecimal = bonus > 1 ? bonus / 100 : bonus;
+    const pctLabel = Math.round(bonusDecimal * 100);
     return {
-      damageMultiplier: 1 + weaponConstants.arbaleteVerdict.spellDamageBonus,
-      log: [`⚖️ Arbalète du Verdict: Capacité ${capacityIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +70% dégâts !`]
+      damageMultiplier: 1 + bonusDecimal,
+      log: [`⚖️ Arbalète du Verdict: Capacité ${capacityIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +${pctLabel}% dégâts !`]
     };
   }
 
