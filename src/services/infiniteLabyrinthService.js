@@ -34,7 +34,10 @@ const SPELL_POOL = [
   { id: 'arc', class: 'Archer', name: 'Tir multiple' },
   { id: 'mag', class: 'Mage', name: 'Sort magique' },
   { id: 'dem', class: 'Demoniste', name: 'Invocation familière' },
-  { id: 'maso', class: 'Masochiste', name: 'Renvoi sanguin' }
+  { id: 'maso', class: 'Masochiste', name: 'Renvoi sanguin' },
+  { id: 'bast', class: 'Bastion', name: 'Charge du Rempart' },
+  { id: 'succ', class: 'Succube', name: 'Coup de Fouet' },
+  { id: 'briseurSort', class: 'Briseur de Sort', name: 'Égide fractale' }
 ];
 
 const AWAKENING_RACE_POOL = Object.keys(races).filter((raceName) => races[raceName]?.awakening);
