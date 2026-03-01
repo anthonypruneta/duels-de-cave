@@ -145,7 +145,7 @@ const SubclassDungeon = () => {
   };
 
   const simulateCombat = async () => {
-    if (!player || !boss || isSimulating) return;
+    if (!player || !boss || !character || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
