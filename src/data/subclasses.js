@@ -13,7 +13,7 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Paladin': [
     { id: 'croise_lumineux', name: 'Croisé lumineux', bonus: '+10% CAP', abilityLabel: 'Riposte (CD: 2 tours)', description: 'Renvoie 50% des dégâts reçus + 0,8% de votre Cap. Réduit les dégâts de la prochaine attaque ennemie de 20%.' },
-    { id: 'juge_implacable', name: 'Juge implacable', bonus: '+10% Auto', abilityLabel: 'Riposte (CD: 2 tours)', description: 'Renvoie 50% des dégâts reçus + 0,8% de votre Cap. Réduit de 5% la DEF ennemie (stackable).' },
+    { id: 'juge_implacable', name: 'Juge implacable', bonus: '+10% Auto', abilityLabel: 'Riposte (CD: 2 tours)', description: 'Renvoie 50% des dégâts reçus + 0,8% de votre Cap. Réduit de 3% la DEF ennemie (stackable).' },
   ],
   'Archer': [
     { id: 'chasseur_fantome', name: 'Chasseur Fantôme', bonus: '+10% chance de critique', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Après un crit, les prochains dégâts gagnent +20% CAP. Deux tirs : 100% Auto puis 130% Auto + 20% Cap (vs RésCap).' },
@@ -24,7 +24,7 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'sorcier_neant', name: 'Sorcier du Néant', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 80% Cap (vs RésCap). Brûlure du Néant : l\'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.' },
   ],
   'Demoniste': [
-    { id: 'maitre_invocateur', name: 'Maître invocateur', bonus: '+10% Auto', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 55% Cap et ignore 55% RésCap. Chaque auto augmente ces dégâts de 1% Cap (cumulable).' },
+    { id: 'maitre_invocateur', name: 'Maître invocateur', bonus: '+10% Auto', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 50% Cap et ignore 50% RésCap. Chaque auto augmente ces dégâts de 1% Cap (cumulable).' },
     { id: 'pacte_sombre', name: 'Pacte Sombre', bonus: '+10% CAP', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 45% Cap et ignore 45% RésCap. Chaque auto +0,8% Cap (cumulable) et vole 3% de la CAP ennemi.' },
   ],
   'Briseur de Sort': [
@@ -32,8 +32,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'mentaliste', name: 'Mentaliste', bonus: '+12% ResC', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 40% dégâts + 25% CAP, augmente votre DEF de 8% (stackable). Réduit les soins adverses de 20%. Auto + 10% CAP.' },
   ],
   'Masochiste': [
-    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Réduit votre DEF de 20% mais augmente votre Auto de 20% pour le reste du combat.' },
-    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+10% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 10%.' },
+    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Réduit votre DEF de 20% mais augmente votre Auto de 16% pour le reste du combat.' },
+    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+10% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% dégâts accumulés + 0,5% Cap. Soigne 15% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 7%.' },
   ],
   'Succube': [
     { id: 'dompteuse_chair', name: 'Dompteuse de Chair', bonus: '+12% CAP', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 35% CAP. La prochaine attaque adverse inflige -50% dégâts et réduit l\'Auto ennemi de 6% (stackable).' },
@@ -45,11 +45,11 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Voleur': [
     { id: 'assassin', name: 'Assassin', bonus: '+10% Auto', abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en chance de critique. Prochaine attaque critique garantie.' },
-    { id: 'roublard', name: 'Roublard', bonus: '+10% Auto', abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en critique. Vole 10% d\'une stat ennemie aléatoire (jusqu\'au prochain proc, pas stackable).' },
+    { id: 'roublard', name: 'Roublard', bonus: '+10% Auto', abilityLabel: 'Esquive (CD: 4 tours)', description: 'Esquive la prochaine attaque. Gagne +5 VIT et +0,5% Cap en critique. Vole 8% d\'une stat ennemie aléatoire (jusqu\'au prochain proc, pas stackable).' },
   ],
   'Healer': [
     { id: 'luxum', name: 'Luxum', bonus: '+10% CAP', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Soigne 25% des PV manquants + 40% Cap. À chaque lancement : gain d\'un bouclier égal à 10% de votre CAP. Convertit l\'overheal en bouclier.' },
-    { id: 'latum', name: 'Latum', bonus: '+10% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 25% des PV manquants en dégâts à l\'ennemi, puis soigne 25% des PV manquants + 40% Cap.' },
+    { id: 'latum', name: 'Latum', bonus: '+10% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 20% des PV manquants en dégâts à l\'ennemi (réduits par la ResC), puis soigne 25% des PV manquants + 40% Cap.' },
   ],
 };
 

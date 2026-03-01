@@ -760,8 +760,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true; // Familier = capacité → Furie élémentaire, Mindflayer -1 CD, etc.
     const isMaitreInvocateur = att.subclass?.id === 'maitre_invocateur';
     const isPacteSombre = att.subclass?.id === 'pacte_sombre';
-    const capBase = isMaitreInvocateur ? 0.55 : (isPacteSombre ? 0.45 : classConstants.demoniste.capBase);
-    const ignoreResist = isMaitreInvocateur ? 0.55 : (isPacteSombre ? 0.45 : classConstants.demoniste.ignoreResist);
+    const capBase = isMaitreInvocateur ? 0.50 : (isPacteSombre ? 0.45 : classConstants.demoniste.capBase);
+    const ignoreResist = isMaitreInvocateur ? 0.50 : (isPacteSombre ? 0.45 : classConstants.demoniste.ignoreResist);
     const stackPerAuto = isMaitreInvocateur ? 0.01 : (isPacteSombre ? 0.008 : classConstants.demoniste.stackPerAuto);
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + stackBonus) * att.base.cap));
@@ -794,12 +794,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
         att.flagellantApplied = true;
-        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 0.80)), auto: Math.round(att.base.auto * 1.20) };
-        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -20% DEF, +20% Auto pour le reste du combat.`);
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 0.80)), auto: Math.round(att.base.auto * 1.16) };
+        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -20% DEF, +16% Auto pour le reste du combat.`);
       }
       if (att.subclass?.id === 'ecorche_fer') {
-        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 1.10)), rescap: Math.max(1, Math.round(att.base.rescap * 1.10)) };
-        log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +10% DEF et ResC.`);
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 1.07)), rescap: Math.max(1, Math.round(att.base.rescap * 1.07)) };
+        log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +7% DEF et ResC.`);
       }
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
       if (masoHealEffects.bonusDamage > 0) {
@@ -880,9 +880,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -20% de dégâts.`);
     }
     if (att.subclass?.id === 'juge_implacable') {
-      def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + 0.05;
-      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 0.95)) };
-      log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 5% (stackable).`);
+      def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + 0.03;
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 0.97)) };
+      log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 3% (stackable).`);
     }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
     if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
@@ -900,9 +900,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     if (att.subclass?.id === 'latum') {
-      const latumDmg = Math.max(1, Math.round(miss * 0.25));
+      const latumRaw = Math.max(1, Math.round(miss * 0.20));
+      const latumDmg = dmgCap(latumRaw, def.base.rescap);
       const inflicted = applyDamage(att, def, latumDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, true);
-      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (25% PV manquants) à ${def.name}.`);
+      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (20% PV manquants, vs ResC) à ${def.name}.`);
     }
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
@@ -1014,11 +1015,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
       const stat = stats[Math.floor(Math.random() * stats.length)];
-      const stolen = Math.max(0, Math.round(def.base[stat] * 0.10));
+      const stolen = Math.max(0, Math.round(def.base[stat] * 0.08));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
         att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
-        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 10% ${stat} (${stolen}) à ${def.name}.`);
+        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 8% ${stat} (${stolen}) à ${def.name}.`);
       }
     }
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
