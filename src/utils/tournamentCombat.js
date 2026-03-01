@@ -1397,6 +1397,15 @@ function applyGnomeCapBonus(fighter, opponent) {
   }
 }
 
+/**
+ * Simule un combat entre deux combattants.
+ * IMPORTANT: char1 et char2 doivent être des données BRUTES (personnage / boss non préparés).
+ * simulerMatch appelle preparerCombattant() sur les deux arguments. Ne jamais passer
+ * un objet déjà passé par prepareForCombat ou preparerCombattant (sinon forêt/arme/passif
+ * sont appliqués deux fois → bug "double préparation" dans les donjons).
+ * @param {Object} char1 - Personnage ou NPC brut (ex. character depuis Firestore, createBossCombatant(), buildFloorEnemy())
+ * @param {Object} char2 - Idem
+ */
 export function simulerMatch(char1, char2) {
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);

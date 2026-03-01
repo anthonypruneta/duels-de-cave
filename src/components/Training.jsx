@@ -380,9 +380,9 @@ const Training = () => {
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
   };
 
-  // Lancer la simulation
+  // On passe le personnage BRUT et le mannequin brut à simulerMatch pour éviter double préparation
   const simulateCombat = async () => {
-    if (!player || !dummy || isSimulating) return;
+    if (!player || !dummy || !character || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -391,11 +391,9 @@ const Training = () => {
     setPlayerCombatStatus(null);
     setDpsStats(null);
 
-    const p = { ...player };
-    const d = { ...dummy };
     const logs = [...combatLog, `--- Combat d'entraînement ---`];
 
-    const matchResult = simulerMatch(p, d);
+    const matchResult = simulerMatch(character, createTrainingDummy());
 
     // Calculer le DPS
     const stats = computeDpsStats(matchResult.steps, DUMMY_HP);
@@ -409,10 +407,8 @@ const Training = () => {
         setDummyCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
         setPlayerCombatStatus(step.p1Status ?? null);
-        p.currentHP = step.p1HP;
-        d.currentHP = step.p2HP;
-        setPlayer({ ...p });
-        setDummy({ ...d });
+        setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? prev.shield ?? 0 } : null);
+        setDummy((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? prev.shield ?? 0 } : null);
       },
       existingLogs: logs,
       speed: 'fast'

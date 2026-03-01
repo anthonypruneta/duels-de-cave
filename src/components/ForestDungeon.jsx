@@ -1236,8 +1236,9 @@ const ForestDungeon = () => {
     }
   };
 
+  // On passe le personnage BRUT (character) à simulerMatch pour éviter double préparation (forêt/arme appliquées 2x)
   const simulateCombat = async () => {
-    if (!player || !boss || isSimulating) return;
+    if (!player || !boss || !character || isSimulating) return;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -1246,11 +1247,10 @@ const ForestDungeon = () => {
     setPlayerCombatStatus(null);
     ensureForestMusic();
 
-    const p = { ...player };
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
-    const matchResult = simulerMatch(p, b);
+    const matchResult = simulerMatch(character, b);
 
     // Replay animé des steps
     const finalLogs = await replayCombatSteps(matchResult.steps, {
@@ -1260,10 +1260,8 @@ const ForestDungeon = () => {
         setBossCombatBase(step.p2Base ?? undefined);
         setPlayerCombatModifiers(step.p1Modifiers ?? null);
         setPlayerCombatStatus(step.p1Status ?? null);
-        p.currentHP = step.p1HP;
-        b.currentHP = step.p2HP;
-        setPlayer({ ...p });
-        setBoss({ ...b });
+        setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? prev.shield ?? 0 } : null);
+        setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? prev.shield ?? 0 } : null);
       },
       existingLogs: logs,
       speed: 'fast'
@@ -1271,8 +1269,9 @@ const ForestDungeon = () => {
     logs.length = 0;
     logs.push(...finalLogs);
 
-    if (p.currentHP > 0) {
-      logs.push(`🏆 ${p.name} remporte glorieusement le combat contre ${b.name} !`);
+    const didPlayerWin = matchResult.winnerId === character.userId;
+    if (didPlayerWin) {
+      logs.push(`🏆 ${character.name} remporte glorieusement le combat contre ${b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
 
@@ -1309,7 +1308,7 @@ const ForestDungeon = () => {
       });
       setGameState('reward');
     } else {
-      logs.push(`💀 ${p.name} a été vaincu par ${b.name}...`);
+      logs.push(`💀 ${character.name} a été vaincu par ${b.name}...`);
       setCombatLog([...logs]);
       setCombatResult('defeat');
       setGameState('defeat');
