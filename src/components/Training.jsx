@@ -60,7 +60,7 @@ const STAT_LABELS = {
 
 const formatWeaponStats = (weapon) => {
   if (!weapon?.stats) return null;
-  const entries = Object.entries(weapon.stats);
+  const entries = Object.entries(weapon.stats).filter(([, v]) => v !== 0);
   if (entries.length === 0) return null;
   return entries.map(([stat, value]) => {
     const color = value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : 'text-yellow-300';

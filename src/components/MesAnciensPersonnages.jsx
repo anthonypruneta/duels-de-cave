@@ -72,6 +72,7 @@ const MesAnciensPersonnages = () => {
               const formatWeaponStats = (w) => {
                 if (!w?.stats) return null;
                 return Object.entries(w.stats)
+                  .filter(([, value]) => value !== 0)
                   .map(([stat, value]) => `${stat.toUpperCase()} ${value > 0 ? `+${value}` : value}`)
                   .join(' • ');
               };

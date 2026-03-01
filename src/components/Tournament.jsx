@@ -118,7 +118,7 @@ const getForestBoosts = (character) => ({ ...getEmptyStatBoosts(), ...(character
 
 const formatWeaponStats = (weapon) => {
   if (!weapon?.stats) return null;
-  const entries = Object.entries(weapon.stats);
+  const entries = Object.entries(weapon.stats).filter(([, v]) => v !== 0);
   if (entries.length === 0) return null;
   return entries.map(([stat, value]) => (
     <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>

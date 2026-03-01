@@ -71,7 +71,7 @@ const getWeaponStatColor = (value) => {
 
 const formatWeaponStats = (weapon) => {
   if (!weapon?.stats) return null;
-  const entries = Object.entries(weapon.stats);
+  const entries = Object.entries(weapon.stats).filter(([, v]) => v !== 0);
   if (entries.length === 0) return null;
   return entries.map(([stat, value]) => (
     <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
@@ -380,7 +380,7 @@ const CharacterCreation = () => {
                         <div key={weapon.id} className="bg-stone-950/60 border border-stone-800 p-2">
                           <div className={`text-sm font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</div>
                           <div className="text-[11px] text-stone-400 mb-1">{weapon.rarete}</div>
-                          <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
+                          <div className="text-[11px] text-stone-300 mb-1">{Object.entries(weapon.stats).filter(([, v]) => v !== 0).map(([k, v]) => `${STAT_LABELS[k] || k.toUpperCase()} ${v > 0 ? `+${v}` : v}`).join(' • ')}</div>
                           {weapon.effet && typeof weapon.effet === 'object' && (
                             <div className="text-[11px] text-amber-200">Effet: {weapon.effet.nom} · Description: {weapon.effet.description}</div>
                           )}

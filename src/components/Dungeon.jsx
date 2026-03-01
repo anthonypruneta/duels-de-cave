@@ -111,7 +111,7 @@ const getWeaponStatColor = (value) => {
 
 const formatWeaponStats = (weapon) => {
   if (!weapon?.stats) return null;
-  const entries = Object.entries(weapon.stats);
+  const entries = Object.entries(weapon.stats).filter(([, v]) => v !== 0);
   if (entries.length === 0) return null;
   return entries.map(([stat, value]) => (
     <span key={stat} className={`font-semibold ${getWeaponStatColor(value)}`}>
@@ -1445,7 +1445,7 @@ const Dungeon = () => {
         <p className="text-gray-400 text-xs mt-2">{weapon.description}</p>
 
         <div className="mt-3 flex justify-center gap-2 flex-wrap">
-          {Object.entries(weapon.stats).map(([stat, value]) => (
+          {Object.entries(weapon.stats).filter(([, value]) => value !== 0).map(([stat, value]) => (
             <div key={stat} className="bg-stone-800 px-2 py-1 border border-stone-600">
               <span className="text-gray-400 text-xs">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
               <span className={`ml-1 font-bold text-sm ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>

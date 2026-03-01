@@ -209,6 +209,7 @@ function Encyclopedia() {
                             <div className="text-xs text-stone-500 mb-1 capitalize">{weapon.rarete}</div>
                             <div className="text-xs text-stone-300 mb-1">
                               {Object.entries(weapon.stats || {})
+                                .filter(([, v]) => v !== 0)
                                 .map(([k, v]) => `${STAT_LABELS[k] || k} ${v > 0 ? `+${v}` : v}`)
                                 .join(' • ')}
                             </div>
