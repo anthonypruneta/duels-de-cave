@@ -783,6 +783,7 @@ const ForestDungeon = () => {
     }
 
     if (att.class === 'Demoniste') {
+      if (isPlayer) skillUsed = true; // Familier = capacité → Furie élémentaire
       const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
       const stackBonus = stackPerAuto * (att.familiarStacks || 0);
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));

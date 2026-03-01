@@ -757,6 +757,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   if (att.class === 'Demoniste' && !capacityStolen) {
+    skillUsed = true; // Familier = capacité → Furie élémentaire, Mindflayer -1 CD, etc.
     const isMaitreInvocateur = att.subclass?.id === 'maitre_invocateur';
     const isPacteSombre = att.subclass?.id === 'pacte_sombre';
     const capBase = isMaitreInvocateur ? 0.55 : (isPacteSombre ? 0.45 : classConstants.demoniste.capBase);
@@ -1119,22 +1120,23 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const isArcher = !capacityStolen && att.class === 'Archer' && att.cd.arc === getMindflayerCapacityCooldown(att, def, 'arc');
   skillUsed = skillUsed || isMage || isWar || isArcher;
 
-  // Mindflayer éveillé: marquer le flag après la première capacité lancée (le -1 CD ne s'applique qu'une fois)
-  // et réinitialiser le CD de la capacité utilisée à 0 pour que le prochain cycle utilise le CD complet
+  // Mindflayer éveillé: -1 CD uniquement sur la première capacité avec CD > 1 (réinitialiser le CD utilisé).
+  // Pour capacité à 0/1 CD (ex. Demoniste familier), seul le buff de dégâts (mindflayerNoCooldownSpellBonus) s'applique, dans applyMindflayerCapacityMod.
   if (skillUsed && (att.race === 'Mindflayer' || att.awakening?.mindflayerOwnCooldownReductionTurns != null) && !att.mindflayerFirstCDUsed) {
     const aw = att.awakening || {};
     const reduction = aw.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
     if (reduction > 0) {
-      att.mindflayerFirstCDUsed = true;
-      if (att.class === 'Paladin') att.cd.pal = 0;
-      else if (att.class === 'Healer') att.cd.heal = 0;
-      else if (att.class === 'Succube') att.cd.succ = 0;
-      else if (att.class === 'Bastion') att.cd.bast = 0;
-      else if (att.class === 'Voleur') att.cd.rog = 0;
-      else if (att.class === 'Masochiste') att.cd.maso = 0;
-      else if (isMage) att.cd.mag = 0;
-      else if (isWar) att.cd.war = 0;
-      else if (isArcher) att.cd.arc = 0;
+      let didResetCd = false;
+      if (att.class === 'Paladin') { att.cd.pal = 0; didResetCd = true; }
+      else if (att.class === 'Healer') { att.cd.heal = 0; didResetCd = true; }
+      else if (att.class === 'Succube') { att.cd.succ = 0; didResetCd = true; }
+      else if (att.class === 'Bastion') { att.cd.bast = 0; didResetCd = true; }
+      else if (att.class === 'Voleur') { att.cd.rog = 0; didResetCd = true; }
+      else if (att.class === 'Masochiste') { att.cd.maso = 0; didResetCd = true; }
+      else if (isMage) { att.cd.mag = 0; didResetCd = true; }
+      else if (isWar) { att.cd.war = 0; didResetCd = true; }
+      else if (isArcher) { att.cd.arc = 0; didResetCd = true; }
+      if (didResetCd) att.mindflayerFirstCDUsed = true;
     }
   }
 
