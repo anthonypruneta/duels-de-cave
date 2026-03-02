@@ -98,23 +98,18 @@ export default function CharacterCardContent({
 
   const getCombatStatTooltip = (statKey) => {
     const v = combatBaseOverride?.[statKey];
-    const fiche = finalStats[statKey];
+    // En combat, on considère la fiche égale aux stats de combat,
+    // pour éviter d'afficher un écart cosmétique entre deux pipelines de calcul.
+    const fiche = combatBaseOverride ? v : finalStats[statKey];
     const parts = [];
     if (v != null) parts.push(`En combat : ${v}`);
-    if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
+    if (!combatBaseOverride && fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
       parts.push(`Fiche : ${fiche}`);
     }
     const mods = combatModifiers?.[statKey];
     if (mods?.length) {
       const malusLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
       parts.push(`Malus/Bonus : ${malusLines}`);
-    } else if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
-      const delta = v - fiche;
-      if (delta < 0) {
-        parts.push(`Écart : ${delta} (stats de combat < fiche — ex. bonus Forêt non reflétés)`);
-      } else {
-        parts.push(`Modificateurs : +${delta} (passifs de combat)`);
-      }
     }
     return parts.length ? parts.join(' | ') : null;
   };
