@@ -1478,6 +1478,19 @@ export function simulerMatch(char1, char2) {
   } : undefined);
   const stepExtras = () => ({ p1Modifiers, p2Modifiers, p1Status: snapshotStatus(p1), p2Status: snapshotStatus(p2) });
 
+  // Step intro : état après passifs de début (bouclier liche, Brèche mentale, etc.) pour affichage immédiat
+  steps.push({
+    phase: 'intro',
+    logs: introLogs.slice(),
+    p1HP: p1.currentHP,
+    p2HP: p2.currentHP,
+    p1Shield: p1.shield,
+    p2Shield: p2.shield,
+    p1Base: snapshotBase(p1),
+    p2Base: snapshotBase(p2),
+    ...stepExtras()
+  });
+
   let turn = 1;
   while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
     // Turn start
