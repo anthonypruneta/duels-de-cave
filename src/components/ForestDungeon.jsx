@@ -1250,8 +1250,12 @@ const ForestDungeon = () => {
 
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
+    const charForSim = {
+      ...character,
+      forestBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }
+    };
 
-    const matchResult = simulerMatch(character, b);
+    const matchResult = simulerMatch(charForSim, b);
 
     // Replay animé des steps
     const finalLogs = await replayCombatSteps(matchResult.steps, {
@@ -1431,6 +1435,7 @@ const ForestDungeon = () => {
     const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, bossChar.currentHP));
     const hpPercent = (safeCurrentHP / safeMaxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / safeMaxHP) * 100) : 0;
 
     const levelData = getForestLevelByNumber(currentLevel);
     const bossImg = getBossImage(bossChar.imageFile);
@@ -1452,7 +1457,7 @@ const ForestDungeon = () => {
         hpText={`${bossChar.name} — PV ${safeCurrentHP}/${safeMaxHP}`}
         hpPercent={hpPercent}
         hpClass={hpClass}
-        shieldPercent={0}
+        shieldPercent={shieldPercent}
         mainStats={(
           <>
             <div>Auto: {base.auto}</div>
