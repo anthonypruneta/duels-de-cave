@@ -71,13 +71,13 @@ export const races = {
     icon: '🐲',
     awakening: {
       levelRequired: 100,
-      description: '- +10% PV max\n- +15% ResC\n- +1% dégâts infligés par dégât reçu',
+      description: '- +10% PV max\n- +15% ResC\n- +2% dégâts infligés par dégât reçu',
       effect: {
         statMultipliers: {
           hp: 1.10,
           rescap: 1.15
         },
-        damageStackBonus: 0.01
+        damageStackBonus: 0.02
       }
     }
   },
