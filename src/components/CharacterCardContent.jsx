@@ -53,6 +53,7 @@ export default function CharacterCardContent({
     awakeningInfo,
     isAwakeningActive,
     weapon,
+    forestBoosts,
   } = statsDisplay;
 
   const displayName = nameOverride ?? character?.name ?? '';
@@ -98,18 +99,19 @@ export default function CharacterCardContent({
 
   const getCombatStatTooltip = (statKey) => {
     const v = combatBaseOverride?.[statKey];
-    // En combat, on considère la fiche égale aux stats de combat,
-    // pour éviter d'afficher un écart cosmétique entre deux pipelines de calcul.
-    const fiche = combatBaseOverride ? v : finalStats[statKey];
+    const ficheRef = finalStats[statKey];
     const parts = [];
     if (v != null) parts.push(`En combat : ${v}`);
-    if (!combatBaseOverride && fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
-      parts.push(`Fiche : ${fiche}`);
+    if (ficheRef != null && typeof ficheRef === 'number') {
+      parts.push(`Fiche (réf.) : ${ficheRef}`);
+    }
+    if (forestBoosts?.[statKey] > 0) {
+      parts.push(`Bonus Forêt : +${forestBoosts[statKey]}`);
     }
     const mods = combatModifiers?.[statKey];
     if (mods?.length) {
-      const malusLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
-      parts.push(`Malus/Bonus : ${malusLines}`);
+      const modLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
+      parts.push(`Malus/Bonus : ${modLines}`);
     }
     return parts.length ? parts.join(' | ') : null;
   };
@@ -117,10 +119,14 @@ export default function CharacterCardContent({
   const CombatStatLine = ({ statKey, valueClassName = '' }) => {
     const v = combatBaseOverride?.[statKey];
     const label = STAT_LABELS_MAP[statKey] ?? statKey;
+    const ficheRef = finalStats[statKey];
     const tooltip = getCombatStatTooltip(statKey);
+    const isAboveBase = ficheRef != null && typeof v === 'number' && v > ficheRef;
+    const isBelowBase = ficheRef != null && typeof v === 'number' && v < ficheRef;
+    const valueClass = isAboveBase ? 'text-green-400' : isBelowBase ? 'text-red-400' : 'text-white';
     const line = (
       <div className={valueClassName || ''}>
-        {label} : <span className="text-white font-bold">{v != null ? v : '—'}</span>
+        {label} : <span className={`font-bold ${valueClass}`}>{v != null ? v : '—'}</span>
       </div>
     );
     return tooltip ? (
