@@ -139,7 +139,7 @@ const buildCodexEffetDescription = (values) => {
   const pct = values?.secondCastDamage != null
     ? (Number(values.secondCastDamage) * 100).toFixed((Number(values.secondCastDamage) * 100) % 1 === 0 ? 0 : 1)
     : '70';
-  return `Votre 2e et 4e capacité se lancent deux fois et font ${pct}% de dégâts.`;
+  return `Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait ${pct}% de dégâts.`;
 };
 
 /** Templates de description d'effet (français) avec placeholders {{clé}} — seuls les nombres sont mis à jour */

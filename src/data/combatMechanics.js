@@ -275,7 +275,7 @@ export const weaponConstants = {
 
   // Codex Archon (Tome légendaire)
   codexArchon: {
-    doubleCastTriggers: [2, 4], // Se déclenche à la 2e et 4e capacité
+    doubleCastEveryN: 2,       // Se déclenche toutes les 2 capacités (2e, 4e, 6e…)
     secondCastDamage: 0.7,      // 70% des dégâts/soins
   },
 

@@ -279,8 +279,9 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
 
   switch (weaponState.weaponId) {
     case 'tome_legendaire': {
-      // Codex Archon: à la 2e et 4e capacité, double-cast (le combat affiche le texte exact de la capacité dédoublée)
-      if (weaponConstants.codexArchon.doubleCastTriggers.includes(capacityCount)) {
+      // Codex Archon: toutes les 2 capacités (2e, 4e, 6e…), double-cast (le combat affiche le texte exact de la capacité dédoublée)
+      const everyN = weaponConstants.codexArchon.doubleCastEveryN ?? 2;
+      if (capacityCount >= everyN && capacityCount % everyN === 0) {
         effects.doubleCast = true;
         const ratio = weaponConstants.codexArchon.secondCastDamage;
         if (capacityType === 'paladin') {

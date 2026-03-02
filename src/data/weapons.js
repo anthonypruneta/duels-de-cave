@@ -542,10 +542,10 @@ export const weapons = {
     },
     effet: {
       nom: 'Arcane Majeure',
-      description: 'Votre 2e et 4e capacité se lancent deux fois et font 70% de dégâts.',
+      description: 'Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait 70% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
-        spellCounts: [2, 4],      // Se déclenche à la 2e et 4e capacité
+        everyN: 2,                // Se déclenche toutes les 2 capacités
       },
       values: {
         doubleCast: true,

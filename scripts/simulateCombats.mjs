@@ -435,7 +435,8 @@ const onAttack = (attacker, defender) => {
 const onSpellCast = (attacker) => {
   attacker.weaponState.spellCount += 1;
   if (attacker.weapon?.id === 'tome_legendaire') {
-    if (weaponConstants.codexArchon.doubleCastTriggers.includes(attacker.weaponState.spellCount)) {
+    const everyN = weaponConstants.codexArchon.doubleCastEveryN ?? 2;
+    if (attacker.weaponState.spellCount >= everyN && attacker.weaponState.spellCount % everyN === 0) {
       return weaponConstants.codexArchon.secondCastDamage;
     }
   }

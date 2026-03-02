@@ -13,7 +13,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
-export const BALANCE_CONFIG_VERSION = 18;
+export const BALANCE_CONFIG_VERSION = 19;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -245,7 +245,7 @@ export const syncWeaponConstantsToCombat = (configWeaponConstants) => {
     { weaponId: 'marteau_legendaire', key: 'mjollnir', build: (w) => ({ triggerEveryNAttacks: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
     { weaponId: 'lance_legendaire', key: 'gungnir', build: (w) => ({ ...get(w, 'effet', 'values') }) },
     { weaponId: 'arc_legendaire', key: 'arcCieux', build: (w) => ({ triggerEveryNTurns: get(w, 'effet', 'trigger', 'n'), ...get(w, 'effet', 'values') }) },
-    { weaponId: 'tome_legendaire', key: 'codexArchon', build: (w) => ({ doubleCastTriggers: get(w, 'effet', 'trigger', 'spellCounts') ?? [2, 4], ...get(w, 'effet', 'values') }) },
+    { weaponId: 'tome_legendaire', key: 'codexArchon', build: (w) => ({ doubleCastEveryN: get(w, 'effet', 'trigger', 'everyN') ?? 2, ...get(w, 'effet', 'values') }) },
     { weaponId: 'fleau_legendaire', key: 'fleauAnatheme', build: (w) => ({ ...get(w, 'effet', 'values') }) },
     { weaponId: 'arbalete_legendaire', key: 'arbaleteVerdict', build: (w) => ({ ...get(w, 'effet', 'values') }) },
     { weaponId: 'hache_legendaire', key: 'labrysAres', build: (w) => ({ ...get(w, 'effet', 'values') }) },
