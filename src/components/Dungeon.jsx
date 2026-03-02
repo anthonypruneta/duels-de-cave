@@ -1323,70 +1323,59 @@ const Dungeon = () => {
   };
 
   // ============================================================================
-  // COMPOSANT CARTE BOSS
+  // COMPOSANT CARTE BOSS (même carte que les personnages)
   // ============================================================================
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
+
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const hpPercent = (bossChar.currentHP / bossChar.maxHP) * 100;
+    const safeMaxHP = bossChar.maxHP || base.hp || 1;
+    const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, bossChar.currentHP));
+    const hpPercent = (safeCurrentHP / safeMaxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield || 0) / bossChar.maxHP) * 100) : 0;
+    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((bossChar.shield || 0) / safeMaxHP) * 100) : 0;
+
     const bossData = getBossById(bossChar.bossId);
     const bossImg = getBossImage(bossChar.imageFile);
     const currentLvlData = getDungeonLevelByNumber(currentLevel);
+    const difficultyLabel = DIFFICULTY_LABELS[currentLvlData?.difficulte] || 'Donjon';
+    const difficultyColor = DIFFICULTY_COLORS[currentLvlData?.difficulte] || '';
 
     return (
-      <div className="relative shadow-2xl overflow-visible">
-        <div className={`absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 px-5 py-1.5 text-sm font-bold shadow-lg border border-stone-500 z-10 ${DIFFICULTY_COLORS[currentLvlData?.difficulte] || 'text-stone-200'}`}>
-          Boss • {DIFFICULTY_LABELS[currentLvlData?.difficulte] || 'Donjon'}
-        </div>
-        <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            {bossImg ? (
-              <img src={bossImg} alt={bossChar.name} className="w-full h-auto object-contain" />
-            ) : (
-              <div className="w-full h-48 flex items-center justify-center">
-                <span className="text-7xl">{bossData?.icon || '👹'}</span>
-              </div>
-            )}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
-              <div className="text-white font-bold text-xl text-center">{bossChar.name}</div>
+      <UnifiedCharacterCard
+        header={`Boss • ${difficultyLabel}`}
+        name={bossChar.name}
+        image={bossImg}
+        fallback={<span className="text-7xl">{bossData?.icon || '👹'}</span>}
+        topStats={(
+          <>
+            <span>HP: {base.hp}</span>
+            <span>VIT: {base.spd}</span>
+          </>
+        )}
+        hpText={`${bossChar.name} — PV ${safeCurrentHP}/${safeMaxHP}`}
+        hpPercent={hpPercent}
+        hpClass={hpClass}
+        shieldPercent={shieldPercent}
+        mainStats={(
+          <>
+            <div>Auto: {base.auto}</div>
+            <div>Déf: {base.def}</div>
+            <div>Cap: {base.cap}</div>
+            <div>ResC: {base.rescap}</div>
+          </>
+        )}
+        details={bossChar.ability ? (
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+            <span className="text-lg">⚡</span>
+            <div className="flex-1">
+              <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.nom}</div>
+              <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
             </div>
           </div>
-          <div className="bg-stone-800 p-4 border-t border-stone-600">
-            <div className="mb-3">
-              <div className="flex justify-between text-sm text-white mb-2">
-                <span>HP: {base.hp}</span>
-                <span>VIT: {base.spd}</span>
-              </div>
-              <div className="text-xs text-stone-400 mb-2">{bossChar.name} — PV {Math.max(0, bossChar.currentHP)}/{bossChar.maxHP}</div>
-              <div className="bg-stone-900 h-3 overflow-hidden border border-stone-600">
-                <div className={`h-full transition-all duration-500 ${hpClass}`} style={{width: `${hpPercent}%`}} />
-              </div>
-              {(bossChar.shield || 0) > 0 && (
-                <div className="mt-1 bg-stone-900 h-2 overflow-hidden border border-blue-700">
-                  <div className="h-full transition-all duration-500 bg-blue-500" style={{width: `${shieldPercent}%`}} />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-              <div className="text-stone-400">Auto: {base.auto}</div>
-              <div className="text-stone-400">Déf: {base.def}</div>
-              <div className="text-stone-400">Cap: {base.cap}</div>
-              <div className="text-stone-400">ResC: {base.rescap}</div>
-            </div>
-            {bossChar.ability && (
-              <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
-                <span className="text-lg">⚡</span>
-                <div className="flex-1">
-                  <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.nom}</div>
-                  <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        ) : null}
+        cardClassName={`border-2 border-stone-600 ${difficultyColor}`.trim()}
+      />
     );
   };
 
