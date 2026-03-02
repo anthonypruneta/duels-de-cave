@@ -471,7 +471,8 @@ const MageTower = () => {
   const prepareForCombat = (char) => {
     const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
     const effectiveLevel = char.level ?? 1;
-    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
+    const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
+    const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
     const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
@@ -481,9 +482,10 @@ const MageTower = () => {
     const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
+      _storedBase: char.base,
       base: baseWithAwakening,
       baseWithoutWeapon,
-    baseWithBoosts,
+      baseWithBoosts,
       currentHP: baseWithAwakening.hp,
       maxHP: baseWithAwakening.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
@@ -1173,6 +1175,7 @@ const MageTower = () => {
 
     const charForSim = {
       ...character,
+      forestBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) },
       mageTowerPassive: equippedPassive,
       equippedWeaponData: equippedWeapon,
       equippedWeaponId: equippedWeapon?.id || null

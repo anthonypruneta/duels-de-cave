@@ -110,7 +110,11 @@ export default function CharacterCardContent({
       parts.push(`Malus/Bonus : ${malusLines}`);
     } else if (fiche != null && typeof fiche === 'number' && typeof v === 'number' && v !== fiche) {
       const delta = v - fiche;
-      parts.push(`Modificateurs : ${delta > 0 ? '+' : ''}${delta} (passifs de combat)`);
+      if (delta < 0) {
+        parts.push(`Écart : ${delta} (stats de combat < fiche — ex. bonus Forêt non reflétés)`);
+      } else {
+        parts.push(`Modificateurs : +${delta} (passifs de combat)`);
+      }
     }
     return parts.length ? parts.join(' | ') : null;
   };
