@@ -194,6 +194,7 @@ const formatNumberFr = (val, format) => {
     case 'percent': return (v * 100) % 1 === 0 ? String(Math.round(v * 100)) : (v * 100).toFixed(1).replace('.', ',');
     case 'percent1dec': return (v * 100).toFixed(1).replace('.', ',');
     case 'percentMinus1': return ((v - 1) * 100) % 1 === 0 ? String(Math.round((v - 1) * 100)) : ((v - 1) * 100).toFixed(1).replace('.', ',');
+    case 'percentReduction': return ((1 - v) * 100) % 1 === 0 ? String(Math.round((1 - v) * 100)) : ((1 - v) * 100).toFixed(1).replace('.', ',');
     default: return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
   }
 };
@@ -212,6 +213,7 @@ const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = 
       case 'percent':
       case 'percent1dec': return num / 100;
       case 'percentMinus1': return 1 + (num / 100);
+      case 'percentReduction': return 1 - (num / 100);
       default: return num;
     }
   };

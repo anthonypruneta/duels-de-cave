@@ -65,8 +65,8 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
   switch (raceName) {
     case 'Humain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} à toutes les stats`;
     case 'Elfe': return `+${pct((e?.statMultipliers?.auto || 1) - 1, 0)} Auto, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} Cap, +${e?.statBonuses?.spd || 0} VIT, +${pct(e?.critChanceBonus, 0)} crit, +${pct(e?.critDamageBonus, 0)} dégâts crit`;
-    case 'Orc': return `- Sous 50% PV: +22% dégâts\n- Les ${e?.incomingHitCount || 0} premières attaques subies infligent ${(Number(e?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
-    case 'Nain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((e?.statMultipliers?.def || 1) - 1, 0)} Déf, subit -10% de dégâts`;
+    case 'Orc': return `- Sous 50% PV: +${pct((e?.damageBonus || 1) - 1, 0)} dégâts\n- Les ${e?.incomingHitCount || 0} premières attaques subies infligent ${(Number(e?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
+    case 'Nain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((e?.statMultipliers?.def || 1) - 1, 0)} Déf, subit -${pct(1 - (e?.damageTakenMultiplier ?? 1), 0)}% de dégâts`;
     case 'Dragonkin': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC, +${pct(e?.damageStackBonus, 0)} dégâts infligés par dégât reçu`;
     case 'Mort-vivant': return `Première mort: explosion ${pct(e?.explosionPercent, 0)} PV max + résurrection ${pct(e?.revivePercent, 0)} PV max`;
     case 'Lycan': return `Chaque auto: +${e?.bleedStacksPerHit || 0} stack de saignement (${pct(e?.bleedPercentPerStack, 1)} PV max par tour)`;
@@ -268,13 +268,14 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
       ];
     case 'Orc':
       return [
-        text('- Sous 50% PV: +22% dégâts\n- Les '), slot(['incomingHitCount'], 'raw'),
+        text('- Sous 50% PV: +'), slot(['damageBonus'], 'percentMinus1'),
+        text('% dégâts\n- Les '), slot(['incomingHitCount'], 'raw'),
         text(' premières attaques subies infligent '), slot(['incomingHitMultiplier'], 'percent'), text('% dégâts')
       ];
     case 'Nain':
       return [
         text('+'), slot(['statMultipliers', 'hp'], 'percentMinus1'), text(' PV max, +'),
-        slot(['statMultipliers', 'def'], 'percentMinus1'), text(' Déf, subit -10% de dégâts')
+        slot(['statMultipliers', 'def'], 'percentMinus1'), text(' Déf, subit -'), slot(['damageTakenMultiplier'], 'percentReduction'), text('% de dégâts')
       ];
     case 'Dragonkin':
       return [
