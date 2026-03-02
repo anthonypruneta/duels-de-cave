@@ -485,14 +485,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Pluie Céleste',
-      description: 'Tous les 4 tours, effectue une attaque supplémentaire à 50% de dégâts.',
+      description: 'Tous les 4 tours, effectue une attaque supplémentaire à 90% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_TURNS,
         n: 4,
       },
       values: {
         bonusAttacks: 1,          // 1 attaque bonus
-        bonusAttackDamage: 0.5,   // 50% des dégâts
+        bonusAttackDamage: 0.9,   // 90% des dégâts
       },
     },
     description: 'Un arc forgé dans les nuages, béni par les dieux.',
@@ -663,12 +663,12 @@ export const weapons = {
     },
     effet: {
       nom: 'Verdict',
-      description: 'Vos deux premières capacités infligent +70% dégâts mais ont +1 CD.',
+      description: 'Vos deux premières capacités infligent +100% dégâts et soins mais ont +1 CD.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        spellDamageBonus: 0.7,
+        spellDamageBonus: 1,
         spellBonusCount: 2,
         cooldownPenalty: 1,
       },

@@ -329,7 +329,7 @@ export function onPaladinRiposteCast(_weaponState, _caster, _target) {
 
 export function getVerdictCapacityBonus(weaponState) {
   if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
-    return { damageMultiplier: 1.0, log: [] };
+    return { damageMultiplier: 1.0, healMultiplier: 1.0, log: [] };
   }
 
   weaponState.counters.verdictCapacitiesUsed = (weaponState.counters.verdictCapacitiesUsed || 0) + 1;
@@ -340,13 +340,15 @@ export function getVerdictCapacityBonus(weaponState) {
     const bonus = weaponConstants.arbaleteVerdict.spellDamageBonus ?? 0;
     const bonusDecimal = bonus > 1 ? bonus / 100 : bonus;
     const pctLabel = Math.round(bonusDecimal * 100);
+    const mult = 1 + bonusDecimal;
     return {
-      damageMultiplier: 1 + bonusDecimal,
-      log: [`⚖️ Arbalète du Verdict: Capacité ${capacityIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +${pctLabel}% dégâts !`]
+      damageMultiplier: mult,
+      healMultiplier: mult,
+      log: [`⚖️ Arbalète du Verdict: Capacité ${capacityIndex}/${weaponConstants.arbaleteVerdict.spellBonusCount} — +${pctLabel}% dégâts et soins !`]
     };
   }
 
-  return { damageMultiplier: 1.0, log: [] };
+  return { damageMultiplier: 1.0, healMultiplier: 1.0, log: [] };
 }
 
 /**

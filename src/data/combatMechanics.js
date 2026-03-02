@@ -270,7 +270,7 @@ export const weaponConstants = {
   arcCieux: {
     triggerEveryNTurns: 4,
     bonusAttacks: 1,
-    bonusAttackDamage: 0.5,    // 50% des dégâts
+    bonusAttackDamage: 0.9,    // 90% des dégâts
   },
 
   // Codex Archon (Tome légendaire)
@@ -287,9 +287,9 @@ export const weaponConstants = {
 
   // Arbalète du Verdict (Arbalète légendaire) — Vague 2
   arbaleteVerdict: {
-    spellDamageBonus: 0.7,       // +70% dégâts sur les 2 premières capacités
-    spellBonusCount: 2,          // Nombre de capacités bonus
-    cooldownPenalty: 1,          // +1 CD sur toutes les capacités
+    spellDamageBonus: 1,         // +100% dégâts et soins sur les 2 premières capacités
+    spellBonusCount: 2,          // Nombre de capacités bonus (bonus dégâts + pénalité CD uniquement sur ces 2)
+    cooldownPenalty: 1,          // +1 CD uniquement sur les 2 premières capacités
   },
 
   // Labrys d'Arès (Hache légendaire) — Vague 2

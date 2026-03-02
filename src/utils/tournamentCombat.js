@@ -790,7 +790,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
       const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-      const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+      let healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+      const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
+      const masoHealMult = verdictBonusMaso.healMultiplier ?? verdictBonusMaso.damageMultiplier ?? 1;
+      if (masoHealMult !== 1) {
+        healAmount = Math.max(1, Math.round(healAmount * masoHealMult));
+        verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
         att.flagellantApplied = true;
@@ -810,11 +816,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.maso_taken = 0;
       let spellDmg = applyMindflayerCapacityMod(att, def, dmg, 'maso', log, playerColor);
       spellDmg = Math.round(spellDmg * consumeWeaponDamageBonus());
-      // Arbalète du Verdict
-      const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
+      // Arbalète du Verdict (déjà appelé plus haut pour le soin, on réutilise verdictBonusMaso)
       if (verdictBonusMaso.damageMultiplier !== 1) {
         spellDmg = Math.round(spellDmg * verdictBonusMaso.damageMultiplier);
-        verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true);
       if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
@@ -910,7 +914,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
     let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
-    const heal = healCritResult.amount;
+    let heal = healCritResult.amount;
+    const verdictBonusHeal = getVerdictCapacityBonus(att.weaponState);
+    const healMult = verdictBonusHeal.healMultiplier ?? verdictBonusHeal.damageMultiplier ?? 1;
+    if (healMult !== 1) {
+      heal = Math.max(1, Math.round(heal * healMult));
+      verdictBonusHeal.log.forEach(l => log.push(`${playerColor} ${l}`));
+    }
     if (att.subclass?.id === 'luxum') {
       const capShield = Math.max(1, Math.round(att.base.cap * 0.10));
       att.shield = (att.shield || 0) + capShield;

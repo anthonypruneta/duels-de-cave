@@ -153,7 +153,7 @@ const WEAPON_EFFET_DESCRIPTION_TEMPLATES = {
   arc_legendaire: 'Tous les {{n}} tours, effectue une attaque supplémentaire à {{bonusAttackDamage}}% de dégâts.',
   tome_legendaire: null, // géré par buildCodexEffetDescription
   fleau_legendaire: 'Après votre première attaque, la cible perd {{defReductionPercent}}% DEF et {{rescapReductionPercent}}% ResC pour le reste du combat.',
-  arbalete_legendaire: 'Vos {{spellBonusCount}} premières capacités infligent +{{spellDamageBonus}}% dégâts mais ont +{{cooldownPenalty}} CD.',
+  arbalete_legendaire: 'Vos {{spellBonusCount}} premières capacités infligent +{{spellDamageBonus}}% dégâts et soins mais ont +{{cooldownPenalty}} CD.',
   hache_legendaire: 'Votre attaque applique un saignement brut : la cible perd {{initialBleedPercent}}% HP max à chacun de ses tours d\'action. Réduit de {{bleedDecayPercent}}% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
 };
 
