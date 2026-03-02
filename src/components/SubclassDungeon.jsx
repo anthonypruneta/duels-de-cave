@@ -51,6 +51,7 @@ const SubclassDungeon = () => {
   const logEndRef = useRef(null);
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
 
   const ensureSubclassMusic = () => {
     const el = document.getElementById('subclass-dungeon-music');
@@ -76,6 +77,48 @@ const SubclassDungeon = () => {
       el.muted = isMuted;
     }
   }, [volume, isMuted]);
+
+  const handleVolumeChange = (e) => {
+    const v = Number(e.target.value);
+    setVolume(v);
+    setIsMuted(v === 0);
+  };
+
+  const toggleMute = () => {
+    setIsMuted((prev) => !prev);
+    if (isMuted && volume === 0) setVolume(0.05);
+  };
+
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={toggleMute} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-full accent-amber-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   useEffect(() => {
     if (gameState === 'lobby' || gameState === 'fighting' || gameState === 'reward' || gameState === 'defeat') {
@@ -262,6 +305,7 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20 text-center text-amber-400 text-2xl">Chargement du Collège...</div>
       </div>
     );
@@ -276,6 +320,7 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20">
           <h2 className="text-2xl font-bold text-amber-400 mb-4 text-center">Combat — {SUBCLASS_DUNGEON_NAME}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -325,6 +370,7 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20 text-center">
           <h2 className="text-3xl font-bold text-red-400 mb-4">Défaite</h2>
           <p className="text-stone-300 mb-6">{SUBCLASS_BOSS.nom} vous a vaincu. Réessayez plus tard.</p>
@@ -344,6 +390,7 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
+        <SoundControl />
         <div className="max-w-4xl mx-auto pt-20">
           <h2 className="text-3xl font-bold text-amber-400 mb-2 text-center">Victoire !</h2>
           <p className="text-stone-300 text-center mb-6">Choisissez votre sous-classe pour la classe {character.class}.</p>
@@ -391,6 +438,7 @@ const SubclassDungeon = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
+      <SoundControl />
       <div className="max-w-4xl mx-auto pt-20">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-stone-800 border border-amber-600 px-8 py-3">
