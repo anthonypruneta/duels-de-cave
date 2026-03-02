@@ -5,6 +5,50 @@ import { getPlayerDungeonSummary } from '../services/dungeonService';
 import { isForgeActive, isSubclassDungeonVisible } from '../data/featureFlags';
 import Header from './Header';
 
+/** Style du nom aligné sur UnifiedCharacterCard */
+const cardNameStyle = {
+  color: 'rgb(254 243 199)',
+  textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
+};
+
+function DungeonCard({ header, icon, title, description, buttonLabel, onClick, accent = 'amber' }) {
+  const accentClasses = {
+    amber: 'bg-amber-600 hover:bg-amber-700 border-amber-500',
+    orange: 'bg-orange-600 hover:bg-orange-700 border-orange-500',
+    violet: 'bg-violet-600 hover:bg-violet-700 border-violet-500',
+  };
+  const btnClass = accentClasses[accent] || accentClasses.amber;
+
+  return (
+    <div className="w-full max-w-[340px] mx-auto">
+      <div className="relative shadow-2xl">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+          {header}
+        </div>
+
+        <div className="overflow-visible border border-stone-600 bg-stone-900">
+          <div className="relative bg-stone-900 flex items-center justify-center min-h-[180px]">
+            <div className="text-6xl mb-2">{icon}</div>
+            <div className="absolute bottom-5 left-2 right-2 py-1 text-center">
+              <div className="font-bold text-lg leading-tight" style={cardNameStyle}>{title}</div>
+            </div>
+          </div>
+
+          <div className="bg-stone-800 p-3 border-t border-stone-600">
+            <p className="text-xs text-stone-400 mb-3">{description}</p>
+            <button
+              onClick={onClick}
+              className={`w-full text-white px-6 py-3 font-bold border ${btnClass}`}
+            >
+              {buttonLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DungeonSelection = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -53,75 +97,59 @@ const DungeonSelection = () => {
         <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
           <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">Choisis ton aventure</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
-              <div className="text-4xl mb-2">🏰</div>
-              <p className="text-white font-bold text-lg">La Grotte aux merveilles</p>
-              <p className="text-sm text-stone-400 mb-4">Donjon d’armes et loot</p>
-              <button
-                onClick={() => navigate('/dungeon')}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-              >
-                Entrer dans la grotte
-              </button>
-            </div>
-            <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
-              <div className="text-4xl mb-2">🌲</div>
-              <p className="text-white font-bold text-lg">La Forêt enchantée</p>
-              <p className="text-sm text-stone-400 mb-4">Donjon d’EXP et progression</p>
-              <button
-                onClick={() => navigate('/forest')}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-              >
-                Entrer dans la forêt
-              </button>
-            </div>
-            <div className="bg-stone-900/50 p-4 border border-stone-700 text-center">
-              <div className="text-4xl mb-2">🪄</div>
-              <p className="text-white font-bold text-lg">Tour du Mage</p>
-              <p className="text-sm text-stone-400 mb-4">Donjon de passifs mystiques</p>
-              <button
-                onClick={() => navigate('/mage-tower')}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-              >
-                Entrer dans la tour
-              </button>
-            </div>
+            <DungeonCard
+              header="Donjon"
+              icon="🏰"
+              title="La Grotte aux merveilles"
+              description="Donjon d’armes et loot"
+              buttonLabel="Entrer dans la grotte"
+              onClick={() => navigate('/dungeon')}
+            />
+            <DungeonCard
+              header="Donjon"
+              icon="🌲"
+              title="La Forêt enchantée"
+              description="Donjon d’EXP et progression"
+              buttonLabel="Entrer dans la forêt"
+              onClick={() => navigate('/forest')}
+            />
+            <DungeonCard
+              header="Donjon"
+              icon="🪄"
+              title="Tour du Mage"
+              description="Donjon de passifs mystiques"
+              buttonLabel="Entrer dans la tour"
+              onClick={() => navigate('/mage-tower')}
+            />
             {isForgeActive() && (
-              <div className="bg-stone-900/50 p-4 border border-orange-600/50 text-center">
-                <div className="text-4xl mb-2">🔨</div>
-                <p className="text-orange-300 font-bold text-lg">Forge des Legendes</p>
-                <p className="text-sm text-stone-400 mb-4">Upgrade d'arme legendaire</p>
-                <button
-                  onClick={() => navigate('/forge')}
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 font-bold border border-orange-500"
-                >
-                  Entrer dans la forge
-                </button>
-              </div>
+              <DungeonCard
+                header="Donjon"
+                icon="🔨"
+                title="Forge des Legendes"
+                description="Upgrade d'arme legendaire"
+                buttonLabel="Entrer dans la forge"
+                onClick={() => navigate('/forge')}
+                accent="orange"
+              />
             )}
-            <div className="bg-stone-900/50 p-4 border border-violet-600/50 text-center">
-              <div className="text-4xl mb-2">👁️</div>
-              <p className="text-violet-300 font-bold text-lg">Extension du Territoire</p>
-              <p className="text-sm text-stone-400 mb-4">Passif niv.3 + second passif niv.1 à 3 (90%/9%/1%) — Gojo</p>
-              <button
-                onClick={() => navigate('/extension')}
-                className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 font-bold border border-violet-500"
-              >
-                Étendre le territoire
-              </button>
-            </div>
+            <DungeonCard
+              header="Donjon"
+              icon="👁️"
+              title="Extension du Territoire"
+              description="Passif niv.3 + second passif niv.1 à 3 (90%/9%/1%) — Gojo"
+              buttonLabel="Étendre le territoire"
+              onClick={() => navigate('/extension')}
+              accent="violet"
+            />
             {isSubclassDungeonVisible() && (
-              <div className="bg-stone-900/50 p-4 border border-amber-600/50 text-center">
-                <div className="text-4xl mb-2">🎓</div>
-                <p className="text-amber-300 font-bold text-lg">Collège Kunugigaoka</p>
-                <p className="text-sm text-stone-400 mb-4">Sous-classe — Niveau 400 requis</p>
-                <button
-                  onClick={() => navigate('/sous-classe')}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 font-bold border border-amber-500"
-                >
-                  Entrer au Collège
-                </button>
-              </div>
+              <DungeonCard
+                header="Donjon"
+                icon="🎓"
+                title="Collège Kunugigaoka"
+                description="Sous-classe — Niveau 400 requis"
+                buttonLabel="Entrer au Collège"
+                onClick={() => navigate('/sous-classe')}
+              />
             )}
           </div>
         </div>
