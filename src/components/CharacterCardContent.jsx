@@ -45,6 +45,7 @@ export default function CharacterCardContent({
   const {
     finalStats,
     getStatLineProps,
+    tooltipContent: getTooltipContent,
     hasForgeUpgrade,
     forgeUpgrade,
     forgeLabel,
@@ -97,23 +98,13 @@ export default function CharacterCardContent({
     );
   };
 
+  // En combat : même détail qu'hors combat (Base | Forêt | Arme | …) + modificateurs de combat
   const getCombatStatTooltip = (statKey) => {
-    const v = combatBaseOverride?.[statKey];
-    const ficheRef = finalStats[statKey];
-    const parts = [];
-    if (v != null) parts.push(`En combat : ${v}`);
-    if (ficheRef != null && typeof ficheRef === 'number') {
-      parts.push(`Fiche (réf.) : ${ficheRef}`);
-    }
-    if (forestBoosts?.[statKey] > 0) {
-      parts.push(`Bonus Forêt : +${forestBoosts[statKey]}`);
-    }
+    const baseTooltip = getTooltipContent(statKey);
     const mods = combatModifiers?.[statKey];
-    if (mods?.length) {
-      const modLines = mods.map((m) => `${m.label} : ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
-      parts.push(`Malus/Bonus : ${modLines}`);
-    }
-    return parts.length ? parts.join(' | ') : null;
+    if (!mods?.length) return baseTooltip;
+    const modLines = mods.map((m) => `${m.label}: ${m.value > 0 ? '+' : ''}${m.value}`).join(' | ');
+    return `${baseTooltip} | ${modLines}`;
   };
 
   const CombatStatLine = ({ statKey, valueClassName = '' }) => {
