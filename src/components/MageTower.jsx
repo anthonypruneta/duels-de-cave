@@ -1344,6 +1344,7 @@ const MageTower = () => {
     const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, bossChar.currentHP));
     const hpPercent = (safeCurrentHP / safeMaxHP) * 100;
     const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / safeMaxHP) * 100) : 0;
 
     const levelData = getMageTowerLevelByNumber(currentLevel);
     const bossImg = getBossImage(bossChar.imageFile);
@@ -1365,7 +1366,7 @@ const MageTower = () => {
         hpText={`${bossChar.name} — PV ${safeCurrentHP}/${safeMaxHP}`}
         hpPercent={hpPercent}
         hpClass={hpClass}
-        shieldPercent={0}
+        shieldPercent={shieldPercent}
         mainStats={(
           <>
             <div>Auto: {base.auto}</div>
