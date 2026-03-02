@@ -46,6 +46,7 @@ export default function CharacterCardContent({
     finalStats,
     getStatLineProps,
     tooltipContent: getTooltipContent,
+    baseWithoutBonus,
     hasForgeUpgrade,
     forgeUpgrade,
     forgeLabel,
@@ -110,11 +111,10 @@ export default function CharacterCardContent({
   const CombatStatLine = ({ statKey, valueClassName = '' }) => {
     const v = combatBaseOverride?.[statKey];
     const label = STAT_LABELS_MAP[statKey] ?? statKey;
-    const ficheRef = finalStats[statKey];
     const tooltip = getCombatStatTooltip(statKey);
-    const isAboveBase = ficheRef != null && typeof v === 'number' && v > ficheRef;
-    const isBelowBase = ficheRef != null && typeof v === 'number' && v < ficheRef;
-    const valueClass = isAboveBase ? 'text-green-400' : isBelowBase ? 'text-red-400' : 'text-white';
+    const baseRef = baseWithoutBonus(statKey);
+    const isBelowBase = typeof v === 'number' && v < baseRef;
+    const valueClass = isBelowBase ? 'text-red-400' : 'text-green-400';
     const line = (
       <div className={valueClassName || ''}>
         {label} : <span className={`font-bold ${valueClass}`}>{v != null ? v : '—'}</span>
