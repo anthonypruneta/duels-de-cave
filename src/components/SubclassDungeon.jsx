@@ -83,7 +83,7 @@ const SubclassDungeon = () => {
       return () => stopSubclassMusic();
     }
     stopSubclassMusic();
-  }, [gameState]);
+  }, [gameState, loading]);
 
   useEffect(() => {
     if (!currentUser) return;
