@@ -366,9 +366,12 @@ export const loadPersistedBalanceConfig = async () => {
 export const savePersistedBalanceConfig = async ({ config, updatedBy = null }) => {
   try {
     const storageRef = ref(storage, BALANCE_STORAGE_PATH);
+    // Ne jamais écrire une version inférieure à celle déjà en Storage (évite qu'un admin avec cache ancien ne "rétrograde" la version et déclenche un écrasement par le code au prochain chargement)
+    const storedVersion = getLastLoadedStoredVersion() ?? 0;
+    const versionToSave = Math.max(BALANCE_CONFIG_VERSION, storedVersion);
     const payload = {
       config,
-      sourceVersion: BALANCE_CONFIG_VERSION,
+      sourceVersion: versionToSave,
       updatedBy: updatedBy ?? 'admin',
       updatedAt: new Date().toISOString()
     };
