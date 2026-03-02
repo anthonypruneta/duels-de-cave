@@ -78,7 +78,7 @@ const SubclassDungeon = () => {
   }, [volume, isMuted]);
 
   useEffect(() => {
-    if (gameState === 'fighting' || gameState === 'reward' || gameState === 'defeat') {
+    if (gameState === 'lobby' || gameState === 'fighting' || gameState === 'reward' || gameState === 'defeat') {
       ensureSubclassMusic();
       return () => stopSubclassMusic();
     }
@@ -135,6 +135,7 @@ const SubclassDungeon = () => {
     setGameState('fighting');
     setCombatResult(null);
     setIsSimulating(false);
+    ensureSubclassMusic();
     const playerReady = preparerCombattant(character);
     const bossReady = preparerCombattant(createSubclassBossCombatant());
     setPlayer(playerReady);
@@ -462,6 +463,9 @@ const SubclassDungeon = () => {
             {canAccess ? `Défier ${SUBCLASS_BOSS.nom}` : 'Accès impossible'}
           </button>
         </div>
+        <audio id="subclass-dungeon-music" loop>
+          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+        </audio>
       </div>
     </div>
   );
