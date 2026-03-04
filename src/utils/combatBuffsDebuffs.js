@@ -65,6 +65,16 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
     }
   }
 
+  // --- Debuff Gungnir (lance) : Auto -10% ---
+  if (combatStatus?.gungnirDebuffed) {
+    list.push({
+      id: 'gungnir_debuff',
+      icon: '🔱',
+      label: 'Gungnir : -10% Auto',
+      description: 'Serment d\'Odin : votre Attaque a été réduite de 10% par la lance légendaire (permanent ce combat).',
+    });
+  }
+
   // --- Effets sur le personnage (état de combat courant) ---
   if (combatStatus) {
     if (combatStatus.stunned && combatStatus.stunnedTurns > 0) {
@@ -154,13 +164,23 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         description: 'La prochaine attaque physique de l\'adversaire infligera 50% de dégâts en moins.',
       });
     }
-    if ((combatStatus.familiarStacks ?? 0) > 0) {
-      const n = combatStatus.familiarStacks;
+    if ((combatStatus.familiarStacks ?? 0) > 0 || combatStatus.familiarPercent != null) {
+      const n = combatStatus.familiarStacks ?? 0;
+      const pct = combatStatus.familiarPercent != null ? combatStatus.familiarPercent.toFixed(1) : null;
+      const dmg = combatStatus.familiarDamage != null ? combatStatus.familiarDamage : null;
+      const labelParts = [`Familier`];
+      if (n > 0) labelParts.push(`(${n} stack${n > 1 ? 's' : ''})`);
+      if (pct != null) labelParts.push(`${pct}%`);
+      if (dmg != null) labelParts.push(`→ ${dmg}`);
+      const descParts = ['Démoniste : votre familier inflige des dégâts chaque tour.'];
+      if (pct != null) descParts.push(` Actuellement ${pct}% de votre Cap.`);
+      if (dmg != null) descParts.push(` Dégâts actuels : ${dmg}.`);
+      if (n > 0) descParts.push(` Bonus : +0,8% Cap par auto (${n} stack(s)).`);
       list.push({
         id: 'familiar_stacks',
         icon: '🐾',
-        label: `Familier (${n})`,
-        description: `Démoniste : stacks du familier, bonus de dégâts sur la capacité (${n} stack(s)).`,
+        label: labelParts.join(' '),
+        description: descParts.join(''),
       });
     }
     if (typeof combatStatus.nextSpellReduction === 'number' && combatStatus.nextSpellReduction > 0) {
@@ -178,6 +198,20 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         icon: '📉',
         label: 'Onction : -dégâts',
         description: 'Onction d\'Éternité : vous avez survécu à 1 PV. Vos dégâts infligés sont réduits jusqu\'à la fin du combat.',
+      });
+    }
+    // Buff Dragonkin éveillé (écaille) : +X% dégâts par stack de dégâts reçus
+    const aw = combatStatus.awakening;
+    if (aw && typeof aw.damageStackBonus === 'number' && aw.damageStackBonus > 0) {
+      const stacks = aw.damageTakenStacks ?? 0;
+      const bonusPct = Math.round(aw.damageStackBonus * 100 * stacks);
+      list.push({
+        id: 'dragonkin_awakening',
+        icon: '🐲',
+        label: bonusPct > 0 ? `Écailles (+${bonusPct}% dégâts)` : 'Écailles',
+        description: bonusPct > 0
+          ? `Dragonkin éveillé : +${Math.round(aw.damageStackBonus * 100)}% dégâts infligés par dégât reçu. Actuellement +${bonusPct}% (${stacks} stack(s)).`
+          : `Dragonkin éveillé : +${Math.round(aw.damageStackBonus * 100)}% dégâts infligés par dégât reçu (cumulable).`,
       });
     }
   }
