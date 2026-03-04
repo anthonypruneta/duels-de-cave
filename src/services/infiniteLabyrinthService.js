@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { Timestamp, doc, getDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, doc, getDoc, increment, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
@@ -153,11 +153,28 @@ export function resolveLabyrinthFloorImagePath(floor) {
 
 async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
   const progressRef = doc(db, 'dungeonProgress', userId);
-  await setDoc(progressRef, {
-    userId,
-    runsAvailable: increment(attempts),
-    updatedAt: Timestamp.now()
-  }, { merge: true });
+  const snap = await getDoc(progressRef);
+  const now = Timestamp.now();
+  if (snap.exists()) {
+    await updateDoc(progressRef, {
+      runsAvailable: increment(attempts),
+      updatedAt: now
+    });
+  } else {
+    await setDoc(progressRef, {
+      userId,
+      runsAvailable: attempts,
+      updatedAt: now,
+      lastCreditDate: now,
+      createdAt: now,
+      runsToday: 0,
+      totalRuns: 0,
+      bestRun: 0,
+      totalBossKills: 0,
+      equippedWeapon: null,
+      lastRunDate: null
+    }, { merge: true });
+  }
 }
 
 export function getEnemyNameFromFilename(path) {

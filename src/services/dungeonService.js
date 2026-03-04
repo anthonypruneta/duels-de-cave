@@ -615,6 +615,9 @@ export const getPlayerDungeonSummary = async (userId) => {
 
 // ============================================================================
 // ADMIN - AJOUTER DES ESSAIS DE DONJON À TOUT LE MONDE + MESSAGE GLOBAL
+// On utilise updateDoc + increment pour les joueurs qui ont déjà une progression
+// (évite un bug connu: set + merge + increment peut écraser la valeur au lieu d'ajouter).
+// Pour les nouveaux joueurs sans doc dungeonProgress, on fait setDoc avec la valeur initiale.
 // ============================================================================
 export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEmail }) => {
   try {
@@ -636,6 +639,10 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
       const charactersSnap = await getDocs(collection(db, 'characters'));
       const playerIds = charactersSnap.docs.map((charDoc) => charDoc.id);
 
+      // Savoir quels joueurs ont déjà un doc dungeonProgress (pour update vs set)
+      const progressSnap = await getDocs(collection(db, 'dungeonProgress'));
+      const existingProgressIds = new Set(progressSnap.docs.map((d) => d.id));
+
       const chunkSize = 400;
       for (let i = 0; i < playerIds.length; i += chunkSize) {
         const batch = writeBatch(db);
@@ -643,14 +650,28 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
 
         chunk.forEach((userId) => {
           const progressRef = doc(db, 'dungeonProgress', userId);
-          batch.set(progressRef, {
-            userId,
-            runsAvailable: increment(parsedAttempts),
-            updatedAt: now,
-            // Initialisé uniquement pour les profils qui n'ont pas encore de progression
-            lastCreditDate: resetAnchor,
-            createdAt: now
-          }, { merge: true });
+          if (existingProgressIds.has(userId)) {
+            // Document existant : ajouter les runs (jamais écraser)
+            batch.update(progressRef, {
+              runsAvailable: increment(parsedAttempts),
+              updatedAt: now
+            });
+          } else {
+            // Nouveau joueur sans progression : créer le doc avec le nombre accordé
+            batch.set(progressRef, {
+              userId,
+              runsAvailable: parsedAttempts,
+              lastCreditDate: resetAnchor,
+              createdAt: now,
+              updatedAt: now,
+              runsToday: 0,
+              totalRuns: 0,
+              bestRun: 0,
+              totalBossKills: 0,
+              equippedWeapon: null,
+              lastRunDate: null
+            }, { merge: true });
+          }
         });
 
         await batch.commit();
