@@ -10,7 +10,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import SharedTooltip from './SharedTooltip';
 import { races, classes } from '../data/gameData';
-import { getAbilityDisplayLabel } from '../data/subclasses';
+import SubclassDetailBlock from './SubclassDetailBlock';
 
 const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
@@ -187,14 +187,7 @@ const MesAnciensPersonnages = () => {
 
                         {classes[char.class] && (
                           char.subclass ? (
-                            <div className="subclass-gold-border subclass-gold-glow overflow-visible">
-                              <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
-                                <span className="text-lg">{classes[char.class].icon}</span>
-                                <div className="flex-1">
-                                  <div className="font-semibold subclass-gold-text">{getAbilityDisplayLabel(char.class, char.subclass)}</div>
-                                </div>
-                              </div>
-                            </div>
+                            <SubclassDetailBlock subclass={char.subclass} classIcon={classes[char.class].icon} />
                           ) : (
                             <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                               <span className="text-lg">{classes[char.class].icon}</span>
