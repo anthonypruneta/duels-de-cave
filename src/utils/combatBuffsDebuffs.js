@@ -175,7 +175,10 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
       const descParts = ['Démoniste : votre familier inflige des dégâts chaque tour.'];
       if (pct != null) descParts.push(` Actuellement ${pct}% de votre Cap.`);
       if (dmg != null) descParts.push(` Dégâts actuels : ${dmg}.`);
-      if (n > 0) descParts.push(` Bonus : +0,8% Cap par auto (${n} stack(s)).`);
+      if (n > 0) {
+        const stackPctDisplay = ((classConstants.demoniste?.stackPerAuto ?? 0.008) * 100) % 1 === 0 ? String(Math.round((classConstants.demoniste?.stackPerAuto ?? 0.008) * 100)) : ((classConstants.demoniste?.stackPerAuto ?? 0.008) * 100).toFixed(1);
+        descParts.push(` Bonus : +${stackPctDisplay}% Cap par auto (${n} stack(s)).`);
+      }
       list.push({
         id: 'familiar_stacks',
         icon: '🐾',

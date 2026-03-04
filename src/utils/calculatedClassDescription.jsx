@@ -103,11 +103,11 @@ export function getCalculatedClassDescription(className, cap, auto) {
       const familierPct = capBase + capPerCap * cap;
       const familierDmgTotal = Math.round(familierPct * cap);
       const ignoreResPct = Math.round(ignoreResist * 100);
-      const stackBonusPct = Math.round(stackPerAuto * 100);
+      const stackBonusPctDisplay = (stackPerAuto * 100) % 1 === 0 ? String(Math.round(stackPerAuto * 100)) : (stackPerAuto * 100).toFixed(1);
       return (
         <>
           Chaque tour:{' '}
-          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | +${stackBonusPct}% Cap par auto (cumulable) | Ignore ${ignoreResPct}% ResC`}>
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | +${stackBonusPctDisplay}% Cap par auto (cumulable) | Ignore ${ignoreResPct}% ResC`}>
             <span className="text-green-400">{familierDmgTotal}</span>
           </Tooltip>
           {' '}dégâts (ignore {ignoreResPct}% ResC)
