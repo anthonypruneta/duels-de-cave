@@ -205,6 +205,7 @@ const ForestDungeon = () => {
   const [instantMessage, setInstantMessage] = useState(null);
   const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
@@ -287,9 +288,10 @@ const ForestDungeon = () => {
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
+  // Auto-scroll du journal : scroll le conteneur uniquement (pas la page)
   useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!shouldAutoScrollLog() || !logContainerRef.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [combatLog]);
 
   const applyForestVolume = () => {
@@ -1502,7 +1504,7 @@ const ForestDungeon = () => {
                 <div className="bg-stone-900 p-3 border-b border-stone-600">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (

@@ -146,6 +146,7 @@ const ForgeDungeon = () => {
   const [error, setError] = useState(null);
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
@@ -233,9 +234,10 @@ const ForgeDungeon = () => {
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
+  // Auto-scroll du journal : scroll le conteneur uniquement (pas la page)
   useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!shouldAutoScrollLog() || !logContainerRef.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [combatLog]);
 
   const applyForgeVolume = () => {
@@ -774,7 +776,7 @@ const ForgeDungeon = () => {
                 <div className="bg-stone-900 p-3 border-b border-orange-600/50">
                   <h2 className="text-lg md:text-2xl font-bold text-orange-300 text-center">🔥 Combat — Forge des Legendes</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (

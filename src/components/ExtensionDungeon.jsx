@@ -102,6 +102,7 @@ const ExtensionDungeon = () => {
   const [error, setError] = useState(null);
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
@@ -118,9 +119,10 @@ const ExtensionDungeon = () => {
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
+  // Auto-scroll du journal : scroll le conteneur uniquement (pas la page)
   useEffect(() => {
-    if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!shouldAutoScrollLog() || !logContainerRef.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [combatLog]);
 
   const ensureExtensionMusic = () => {
@@ -655,7 +657,7 @@ const ExtensionDungeon = () => {
                 <div className="bg-stone-900 p-3 border-b border-violet-600/50">
                   <h2 className="text-lg md:text-2xl font-bold text-violet-300 text-center">👁️ Combat — Extension du Territoire</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (

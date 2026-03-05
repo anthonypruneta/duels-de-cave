@@ -51,6 +51,7 @@ const SubclassDungeon = () => {
   const [selectedSubclass, setSelectedSubclass] = useState(null);
   const [savingSubclass, setSavingSubclass] = useState(false);
   const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
@@ -161,9 +162,10 @@ const SubclassDungeon = () => {
     loadData();
   }, [currentUser, navigate]);
 
+  // Auto-scroll du journal : scroll le conteneur uniquement (pas la page)
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    if (window.matchMedia('(min-width: 768px)').matches) logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof window === 'undefined' || !window.matchMedia || !window.matchMedia('(min-width: 768px)').matches || !logContainerRef.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [combatLog]);
 
   const characterLevel = character?.level ?? 1;
@@ -388,7 +390,7 @@ const SubclassDungeon = () => {
                 <div className="bg-stone-900 p-3 border-b border-stone-600">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur &quot;Lancer le combat&quot; pour commencer...</p>
                   ) : (
