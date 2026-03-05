@@ -164,6 +164,24 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         description: 'La prochaine attaque physique de l\'adversaire infligera 50% de dégâts en moins.',
       });
     }
+    if ((combatStatus.pacteSombreCapStolen ?? 0) > 0) {
+      const total = combatStatus.pacteSombreCapStolen;
+      list.push({
+        id: 'pacte_sombre_stolen',
+        icon: '🌑',
+        label: `Pacte Sombre: +${total} CAP volée`,
+        description: `Votre familier a volé au total ${total} points de Cap à l'adversaire (3% par coup).`,
+      });
+    }
+    if ((combatStatus.pacteSombreCapLost ?? 0) > 0) {
+      const total = combatStatus.pacteSombreCapLost;
+      list.push({
+        id: 'pacte_sombre_lost',
+        icon: '🌑',
+        label: `Pacte Sombre: -${total} CAP`,
+        description: `L'adversaire (Pacte Sombre) vous a drainé au total ${total} points de Cap (3% par coup du familier).`,
+      });
+    }
     if ((combatStatus.familiarStacks ?? 0) > 0 || combatStatus.familiarPercent != null) {
       const n = combatStatus.familiarStacks ?? 0;
       const pct = combatStatus.familiarPercent != null ? combatStatus.familiarPercent.toFixed(1) : null;

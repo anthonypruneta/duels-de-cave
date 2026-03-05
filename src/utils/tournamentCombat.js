@@ -781,6 +781,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const stolen = Math.max(0, Math.round(def.base.cap * 0.03));
       if (stolen > 0) {
         def.base = { ...def.base, cap: Math.max(1, def.base.cap - stolen) };
+        att.pacteSombreCapStolen = (att.pacteSombreCapStolen || 0) + stolen;
+        def.pacteSombreCapLost = (def.pacteSombreCapLost || 0) + stolen;
         log.push(`${playerColor} 💠 Pacte Sombre: ${att.name} vole ${stolen} CAP à ${def.name}.`);
       }
     }
@@ -1486,6 +1488,8 @@ export function simulerMatch(char1, char2) {
       awakening: (b.awakening && (b.awakening.damageStackBonus != null || b.awakening.damageTakenStacks != null))
         ? { damageTakenStacks: b.awakening.damageTakenStacks ?? 0, damageStackBonus: b.awakening.damageStackBonus ?? 0 }
         : null,
+      pacteSombreCapStolen: b.pacteSombreCapStolen ?? 0,
+      pacteSombreCapLost: b.pacteSombreCapLost ?? 0,
     };
     if (b.class === 'Demoniste' && b.base) {
       const { capBase, capPerCap, stackPerAuto } = classConstants.demoniste;
