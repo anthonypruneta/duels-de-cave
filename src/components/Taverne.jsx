@@ -207,7 +207,7 @@ export default function Taverne() {
               style={{
                 left: `${p.x}%`,
                 top: `${p.y}%`,
-                width: '72px',
+                width: '110px',
               }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -230,15 +230,15 @@ export default function Taverne() {
                   <img
                     src={character.characterImage}
                     alt={character.name}
-                    className="w-full h-20 object-cover object-top"
+                    className="w-full h-32 object-cover object-top"
                   />
                 ) : (
-                  <div className="w-full h-20 bg-stone-700 flex items-center justify-center text-2xl">
+                  <div className="w-full h-32 bg-stone-700 flex items-center justify-center text-3xl">
                     {character?.race ? '🧙' : '?'}
                   </div>
                 )}
-                <div className="bg-stone-800/95 px-1 py-0.5 text-center">
-                  <span className="text-[10px] font-bold text-amber-200 truncate block">
+                <div className="bg-stone-800/95 px-1 py-1 text-center">
+                  <span className="text-xs font-bold text-amber-200 truncate block">
                     {character?.name || '…'}
                   </span>
                 </div>
@@ -315,7 +315,7 @@ export default function Taverne() {
                 <h4 className="text-amber-400 font-bold text-sm mb-2">📊 Progression cette semaine</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-300">
                   <div className="flex justify-between">
-                    <span>🏰 Donjon Cave</span>
+                    <span>🏰 La Grotte aux merveilles</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedProgression?.dungeon?.bestRun
                         ? `Niveau ${selectedProgression.dungeon.bestRun}`
@@ -323,7 +323,7 @@ export default function Taverne() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🌲 Forêt</span>
+                    <span>🌲 La Forêt enchantée</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedCharacter?.forestBoosts ? '✓' : '—'}
                     </span>
@@ -335,9 +335,21 @@ export default function Taverne() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🔨 Forge</span>
+                    <span>🔨 Forge des Légendes</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedCharacter?.forgeUpgrade ? '✓' : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>👁️ Extension du Territoire</span>
+                    <span className="text-amber-200 font-semibold">
+                      {selectedCharacter?.mageTowerExtensionPassive ? '✓' : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>🎓 Collège Kunugigaoka</span>
+                    <span className="text-amber-200 font-semibold">
+                      {selectedCharacter?.subclass ? '✓' : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between">
