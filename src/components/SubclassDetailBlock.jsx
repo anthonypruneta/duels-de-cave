@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { getSubclassById } from '../data/subclasses';
+import { buildSubclassDescription } from '../utils/descriptionBuilders';
 
 /**
  * @param {{ subclass: { id: string, name: string } | null, classIcon?: string }} props
@@ -24,6 +25,8 @@ export default function SubclassDetailBlock({ subclass, classIcon = null }) {
     );
   }
 
+  const description = buildSubclassDescription(full.className, subclass.id) || full.description;
+
   return (
     <div className="subclass-gold-border subclass-gold-glow overflow-visible">
       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
@@ -41,7 +44,7 @@ export default function SubclassDetailBlock({ subclass, classIcon = null }) {
           <div className="text-stone-400 text-[11px]">
             <span className="text-amber-300/90 font-medium">Effet</span>
             <br />
-            {full.description}
+            {description}
           </div>
         </div>
       </div>

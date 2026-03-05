@@ -5,7 +5,7 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
-import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
+import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription, buildSubclassDescription } from '../utils/descriptionBuilders';
 import { SUBCLASSES_BY_CLASS } from '../data/subclasses';
 
 const STAT_LABELS = {
@@ -177,7 +177,7 @@ function Encyclopedia() {
                             <div className="text-stone-400 text-xs font-semibold mb-1">Capacité</div>
                             <div className="text-stone-300 text-sm mb-2">{sub.abilityLabel}</div>
                             <div className="text-stone-400 text-xs font-semibold mb-1">Effet</div>
-                            <div className="text-stone-300 text-sm">{sub.description}</div>
+                            <div className="text-stone-300 text-sm">{buildSubclassDescription(className, sub.id) || sub.description}</div>
                           </div>
                         ))}
                       </div>

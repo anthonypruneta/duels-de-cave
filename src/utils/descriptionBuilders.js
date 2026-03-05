@@ -1,12 +1,13 @@
 // Génération dynamique des descriptions de races et classes
 // basée sur les constantes de combatMechanics.js (modifiables via /admin/balance)
 
-import { raceConstants, classConstants } from '../data/combatMechanics';
+import { raceConstants, classConstants, getSubclassCapacityConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
+const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
 
 // Mapping nom affiché → clé dans raceConstants/classConstants
 export const RACE_TO_CONSTANT_KEY = {
@@ -97,6 +98,70 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     default: return classes[className]?.description || '';
+  }
+};
+
+// ============================================================================
+// DESCRIPTIONS DE SOUS-CLASSES (valeurs réelles depuis config d'équilibrage)
+// ============================================================================
+
+/**
+ * Construit la description d'une sous-classe avec les valeurs réelles (classConstants + subclassConstants).
+ * @param {string} className - Nom de la classe (ex. 'Demoniste')
+ * @param {string} subclassId - ID de la sous-classe (ex. 'pacte_sombre')
+ * @param {Object|null} constants - Constantes fusionnées (si null, utilise getSubclassCapacityConstants)
+ * @returns {string}
+ */
+export const buildSubclassDescription = (className, subclassId, constants = null) => {
+  const c = constants || getSubclassCapacityConstants(className, subclassId);
+  const pct0 = (v) => `${(Number(v || 0) * 100).toFixed(0)}%`;
+  switch (subclassId) {
+    case 'maitre_armes':
+      return `Ignore totalement la def/resC et inflige Auto + ${pct0(c.capScale)} CAP.`;
+    case 'duracier':
+      return `Frappe la résistance la plus faible. Ignore ${pct0(c.ignoreBase)} de la résistance ennemie + ${pct1(c.ignorePerCap)} de votre Cap. Gagne un bouclier de ${pct0(c.shieldAutoPercent)} Auto + ${pct1(c.shieldCapPercent)} CAP.`;
+    case 'croise_lumineux':
+      return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit les dégâts de la prochaine attaque ennemie de ${pct0(c.nextAttackReduction)}.`;
+    case 'juge_implacable':
+      return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit de ${pct0(c.defReductionStack)} la DEF ennemie (stackable).`;
+    case 'sniper':
+      return `Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap (vs RésCap).`;
+    case 'chasseur_fantome':
+      return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap (vs RésCap).`;
+    case 'arcaniste_instable':
+      return `Inflige Auto + ${pct0(c.capBase)} Cap (vs RésCap). Applique débuff : +${pct0(c.damageTakenStack)} dégâts subis par l'ennemi (stackable).`;
+    case 'sorcier_neant':
+      return `Inflige Auto + ${pct0(c.capBase)} Cap (vs RésCap). Brûlure du Néant : l'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.`;
+    case 'maitre_invocateur':
+      return `Chaque tour, familier inflige ${pct0(c.capBase)} Cap et ignore ${pct0(c.ignoreResist)} RésCap. Chaque auto augmente ces dégâts de ${pct1(c.stackPerAuto)} Cap (cumulable).`;
+    case 'pacte_sombre':
+      return `Chaque tour, familier inflige ${pct0(c.capBase)} Cap et ignore ${pct0(c.ignoreResist)} RésCap. Chaque auto +${pct1(c.stackPerAuto)} Cap (cumulable) et vole ${pct0(c.capStealPercent)} de la CAP ennemi.`;
+    case 'stratege_arcanique':
+      return `Après une capacité subie : bouclier ${pct0(c.shieldFromSpellDamage)} dégâts + ${pct0(c.shieldFromCap)} CAP, réduit les dégâts du prochain sort de ${pct0(c.nextSpellReduction)}. Réduit les soins adverses de ${pct0(c.antiHealReduction)}. Auto + ${pct0(c.autoCapBonus)} CAP.`;
+    case 'mentaliste':
+      return `Après une capacité subie : bouclier ${pct0(c.shieldFromSpellDamage)} dégâts + ${pct0(c.shieldFromCap)} CAP, augmente votre DEF de ${pct0(c.defBonusStack)} (stackable). Réduit les soins adverses de ${pct0(c.antiHealReduction)}. Auto + ${pct0(c.autoCapBonus)} CAP.`;
+    case 'dompteuse_chair':
+      return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts et réduit l'Auto ennemi de ${pct0(c.autoReductionStack)} (stackable).`;
+    case 'ame_tentatrice':
+      return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts. Cette capacité crit une fois sur deux (si le précédent n'a pas crit, le prochain crit obligatoire).`;
+    case 'rempart_fer':
+      return `Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
+    case 'mur_implacable':
+      return `Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Vous attaquez en premier le tour de la capacité. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
+    case 'flagellant_sanglant':
+      return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Réduit votre DEF de ${pct0(1 - (c.defMultiplier ?? 1))} mais augmente votre Auto de ${pct0((c.autoMultiplier ?? 1) - 1)} pour le reste du combat.`;
+    case 'ecorche_fer':
+      return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de ${pct0(c.defRescapStack)}.`;
+    case 'assassin':
+      return `Esquive la prochaine attaque. Gagne +${c.spdBonus ?? 0} VIT et +${pct1(c.critPerCap)} Cap en chance de critique. Prochaine attaque critique garantie.`;
+    case 'roublard':
+      return `Esquive la prochaine attaque. Gagne +${c.spdBonus ?? 0} VIT et +${pct1(c.critPerCap)} Cap en critique. Vole 8% d'une stat ennemie aléatoire (jusqu'au prochain proc, pas stackable).`;
+    case 'luxum':
+      return `Soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap. À chaque lancement : gain d'un bouclier égal à ${pct0(c.capShieldPercent)} de votre CAP. Convertit l'overheal en bouclier.`;
+    case 'latum':
+      return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi (réduits par la ResC), puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
+    default:
+      return '';
   }
 };
 

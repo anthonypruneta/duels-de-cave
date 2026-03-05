@@ -16,6 +16,7 @@ import {
   createSubclassBossCombatant,
 } from '../data/subclassDungeon';
 import { getSubclassesForClass } from '../data/subclasses';
+import { buildSubclassDescription } from '../utils/descriptionBuilders';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { isSubclassDungeonVisible } from '../data/featureFlags';
@@ -518,7 +519,7 @@ const SubclassDungeon = () => {
                 <div className="font-bold text-amber-300 text-xl mb-2">{sub.name}</div>
                 {sub.bonus && <div className="text-green-400 text-sm mb-2">{sub.bonus}</div>}
                 <div className="text-stone-400 text-sm">{sub.abilityLabel}</div>
-                <div className="text-stone-500 text-xs mt-2">{sub.description}</div>
+                <div className="text-stone-500 text-xs mt-2">{buildSubclassDescription(character.class, sub.id) || sub.description}</div>
                 {selectedSubclass === sub.id && <div className="text-amber-400 font-bold mt-2">✓ Choisi</div>}
               </button>
             ))}
