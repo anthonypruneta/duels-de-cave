@@ -138,7 +138,7 @@ export default function Taverne() {
     let intervalId;
     const scheduleNext = () => {
       intervalId = setTimeout(() => {
-        const targetX = 12 + Math.random() * 76;
+        const targetX = 8 + Math.random() * 84;
         const startX = myDisplayXRef.current;
         const startTime = performance.now();
         const tick = () => {
@@ -232,13 +232,13 @@ export default function Taverne() {
             const nonPresentIndex = nonPresentList.findIndex((c) => (c.id || c.userId) === userId);
             const displayX = presence
               ? (isMe ? myDisplayX : presence.x)
-              : 12 + ((nonPresentIndex + 1) * 76) / (nonPresentList.length + 1);
+              : 6 + ((nonPresentIndex + 1) * 88) / (nonPresentList.length + 1);
             const displayY = FIXED_Y_PCT;
 
           return (
             <div
               key={userId}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-105 hover:z-20"
+              className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-105 hover:z-20 ${!isMe ? 'opacity-60 hover:opacity-100 transition-opacity duration-200' : ''}`}
               style={{
                 left: `${displayX}%`,
                 top: `${displayY}%`,
