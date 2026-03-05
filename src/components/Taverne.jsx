@@ -16,6 +16,9 @@ import {
 
 const BUBBLE_DURATION_MS = 12000;
 const WALKABLE_ZONE_HEIGHT_PCT = 42;
+const FIXED_Y_PCT = 55;
+const MOVE_DURATION_MS = 2000;
+const MOVE_INTERVAL_MS = 4500;
 
 export default function Taverne() {
   const { currentUser } = useAuth();
@@ -30,8 +33,15 @@ export default function Taverne() {
   const [noCharacterReason, setNoCharacterReason] = useState(null);
   const walkableRef = useRef(null);
   const chatEndRef = useRef(null);
+  const [myDisplayX, setMyDisplayX] = useState(30);
+  const myDisplayXRef = useRef(30);
+  const moveRafRef = useRef(null);
 
   const hasEnteredRef = useRef(false);
+
+  useEffect(() => {
+    myDisplayXRef.current = myDisplayX;
+  }, [myDisplayX]);
 
   // Même critère que le tournoi : personnage actif (non archivé, non désactivé)
   const isEligibleForTournament = (char) => char && !char.archived && !char.disabled;
@@ -56,7 +66,7 @@ export default function Taverne() {
       }
       setAllowedInTaverne(true);
       hasEnteredRef.current = true;
-      await enterTaverne(currentUser.uid, 30, 60);
+      await enterTaverne(currentUser.uid, 30, FIXED_Y_PCT);
       if (mounted) setLoading(false);
     })();
     return () => {
@@ -124,15 +134,38 @@ export default function Taverne() {
     return () => { cancelled = true; };
   }, [selectedCharacter?.userId]);
 
-  // Déplacement automatique : nouvelle position aléatoire toutes les 4 secondes
+  // Déplacement automatique : ligne horizontale fixe (y constant), mouvement fluide en X
   useEffect(() => {
     if (!currentUser?.uid || !allowedInTaverne) return;
-    const interval = setInterval(() => {
-      const x = 15 + Math.random() * 70;
-      const y = 20 + Math.random() * 60;
-      updateTavernePosition(currentUser.uid, x, y);
-    }, 4000);
-    return () => clearInterval(interval);
+    const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+    let intervalId;
+    const scheduleNext = () => {
+      intervalId = setTimeout(() => {
+        const targetX = 12 + Math.random() * 76;
+        const startX = myDisplayXRef.current;
+        const startTime = performance.now();
+        const tick = () => {
+          const elapsed = performance.now() - startTime;
+          const t = Math.min(1, elapsed / MOVE_DURATION_MS);
+          const eased = easeInOutQuad(t);
+          const newX = startX + (targetX - startX) * eased;
+          setMyDisplayX(newX);
+          myDisplayXRef.current = newX;
+          if (t < 1) {
+            moveRafRef.current = requestAnimationFrame(tick);
+          } else {
+            updateTavernePosition(currentUser.uid, targetX, FIXED_Y_PCT);
+          }
+        };
+        moveRafRef.current = requestAnimationFrame(tick);
+        scheduleNext();
+      }, MOVE_INTERVAL_MS);
+    };
+    scheduleNext();
+    return () => {
+      if (intervalId) clearTimeout(intervalId);
+      if (moveRafRef.current) cancelAnimationFrame(moveRafRef.current);
+    };
   }, [currentUser?.uid, allowedInTaverne]);
 
   const handleSendMessage = useCallback(
@@ -189,29 +222,29 @@ export default function Taverne() {
         className="absolute left-0 right-0 bottom-0"
         style={{ height: `${WALKABLE_ZONE_HEIGHT_PCT}%` }}
       >
-        {/* Cartes des joueurs (mini) — uniquement ceux éligibles au tournoi */}
-        {presences
-          .filter((p) => {
-            const char = charactersByUserId[p.userId];
-            return isEligibleForTournament(char);
-          })
-          .map((p) => {
+        {/* Tous les personnages affichés en continu (placeholder pendant chargement) */}
+        {presences.map((p) => {
           const character = charactersByUserId[p.userId];
           const isMe = p.userId === currentUser?.uid;
           const showBubble = isBubbleVisible(p.lastChatAt) && p.lastChatMessage;
+          const displayX = isMe ? myDisplayX : p.x;
+          const displayY = FIXED_Y_PCT;
+          const isLoaded = !!character;
+          const showFullCard = isLoaded && isEligibleForTournament(character);
 
           return (
             <div
               key={p.userId}
               className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-105 hover:z-20"
               style={{
-                left: `${p.x}%`,
-                top: `${p.y}%`,
-                width: '110px',
+                left: `${displayX}%`,
+                top: `${displayY}%`,
+                width: '275px',
+                transition: isMe ? 'none' : 'left 0.5s ease-out',
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                if (character) setSelectedCharacter({ ...character, userId: character.userId || p.userId });
+                if (showFullCard) setSelectedCharacter({ ...character, userId: character.userId || p.userId });
               }}
             >
               {/* Bulle de chat au-dessus */}
@@ -224,24 +257,39 @@ export default function Taverne() {
                 </div>
               )}
 
-              {/* Mini carte (image + nom) */}
+              {/* Mini carte : contenu ou placeholder pour affichage continu */}
               <div className={`rounded border-2 overflow-hidden shadow-lg ${isMe ? 'border-amber-500 ring-2 ring-amber-400/50' : 'border-stone-600'}`}>
-                {character?.characterImage ? (
-                  <img
-                    src={character.characterImage}
-                    alt={character.name}
-                    className="w-full h-32 object-cover object-top"
-                  />
+                {showFullCard ? (
+                  <>
+                    {character.characterImage ? (
+                      <img
+                        src={character.characterImage}
+                        alt={character.name}
+                        className="w-full h-80 object-cover object-top"
+                      />
+                    ) : (
+                      <div className="w-full h-80 bg-stone-700 flex items-center justify-center text-6xl">
+                        {character.race ? '🧙' : '?'}
+                      </div>
+                    )}
+                    <div className="bg-stone-800/95 px-2 py-2 text-center">
+                      <span className="text-sm font-bold text-amber-200 truncate block">
+                        {character.name || '…'}
+                      </span>
+                    </div>
+                  </>
                 ) : (
-                  <div className="w-full h-32 bg-stone-700 flex items-center justify-center text-3xl">
-                    {character?.race ? '🧙' : '?'}
-                  </div>
+                  <>
+                    <div className="w-full h-80 bg-stone-700 flex items-center justify-center text-5xl text-stone-500 animate-pulse">
+                      …
+                    </div>
+                    <div className="bg-stone-800/95 px-2 py-2 text-center">
+                      <span className="text-sm font-bold text-stone-500 truncate block">
+                        {isLoaded ? '—' : 'Chargement…'}
+                      </span>
+                    </div>
+                  </>
                 )}
-                <div className="bg-stone-800/95 px-1 py-1 text-center">
-                  <span className="text-xs font-bold text-amber-200 truncate block">
-                    {character?.name || '…'}
-                  </span>
-                </div>
               </div>
             </div>
           );
@@ -318,7 +366,7 @@ export default function Taverne() {
                     <span>🏰 La Grotte aux merveilles</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedProgression?.dungeon?.bestRun
-                        ? `Niveau ${selectedProgression.dungeon.bestRun}`
+                        ? `Niveau ${selectedProgression.dungeon.bestRun} ✓`
                         : '—'}
                     </span>
                   </div>
