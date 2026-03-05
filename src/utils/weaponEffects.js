@@ -299,8 +299,8 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
     }
 
     case 'arbalete_legendaire': {
-      // Arbalète du Verdict: les 2 premières capacités infligent +70% dégâts
-      // (Le comptage est géré ici, le bonus de dégâts est appliqué dans le combat)
+      // Arbalète du Verdict: les 2 premières capacités infligent +100% dégâts/soins
+      // (Le comptage est géré dans getVerdictCapacityBonus, le bonus est appliqué dans le combat)
       break;
     }
   }
@@ -336,7 +336,7 @@ export function getVerdictCapacityBonus(weaponState) {
   const capacityIndex = weaponState.counters.verdictCapacitiesUsed;
 
   if (capacityIndex <= weaponConstants.arbaleteVerdict.spellBonusCount) {
-    // spellDamageBonus en décimal (0.7 = 70%). Si > 1, traiter comme pourcentage (100 → 100%)
+    // spellDamageBonus en décimal (1 = +100%). Si > 1, traiter comme entier % (ex. 100 → 100%)
     const bonus = weaponConstants.arbaleteVerdict.spellDamageBonus ?? 0;
     const bonusDecimal = bonus > 1 ? bonus / 100 : bonus;
     const pctLabel = Math.round(bonusDecimal * 100);
@@ -364,6 +364,24 @@ export function getVerdictCooldownPenalty(weaponState) {
     return 0;
   }
   return weaponConstants.arbaleteVerdict.cooldownPenalty;
+}
+
+/**
+ * Démoniste + Arbalète du Verdict : les 2 premières attaques du familier ont +1 CD.
+ * Le familier tape donc aux tours 2 et 4 au lieu de 1, 2, 3, 4.
+ * Retourne true si on doit ignorer l'attaque du familier ce tour (skip).
+ */
+export function shouldSkipVerdictDemonFamiliar(weaponState, turn) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'arbalete_legendaire') {
+    return false;
+  }
+  const used = weaponState.counters?.verdictCapacitiesUsed ?? 0;
+  if (used >= weaponConstants.arbaleteVerdict.spellBonusCount) {
+    return false;
+  }
+  // 1ère capacité autorisée au tour 2, 2e au tour 4
+  const allowedTurn = 2 * (used + 1);
+  return turn < allowedTurn;
 }
 
 

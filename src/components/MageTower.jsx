@@ -55,7 +55,8 @@ import {
   onCapacityCast,
   rollHealCrit,
   onTurnStart,
-  getVerdictCapacityBonus
+  getVerdictCapacityBonus,
+  shouldSkipVerdictDemonFamiliar
 } from '../utils/weaponEffects';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
@@ -656,12 +657,18 @@ const MageTower = () => {
       }
     }
 
-    if (att.class === 'Demoniste') {
+    if (att.class === 'Demoniste' && !shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
+      skillUsed = skillUsed || isPlayer;
       const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
       const stackBonus = stackPerAuto * (att.familiarStacks || 0);
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
       let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
       raw = Math.round(raw * consumeWeaponDamageBonus());
+      const verdictBonusDem = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonusDem.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonusDem.damageMultiplier);
+        verdictBonusDem.log.forEach((l) => log.push(`${playerColor} ${l}`));
+      }
       const inflicted = resolveDamage(raw, false);
       log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
       const demonSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'demoniste');
@@ -745,7 +752,12 @@ const MageTower = () => {
       const miss = att.maxHP - att.currentHP;
       const { missingHpPercent, capScale } = classConstants.healer;
       const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
-      const baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier * getAntiHealFactor(def)));
+      let baseHeal = Math.max(1, Math.round(missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier * getAntiHealFactor(def)));
+      const verdictBonusHeal = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonusHeal.healMultiplier !== 1) {
+        baseHeal = Math.max(1, Math.round(baseHeal * verdictBonusHeal.healMultiplier));
+        verdictBonusHeal.log.forEach((l) => log.push(`${playerColor} ${l}`));
+      }
       const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
       const heal = healCritResult.amount;
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);

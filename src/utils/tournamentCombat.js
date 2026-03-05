@@ -9,7 +9,7 @@ import { applyStatBoosts, getEmptyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onCapacityCast, onTurnStart, rollHealCrit,
-  applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty,
+  applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty, shouldSkipVerdictDemonFamiliar,
   applyForgeUpgrade
 } from './weaponEffects.js';
 import {
@@ -768,6 +768,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   if (att.class === 'Demoniste' && !capacityStolen) {
+    if (shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
+      // Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (pas d'attaque ce tour)
+    } else {
     skillUsed = true; // Familier = capacité → Furie élémentaire, Mindflayer -1 CD, etc.
     const isMaitreInvocateur = att.subclass?.id === 'maitre_invocateur';
     const isPacteSombre = att.subclass?.id === 'pacte_sombre';
@@ -788,6 +791,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     raw = applyMindflayerCapacityMod(att, def, raw, 'dem', log, playerColor);
     raw = Math.round(raw * consumeWeaponDamageBonus());
+    const verdictBonusDem = getVerdictCapacityBonus(att.weaponState);
+    if (verdictBonusDem.damageMultiplier !== 1) {
+      raw = Math.round(raw * verdictBonusDem.damageMultiplier);
+      verdictBonusDem.log.forEach((l) => log.push(`${playerColor} ${l}`));
+    }
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
     const demonSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'demoniste');
@@ -796,6 +804,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
     }
     if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+    }
   }
 
   if (att.class === 'Masochiste' && !capacityStolen) {
@@ -927,6 +936,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
     let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
+    const verdictBonusHeal = getVerdictCapacityBonus(att.weaponState);
+    if (verdictBonusHeal.healMultiplier !== 1) {
+      baseHeal = Math.max(1, Math.round(baseHeal * verdictBonusHeal.healMultiplier));
+      verdictBonusHeal.log.forEach((l) => log.push(`${playerColor} ${l}`));
+    }
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
@@ -1205,7 +1219,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} utilise sa capacité magique`);
       raw = applyMindflayerCapacityMod(att, def, raw, 'mag', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
+      // Arbalète du Verdict: +100% dégâts sur les 2 premières capacités
       const verdictBonus = getVerdictCapacityBonus(att.weaponState);
       if (verdictBonus.damageMultiplier !== 1) {
         raw = Math.round(raw * verdictBonus.damageMultiplier);
@@ -1236,7 +1250,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         }
       }
       raw = applyMindflayerCapacityMod(att, def, raw, 'war', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités
+      // Arbalète du Verdict: +100% dégâts sur les 2 premières capacités
       const verdictBonusWar = getVerdictCapacityBonus(att.weaponState);
       if (verdictBonusWar.damageMultiplier !== 1) {
         raw = Math.round(raw * verdictBonusWar.damageMultiplier);
@@ -1275,7 +1289,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         att.ghostHunterNextDamageCapBonus = 0.20;
       }
       raw = applyMindflayerCapacityMod(att, def, raw, 'arc', log, playerColor);
-      // Arbalète du Verdict: +70% dégâts sur les 2 premières capacités (1 seul usage par activation skill)
+      // Arbalète du Verdict: +100% dégâts sur les 2 premières capacités (1 seul usage par activation skill)
       if (i === 0) {
         const verdictBonusArc = getVerdictCapacityBonus(att.weaponState);
         if (verdictBonusArc.damageMultiplier !== 1) {
