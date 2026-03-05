@@ -19,6 +19,7 @@ import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
 import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
+import Taverne from './components/Taverne';
 import ForgeDungeon from './components/ForgeDungeon';
 import ExtensionDungeon from './components/ExtensionDungeon';
 import SubclassDungeon from './components/SubclassDungeon';
@@ -106,6 +107,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <HallOfFame />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/taverne"
+            element={
+              <ProtectedRoute>
+                <Taverne />
               </ProtectedRoute>
             }
           />

@@ -142,6 +142,20 @@ const getMondayOfWeek = (date) => {
   return monday;
 };
 
+/**
+ * Indique si le personnage a été créé pendant la semaine courante (lundi à lundi).
+ * Utilisé pour la taverne (uniquement les personnages de la semaine).
+ * @param {Object} character - Personnage avec createdAt (Timestamp ou Date)
+ * @returns {boolean}
+ */
+export const isCharacterFromCurrentWeek = (character) => {
+  if (!character?.createdAt) return false;
+  const createdAt = character.createdAt?.toDate ? character.createdAt.toDate() : new Date(character.createdAt);
+  const creationMonday = getMondayOfWeek(createdAt);
+  const currentMonday = getMondayOfWeek(new Date());
+  return creationMonday.getTime() === currentMonday.getTime();
+};
+
 // Vérifier si l'utilisateur peut créer un personnage (1 par semaine, reset le lundi)
 export const canCreateCharacter = async (userId) => {
   try {

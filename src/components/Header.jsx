@@ -80,6 +80,7 @@ function Header() {
 
   const navLinks = [
     { path: '/', label: '🏠', title: 'Accueil' },
+    { path: '/taverne', label: '🍺', title: 'Taverne' },
     { path: '/encyclopedie', label: '📚', title: 'Encyclopédie' },
     { path: '/tournament', label: '🏆', title: 'Tournoi' },
     { path: '/hall-of-fame', label: '👑', title: 'Hall of Fame' },
