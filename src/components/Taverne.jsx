@@ -49,7 +49,16 @@ export default function Taverne() {
     if (el) {
       el.volume = volume;
       el.muted = isMuted;
-      if (el.paused) el.play().catch(() => {});
+      if (el.paused) el.play().catch(() => {}); // peut échouer si autoplay bloqué (nécessite un clic)
+    }
+  }, [volume, isMuted]);
+
+  const startTaverneMusicOnInteraction = useCallback(() => {
+    const el = document.getElementById('taverne-music');
+    if (el && el.paused) {
+      el.volume = volume;
+      el.muted = isMuted;
+      el.play().catch(() => {});
     }
   }, [volume, isMuted]);
 
@@ -245,7 +254,10 @@ export default function Taverne() {
     <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
       <button
         type="button"
-        onClick={() => setIsSoundOpen((prev) => !prev)}
+        onClick={() => {
+          startTaverneMusicOnInteraction(); // débloquer la lecture au premier clic (politique navigateur)
+          setIsSoundOpen((prev) => !prev);
+        }}
         className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
       >
         {isMuted || volume === 0 ? '🔇' : '🔊'} Son
