@@ -703,9 +703,10 @@ const CharacterCreation = () => {
   // Roll aléatoire de race/classe/stats (étape 1)
   const rollCharacter = async () => {
     if (hasTripleRoll) {
-      // Triple roll: générer 3 personnages d'un coup
+      // Triple roll: 3 rolls (tournoi ou cataclysme) ou 6 (tournoi + cataclysme)
+      const count = rollsRemaining >= 6 ? 6 : 3;
       const rolls = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < count; i++) {
         const { race, charClass } = pickRaceAndClass();
         const raw = genStats();
         const rB = raceBonus(race);
@@ -723,7 +724,7 @@ const CharacterCreation = () => {
       setAllRolls(rolls);
       setRolledCharacter(null);
       setRollsRemaining(0);
-      // Sauvegarder les 3 rolls en Firestore
+      // Sauvegarder les rolls en Firestore (3 ou 6)
       if (currentUser) {
         await savePendingRoll(currentUser.uid, { type: 'triple', rolls });
       }
@@ -1272,14 +1273,14 @@ const CharacterCreation = () => {
                 {hasTripleRoll && (
                   <div className="bg-yellow-900/50 border-2 border-yellow-500 rounded-xl p-4 mb-6">
                     <p className="text-yellow-300 font-bold text-lg">👑 Récompense Champion!</p>
-                    <p className="text-yellow-200 text-sm">Tu as gagné le droit de choisir parmi 3 rolls!</p>
+                    <p className="text-yellow-200 text-sm">Tu as gagné le droit de choisir parmi {rollsRemaining >= 6 ? 6 : 3} rolls!</p>
                   </div>
                 )}
                 <button
                   onClick={rollCharacter}
                   className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-stone-900 px-8 py-6 rounded-lg font-bold text-2xl shadow-lg border-2 border-amber-400 transition-all transform hover:scale-105"
                 >
-                  {hasTripleRoll ? '👑 ROLL x3 MON PERSONNAGE 👑' : '🎲 ROLL MON PERSONNAGE 🎲'}
+                  {hasTripleRoll ? `👑 ROLL x${rollsRemaining >= 6 ? 6 : 3} MON PERSONNAGE 👑` : '🎲 ROLL MON PERSONNAGE 🎲'}
                 </button>
                 <p className="text-gray-400 mt-4 text-sm">Race et classe seront générées aléatoirement</p>
               </div>
@@ -1318,10 +1319,10 @@ const CharacterCreation = () => {
               </div>
             </div>
           ) : allRolls.length > 0 ? (
-            /* Triple roll: choisir parmi 3 personnages */
+            /* Triple roll: choisir parmi 3 ou 6 personnages */
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-6">
-                <p className="text-yellow-300 font-bold text-xl">👑 Choisis ton personnage parmi les 3 rolls!</p>
+                <p className="text-yellow-300 font-bold text-xl">👑 Choisis ton personnage parmi les {allRolls.length} rolls!</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {allRolls.map((roll, idx) => (
