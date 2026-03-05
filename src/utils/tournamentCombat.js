@@ -630,7 +630,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     }
 
     if (hadReflectBeforeHit && def.currentHP > 0) {
-      const back = Math.round(def.reflect * adjusted);
+      let back = Math.round(def.reflect * adjusted);
+      if (def.riposteVerdictMultiplier) {
+        back = Math.round(back * def.riposteVerdictMultiplier);
+      }
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
       att._pendingCombatLogs = att._pendingCombatLogs || [];
@@ -653,6 +656,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
       }
       def.reflect = false;
       def.riposteTwice = false;
+      def.riposteVerdictMultiplier = undefined;
     }
   }
   if (applyOnHitPassives && adjusted > 0 && !def.spectralMarked) {
@@ -812,7 +816,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
       const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-      const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+      let healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+      const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonusMaso.damageMultiplier !== 1 || verdictBonusMaso.healMultiplier !== 1) {
+        healAmount = Math.max(1, Math.round(healAmount * verdictBonusMaso.healMultiplier));
+        verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
         att.flagellantApplied = true;
@@ -832,11 +841,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.maso_taken = 0;
       let spellDmg = applyMindflayerCapacityMod(att, def, dmg, 'maso', log, playerColor);
       spellDmg = Math.round(spellDmg * consumeWeaponDamageBonus());
-      // Arbalète du Verdict
-      const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
       if (verdictBonusMaso.damageMultiplier !== 1) {
         spellDmg = Math.round(spellDmg * verdictBonusMaso.damageMultiplier);
-        verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const inflicted = applyDamage(att, def, spellDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
@@ -895,13 +901,13 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     const spellCapMult = consumeAuraCapacityCapMultiplier();
-    let reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+    const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+    att.reflect = reflectValue;
     const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
     if (verdictBonusPal.damageMultiplier !== 1) {
-      reflectValue = Math.min(1, reflectValue * verdictBonusPal.damageMultiplier);
+      att.riposteVerdictMultiplier = verdictBonusPal.damageMultiplier;
       verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
     }
-    att.reflect = reflectValue;
     if (att.subclass?.id === 'croise_lumineux') {
       def.paladinNextAttackReduction = 0.20;
       log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -20% de dégâts.`);

@@ -566,7 +566,10 @@ const Dungeon = () => {
         }
 
         if (def.reflect && def.currentHP > 0) {
-          const back = Math.round(def.reflect * adjusted);
+          let back = Math.round(def.reflect * adjusted);
+          if (def.riposteVerdictMultiplier) {
+            back = Math.round(back * def.riposteVerdictMultiplier);
+          }
           att.currentHP -= back;
           tryTriggerOnctionLastStand(att, log, playerColor);
           log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
@@ -587,6 +590,7 @@ const Dungeon = () => {
           }
           def.reflect = false;
           def.riposteTwice = false;
+          def.riposteVerdictMultiplier = undefined;
         }
       }
 
@@ -685,7 +689,13 @@ const Dungeon = () => {
         if (isPlayer) skillUsed = true;
         const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
         let dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
-        const healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+        let healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
+        const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
+        if (verdictBonusMaso.damageMultiplier !== 1 || verdictBonusMaso.healMultiplier !== 1) {
+          healAmount = Math.max(1, Math.round(healAmount * verdictBonusMaso.healMultiplier));
+          dmg = Math.round(dmg * (verdictBonusMaso.damageMultiplier !== 1 ? verdictBonusMaso.damageMultiplier : 1));
+          verdictBonusMaso.log.forEach((l) => log.push(`${playerColor} ${l}`));
+        }
         att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
         const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
         if (masoHealEffects.bonusDamage > 0) {
@@ -734,13 +744,13 @@ const Dungeon = () => {
       if (isPlayer) skillUsed = true;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       const spellCapMult = consumeAuraCapacityCapMultiplier();
-      let reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      att.reflect = reflectValue;
       const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
       if (verdictBonusPal.damageMultiplier !== 1) {
-        reflectValue = Math.min(1, reflectValue * verdictBonusPal.damageMultiplier);
+        att.riposteVerdictMultiplier = verdictBonusPal.damageMultiplier;
         verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
       }
-      att.reflect = reflectValue;
       const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
       if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
         att.riposteTwice = true;
@@ -847,6 +857,11 @@ const Dungeon = () => {
         const scaledCap = att.base.cap * spellCapMultiplier;
         const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
         raw = dmgCap(atkSpell, def.base.rescap);
+        const verdictMage = getVerdictCapacityBonus(att.weaponState);
+        if (verdictMage.damageMultiplier !== 1) {
+          raw = Math.round(raw * verdictMage.damageMultiplier);
+          verdictMage.log.forEach((l) => log.push(`${playerColor} ${l}`));
+        }
         if (i === 0) log.push(`${playerColor} 🔮 ${att.name} utilise sa capacité magique`);
         const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'mage');
         if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
@@ -865,6 +880,11 @@ const Dungeon = () => {
           raw = dmgCap(Math.round(att.base.cap * attackMultiplier), effRes);
         }
         if (i === 0) {
+          const verdictWar = getVerdictCapacityBonus(att.weaponState);
+          if (verdictWar.damageMultiplier !== 1) {
+            raw = Math.round(raw * verdictWar.damageMultiplier);
+            verdictWar.log.forEach((l) => log.push(`${playerColor} ${l}`));
+          }
           log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
           const warSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'war');
           if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
@@ -875,6 +895,11 @@ const Dungeon = () => {
       } else if (isArcher && !isBonusAttack) {
         if (i === 0) {
           raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
+          const verdictArc = getVerdictCapacityBonus(att.weaponState);
+          if (verdictArc.damageMultiplier !== 1) {
+            raw = Math.round(raw * verdictArc.damageMultiplier);
+            verdictArc.log.forEach((l) => log.push(`${playerColor} ${l}`));
+          }
         } else {
           const { hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
           const spellCapMultArc = consumeAuraCapacityCapMultiplier();
