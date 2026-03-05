@@ -14,7 +14,8 @@ import {
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
-  dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses
+  dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses,
+  getSubclassCapacityConstants
 } from '../data/combatMechanics.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from './awakening.js';
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
@@ -174,7 +175,8 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
   }
 
   if (attacker.class === 'Bastion') {
-    const startPct = attacker.subclass?.id === 'rempart_fer' ? 0.50 : classConstants.bastion.startShieldFromDef;
+    const bastionC = getSubclassCapacityConstants(attacker.class, attacker.subclass?.id);
+    const startPct = bastionC.startShieldFromDef ?? classConstants.bastion.startShieldFromDef;
     const shieldValue = Math.max(1, Math.round(attacker.base.def * startPct));
     attacker.shield = (attacker.shield || 0) + shieldValue;
     log.push(`${label} 🏰 Rempart initial: ${attacker.name} gagne un bouclier de ${shieldValue} PV (${Math.round(startPct * 100)}% DEF).`);
@@ -511,13 +513,16 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
     def.shield = (def.shield || 0) + shield;
     log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
     if (def.subclass?.id === 'stratege_arcanique') {
-      def.nextSpellReduction = 0.30;
-      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de 30%.`);
+      const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
+      def.nextSpellReduction = briseurC.nextSpellReduction ?? 0.30;
+      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de ${Math.round((def.nextSpellReduction ?? 0) * 100)}%.`);
     }
     if (def.subclass?.id === 'mentaliste') {
-      def.mentalisteDefStack = (def.mentalisteDefStack || 0) + 0.08;
-      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 1.08)) };
-      log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +8% DEF (stackable).`);
+      const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
+      const stack = briseurC.defBonusStack ?? 0.08;
+      def.mentalisteDefStack = (def.mentalisteDefStack || 0) + stack;
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * (1 + stack))) };
+      log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +${Math.round((stack ?? 0) * 100)}% DEF (stackable).`);
     }
   }
 }
@@ -776,16 +781,17 @@ function processPlayerAction(att, def, log, isP1, turn) {
       // Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (pas d'attaque ce tour)
     } else {
     skillUsed = true; // Familier = capacité → Furie élémentaire, Mindflayer -1 CD, etc.
-    const isMaitreInvocateur = att.subclass?.id === 'maitre_invocateur';
+    const demonC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+    const capBase = demonC.capBase ?? classConstants.demoniste.capBase;
+    const ignoreResist = demonC.ignoreResist ?? classConstants.demoniste.ignoreResist;
+    const stackPerAuto = demonC.stackPerAuto ?? classConstants.demoniste.stackPerAuto;
     const isPacteSombre = att.subclass?.id === 'pacte_sombre';
-    const capBase = isMaitreInvocateur ? 0.50 : (isPacteSombre ? 0.45 : classConstants.demoniste.capBase);
-    const ignoreResist = isMaitreInvocateur ? 0.50 : (isPacteSombre ? 0.45 : classConstants.demoniste.ignoreResist);
-    const stackPerAuto = isMaitreInvocateur ? 0.01 : (isPacteSombre ? 0.008 : classConstants.demoniste.stackPerAuto);
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
     const hit = Math.max(1, Math.round((capBase + stackBonus) * att.base.cap));
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
     if (isPacteSombre) {
-      const stolen = Math.max(0, Math.round(def.base.cap * 0.03));
+      const capSteal = (demonC.capStealPercent ?? 0.03);
+      const stolen = Math.max(0, Math.round(def.base.cap * capSteal));
       if (stolen > 0) {
         def.base = { ...def.base, cap: Math.max(1, def.base.cap - stolen) };
         att.pacteSombreCapStolen = (att.pacteSombreCapStolen || 0) + stolen;
@@ -825,11 +831,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
       if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
         att.flagellantApplied = true;
-        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 0.80)), auto: Math.round(att.base.auto * 1.16) };
+        const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const defMult = masoC.defMultiplier ?? 0.80;
+        const autoMult = masoC.autoMultiplier ?? 1.16;
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * defMult)), auto: Math.round(att.base.auto * autoMult) };
         log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -20% DEF, +16% Auto pour le reste du combat.`);
       }
       if (att.subclass?.id === 'ecorche_fer') {
-        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * 1.07)), rescap: Math.max(1, Math.round(att.base.rescap * 1.07)) };
+        const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const stack = masoC.defRescapStack ?? 0.07;
+        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * (1 + stack))), rescap: Math.max(1, Math.round(att.base.rescap * (1 + stack))) };
         log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +7% DEF et ResC.`);
       }
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
@@ -909,11 +920,14 @@ function processPlayerAction(att, def, log, isP1, turn) {
       verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
     }
     if (att.subclass?.id === 'croise_lumineux') {
-      def.paladinNextAttackReduction = 0.20;
+      const paladinC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      def.paladinNextAttackReduction = paladinC.nextAttackReduction ?? 0.20;
       log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -20% de dégâts.`);
     }
     if (att.subclass?.id === 'juge_implacable') {
-      def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + 0.03;
+      const paladinC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const stack = paladinC.defReductionStack ?? 0.03;
+      def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + stack;
       def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 0.97)) };
       log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 3% (stackable).`);
     }
@@ -933,7 +947,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const miss = att.maxHP - att.currentHP;
     const { missingHpPercent, capScale } = classConstants.healer;
     if (att.subclass?.id === 'latum') {
-      const latumRaw = Math.max(1, Math.round(miss * 0.20));
+      const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const pct = healerC.missingHpDamagePercent ?? 0.20;
+      const latumRaw = Math.max(1, Math.round(miss * pct));
       const latumDmg = dmgCap(latumRaw, def.base.rescap);
       const inflicted = applyDamage(att, def, latumDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, true, turn);
       log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (20% PV manquants, vs ResC) à ${def.name}.`);
@@ -950,7 +966,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
-      const capShield = Math.max(1, Math.round(att.base.cap * 0.10));
+      const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const capShieldPct = healerC.capShieldPercent ?? 0.10;
+      const capShield = Math.max(1, Math.round(att.base.cap * capShieldPct));
       att.shield = (att.shield || 0) + capShield;
       const overflow = Math.max(0, (att.currentHP + heal) - att.maxHP);
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -988,7 +1006,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const isCrit = forceCritAme || Math.random() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     if (att.subclass?.id === 'dompteuse_chair') {
-      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + 0.06;
+      const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const stack = succubeC.autoReductionStack ?? 0.06;
+      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + stack;
       def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
       log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
     }
@@ -1216,7 +1236,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
       raw = dmgCap(atkSpell, def.base.rescap);
       if (att.subclass?.id === 'arcaniste_instable' && i === 0) {
-        def.arcanisteDamageTakenStack = (def.arcanisteDamageTakenStack || 0) + 0.05;
+        const mageC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const stack = mageC.damageTakenStack ?? 0.05;
+        def.arcanisteDamageTakenStack = (def.arcanisteDamageTakenStack || 0) + stack;
         log.push(`${playerColor} 💥 Arcaniste Instable: ${def.name} subira +5% dégâts (stackable).`);
       }
       if (att.subclass?.id === 'sorcier_neant' && i === 0) {
@@ -1237,10 +1259,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} utilise sa capacité magique et inflige ${inflictedCodex} points de dégâts`);
       }
     } else if (isWar) {
-      // Maître d'armes (sous-classe) : ignore 100% def/resC, inflige Auto + 10% CAP
+      // Maître d'armes (sous-classe) : ignore 100% def/resC, inflige Auto + X% CAP
       if (att.subclass?.id === 'maitre_armes') {
+        const guerrierC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const capScale = guerrierC.capScale ?? 0.10;
         const spellCapMultWar = consumeAuraCapacityCapMultiplier();
-        raw = Math.max(1, Math.round((att.base.auto + att.base.cap * 0.10) * spellCapMultWar * attackMultiplier));
+        raw = Math.max(1, Math.round((att.base.auto + att.base.cap * capScale) * spellCapMultWar * attackMultiplier));
       } else {
         const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
         const spellCapMultWar = consumeAuraCapacityCapMultiplier();
@@ -1270,7 +1294,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
         }
         if (att.subclass?.id === 'duracier') {
-          const duracierShield = Math.max(1, Math.round(att.base.auto * 0.15 + att.base.cap * 0.005));
+          const guerrierC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+          const shieldAuto = guerrierC.shieldAutoPercent ?? 0.15;
+          const shieldCap = guerrierC.shieldCapPercent ?? 0.005;
+          const duracierShield = Math.max(1, Math.round(att.base.auto * shieldAuto + att.base.cap * shieldCap));
           att.shield = (att.shield || 0) + duracierShield;
           log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto + 0,5% CAP).`);
         }
@@ -1279,7 +1306,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (i === 0) {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
       } else {
-        const hit2AutoMult = att.subclass?.id === 'sniper' ? 1.50 : classConstants.archer.hit2AutoMultiplier;
+        const archerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const hit2AutoMult = archerC.hit2AutoMultiplier ?? classConstants.archer.hit2AutoMultiplier;
         const { hit2CapMultiplier } = classConstants.archer;
         const spellCapMultArc = consumeAuraCapacityCapMultiplier();
         const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMult * attackMultiplier), def.base.def);
@@ -1292,7 +1320,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
         }
       }
       if (att.subclass?.id === 'chasseur_fantome' && isCrit && i === 0) {
-        att.ghostHunterNextDamageCapBonus = 0.20;
+        const archerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        att.ghostHunterNextDamageCapBonus = archerC.ghostHunterCapBonus ?? 0.20;
       }
       raw = applyMindflayerCapacityMod(att, def, raw, 'arc', log, playerColor);
       // Arbalète du Verdict: +100% dégâts sur les 2 premières capacités (1 seul usage par activation skill)

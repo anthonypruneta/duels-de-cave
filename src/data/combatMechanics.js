@@ -75,6 +75,55 @@ export const classConstants = {
   }
 };
 
+// Mapping nom de classe (affiché) → clé dans classConstants
+const CLASS_NAME_TO_KEY = {
+  'Guerrier': 'guerrier', 'Voleur': 'voleur', 'Paladin': 'paladin', 'Healer': 'healer',
+  'Archer': 'archer', 'Mage': 'mage', 'Demoniste': 'demoniste', 'Masochiste': 'masochiste',
+  'Briseur de Sort': 'briseurSort', 'Succube': 'succube', 'Bastion': 'bastion'
+};
+
+/**
+ * Constantes des sous-classes (ratios liés à la CAP / capacités).
+ * Overridables via la config d'équilibrage (Admin) comme classConstants.
+ * Seules les clés présentes ici overrident la classe de base.
+ */
+export const subclassConstants = {
+  maitre_armes: { capScale: 0.10 },                    // Auto + 10% CAP (ignore def/resC)
+  duracier: { shieldAutoPercent: 0.15, shieldCapPercent: 0.005 }, // Bouclier 15% Auto + 0,5% CAP
+  croise_lumineux: { nextAttackReduction: 0.20 },      // -20% dégâts prochaine attaque
+  juge_implacable: { defReductionStack: 0.03 },        // -3% DEF ennemi (stackable)
+  sniper: { hit2AutoMultiplier: 1.50 },                // 2e tir 150% Auto
+  chasseur_fantome: { ghostHunterCapBonus: 0.20 },     // +20% CAP après crit
+  arcaniste_instable: { damageTakenStack: 0.05 },     // +5% dégâts subis (stackable)
+  sorcier_neant: {},                                  // Brûlure (pas de ratio CAP overridable ici)
+  maitre_invocateur: { capBase: 0.50, ignoreResist: 0.50, stackPerAuto: 0.01 },  // 50% Cap, 50% ignore, +1% Cap/auto
+  pacte_sombre: { capBase: 0.45, ignoreResist: 0.45, stackPerAuto: 0.008, capStealPercent: 0.03 }, // 45% + vol 3% CAP
+  stratege_arcanique: { nextSpellReduction: 0.30 },    // -30% dégâts prochain sort
+  mentaliste: { defBonusStack: 0.08 },                 // +8% DEF (stackable)
+  dompteuse_chair: { autoReductionStack: 0.06 },       // -6% Auto ennemi (stackable)
+  ame_tentatrice: {},                                  // Crit alterné (pas de ratio)
+  rempart_fer: { startShieldFromDef: 0.50 },          // Bouclier 50% DEF
+  mur_implacable: { startShieldFromDef: 0.30 },        // 30% DEF (priorité au tour capacité)
+  luxum: { capShieldPercent: 0.10 },                   // Bouclier 10% CAP au soin
+  latum: { missingHpDamagePercent: 0.20 },             // 20% PV manquants en dégâts
+  flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.16 }, // -20% DEF, +16% Auto
+  ecorche_fer: { defRescapStack: 0.07 },               // +7% DEF et ResC par Purge
+  assassin: {},                                        // Crit garanti (pas de ratio)
+  roublard: {}                                         // Vol stat (pas de ratio)
+};
+
+/**
+ * Retourne les constantes de capacité effectives pour un combattant (classe + overrides sous-classe).
+ * À utiliser en combat pour avoir les ratios réels (y compris overrides admin).
+ */
+export function getSubclassCapacityConstants(className, subclassId) {
+  const classKey = CLASS_NAME_TO_KEY[className];
+  const base = (classKey && classConstants[classKey]) ? { ...classConstants[classKey] } : {};
+  if (!subclassId || !subclassConstants[subclassId]) return base;
+  const overrides = subclassConstants[subclassId];
+  return { ...base, ...overrides };
+}
+
 // Constantes des races
 export const raceConstants = {
   humain: { hp: 10, auto: 1, def: 1, cap: 1, rescap: 1, spd: 1 },

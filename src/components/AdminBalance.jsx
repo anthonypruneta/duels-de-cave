@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants, raceConstants, weaponConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { classConstants, raceConstants, weaponConstants, subclassConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { getStatPointValue } from '../utils/statPoints';
@@ -498,6 +498,7 @@ function AdminBalance({ embedded = false }) {
     return draft;
   });
   const [classDraft, setClassDraft] = useState(() => deepClone(classConstants));
+  const [subclassDraft, setSubclassDraft] = useState(() => deepClone(subclassConstants));
   const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
   const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
 
@@ -522,6 +523,7 @@ function AdminBalance({ embedded = false }) {
 
       setRaceBonusDraft(deepClone(raceConstants));
       setClassDraft(deepClone(classConstants));
+      setSubclassDraft(deepClone(subclassConstants));
       setWeaponDraft(deepClone(weapons));
       setPassiveDraft(deepClone(MAGE_TOWER_PASSIVES));
       
@@ -538,6 +540,7 @@ function AdminBalance({ embedded = false }) {
   const applyDraftToLiveData = () => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
+    applyNumericOverrides(subclassConstants, subclassDraft);
     applyNumericOverrides(weapons, weaponDraft);
     syncWeaponConstantsToCombat(weaponDraft);
     passiveDraft.forEach((passive, index) => {
@@ -561,6 +564,7 @@ function AdminBalance({ embedded = false }) {
       const config = {
         raceConstants: deepClone(raceBonusDraft),
         classConstants: deepClone(classDraft),
+        subclassConstants: deepClone(subclassDraft),
         weaponConstants: deepClone(weaponDraft),
         mageTowerPassives: deepClone(passiveDraft),
         raceAwakenings: deepClone(raceAwakeningDraft),
@@ -607,6 +611,7 @@ function AdminBalance({ embedded = false }) {
   const withTemporaryDraftOverrides = (callback) => {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
+    const previousSubclassConstants = deepClone(subclassConstants);
     const previousWeapons = deepClone(weapons);
     const previousWeaponConstants = deepClone(weaponConstants);
     const previousPassives = deepClone(MAGE_TOWER_PASSIVES);
@@ -625,6 +630,9 @@ function AdminBalance({ embedded = false }) {
 
       Object.keys(classConstants).forEach((key) => delete classConstants[key]);
       Object.assign(classConstants, previousClassConstants);
+
+      Object.keys(subclassConstants).forEach((key) => delete subclassConstants[key]);
+      Object.assign(subclassConstants, previousSubclassConstants);
 
       Object.keys(weapons).forEach((key) => delete weapons[key]);
       Object.assign(weapons, previousWeapons);
@@ -915,6 +923,31 @@ function AdminBalance({ embedded = false }) {
                       draft={classDraft}
                       onSlotChange={(path, value) => setClassDraft((prev) => updateNestedValue(prev, path, value))}
                       className="text-stone-300"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-stone-900/70 border border-stone-600 p-4">
+            <h2 className="text-xl text-amber-300 font-bold mb-3">Sous-classes (ratios CAP / capacités)</h2>
+            <p className="text-stone-400 text-sm mb-3">Valeurs réelles des ratios liés à la CAP (overridables comme pour les classes).</p>
+            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
+              {Object.entries(subclassDraft).map(([subclassId, draft]) => {
+                const info = getSubclassById(subclassId);
+                if (!draft || typeof draft !== 'object') return null;
+                if (Object.keys(draft).length === 0) return null;
+                return (
+                  <div key={subclassId} className="bg-stone-950/70 border border-stone-700 p-3">
+                    <div className="font-bold text-white mb-1">{info?.name ?? subclassId}</div>
+                    <div className="text-xs text-stone-400 mb-2">{info?.className ?? ''}</div>
+                    <NumberTreeEditor
+                      value={draft}
+                      onChange={(path, value) => {
+                        setSubclassDraft((prev) => updateNestedValue(prev, path, value));
+                      }}
+                      path={[subclassId]}
                     />
                   </div>
                 );

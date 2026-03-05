@@ -1,6 +1,6 @@
 import { ref, getBytes, uploadString, deleteObject } from 'firebase/storage';
 import { storage } from '../firebase/config';
-import { classConstants, cooldowns, raceConstants, weaponConstants } from '../data/combatMechanics';
+import { classConstants, cooldowns, raceConstants, weaponConstants, subclassConstants } from '../data/combatMechanics';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { weapons } from '../data/weapons';
@@ -13,7 +13,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
-export const BALANCE_CONFIG_VERSION = 24;
+export const BALANCE_CONFIG_VERSION = 25;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -70,6 +70,7 @@ export const buildCurrentBalanceConfig = () => {
   return {
     raceConstants: deepClone(raceConstants),
     classConstants: deepClone(classConstants),
+    subclassConstants: deepClone(subclassConstants),
     weaponConstants: deepClone(weapons),
     mageTowerPassives: deepClone(MAGE_TOWER_PASSIVES),
     raceAwakenings,
@@ -276,6 +277,10 @@ export const applyBalanceConfig = (config) => {
 
   if (config.classConstants) {
     applyNumericOverrides(classConstants, config.classConstants);
+  }
+
+  if (config.subclassConstants) {
+    applyNumericOverrides(subclassConstants, config.subclassConstants);
   }
 
   if (config.weaponConstants) {

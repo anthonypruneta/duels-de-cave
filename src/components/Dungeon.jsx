@@ -49,6 +49,7 @@ import { getCalculatedClassDescription } from '../utils/calculatedClassDescripti
 import {
   cooldowns,
   classConstants,
+  getSubclassCapacityConstants,
   raceConstants,
   generalConstants,
   weaponConstants,
@@ -182,9 +183,11 @@ const applyStartOfCombatPassives = (playerChar, bossChar, log, label) => {
   }
 
   if (playerChar.class === 'Bastion') {
-    const shieldValue = Math.max(1, Math.round(playerChar.base.def * classConstants.bastion.startShieldFromDef));
+    const bastionC = getSubclassCapacityConstants(playerChar.class, playerChar.subclass?.id);
+    const startPct = bastionC.startShieldFromDef ?? classConstants.bastion.startShieldFromDef;
+    const shieldValue = Math.max(1, Math.round(playerChar.base.def * startPct));
     playerChar.shield = (playerChar.shield || 0) + shieldValue;
-    log.push(`${label} 🏰 Rempart initial: ${playerChar.name} gagne un bouclier de ${shieldValue} PV (${Math.round(classConstants.bastion.startShieldFromDef * 100)}% DEF).`);
+    log.push(`${label} 🏰 Rempart initial: ${playerChar.name} gagne un bouclier de ${shieldValue} PV (${Math.round(startPct * 100)}% DEF).`);
   }
 
   bossChar.spectralMarked = false;
@@ -661,7 +664,11 @@ const Dungeon = () => {
     // Passif Demoniste (familier) — Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (+100% dégâts)
     if (att.class === 'Demoniste' && !shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
       if (isPlayer) skillUsed = true; // Familier = capacité → Furie élémentaire
-      const { capBase, capPerCap, ignoreResist, stackPerAuto } = classConstants.demoniste;
+      const demonC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const capBase = demonC.capBase ?? classConstants.demoniste.capBase;
+      const capPerCap = demonC.capPerCap ?? classConstants.demoniste.capPerCap;
+      const ignoreResist = demonC.ignoreResist ?? classConstants.demoniste.ignoreResist;
+      const stackPerAuto = demonC.stackPerAuto ?? classConstants.demoniste.stackPerAuto;
       const stackBonus = stackPerAuto * (att.familiarStacks || 0);
       const hit = Math.max(1, Math.round((capBase + capPerCap * att.base.cap + stackBonus) * att.base.cap));
       let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
