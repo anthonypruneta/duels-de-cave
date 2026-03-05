@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getUserCharacter } from '../services/characterService';
+import { getUserCharacter, getAllCharacters } from '../services/characterService';
 import { getDungeonProgress } from '../services/dungeonService';
 import { getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import {
@@ -24,6 +24,7 @@ export default function Taverne() {
   const { currentUser } = useAuth();
   const [presences, setPresences] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [activeCharacters, setActiveCharacters] = useState([]);
   const [charactersByUserId, setCharactersByUserId] = useState({});
   const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [selectedProgression, setSelectedProgression] = useState(null);
@@ -85,26 +86,22 @@ export default function Taverne() {
     };
   }, []);
 
-  const loadedUserIdsRef = useRef(new Set());
-
-  // Charger les personnages des joueurs présents
+  // Charger tous les personnages actifs (même critère que le tournoi : non archivés, non désactivés)
   useEffect(() => {
-    const userIds = [...new Set(presences.map((p) => p.userId))];
+    if (!allowedInTaverne) return;
     let cancelled = false;
     (async () => {
-      for (const uid of userIds) {
-        if (loadedUserIdsRef.current.has(uid)) continue;
-        loadedUserIdsRef.current.add(uid);
-        const res = await getUserCharacter(uid);
-        if (!cancelled && res.success && res.data) {
-          setCharactersByUserId((prev) => ({ ...prev, [uid]: res.data }));
-        } else {
-          loadedUserIdsRef.current.delete(uid);
-        }
+      const res = await getAllCharacters();
+      if (!cancelled && res.success && res.data) {
+        const active = res.data.filter((c) => !c.archived && !c.disabled);
+        setActiveCharacters(active);
+        setCharactersByUserId(
+          Object.fromEntries(active.map((c) => [c.id || c.userId, { ...c, userId: c.id || c.userId }]))
+        );
       }
     })();
     return () => { cancelled = true; };
-  }, [presences]);
+  }, [allowedInTaverne]);
 
   // Scroll chat vers le bas à chaque nouveau message
   useEffect(() => {
@@ -222,111 +219,103 @@ export default function Taverne() {
         className="absolute left-0 right-0 bottom-0"
         style={{ height: `${WALKABLE_ZONE_HEIGHT_PCT}%` }}
       >
-        {/* Tous les personnages affichés en continu (placeholder pendant chargement) */}
-        {presences.map((p) => {
-          const character = charactersByUserId[p.userId];
-          const isMe = p.userId === currentUser?.uid;
-          const showBubble = isBubbleVisible(p.lastChatAt) && p.lastChatMessage;
-          const displayX = isMe ? myDisplayX : p.x;
-          const displayY = FIXED_Y_PCT;
-          const isLoaded = !!character;
-          const showFullCard = isLoaded && isEligibleForTournament(character);
+        {/* Tous les personnages actifs (éligibles au tournoi) : présents = position live, absents = position fixe sur la ligne */}
+        {(() => {
+          const nonPresentList = activeCharacters.filter(
+            (c) => !presences.some((p) => p.userId === (c.id || c.userId))
+          );
+          return activeCharacters.map((character) => {
+            const userId = character.id || character.userId;
+            const presence = presences.find((p) => p.userId === userId);
+            const isMe = userId === currentUser?.uid;
+            const showBubble = presence && isBubbleVisible(presence.lastChatAt) && presence.lastChatMessage;
+            const nonPresentIndex = nonPresentList.findIndex((c) => (c.id || c.userId) === userId);
+            const displayX = presence
+              ? (isMe ? myDisplayX : presence.x)
+              : 12 + ((nonPresentIndex + 1) * 76) / (nonPresentList.length + 1);
+            const displayY = FIXED_Y_PCT;
 
           return (
             <div
-              key={p.userId}
+              key={userId}
               className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 hover:scale-105 hover:z-20"
               style={{
                 left: `${displayX}%`,
                 top: `${displayY}%`,
-                width: '275px',
+                width: '380px',
                 transition: isMe ? 'none' : 'left 0.5s ease-out',
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                if (showFullCard) setSelectedCharacter({ ...character, userId: character.userId || p.userId });
+                setSelectedCharacter({ ...character, userId });
               }}
             >
-              {/* Bulle de chat au-dessus */}
+              {/* Bulle de chat au-dessus (uniquement si présent) */}
               {showBubble && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 max-w-[160px] rounded-lg bg-stone-800 border border-amber-600/60 text-xs text-stone-200 shadow-xl z-30">
                   <div className="font-semibold text-amber-300 truncate">
-                    {character?.name || p.userId.slice(0, 8)}
+                    {character.name || userId.slice(0, 8)}
                   </div>
-                  <div className="break-words line-clamp-2">{p.lastChatMessage}</div>
+                  <div className="break-words line-clamp-2">{presence.lastChatMessage}</div>
                 </div>
               )}
 
-              {/* Mini carte : contenu ou placeholder pour affichage continu */}
+              {/* Mini carte */}
               <div className={`rounded border-2 overflow-hidden shadow-lg ${isMe ? 'border-amber-500 ring-2 ring-amber-400/50' : 'border-stone-600'}`}>
-                {showFullCard ? (
-                  <>
-                    {character.characterImage ? (
-                      <img
-                        src={character.characterImage}
-                        alt={character.name}
-                        className="w-full h-80 object-cover object-top"
-                      />
-                    ) : (
-                      <div className="w-full h-80 bg-stone-700 flex items-center justify-center text-6xl">
-                        {character.race ? '🧙' : '?'}
-                      </div>
-                    )}
-                    <div className="bg-stone-800/95 px-2 py-2 text-center">
-                      <span className="text-sm font-bold text-amber-200 truncate block">
-                        {character.name || '…'}
-                      </span>
-                    </div>
-                  </>
+                {character.characterImage ? (
+                  <img
+                    src={character.characterImage}
+                    alt={character.name}
+                    className="w-full h-[420px] object-cover object-top"
+                  />
                 ) : (
-                  <>
-                    <div className="w-full h-80 bg-stone-700 flex items-center justify-center text-5xl text-stone-500 animate-pulse">
-                      …
-                    </div>
-                    <div className="bg-stone-800/95 px-2 py-2 text-center">
-                      <span className="text-sm font-bold text-stone-500 truncate block">
-                        {isLoaded ? '—' : 'Chargement…'}
-                      </span>
-                    </div>
-                  </>
+                  <div className="w-full h-[420px] bg-stone-700 flex items-center justify-center text-7xl">
+                    {character.race ? '🧙' : '?'}
+                  </div>
                 )}
+                <div className="bg-stone-800/95 px-2 py-2 text-center">
+                  <span className="text-sm font-bold text-amber-200 truncate block">
+                    {character.name || '…'}
+                  </span>
+                </div>
               </div>
             </div>
           );
-        })}
+        });
+        })()}
       </div>
 
-      {/* Zone de chat en bas */}
-      <div className="absolute left-0 right-0 bottom-0 z-20 flex flex-col bg-stone-900/95 border-t border-stone-600 shadow-2xl">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-stone-600">
-          <span className="text-amber-400 font-bold text-sm">💬 Chat de la taverne</span>
+      {/* Zone de chat : étroite, en bas à droite */}
+      <div className="absolute right-4 bottom-4 z-20 flex flex-col w-72 max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-t-lg shadow-2xl">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-stone-600 rounded-t-lg">
+          <span className="text-amber-400 font-bold text-sm">💬 Chat</span>
         </div>
-        <div className="overflow-y-auto max-h-[180px] min-h-[100px] p-2 space-y-1">
+        <div className="overflow-y-auto max-h-[160px] min-h-[80px] p-2 space-y-1">
           {messages.length === 0 && (
-            <p className="text-stone-500 text-sm text-center py-4">Aucun message. Dis bonjour !</p>
+            <p className="text-stone-500 text-xs text-center py-3">Aucun message.</p>
           )}
           {messages.map((m) => (
-            <div key={m.id} className="text-sm">
+            <div key={m.id} className="text-xs">
               <span className="font-semibold text-amber-300">{m.characterName}</span>
               <span className="text-stone-400 mx-1">:</span>
-              <span className="text-stone-200">{m.text}</span>
+              <span className="text-stone-200 break-words">{m.text}</span>
             </div>
           ))}
           <div ref={chatEndRef} />
         </div>
-        <form onSubmit={handleSendMessage} className="p-2 flex gap-2">
+        <form onSubmit={handleSendMessage} className="p-2 flex gap-2 border-t border-stone-600">
           <input
             type="text"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Écris un message…"
+            placeholder="Message…"
             maxLength={300}
-            className="flex-1 px-3 py-2 bg-stone-800 border border-stone-600 rounded text-stone-200 placeholder-stone-500 focus:border-amber-500 focus:outline-none"
+            className="flex-1 min-w-0 px-2 py-1.5 text-sm bg-stone-800 border border-stone-600 rounded text-stone-200 placeholder-stone-500 focus:border-amber-500 focus:outline-none"
           />
           <button
             type="submit"
             disabled={!chatInput.trim()}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900 font-bold rounded border border-amber-500 transition"
+            className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900 font-bold rounded border border-amber-500 transition"
           >
             Envoyer
           </button>
