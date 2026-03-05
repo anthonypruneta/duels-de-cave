@@ -124,18 +124,16 @@ export default function Taverne() {
     return () => { cancelled = true; };
   }, [selectedCharacter?.userId]);
 
-  const handleWalkableClick = useCallback(
-    (e) => {
-      if (!walkableRef.current || !currentUser?.uid) return;
-      const rect = walkableRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const clampedX = Math.max(5, Math.min(95, x));
-      const clampedY = Math.max(5, Math.min(95, y));
-      updateTavernePosition(currentUser.uid, clampedX, clampedY);
-    },
-    [currentUser?.uid]
-  );
+  // Déplacement automatique : nouvelle position aléatoire toutes les 4 secondes
+  useEffect(() => {
+    if (!currentUser?.uid || !allowedInTaverne) return;
+    const interval = setInterval(() => {
+      const x = 15 + Math.random() * 70;
+      const y = 20 + Math.random() * 60;
+      updateTavernePosition(currentUser.uid, x, y);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [currentUser?.uid, allowedInTaverne]);
 
   const handleSendMessage = useCallback(
     async (e) => {
@@ -176,27 +174,20 @@ export default function Taverne() {
     <div className="min-h-screen relative overflow-hidden bg-stone-900">
       <Header />
 
-      {/* Fond taverne */}
+      {/* Fond taverne (dézoomé) */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/assets/backgrounds/taverne.png)' }}
+        className="absolute inset-0 bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/backgrounds/taverne.png)',
+          backgroundSize: '75%',
+        }}
       />
 
-      {/* Zone marchable : devant le bar vers le feu */}
+      {/* Zone des personnages : devant le bar vers le feu */}
       <div
         ref={walkableRef}
-        className="absolute left-0 right-0 bottom-0 cursor-crosshair"
+        className="absolute left-0 right-0 bottom-0"
         style={{ height: `${WALKABLE_ZONE_HEIGHT_PCT}%` }}
-        onClick={handleWalkableClick}
-        role="button"
-        tabIndex={0}
-        aria-label="Cliquer pour se déplacer"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleWalkableClick(e);
-          }
-        }}
       >
         {/* Cartes des joueurs (mini) — uniquement ceux éligibles au tournoi */}
         {presences
@@ -255,11 +246,6 @@ export default function Taverne() {
             </div>
           );
         })}
-      </div>
-
-      {/* Indication clic pour se déplacer */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-20 z-10 px-4 py-2 bg-stone-800/90 border border-stone-600 rounded-lg text-stone-300 text-sm">
-        Clique sur le sol pour te déplacer
       </div>
 
       {/* Zone de chat en bas */}

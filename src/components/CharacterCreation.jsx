@@ -1177,6 +1177,13 @@ const CharacterCreation = () => {
             >
               ☄️ Cataclysme ☄️
             </button>
+            <button
+              onClick={() => navigate('/taverne')}
+              disabled={isDowntimeLocked}
+              className="bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
+            >
+              🍺 Taverne 🍺
+            </button>
             {currentUser?.email === 'antho.pruneta@gmail.com' && (
               <button
                 onClick={() => navigate('/combat')}
