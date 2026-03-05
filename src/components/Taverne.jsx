@@ -209,7 +209,7 @@ export default function Taverne() {
         className="absolute inset-0 bg-center bg-no-repeat"
         style={{
           backgroundImage: 'url(/assets/backgrounds/taverne.png)',
-          backgroundSize: '75%',
+          backgroundSize: 'cover',
         }}
       />
 
