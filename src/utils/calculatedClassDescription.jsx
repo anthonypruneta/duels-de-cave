@@ -4,9 +4,15 @@
  */
 
 import React from 'react';
-import { classConstants } from '../data/combatMechanics';
-import { getClassDescriptionText } from './descriptionBuilders';
+import { classConstants, getSubclassCapacityConstants } from '../data/combatMechanics';
+import { getClassDescriptionText, buildSubclassDescription } from './descriptionBuilders';
 import SharedTooltip from '../components/SharedTooltip';
+
+/** @param {{ cap?: number, auto?: number, def?: number, rescap?: number }} stats */
+function safe(stats, key, fallback = 0) {
+  const v = stats?.[key];
+  return typeof v === 'number' && !Number.isNaN(v) ? v : fallback;
+}
 
 export function getCalculatedClassDescription(className, cap, auto) {
   const Tooltip = SharedTooltip;
@@ -185,5 +191,353 @@ export function getCalculatedClassDescription(className, cap, auto) {
 
     default:
       return getClassDescriptionText(className);
+  }
+}
+
+/**
+ * Description calculée de la capacité de sous-classe (valeurs réelles en vert, comme pour les classes).
+ * Retourne du JSX avec <span className="text-green-400"> pour les valeurs calculées.
+ * @param {string} className
+ * @param {string} subclassId
+ * @param {{ cap?: number, auto?: number, def?: number, rescap?: number }} stats
+ * @returns {React.ReactNode}
+ */
+export function getCalculatedSubclassDescription(className, subclassId, stats) {
+  const cap = safe(stats, 'cap');
+  const auto = safe(stats, 'auto');
+  const def = safe(stats, 'def');
+  const Tooltip = SharedTooltip;
+  const c = getSubclassCapacityConstants(className, subclassId);
+
+  switch (subclassId) {
+    case 'maitre_armes': {
+      const capDmg = Math.round((c.capScale ?? 0) * cap);
+      return (
+        <>
+          Ignore totalement la def/resC et inflige Auto +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{capDmg}</span>
+          </Tooltip>
+          {' '}CAP.
+        </>
+      );
+    }
+    case 'duracier': {
+      const shieldAuto = Math.round((c.shieldAutoPercent ?? 0) * auto);
+      const shieldCap = Math.round((c.shieldCapPercent ?? 0) * cap);
+      const ignoreTotalPct = Math.round((c.ignoreBase ?? 0) * 100 + (c.ignorePerCap ?? 0) * cap * 100);
+      return (
+        <>
+          Ignore{' '}
+          <Tooltip content={`Base ${(c.ignoreBase ?? 0) * 100}% + ${(c.ignorePerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{ignoreTotalPct}%</span>
+          </Tooltip>
+          {' '}résistance. Bouclier{' '}
+          <Tooltip content={`${(c.shieldAutoPercent ?? 0) * 100}% × Auto (${auto}) + ${(c.shieldCapPercent ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{shieldAuto}+{shieldCap}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'croise_lumineux': {
+      const reflectTotalPct = Math.round((c.reflectBase ?? 0) * 100 + (c.reflectPerCap ?? 0) * cap * 100);
+      const nextPct = Math.round((c.nextAttackReduction ?? 0) * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base ${(c.reflectBase ?? 0) * 100}% + ${(c.reflectPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{reflectTotalPct}%</span>
+          </Tooltip>
+          {' '}dégâts reçus. Réduit prochaine attaque ennemie de{' '}
+          <span className="text-green-400">{nextPct}%</span>.
+        </>
+      );
+    }
+    case 'juge_implacable': {
+      const reflectTotalPct = Math.round((c.reflectBase ?? 0) * 100 + (c.reflectPerCap ?? 0) * cap * 100);
+      const defRedPct = Math.round((c.defReductionStack ?? 0) * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base ${(c.reflectBase ?? 0) * 100}% + ${(c.reflectPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{reflectTotalPct}%</span>
+          </Tooltip>
+          {' '}dégâts. Réduit DEF ennemie de{' '}
+          <span className="text-green-400">{defRedPct}%</span> (stackable).
+        </>
+      );
+    }
+    case 'sniper': {
+      const hit2Auto = Math.round((c.hit2AutoMultiplier ?? 0) * auto);
+      const hit2Cap = Math.round((c.hit2CapMultiplier ?? 0) * cap);
+      return (
+        <>
+          2 attaques: 1 tir normal +{' '}
+          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}%×Auto (${auto}) + ${(c.hit2CapMultiplier ?? 0) * 100}%×Cap (${cap}) vs ResC`}>
+            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'chasseur_fantome': {
+      const ghostPct = Math.round((c.ghostHunterCapBonus ?? 0) * 100);
+      const hit2Auto = Math.round((c.hit2AutoMultiplier ?? 0) * auto);
+      const hit2Cap = Math.round((c.hit2CapMultiplier ?? 0) * cap);
+      return (
+        <>
+          Après crit: +<span className="text-green-400">{ghostPct}%</span> CAP. 2 tirs: 100% Auto +{' '}
+          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}%×Auto (${auto}) + ${(c.hit2CapMultiplier ?? 0) * 100}%×Cap (${cap})`}>
+            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'arcaniste_instable': {
+      const spellDmg = Math.round((c.capBase ?? 0) * cap);
+      const stackPct = Math.round((c.damageTakenStack ?? 0) * 100);
+      return (
+        <>
+          Inflige Auto +{' '}
+          <Tooltip content={`${(c.capBase ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{spellDmg}</span>
+          </Tooltip>
+          {' '}(vs RésCap). Débuff: +<span className="text-green-400">{stackPct}%</span> dégâts subis (stackable).
+        </>
+      );
+    }
+    case 'sorcier_neant': {
+      const spellDmg = Math.round((c.capBase ?? 0) * cap);
+      return (
+        <>
+          Inflige Auto +{' '}
+          <Tooltip content={`${(c.capBase ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{spellDmg}</span>
+          </Tooltip>
+          {' '}(vs RésCap). Brûlure du Néant (fixe).
+        </>
+      );
+    }
+    case 'maitre_invocateur': {
+      const familierPct = (c.capBase ?? 0) + (c.capPerCap ?? 0) * cap;
+      const familierDmg = Math.round(familierPct * cap);
+      const ignorePct = Math.round((c.ignoreResist ?? 0) * 100);
+      const stackPct = ((c.stackPerAuto ?? 0) * 100) % 1 === 0 ? Math.round((c.stackPerAuto ?? 0) * 100) : ((c.stackPerAuto ?? 0) * 100).toFixed(1);
+      return (
+        <>
+          Chaque tour, familier inflige{' '}
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto (cumulable) | Ignore ${ignorePct}% ResC`}>
+            <span className="text-green-400">{familierDmg}</span>
+          </Tooltip>
+          {' '}dégâts (ignore {ignorePct}% ResC). Chaque auto +{stackPct}% Cap (cumulable).
+        </>
+      );
+    }
+    case 'pacte_sombre': {
+      const familierPct = (c.capBase ?? 0) + (c.capPerCap ?? 0) * cap;
+      const familierDmg = Math.round(familierPct * cap);
+      const ignorePct = Math.round((c.ignoreResist ?? 0) * 100);
+      const stackPct = ((c.stackPerAuto ?? 0) * 100) % 1 === 0 ? Math.round((c.stackPerAuto ?? 0) * 100) : ((c.stackPerAuto ?? 0) * 100).toFixed(1);
+      const stealPct = Math.round((c.capStealPercent ?? 0) * 100);
+      return (
+        <>
+          Chaque tour, familier inflige{' '}
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto | Ignore ${ignorePct}% ResC`}>
+            <span className="text-green-400">{familierDmg}</span>
+          </Tooltip>
+          {' '}dégâts (ignore {ignorePct}% ResC). Chaque auto +{stackPct}% Cap (cumulable) et vole{' '}
+          <span className="text-green-400">{stealPct}%</span> CAP ennemi.
+        </>
+      );
+    }
+    case 'stratege_arcanique': {
+      const shieldCapVal = Math.round((c.shieldFromCap ?? 0) * cap);
+      const autoBonusVal = Math.round((c.autoCapBonus ?? 0) * cap);
+      const shieldDmgPct = Math.round((c.shieldFromSpellDamage ?? 0) * 100);
+      const nextSpellPct = Math.round((c.nextSpellReduction ?? 0) * 100);
+      const antiHealPct = Math.round((c.antiHealReduction ?? 0) * 100);
+      return (
+        <>
+          Après capacité subie: bouclier{' '}
+          <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
+          </Tooltip>
+          . Prochain sort -<span className="text-green-400">{nextSpellPct}%</span>. Soins adverses -{antiHealPct}%. Auto +{' '}
+          <Tooltip content={`${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{autoBonusVal}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'mentaliste': {
+      const shieldCapVal = Math.round((c.shieldFromCap ?? 0) * cap);
+      const defStackPct = Math.round((c.defBonusStack ?? 0) * 100);
+      const shieldDmgPct = Math.round((c.shieldFromSpellDamage ?? 0) * 100);
+      const antiHealPct = Math.round((c.antiHealReduction ?? 0) * 100);
+      const autoBonusVal = Math.round((c.autoCapBonus ?? 0) * cap);
+      return (
+        <>
+          Après capacité subie: bouclier{' '}
+          <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
+          </Tooltip>
+          , DEF +<span className="text-green-400">{defStackPct}%</span> (stackable). Soins adverses -{antiHealPct}%. Auto +{' '}
+          <span className="text-green-400">{autoBonusVal}</span>.
+        </>
+      );
+    }
+    case 'dompteuse_chair': {
+      const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const nextPct = Math.round((c.nextAttackReduction ?? 0) * 100);
+      const autoRedPct = Math.round((c.autoReductionStack ?? 0) * 100);
+      return (
+        <>
+          Inflige Auto +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{capDmg}</span>
+          </Tooltip>
+          {' '}CAP. Prochaine attaque adverse -<span className="text-green-400">{nextPct}%</span>. Réduit Auto ennemi de{' '}
+          <span className="text-green-400">{autoRedPct}%</span> (stackable).
+        </>
+      );
+    }
+    case 'ame_tentatrice': {
+      const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const nextPct = Math.round((c.nextAttackReduction ?? 0) * 100);
+      return (
+        <>
+          Inflige Auto +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{capDmg}</span>
+          </Tooltip>
+          {' '}CAP. Prochaine attaque adverse -<span className="text-green-400">{nextPct}%</span>. Crit alterné (fixe).
+        </>
+      );
+    }
+    case 'rempart_fer': {
+      const shieldVal = Math.round((c.startShieldFromDef ?? 0) * def);
+      const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const defDmg = Math.round((c.defScale ?? 0) * def);
+      return (
+        <>
+          Début combat: bouclier{' '}
+          <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
+            <span className="text-green-400">{shieldVal}</span>
+          </Tooltip>
+          . Inflige Auto +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap}) + ${(c.defScale ?? 0) * 100}% × DEF (${def})`}>
+            <span className="text-green-400">{capDmg}+{defDmg}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'mur_implacable': {
+      const shieldVal = Math.round((c.startShieldFromDef ?? 0) * def);
+      const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const defDmg = Math.round((c.defScale ?? 0) * def);
+      return (
+        <>
+          Début combat: bouclier{' '}
+          <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
+            <span className="text-green-400">{shieldVal}</span>
+          </Tooltip>
+          . Inflige Auto + <span className="text-green-400">{capDmg}+{defDmg}</span>.
+        </>
+      );
+    }
+    case 'luxum': {
+      const healCap = Math.round((c.capScale ?? 0) * cap);
+      const shieldCap = Math.round((c.capShieldPercent ?? 0) * cap);
+      const missingPct = Math.round((c.missingHpPercent ?? 0) * 100);
+      return (
+        <>
+          Soigne {missingPct}% PV manquants +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{healCap}</span>
+          </Tooltip>
+          . Bouclier{' '}
+          <Tooltip content={`${(c.capShieldPercent ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{shieldCap}</span>
+          </Tooltip>
+          {' '}au soin.
+        </>
+      );
+    }
+    case 'latum': {
+      const missingDmgPct = Math.round((c.missingHpDamagePercent ?? 0) * 100);
+      const healCap = Math.round((c.capScale ?? 0) * cap);
+      const missingHealPct = Math.round((c.missingHpPercent ?? 0) * 100);
+      return (
+        <>
+          Inflige <span className="text-green-400">{missingDmgPct}%</span> PV manquants (dégâts vs ResC), puis soigne {missingHealPct}% PV manquants +{' '}
+          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{healCap}</span>
+          </Tooltip>
+          .
+        </>
+      );
+    }
+    case 'flagellant_sanglant': {
+      const returnBonusPct = Math.round((c.returnPerCap ?? 0) * cap * 100);
+      const returnBasePct = Math.round((c.returnBase ?? 0) * 100);
+      const returnTotalPct = returnBasePct + returnBonusPct;
+      const healPct = Math.round((c.healPercent ?? 0) * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base ${returnBasePct}% + ${(c.returnPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{returnTotalPct}%</span>
+          </Tooltip>
+          {' '}dégâts accumulés + <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap. Soigne{' '}
+          <span className="text-green-400">{healPct}%</span> dégâts accumulés.
+        </>
+      );
+    }
+    case 'ecorche_fer': {
+      const returnBasePct = Math.round((c.returnBase ?? 0) * 100);
+      const returnBonusPct = Math.round((c.returnPerCap ?? 0) * cap * 100);
+      const returnTotalPct = returnBasePct + returnBonusPct;
+      const healPct = Math.round((c.healPercent ?? 0) * 100);
+      const stackPct = Math.round((c.defRescapStack ?? 0) * 100);
+      return (
+        <>
+          Renvoie{' '}
+          <Tooltip content={`Base ${returnBasePct}% + ${(c.returnPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{returnTotalPct}%</span>
+          </Tooltip>
+          {' '}+ <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap. Soigne {healPct}%. DEF+ResC +<span className="text-green-400">{stackPct}%</span> par Purge.
+        </>
+      );
+    }
+    case 'assassin': {
+      const critBonusPct = Math.round((c.critPerCap ?? 0) * cap * 100);
+      return (
+        <>
+          +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
+          <Tooltip content={`${(c.critPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{critBonusPct}%</span>
+          </Tooltip>
+          {' '}crit. Prochaine attaque critique garantie.
+        </>
+      );
+    }
+    case 'roublard': {
+      const critBonusPct = Math.round((c.critPerCap ?? 0) * cap * 100);
+      return (
+        <>
+          +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
+          <Tooltip content={`${(c.critPerCap ?? 0) * 100}% × Cap (${cap})`}>
+            <span className="text-green-400">{critBonusPct}%</span>
+          </Tooltip>
+          {' '}crit. Vole 8% stat ennemie (fixe).
+        </>
+      );
+    }
+    default:
+      return <>{buildSubclassDescription(className, subclassId)}</>;
   }
 }

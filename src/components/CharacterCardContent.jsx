@@ -285,7 +285,16 @@ export default function CharacterCardContent({
       )}
       {character?.class && classes[character.class] && (
         character.subclass ? (
-          <SubclassDetailBlock subclass={character.subclass} classIcon={classes[character.class].icon} />
+          <SubclassDetailBlock
+            subclass={character.subclass}
+            classIcon={classes[character.class].icon}
+            stats={{
+              cap: finalStats.cap ?? 0,
+              auto: finalStats.auto ?? 0,
+              def: finalStats.def ?? 0,
+              rescap: finalStats.rescap ?? 0,
+            }}
+          />
         ) : (
           <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
             <span className="text-lg">{classes[character.class].icon}</span>

@@ -6,11 +6,13 @@
 import React from 'react';
 import { getSubclassById } from '../data/subclasses';
 import { buildSubclassDescription } from '../utils/descriptionBuilders';
+import { getCalculatedSubclassDescription } from '../utils/calculatedClassDescription';
 
 /**
- * @param {{ subclass: { id: string, name: string } | null, classIcon?: string }} props
+ * @param {{ subclass: { id: string, name: string } | null, classIcon?: string, stats?: { cap?: number, auto?: number, def?: number, rescap?: number } }} props
+ * Si stats est fourni, la description d'effet affiche les valeurs réelles calculées en vert (comme pour les classes).
  */
-export default function SubclassDetailBlock({ subclass, classIcon = null }) {
+export default function SubclassDetailBlock({ subclass, classIcon = null, stats = null }) {
   if (!subclass?.id) return null;
 
   const full = getSubclassById(subclass.id);
@@ -25,7 +27,9 @@ export default function SubclassDetailBlock({ subclass, classIcon = null }) {
     );
   }
 
-  const description = buildSubclassDescription(full.className, subclass.id) || full.description;
+  const description = stats
+    ? getCalculatedSubclassDescription(full.className, subclass.id, stats)
+    : (buildSubclassDescription(full.className, subclass.id) || full.description);
 
   return (
     <div className="subclass-gold-border subclass-gold-glow overflow-visible">
