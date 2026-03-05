@@ -37,7 +37,8 @@ import {
   onHeal,
   onCapacityCast,
   rollHealCrit,
-  onTurnStart
+  onTurnStart,
+  getVerdictCapacityBonus
 } from '../utils/weaponEffects';
 import { createBossCombatant, getBossById } from '../data/bosses';
 import { races } from '../data/races';
@@ -726,7 +727,12 @@ const Dungeon = () => {
       if (isPlayer) skillUsed = true;
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       const spellCapMult = consumeAuraCapacityCapMultiplier();
-      const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      let reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+      const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonusPal.damageMultiplier !== 1) {
+        reflectValue = Math.min(1, reflectValue * verdictBonusPal.damageMultiplier);
+        verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
+      }
       att.reflect = reflectValue;
       const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
       if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {

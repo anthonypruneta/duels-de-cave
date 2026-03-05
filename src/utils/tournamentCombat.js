@@ -884,7 +884,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     const spellCapMult = consumeAuraCapacityCapMultiplier();
-    const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+    let reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+    const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
+    if (verdictBonusPal.damageMultiplier !== 1) {
+      reflectValue = Math.min(1, reflectValue * verdictBonusPal.damageMultiplier);
+      verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
+    }
     att.reflect = reflectValue;
     if (att.subclass?.id === 'croise_lumineux') {
       def.paladinNextAttackReduction = 0.20;
