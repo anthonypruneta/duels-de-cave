@@ -44,15 +44,6 @@ export default function Taverne() {
 
   const hasEnteredRef = useRef(false);
 
-  const ensureTaverneMusic = useCallback(() => {
-    const el = document.getElementById('taverne-music');
-    if (el) {
-      el.volume = volume;
-      el.muted = isMuted;
-      if (el.paused) el.play().catch(() => {}); // peut échouer si autoplay bloqué (nécessite un clic)
-    }
-  }, [volume, isMuted]);
-
   const startTaverneMusicOnInteraction = useCallback(() => {
     const el = document.getElementById('taverne-music');
     if (el && el.paused) {
@@ -70,6 +61,7 @@ export default function Taverne() {
     }
   }, []);
 
+  // Synchroniser volume/mute sur l’élément audio sans relancer la lecture (évite que la musique reparte au début)
   useEffect(() => {
     const el = document.getElementById('taverne-music');
     if (el) {
@@ -78,13 +70,20 @@ export default function Taverne() {
     }
   }, [volume, isMuted]);
 
+  // Démarrer la musique à l’entrée en taverne, l’arrêter à la sortie. Dépendance uniquement à allowedInTaverne
+  // pour ne pas rappeler stop puis play quand on change le volume.
   useEffect(() => {
     if (allowedInTaverne) {
-      ensureTaverneMusic();
+      const el = document.getElementById('taverne-music');
+      if (el) {
+        el.volume = volume;
+        el.muted = isMuted;
+        if (el.paused) el.play().catch(() => {});
+      }
       return () => stopTaverneMusic();
     }
     stopTaverneMusic();
-  }, [allowedInTaverne, ensureTaverneMusic, stopTaverneMusic]);
+  }, [allowedInTaverne]);
 
   useEffect(() => {
     myDisplayXRef.current = myDisplayX;
