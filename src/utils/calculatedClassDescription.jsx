@@ -328,7 +328,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       return (
         <>
           Chaque tour, familier inflige{' '}
-          <Tooltip content={`${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto (cumulable) | Ignore ${ignorePct}% ResC`}>
+          <Tooltip content={`${familierDmg} dégâts | ${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto (cumulable) | Ignore ${ignorePct}% ResC`}>
             <span className="text-green-400">{familierDmg}</span>
           </Tooltip>
           {' '}dégâts (ignore {ignorePct}% ResC). Chaque auto +{stackPct}% Cap (cumulable).
@@ -344,7 +344,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       return (
         <>
           Chaque tour, familier inflige{' '}
-          <Tooltip content={`${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto | Ignore ${ignorePct}% ResC`}>
+          <Tooltip content={`${familierDmg} dégâts | ${(familierPct * 100).toFixed(1)}% × Cap (${cap}) | +${stackPct}% Cap/auto | Ignore ${ignorePct}% ResC`}>
             <span className="text-green-400">{familierDmg}</span>
           </Tooltip>
           {' '}dégâts (ignore {ignorePct}% ResC). Chaque auto +{stackPct}% Cap (cumulable) et vole{' '}
