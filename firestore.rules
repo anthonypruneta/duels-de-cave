@@ -26,9 +26,8 @@ service cloud.firestore {
 
     // Règles pour la collection 'dungeonProgress'
     match /dungeonProgress/{userId} {
-      // Lecture : joueur lui-même ou admin
-      allow read: if request.auth != null &&
-                     (request.auth.uid == userId || isAdmin());
+      // Lecture : tout utilisateur connecté (pour afficher la progression des autres en taverne / tournoi)
+      allow read: if request.auth != null;
 
       // Écriture : joueur lui-même OU admin
       // (important pour l'ajout global d'essais)
@@ -154,12 +153,15 @@ service cloud.firestore {
     // Progression Labyrinthe par joueur et par semaine
     // Structure: userLabyrinthProgress/{userId}/weeks/{weekId}
     match /userLabyrinthProgress/{userId} {
-      allow read, write: if request.auth != null &&
-                           (request.auth.uid == userId || isAdmin());
+      // Lecture : tout utilisateur connecté (pour afficher la progression des autres en taverne)
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                      (request.auth.uid == userId || isAdmin());
 
       match /weeks/{weekId} {
-        allow read, write: if request.auth != null &&
-                             (request.auth.uid == userId || isAdmin());
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+                       (request.auth.uid == userId || isAdmin());
       }
     }
   }
