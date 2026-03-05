@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { getUserCharacter, getAllCharacters } from '../services/characterService';
+import { getWeaponById } from '../data/weapons';
 import { getDungeonProgress } from '../services/dungeonService';
 import { getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import {
@@ -94,10 +95,14 @@ export default function Taverne() {
       const res = await getAllCharacters();
       if (!cancelled && res.success && res.data) {
         const active = res.data.filter((c) => !c.archived && !c.disabled);
-        setActiveCharacters(active);
-        setCharactersByUserId(
-          Object.fromEntries(active.map((c) => [c.id || c.userId, { ...c, userId: c.id || c.userId }]))
-        );
+        const enriched = active.map((c) => {
+          const userId = c.id || c.userId;
+          const weaponId = c.equippedWeaponId ?? null;
+          const equippedWeaponData = weaponId ? getWeaponById(weaponId) : null;
+          return { ...c, userId, equippedWeaponData };
+        });
+        setActiveCharacters(enriched);
+        setCharactersByUserId(Object.fromEntries(enriched.map((c) => [c.userId, c])));
       }
     })();
     return () => { cancelled = true; };
