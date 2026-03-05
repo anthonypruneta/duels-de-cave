@@ -38,8 +38,44 @@ export default function Taverne() {
   const [myDisplayX, setMyDisplayX] = useState(30);
   const myDisplayXRef = useRef(30);
   const moveRafRef = useRef(null);
+  const [volume, setVolume] = useState(0.05);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSoundOpen, setIsSoundOpen] = useState(false);
 
   const hasEnteredRef = useRef(false);
+
+  const ensureTaverneMusic = useCallback(() => {
+    const el = document.getElementById('taverne-music');
+    if (el) {
+      el.volume = volume;
+      el.muted = isMuted;
+      if (el.paused) el.play().catch(() => {});
+    }
+  }, [volume, isMuted]);
+
+  const stopTaverneMusic = useCallback(() => {
+    const el = document.getElementById('taverne-music');
+    if (el) {
+      el.pause();
+      el.currentTime = 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = document.getElementById('taverne-music');
+    if (el) {
+      el.volume = volume;
+      el.muted = isMuted;
+    }
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (allowedInTaverne) {
+      ensureTaverneMusic();
+      return () => stopTaverneMusic();
+    }
+    stopTaverneMusic();
+  }, [allowedInTaverne, ensureTaverneMusic, stopTaverneMusic]);
 
   useEffect(() => {
     myDisplayXRef.current = myDisplayX;
@@ -205,11 +241,46 @@ export default function Taverne() {
     );
   }
 
+  const SoundControl = () => (
+    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => setIsSoundOpen((prev) => !prev)}
+        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
+      >
+        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
+      </button>
+      {isSoundOpen && (
+        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { setIsMuted((m) => !m); if (isMuted && volume === 0) setVolume(0.05); }} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => { const v = Number(e.target.value); setVolume(v); setIsMuted(v === 0); }}
+              className="w-full accent-amber-500"
+            />
+            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-stone-900">
       <Header />
+      <SoundControl />
+      <audio id="taverne-music" loop>
+        <source src="/assets/music/taverne.mp3" type="audio/mpeg" />
+      </audio>
 
-      {/* Fond taverne (dézoomé) */}
+      {/* Fond taverne */}
       <div
         className="absolute inset-0 bg-center bg-no-repeat"
         style={{
