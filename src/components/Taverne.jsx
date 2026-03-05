@@ -242,7 +242,7 @@ export default function Taverne() {
               style={{
                 left: `${displayX}%`,
                 top: `${displayY}%`,
-                width: '380px',
+                width: '260px',
                 transition: isMe ? 'none' : 'left 0.5s ease-out',
               }}
               onClick={(e) => {
@@ -266,10 +266,10 @@ export default function Taverne() {
                   <img
                     src={character.characterImage}
                     alt={character.name}
-                    className="w-full h-[420px] object-cover object-top"
+                    className="w-full h-72 object-cover object-top"
                   />
                 ) : (
-                  <div className="w-full h-[420px] bg-stone-700 flex items-center justify-center text-7xl">
+                  <div className="w-full h-72 bg-stone-700 flex items-center justify-center text-5xl">
                     {character.race ? '🧙' : '?'}
                   </div>
                 )}
