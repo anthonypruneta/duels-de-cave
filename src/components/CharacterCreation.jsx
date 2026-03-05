@@ -994,7 +994,7 @@ const CharacterCreation = () => {
                     </div>
                   </div>
                 </InteractiveCharacterCard>
-                <div className="bg-stone-800 p-3 border-t border-stone-600">
+                <div className="bg-stone-800 p-3 border-t border-stone-600 overflow-visible">
                   <div className="flex justify-between text-xs text-white mb-2 font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
                     <StatLine statKey="spd" label="VIT" valueClassName="text-white" />
@@ -1005,7 +1005,7 @@ const CharacterCreation = () => {
                     <StatLine statKey="cap" label="Cap" />
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 overflow-visible">
                     {weapon ? (() => {
                       const weaponContent = (
                         <>
@@ -1129,7 +1129,16 @@ const CharacterCreation = () => {
                       </div>
                     )}
                     {existingCharacter.subclass ? (
-                      <SubclassDetailBlock subclass={existingCharacter.subclass} classIcon={classes[existingCharacter.class].icon} />
+                      <SubclassDetailBlock
+                        subclass={existingCharacter.subclass}
+                        classIcon={classes[existingCharacter.class].icon}
+                        stats={{
+                          cap: finalStats.cap ?? 0,
+                          auto: finalStats.auto ?? 0,
+                          def: finalStats.def ?? 0,
+                          rescap: finalStats.rescap ?? 0,
+                        }}
+                      />
                     ) : (
                       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                         <span className="text-lg">{classes[existingCharacter.class].icon}</span>

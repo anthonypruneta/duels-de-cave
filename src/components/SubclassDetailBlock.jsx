@@ -33,9 +33,9 @@ export default function SubclassDetailBlock({ subclass, classIcon = null, stats 
 
   return (
     <div className="subclass-gold-border subclass-gold-glow overflow-visible">
-      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine">
+      <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300 subclass-gold-shine overflow-visible">
         {classIcon && <span className="text-lg flex-shrink-0">{classIcon}</span>}
-        <div className="flex-1 space-y-1 min-w-0">
+        <div className="flex-1 space-y-1 min-w-0 overflow-visible">
           <div className="font-semibold subclass-gold-text">{full.name}</div>
           {full.bonus && (
             <div className="text-amber-200/90 text-[11px]">{full.bonus}</div>
