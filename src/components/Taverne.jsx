@@ -354,9 +354,7 @@ export default function Taverne() {
                   <div className="flex justify-between">
                     <span>🏰 La Grotte aux merveilles</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedProgression?.dungeon?.bestRun
-                        ? `Niveau ${selectedProgression.dungeon.bestRun} ✓`
-                        : '—'}
+                      {selectedProgression?.dungeon?.bestRun ? '✓' : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between">
