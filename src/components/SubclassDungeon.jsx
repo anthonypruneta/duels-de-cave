@@ -41,6 +41,8 @@ const SubclassDungeon = () => {
   const [boss, setBoss] = useState(null);
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
   const [bossCombatBase, setBossCombatBase] = useState(null);
+  const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
+  const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -194,6 +196,8 @@ const SubclassDungeon = () => {
     setCombatResult(null);
     setPlayerCombatBase(null);
     setBossCombatBase(null);
+    setPlayerCombatModifiers(null);
+    setPlayerCombatStatus(null);
     const logs = [...combatLog, `--- Combat contre ${boss.name} ---`];
     const matchResult = simulerMatch(character, createSubclassBossCombatant());
     const finalLogs = await replayCombatSteps(matchResult.steps, {
@@ -201,6 +205,8 @@ const SubclassDungeon = () => {
       onStepHP: (step) => {
         setPlayerCombatBase(step.p1Base ?? undefined);
         setBossCombatBase(step.p2Base ?? undefined);
+        setPlayerCombatModifiers(step.p1Modifiers ?? null);
+        setPlayerCombatStatus(step.p1Status ?? null);
         setPlayer((prev) => prev ? { ...prev, currentHP: step.p1HP, shield: step.p1Shield ?? 0 } : null);
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
@@ -315,51 +321,151 @@ const SubclassDungeon = () => {
     return null;
   }
 
-  // Écran de combat (fighting) puis simulation
+  // Écran de combat (fighting) — même layout que Forêt / autres donjons : Joueur | Log | Boss
   if (gameState === 'fighting' && player && boss) {
     return (
       <div className="min-h-screen p-6">
         <Header />
         <SoundControl />
-        <div className="max-w-4xl mx-auto pt-20">
-          <h2 className="text-2xl font-bold text-amber-400 mb-4 text-center">Combat — {SUBCLASS_DUNGEON_NAME}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-stone-800 border border-blue-600/50 p-4 rounded-lg">
-              <CharacterCardContent character={character} />
-              <div className="mt-2 text-sm">
-                <span className="text-blue-400 font-bold">PV {Math.max(0, player.currentHP)}/{player.maxHP}</span>
-                {(player.shield ?? 0) > 0 && <span className="text-stone-400"> • Bouclier {player.shield}</span>}
-              </div>
-            </div>
-            <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
-          </div>
-          <div className="bg-stone-900 border border-stone-600 p-4 rounded-lg max-h-64 overflow-y-auto mb-6">
-            {combatLog.map((line, i) => (
-              <div key={i} className="text-sm text-stone-300 mb-1">{formatLogMessage(line)}</div>
-            ))}
-            <div ref={logEndRef} />
-          </div>
-          {!combatResult && (
-            <div className="text-center">
-              <button
-                onClick={simulateCombat}
-                disabled={isSimulating}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 font-bold border border-amber-500 disabled:opacity-50"
-              >
-                {isSimulating ? 'Combat en cours...' : 'Lancer le combat'}
-              </button>
-            </div>
-          )}
-          {combatResult && (
-            <div className="flex justify-center gap-4">
-              <button onClick={handleBackToLobby} className="bg-stone-600 hover:bg-stone-500 text-white px-8 py-4 font-bold border border-stone-500">
-                Retour au lobby
-              </button>
-            </div>
-          )}
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
+        <div className="max-w-6xl mx-auto pt-20">
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+              <h2 className="text-4xl font-bold text-stone-200">Combat — {SUBCLASS_DUNGEON_NAME}</h2>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+              <CharacterCardContent
+                character={player}
+                showHpBar
+                combatBaseOverride={playerCombatBase}
+                combatModifiers={playerCombatModifiers}
+                opponent={boss}
+                combatStatus={playerCombatStatus}
+              />
+            </div>
+
+            <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+              <div className="flex justify-center gap-3 md:gap-4 mb-4">
+                {combatResult === null && (
+                  <button
+                    onClick={simulateCombat}
+                    disabled={isSimulating || !player || !boss}
+                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+                  >
+                    ▶️ Lancer le combat
+                  </button>
+                )}
+                <button
+                  onClick={handleBackToLobby}
+                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+                >
+                  ← Abandonner
+                </button>
+              </div>
+
+              {combatResult === 'victory' && (
+                <div className="flex justify-center mb-4">
+                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                    🏆 {player.name} remporte le combat ! 🏆
+                  </div>
+                </div>
+              )}
+
+              {combatResult === 'defeat' && (
+                <div className="flex justify-center mb-4">
+                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
+                    💀 {player.name} a été vaincu... 💀
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900 p-3 border-b border-stone-600">
+                  <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                  {combatLog.length === 0 ? (
+                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur &quot;Lancer le combat&quot; pour commencer...</p>
+                  ) : (
+                    <>
+                      {combatLog.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        if (!isP1 && !isP2) {
+                          if (log.includes('🏆')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                                  {formatLogMessage(cleanLog)}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('💀')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
+                                  {formatLogMessage(cleanLog)}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('---') || log.includes('⚔️')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="text-stone-400 text-sm italic">{formatLogMessage(cleanLog)}</div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-400 text-sm italic">{formatLogMessage(cleanLog)}</div>
+                            </div>
+                          );
+                        }
+
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isP2) {
+                          return (
+                            <div key={idx} className="flex justify-end">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })}
+                      <div ref={logEndRef} />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+              <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
+            </div>
+          </div>
         </div>
       </div>
     );
