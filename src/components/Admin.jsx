@@ -20,6 +20,7 @@ import { races as racesData } from '../data/races';
 import { classes as classesData } from '../data/classes';
 import WorldBossAdmin from './WorldBossAdmin';
 import AdminBalance from './AdminBalance';
+import AdminCombatHD2D from './AdminCombatHD2D';
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -970,12 +971,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8">
-          {[
+{[
             { key: 'annonce', label: '📢 Annonce' },
             { key: 'labyrinthe', label: '🌀 Labyrinthe' },
             { key: 'cataclysme', label: '🌋 Cataclysme' },
             { key: 'tournois', label: '🏆 Tournois' },
             { key: 'equilibrage', label: '⚖️ Équilibrage' },
+            { key: 'combat-hd2d', label: '⚔️ Combat HD-2D' },
             { key: 'personnage', label: '👤 Personnage' }
           ].map((tab) => (
             <button
@@ -1344,6 +1346,10 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           <div className="bg-stone-900/40 border-2 border-amber-600 rounded-xl p-6 mb-8">
             <AdminBalance embedded />
           </div>
+        )}
+
+        {adminMainTab === 'combat-hd2d' && (
+          <AdminCombatHD2D characters={characters} />
         )}
 
         {adminMainTab === 'personnage' && (
