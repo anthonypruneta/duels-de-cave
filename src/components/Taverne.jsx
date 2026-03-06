@@ -42,7 +42,7 @@ function getTaverneCharacterImage(character) {
 
 const BUBBLE_DURATION_MS = 12000;
 const WALKABLE_ZONE_HEIGHT_PCT = 50;
-const FIXED_Y_PCT = 90;
+const FIXED_Y_PCT = 94;
 const MOVE_DURATION_MS = 2000;
 const MOVE_INTERVAL_MS = 4500;
 
