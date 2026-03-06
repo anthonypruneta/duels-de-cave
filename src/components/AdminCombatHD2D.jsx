@@ -7,58 +7,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { races as racesData } from '../data/races';
 import { classes as classesData } from '../data/classes';
+import { getSpriteRects, getSpritePalette, SPRITE_VIEWBOX } from './hd2dSpriteData';
 
 const races = Object.fromEntries(Object.entries(racesData).map(([k, v]) => [k, v.icon]));
 const classes = Object.fromEntries(Object.entries(classesData).map(([k, v]) => [k, v.icon]));
 
-// Couleurs par classe (remplissage SVG)
-const CLASS_COLORS = {
-  Guerrier: { main: '#b45309', dark: '#78350f', accent: '#f59e0b' },
-  Voleur: { main: '#475569', dark: '#334155', accent: '#94a3b8' },
-  Paladin: { main: '#ca8a04', dark: '#854d0e', accent: '#fde047' },
-  Healer: { main: '#059669', dark: '#065f46', accent: '#6ee7b7' },
-  Archer: { main: '#65a30d', dark: '#4d7c0f', accent: '#bef264' },
-  Mage: { main: '#7c3aed', dark: '#5b21b6', accent: '#c4b5fd' },
-  Demoniste: { main: '#a21caf', dark: '#701a75', accent: '#f0abfc' },
-  Masochiste: { main: '#9f1239', dark: '#881337', accent: '#fda4af' },
-  'Briseur de Sort': { main: '#57534e', dark: '#44403c', accent: '#a8a29e' },
-  Succube: { main: '#be185d', dark: '#9d174d', accent: '#f9a8d4' },
-  Bastion: { main: '#78716c', dark: '#57534e', accent: '#d6d3d1' }
-};
-
-function getColors(className) {
-  return CLASS_COLORS[className] || { main: '#57534e', dark: '#44403c', accent: '#a8a29e' };
-}
-
-/** Sprite personnage HD-2D en SVG (corps, tête, arme selon classe) */
+/** Sprite HD-2D pixel-art : grille générée à partir de la race (peau, cheveux) + classe (tenue, arme). Style Octopath, sans emoji. */
 function HD2DCharacterSprite({ character, facing, state, scale = 1 }) {
-  const colors = getColors(character?.class);
   const isLeft = facing === 'left';
-  const isAttack = state === 'attack';
   const isHit = state === 'hit';
   const isDead = state === 'dead';
+  const isAttack = state === 'attack';
 
-  // Forme d'arme selon la classe (vue de profil)
-  const weaponPath = (() => {
-    switch (character?.class) {
-      case 'Guerrier':
-      case 'Paladin':
-      case 'Bastion':
-        return 'M 0 0 L 20 -8 L 22 4 L 2 6 Z'; // Épée
-      case 'Archer':
-        return 'M 0 2 Q 18 -4 24 0 Q 18 4 0 2'; // Arc
-      case 'Mage':
-      case 'Healer':
-      case 'Demoniste':
-        return 'M 4 0 L 4 24 M 0 12 L 8 12'; // Bâton
-      case 'Voleur':
-      case 'Masochiste':
-      case 'Succube':
-        return 'M 0 0 L 12 -2 L 14 2 L 2 4 Z'; // Dague
-      default:
-        return 'M 0 0 L 16 -4 L 18 4 Z';
-    }
-  })();
+  const rects = character ? getSpriteRects(character.race, character.class) : [];
+  const palette = character ? getSpritePalette(character.race, character.class) : null;
 
   return (
     <div
@@ -75,45 +37,32 @@ function HD2DCharacterSprite({ character, facing, state, scale = 1 }) {
           ${isDead ? 'animate-hd2d-dead opacity-80' : ''}
         `}
       >
-      <svg
-        viewBox="0 0 64 96"
-        className="block w-20 h-[120px] md:w-24 md:h-[144px] drop-shadow-lg"
-        style={{ filter: isDead ? 'grayscale(0.8)' : undefined }}
-      >
-        <defs>
-          <linearGradient id={`body-${character?.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={colors.accent} />
-            <stop offset="100%" stopColor={colors.dark} />
-          </linearGradient>
-          <filter id="rim-light">
-            <feDropShadow dx="0" dy="-1" stdDeviation="0.5" floodColor="rgba(255,255,255,0.4)" />
-          </filter>
-        </defs>
-        {/* Jambes */}
-        <g className={state === 'walk' ? 'animate-hd2d-walk-legs' : ''}>
-          <rect x="18" y="68" width="12" height="22" rx="4" fill={colors.dark} />
-          <rect x="34" y="68" width="12" height="22" rx="4" fill={colors.dark} />
-        </g>
-        {/* Torse */}
-        <rect x="14" y="32" width="36" height="40" rx="8" fill={`url(#body-${character?.id})`} filter="url(#rim-light)" />
-        {/* Col / cape */}
-        <rect x="20" y="28" width="24" height="12" rx="6" fill={colors.main} />
-        {/* Tête */}
-        <circle cx="32" cy="20" r="14" fill="#f5e6d3" stroke={colors.dark} strokeWidth="2" />
-        <circle cx="28" cy="18" r="2" fill="#1c1917" />
-        <circle cx="36" cy="18" r="2" fill="#1c1917" />
-        {/* Arme */}
-        <g
-          transform={isLeft ? 'translate(52, 36) scale(-1, 1)' : 'translate(12, 36)'}
-          className={isAttack ? 'animate-hd2d-weapon-swing' : ''}
+        <svg
+          viewBox={`0 0 ${SPRITE_VIEWBOX.width} ${SPRITE_VIEWBOX.height}`}
+          className="block w-16 h-20 md:w-20 md:h-24 drop-shadow-xl"
+          style={{
+            imageRendering: 'crisp-edges',
+            filter: isDead ? 'grayscale(0.7) brightness(0.85)' : undefined
+          }}
         >
-          <path d={weaponPath} fill={colors.accent} stroke={colors.dark} strokeWidth="1" />
-        </g>
-        {/* Petit emblème race (sur le torse) */}
-        <text x="32" y="52" textAnchor="middle" fontSize="14" fill="currentColor" opacity="0.9">
-          {races[character?.race] || '?'}
-        </text>
-      </svg>
+          <defs>
+            <filter id={`hd2d-rim-${character?.id ?? 'sprite'}`} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="-1" stdDeviation="0.3" floodColor="rgba(255,255,255,0.35)" />
+              <feDropShadow dx="0" dy="1" stdDeviation="0.2" floodColor="rgba(0,0,0,0.2)" />
+            </filter>
+          </defs>
+          <g filter={`url(#hd2d-rim-${character?.id ?? 'sprite'})`}>
+            {rects.map((r, i) => (
+              <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={r.fill} />
+            ))}
+          </g>
+          {isAttack && palette && (
+            <g className="animate-hd2d-weapon-swing" style={{ transformOrigin: '18px 24px' }}>
+              <rect x="34" y="14" width="4" height="18" fill={palette.W} opacity="0.95" />
+              <rect x="36" y="8" width="2" height="8" fill={palette.W} />
+            </g>
+          )}
+        </svg>
       </div>
     </div>
   );
