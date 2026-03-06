@@ -135,7 +135,7 @@ export const weapons = {
     },
     effet: {
       nom: 'Vie de l\'Arbre-Monde',
-      description: 'Si le personnage peut se soigner, ses soins peuvent crit, sont conservés et infligent aussi 50% de dégâts. Sinon, régénère 3% HP max par tour.',
+      description: 'Les soins du personnage peuvent critiquer et infligent aussi 50 % de leur valeur en dégâts.\nS\'il ne possède aucun soin, il régénère 3 % de ses PV max par tour.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
         // La logique vérifie si la classe peut heal (Healer, Paladin avec riposte qui heal, etc.)

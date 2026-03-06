@@ -144,7 +144,7 @@ const buildCodexEffetDescription = (values) => {
 
 /** Templates de description d'effet (français) avec placeholders {{clé}} — seuls les nombres sont mis à jour */
 const WEAPON_EFFET_DESCRIPTION_TEMPLATES = {
-  baton_legendaire: 'Si le personnage peut se soigner, ses soins peuvent crit, sont conservés et infligent aussi {{healDamagePercent}}% de dégâts. Sinon, régénère {{regenPercent}}% HP max par tour.',
+  baton_legendaire: 'Les soins du personnage peuvent critiquer et infligent aussi {{healDamagePercent}} % de leur valeur en dégâts. S\'il ne possède aucun soin, il régénère {{regenPercent}} % de ses PV max par tour.',
   bouclier_legendaire: 'Ajoute {{defToAtkPercent}}% de la DEF et {{rescapToAtkPercent}}% de la RESC à l\'Auto.',
   epee_legendaire: 'Tous les {{n}} tours, frappe en premier et inflige +{{damageBonus}}% de dégâts.',
   dague_legendaire: 'Tous les {{n}} tours, critique garanti. Tous les critiques infligent +{{critDamageBonus}}% de dégâts.',
