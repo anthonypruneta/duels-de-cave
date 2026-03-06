@@ -15,6 +15,22 @@ import {
   subscribeTaverneChat,
 } from '../services/taverneService';
 
+// Sprites chibi (sans fond) : clé = nom du personnage exact, valeur = URL
+const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
+const chibiByNombre = Object.fromEntries(
+  Object.entries(chibiImageModules).map(([path, url]) => {
+    const nomFichier = path.replace(/^.*\//, '').replace(/\.png$/i, '');
+    return [nomFichier, url];
+  })
+);
+
+function getTaverneCharacterImage(character) {
+  const nom = character?.name?.trim();
+  if (nom && chibiByNombre[nom]) return { src: chibiByNombre[nom], isChibi: true };
+  if (character?.characterImage) return { src: character.characterImage, isChibi: false };
+  return { src: null, isChibi: false };
+}
+
 const BUBBLE_DURATION_MS = 12000;
 const WALKABLE_ZONE_HEIGHT_PCT = 42;
 const FIXED_Y_PCT = 55;
@@ -347,19 +363,25 @@ export default function Taverne() {
                 </div>
               )}
 
-              {/* Mini carte */}
+              {/* Mini carte : sprite chibi si disponible, sinon image perso */}
               <div className={`rounded border-2 overflow-hidden shadow-lg ${isMe ? 'border-amber-500 ring-2 ring-amber-400/50' : 'border-stone-600'}`}>
-                {character.characterImage ? (
-                  <img
-                    src={character.characterImage}
-                    alt={character.name}
-                    className="w-full h-72 object-cover object-top"
-                  />
-                ) : (
-                  <div className="w-full h-72 bg-stone-700 flex items-center justify-center text-5xl">
-                    {character.race ? '🧙' : '?'}
-                  </div>
-                )}
+                {(() => {
+                  const { src, isChibi } = getTaverneCharacterImage(character);
+                  if (src) {
+                    return (
+                      <img
+                        src={src}
+                        alt={character.name}
+                        className={`w-full h-72 ${isChibi ? 'object-contain object-bottom bg-stone-800/80' : 'object-cover object-top'}`}
+                      />
+                    );
+                  }
+                  return (
+                    <div className="w-full h-72 bg-stone-700 flex items-center justify-center text-5xl">
+                      {character.race ? '🧙' : '?'}
+                    </div>
+                  );
+                })()}
                 <div className="bg-stone-800/95 px-2 py-2 text-center">
                   <span className="text-sm font-bold text-amber-200 truncate block">
                     {character.name || '…'}
