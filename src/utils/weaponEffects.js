@@ -419,10 +419,10 @@ export function onHeal(weaponState, healer, healAmount, target) {
 
   switch (weaponState.weaponId) {
     case 'baton_legendaire': {
-      // Branche d'Yggdrasil: le soin est conservé ET inflige 50% en dégâts bonus (si classe heal)
+      // Branche d'Yggdrasil: le soin s'applique puis 50% du montant en dégâts à l'ennemi
       if (healer.base._yggdrasilHealDamage) {
         effects.bonusDamage = Math.round(healAmount * weaponConstants.yggdrasil.healDamagePercent);
-        effects.log.push(`🌳 Branche d'Yggdrasil: Le soin est conservé et inflige ${effects.bonusDamage} dégâts bonus`);
+        effects.log.push(`🌳 Branche d'Yggdrasil: inflige ${effects.bonusDamage} dégâts`);
       }
       break;
     }
