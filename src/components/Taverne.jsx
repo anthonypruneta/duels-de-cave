@@ -15,25 +15,34 @@ import {
   subscribeTaverneChat,
 } from '../services/taverneService';
 
-// Sprites chibi (sans fond) : clé = nom du personnage exact, valeur = URL
+// Sprites chibi (sans fond). Correspondance normalisée : espaces/tirets insensibles (ex. "Orc en ciel" ↔ "Orc-en-ciel")
 const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
-const chibiByNombre = Object.fromEntries(
+const chibiByNombreNormalise = Object.fromEntries(
   Object.entries(chibiImageModules).map(([path, url]) => {
     const nomFichier = path.replace(/^.*\//, '').replace(/\.png$/i, '');
-    return [nomFichier, url];
+    const normalise = nomFichier.trim().toLowerCase().replace(/\s+/g, '-').replace(/-+/g, '-');
+    return [normalise, url];
   })
 );
 
+function normaliserNomPourChibi(nom) {
+  if (!nom || typeof nom !== 'string') return '';
+  return nom.trim().toLowerCase().replace(/\s+/g, '-').replace(/-+/g, '-');
+}
+
 function getTaverneCharacterImage(character) {
   const nom = character?.name?.trim();
-  if (nom && chibiByNombre[nom]) return { src: chibiByNombre[nom], isChibi: true };
+  if (nom) {
+    const key = normaliserNomPourChibi(nom);
+    if (chibiByNombreNormalise[key]) return { src: chibiByNombreNormalise[key], isChibi: true };
+  }
   if (character?.characterImage) return { src: character.characterImage, isChibi: false };
   return { src: null, isChibi: false };
 }
 
 const BUBBLE_DURATION_MS = 12000;
-const WALKABLE_ZONE_HEIGHT_PCT = 42;
-const FIXED_Y_PCT = 55;
+const WALKABLE_ZONE_HEIGHT_PCT = 50;
+const FIXED_Y_PCT = 90;
 const MOVE_DURATION_MS = 2000;
 const MOVE_INTERVAL_MS = 4500;
 
@@ -370,13 +379,13 @@ export default function Taverne() {
                     <img
                       src={src}
                       alt=""
-                      className={`pointer-events-none select-none ${isChibi ? 'h-48 w-auto object-contain object-bottom' : 'h-48 w-32 object-cover object-top rounded'}`}
-                      style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))' }}
+                      className={`pointer-events-none select-none ${isChibi ? 'h-96 w-auto object-contain object-bottom' : 'h-96 w-64 object-cover object-top rounded'}`}
+                      style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
                     />
                   );
                 }
                 return (
-                  <div className="h-48 w-24 flex items-center justify-center text-5xl bg-stone-700/80 rounded">
+                  <div className="h-96 w-48 flex items-center justify-center text-6xl bg-stone-700/80 rounded">
                     {character.race ? '🧙' : '?'}
                   </div>
                 );
