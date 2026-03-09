@@ -40,6 +40,59 @@ function getTaverneCharacterImage(character) {
   return { src: null, isChibi: false };
 }
 
+function getNaturalPixelAlphaAtClientPoint(imgEl, clientX, clientY) {
+  if (!imgEl || !imgEl.complete || !imgEl.naturalWidth || !imgEl.naturalHeight) return 0;
+  const rect = imgEl.getBoundingClientRect();
+  if (
+    clientX < rect.left ||
+    clientX > rect.right ||
+    clientY < rect.top ||
+    clientY > rect.bottom ||
+    rect.width <= 0 ||
+    rect.height <= 0
+  ) {
+    return 0;
+  }
+
+  const xInBox = clientX - rect.left;
+  const yInBox = clientY - rect.top;
+  const fit = imgEl.dataset.fit || 'contain';
+  const position = imgEl.dataset.position || 'center';
+  const naturalW = imgEl.naturalWidth;
+  const naturalH = imgEl.naturalHeight;
+
+  let scale;
+  if (fit === 'cover') {
+    scale = Math.max(rect.width / naturalW, rect.height / naturalH);
+  } else {
+    scale = Math.min(rect.width / naturalW, rect.height / naturalH);
+  }
+
+  const drawnW = naturalW * scale;
+  const drawnH = naturalH * scale;
+  const offsetX = (rect.width - drawnW) / 2;
+  const offsetY = position === 'bottom'
+    ? rect.height - drawnH
+    : position === 'top'
+      ? 0
+      : (rect.height - drawnH) / 2;
+
+  const xInImage = xInBox - offsetX;
+  const yInImage = yInBox - offsetY;
+  if (xInImage < 0 || yInImage < 0 || xInImage >= drawnW || yInImage >= drawnH) return 0;
+
+  const naturalX = Math.floor(xInImage / scale);
+  const naturalY = Math.floor(yInImage / scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return 255;
+  ctx.drawImage(imgEl, naturalX, naturalY, 1, 1, 0, 0, 1, 1);
+  return ctx.getImageData(0, 0, 1, 1).data[3];
+}
+
 const BUBBLE_DURATION_MS = 12000;
 const WALKABLE_ZONE_HEIGHT_PCT = 50;
 const FIXED_Y_PCT = 99;
@@ -66,6 +119,9 @@ export default function Taverne() {
   const [volume, setVolume] = useState(0.05);
   const [isMuted, setIsMuted] = useState(false);
   const [isSoundOpen, setIsSoundOpen] = useState(false);
+  const [hoveredUserId, setHoveredUserId] = useState(null);
+  const spriteRefs = useRef({});
+  const spriteOrderRef = useRef([]);
 
   const hasEnteredRef = useRef(false);
 
@@ -256,6 +312,31 @@ export default function Taverne() {
     return Date.now() - lastChatAt.toMillis() < BUBBLE_DURATION_MS;
   };
 
+  const getTopCharacterUnderPointer = useCallback((clientX, clientY) => {
+    const order = spriteOrderRef.current || [];
+    for (let i = order.length - 1; i >= 0; i -= 1) {
+      const userId = order[i];
+      const imgEl = spriteRefs.current[userId];
+      if (!imgEl) continue;
+      const alpha = getNaturalPixelAlphaAtClientPoint(imgEl, clientX, clientY);
+      if (alpha > 8) return userId;
+    }
+    return null;
+  }, []);
+
+  const handleWalkablePointerMove = useCallback((e) => {
+    const hitUserId = getTopCharacterUnderPointer(e.clientX, e.clientY);
+    setHoveredUserId((prev) => (prev === hitUserId ? prev : hitUserId));
+  }, [getTopCharacterUnderPointer]);
+
+  const handleWalkableClick = useCallback((e) => {
+    const hitUserId = getTopCharacterUnderPointer(e.clientX, e.clientY);
+    if (!hitUserId) return;
+    const character = charactersByUserId[hitUserId];
+    if (!character) return;
+    setSelectedCharacter({ ...character, userId: hitUserId });
+  }, [charactersByUserId, getTopCharacterUnderPointer]);
+
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-900">
@@ -330,16 +411,22 @@ export default function Taverne() {
         ref={walkableRef}
         className="absolute left-0 right-0 bottom-0"
         style={{ height: `${WALKABLE_ZONE_HEIGHT_PCT}%` }}
+        onMouseMove={handleWalkablePointerMove}
+        onMouseLeave={() => setHoveredUserId(null)}
+        onClick={handleWalkableClick}
       >
         {/* Tous les personnages actifs (éligibles au tournoi) : présents = position live, absents = position fixe sur la ligne */}
         {(() => {
           const nonPresentList = activeCharacters.filter(
             (c) => !presences.some((p) => p.userId === (c.id || c.userId))
           );
-          return activeCharacters.map((character) => {
+          const renderedOrder = [];
+          const rendered = activeCharacters.map((character) => {
             const userId = character.id || character.userId;
+            renderedOrder.push(userId);
             const presence = presences.find((p) => p.userId === userId);
             const isMe = userId === currentUser?.uid;
+            const isHovered = hoveredUserId === userId;
             const showBubble = presence && isBubbleVisible(presence.lastChatAt) && presence.lastChatMessage;
             const nonPresentIndex = nonPresentList.findIndex((c) => (c.id || c.userId) === userId);
             const displayX = presence
@@ -350,7 +437,7 @@ export default function Taverne() {
           return (
             <div
               key={userId}
-              className={`absolute transform -translate-x-1/2 -translate-y-full transition-all duration-200 flex flex-col items-center pointer-events-none ${!isMe ? 'opacity-60' : ''}`}
+              className={`absolute transform -translate-x-1/2 -translate-y-full transition-all duration-200 flex flex-col items-center pointer-events-none ${!isMe ? (isHovered ? 'opacity-100 z-20' : 'opacity-60') : ''}`}
               style={{
                 left: `${displayX}%`,
                 top: `${displayY}%`,
@@ -368,36 +455,35 @@ export default function Taverne() {
               )}
 
               {/* Uniquement le sprite (PNG sans fond) qui se déplace, pas de carte ni nom */}
-              <button
-                type="button"
-                className="pointer-events-auto bg-transparent border-0 p-0 m-0 transition-transform duration-200 hover:scale-105 hover:z-20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCharacter({ ...character, userId });
-                }}
-              >
-                {(() => {
-                  const { src, isChibi } = getTaverneCharacterImage(character);
-                  if (src) {
-                    return (
-                      <img
-                        src={src}
-                        alt=""
-                        className={`pointer-events-none select-none max-w-none ${isChibi ? 'h-[48rem] w-auto object-contain object-bottom' : 'h-[48rem] w-[32rem] object-cover object-top rounded'}`}
-                        style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
-                      />
-                    );
-                  }
+              {(() => {
+                const { src, isChibi } = getTaverneCharacterImage(character);
+                if (src) {
                   return (
-                    <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
-                      {character.race ? '🧙' : '?'}
-                    </div>
+                    <img
+                      ref={(el) => {
+                        if (el) spriteRefs.current[userId] = el;
+                        else delete spriteRefs.current[userId];
+                      }}
+                      src={src}
+                      alt=""
+                      data-fit={isChibi ? 'contain' : 'cover'}
+                      data-position={isChibi ? 'bottom' : 'top'}
+                      className={`pointer-events-none select-none max-w-none transition-transform duration-200 ${isHovered ? 'scale-105 z-20' : ''} ${isChibi ? 'h-[48rem] w-auto object-contain object-bottom' : 'h-[48rem] w-[32rem] object-cover object-top rounded'}`}
+                      style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+                    />
                   );
-                })()}
-              </button>
+                }
+                return (
+                  <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
+                    {character.race ? '🧙' : '?'}
+                  </div>
+                );
+              })()}
             </div>
           );
         });
+          spriteOrderRef.current = renderedOrder;
+          return rendered;
         })()}
       </div>
 
