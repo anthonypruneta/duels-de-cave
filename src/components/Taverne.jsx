@@ -42,7 +42,7 @@ function getTaverneCharacterImage(character) {
 
 const BUBBLE_DURATION_MS = 12000;
 const WALKABLE_ZONE_HEIGHT_PCT = 50;
-const FIXED_Y_PCT = 94;
+const FIXED_Y_PCT = 99;
 const MOVE_DURATION_MS = 2000;
 const MOVE_INTERVAL_MS = 4500;
 
@@ -379,13 +379,13 @@ export default function Taverne() {
                     <img
                       src={src}
                       alt=""
-                      className={`pointer-events-none select-none ${isChibi ? 'h-96 w-auto object-contain object-bottom' : 'h-96 w-64 object-cover object-top rounded'}`}
+                      className={`pointer-events-none select-none ${isChibi ? 'h-[48rem] w-auto object-contain object-bottom' : 'h-[48rem] w-[32rem] object-cover object-top rounded'}`}
                       style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
                     />
                   );
                 }
                 return (
-                  <div className="h-96 w-48 flex items-center justify-center text-6xl bg-stone-700/80 rounded">
+                  <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
                     {character.race ? '🧙' : '?'}
                   </div>
                 );
