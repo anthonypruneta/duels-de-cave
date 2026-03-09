@@ -350,20 +350,16 @@ export default function Taverne() {
           return (
             <div
               key={userId}
-              className={`absolute transform -translate-x-1/2 -translate-y-full cursor-pointer transition-all duration-200 hover:scale-105 hover:z-20 flex flex-col items-center ${!isMe ? 'opacity-60 hover:opacity-100 transition-opacity duration-200' : ''}`}
+              className={`absolute transform -translate-x-1/2 -translate-y-full transition-all duration-200 flex flex-col items-center pointer-events-none ${!isMe ? 'opacity-60' : ''}`}
               style={{
                 left: `${displayX}%`,
                 top: `${displayY}%`,
                 transition: isMe ? 'none' : 'left 0.5s ease-out',
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedCharacter({ ...character, userId });
-              }}
             >
               {/* Bulle de chat au-dessus (uniquement si présent) */}
               {showBubble && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 max-w-[160px] rounded-lg bg-stone-800 border border-amber-600/60 text-xs text-stone-200 shadow-xl z-30">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 max-w-[160px] rounded-lg bg-stone-800 border border-amber-600/60 text-xs text-stone-200 shadow-xl z-30 pointer-events-none">
                   <div className="font-semibold text-amber-300 truncate">
                     {character.name || userId.slice(0, 8)}
                   </div>
@@ -372,24 +368,33 @@ export default function Taverne() {
               )}
 
               {/* Uniquement le sprite (PNG sans fond) qui se déplace, pas de carte ni nom */}
-              {(() => {
-                const { src, isChibi } = getTaverneCharacterImage(character);
-                if (src) {
+              <button
+                type="button"
+                className="pointer-events-auto bg-transparent border-0 p-0 m-0 transition-transform duration-200 hover:scale-105 hover:z-20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCharacter({ ...character, userId });
+                }}
+              >
+                {(() => {
+                  const { src, isChibi } = getTaverneCharacterImage(character);
+                  if (src) {
+                    return (
+                      <img
+                        src={src}
+                        alt=""
+                        className={`pointer-events-none select-none max-w-none ${isChibi ? 'h-[48rem] w-auto object-contain object-bottom' : 'h-[48rem] w-[32rem] object-cover object-top rounded'}`}
+                        style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+                      />
+                    );
+                  }
                   return (
-                    <img
-                      src={src}
-                      alt=""
-                      className={`pointer-events-none select-none ${isChibi ? 'h-[48rem] w-auto object-contain object-bottom' : 'h-[48rem] w-[32rem] object-cover object-top rounded'}`}
-                      style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
-                    />
+                    <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
+                      {character.race ? '🧙' : '?'}
+                    </div>
                   );
-                }
-                return (
-                  <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
-                    {character.race ? '🧙' : '?'}
-                  </div>
-                );
-              })()}
+                })()}
+              </button>
             </div>
           );
         });
