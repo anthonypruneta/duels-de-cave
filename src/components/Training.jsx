@@ -801,7 +801,8 @@ const Training = () => {
   const raceNames = Object.keys(races);
   const classNames = Object.keys(classes);
 
-  const weaponFamilies = getWeaponFamilyInfo();
+  const weaponFamilyMap = getWeaponFamilyInfo();
+  const weaponFamilies = Object.entries(weaponFamilyMap).map(([key, val]) => ({ family: key, nom: val.nom, icon: val.icon }));
   const allPassives = getAvailablePassives();
 
   const selectedWeaponData = dummyConfig.weaponId ? getWeaponById(dummyConfig.weaponId) : null;
@@ -902,10 +903,10 @@ const Training = () => {
               <SectionTitle>Identité</SectionTitle>
               <div className="p-4 space-y-3 border-b border-stone-700/40">
                 <SelectField label="Race" value={dummyConfig.race} onChange={handleConfigRaceChange}>
-                  {raceNames.map(r => <option key={r} value={r}>{races[r]?.emoji || ''} {r}</option>)}
+                  {raceNames.map(r => <option key={r} value={r}>{races[r]?.icon || ''} {r}</option>)}
                 </SelectField>
                 <SelectField label="Classe" value={dummyConfig.class} onChange={handleConfigClassChange}>
-                  {classNames.map(c => <option key={c} value={c}>{classes[c]?.emoji || ''} {c}</option>)}
+                  {classNames.map(c => <option key={c} value={c}>{classes[c]?.icon || ''} {c}</option>)}
                 </SelectField>
                 <NumberField label="Niveau" value={dummyConfig.level} onChange={v => updateConfig('level', Math.max(1, Math.min(999, v)))} min={1} max={999} />
               </div>
@@ -935,7 +936,7 @@ const Training = () => {
                 <SelectField label="Arme" value={dummyConfig.weaponId} onChange={handleConfigWeaponChange}>
                   <option value="">Aucune</option>
                   {weaponFamilies.map(fam => (
-                    <optgroup key={fam.family} label={`${fam.emoji} ${fam.family}`}>
+                    <optgroup key={fam.family} label={`${fam.icon} ${fam.nom}`}>
                       {getWeaponsByFamily(fam.family).map(w => (
                         <option key={w.id} value={w.id}>{w.nom} ({w.rarete})</option>
                       ))}
@@ -962,7 +963,7 @@ const Training = () => {
               <div className="p-4 space-y-3 border-b border-stone-700/40">
                 <SelectField label="Passif" value={dummyConfig.passiveId} onChange={handleConfigPassiveChange}>
                   <option value="">Aucun</option>
-                  {allPassives.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                  {allPassives.map(p => <option key={p.id} value={p.id}>{p.icon} {p.name}</option>)}
                 </SelectField>
                 {dummyConfig.passiveId && (
                   <SelectField label="Niveau passif" value={dummyConfig.passiveLevel} onChange={v => updateConfig('passiveLevel', Number(v))}>
@@ -975,7 +976,7 @@ const Training = () => {
                   <>
                     <SelectField label="Extension (Fusion)" value={dummyConfig.extensionId} onChange={v => updateConfig('extensionId', v)}>
                       <option value="">Aucune</option>
-                      {extensionOptions.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                      {extensionOptions.map(p => <option key={p.id} value={p.id}>{p.icon} {p.name}</option>)}
                     </SelectField>
                     {dummyConfig.extensionId && (
                       <SelectField label="Niveau extension" value={dummyConfig.extensionLevel} onChange={v => updateConfig('extensionLevel', Number(v))}>
@@ -1016,10 +1017,10 @@ const Training = () => {
               {/* Header résumé */}
               <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900/60 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{races[dummyConfig.race]?.emoji || '👤'}</span>
+                  <span className="text-lg">{races[dummyConfig.race]?.icon || '👤'}</span>
                   <span className="text-sm font-bold text-stone-200">{dummyConfig.race}</span>
                   <span className="text-stone-600">•</span>
-                  <span className="text-lg">{classes[dummyConfig.class]?.emoji || '⚔️'}</span>
+                  <span className="text-lg">{classes[dummyConfig.class]?.icon || '⚔️'}</span>
                   <span className="text-sm font-bold text-stone-200">{dummyConfig.class}</span>
                 </div>
                 <span className="text-xs text-amber-400 font-semibold">Niv. {dummyConfig.level}</span>
@@ -1073,7 +1074,7 @@ const Training = () => {
                     const p = getMageTowerPassiveById(dummyConfig.passiveId);
                     return p ? (
                       <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
-                        <span>{p.emoji}</span>
+                        <span>{p.icon}</span>
                         <span className="text-stone-300">{p.name} niv.{dummyConfig.passiveLevel}</span>
                       </div>
                     ) : null;
@@ -1082,7 +1083,7 @@ const Training = () => {
                     const p = getMageTowerPassiveById(dummyConfig.extensionId);
                     return p ? (
                       <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
-                        <span>{p.emoji}</span>
+                        <span>{p.icon}</span>
                         <span className="text-stone-300">Ext. {p.name} niv.{dummyConfig.extensionLevel}</span>
                       </div>
                     ) : null;
