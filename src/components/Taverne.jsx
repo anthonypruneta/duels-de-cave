@@ -41,18 +41,18 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'bar-1', x: 15, y: 55, label: 'Comptoir' },
-  { id: 'bar-2', x: 20, y: 66, label: 'Comptoir' },
-  { id: 'bar-3', x: 28, y: 75, label: 'Comptoir' },
-  { id: 'bar-4', x: 37, y: 77, label: 'Comptoir' },
-  { id: 'bar-5', x: 44, y: 69, label: 'Comptoir' },
-  { id: 'tavernier', x: 30, y: 44, label: 'Derrière le bar' },
-  { id: 'table-1', x: 56, y: 64, label: 'Table ronde' },
-  { id: 'table-2', x: 67, y: 69, label: 'Table ronde' },
-  { id: 'table-3', x: 60, y: 77, label: 'Table ronde' },
-  { id: 'petite-1', x: 79, y: 85, label: 'Petite table' },
-  { id: 'petite-2', x: 89, y: 93, label: 'Petite table' },
-  { id: 'cheminee', x: 78, y: 55, label: 'Cheminée' },
+  { id: 'bar-1', x: 16, y: 56, label: 'Comptoir' },
+  { id: 'bar-2', x: 22, y: 67, label: 'Comptoir' },
+  { id: 'bar-3', x: 30, y: 76, label: 'Comptoir' },
+  { id: 'bar-4', x: 38, y: 78, label: 'Comptoir' },
+  { id: 'bar-5', x: 45, y: 70, label: 'Comptoir' },
+  { id: 'tavernier', x: 32, y: 44, label: 'Derrière le bar' },
+  { id: 'table-1', x: 53, y: 66, label: 'Table ronde' },
+  { id: 'table-2', x: 71, y: 66, label: 'Table ronde' },
+  { id: 'table-3', x: 60, y: 79, label: 'Table ronde' },
+  { id: 'petite-1', x: 80, y: 86, label: 'Petite table' },
+  { id: 'petite-2', x: 90, y: 93, label: 'Petite table' },
+  { id: 'cheminee', x: 79, y: 56, label: 'Cheminée' },
 ];
 
 export default function Taverne() {
@@ -298,8 +298,8 @@ export default function Taverne() {
                 onClick={() => setSelectedCharacter({ ...character, userId })}
               >
                 {showBubble && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 max-w-[140px] rounded-lg bg-stone-900/95 border border-amber-500/70 text-[10px] text-stone-200 shadow-xl z-30 pointer-events-none whitespace-normal">
-                    <div className="break-words line-clamp-2">{presence.lastChatMessage}</div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 max-w-[220px] rounded-xl bg-stone-900/95 border border-amber-500/70 text-sm text-stone-200 shadow-xl z-30 pointer-events-none whitespace-normal">
+                    <div className="break-words line-clamp-3">{presence.lastChatMessage}</div>
                   </div>
                 )}
 
@@ -308,7 +308,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(56px, 9vw, 100px)', height: 'clamp(56px, 9vw, 100px)' }}
+                  style={{ width: 'clamp(84px, 14vw, 150px)', height: 'clamp(84px, 14vw, 150px)' }}
                 >
                   {imgSrc ? (
                     <img
