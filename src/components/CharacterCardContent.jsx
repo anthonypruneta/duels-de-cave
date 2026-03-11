@@ -341,7 +341,7 @@ export default function CharacterCardContent({
 
   if (detailsPlacement) {
     const sidePanel = (
-      <div className="hidden lg:block w-[220px] flex-shrink-0">
+      <div className="hidden lg:block w-[280px] flex-shrink-0">
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-3 shadow-lg overflow-visible">
           {details}
         </div>

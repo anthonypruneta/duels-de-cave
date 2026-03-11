@@ -839,7 +839,7 @@ const Tournament = () => {
     return (
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
         {/* Carte joueur 1 */}
-        <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+        <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
           <CharacterCardContent
             character={p1Data}
             showHpBar
@@ -851,11 +851,12 @@ const Tournament = () => {
             combatModifiers={p1CombatModifiers}
             opponent={p2Data}
             combatStatus={p1CombatStatus}
+            detailsPlacement="left"
           />
         </div>
 
         {/* Zone centrale - Combat log */}
-        <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+        <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
           {/* Message de victoire */}
           {winner && (
             <div className="flex justify-center mb-4">
@@ -940,7 +941,7 @@ const Tournament = () => {
         </div>
 
         {/* Carte joueur 2 */}
-        <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+        <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
           <CharacterCardContent
             character={p2Data}
             showHpBar
@@ -952,6 +953,7 @@ const Tournament = () => {
             combatModifiers={p2CombatModifiers}
             opponent={p1Data}
             combatStatus={p2CombatStatus}
+            detailsPlacement="right"
           />
         </div>
       </div>

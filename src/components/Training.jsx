@@ -667,12 +667,12 @@ const Training = () => {
           {/* Layout: Joueur | Centre | Mannequin */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur */}
-            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} />
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} detailsPlacement="left" />
             </div>
 
             {/* Zone centrale */}
-            <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
               {/* Boutons */}
               <div className="flex justify-center gap-3 md:gap-4 mb-4">
                 {combatResult === null && (
@@ -784,7 +784,7 @@ const Training = () => {
             </div>
 
             {/* Carte mannequin */}
-            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
               <DummyCard combatBaseOverride={dummyCombatBase} />
             </div>
           </div>

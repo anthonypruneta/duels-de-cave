@@ -638,12 +638,12 @@ const Combat = () => {
         {/* Layout principal: Perso 1 | Chat | Perso 2 */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           {/* Carte joueur 1 - Gauche (infos à gauche de l'image) */}
-          <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} combatBaseOverride={p1CombatBase} combatModifiers={p1CombatModifiers} opponent={player2} combatStatus={p1CombatStatus} />
+          <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} combatBaseOverride={p1CombatBase} combatModifiers={p1CombatModifiers} opponent={player2} combatStatus={p1CombatStatus} detailsPlacement="left" />
           </div>
 
           {/* Zone centrale - Boutons + Chat */}
-          <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+          <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
             {/* Boutons de contrôle alignés avec le haut des images */}
             <div className="flex justify-center gap-3 md:gap-4 mb-4">
               <button
@@ -748,8 +748,8 @@ const Combat = () => {
           </div>
 
           {/* Carte joueur 2 - Droite (infos à droite de l'image) */}
-          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} combatBaseOverride={p2CombatBase} combatModifiers={p2CombatModifiers} opponent={player1} combatStatus={p2CombatStatus} />
+          <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} combatBaseOverride={p2CombatBase} combatModifiers={p2CombatModifiers} opponent={player1} combatStatus={p2CombatStatus} detailsPlacement="right" />
           </div>
         </div>
       </div>

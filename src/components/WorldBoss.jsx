@@ -837,8 +837,8 @@ const WorldBoss = () => {
               </div>
 
               {/* Aperçu joueur */}
-              <div className="w-full md:w-[340px] md:flex-shrink-0 order-1 md:order-2">
-                <CharacterCardContent character={{ ...character, currentHP: character.base?.hp ?? 0, maxHP: character.base?.hp ?? 0, shield: 0 }} showHpBar={true} imageOverride={character.characterImage || testImage1} />
+              <div className="w-full md:w-[340px] lg:w-auto md:flex-shrink-0 order-1 md:order-2">
+                <CharacterCardContent character={{ ...character, currentHP: character.base?.hp ?? 0, maxHP: character.base?.hp ?? 0, shield: 0 }} showHpBar={true} imageOverride={character.characterImage || testImage1} detailsPlacement="left" />
               </div>
 
               {/* Zone centrale */}
@@ -882,12 +882,12 @@ const WorldBoss = () => {
             </div>
 
             {/* Joueur */}
-            <div className="order-1 md:order-2 w-full md:w-[340px] md:flex-shrink-0">
-              {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} combatStatus={playerCombatStatus} />}
+            <div className="order-1 md:order-2 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} combatStatus={playerCombatStatus} detailsPlacement="left" />}
             </div>
 
             {/* Zone centrale : boutons + logs */}
-            <div className="order-2 md:order-3 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+            <div className="order-2 md:order-3 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
               {/* Boutons */}
               <div className="flex justify-center gap-3 md:gap-4 mb-4">
                 <button
