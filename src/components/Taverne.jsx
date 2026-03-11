@@ -41,18 +41,18 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'bar-1', x: 14, y: 56, label: 'Comptoir' },
-  { id: 'bar-2', x: 19, y: 64, label: 'Comptoir' },
-  { id: 'bar-3', x: 26, y: 74, label: 'Comptoir' },
-  { id: 'bar-4', x: 36, y: 77, label: 'Comptoir' },
-  { id: 'bar-5', x: 45, y: 68, label: 'Comptoir' },
-  { id: 'tavernier', x: 30, y: 38, label: 'Derrière le bar' },
-  { id: 'table-1', x: 59, y: 67, label: 'Table ronde' },
-  { id: 'table-2', x: 70, y: 73, label: 'Table ronde' },
-  { id: 'table-3', x: 63, y: 79, label: 'Table ronde' },
-  { id: 'petite-1', x: 76, y: 88, label: 'Petite table' },
-  { id: 'petite-2', x: 88, y: 94, label: 'Petite table' },
-  { id: 'cheminee', x: 82, y: 52, label: 'Cheminée' },
+  { id: 'bar-1', x: 13, y: 50, label: 'Comptoir' },
+  { id: 'bar-2', x: 21, y: 64, label: 'Comptoir' },
+  { id: 'bar-3', x: 28, y: 72, label: 'Comptoir' },
+  { id: 'bar-4', x: 38, y: 74, label: 'Comptoir' },
+  { id: 'bar-5', x: 43, y: 67, label: 'Comptoir' },
+  { id: 'tavernier', x: 27, y: 40, label: 'Derrière le bar' },
+  { id: 'table-1', x: 57, y: 60, label: 'Table ronde' },
+  { id: 'table-2', x: 67, y: 66, label: 'Table ronde' },
+  { id: 'table-3', x: 60, y: 74, label: 'Table ronde' },
+  { id: 'petite-1', x: 79, y: 83, label: 'Petite table' },
+  { id: 'petite-2', x: 89, y: 91, label: 'Petite table' },
+  { id: 'cheminee', x: 78, y: 53, label: 'Cheminée' },
 ];
 
 export default function Taverne() {
@@ -305,22 +305,21 @@ export default function Taverne() {
 
                 <div
                   className={`
-                    relative rounded-full overflow-hidden border-2 transition-all duration-200 shadow-lg
-                    ${isMe ? 'border-amber-400 shadow-amber-500/40' : isPresent ? 'border-emerald-400/80 shadow-emerald-500/30' : 'border-stone-500/60'}
+                    relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
-                    ${!isPresent ? 'opacity-50 grayscale-[30%]' : ''}
                   `}
-                  style={{ width: 'clamp(36px, 5vw, 56px)', height: 'clamp(36px, 5vw, 56px)' }}
+                  style={{ width: 'clamp(48px, 7vw, 80px)', height: 'clamp(48px, 7vw, 80px)' }}
                 >
                   {imgSrc ? (
                     <img
                       src={imgSrc}
                       alt={character.name || ''}
-                      className={`w-full h-full select-none pointer-events-none ${isChibi ? 'object-contain object-bottom' : 'object-cover object-top'}`}
+                      className={`w-full h-full select-none pointer-events-none ${isChibi ? 'object-contain object-bottom' : 'object-cover object-top rounded'}`}
+                      style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))' }}
                       draggable={false}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-stone-700 text-lg">
+                    <div className="w-full h-full flex items-center justify-center text-2xl">
                       🧙
                     </div>
                   )}
