@@ -341,9 +341,8 @@ const SubclassDungeon = () => {
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[480px] md:flex-shrink-0">
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <CharacterCardContent
-                infoSide="left"
                 character={player}
                 showHpBar
                 combatBaseOverride={playerCombatBase}

@@ -638,8 +638,8 @@ const Combat = () => {
         {/* Layout principal: Perso 1 | Chat | Perso 2 */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
           {/* Carte joueur 1 - Gauche (infos à gauche de l'image) */}
-          <div className="order-1 md:order-1 w-full md:w-[480px] md:flex-shrink-0">
-            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} combatBaseOverride={p1CombatBase} combatModifiers={p1CombatModifiers} opponent={player2} combatStatus={p1CombatStatus} infoSide="left" />
+          <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+            <CharacterCardContent character={player1} showHpBar imageOverride={player1?.characterImage ?? testImage1} combatBaseOverride={p1CombatBase} combatModifiers={p1CombatModifiers} opponent={player2} combatStatus={p1CombatStatus} />
           </div>
 
           {/* Zone centrale - Boutons + Chat */}
@@ -748,8 +748,8 @@ const Combat = () => {
           </div>
 
           {/* Carte joueur 2 - Droite (infos à droite de l'image) */}
-          <div className="order-3 md:order-3 w-full md:w-[480px] md:flex-shrink-0">
-            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} combatBaseOverride={p2CombatBase} combatModifiers={p2CombatModifiers} opponent={player1} combatStatus={p2CombatStatus} infoSide="right" />
+          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+            <CharacterCardContent character={player2} showHpBar imageOverride={player2?.characterImage ?? testImage2} combatBaseOverride={p2CombatBase} combatModifiers={p2CombatModifiers} opponent={player1} combatStatus={p2CombatStatus} />
           </div>
         </div>
       </div>
