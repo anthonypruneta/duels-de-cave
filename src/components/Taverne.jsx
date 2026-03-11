@@ -41,18 +41,18 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'bar-1', x: 16, y: 56, label: 'Comptoir' },
-  { id: 'bar-2', x: 22, y: 67, label: 'Comptoir' },
-  { id: 'bar-3', x: 30, y: 76, label: 'Comptoir' },
-  { id: 'bar-4', x: 38, y: 78, label: 'Comptoir' },
-  { id: 'bar-5', x: 45, y: 70, label: 'Comptoir' },
-  { id: 'tavernier', x: 32, y: 44, label: 'Derrière le bar' },
-  { id: 'table-1', x: 53, y: 66, label: 'Table ronde' },
-  { id: 'table-2', x: 71, y: 66, label: 'Table ronde' },
-  { id: 'table-3', x: 60, y: 79, label: 'Table ronde' },
-  { id: 'petite-1', x: 80, y: 86, label: 'Petite table' },
-  { id: 'petite-2', x: 90, y: 93, label: 'Petite table' },
-  { id: 'cheminee', x: 79, y: 56, label: 'Cheminée' },
+  { id: 'tavernier', x: 19, y: 47, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 26, y: 66, label: 'Comptoir' },
+  { id: 'bar-2', x: 32, y: 69, label: 'Comptoir' },
+  { id: 'table1-1', x: 28, y: 78, label: 'Table gauche' },
+  { id: 'table1-2', x: 39, y: 78, label: 'Table gauche' },
+  { id: 'table1-3', x: 33, y: 88, label: 'Table gauche' },
+  { id: 'table2-1', x: 52, y: 68, label: 'Table droite' },
+  { id: 'table2-2', x: 62, y: 68, label: 'Table droite' },
+  { id: 'table2-3', x: 57, y: 78, label: 'Table droite' },
+  { id: 'cheminee', x: 76, y: 58, label: 'Cheminée' },
+  { id: 'escalier', x: 50, y: 42, label: 'Escalier' },
+  { id: 'tonneaux', x: 84, y: 70, label: 'Tonneaux' },
 ];
 
 export default function Taverne() {
@@ -274,7 +274,7 @@ export default function Taverne() {
           <img
             src="/assets/backgrounds/taverneIso.png"
             alt=""
-            className="absolute inset-0 w-full h-full rounded-lg select-none"
+            className="absolute inset-0 w-full h-full select-none"
             draggable={false}
           />
 
