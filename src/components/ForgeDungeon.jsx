@@ -450,18 +450,18 @@ const ForgeDungeon = () => {
     const { bonuses, penalties } = extractForgeUpgrade(roll);
 
     return (
-      <div className={`bg-stone-800 border p-4 text-center ${isCurrent ? 'border-amber-500' : 'border-orange-500'}`}>
-        <div className="text-lg mb-2">{isCurrent ? '🛡️' : '🔥'}</div>
-        <div className={`text-sm font-semibold mb-3 ${isCurrent ? 'text-amber-300' : 'text-orange-300'}`}>{label}</div>
-        <div className="space-y-2">
+      <div className={`flex-1 rounded-xl bg-stone-950/85 border p-5 text-center shadow-lg ${isCurrent ? 'border-amber-500/80' : 'border-orange-500/80'}`}>
+        <div className="text-2xl mb-2">{isCurrent ? '🛡️' : '🔥'}</div>
+        <div className={`text-sm font-bold mb-3 uppercase tracking-wider ${isCurrent ? 'text-amber-300' : 'text-orange-300'}`}>{label}</div>
+        <div className="space-y-1.5">
           {Object.entries(bonuses).map(([statKey, pct]) => (
-            <div key={`bonus-${statKey}`} className="text-green-400 font-semibold">
+            <div key={`bonus-${statKey}`} className="text-green-400 font-semibold text-sm">
               {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} +{formatUpgradePct(pct)}
             </div>
           ))}
           {Object.entries(penalties).map(([statKey, pct]) => (
-            <div key={`penalty-${statKey}`} className="text-red-400 font-semibold">
-              {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} -{formatUpgradePct(pct)} (malus arme)
+            <div key={`penalty-${statKey}`} className="text-red-400 font-semibold text-sm">
+              {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} -{formatUpgradePct(pct)} (malus)
             </div>
           ))}
         </div>
@@ -496,10 +496,10 @@ const ForgeDungeon = () => {
           </>
         }
         details={bossChar.ability ? (
-          <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
             <span className="text-lg">🔥</span>
             <div className="flex-1">
-              <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.name}</div>
+              <div className="text-orange-300 font-semibold mb-1">{bossChar.ability.name}</div>
               <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
             </div>
           </div>
@@ -536,19 +536,25 @@ const ForgeDungeon = () => {
     const alreadyChose = upgradeChoice !== null;
 
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="min-h-screen p-6">
         <Header />
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-800 border border-orange-600 p-8 max-w-2xl w-full text-center">
-          <div className="text-6xl mb-4">🔨</div>
-          <h2 className="text-3xl font-bold text-orange-400 mb-2">Ornn est vaincu !</h2>
-          <p className="text-stone-300 mb-6">La forge produit une amelioration pour votre arme.</p>
+        <div className="max-w-5xl mx-auto pt-16 text-center">
+          {/* Carte du personnage */}
+          <div className="flex justify-center mb-8">
+            <CharacterCardContent character={character} detailsPlacement="right" />
+          </div>
+
+          <div className="inline-block bg-stone-950/85 border border-orange-600/80 rounded-lg px-6 py-3 shadow-lg mb-6">
+            <h2 className="text-2xl font-bold text-orange-400">🔨 Ornn est vaincu !</h2>
+            <p className="text-stone-300 text-sm mt-1">La forge produit une amélioration pour votre arme.</p>
+          </div>
 
           {!alreadyChose ? (
             <>
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4 mb-6 max-w-2xl mx-auto">
                 {hasExistingUpgrade && (
                   <UpgradeRollDisplay
                     roll={currentUpgrade}
@@ -563,11 +569,11 @@ const ForgeDungeon = () => {
                 />
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-w-md mx-auto">
                 <button
                   onClick={handleAcceptNewRoll}
                   disabled={savingUpgrade}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-stone-600 text-white px-8 py-3 font-bold border border-orange-500"
+                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-stone-700 text-white px-8 py-3 rounded-lg font-bold border border-orange-500 transition shadow-lg"
                 >
                   {savingUpgrade ? 'Sauvegarde...' : 'Accepter le nouveau roll'}
                 </button>
@@ -576,9 +582,9 @@ const ForgeDungeon = () => {
                   <button
                     onClick={handleKeepOldRoll}
                     disabled={savingUpgrade || !dungeonSummary?.runsRemaining}
-                    className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-600 text-white px-8 py-3 font-bold border border-amber-500"
+                    className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 text-white px-8 py-3 rounded-lg font-bold border border-amber-500 transition shadow-lg"
                   >
-                    {savingUpgrade ? 'Sauvegarde...' : `Conserver l'ancien roll (coute 1 run)`}
+                    {savingUpgrade ? 'Sauvegarde...' : `Conserver l'ancien roll (coûte 1 run)`}
                   </button>
                 )}
 
@@ -588,15 +594,15 @@ const ForgeDungeon = () => {
               </div>
             </>
           ) : (
-            <div className="mb-6">
+            <div className="mb-6 max-w-md mx-auto">
               {upgradeChoice === 'new' ? (
-                <div className="bg-orange-900/30 border border-orange-600 p-4">
-                  <p className="text-orange-300 font-bold mb-2">Nouveau roll applique !</p>
+                <div className="bg-orange-900/30 border border-orange-600 rounded-xl p-4 shadow-lg">
+                  <p className="text-orange-300 font-bold mb-2">Nouveau roll appliqué !</p>
                   <UpgradeRollDisplay roll={newUpgradeRoll} label="Roll actif" isCurrent={false} />
                 </div>
               ) : (
-                <div className="bg-amber-900/30 border border-amber-600 p-4">
-                  <p className="text-amber-300 font-bold mb-2">Ancien roll conserve ! (1 run depense)</p>
+                <div className="bg-amber-900/30 border border-amber-600 rounded-xl p-4 shadow-lg">
+                  <p className="text-amber-300 font-bold mb-2">Ancien roll conservé ! (1 run dépensé)</p>
                   <UpgradeRollDisplay roll={currentUpgrade} label="Roll actif" isCurrent={true} />
                 </div>
               )}
@@ -606,14 +612,14 @@ const ForgeDungeon = () => {
           {(alreadyChose || !hasExistingUpgrade) && upgradeChoice !== null && (
             <button
               onClick={handleBackToLobby}
-              className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400 mt-4"
+              className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition mt-4"
             >
-              Retour
+              ← Retour à la forge
             </button>
           )}
 
           {!alreadyChose && !hasExistingUpgrade && (
-            <p className="text-stone-500 text-sm mt-2">Premiere forge — le roll sera automatiquement applique.</p>
+            <p className="text-stone-500 text-sm mt-2">Première forge — le roll sera automatiquement appliqué.</p>
           )}
         </div>
       </div>
@@ -628,17 +634,19 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="text-8xl mb-6">{gameState === 'victory' ? '🔨' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-orange-400' : 'text-red-400'}`}>
-            {gameState === 'victory' ? 'Victoire dans la Forge !' : 'Defaite...'}
-          </h2>
-          <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'Votre arme est plus puissante.' : 'Ornn vous a broye. Aucun upgrade cette fois.'}
-          </p>
-          <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
-            Retour
-          </button>
+        <div className="max-w-2xl mx-auto pt-16 text-center">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
+            <div className="text-7xl mb-6">{gameState === 'victory' ? '🔨' : '💀'}</div>
+            <h2 className={`text-3xl font-bold mb-4 ${gameState === 'victory' ? 'text-orange-400' : 'text-red-400'}`}>
+              {gameState === 'victory' ? 'Victoire dans la Forge !' : 'Défaite...'}
+            </h2>
+            <p className="text-stone-300 mb-8">
+              {gameState === 'victory' ? 'Votre arme est plus puissante.' : 'Ornn vous a broyé. Aucun upgrade cette fois.'}
+            </p>
+            <button onClick={handleBackToLobby} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition">
+              ← Retour à la forge
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -652,56 +660,51 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-6xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-orange-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-orange-400">Forge des Legendes</h2>
-            </div>
+        <div className="max-w-6xl mx-auto pt-16">
+          {/* Boutons centrés en haut */}
+          <div className="flex justify-center gap-3 md:gap-4 mb-6">
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating || !player || !boss}
+                className="bg-orange-600 hover:bg-orange-700 disabled:bg-stone-700 disabled:text-stone-400 text-white px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-orange-500"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
+            <button
+              onClick={handleBackToLobby}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-stone-500"
+            >
+              ← Abandonner
+            </button>
           </div>
 
+          {combatResult === 'victory' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-orange-600/90 text-white px-8 py-3 rounded-xl font-bold text-xl animate-pulse shadow-2xl border border-orange-400">
+                🔨 {player.name} forge sa victoire ! 🔨
+              </div>
+            </div>
+          )}
+
+          {combatResult === 'defeat' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-900/80 text-red-200 px-8 py-3 rounded-xl font-bold text-xl shadow-2xl border border-red-600">
+                💀 {player.name} a été écrasé... 💀
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
               <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
             </div>
 
-            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-              <div className="flex justify-center gap-3 md:gap-4 mb-4">
-                {combatResult === null && (
-                  <button
-                    onClick={simulateCombat}
-                    disabled={isSimulating || !player || !boss}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
-                  >
-                    ▶️ Lancer le combat
-                  </button>
-                )}
-                <button
-                  onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-                >
-                  ← Abandonner
-                </button>
-              </div>
-
-              {combatResult === 'victory' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                    🔨 {player.name} forge sa victoire ! 🔨
-                  </div>
-                </div>
-              )}
-
-              {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
-                    💀 {player.name} a ete ecrase... 💀
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900 p-3 border-b border-orange-600/50">
-                  <h2 className="text-lg md:text-2xl font-bold text-orange-300 text-center">🔥 Combat — Forge des Legendes</h2>
+            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900/90 p-3 border-b border-orange-600/50 rounded-t-xl">
+                  <h2 className="text-lg md:text-xl font-bold text-orange-300 text-center">🔥 Forge des Légendes</h2>
                 </div>
                 <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
@@ -717,7 +720,7 @@ const ForgeDungeon = () => {
                           if (log.includes('🏆') || log.includes('🔨')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                                <div className="bg-orange-600/90 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-orange-400">
                                   {cleanLog}
                                 </div>
                               </div>
@@ -726,7 +729,7 @@ const ForgeDungeon = () => {
                           if (log.includes('💀')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
+                                <div className="bg-red-900/80 text-red-200 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-red-600">
                                   {cleanLog}
                                 </div>
                               </div>
@@ -735,7 +738,7 @@ const ForgeDungeon = () => {
                           if (log.includes('---') || log.includes('⚔️')) {
                             return (
                               <div key={idx} className="flex justify-center my-3">
-                                <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-4 py-1 rounded-lg text-sm font-bold border border-stone-500">
                                   {cleanLog}
                                 </div>
                               </div>
@@ -743,9 +746,7 @@ const ForgeDungeon = () => {
                           }
                           return (
                             <div key={idx} className="flex justify-center">
-                              <div className="text-stone-400 text-sm italic">
-                                {cleanLog}
-                              </div>
+                              <div className="text-stone-400 text-sm italic">{cleanLog}</div>
                             </div>
                           );
                         }
@@ -754,7 +755,7 @@ const ForgeDungeon = () => {
                           return (
                             <div key={idx} className="flex justify-start">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
                                   <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
@@ -766,7 +767,7 @@ const ForgeDungeon = () => {
                           return (
                             <div key={idx} className="flex justify-end">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-orange-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-orange-500">
                                   <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
@@ -781,7 +782,7 @@ const ForgeDungeon = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>
@@ -793,56 +794,77 @@ const ForgeDungeon = () => {
   // Lobby screen
   const bossImg = getForgeImage(FORGE_BOSS.imageFile);
 
+  const LobbyBossCard = () => (
+    <UnifiedCharacterCard
+      header={`Boss • Forge des Légendes`}
+      name={FORGE_BOSS.nom}
+      image={bossImg}
+      fallback={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
+      topStats={<><span>HP: {FORGE_BOSS.stats.hp}</span><span>VIT: {FORGE_BOSS.stats.spd}</span></>}
+      mainStats={
+        <>
+          <div>Auto: {FORGE_BOSS.stats.auto}</div>
+          <div>DEF: {FORGE_BOSS.stats.def}</div>
+          <div>CAP: {FORGE_BOSS.stats.cap}</div>
+          <div>RESC: {FORGE_BOSS.stats.rescap}</div>
+        </>
+      }
+      details={
+        <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
+          <span className="text-lg">🔥</span>
+          <div className="flex-1">
+            <div className="text-orange-300 font-semibold mb-1">{FORGE_BOSS.ability.name} (CD {FORGE_BOSS.ability.cooldown})</div>
+            <div className="text-stone-400 text-[10px]">{FORGE_BOSS.ability.description || 'Capacité spéciale du boss'}</div>
+          </div>
+        </div>
+      }
+      cardClassName="border-2 border-orange-600/50"
+    />
+  );
+
   return (
     <div className="min-h-screen p-6">
       <Header />
       <audio id="forge-music" loop>
         <source src="/assets/music/forge.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-orange-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-orange-400">Forge des Legendes</h2>
+      <div className="max-w-5xl mx-auto pt-16">
+        {/* Titre */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-stone-950/85 border border-orange-600/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-orange-400">🔨 Forge des Légendes</h2>
           </div>
         </div>
 
-        {/* Boss presentation */}
-        <div className="bg-stone-800 border border-orange-600/50 p-6 mb-8 text-center">
-          {bossImg && (
-            <img
-              src={bossImg}
-              alt={FORGE_BOSS.nom}
-              className="w-48 h-auto mx-auto mb-4 border-2 border-orange-600"
-            />
-          )}
-          <h3 className="text-2xl font-bold text-orange-300 mb-2">{FORGE_BOSS.nom}</h3>
-          <p className="text-stone-400 mb-4">Le dieu de la forge vous attend. Seuls les porteurs d'armes legendaires peuvent le defier.</p>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-lg mx-auto text-sm">
-            {Object.entries(FORGE_BOSS.stats).map(([stat, val]) => (
-              <div key={stat} className="bg-stone-900/60 border border-stone-700 p-2 text-center">
-                <div className="text-orange-300 font-bold">{STAT_LABELS[stat]}</div>
-                <div className="text-white">{val}</div>
-              </div>
-            ))}
+        {/* 1 - Essais disponibles */}
+        <div className="bg-stone-950/85 border border-orange-600/60 rounded-xl p-5 mb-6 flex justify-between items-center shadow-lg">
+          <div>
+            <p className="text-orange-300 font-bold text-sm uppercase tracking-wider">Essais disponibles</p>
+            <p className="text-white text-3xl font-bold mt-1">
+              {dungeonSummary?.runsRemaining || 0}
+            </p>
+            <p className="text-stone-400 text-xs mt-1">1 run = 1 combat (garder ancien roll = +1 run)</p>
           </div>
-          <div className="mt-4 bg-stone-900/60 border border-orange-600/30 p-3 inline-block">
-            <span className="text-orange-300 font-semibold">🔥 {FORGE_BOSS.ability.name}</span>
-            <span className="text-stone-400 text-sm ml-2">— CD {FORGE_BOSS.ability.cooldown} tours</span>
+          <div className="text-right">
+            <p className="text-stone-400 text-xs uppercase tracking-wider">Arme légendaire</p>
+            <p className={`font-bold text-xl mt-1 ${isLegendaryEquipped ? 'text-amber-400' : 'text-red-400'}`}>
+              {isLegendaryEquipped ? equippedWeapon.nom : 'Requise'}
+            </p>
           </div>
         </div>
 
-        {/* Current upgrade display */}
+        {/* Upgrade actif */}
         {hasAnyForgeUpgrade(currentUpgrade) && (
-          <div className="bg-stone-800 border border-amber-600 p-4 mb-8">
-            <h3 className="text-lg font-bold text-amber-400 mb-3 text-center">🔨 Upgrade actif</h3>
-            <div className="flex flex-wrap justify-center gap-6">
+          <div className="bg-stone-950/85 border border-amber-600/60 rounded-xl p-4 mb-6 shadow-lg text-center">
+            <p className="text-amber-400 font-bold text-sm uppercase tracking-wider mb-2">🔨 Upgrade actif</p>
+            <div className="flex flex-wrap justify-center gap-4">
               {Object.entries(extractForgeUpgrade(currentUpgrade).bonuses).map(([statKey, pct]) => (
-                <span key={`active-bonus-${statKey}`} className="text-green-400 font-semibold">
+                <span key={`active-bonus-${statKey}`} className="text-green-400 font-semibold text-sm">
                   {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} +{formatUpgradePct(pct)}
                 </span>
               ))}
               {Object.entries(extractForgeUpgrade(currentUpgrade).penalties).map(([statKey, pct]) => (
-                <span key={`active-penalty-${statKey}`} className="text-red-400 font-semibold">
+                <span key={`active-penalty-${statKey}`} className="text-red-400 font-semibold text-sm">
                   {UPGRADE_STAT_LABELS[statKey] || statKey.toUpperCase()} -{formatUpgradePct(pct)}
                 </span>
               ))}
@@ -850,52 +872,51 @@ const ForgeDungeon = () => {
           </div>
         )}
 
-        {/* Runs info */}
-        <div className="bg-stone-800 border border-orange-600/50 p-4 mb-8 flex justify-between items-center">
-          <div>
-            <p className="text-orange-300 font-bold">Essais disponibles</p>
-            <p className="text-white text-2xl">
-              {dungeonSummary?.runsRemaining || 0}
-            </p>
-            <p className="text-stone-400 text-sm">1 run = 1 combat (garder ancien roll = +1 run)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-gray-400 text-sm">Arme legendaire</p>
-            <p className={`font-bold ${isLegendaryEquipped ? 'text-amber-400' : 'text-red-400'}`}>
-              {isLegendaryEquipped ? `${equippedWeapon.nom}` : 'Requise'}
-            </p>
-          </div>
-        </div>
-
-        {/* Errors */}
+        {/* Erreurs */}
         {error && (
-          <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/50 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300">{error}</p>
           </div>
         )}
 
         {!isLegendaryEquipped && (
-          <div className="bg-red-900/30 border border-red-600 p-4 mb-6 text-center">
-            <p className="text-red-300 font-bold">Vous devez equiper une arme legendaire pour acceder a la Forge des Legendes.</p>
+          <div className="bg-red-900/30 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
+            <p className="text-red-300 font-bold">Vous devez équiper une arme légendaire pour accéder à la Forge.</p>
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
-            Retour
-          </button>
-          <button
-            onClick={handleStartRun}
-            disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}
-            className={`px-12 py-4 font-bold text-xl ${
-              isLegendaryEquipped && dungeonSummary?.runsRemaining > 0
-                ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
-                : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
-            }`}
-          >
-            {isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? 'Defier Ornn' : 'Acces impossible'}
-          </button>
+        {/* Personnage gauche - Boutons centre - Ornn droite */}
+        <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+          {/* Joueur */}
+          <div className="w-full md:w-auto md:flex-shrink-0">
+            <CharacterCardContent character={character} detailsPlacement="right" />
+          </div>
+
+          {/* Boutons au centre */}
+          <div className="flex flex-col items-center justify-center gap-3 lg:pt-32">
+            <button
+              onClick={handleStartRun}
+              disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}
+              className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
+                isLegendaryEquipped && dungeonSummary?.runsRemaining > 0
+                  ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+              }`}
+            >
+              {isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Ornn' : 'Accès impossible'}
+            </button>
+            <button
+              onClick={() => navigate('/dungeons')}
+              className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition"
+            >
+              ← Retour aux donjons
+            </button>
+          </div>
+
+          {/* Ornn */}
+          <div className="w-full md:w-[340px] md:flex-shrink-0">
+            <LobbyBossCard />
+          </div>
         </div>
       </div>
     </div>
