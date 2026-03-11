@@ -231,8 +231,8 @@ const InfiniteLabyrinth = () => {
       equippedWeaponData: weapon,
       forgeUpgrade: shownEnemyFloor?.bossKit?.forgeUpgrade || null,
       characterImage: resolveLabyrinthFloorImagePath(shownEnemyFloor),
-      currentHP: replayP2HP ?? maxHP,
-      maxHP: replayP2MaxHP ?? maxHP,
+      currentHP: replayP2HP || maxHP,
+      maxHP: replayP2MaxHP || maxHP,
       awakeningForced: awakeningRaces.length > 0
     };
   }, [shownEnemyFloor, replayP2HP, replayP2MaxHP]);
@@ -493,9 +493,20 @@ const InfiniteLabyrinth = () => {
       <Header />
       <SoundControl />
       <div className="max-w-[1800px] mx-auto pt-16">
-        <div className="flex justify-center mb-8">
-          <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-            <h1 className="text-3xl font-bold text-stone-200">⚔️ Combat ⚔️</h1>
+        <div className="flex justify-center mb-4">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-6 py-2 shadow">
+            <h1 className="text-2xl font-bold text-stone-200">🌀 Labyrinthe Infini</h1>
+          </div>
+        </div>
+
+        <div className="flex justify-center mb-4">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-1.5 shadow flex items-center gap-3 text-sm">
+            <span className="text-stone-400">Semaine <span className="text-amber-400 font-semibold">{weekId}</span></span>
+            <span className="text-stone-600">•</span>
+            <span className="text-stone-400">Étage <span className="text-amber-400 font-semibold">{currentFloor}</span></span>
+            <span className="text-stone-600">•</span>
+            <span className="text-stone-400">Boss vaincus <span className="text-amber-400 font-semibold">{progress?.bossesDefeated || 0}</span></span>
+            {isAutoRunActive && <><span className="text-stone-600">•</span><span className="text-green-400 font-semibold animate-pulse">Auto-run actif</span></>}
           </div>
         </div>
 
@@ -505,28 +516,17 @@ const InfiniteLabyrinth = () => {
           <button
             onClick={handleStartCurrentFloorFight}
             disabled={loading}
-            className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+            className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
           >
             ▶️ {loading ? 'Combats en cours...' : 'Lancer le combat'}
           </button>
           <button
             onClick={stopAutoRun}
             disabled={!isAutoRunActive}
-            className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-red-500"
+            className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg border border-red-500"
           >
             ⏹️ Stop
           </button>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-          >
-            ← Changer
-          </button>
-        </div>
-
-        <div className="text-center mb-4 text-stone-300 text-sm">
-          Week {weekId} • Étage {currentFloor} • Boss vaincus {progress?.bossesDefeated || 0}
-          {isAutoRunActive && ' • Auto-run actif'}
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
@@ -547,14 +547,14 @@ const InfiniteLabyrinth = () => {
           <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
             {replayWinner && (
               <div className="flex justify-center mb-4">
-                <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl rounded-lg border-2 border-stone-400">
                   🏆 {replayWinner} remporte le combat! 🏆
                 </div>
               </div>
             )}
 
-            <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-              <div className="bg-stone-900 p-3 border-b border-stone-600">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px] overflow-hidden">
+              <div className="bg-stone-900/60 p-3 border-b border-stone-700/60">
                 <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
               </div>
               <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
