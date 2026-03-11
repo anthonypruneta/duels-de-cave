@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, updateCharacterLevel } from '../services/characterService';
 import { getPlayerDungeonSummary } from '../services/dungeonService';
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
+import { getMageTowerPassiveById, getMageTowerPassiveLevel, getAvailablePassives } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
   applyPassiveWeaponStats,
@@ -21,11 +21,16 @@ import {
 } from '../data/combatMechanics';
 import {
   RARITY_COLORS,
+  getWeaponById,
+  getWeaponsByFamily,
+  getWeaponFamilyInfo,
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade } from '../data/forgeDungeon';
+import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade, generateForgeUpgradeRoll } from '../data/forgeDungeon';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
+import { getExtensionPassiveOptions } from '../data/extensionDungeon';
+import { getSubclassesForClass, getSubclassById } from '../data/subclasses';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';

@@ -153,7 +153,6 @@ export const raceConstants = {
 export const generalConstants = {
   baseCritChance: 0.10,    // 10% crit de base
   critMultiplier: 1.5,     // x1.5 dégâts crit (sauf Voleur)
-  maxTurns: 30,            // Maximum de tours par combat
 };
 
 // Fonctions utilitaires

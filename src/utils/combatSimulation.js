@@ -3,7 +3,7 @@
 
 import { races } from '../data/races.js';
 import { classes } from '../data/classes.js';
-import { getRaceBonus, getClassBonus, generalConstants } from '../data/combatMechanics.js';
+import { getRaceBonus, getClassBonus } from '../data/combatMechanics.js';
 import { getAwakeningEffect, applyAwakeningToBase } from './awakening.js';
 import { simulerMatch } from './tournamentCombat.js';
 import { getStatPointValue } from './statPoints.js';
@@ -69,7 +69,7 @@ const simulateSingleCombat = (level = 1) => {
   const result = simulerMatch(p1, p2);
 
   const winnerIsP1 = result.winnerId === 'P1';
-  const turns = result.steps?.filter((step) => step.phase === 'turn_start').length ?? generalConstants.maxTurns;
+  const turns = result.steps?.filter((step) => step.phase === 'turn_start').length ?? 0;
 
   return {
     winner: winnerIsP1 ? 'P1' : 'P2',

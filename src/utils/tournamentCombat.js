@@ -1566,7 +1566,7 @@ export function simulerMatch(char1, char2) {
   });
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= generalConstants.maxTurns) {
+  while (p1.currentHP > 0 && p2.currentHP > 0) {
     // Turn start
     const turnStartLogs = [`--- Début du tour ${turn} ---`];
     const p1Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p1), turn);
