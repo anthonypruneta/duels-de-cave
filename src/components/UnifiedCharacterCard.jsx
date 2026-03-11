@@ -41,6 +41,8 @@ const UnifiedCharacterCard = ({
   aboveHpBar = null,
   /** 'left' | 'right' | null — place les infos à gauche ou droite de l'image (layout horizontal en combat) */
   infoSide = null,
+  /** Masquer la section info sur lg (quand les stats/details sont dans un panneau latéral externe) */
+  hideInfoOnLg = false,
 }) => {
   const targetHp = typeof hpPercent === 'number' ? Math.max(0, Math.min(100, hpPercent)) : null;
   const targetShield = Math.max(0, Math.min(100, shieldPercent));
@@ -93,7 +95,7 @@ const UnifiedCharacterCard = ({
   );
 
   const infoSection = (
-    <div className={`bg-stone-800 p-3 ${infoSide ? 'flex-1 overflow-y-auto overflow-x-hidden min-w-0' : 'border-t border-stone-600'}`}>
+    <div className={`bg-stone-800 p-3 ${infoSide ? 'flex-1 overflow-y-auto overflow-x-hidden min-w-0' : 'border-t border-stone-600'} ${hideInfoOnLg ? 'lg:hidden' : ''}`}>
       {topStats && (
         <div className="flex justify-between text-xs text-white mb-2 font-bold">
           {topStats}

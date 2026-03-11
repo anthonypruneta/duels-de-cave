@@ -368,7 +368,7 @@ export default function CharacterCardContent({
     );
 
     const sidePanelCardProps = includeStatsInPanel
-      ? { ...cardProps, topStats: <div className="lg:hidden">{topStats}</div>, mainStats: <div className="lg:hidden">{mainStats}</div> }
+      ? { ...cardProps, hideInfoOnLg: true }
       : cardProps;
 
     return (
