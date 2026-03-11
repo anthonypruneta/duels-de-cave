@@ -15,7 +15,7 @@ function DungeonCard({ icon, title, description, buttonLabel, onClick, accent = 
 
   return (
     <div
-      className="bg-stone-950/80 border border-stone-700/60 rounded-xl p-5 flex flex-col items-center text-center transition-all duration-200 hover:border-stone-500/60 hover:shadow-lg group cursor-pointer"
+      className="w-[280px] bg-stone-950/80 border border-stone-700/60 rounded-xl p-5 flex flex-col items-center text-center transition-all duration-200 hover:border-stone-500/60 hover:shadow-lg group cursor-pointer"
       onClick={onClick}
     >
       <div className="text-5xl mb-3 group-hover:scale-110 transition-transform duration-200">{icon}</div>
@@ -35,10 +35,12 @@ function CategorySection({ title, children }) {
     <div className="mb-8">
       <div className="flex items-center gap-3 mb-4">
         <div className="h-px flex-1 bg-stone-700/60" />
-        <h3 className="text-sm font-bold text-amber-400/90 uppercase tracking-widest">{title}</h3>
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-1.5 shadow">
+          <h3 className="text-sm font-bold text-amber-400/90 uppercase tracking-widest">{title}</h3>
+        </div>
         <div className="h-px flex-1 bg-stone-700/60" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         {children}
       </div>
     </div>
