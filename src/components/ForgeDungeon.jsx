@@ -697,8 +697,8 @@ const ForgeDungeon = () => {
           )}
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0 lg:w-auto lg:max-w-[340px]">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
@@ -837,20 +837,12 @@ const ForgeDungeon = () => {
         </div>
 
         {/* 1 - Essais disponibles */}
-        <div className="bg-stone-950/85 border border-orange-600/60 rounded-xl p-5 mb-6 flex justify-between items-center shadow-lg">
-          <div>
-            <p className="text-orange-300 font-bold text-sm uppercase tracking-wider">Essais disponibles</p>
-            <p className="text-white text-3xl font-bold mt-1">
-              {dungeonSummary?.runsRemaining || 0}
-            </p>
-            <p className="text-stone-400 text-xs mt-1">1 run = 1 combat (garder ancien roll = +1 run)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-stone-400 text-xs uppercase tracking-wider">Arme légendaire</p>
-            <p className={`font-bold text-xl mt-1 ${isLegendaryEquipped ? 'text-amber-400' : 'text-red-400'}`}>
-              {isLegendaryEquipped ? equippedWeapon.nom : 'Requise'}
-            </p>
-          </div>
+        <div className="bg-stone-950/85 border border-orange-600/60 rounded-xl p-5 mb-6 shadow-lg">
+          <p className="text-orange-300 font-bold text-sm uppercase tracking-wider">Essais disponibles</p>
+          <p className="text-white text-3xl font-bold mt-1">
+            {dungeonSummary?.runsRemaining || 0}
+          </p>
+          <p className="text-stone-400 text-xs mt-1">1 run = 1 combat (garder ancien roll = +1 run)</p>
         </div>
 
         {/* Upgrade actif */}
@@ -885,35 +877,32 @@ const ForgeDungeon = () => {
           </div>
         )}
 
-        {/* Personnage gauche - Boutons centre - Ornn droite */}
+        {/* Boutons */}
+        <div className="flex gap-4 justify-center mb-6">
+          <button
+            onClick={handleStartRun}
+            disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}
+            className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
+              isLegendaryEquipped && dungeonSummary?.runsRemaining > 0
+                ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
+                : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+            }`}
+          >
+            {isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Ornn' : 'Accès impossible'}
+          </button>
+          <button
+            onClick={() => navigate('/dungeons')}
+            className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition"
+          >
+            ← Retour aux donjons
+          </button>
+        </div>
+
+        {/* Personnage gauche - Ornn droite */}
         <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
-          {/* Joueur */}
           <div className="w-full md:w-auto md:flex-shrink-0">
             <CharacterCardContent character={character} detailsPlacement="left" />
           </div>
-
-          {/* Boutons au centre */}
-          <div className="flex flex-col items-center justify-center gap-3 lg:pt-32">
-            <button
-              onClick={handleStartRun}
-              disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}
-              className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
-                isLegendaryEquipped && dungeonSummary?.runsRemaining > 0
-                  ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
-                  : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
-              }`}
-            >
-              {isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Ornn' : 'Accès impossible'}
-            </button>
-            <button
-              onClick={() => navigate('/dungeons')}
-              className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition"
-            >
-              ← Retour aux donjons
-            </button>
-          </div>
-
-          {/* Ornn */}
           <div className="w-full md:w-[340px] md:flex-shrink-0">
             <LobbyBossCard />
           </div>
