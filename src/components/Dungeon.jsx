@@ -1307,21 +1307,17 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-4xl mx-auto pt-16">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎁</div>
-            <h2 className="text-4xl font-bold text-amber-400 mb-2" style={{ fontFamily: 'Georgia, serif' }}>Butin obtenu !</h2>
-            <p className="text-stone-300 mb-1">
-              {highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
-                ? 'Vous avez vaincu tous les boss !'
-                : highestLevelBeaten > 0
-                  ? `Vous avez atteint le niveau ${highestLevelBeaten}`
-                  : 'Défaite au premier niveau'}
-            </p>
+        <div className="max-w-5xl mx-auto pt-16">
+          {/* Carte du personnage */}
+          <div className="flex justify-center mb-8">
+            <CharacterCardContent character={character} detailsPlacement={null} />
+          </div>
+
+          <div className="text-center mb-6">
             <p className="text-amber-200/80 text-sm">Choisissez une arme :</p>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-5 mb-8">
+          <div className="flex flex-col md:flex-row gap-5 mb-8 max-w-4xl mx-auto">
             <WeaponCard weapon={lootWeapons[0]} onSelect={handleLootDecision} />
             {lootWeapons[1] && (
               <WeaponCard weapon={lootWeapons[1]} onSelect={handleLootDecision} />
@@ -1336,31 +1332,6 @@ const Dungeon = () => {
               Garder mon arme actuelle
             </button>
           </div>
-
-          {hasCurrentWeapon && (
-            <div className="mb-6">
-              <p className="text-center text-stone-400 text-sm mb-3">Arme actuellement équipée :</p>
-              <div className={`p-4 rounded-xl border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${getOpaqueRarityBg(hasCurrentWeapon.rarete)}`}>
-                <div className="flex items-center gap-3">
-                  {getWeaponImage(hasCurrentWeapon.imageFile) ? (
-                    <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
-                  ) : (
-                    <span className="text-3xl">{hasCurrentWeapon.icon}</span>
-                  )}
-                  <div>
-                    <p className={`font-bold ${RARITY_COLORS[hasCurrentWeapon.rarete]}`}>{hasCurrentWeapon.nom}</p>
-                    <div className="flex gap-2">
-                      {Object.entries(hasCurrentWeapon.stats).map(([stat, value]) => (
-                        <span key={stat} className="text-xs text-stone-400">
-                          {STAT_LABELS[stat] || stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -1396,6 +1367,35 @@ const Dungeon = () => {
             ))}
           </div>
 
+          {/* Boutons de contrôle (centrés par rapport à l'ensemble) */}
+          <div className="flex justify-center gap-3 md:gap-4 mb-3">
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating}
+                className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
+            {combatResult === 'victory' && (
+              <div className="bg-stone-100 text-stone-900 px-8 py-3 rounded-lg font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                🏆 {player.name} remporte le combat! 🏆
+              </div>
+            )}
+            {combatResult === 'defeat' && (
+              <div className="bg-red-900 text-red-200 px-8 py-3 rounded-lg font-bold text-xl shadow-2xl border-2 border-red-600">
+                💀 {player.name} a été vaincu... 💀
+              </div>
+            )}
+            <button
+              onClick={handleBackToLobby}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+            >
+              ← Abandonner
+            </button>
+          </div>
+
           {/* Layout principal: Joueur | Chat | Boss */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur - Gauche */}
@@ -1403,45 +1403,8 @@ const Dungeon = () => {
               <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
             </div>
 
-            {/* Zone centrale - Boutons + Chat */}
+            {/* Zone centrale - Chat */}
             <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-              {/* Boutons de contrôle */}
-              <div className="flex justify-center gap-3 md:gap-4 mb-3">
-                {combatResult === null && (
-                  <button
-                    onClick={simulateCombat}
-                    disabled={isSimulating}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
-                  >
-                    ▶️ Lancer le combat
-                  </button>
-                )}
-                <button
-                  onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-                >
-                  ← Abandonner
-                </button>
-              </div>
-
-              {/* Message de victoire */}
-              {combatResult === 'victory' && (
-                <div className="flex justify-center mb-3">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 rounded-lg font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                    🏆 {player.name} remporte le combat! 🏆
-                  </div>
-                </div>
-              )}
-
-              {/* Message de défaite */}
-              {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-3">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 rounded-lg font-bold text-xl shadow-2xl border-2 border-red-600">
-                    💀 {player.name} a été vaincu... 💀
-                  </div>
-                </div>
-              )}
-
               {/* Zone de chat */}
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
                 <div className="bg-stone-900/60 p-3 border-b border-stone-700/60 rounded-t-xl">
@@ -1610,28 +1573,10 @@ const Dungeon = () => {
           </div>
         </div>
 
-        {/* Arme équipée */}
-        {dungeonSummary?.equippedWeaponData && (
-          <div className="mb-6 p-4 border border-stone-700/80 bg-stone-950/85 rounded-xl shadow-lg">
-            <div className="flex items-center gap-4">
-              <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
-                <div className="flex items-center gap-4">
-                  {getWeaponImage(dungeonSummary.equippedWeaponData.imageFile) ? (
-                    <img src={getWeaponImage(dungeonSummary.equippedWeaponData.imageFile)} alt={dungeonSummary.equippedWeaponData.nom} className="w-16 h-auto" />
-                  ) : (
-                    <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
-                  )}
-                  <div className="flex-1">
-                    <p className="text-xs text-stone-400 uppercase tracking-wider">Arme équipée</p>
-                    <div className="text-xl font-bold">
-                      <WeaponNameWithForge weapon={dungeonSummary.equippedWeaponData} forgeUpgrade={character?.forgeUpgrade} />
-                    </div>
-                  </div>
-                </div>
-              </Tooltip>
-            </div>
-          </div>
-        )}
+        {/* Carte du personnage */}
+        <div className="flex justify-center mb-6">
+          <CharacterCardContent character={character} detailsPlacement={null} />
+        </div>
 
         {/* Aperçu des niveaux */}
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-5 mb-6 shadow-lg">
