@@ -596,12 +596,12 @@ const ForgeDungeon = () => {
           ) : (
             <div className="mb-6 max-w-md mx-auto">
               {upgradeChoice === 'new' ? (
-                <div className="bg-orange-900/30 border border-orange-600 rounded-xl p-4 shadow-lg">
+                <div className="bg-stone-950/90 border border-orange-500/70 rounded-xl p-5 shadow-lg">
                   <p className="text-orange-300 font-bold mb-2">Nouveau roll appliqué !</p>
                   <UpgradeRollDisplay roll={newUpgradeRoll} label="Roll actif" isCurrent={false} />
                 </div>
               ) : (
-                <div className="bg-amber-900/30 border border-amber-600 rounded-xl p-4 shadow-lg">
+                <div className="bg-stone-950/90 border border-amber-500/70 rounded-xl p-5 shadow-lg">
                   <p className="text-amber-300 font-bold mb-2">Ancien roll conservé ! (1 run dépensé)</p>
                   <UpgradeRollDisplay roll={currentUpgrade} label="Roll actif" isCurrent={true} />
                 </div>
