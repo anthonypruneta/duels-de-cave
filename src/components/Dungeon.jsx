@@ -248,10 +248,9 @@ const Dungeon = () => {
     return window.matchMedia('(min-width: 768px)').matches;
   };
 
-  // Scroll auto du log (desktop uniquement)
   useEffect(() => {
     if (!shouldAutoScrollLog()) return;
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    logContainerRef.current?.scrollTo({ top: logContainerRef.current.scrollHeight, behavior: 'smooth' });
   }, [combatLog]);
 
   // Charger les données au montage
@@ -311,9 +310,10 @@ const Dungeon = () => {
     const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
+      _storedBase: { ...char.base },
       base: baseWithAwakening,
       baseWithoutWeapon,
-    baseWithBoosts,
+      baseWithBoosts,
       currentHP: baseWithAwakening.hp,
       maxHP: baseWithAwakening.hp,
       cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0 },
@@ -1269,21 +1269,21 @@ const Dungeon = () => {
     const WeaponCard = ({ weapon, onSelect }) => (
       <button
         onClick={() => onSelect(weapon)}
-        className={`flex-1 p-5 border-2 ${RARITY_BORDER_COLORS[weapon.rarete]} bg-stone-800 hover:bg-stone-700 transition-all cursor-pointer text-center`}
+        className={`flex-1 p-6 border-2 ${RARITY_BORDER_COLORS[weapon.rarete]} bg-stone-950/85 hover:bg-stone-800/90 rounded-xl transition-all cursor-pointer text-center shadow-lg hover:shadow-xl hover:scale-[1.02]`}
       >
         {getWeaponImage(weapon.imageFile) ? (
-          <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-24 h-auto mx-auto mb-3" />
+          <img src={getWeaponImage(weapon.imageFile)} alt={weapon.nom} className="w-24 h-auto mx-auto mb-4" />
         ) : (
-          <div className="text-5xl mb-3">{weapon.icon}</div>
+          <div className="text-5xl mb-4">{weapon.icon}</div>
         )}
         <h3 className={`text-xl font-bold ${RARITY_COLORS[weapon.rarete]}`}>{weapon.nom}</h3>
-        <p className={`text-xs uppercase ${RARITY_COLORS[weapon.rarete]}`}>{weapon.rarete}</p>
-        <p className="text-gray-400 text-xs mt-2">{weapon.description}</p>
+        <p className={`text-xs uppercase font-bold tracking-wider ${RARITY_COLORS[weapon.rarete]}`}>{weapon.rarete}</p>
+        <p className="text-stone-400 text-xs mt-3 leading-relaxed">{weapon.description}</p>
 
-        <div className="mt-3 flex justify-center gap-2 flex-wrap">
+        <div className="mt-4 flex justify-center gap-2 flex-wrap">
           {Object.entries(weapon.stats).filter(([, value]) => value !== 0).map(([stat, value]) => (
-            <div key={stat} className="bg-stone-800 px-2 py-1 border border-stone-600">
-              <span className="text-gray-400 text-xs">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
+            <div key={stat} className="bg-stone-800/80 px-2.5 py-1 rounded border border-stone-600">
+              <span className="text-stone-400 text-xs">{STAT_LABELS[stat] || stat.toUpperCase()}</span>
               <span className={`ml-1 font-bold text-sm ${value > 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {value > 0 ? '+' : ''}{value}
               </span>
@@ -1292,9 +1292,9 @@ const Dungeon = () => {
         </div>
 
         {weapon.effet && typeof weapon.effet === 'object' ? (
-          <div className="mt-3 bg-amber-900/30 border border-amber-600 p-2">
+          <div className="mt-4 bg-amber-900/30 border border-amber-700/60 rounded-lg p-3">
             <p className="text-amber-300 font-bold text-sm">{weapon.effet.nom}</p>
-            <p className="text-amber-200 text-xs">{weapon.effet.description}</p>
+            <p className="text-amber-200/80 text-xs mt-1">{weapon.effet.description}</p>
           </div>
         ) : null}
       </button>
@@ -1307,31 +1307,31 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-4xl mx-auto pt-20">
+        <div className="max-w-4xl mx-auto pt-16">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">🎁</div>
-            <h2 className="text-4xl font-bold text-amber-400 mb-2">Butin obtenu !</h2>
-            <p className="text-gray-300 mb-2">
+            <h2 className="text-4xl font-bold text-amber-400 mb-2" style={{ fontFamily: 'Georgia, serif' }}>Butin obtenu !</h2>
+            <p className="text-stone-300 mb-1">
               {highestLevelBeaten === DUNGEON_CONSTANTS.TOTAL_LEVELS
                 ? 'Vous avez vaincu tous les boss !'
                 : highestLevelBeaten > 0
                   ? `Vous avez atteint le niveau ${highestLevelBeaten}`
                   : 'Défaite au premier niveau'}
             </p>
-            <p className="text-amber-200 text-sm">Choisissez une arme :</p>
+            <p className="text-amber-200/80 text-sm">Choisissez une arme :</p>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-5 mb-8">
             <WeaponCard weapon={lootWeapons[0]} onSelect={handleLootDecision} />
             {lootWeapons[1] && (
               <WeaponCard weapon={lootWeapons[1]} onSelect={handleLootDecision} />
             )}
           </div>
 
-          <div className="text-center mb-6">
+          <div className="text-center mb-8">
             <button
               onClick={() => handleLootDecision(null)}
-              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-5 py-2 font-semibold"
+              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 rounded-lg px-6 py-3 font-semibold transition"
             >
               Garder mon arme actuelle
             </button>
@@ -1339,8 +1339,8 @@ const Dungeon = () => {
 
           {hasCurrentWeapon && (
             <div className="mb-6">
-              <p className="text-center text-gray-400 mb-2">Arme actuellement équipée :</p>
-              <div className={`p-4 border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${getOpaqueRarityBg(hasCurrentWeapon.rarete)}`}>
+              <p className="text-center text-stone-400 text-sm mb-3">Arme actuellement équipée :</p>
+              <div className={`p-4 rounded-xl border ${RARITY_BORDER_COLORS[hasCurrentWeapon.rarete]} ${getOpaqueRarityBg(hasCurrentWeapon.rarete)}`}>
                 <div className="flex items-center gap-3">
                   {getWeaponImage(hasCurrentWeapon.imageFile) ? (
                     <img src={getWeaponImage(hasCurrentWeapon.imageFile)} alt={hasCurrentWeapon.nom} className="w-16 h-auto" />
@@ -1351,7 +1351,7 @@ const Dungeon = () => {
                     <p className={`font-bold ${RARITY_COLORS[hasCurrentWeapon.rarete]}`}>{hasCurrentWeapon.nom}</p>
                     <div className="flex gap-2">
                       {Object.entries(hasCurrentWeapon.stats).map(([stat, value]) => (
-                        <span key={stat} className="text-xs text-gray-400">
+                        <span key={stat} className="text-xs text-stone-400">
                           {STAT_LABELS[stat] || stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
                         </span>
                       ))}
@@ -1377,19 +1377,12 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-16">
-          {/* Header avec progression */}
-          <div className="flex justify-center mb-4">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h1 className="text-3xl font-bold text-stone-200">🏰 Donjon — Niveau {currentLevel} 🏰</h1>
-            </div>
-          </div>
-
+        <div className="max-w-[1800px] mx-auto pt-14">
           {/* Indicateur de progression */}
-          <div className="flex justify-center items-center gap-4 mb-6">
+          <div className="flex justify-center items-center gap-4 mb-4">
             {levels.map((level, idx) => (
               <div key={level.id} className="flex items-center gap-2">
-                <div className={`w-10 h-10 flex items-center justify-center border-2 text-sm font-bold ${
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center border-2 text-sm font-bold ${
                   idx + 1 < currentLevel ? 'bg-green-600 border-green-400 text-white' :
                   idx + 1 === currentLevel ? 'bg-amber-600 border-amber-400 text-white' :
                   'bg-stone-800 border-stone-600 text-stone-500'
@@ -1403,7 +1396,7 @@ const Dungeon = () => {
             ))}
           </div>
 
-          {/* Layout principal: Joueur | Chat | Boss (même que Combat.jsx) */}
+          {/* Layout principal: Joueur | Chat | Boss */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             {/* Carte joueur - Gauche */}
             <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
@@ -1413,19 +1406,19 @@ const Dungeon = () => {
             {/* Zone centrale - Boutons + Chat */}
             <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
               {/* Boutons de contrôle */}
-              <div className="flex justify-center gap-3 md:gap-4 mb-4">
+              <div className="flex justify-center gap-3 md:gap-4 mb-3">
                 {combatResult === null && (
                   <button
                     onClick={simulateCombat}
                     disabled={isSimulating}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
                   >
                     ▶️ Lancer le combat
                   </button>
                 )}
                 <button
                   onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
                 >
                   ← Abandonner
                 </button>
@@ -1433,8 +1426,8 @@ const Dungeon = () => {
 
               {/* Message de victoire */}
               {combatResult === 'victory' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                <div className="flex justify-center mb-3">
+                  <div className="bg-stone-100 text-stone-900 px-8 py-3 rounded-lg font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
                     🏆 {player.name} remporte le combat! 🏆
                   </div>
                 </div>
@@ -1442,16 +1435,16 @@ const Dungeon = () => {
 
               {/* Message de défaite */}
               {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
+                <div className="flex justify-center mb-3">
+                  <div className="bg-red-900 text-red-200 px-8 py-3 rounded-lg font-bold text-xl shadow-2xl border-2 border-red-600">
                     💀 {player.name} a été vaincu... 💀
                   </div>
                 </div>
               )}
 
-              {/* Zone de chat messenger (même que Combat.jsx) */}
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900 p-3 border-b border-stone-600">
+              {/* Zone de chat */}
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900/60 p-3 border-b border-stone-700/60 rounded-t-xl">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
                 <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
@@ -1565,17 +1558,19 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
-            {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
-          </h2>
-          <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'Vous avez vaincu tous les boss !' : 'Aucun loot obtenu.'}
-          </p>
-          <button onClick={handleBackToLobby} className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 font-bold">
-            Retour
-          </button>
+        <div className="max-w-2xl mx-auto pt-16 text-center">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
+            <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
+            <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
+              {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
+            </h2>
+            <p className="text-stone-300 mb-8">
+              {gameState === 'victory' ? 'Vous avez vaincu tous les boss !' : 'Aucun loot obtenu.'}
+            </p>
+            <button onClick={handleBackToLobby} className="bg-amber-600 hover:bg-amber-500 text-white px-8 py-3 rounded-lg font-bold transition">
+              ← Retour aux donjons
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1590,25 +1585,26 @@ const Dungeon = () => {
       <audio id="dungeon-music" loop>
         <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-stone-200">La Grotte</h2>
+      <div className="max-w-4xl mx-auto pt-16">
+        {/* Titre */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-stone-200">🏰 La Grotte</h2>
           </div>
         </div>
 
         {/* Info runs */}
-        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
+        <div className="bg-stone-950/85 border border-amber-700/60 rounded-xl p-5 mb-6 flex justify-between items-center shadow-lg">
           <div>
-            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
-            <p className="text-white text-2xl">
+            <p className="text-amber-300 font-bold text-sm uppercase tracking-wider">Essais disponibles (cumulables)</p>
+            <p className="text-white text-3xl font-bold mt-1">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-sm">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi</p>
+            <p className="text-stone-400 text-xs mt-1">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi</p>
           </div>
           <div className="text-right">
-            <p className="text-gray-400 text-sm">Meilleur run</p>
-            <p className="text-amber-400 font-bold">
+            <p className="text-stone-400 text-xs uppercase tracking-wider">Meilleur run</p>
+            <p className="text-amber-400 font-bold text-xl mt-1">
               {dungeonSummary?.bestRun ? `Niveau ${dungeonSummary.bestRun}` : 'Aucune'}
             </p>
           </div>
@@ -1616,7 +1612,7 @@ const Dungeon = () => {
 
         {/* Arme équipée */}
         {dungeonSummary?.equippedWeaponData && (
-          <div className={`mb-8 p-4 border-2 border-stone-600 bg-stone-800`}>
+          <div className="mb-6 p-4 border border-stone-700/80 bg-stone-950/85 rounded-xl shadow-lg">
             <div className="flex items-center gap-4">
               <Tooltip content={getWeaponTooltipContent(dungeonSummary.equippedWeaponData)}>
                 <div className="flex items-center gap-4">
@@ -1626,7 +1622,7 @@ const Dungeon = () => {
                     <span className="text-4xl">{dungeonSummary.equippedWeaponData.icon}</span>
                   )}
                   <div className="flex-1">
-                    <p className="text-sm text-gray-400">Arme équipée</p>
+                    <p className="text-xs text-stone-400 uppercase tracking-wider">Arme équipée</p>
                     <div className="text-xl font-bold">
                       <WeaponNameWithForge weapon={dungeonSummary.equippedWeaponData} forgeUpgrade={character?.forgeUpgrade} />
                     </div>
@@ -1638,11 +1634,11 @@ const Dungeon = () => {
         )}
 
         {/* Aperçu des niveaux */}
-        <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
-          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 Niveaux progressifs</h3>
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-5 mb-6 shadow-lg">
+          <h3 className="text-lg font-bold text-amber-400 mb-4 text-center uppercase tracking-wider">3 Niveaux progressifs</h3>
           <div className="grid grid-cols-3 gap-4">
             {levels.map((level) => (
-              <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
+              <div key={level.id} className="bg-stone-900/60 p-4 border border-stone-700/60 rounded-lg text-center">
                 <div className="text-3xl mb-2">{getBossById(level.bossId)?.icon}</div>
                 <p className="text-white font-bold">Niveau {level.niveau}</p>
                 <p className={`text-sm ${DIFFICULTY_COLORS[level.difficulte]}`}>
@@ -1657,37 +1653,37 @@ const Dungeon = () => {
         </div>
 
         {instantMessage && (
-          <div className="bg-emerald-900/40 border border-emerald-600 p-4 mb-6 text-center">
+          <div className="bg-emerald-900/40 border border-emerald-600 rounded-lg p-4 mb-6 text-center">
             <p className="text-emerald-300">{instantMessage}</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/50 border border-red-600 rounded-lg p-4 mb-6 text-center">
             <p className="text-red-300">{error}</p>
           </div>
         )}
 
-        <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
-            Retour
+        <div className="flex gap-4 justify-center flex-wrap">
+          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition">
+            ← Retour aux donjons
           </button>
           <button
             onClick={handleStartRun}
             disabled={!dungeonSummary?.runsRemaining}
-            className={`px-12 py-4 font-bold text-xl ${
+            className={`px-10 py-3 rounded-lg font-bold text-lg transition ${
               dungeonSummary?.runsRemaining > 0
-                ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
+                ? 'bg-red-700 hover:bg-red-600 text-white border border-red-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la grotte' : 'Plus de runs'}
+            {dungeonSummary?.runsRemaining > 0 ? '🏰 Entrer dans la grotte' : 'Plus de runs'}
           </button>
           {(dungeonSummary?.bestRun || 0) >= DUNGEON_CONSTANTS.TOTAL_LEVELS && (
             <button
               onClick={handleInstantFinishRun}
               disabled={!dungeonSummary?.runsRemaining}
-              className={`px-8 py-4 font-bold border ${
+              className={`px-6 py-3 rounded-lg font-bold border transition ${
                 dungeonSummary?.runsRemaining > 0
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
@@ -1698,8 +1694,8 @@ const Dungeon = () => {
           )}
         </div>
 
-        <div className="mt-8 bg-stone-800 border border-stone-600 p-4 text-center">
-          <p className="text-gray-400 text-sm">
+        <div className="mt-6 bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 text-center">
+          <p className="text-stone-400 text-sm">
             Vous êtes soigné entre chaque boss. Si vous êtes vaincu, vous obtenez le loot du dernier niveau réussi.
           </p>
         </div>
