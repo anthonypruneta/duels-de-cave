@@ -163,7 +163,7 @@ function Header() {
                   {isMuted || volume === 0 ? '🔇 Son' : '🔊 Son'}
                 </button>
                 {showVolumeSlider && (
-                  <div className="absolute top-full right-0 mt-1 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl z-50">
+                  <div className="absolute top-full right-0 mt-1 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl z-[200]">
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
