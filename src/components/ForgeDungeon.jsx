@@ -544,7 +544,7 @@ const ForgeDungeon = () => {
         <div className="max-w-5xl mx-auto pt-16 text-center">
           {/* Carte du personnage */}
           <div className="flex justify-center mb-8">
-            <CharacterCardContent character={character} detailsPlacement="right" />
+            <CharacterCardContent character={character} detailsPlacement="left" />
           </div>
 
           <div className="inline-block bg-stone-950/85 border border-orange-600/80 rounded-lg px-6 py-3 shadow-lg mb-6">
@@ -889,7 +889,7 @@ const ForgeDungeon = () => {
         <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
           {/* Joueur */}
           <div className="w-full md:w-auto md:flex-shrink-0">
-            <CharacterCardContent character={character} detailsPlacement="right" />
+            <CharacterCardContent character={character} detailsPlacement="left" />
           </div>
 
           {/* Boutons au centre */}
