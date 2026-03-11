@@ -324,7 +324,7 @@ export default function Taverne() {
                     </div>
                   )}
                   {isPresent && (
-                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border border-stone-900" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-400 rounded-full border-2 border-stone-900" />
                   )}
                 </div>
 
