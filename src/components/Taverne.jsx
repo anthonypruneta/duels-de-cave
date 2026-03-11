@@ -287,15 +287,12 @@ export default function Taverne() {
             return (
               <div
                 key={slot.id}
-                className="absolute z-10 flex flex-col items-center cursor-pointer"
+                className="absolute z-10 flex flex-col items-center pointer-events-none"
                 style={{
                   left: `${slot.x}%`,
                   top: `${slot.y}%`,
                   transform: 'translate(-50%, -100%)',
                 }}
-                onMouseEnter={() => setHoveredSlotId(slot.id)}
-                onMouseLeave={() => setHoveredSlotId(null)}
-                onClick={() => setSelectedCharacter({ ...character, userId })}
               >
                 {showBubble && (
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 max-w-[220px] rounded-xl bg-stone-900/95 border border-amber-500/70 text-sm text-stone-200 shadow-xl z-30 pointer-events-none whitespace-normal">
@@ -308,7 +305,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(80px, 13vw, 140px)', height: 'clamp(150px, 25vw, 270px)' }}
+                  style={{ width: 'clamp(150px, 25vw, 270px)', height: 'clamp(150px, 25vw, 270px)' }}
                 >
                   {imgSrc ? (
                     <img
@@ -319,18 +316,24 @@ export default function Taverne() {
                       draggable={false}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl">
+                    <div className="w-full h-full flex items-center justify-center text-2xl pointer-events-none">
                       🧙
                     </div>
                   )}
+                  <div
+                    className="absolute inset-y-[10%] inset-x-[25%] cursor-pointer pointer-events-auto"
+                    onMouseEnter={() => setHoveredSlotId(slot.id)}
+                    onMouseLeave={() => setHoveredSlotId(null)}
+                    onClick={() => setSelectedCharacter({ ...character, userId })}
+                  />
                   {isPresent && (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-400 rounded-full border-2 border-stone-900" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-400 rounded-full border-2 border-stone-900 pointer-events-none" />
                   )}
                 </div>
 
                 <div
                   className={`
-                    mt-0.5 px-1.5 py-0.5 rounded text-center transition-opacity duration-200 max-w-[80px]
+                    mt-0.5 px-1.5 py-0.5 rounded text-center transition-opacity duration-200 max-w-[80px] pointer-events-none
                     ${isHovered || isMe ? 'opacity-100' : 'opacity-0'}
                     ${isMe ? 'bg-amber-500/90 text-stone-900' : 'bg-stone-900/90 text-stone-200'}
                   `}
