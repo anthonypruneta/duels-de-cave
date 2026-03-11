@@ -1310,7 +1310,7 @@ const Dungeon = () => {
         <div className="max-w-5xl mx-auto pt-16">
           {/* Carte du personnage */}
           <div className="flex justify-center mb-8">
-            <CharacterCardContent character={character} detailsPlacement={null} />
+            <CharacterCardContent character={character} detailsPlacement="right" />
           </div>
 
           <div className="text-center mb-6">
@@ -1575,7 +1575,7 @@ const Dungeon = () => {
 
         {/* Carte du personnage */}
         <div className="flex justify-center mb-6">
-          <CharacterCardContent character={character} detailsPlacement={null} />
+          <CharacterCardContent character={character} detailsPlacement="right" />
         </div>
 
         {/* Aperçu des niveaux */}
