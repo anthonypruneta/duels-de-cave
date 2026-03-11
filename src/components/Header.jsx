@@ -132,7 +132,7 @@ function Header() {
 
   return (
     <>
-      <div className="absolute top-0 left-0 right-0 z-50">
+      <div className="absolute top-0 left-0 right-0 z-[200]">
         {/* Barre de navigation */}
         <div className="bg-stone-950/90 border-b border-stone-700/60 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
           {currentUser && (
