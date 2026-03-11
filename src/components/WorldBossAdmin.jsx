@@ -84,8 +84,6 @@ const WorldBossAdmin = ({ characters }) => {
 
   // Musique
   const bossAudioRef = useRef(null);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
 
   // Choix du boss pour le prochain Cataclysme
   const [bossOptions, setBossOptions] = useState([]);
@@ -375,8 +373,6 @@ const WorldBossAdmin = ({ characters }) => {
     // Lancer la musique du boss
     if (bossAudioRef.current) {
       bossAudioRef.current.currentTime = 0;
-      bossAudioRef.current.volume = volume;
-      bossAudioRef.current.muted = isMuted;
       bossAudioRef.current.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
@@ -962,37 +958,6 @@ const WorldBossAdmin = ({ characters }) => {
           <span>💨 Vit: {WORLD_BOSS.baseStats.spd}</span>
         </div>
         <p className="text-xs text-stone-500 mt-1">EXTINCTION au tour 10 — 2 tentatives/jour (non cumulables) — Lancement auto chaque lundi 18h</p>
-      </div>
-
-      {/* Contrôle son */}
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={() => {
-            setIsMuted(prev => !prev);
-            if (isMuted && volume === 0) setVolume(0.05);
-          }}
-          className="text-stone-400 hover:text-white transition text-lg"
-        >
-          {isMuted || volume === 0 ? '🔇' : '🔊'}
-        </button>
-        <input
-          type="range"
-          min="0"
-          max="0.3"
-          step="0.01"
-          value={isMuted ? 0 : volume}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setVolume(v);
-            setIsMuted(v === 0);
-            if (bossAudioRef.current) {
-              bossAudioRef.current.volume = v;
-              bossAudioRef.current.muted = v === 0;
-            }
-          }}
-          className="w-32 accent-red-500"
-        />
-        <span className="text-stone-500 text-xs">Volume musique boss</span>
       </div>
 
       <audio ref={bossAudioRef} loop>

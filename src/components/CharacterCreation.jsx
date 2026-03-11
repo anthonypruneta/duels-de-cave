@@ -209,81 +209,20 @@ const CharacterCreation = () => {
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
   const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
   const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
-
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const weaponFamilies = getWeaponFamilyInfo();
-
-  const applyIntroVolume = () => {
-    const introMusic = document.getElementById('intro-music');
-    if (!introMusic) return;
-    introMusic.volume = volume;
-    introMusic.muted = isMuted;
-  };
-
-  useEffect(() => {
-    applyIntroVolume();
-  }, [volume, isMuted]);
 
   useEffect(() => {
     const introMusic = document.getElementById('intro-music');
     if (!introMusic) return undefined;
 
-    introMusic.volume = volume;
-    introMusic.muted = isMuted;
     introMusic.play().catch(() => {});
 
     return () => {
       introMusic.pause();
     };
   }, []);
-
-  const handleVolumeChange = (event) => {
-    const nextVolume = Number(event.target.value);
-    setVolume(nextVolume);
-    setIsMuted(nextVolume === 0);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-    if (isMuted && volume === 0) {
-      setVolume(0.05);
-    }
-  };
-
-  const renderSoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => setIsSoundOpen((prev) => !prev)}
-        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={toggleMute} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full accent-amber-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   const renderIntroMusic = () => (
     <audio id="intro-music" loop>
@@ -866,7 +805,7 @@ const CharacterCreation = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        {renderSoundControl()}
+
         {renderIntroMusic()}
         {PseudoModal}
         <div className="text-amber-400 text-2xl">Chargement...</div>
@@ -970,7 +909,7 @@ const CharacterCreation = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        {renderSoundControl()}
+
         {renderIntroMusic()}
         {PseudoModal}
         <div className="max-w-[1400px] mx-auto pt-20">
@@ -1215,7 +1154,7 @@ const CharacterCreation = () => {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Header />
-        {renderSoundControl()}
+
         {renderIntroMusic()}
         <div className="max-w-2xl w-full text-center">
           <div className="text-6xl mb-6">⏳</div>
@@ -1245,7 +1184,7 @@ const CharacterCreation = () => {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Header />
-        {renderSoundControl()}
+
         {renderIntroMusic()}
         <div className="max-w-4xl w-full pt-20">
           <div className="text-center mb-8">
@@ -1441,7 +1380,7 @@ const CharacterCreation = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <Header />
-        {renderSoundControl()}
+
         {renderIntroMusic()}
       {PseudoModal}
       <div className="max-w-4xl w-full pt-20">

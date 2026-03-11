@@ -15,7 +15,7 @@ import {
   subscribeTaverneChat,
 } from '../services/taverneService';
 
-// Sprites chibi (sans fond). Correspondance normalisée : espaces/tirets insensibles (ex. "Orc en ciel" ↔ "Orc-en-ciel")
+// Sprites chibi (sans fond). Correspondance normalis\u00e9e : espaces/tirets insensibles (ex. "Orc en ciel" \u2194 "Orc-en-ciel")
 const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
 const chibiByNombreNormalise = Object.fromEntries(
   Object.entries(chibiImageModules).map(([path, url]) => {
@@ -116,9 +116,6 @@ export default function Taverne() {
   const [myDisplayX, setMyDisplayX] = useState(30);
   const myDisplayXRef = useRef(30);
   const moveRafRef = useRef(null);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [hoveredUserId, setHoveredUserId] = useState(null);
   const spriteRefs = useRef({});
   const spriteOrderRef = useRef([]);
@@ -128,11 +125,9 @@ export default function Taverne() {
   const startTaverneMusicOnInteraction = useCallback(() => {
     const el = document.getElementById('taverne-music');
     if (el && el.paused) {
-      el.volume = volume;
-      el.muted = isMuted;
       el.play().catch(() => {});
     }
-  }, [volume, isMuted]);
+  }, []);
 
   const stopTaverneMusic = useCallback(() => {
     const el = document.getElementById('taverne-music');
@@ -142,23 +137,10 @@ export default function Taverne() {
     }
   }, []);
 
-  // Synchroniser volume/mute sur l’élément audio sans relancer la lecture (évite que la musique reparte au début)
-  useEffect(() => {
-    const el = document.getElementById('taverne-music');
-    if (el) {
-      el.volume = volume;
-      el.muted = isMuted;
-    }
-  }, [volume, isMuted]);
-
-  // Démarrer la musique à l’entrée en taverne, l’arrêter à la sortie. Dépendance uniquement à allowedInTaverne
-  // pour ne pas rappeler stop puis play quand on change le volume.
   useEffect(() => {
     if (allowedInTaverne) {
       const el = document.getElementById('taverne-music');
       if (el) {
-        el.volume = volume;
-        el.muted = isMuted;
         if (el.paused) el.play().catch(() => {});
       }
       return () => stopTaverneMusic();
@@ -170,10 +152,8 @@ export default function Taverne() {
     myDisplayXRef.current = myDisplayX;
   }, [myDisplayX]);
 
-  // Même critère que le tournoi : personnage actif (non archivé, non désactivé)
   const isEligibleForTournament = (char) => char && !char.archived && !char.disabled;
 
-  // Vérifier que le joueur a un personnage éligible au tournoi avant d'entrer
   useEffect(() => {
     if (!currentUser?.uid) return;
     let mounted = true;
@@ -182,7 +162,7 @@ export default function Taverne() {
       const res = await getUserCharacter(currentUser.uid);
       if (!mounted) return;
       if (!res.success || !res.data) {
-        setNoCharacterReason('Tu n’as pas de personnage actif.');
+        setNoCharacterReason('Tu n\u2019as pas de personnage actif.');
         setLoading(false);
         return;
       }
@@ -202,7 +182,6 @@ export default function Taverne() {
     };
   }, [currentUser?.uid]);
 
-  // Abonnements présence et chat
   useEffect(() => {
     const unsubPresence = subscribeTavernePresence(setPresences);
     const unsubChat = subscribeTaverneChat(setMessages);
@@ -212,7 +191,6 @@ export default function Taverne() {
     };
   }, []);
 
-  // Charger tous les personnages actifs (même critère que le tournoi : non archivés, non désactivés)
   useEffect(() => {
     if (!allowedInTaverne) return;
     let cancelled = false;
@@ -233,12 +211,10 @@ export default function Taverne() {
     return () => { cancelled = true; };
   }, [allowedInTaverne]);
 
-  // Scroll chat vers le bas à chaque nouveau message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Charger la progression (donjon + labyrinthe) quand on ouvre la modal d'un personnage
   useEffect(() => {
     if (!selectedCharacter?.userId) {
       setSelectedProgression(null);
@@ -261,7 +237,6 @@ export default function Taverne() {
     return () => { cancelled = true; };
   }, [selectedCharacter?.userId]);
 
-  // Déplacement automatique : ligne horizontale fixe (y constant), mouvement fluide en X
   useEffect(() => {
     if (!currentUser?.uid || !allowedInTaverne) return;
     const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
@@ -355,44 +330,9 @@ export default function Taverne() {
     );
   }
 
-  const SoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => {
-          startTaverneMusicOnInteraction(); // débloquer la lecture au premier clic (politique navigateur)
-          setIsSoundOpen((prev) => !prev);
-        }}
-        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => { setIsMuted((m) => !m); if (isMuted && volume === 0) setVolume(0.05); }} className="text-lg" aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}>
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={(e) => { const v = Number(e.target.value); setVolume(v); setIsMuted(v === 0); }}
-              className="w-full accent-amber-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen relative overflow-hidden bg-stone-900">
       <Header />
-      <SoundControl />
       <audio id="taverne-music" loop>
         <source src="/assets/music/taverne.mp3" type="audio/mpeg" />
       </audio>
@@ -415,7 +355,7 @@ export default function Taverne() {
         onMouseLeave={() => setHoveredUserId(null)}
         onClick={handleWalkableClick}
       >
-        {/* Tous les personnages actifs (éligibles au tournoi) : présents = position live, absents = position fixe sur la ligne */}
+        {/* Tous les personnages actifs : pr\u00e9sents = position live, absents = position fixe sur la ligne */}
         {(() => {
           const nonPresentList = activeCharacters.filter(
             (c) => !presences.some((p) => p.userId === (c.id || c.userId))
@@ -444,7 +384,6 @@ export default function Taverne() {
                 transition: isMe ? 'none' : 'left 0.5s ease-out',
               }}
             >
-              {/* Bulle de chat au-dessus (uniquement si présent) */}
               {showBubble && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1.5 max-w-[160px] rounded-lg bg-stone-800 border border-amber-600/60 text-xs text-stone-200 shadow-xl z-30 pointer-events-none">
                   <div className="font-semibold text-amber-300 truncate">
@@ -454,7 +393,6 @@ export default function Taverne() {
                 </div>
               )}
 
-              {/* Uniquement le sprite (PNG sans fond) qui se déplace, pas de carte ni nom */}
               {(() => {
                 const { src, isChibi } = getTaverneCharacterImage(character);
                 if (src) {
@@ -475,7 +413,7 @@ export default function Taverne() {
                 }
                 return (
                   <div className="h-[48rem] w-[24rem] flex items-center justify-center text-6xl bg-stone-700/80 rounded">
-                    {character.race ? '🧙' : '?'}
+                    {character.race ? '\uD83E\uDDD9' : '?'}
                   </div>
                 );
               })()}
@@ -487,10 +425,10 @@ export default function Taverne() {
         })()}
       </div>
 
-      {/* Zone de chat : étroite, en bas à droite */}
+      {/* Zone de chat */}
       <div className="absolute right-4 bottom-4 z-20 flex flex-col w-72 max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-t-lg shadow-2xl">
         <div className="flex items-center justify-between px-3 py-2 border-b border-stone-600 rounded-t-lg">
-          <span className="text-amber-400 font-bold text-sm">💬 Chat</span>
+          <span className="text-amber-400 font-bold text-sm">\uD83D\uDCAC Chat</span>
         </div>
         <div className="overflow-y-auto max-h-[160px] min-h-[80px] p-2 space-y-1">
           {messages.length === 0 && (
@@ -510,7 +448,7 @@ export default function Taverne() {
             type="text"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Message…"
+            placeholder="Message\u2026"
             maxLength={300}
             className="flex-1 min-w-0 px-2 py-1.5 text-sm bg-stone-800 border border-stone-600 rounded text-stone-200 placeholder-stone-500 focus:border-amber-500 focus:outline-none"
           />
@@ -524,7 +462,6 @@ export default function Taverne() {
         </form>
       </div>
 
-      {/* Modal carte complète au clic sur un personnage */}
       {selectedCharacter && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
@@ -549,56 +486,55 @@ export default function Taverne() {
                 </button>
               </div>
               <CharacterCardContent character={selectedCharacter} />
-              {/* Progression : boss battus + labyrinthe */}
               <div className="mt-4 p-3 border border-stone-600 bg-stone-800/80 rounded-lg">
-                <h4 className="text-amber-400 font-bold text-sm mb-2">📊 Progression cette semaine</h4>
+                <h4 className="text-amber-400 font-bold text-sm mb-2">\uD83D\uDCCA Progression cette semaine</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-300">
                   <div className="flex justify-between">
-                    <span>🏰 La Grotte aux merveilles</span>
+                    <span>\uD83C\uDFF0 La Grotte aux merveilles</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedProgression?.dungeon?.bestRun ? '✓' : '—'}
+                      {selectedProgression?.dungeon?.bestRun ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🌲 La Forêt enchantée</span>
+                    <span>\uD83C\uDF32 La For\u00eat enchant\u00e9e</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.forestBoosts ? '✓' : '—'}
+                      {selectedCharacter?.forestBoosts ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🪄 Tour du Mage</span>
+                    <span>\uD83E\uDE84 Tour du Mage</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.mageTowerPassive ? '✓' : '—'}
+                      {selectedCharacter?.mageTowerPassive ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🔨 Forge des Légendes</span>
+                    <span>\uD83D\uDD28 Forge des L\u00e9gendes</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.forgeUpgrade ? '✓' : '—'}
+                      {selectedCharacter?.forgeUpgrade ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>👁️ Extension du Territoire</span>
+                    <span>\uD83D\uDC41\uFE0F Extension du Territoire</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.mageTowerExtensionPassive ? '✓' : '—'}
+                      {selectedCharacter?.mageTowerExtensionPassive ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🎓 Collège Kunugigaoka</span>
+                    <span>\uD83C\uDF93 Coll\u00e8ge Kunugigaoka</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.subclass ? '✓' : '—'}
+                      {selectedCharacter?.subclass ? '\u2713' : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🌀 Labyrinthe (étage max)</span>
+                    <span>\uD83C\uDF00 Labyrinthe (\u00e9tage max)</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedProgression?.labyrinth?.highestClearedFloor != null
-                        ? `Étage ${selectedProgression.labyrinth.highestClearedFloor}`
-                        : '—'}
+                        ? `\u00c9tage ${selectedProgression.labyrinth.highestClearedFloor}`
+                        : '\u2014'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>🌀 Labyrinthe (boss battus)</span>
+                    <span>\uD83C\uDF00 Labyrinthe (boss battus)</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedProgression?.labyrinth?.bossesDefeated != null
                         ? `${selectedProgression.labyrinth.bossesDefeated}`
@@ -614,7 +550,7 @@ export default function Taverne() {
 
       {loading && (
         <div className="fixed inset-0 flex items-center justify-center bg-stone-900/80 z-30">
-          <span className="text-amber-400 text-xl">Entrée dans la taverne…</span>
+          <span className="text-amber-400 text-xl">Entr\u00e9e dans la taverne\u2026</span>
         </div>
       )}
     </div>

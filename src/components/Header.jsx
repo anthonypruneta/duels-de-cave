@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-// Détection plateforme
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -18,10 +17,60 @@ function Header() {
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
-  useEffect(() => {
-    // Déjà installée en standalone → pas de bouton
-    if (isStandalone()) return;
+  // --- Son global ---
+  const [volume, setVolume] = useState(() => {
+    const saved = localStorage.getItem('game-volume');
+    return saved !== null ? Number(saved) : 0.05;
+  });
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem('game-muted') === 'true');
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const volumeRef = useRef(null);
 
+  useEffect(() => {
+    localStorage.setItem('game-volume', String(volume));
+  }, [volume]);
+  useEffect(() => {
+    localStorage.setItem('game-muted', String(isMuted));
+  }, [isMuted]);
+
+  useEffect(() => {
+    const sync = () => {
+      document.querySelectorAll('audio').forEach(a => {
+        a.volume = volume;
+        a.muted = isMuted;
+      });
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (!showVolumeSlider) return;
+    const handleClickOutside = (e) => {
+      if (volumeRef.current && !volumeRef.current.contains(e.target)) {
+        setShowVolumeSlider(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showVolumeSlider]);
+
+  const handleToggleMute = () => {
+    setIsMuted(prev => !prev);
+    if (isMuted && volume === 0) setVolume(0.05);
+  };
+
+  const handleVolumeChange = (e) => {
+    const v = Number(e.target.value);
+    setVolume(v);
+    setIsMuted(v === 0);
+  };
+
+  // --- PWA ---
+  useEffect(() => {
+    if (isStandalone()) return;
     const handler = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
@@ -32,33 +81,22 @@ function Header() {
       setInstallPrompt(null);
       setShowInstallBtn(false);
     });
-
-    // Sur mobile sans beforeinstallprompt (iOS, ou Android avant le prompt)
-    // Afficher le bouton qui ouvre un guide
     const dismissed = localStorage.getItem('pwa-install-dismissed');
     if (!dismissed && (isIOS() || isAndroid())) {
       setShowInstallBtn(true);
     }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const handleInstall = async () => {
     if (installPrompt) {
-      // Chrome/Android : prompt natif
       installPrompt.prompt();
       const result = await installPrompt.userChoice;
       if (result.outcome === 'accepted') {
         setInstallPrompt(null);
         setShowInstallBtn(false);
       }
-    } else if (isIOS()) {
-      // iOS : afficher le guide
-      setShowIOSGuide(true);
     } else {
-      // Android sans prompt encore prêt : guide aussi
       setShowIOSGuide(true);
     }
   };
@@ -79,70 +117,102 @@ function Header() {
   };
 
   const navLinks = [
-    { path: '/', label: '🏠', title: 'Accueil' },
-    { path: '/dungeons', label: '🏰', title: 'Donjon' },
-    { path: '/training', label: '🎯', title: 'Entraînement' },
-    { path: '/labyrinthe-infini', label: '🌀', title: 'Labyrinthe' },
-    { path: '/cataclysme', label: '☄️', title: 'Cataclysme' },
-    { path: '/taverne', label: '🍺', title: 'Taverne' },
-    { path: '/encyclopedie', label: '📚', title: 'Encyclopédie' },
-    { path: '/tournament', label: '🏆', title: 'Tournoi' },
-    { path: '/hall-of-fame', label: '👑', title: 'Hall of Fame' },
-    { path: '/mes-anciens-personnages', label: '📜', title: 'Anciens Persos' },
-    ...(isAdmin ? [{ path: '/combat', label: '⚔️', title: 'PvP' }] : []),
+    { path: '/', label: '🏠 Accueil' },
+    { path: '/dungeons', label: '🏰 Donjons' },
+    { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
+    { path: '/cataclysme', label: '☄️ Cataclysme' },
+    { path: '/tournament', label: '🏆 Tournoi' },
+    { path: '/training', label: '🎯 Entraînement' },
+    { path: '/taverne', label: '🍺 Taverne' },
+    { path: '/encyclopedie', label: '📚 Encyclopédie' },
+    { path: '/hall-of-fame', label: '👑 Hall of Fame' },
+    { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
+    ...(isAdmin ? [{ path: '/combat', label: '⚔️ PvP' }] : []),
   ];
 
   return (
     <>
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-50">
-        <div className="flex items-center gap-2">
-          {currentUser && navLinks.map(link => (
-            <button
-              key={link.path}
-              onClick={() => navigate(link.path)}
-              title={link.title}
-              className={`px-3 py-2 rounded text-lg transition border ${
-                location.pathname === link.path
-                  ? 'bg-amber-600 border-amber-400 shadow-lg'
-                  : 'bg-stone-800/80 border-stone-600 hover:bg-stone-700 hover:border-amber-600/50'
-              }`}
-            >
-              {link.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-4">
-          {showInstallBtn && (
-            <button
-              onClick={handleInstall}
-              title="Installer l'application"
-              className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded border border-amber-400 transition text-sm font-bold animate-pulse"
-            >
-              📲 Installer
-            </button>
-          )}
+      <div className="absolute top-0 left-0 right-0 z-50">
+        {/* Barre de navigation */}
+        <div className="bg-stone-950/90 border-b border-stone-700/60 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
           {currentUser && (
             <>
-              {isAdmin && (
+              <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mr-1 flex-shrink-0">Menu</span>
+              {navLinks.map(link => (
                 <button
-                  onClick={() => navigate('/admin')}
-                  className="bg-amber-700 hover:bg-amber-600 text-white px-3 py-2 rounded border border-amber-500 transition text-sm font-bold"
-                  title="Administration"
+                  key={link.path}
+                  onClick={() => navigate(link.path)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
+                    location.pathname === link.path
+                      ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
+                      : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
+                  }`}
                 >
-                  🛠️ Admin
+                  {link.label}
                 </button>
-              )}
-              <span className="text-amber-300 text-sm hidden md:inline">
-                {currentUser.email}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-stone-700 hover:bg-stone-600 text-amber-300 px-4 py-2 rounded border border-amber-600/50 transition"
+              ))}
+              {/* Bouton son */}
+              <div ref={volumeRef} className="relative flex-shrink-0 ml-1"
+                onMouseEnter={() => setShowVolumeSlider(true)}
+                onMouseLeave={() => setShowVolumeSlider(false)}
               >
-                Déconnexion
-              </button>
+                <button
+                  onClick={handleToggleMute}
+                  className="px-2 py-1 rounded text-xs font-medium transition border bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white"
+                >
+                  {isMuted || volume === 0 ? '🔇 Son' : '🔊 Son'}
+                </button>
+                {showVolumeSlider && (
+                  <div className="absolute top-full right-0 mt-1 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl z-50">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-full accent-amber-500"
+                      />
+                      <span className="text-xs text-stone-200 w-8 text-right">
+                        {Math.round((isMuted ? 0 : volume) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
+          {/* Droite : Admin + Déconnexion */}
+          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+            {showInstallBtn && (
+              <button
+                onClick={handleInstall}
+                title="Installer l'application"
+                className="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded border border-amber-400 transition text-xs font-bold animate-pulse"
+              >
+                📲
+              </button>
+            )}
+            {currentUser && (
+              <>
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="bg-amber-700 hover:bg-amber-600 text-white px-2 py-1 rounded border border-amber-500 transition text-xs font-bold"
+                  >
+                    🛠️ Admin
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="bg-stone-700 hover:bg-stone-600 text-amber-300 px-2 py-1 rounded border border-amber-600/50 transition text-xs"
+                >
+                  Déconnexion
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

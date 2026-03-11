@@ -233,9 +233,6 @@ const WorldBoss = () => {
 
   // Musique
   const bossAudioRef = useRef(null);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
 
   // Fond de page custom
   useEffect(() => {
@@ -376,8 +373,6 @@ const WorldBoss = () => {
   // Musique dès l'ouverture
   useEffect(() => {
     if (!loading && bossAudioRef.current) {
-      bossAudioRef.current.volume = volume;
-      bossAudioRef.current.muted = isMuted;
       bossAudioRef.current.play().catch(() => {});
     }
     return () => {
@@ -385,65 +380,12 @@ const WorldBoss = () => {
     };
   }, [loading]);
 
-  // Sync volume
-  useEffect(() => {
-    if (bossAudioRef.current) {
-      bossAudioRef.current.volume = volume;
-      bossAudioRef.current.muted = isMuted;
-    }
-  }, [volume, isMuted]);
-
   // Auto-scroll du conteneur de logs uniquement (pas la page)
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [combatLog]);
-
-  // Contrôle son
-  const SoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => setIsSoundOpen(prev => !prev)}
-        className="bg-red-800 text-white border border-red-500 px-3 py-2 text-sm font-bold shadow-lg hover:bg-red-700"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsMuted(prev => !prev);
-                if (isMuted && volume === 0) setVolume(0.05);
-              }}
-              className="text-lg"
-            >
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="0.3"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setVolume(v);
-                setIsMuted(v === 0);
-              }}
-              className="w-full accent-red-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">
-              {Math.round((isMuted ? 0 : volume) * 100)}%
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   const getCalculatedDescription = getCalculatedClassDescription;
 
@@ -682,7 +624,6 @@ const WorldBoss = () => {
       return (
         <div className="min-h-screen p-6">
           <Header />
-          <SoundControl />
           <div className="max-w-4xl mx-auto pt-20 text-center">
             <h1 className="text-5xl font-bold text-red-500 mb-6">🏁 Cataclysme terminé</h1>
             <div className="bg-stone-800/90 border-2 border-stone-600 p-8 text-left space-y-6">
@@ -735,7 +676,6 @@ const WorldBoss = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <SoundControl />
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="flex justify-center mb-6">
             <div className="bg-red-950/80 border border-red-800/80 rounded-lg px-6 py-2 shadow">
@@ -759,7 +699,6 @@ const WorldBoss = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <SoundControl />
         <div className="max-w-2xl mx-auto pt-20 text-center">
           <h1 className="text-5xl font-bold text-red-500 mb-6">☄️ {activeBossName}</h1>
           <div className="bg-stone-800/90 border-2 border-stone-600 p-8">
@@ -780,7 +719,6 @@ const WorldBoss = () => {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <Header />
-      <SoundControl />
 
       <audio ref={bossAudioRef} loop>
         <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />

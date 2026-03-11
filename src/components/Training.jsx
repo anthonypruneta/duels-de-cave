@@ -236,81 +236,11 @@ const Training = () => {
   const [dpsStats, setDpsStats] = useState(null);
   const logContainerRef = useRef(null);
 
-  // Audio
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
-
-  const applyTrainingVolume = () => {
-    const audio = document.getElementById('training-music');
-    if (audio) {
-      audio.volume = volume;
-      audio.muted = isMuted;
-    }
-  };
-
-  useEffect(() => {
-    applyTrainingVolume();
-  }, [volume, isMuted, gameState]);
-
-  const handleVolumeChange = (event) => {
-    const nextVolume = Number(event.target.value);
-    setVolume(nextVolume);
-    setIsMuted(nextVolume === 0);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-    if (isMuted && volume === 0) {
-      setVolume(0.05);
-    }
-  };
-
-  const SoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => setIsSoundOpen((prev) => !prev)}
-        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="text-lg"
-              aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}
-            >
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full accent-amber-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">
-              {Math.round((isMuted ? 0 : volume) * 100)}%
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // Lancer la musique quand on entre en combat (après que le DOM ait rendu l'audio)
   useEffect(() => {
     if (gameState === 'fighting') {
       const audio = document.getElementById('training-music');
       if (audio) {
         audio.currentTime = 0;
-        audio.volume = volume;
         audio.play().catch(e => console.log('Autoplay bloqué:', e));
       }
     }
@@ -653,7 +583,6 @@ const Training = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <SoundControl />
         <audio id="training-music" loop>
           <source src="/assets/music/training.mp3" type="audio/mpeg" />
         </audio>

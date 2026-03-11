@@ -191,11 +191,6 @@ const Tournament = () => {
   const [annonceActuelle, setAnnonceActuelle] = useState('');
   const [replayMatchId, setReplayMatchId] = useState(null);
 
-  // Sound
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
-
   // Schedule
   const [countdown, setCountdown] = useState('');
   const [phase, setPhase] = useState('attente');
@@ -214,66 +209,6 @@ const Tournament = () => {
   const animationRef = useRef(null);
   const lastAnimatedMatch = useRef(-1);
   const autoAdvanceRef = useRef(null);
-
-  // ============================================================================
-  // SOUND CONTROL
-  // ============================================================================
-
-  const applyCombatVolume = () => {
-    const combatMusic = document.getElementById('tournament-combat-music');
-    const victoryMusic = document.getElementById('tournament-victory-music');
-    [combatMusic, victoryMusic].forEach((audio) => {
-      if (audio) {
-        audio.volume = volume;
-        audio.muted = isMuted;
-      }
-    });
-  };
-
-  useEffect(() => {
-    applyCombatVolume();
-  }, [volume, isMuted, matchEnCours, winner]);
-
-  const handleVolumeChange = (event) => {
-    const nextVolume = Number(event.target.value);
-    setVolume(nextVolume);
-    setIsMuted(nextVolume === 0);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-    if (isMuted && volume === 0) setVolume(0.05);
-  };
-
-  const SoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => setIsSoundOpen((prev) => !prev)}
-        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={toggleMute} className="text-lg">
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range" min="0" max="1" step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full accent-amber-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">
-              {Math.round((isMuted ? 0 : volume) * 100)}%
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   // ============================================================================
   // LISTENERS ET TIMERS
@@ -420,7 +355,6 @@ const Tournament = () => {
     if (victoryMusic) victoryMusic.pause();
     if (combatMusic) {
       combatMusic.currentTime = 0;
-      combatMusic.volume = volume;
       combatMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
@@ -585,7 +519,6 @@ const Tournament = () => {
     if (combatMusic) combatMusic.pause();
     if (victoryMusic) {
       victoryMusic.currentTime = 0;
-      victoryMusic.volume = volume;
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
@@ -1121,7 +1054,6 @@ const Tournament = () => {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <Header />
-      <SoundControl />
 
       {/* Musique de combat */}
       <audio id="tournament-combat-music" loop>

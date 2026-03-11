@@ -168,15 +168,10 @@ const MageTower = () => {
   const [instantMessage, setInstantMessage] = useState(null);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
-  const [isSoundOpen, setIsSoundOpen] = useState(false);
-  const [volume, setVolume] = useState(0.05);
-  const [isMuted, setIsMuted] = useState(false);
 
   const ensureTowerMusic = () => {
     const towerMusic = document.getElementById('tower-music');
     if (towerMusic) {
-      towerMusic.volume = volume;
-      towerMusic.muted = isMuted;
       if (towerMusic.paused) {
         towerMusic.play().catch(error => console.log('Autoplay bloqué:', error));
       }
@@ -258,69 +253,6 @@ const MageTower = () => {
     if (!shouldAutoScrollLog() || !logContainerRef.current) return;
     logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
   }, [combatLog]);
-
-  const applyTowerVolume = () => {
-    const towerMusic = document.getElementById('tower-music');
-    if (towerMusic) {
-      towerMusic.volume = volume;
-      towerMusic.muted = isMuted;
-    }
-  };
-
-  useEffect(() => {
-    applyTowerVolume();
-  }, [volume, isMuted, gameState]);
-
-  const handleVolumeChange = (event) => {
-    const nextVolume = Number(event.target.value);
-    setVolume(nextVolume);
-    setIsMuted(nextVolume === 0);
-  };
-
-  const toggleMute = () => {
-    setIsMuted((prev) => !prev);
-    if (isMuted && volume === 0) {
-      setVolume(0.05);
-    }
-  };
-
-  const SoundControl = () => (
-    <div className="fixed top-20 right-4 z-50 flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => setIsSoundOpen((prev) => !prev)}
-        className="bg-amber-600 text-white border border-amber-400 px-3 py-2 text-sm font-bold shadow-lg hover:bg-amber-500"
-      >
-        {isMuted || volume === 0 ? '🔇' : '🔊'} Son
-      </button>
-      {isSoundOpen && (
-        <div className="bg-stone-900 border border-stone-600 p-3 w-56 shadow-xl">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="text-lg"
-              aria-label={isMuted ? 'Réactiver le son' : 'Couper le son'}
-            >
-              {isMuted ? '🔇' : '🔊'}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full accent-amber-500"
-            />
-            <span className="text-xs text-stone-200 w-10 text-right">
-              {Math.round((isMuted ? 0 : volume) * 100)}%
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   useEffect(() => {
     if (gameState === 'fighting' || gameState === 'reward') {
@@ -1305,7 +1237,6 @@ const MageTower = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        <SoundControl />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
@@ -1318,7 +1249,6 @@ const MageTower = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        <SoundControl />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
@@ -1352,7 +1282,6 @@ const MageTower = () => {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <Header />
-        <SoundControl />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
@@ -1404,7 +1333,6 @@ const MageTower = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <SoundControl />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
@@ -1429,7 +1357,6 @@ const MageTower = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <SoundControl />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
@@ -1584,7 +1511,6 @@ const MageTower = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
-      <SoundControl />
       <audio id="tower-music" loop>
         <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
