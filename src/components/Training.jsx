@@ -430,7 +430,7 @@ const Training = () => {
 
     const logs = [...combatLog, `--- Combat d'entraînement ---`];
 
-    const matchResult = simulerMatch(character, currentDummyRaw);
+    const matchResult = simulerMatch(character, currentDummyRaw, { maxTurns: 30 });
 
     const stats = computeDpsStats(matchResult.steps, DUMMY_HP);
     setDpsStats(stats);

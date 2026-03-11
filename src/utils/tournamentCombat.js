@@ -1492,7 +1492,7 @@ function applyGnomeCapBonus(fighter, opponent) {
  * @param {Object} char1 - Personnage ou NPC brut (ex. character depuis Firestore, createBossCombatant(), buildFloorEnemy())
  * @param {Object} char2 - Idem
  */
-export function simulerMatch(char1, char2) {
+export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);
 
@@ -1572,7 +1572,7 @@ export function simulerMatch(char1, char2) {
   });
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0) {
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
     // Turn start
     const turnStartLogs = [`--- Début du tour ${turn} ---`];
 
@@ -1668,10 +1668,13 @@ export function simulerMatch(char1, char2) {
     turn++;
   }
 
-  const winnerIsP1 = p1.currentHP > 0;
+  const turnLimitReached = p1.currentHP > 0 && p2.currentHP > 0;
+  const winnerIsP1 = turnLimitReached ? true : p1.currentHP > 0;
   const winner = winnerIsP1 ? p1 : p2;
   const loser = winnerIsP1 ? p2 : p1;
-  const victoryLog = `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
+  const victoryLog = turnLimitReached
+    ? `⏱️ Limite de ${maxTurns} tours atteinte ! Combat terminé.`
+    : `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
   allLogs.push(victoryLog);
   steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2), ...stepExtras() });
 
