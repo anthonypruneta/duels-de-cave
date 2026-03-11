@@ -664,7 +664,6 @@ const WorldBoss = () => {
                 )}
               </div>
             </div>
-            </div>
           </div>
           <audio ref={bossAudioRef} loop>
             <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
