@@ -239,15 +239,15 @@ const SubclassDungeon = () => {
           </>
         }
         details={bossChar.ability ? (
-          <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
             <span className="text-lg">🎓</span>
             <div className="flex-1">
-              <div className="text-amber-300 font-semibold mb-1">{bossChar.ability.name}</div>
+              <div className="text-yellow-300 font-semibold mb-1">{bossChar.ability.name}</div>
               <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
             </div>
           </div>
         ) : null}
-        cardClassName="border-2 border-amber-600/50"
+        cardClassName="border-2 border-yellow-500/50"
       />
     );
   };
@@ -267,7 +267,7 @@ const SubclassDungeon = () => {
     return null;
   }
 
-  // Écran de combat (fighting) — même layout que Forêt / autres donjons : Joueur | Log | Boss
+  // Écran de combat
   if (gameState === 'fighting' && player && boss) {
     return (
       <div className="min-h-screen p-6">
@@ -275,98 +275,78 @@ const SubclassDungeon = () => {
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-6xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">Combat — {SUBCLASS_DUNGEON_NAME}</h2>
-            </div>
+        <div className="max-w-6xl mx-auto pt-16">
+          <div className="flex justify-center gap-3 md:gap-4 mb-6">
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating || !player || !boss}
+                className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-stone-700 disabled:text-stone-400 text-stone-900 px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-yellow-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
+            <button
+              onClick={handleBackToLobby}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-stone-500"
+            >
+              ← Abandonner
+            </button>
           </div>
 
+          {combatResult === 'victory' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-yellow-500/90 text-stone-900 px-8 py-3 rounded-xl font-bold text-xl animate-pulse shadow-2xl border border-yellow-400">
+                🏆 {player.name} remporte le combat ! 🏆
+              </div>
+            </div>
+          )}
+          {combatResult === 'defeat' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-900/80 text-red-200 px-8 py-3 rounded-xl font-bold text-xl shadow-2xl border border-red-600">
+                💀 {player.name} a été vaincu... 💀
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
-              <CharacterCardContent
-                character={player}
-                showHpBar
-                combatBaseOverride={playerCombatBase}
-                combatModifiers={playerCombatModifiers}
-                opponent={boss}
-                combatStatus={playerCombatStatus}
-                detailsPlacement="left"
-              />
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0 lg:w-auto lg:max-w-[340px]">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
-            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-              <div className="flex justify-center gap-3 md:gap-4 mb-4">
-                {combatResult === null && (
-                  <button
-                    onClick={simulateCombat}
-                    disabled={isSimulating || !player || !boss}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
-                  >
-                    ▶️ Lancer le combat
-                  </button>
-                )}
-                <button
-                  onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-                >
-                  ← Abandonner
-                </button>
-              </div>
-
-              {combatResult === 'victory' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                    🏆 {player.name} remporte le combat ! 🏆
-                  </div>
-                </div>
-              )}
-
-              {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
-                    💀 {player.name} a été vaincu... 💀
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900 p-3 border-b border-stone-600">
-                  <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900/90 p-3 border-b border-yellow-500/50 rounded-t-xl">
+                  <h2 className="text-lg md:text-xl font-bold text-yellow-300 text-center">🎓 {SUBCLASS_DUNGEON_NAME}</h2>
                 </div>
                 <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
-                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur &quot;Lancer le combat&quot; pour commencer...</p>
+                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (
                     <>
                       {combatLog.map((log, idx) => {
                         const isP1 = log.startsWith('[P1]');
                         const isP2 = log.startsWith('[P2]');
                         const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
                         if (!isP1 && !isP2) {
                           if (log.includes('🏆')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
-                                  {formatLogMessage(cleanLog)}
-                                </div>
+                                <div className="bg-yellow-500/90 text-stone-900 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-yellow-400">{formatLogMessage(cleanLog)}</div>
                               </div>
                             );
                           }
                           if (log.includes('💀')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
-                                  {formatLogMessage(cleanLog)}
-                                </div>
+                                <div className="bg-red-900/80 text-red-200 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-red-600">{formatLogMessage(cleanLog)}</div>
                               </div>
                             );
                           }
                           if (log.includes('---') || log.includes('⚔️')) {
                             return (
                               <div key={idx} className="flex justify-center my-3">
-                                <div className="text-stone-400 text-sm italic">{formatLogMessage(cleanLog)}</div>
+                                <div className="bg-stone-700/80 text-stone-200 px-4 py-1 rounded-lg text-sm font-bold border border-stone-500">{formatLogMessage(cleanLog)}</div>
                               </div>
                             );
                           }
@@ -376,24 +356,22 @@ const SubclassDungeon = () => {
                             </div>
                           );
                         }
-
                         if (isP1) {
                           return (
                             <div key={idx} className="flex justify-start">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
                                   <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
                             </div>
                           );
                         }
-
                         if (isP2) {
                           return (
                             <div key={idx} className="flex justify-end">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-yellow-500">
                                   <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
@@ -408,7 +386,7 @@ const SubclassDungeon = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>
@@ -422,16 +400,19 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="max-w-4xl mx-auto pt-20 text-center">
-          <h2 className="text-3xl font-bold text-red-400 mb-4">Défaite</h2>
-          <p className="text-stone-300 mb-6">{SUBCLASS_BOSS.nom} vous a vaincu. Réessayez plus tard.</p>
-          <button onClick={handleBackToLobby} className="bg-stone-600 hover:bg-stone-500 text-white px-8 py-4 font-bold border border-stone-500">
-            Retour au lobby
-          </button>
-        </div>
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
+        <div className="max-w-2xl mx-auto pt-16 text-center">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
+            <div className="text-7xl mb-6">💀</div>
+            <h2 className="text-3xl font-bold text-red-400 mb-4">Défaite...</h2>
+            <p className="text-stone-300 mb-8">{SUBCLASS_BOSS.nom} vous a vaincu. Réessayez plus tard.</p>
+            <button onClick={handleBackToLobby} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition">
+              ← Retour au collège
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -441,43 +422,56 @@ const SubclassDungeon = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="max-w-4xl mx-auto pt-20">
-          <h2 className="text-3xl font-bold text-amber-400 mb-2 text-center">Victoire !</h2>
-          <p className="text-stone-300 text-center mb-6">Choisissez votre sous-classe pour la classe {character.class}.</p>
+        <audio id="subclass-dungeon-music" loop>
+          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+        </audio>
+        <div className="max-w-5xl mx-auto pt-16 text-center">
+          <div className="flex justify-center mb-8">
+            <CharacterCardContent character={character} detailsPlacement="left" />
+          </div>
+
+          <div className="inline-block bg-stone-950/85 border border-yellow-500/80 rounded-lg px-6 py-3 shadow-lg mb-6">
+            <h2 className="text-2xl font-bold text-yellow-400">🏆 Victoire !</h2>
+            <p className="text-stone-300 text-sm mt-1">Choisissez votre sous-classe pour la classe {character.class}.</p>
+          </div>
+
           {error && (
-            <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+            <div className="bg-red-900/50 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
               <p className="text-red-300">{error}</p>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-3xl mx-auto">
             {subclassesOptions.map((sub) => (
               <button
                 key={sub.id}
                 onClick={() => handleChooseSubclass(sub)}
                 disabled={savingSubclass || selectedSubclass != null}
-                className="bg-stone-800 border-2 border-amber-600 hover:border-amber-500 p-6 text-left rounded-lg disabled:opacity-70 transition-all"
+                className={`bg-stone-950/90 border-2 p-6 text-left rounded-xl shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl ${
+                  selectedSubclass === sub.id
+                    ? 'border-yellow-400 ring-2 ring-yellow-400/50'
+                    : 'border-yellow-500/60 hover:border-yellow-400'
+                } disabled:opacity-70`}
               >
-                <div className="font-bold text-amber-300 text-xl mb-2">{sub.name}</div>
-                {sub.bonus && <div className="text-green-400 text-sm mb-2">{sub.bonus}</div>}
-                <div className="text-stone-400 text-sm">{sub.abilityLabel}</div>
-                <div className="text-stone-500 text-xs mt-2">{buildSubclassDescription(character.class, sub.id) || sub.description}</div>
-                {selectedSubclass === sub.id && <div className="text-amber-400 font-bold mt-2">✓ Choisi</div>}
+                <div className="font-bold text-yellow-300 text-xl mb-2">{sub.name}</div>
+                {sub.bonus && <div className="text-green-400 text-sm mb-2 font-semibold">{sub.bonus}</div>}
+                <div className="text-stone-300 text-sm">{sub.abilityLabel}</div>
+                <div className="text-stone-400 text-xs mt-2">{buildSubclassDescription(character.class, sub.id) || sub.description}</div>
+                {selectedSubclass === sub.id && <div className="text-yellow-400 font-bold mt-3">✓ Choisi</div>}
               </button>
             ))}
           </div>
+
           {selectedSubclass != null && (
             <div className="text-center">
               <button
                 onClick={() => navigate('/dungeons')}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 font-bold border border-amber-500"
+                className="bg-yellow-500 hover:bg-yellow-600 text-stone-900 px-8 py-4 rounded-lg font-bold border border-yellow-400 transition shadow-lg"
               >
-                Retour aux donjons
+                ← Retour aux donjons
               </button>
             </div>
           )}
-        <audio id="subclass-dungeon-music" loop>
-          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
-        </audio>
         </div>
       </div>
     );
@@ -485,84 +479,97 @@ const SubclassDungeon = () => {
 
   // Lobby
   const bossImg = getSubclassImage(SUBCLASS_BOSS.imageFile);
+
+  const LobbyBossCard = () => (
+    <UnifiedCharacterCard
+      header={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
+      name={SUBCLASS_BOSS.nom}
+      image={bossImg}
+      fallback={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
+      topStats={<><span>HP: {SUBCLASS_BOSS.stats.hp}</span><span>VIT: {SUBCLASS_BOSS.stats.spd}</span></>}
+      mainStats={
+        <>
+          <div>Auto: {SUBCLASS_BOSS.stats.auto}</div>
+          <div>DEF: {SUBCLASS_BOSS.stats.def}</div>
+          <div>CAP: {SUBCLASS_BOSS.stats.cap}</div>
+          <div>RESC: {SUBCLASS_BOSS.stats.rescap}</div>
+        </>
+      }
+      details={
+        <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
+          <span className="text-lg">🎓</span>
+          <div className="flex-1">
+            <div className="text-yellow-300 font-semibold mb-1">{SUBCLASS_BOSS.ability.name} (CD {SUBCLASS_BOSS.ability.cooldown})</div>
+            <div className="text-stone-400 text-[10px]">{SUBCLASS_BOSS.ability.description}</div>
+          </div>
+        </div>
+      }
+      cardClassName="border-2 border-yellow-500/50"
+    />
+  );
+
   return (
     <div className="min-h-screen p-6">
       <Header />
-      <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-amber-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-amber-400">{SUBCLASS_DUNGEON_NAME}</h2>
+      <audio id="subclass-dungeon-music" loop>
+        <source src="/assets/music/koro.mp3" type="audio/mpeg" />
+      </audio>
+      <div className="max-w-5xl mx-auto pt-16">
+        {/* Titre */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-stone-950/85 border border-yellow-500/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-yellow-400">🎓 {SUBCLASS_DUNGEON_NAME}</h2>
           </div>
         </div>
 
-        <div className="bg-stone-800 border border-amber-600/50 p-6 mb-8 text-center">
-          {bossImg && (
-            <img src={bossImg} alt={SUBCLASS_BOSS.nom} className="w-48 h-auto mx-auto mb-4 border-2 border-amber-600" />
-          )}
-          <h3 className="text-2xl font-bold text-amber-300 mb-2">{SUBCLASS_BOSS.nom}</h3>
-          <p className="text-stone-400 mb-4">Vainquez l'entraîneur pour débloquer une sous-classe de votre classe. Niveau {SUBCLASS_DUNGEON_LEVEL_REQUIRED} requis.</p>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-lg mx-auto text-sm mb-4">
-            {Object.entries(SUBCLASS_BOSS.stats).map(([stat, val]) => (
-              <div key={stat} className="bg-stone-900/60 border border-stone-700 p-2 text-center">
-                <div className="text-amber-300 font-bold">{STAT_LABELS[stat]}</div>
-                <div className="text-white">{val}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-amber-200 font-semibold">🎓 {SUBCLASS_BOSS.ability.name}</div>
-          <div className="text-stone-400 text-sm">CD {SUBCLASS_BOSS.ability.cooldown} tours — {SUBCLASS_BOSS.ability.description}</div>
+        {/* Essais disponibles */}
+        <div className="bg-stone-950/85 border border-yellow-500/60 rounded-xl p-5 mb-6 shadow-lg">
+          <p className="text-yellow-300 font-bold text-sm uppercase tracking-wider">Essais disponibles</p>
+          <p className="text-white text-3xl font-bold mt-1">{dungeonSummary?.runsRemaining ?? 0}</p>
+          <p className="text-stone-400 text-xs mt-1">1 run = 1 combat</p>
         </div>
 
-        {character.subclass && (
-          <div className="bg-stone-800 border border-amber-600 p-4 mb-8 text-center">
-            <h3 className="text-lg font-bold text-amber-400 mb-2">Sous-classe actuelle</h3>
-            <p className="text-amber-300 font-semibold">{character.subclass.name} — {character.class}</p>
-          </div>
-        )}
-
-        <div className="bg-stone-800 border border-amber-600/50 p-4 mb-8 flex justify-between items-center">
-          <div>
-            <p className="text-amber-300 font-bold">Essais disponibles</p>
-            <p className="text-white text-2xl">{dungeonSummary?.runsRemaining ?? 0}</p>
-            <p className="text-stone-400 text-sm">1 run = 1 combat</p>
-          </div>
-          <div className="text-right">
-            <p className="text-gray-400 text-sm">Niveau requis</p>
-            <p className={`font-bold ${characterLevel >= SUBCLASS_DUNGEON_LEVEL_REQUIRED ? 'text-amber-400' : 'text-red-400'}`}>
-              {characterLevel >= SUBCLASS_DUNGEON_LEVEL_REQUIRED ? `Niveau ${characterLevel}` : `Niveau ${SUBCLASS_DUNGEON_LEVEL_REQUIRED} requis (vous : ${characterLevel})`}
-            </p>
-          </div>
-        </div>
-
+        {/* Erreurs */}
         {error && (
-          <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/50 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300">{error}</p>
           </div>
         )}
 
         {characterLevel < SUBCLASS_DUNGEON_LEVEL_REQUIRED && (
-          <div className="bg-red-900/30 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/30 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300 font-bold">Le Collège Kunugigaoka est accessible à partir du niveau {SUBCLASS_DUNGEON_LEVEL_REQUIRED}.</p>
           </div>
         )}
 
-        <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
-            Retour
-          </button>
+        {/* Boutons */}
+        <div className="flex gap-4 justify-center mb-6">
           <button
             onClick={handleStartRun}
             disabled={!canAccess}
-            className={`px-12 py-4 font-bold text-xl ${
-              canAccess ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500' : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+            className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
+              canAccess ? 'bg-yellow-500 hover:bg-yellow-600 text-stone-900 border border-yellow-400' : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {canAccess ? `Défier ${SUBCLASS_BOSS.nom}` : 'Accès impossible'}
+            {canAccess ? `⚔️ Défier ${SUBCLASS_BOSS.nom}` : 'Accès impossible'}
+          </button>
+          <button
+            onClick={() => navigate('/dungeons')}
+            className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition"
+          >
+            ← Retour aux donjons
           </button>
         </div>
-        <audio id="subclass-dungeon-music" loop>
-          <source src="/assets/music/koro.mp3" type="audio/mpeg" />
-        </audio>
+
+        {/* Personnage gauche - Boss droite */}
+        <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+          <div className="w-full md:w-auto md:flex-shrink-0">
+            <CharacterCardContent character={character} detailsPlacement="left" />
+          </div>
+          <div className="w-full md:w-[340px] md:flex-shrink-0">
+            <LobbyBossCard />
+          </div>
+        </div>
       </div>
     </div>
   );

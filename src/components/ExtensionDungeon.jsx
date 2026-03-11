@@ -419,15 +419,15 @@ const ExtensionDungeon = () => {
 
           {showUpgradeAnimation && rolledExtensionPassive && (
             <div
-              className="mb-6 py-6 px-4 rounded-xl border-2 animate-pulse max-w-2xl mx-auto"
+              className="mb-6 py-6 px-6 rounded-xl border-2 animate-pulse max-w-2xl mx-auto"
               style={{
-                background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(239, 68, 68, 0.2) 50%, rgba(139, 92, 246, 0.2) 100%)',
+                background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(15, 10, 25, 0.95) 25%, rgba(15, 10, 25, 0.95) 75%, rgba(139, 92, 246, 0.15) 100%)',
                 borderColor: 'rgba(139, 92, 246, 0.8)',
                 boxShadow: '0 0 20px rgba(59, 130, 246, 0.3), 0 0 20px rgba(239, 68, 68, 0.3), 0 0 20px rgba(139, 92, 246, 0.3)'
               }}
             >
               <p className="text-white font-bold text-lg">✨ Passif étendu — Bleu, Rouge, Violet ✨</p>
-              <p className="text-stone-300 text-sm mt-2">
+              <p className="text-stone-200 text-sm mt-2 font-medium">
                 {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.${rolledExtensionPassive?.level ?? 1})`}
               </p>
             </div>
@@ -727,54 +727,6 @@ const ExtensionDungeon = () => {
           <p className="text-white text-3xl font-bold mt-1">{dungeonSummary?.runsRemaining ?? 0}</p>
           <p className="text-stone-400 text-xs mt-1">1 run = 1 combat (garder ancienne combinaison = +1 run)</p>
         </div>
-
-        {/* Extension actuelle */}
-        {character.mageTowerExtensionPassive && (() => {
-          const fused = getFusedPassiveDisplayData(character);
-          return (
-            <div className="bg-stone-950/85 border border-violet-600/60 rounded-xl p-4 mb-6 shadow-lg text-center">
-              <p className="text-violet-400 font-bold text-sm uppercase tracking-wider mb-2">👁️ Extension actuelle</p>
-              <div className="flex flex-wrap justify-center gap-4 items-center">
-                {fused ? (
-                  <SharedTooltip
-                    content={
-                      <span className="whitespace-normal block text-left max-w-[260px]">
-                        <span className="text-amber-300 font-semibold">{fused.primaryDetails.icon} {fused.primaryDetails.name}</span>
-                        <span className="text-stone-400"> — Niv.{fused.primaryDetails.level} (principal)</span>
-                        <br />
-                        <span className="text-violet-300 font-semibold">{fused.extensionDetails.icon} {fused.extensionDetails.name}</span>
-                        <span className="text-stone-400"> — Niv.{fused.extensionDetails.level} (extension)</span>
-                      </span>
-                    }
-                  >
-                    <span className="text-amber-300 font-semibold cursor-help">
-                      {fused.primaryDetails.icon} {fused.displayLabel}
-                    </span>
-                  </SharedTooltip>
-                ) : (
-                  <>
-                    {getPassiveDetails(character.mageTowerPassive) && (
-                      <span className="text-amber-300 font-semibold">
-                        {getPassiveDetails(character.mageTowerPassive).icon} {getPassiveDetails(character.mageTowerPassive).name} (Niv.3)
-                      </span>
-                    )}
-                    <span className="text-stone-500">+</span>
-                    {getPassiveDetails(character.mageTowerExtensionPassive) && (
-                      <span className="text-violet-300 font-semibold">
-                        {getPassiveDetails(character.mageTowerExtensionPassive).icon} {getPassiveDetails(character.mageTowerExtensionPassive).name} (Niv.{character.mageTowerExtensionPassive?.level ?? 1})
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-              {fused && (
-                <p className="text-stone-400 text-xs mt-2">
-                  Niv.{fused.primaryDetails.level} (principal) + Niv.{fused.extensionDetails.level} (extension, 1 à 3)
-                </p>
-              )}
-            </div>
-          );
-        })()}
 
         {/* Erreurs */}
         {error && (
