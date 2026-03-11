@@ -893,19 +893,6 @@ const CharacterCreation = () => {
       );
     };
 
-    const sidebarMenuItems = [
-      { path: '/dungeons', icon: '🏰', label: 'Donjon', disabled: isDowntimeLocked },
-      { path: '/training', icon: '🎯', label: 'Entraînement' },
-      { path: '/labyrinthe-infini', icon: '🌀', label: 'Labyrinthe infini', disabled: isDowntimeLocked },
-      { path: '/cataclysme', icon: '☄️', label: 'Cataclysme' },
-      { path: '/taverne', icon: '🍺', label: 'Taverne', disabled: isDowntimeLocked },
-      { path: '/encyclopedie', icon: '📚', label: 'Encyclopédie' },
-      { path: '/tournament', icon: '🏆', label: 'Tournoi' },
-      { path: '/hall-of-fame', icon: '👑', label: 'Hall of Fame' },
-      { path: '/mes-anciens-personnages', icon: '📜', label: 'Mes anciens persos' },
-      ...(currentUser?.email === 'antho.pruneta@gmail.com' ? [{ path: '/combat', icon: '⚔️', label: 'PvP' }] : []),
-    ];
-
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -914,37 +901,8 @@ const CharacterCreation = () => {
         {PseudoModal}
         <div className="max-w-[1400px] mx-auto pt-20">
           <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
-            {/* Sidebar Menu */}
-            <div className="w-full lg:w-[220px] lg:flex-shrink-0 order-2 lg:order-1">
-              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900/60">
-                  <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">Menu</h3>
-                </div>
-                <nav className="p-1.5 space-y-0.5">
-                  {sidebarMenuItems.map((item) => (
-                    <button
-                      key={item.path}
-                      onClick={() => navigate(item.path)}
-                      disabled={item.disabled}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-amber-600/15 hover:border-amber-500/20 disabled:opacity-35 disabled:cursor-not-allowed group"
-                    >
-                      <span className="text-lg w-6 text-center flex-shrink-0">{item.icon}</span>
-                      <span className="text-sm font-medium text-stone-300 group-hover:text-amber-200 group-disabled:text-stone-500 transition-colors">{item.label}</span>
-                    </button>
-                  ))}
-                </nav>
-                {isDowntimeLocked && (
-                  <div className="px-3 pb-3">
-                    <div className="text-[11px] text-red-400/80 bg-red-900/20 border border-red-800/30 rounded-lg px-2.5 py-2 text-center">
-                      🔒 Certains modes fermés jusqu'à lundi
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Character Card (image + name) */}
-            <div className="relative order-1 lg:order-2 flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
+            <div className="relative flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
               <div className="shadow-2xl">
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                   {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
@@ -976,7 +934,7 @@ const CharacterCreation = () => {
             </div>
 
             {/* Info Panel (stats, weapon, passive, etc.) */}
-            <div className="w-full lg:w-[320px] lg:flex-shrink-0 order-3">
+            <div className="w-full lg:w-[320px] lg:flex-shrink-0">
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-visible shadow-lg">
                 <div className="p-4 space-y-3 overflow-visible">
                   <div className="flex justify-between text-sm text-white font-bold">
