@@ -10,6 +10,7 @@ function DungeonCard({ icon, title, description, buttonLabel, onClick, accent = 
     amber: 'bg-amber-600 hover:bg-amber-500 border-amber-500/60',
     orange: 'bg-orange-600 hover:bg-orange-500 border-orange-500/60',
     violet: 'bg-violet-600 hover:bg-violet-500 border-violet-500/60',
+    yellow: 'bg-yellow-500 hover:bg-yellow-400 border-yellow-400/60 text-stone-900',
   };
   const btnClass = accentClasses[accent] || accentClasses.amber;
 
@@ -142,6 +143,7 @@ const DungeonSelection = () => {
               description="Sous-classe — Niveau 400 requis"
               buttonLabel="Entrer au Collège"
               onClick={() => navigate('/sous-classe')}
+              accent="yellow"
             />
           )}
         </CategorySection>
