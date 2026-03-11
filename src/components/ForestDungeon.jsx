@@ -1504,8 +1504,8 @@ const ForestDungeon = () => {
 
           {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
+            <div className="order-1 md:order-1 w-full md:w-[480px] md:flex-shrink-0">
+              <CharacterCardContent character={player} showHpBar infoSide="left" combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
@@ -1634,7 +1634,7 @@ const ForestDungeon = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[480px] md:flex-shrink-0">
               <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>

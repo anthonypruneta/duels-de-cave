@@ -80,11 +80,16 @@ function Header() {
 
   const navLinks = [
     { path: '/', label: '🏠', title: 'Accueil' },
+    { path: '/dungeons', label: '🏰', title: 'Donjon' },
+    { path: '/training', label: '🎯', title: 'Entraînement' },
+    { path: '/labyrinthe-infini', label: '🌀', title: 'Labyrinthe' },
+    { path: '/cataclysme', label: '☄️', title: 'Cataclysme' },
     { path: '/taverne', label: '🍺', title: 'Taverne' },
     { path: '/encyclopedie', label: '📚', title: 'Encyclopédie' },
     { path: '/tournament', label: '🏆', title: 'Tournoi' },
     { path: '/hall-of-fame', label: '👑', title: 'Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜', title: 'Anciens Persos' },
+    ...(isAdmin ? [{ path: '/combat', label: '⚔️', title: 'PvP' }] : []),
   ];
 
   return (

@@ -954,58 +954,107 @@ const CharacterCreation = () => {
       );
     };
 
+    const sidebarMenuItems = [
+      { path: '/dungeons', icon: '🏰', label: 'Donjon', disabled: isDowntimeLocked },
+      { path: '/training', icon: '🎯', label: 'Entraînement' },
+      { path: '/labyrinthe-infini', icon: '🌀', label: 'Labyrinthe infini', disabled: isDowntimeLocked },
+      { path: '/cataclysme', icon: '☄️', label: 'Cataclysme' },
+      { path: '/taverne', icon: '🍺', label: 'Taverne', disabled: isDowntimeLocked },
+      { path: '/encyclopedie', icon: '📚', label: 'Encyclopédie' },
+      { path: '/tournament', icon: '🏆', label: 'Tournoi' },
+      { path: '/hall-of-fame', icon: '👑', label: 'Hall of Fame' },
+      { path: '/mes-anciens-personnages', icon: '📜', label: 'Mes anciens persos' },
+      ...(currentUser?.email === 'antho.pruneta@gmail.com' ? [{ path: '/combat', icon: '⚔️', label: 'PvP' }] : []),
+    ];
+
     return (
       <div className="min-h-screen p-6">
         <Header />
         {renderSoundControl()}
         {renderIntroMusic()}
         {PseudoModal}
-        <div className="max-w-4xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">Mon Personnage</h2>
-            </div>
+        <div className="max-w-[1400px] mx-auto pt-20">
+          <div className="flex flex-col items-center mb-6">
+            <h2 className="text-3xl font-bold text-stone-200 tracking-wide">Mon Personnage</h2>
           </div>
 
-          <div className="relative max-w-md mx-auto" style={{ width: '340px' }}>
-            <div className="shadow-2xl">
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-                {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
-              </div>
-              <div className="overflow-visible border border-stone-600 bg-stone-900">
-                <InteractiveCharacterCard>
-                  <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
-                    {existingCharacter.characterImage ? (
-                      <img
-                        src={existingCharacter.characterImage}
-                        alt={existingCharacter.name}
-                        className="w-full h-auto object-contain"
-                      />
-                    ) : (
-                      <div className="h-96 w-full flex items-center justify-center">
-                        <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
-                      </div>
-                    )}
-                    <div
-                      className="absolute bottom-5 left-2 right-2 py-1 text-center"
-                      style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
+          <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+            {/* Sidebar Menu */}
+            <div className="w-full lg:w-[220px] lg:flex-shrink-0 order-2 lg:order-1">
+              <div className="bg-stone-900/70 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+                <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-800/50">
+                  <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">Menu</h3>
+                </div>
+                <nav className="p-1.5 space-y-0.5">
+                  {sidebarMenuItems.map((item) => (
+                    <button
+                      key={item.path}
+                      onClick={() => navigate(item.path)}
+                      disabled={item.disabled}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 hover:bg-amber-600/15 hover:border-amber-500/20 disabled:opacity-35 disabled:cursor-not-allowed group"
                     >
-                      <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
+                      <span className="text-lg w-6 text-center flex-shrink-0">{item.icon}</span>
+                      <span className="text-sm font-medium text-stone-300 group-hover:text-amber-200 group-disabled:text-stone-500 transition-colors">{item.label}</span>
+                    </button>
+                  ))}
+                </nav>
+                {isDowntimeLocked && (
+                  <div className="px-3 pb-3">
+                    <div className="text-[11px] text-red-400/80 bg-red-900/20 border border-red-800/30 rounded-lg px-2.5 py-2 text-center">
+                      🔒 Certains modes fermés jusqu'à lundi
                     </div>
                   </div>
-                </InteractiveCharacterCard>
-                <div className="bg-stone-800 p-3 border-t border-stone-600 overflow-visible">
-                  <div className="flex justify-between text-xs text-white mb-2 font-bold">
+                )}
+              </div>
+            </div>
+
+            {/* Character Card (image + name) */}
+            <div className="relative order-1 lg:order-2 flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
+              <div className="shadow-2xl">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+                  {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
+                </div>
+                <div className="overflow-visible border border-stone-600 bg-stone-900 rounded-lg">
+                  <InteractiveCharacterCard>
+                    <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
+                      {existingCharacter.characterImage ? (
+                        <img
+                          src={existingCharacter.characterImage}
+                          alt={existingCharacter.name}
+                          className="w-full h-auto object-contain"
+                        />
+                      ) : (
+                        <div className="h-96 w-full flex items-center justify-center">
+                          <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                        </div>
+                      )}
+                      <div
+                        className="absolute bottom-5 left-2 right-2 py-1 text-center"
+                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
+                      >
+                        <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
+                      </div>
+                    </div>
+                  </InteractiveCharacterCard>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Panel (stats, weapon, passive, etc.) */}
+            <div className="w-full lg:w-[320px] lg:flex-shrink-0 order-3">
+              <div className="bg-stone-900/70 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+                <div className="p-4 space-y-3 overflow-visible">
+                  <div className="flex justify-between text-sm text-white font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
                     <StatLine statKey="spd" label="VIT" valueClassName="text-white" />
                   </div>
-                  <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">
+                  <div className="grid grid-cols-2 gap-1.5 text-sm text-gray-300">
                     <StatLine statKey="auto" label="Auto" />
                     <StatLine statKey="def" label="Déf" />
                     <StatLine statKey="cap" label="Cap" />
                     <StatLine statKey="rescap" label="ResC" />
                   </div>
-                  <div className="space-y-2 overflow-visible">
+                  <div className="border-t border-stone-700/60 pt-3 space-y-2 overflow-visible">
                     {weapon ? (() => {
                       const weaponContent = (
                         <>
@@ -1159,65 +1208,6 @@ const CharacterCreation = () => {
               </div>
             </div>
           </div>
-
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <button
-              onClick={() => navigate('/dungeons')}
-              disabled={isDowntimeLocked}
-              className="bg-amber-600 hover:bg-amber-700 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
-            >
-              🏰 Donjon 🏰
-            </button>
-            <button
-              onClick={() => navigate('/training')}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-orange-500 hover:border-orange-400 transition-all"
-            >
-              🎯 Entraînement 🎯
-            </button>
-            <button
-              onClick={() => navigate('/labyrinthe-infini')}
-              disabled={isDowntimeLocked}
-              className="bg-fuchsia-700 hover:bg-fuchsia-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-fuchsia-500 hover:border-fuchsia-300 transition-all"
-            >
-              🌀 Labyrinthe infini 🌀
-            </button>
-            <button
-              onClick={() => navigate('/cataclysme')}
-              className="bg-red-800 hover:bg-red-700 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all"
-            >
-              ☄️ Cataclysme ☄️
-            </button>
-            <button
-              onClick={() => navigate('/taverne')}
-              disabled={isDowntimeLocked}
-              className="bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-300 disabled:border-stone-500 disabled:cursor-not-allowed text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-amber-500 hover:border-amber-400 transition-all"
-            >
-              🍺 Taverne 🍺
-            </button>
-            {currentUser?.email === 'antho.pruneta@gmail.com' && (
-              <button
-                onClick={() => navigate('/combat')}
-                className="bg-red-700 hover:bg-red-600 text-white px-10 py-4 font-bold text-xl shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all"
-              >
-                ⚔️ PvP ⚔️
-              </button>
-            )}
-          </div>
-
-          {isDowntimeLocked && (
-            <div className="mt-6 bg-stone-800 border border-red-500/60 px-6 py-4 max-w-lg mx-auto rounded-lg">
-              <p className="text-red-300 text-base text-center font-medium">
-                🔒 Après le tournoi, les donjons et le labyrinthe sont fermés jusqu'à lundi.
-              </p>
-            </div>
-          )}
-
-          <div className="mt-6 bg-stone-800 border border-amber-600/50 px-6 py-4 max-w-lg mx-auto rounded-lg">
-            <p className="text-amber-200 text-base text-center font-medium">
-              ℹ️ Nouveau personnage disponible après le tournoi
-            </p>
-          </div>
-          {renderGameEncyclopedia()}
         </div>
       {renderDungeonGrantPopup()}
       </div>

@@ -40,6 +40,8 @@ export default function CharacterCardContent({
   opponent = null,
   /** État de combat courant du personnage (stun, saignement, marque, esquive, riposte, brûlure Néant) — ex. step.p1Status */
   combatStatus = null,
+  /** 'left' | 'right' | null — layout horizontal : infos à gauche ou droite de l'image */
+  infoSide = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -330,6 +332,7 @@ export default function CharacterCardContent({
       shieldPercent={showHpBar ? shieldPercent : undefined}
       aboveHpBar={aboveHpBar}
       cardClassName={cardClassName}
+      infoSide={infoSide}
     />
   );
 }
