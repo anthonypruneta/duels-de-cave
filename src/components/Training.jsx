@@ -784,7 +784,7 @@ const Training = () => {
             </div>
 
             {/* Carte mannequin */}
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <DummyCard combatBaseOverride={dummyCombatBase} />
             </div>
           </div>
