@@ -133,26 +133,32 @@ function Header() {
   return (
     <>
       <div className="absolute top-0 left-0 right-0 z-[200]">
-        {/* Barre de navigation */}
-        <div className="bg-stone-950/90 border-b border-stone-700/60 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-          {currentUser && (
-            <>
-              <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mr-1 flex-shrink-0">Menu</span>
-              {navLinks.map(link => (
-                <button
-                  key={link.path}
-                  onClick={() => navigate(link.path)}
-                  className={`px-2 py-1 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
-                    location.pathname === link.path
-                      ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
-                      : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
-                  }`}
-                >
-                  {link.label}
-                </button>
-              ))}
-              {/* Bouton son */}
-              <div ref={volumeRef} className="relative flex-shrink-0 ml-1"
+        <div className="bg-stone-950/90 border-b border-stone-700/60 px-3 py-1.5 flex items-center gap-1.5">
+          {/* Nav scrollable */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1 min-w-0">
+            {currentUser && (
+              <>
+                <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mr-1 flex-shrink-0">Menu</span>
+                {navLinks.map(link => (
+                  <button
+                    key={link.path}
+                    onClick={() => navigate(link.path)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
+                      location.pathname === link.path
+                        ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
+                        : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
+                    }`}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+          {/* Bouton son + actions (hors overflow) */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {currentUser && (
+              <div ref={volumeRef} className="relative"
                 onMouseEnter={() => setShowVolumeSlider(true)}
                 onMouseLeave={() => setShowVolumeSlider(false)}
               >
@@ -163,7 +169,7 @@ function Header() {
                   {isMuted || volume === 0 ? '🔇 Son' : '🔊 Son'}
                 </button>
                 {showVolumeSlider && (
-                  <div className="absolute top-full right-0 mt-1 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl z-[200]">
+                  <div className="absolute top-full right-0 mt-1 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl">
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
@@ -181,10 +187,7 @@ function Header() {
                   </div>
                 )}
               </div>
-            </>
-          )}
-          {/* Droite : Admin + Déconnexion */}
-          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+            )}
             {showInstallBtn && (
               <button
                 onClick={handleInstall}
