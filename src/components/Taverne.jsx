@@ -41,17 +41,17 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'tavernier', x: 18, y: 40, label: 'Derrière le bar' },
-  { id: 'bar-1', x: 24, y: 65, label: 'Comptoir' },
+  { id: 'tavernier', x: 26, y: 48, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 14, y: 84, label: 'Entrée' },
   { id: 'bar-2', x: 35, y: 69, label: 'Comptoir' },
   { id: 'table1-1', x: 29, y: 73, label: 'Table gauche' },
   { id: 'table1-2', x: 41, y: 77, label: 'Table gauche' },
   { id: 'table1-3', x: 34, y: 84, label: 'Table gauche' },
-  { id: 'table2-1', x: 49, y: 69, label: 'Table droite' },
-  { id: 'table2-2', x: 55, y: 74, label: 'Table droite' },
+  { id: 'table2-1', x: 50, y: 80, label: 'Table droite' },
+  { id: 'table2-2', x: 66, y: 80, label: 'Table droite' },
   { id: 'table2-3', x: 65, y: 67, label: 'Table droite' },
   { id: 'cheminee', x: 77, y: 60, label: 'Cheminée' },
-  { id: 'escalier', x: 50, y: 36, label: 'Escalier' },
+  { id: 'escalier', x: 43, y: 46, label: 'Escalier' },
   { id: 'tonneaux', x: 87, y: 71, label: 'Tonneaux' },
 ];
 
@@ -344,12 +344,12 @@ export default function Taverne() {
         </div>
 
         {/* Chat en bas à gauche */}
-        <div className="absolute left-4 bottom-4 z-20 flex flex-col w-96 max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm">
+        <div className="absolute left-4 bottom-4 z-20 flex flex-col w-[420px] max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-700 rounded-t-xl">
-            <span className="text-amber-400 font-bold">💬 Chat de la Taverne</span>
+            <span className="text-amber-400 font-bold text-base">💬 Chat de la Taverne</span>
             <span className="text-stone-500 text-sm">{presences.length} en ligne</span>
           </div>
-          <div className="overflow-y-auto max-h-[260px] min-h-[100px] p-3 space-y-1.5">
+          <div className="overflow-y-auto max-h-[300px] min-h-[120px] p-3 space-y-1.5">
             {messages.length === 0 && (
               <p className="text-stone-500 text-sm text-center py-4">Aucun message.</p>
             )}
