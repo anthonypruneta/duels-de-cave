@@ -33,6 +33,7 @@ function getAntiHealFactor(opponent) {
   const list = getPassiveDetailsList(opponent);
   const passive = getPassiveById(list, 'rituel_fracture');
   if (passive) factor *= (1 - (passive.levelData.healReduction || 0));
+  if (opponent?.suddenDeath) factor *= (1 - generalConstants.suddenDeathHealReduction);
   return factor;
 }
 
@@ -580,6 +581,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     adjusted = Math.max(1, Math.round(adjusted * (1 - def.nextSpellReduction)));
     log.push(`${playerColor} 📐 Stratège Arcanique: le sort inflige -${Math.round(def.nextSpellReduction * 100)}% de dégâts.`);
     def.nextSpellReduction = undefined;
+  }
+
+  if (att.suddenDeath) {
+    adjusted = Math.round(adjusted * (1 + generalConstants.suddenDeathDamageBonus));
   }
 
   if (def.dodge) {
@@ -1539,6 +1544,7 @@ export function simulerMatch(char1, char2) {
         : null,
       pacteSombreCapStolen: b.pacteSombreCapStolen ?? 0,
       pacteSombreCapLost: b.pacteSombreCapLost ?? 0,
+      suddenDeath: !!b.suddenDeath,
     };
     if (b.class === 'Demoniste' && b.base) {
       const { capBase, capPerCap, stackPerAuto } = classConstants.demoniste;
@@ -1569,6 +1575,13 @@ export function simulerMatch(char1, char2) {
   while (p1.currentHP > 0 && p2.currentHP > 0) {
     // Turn start
     const turnStartLogs = [`--- Début du tour ${turn} ---`];
+
+    if (turn === generalConstants.suddenDeathTurn && !p1.suddenDeath) {
+      p1.suddenDeath = true;
+      p2.suddenDeath = true;
+      turnStartLogs.push(`💀 MORT SUBITE ! Les dégâts augmentent de ${generalConstants.suddenDeathDamageBonus * 100}% et les soins sont réduits de ${generalConstants.suddenDeathHealReduction * 100}%.`);
+    }
+
     const p1Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p1), turn);
     const p2Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p2), turn);
     if (p1Unicorn) turnStartLogs.push(`🦄 Pacte de la Licorne — ${p1.name}: ${p1Unicorn.label}`);

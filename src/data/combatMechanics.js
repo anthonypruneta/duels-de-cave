@@ -153,6 +153,9 @@ export const raceConstants = {
 export const generalConstants = {
   baseCritChance: 0.10,    // 10% crit de base
   critMultiplier: 1.5,     // x1.5 dégâts crit (sauf Voleur)
+  suddenDeathTurn: 30,     // Tour d'activation de la mort subite
+  suddenDeathDamageBonus: 0.50,   // +50% dégâts en mort subite
+  suddenDeathHealReduction: 0.50, // -50% soins en mort subite
 };
 
 // Fonctions utilitaires

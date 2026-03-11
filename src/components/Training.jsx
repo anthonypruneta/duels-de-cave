@@ -100,34 +100,63 @@ const getPassiveDetails = (passive) => {
   return { ...base, level: passive.level, levelData };
 };
 
-// PV du mannequin — assez haut pour survivre 30 tours (max tours)
 const DUMMY_HP = 999999;
 
-// Créer le mannequin d'entraînement
-const createTrainingDummy = () => ({
-  name: 'Mannequin',
+const DEFAULT_DUMMY_CONFIG = {
   race: 'Humain',
   class: 'Guerrier',
   level: 1,
-  userId: 'training-dummy',
-  characterImage: null,
-  equippedWeaponId: null,
-  equippedWeaponData: null,
-  mageTowerPassive: null,
-  forestBoosts: {},
-  base: {
-    hp: DUMMY_HP,
-    auto: 0,
-    def: 20,
-    cap: 0,
-    rescap: 20,
-    spd: 0
-  },
-  bonuses: {
-    race: { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 },
-    class: { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 }
-  }
-});
+  subclassId: '',
+  weaponId: '',
+  forgeEnabled: false,
+  passiveId: '',
+  passiveLevel: 1,
+  extensionId: '',
+  extensionLevel: 1,
+  hp: DUMMY_HP,
+  auto: 0,
+  def: 20,
+  cap: 0,
+  rescap: 20,
+  spd: 0,
+};
+
+const buildConfiguredDummy = (config) => {
+  const weaponData = config.weaponId ? getWeaponById(config.weaponId) : null;
+  const isLegendary = weaponData?.rarete === 'legendaire';
+  const forgeUpgrade = (config.forgeEnabled && isLegendary && config.weaponId)
+    ? generateForgeUpgradeRoll(config.weaponId)
+    : null;
+  const subclass = config.subclassId ? getSubclassById(config.subclassId) : null;
+
+  return {
+    name: 'Mannequin',
+    race: config.race,
+    class: config.class,
+    level: config.level,
+    userId: 'training-dummy',
+    characterImage: null,
+    equippedWeaponId: config.weaponId || null,
+    equippedWeaponData: weaponData,
+    mageTowerPassive: config.passiveId ? { id: config.passiveId, level: config.passiveLevel } : null,
+    mageTowerExtensionPassive: config.extensionId ? { id: config.extensionId, level: config.extensionLevel } : null,
+    subclass: subclass ? { id: subclass.id, name: subclass.name } : null,
+    forestBoosts: {},
+    forgeUpgrade,
+    base: {
+      hp: config.hp,
+      auto: config.auto,
+      def: config.def,
+      cap: config.cap,
+      rescap: config.rescap,
+      spd: config.spd,
+    },
+    bonuses: {
+      race: getRaceBonus(config.race),
+      class: getClassBonus(config.class),
+    },
+  };
+};
 
 // Extraire les stats DPS depuis les steps du combat
 const computeDpsStats = (steps, dummyMaxHP) => {
@@ -191,6 +220,8 @@ const Training = () => {
   const [loading, setLoading] = useState(true);
   const [character, setCharacter] = useState(null);
   const [error, setError] = useState(null);
+
+  const [dummyConfig, setDummyConfig] = useState({ ...DEFAULT_DUMMY_CONFIG });
 
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting
   const [player, setPlayer] = useState(null);
@@ -368,14 +399,15 @@ const Training = () => {
     };
   };
 
-  // Démarrer l'entraînement
+  const currentDummyRaw = buildConfiguredDummy(dummyConfig);
+
   const handleStart = () => {
     setGameState('fighting');
     setCombatResult(null);
     setDpsStats(null);
 
     const playerReady = prepareForCombat(character);
-    const dummyReady = preparerCombattant(createTrainingDummy());
+    const dummyReady = preparerCombattant(currentDummyRaw);
 
     setPlayer(playerReady);
     setDummy(dummyReady);
@@ -386,7 +418,6 @@ const Training = () => {
     setCombatLog([`🎯 ${playerReady.name} commence l'entraînement sur le mannequin !`]);
   };
 
-  // On passe le personnage BRUT et le mannequin brut à simulerMatch pour éviter double préparation
   const simulateCombat = async () => {
     if (!player || !dummy || !character || isSimulating) return;
     setIsSimulating(true);
@@ -399,13 +430,11 @@ const Training = () => {
 
     const logs = [...combatLog, `--- Combat d'entraînement ---`];
 
-    const matchResult = simulerMatch(character, createTrainingDummy());
+    const matchResult = simulerMatch(character, currentDummyRaw);
 
-    // Calculer le DPS
     const stats = computeDpsStats(matchResult.steps, DUMMY_HP);
     setDpsStats(stats);
 
-    // Replay animé
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
@@ -765,51 +794,328 @@ const Training = () => {
   }
 
   // ============================================================================
+  // HELPERS CONFIGURATEUR
+  // ============================================================================
+  const updateConfig = (key, value) => setDummyConfig(prev => ({ ...prev, [key]: value }));
+
+  const raceNames = Object.keys(races);
+  const classNames = Object.keys(classes);
+
+  const weaponFamilies = getWeaponFamilyInfo();
+  const allPassives = getAvailablePassives();
+
+  const selectedWeaponData = dummyConfig.weaponId ? getWeaponById(dummyConfig.weaponId) : null;
+  const isLegendaryWeapon = selectedWeaponData?.rarete === 'legendaire';
+
+  const availableSubclasses = dummyConfig.class ? getSubclassesForClass(dummyConfig.class) : [];
+  const showSubclass = dummyConfig.level >= 400 && availableSubclasses.length > 0;
+
+  const showExtension = dummyConfig.passiveId && dummyConfig.passiveLevel >= 3;
+  const extensionOptions = dummyConfig.passiveId ? getExtensionPassiveOptions(dummyConfig.passiveId) : [];
+
+  const isAwakened = dummyConfig.level >= 100;
+
+  const previewDummy = preparerCombattant(currentDummyRaw);
+
+  const handleConfigRaceChange = (val) => {
+    updateConfig('race', val);
+  };
+  const handleConfigClassChange = (val) => {
+    setDummyConfig(prev => ({ ...prev, class: val, subclassId: '' }));
+  };
+  const handleConfigWeaponChange = (val) => {
+    setDummyConfig(prev => ({ ...prev, weaponId: val, forgeEnabled: false }));
+  };
+  const handleConfigPassiveChange = (val) => {
+    setDummyConfig(prev => ({ ...prev, passiveId: val, passiveLevel: 1, extensionId: '', extensionLevel: 1 }));
+  };
+  const resetStats = () => {
+    setDummyConfig(prev => ({
+      ...prev,
+      hp: DEFAULT_DUMMY_CONFIG.hp,
+      auto: DEFAULT_DUMMY_CONFIG.auto,
+      def: DEFAULT_DUMMY_CONFIG.def,
+      cap: DEFAULT_DUMMY_CONFIG.cap,
+      rescap: DEFAULT_DUMMY_CONFIG.rescap,
+      spd: DEFAULT_DUMMY_CONFIG.spd,
+    }));
+  };
+
+  const SectionTitle = ({ children }) => (
+    <div className="px-4 py-2.5 border-b border-stone-700/60 bg-stone-900/60">
+      <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">{children}</h3>
+    </div>
+  );
+
+  const SelectField = ({ label, value, onChange, children }) => (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs text-stone-400 font-medium">{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 focus:border-amber-500 focus:outline-none"
+      >
+        {children}
+      </select>
+    </div>
+  );
+
+  const NumberField = ({ label, value, onChange, min, max }) => (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs text-stone-400 font-medium">{label}</label>
+      <input
+        type="number"
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        min={min}
+        max={max}
+        className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 w-full focus:border-amber-500 focus:outline-none"
+      />
+    </div>
+  );
+
+  // ============================================================================
   // LOBBY
   // ============================================================================
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-4 md:p-6">
       <Header />
-      <div className="max-w-2xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-stone-200">🎯 Entraînement</h2>
+      <div className="max-w-[1200px] mx-auto pt-20">
+        <div className="flex justify-center mb-6">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-6 py-2 shadow">
+            <h2 className="text-2xl font-bold text-stone-200">🎯 Entraînement</h2>
           </div>
         </div>
 
-        <div className="bg-stone-800 border border-stone-600 p-6 mb-8 text-center">
-          <div className="mb-4">
-            <img src={mannequinImg} alt="Mannequin" className="w-48 h-auto mx-auto" />
+        {error && (
+          <div className="bg-red-900/50 border border-red-500 text-red-300 p-3 mb-4 rounded-lg text-center">
+            {error}
           </div>
-          <h3 className="text-xl font-bold text-orange-400 mb-2">Mannequin d'entraînement</h3>
-          <p className="text-stone-300 mb-2">
-            Testez votre personnage contre un mannequin incassable.
-          </p>
-          <p className="text-stone-400 text-sm mb-6">
-            Le mannequin a des PV infinis et ne riposte pas. Un rapport DPS détaillé sera affiché à la fin du combat.
-          </p>
+        )}
 
-          {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-300 p-3 mb-4">
-              {error}
+        <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+          {/* PANNEAU CONFIGURATEUR */}
+          <div className="w-full lg:w-[420px] lg:flex-shrink-0">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+
+              {/* Identité */}
+              <SectionTitle>Identité</SectionTitle>
+              <div className="p-4 space-y-3 border-b border-stone-700/40">
+                <SelectField label="Race" value={dummyConfig.race} onChange={handleConfigRaceChange}>
+                  {raceNames.map(r => <option key={r} value={r}>{races[r]?.emoji || ''} {r}</option>)}
+                </SelectField>
+                <SelectField label="Classe" value={dummyConfig.class} onChange={handleConfigClassChange}>
+                  {classNames.map(c => <option key={c} value={c}>{classes[c]?.emoji || ''} {c}</option>)}
+                </SelectField>
+                <NumberField label="Niveau" value={dummyConfig.level} onChange={v => updateConfig('level', Math.max(1, Math.min(999, v)))} min={1} max={999} />
+              </div>
+
+              {/* Spécialisation */}
+              <SectionTitle>Spécialisation</SectionTitle>
+              <div className="p-4 space-y-3 border-b border-stone-700/40">
+                {showSubclass ? (
+                  <SelectField label="Sous-classe" value={dummyConfig.subclassId} onChange={v => updateConfig('subclassId', v)}>
+                    <option value="">Aucune</option>
+                    {availableSubclasses.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                  </SelectField>
+                ) : (
+                  <div className="text-xs text-stone-500 italic">Niveau 400+ requis pour les sous-classes</div>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-stone-400 font-medium">Awakening</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isAwakened ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-stone-700/50 text-stone-500 border border-stone-600/40'}`}>
+                    {isAwakened ? 'Actif' : 'Inactif (niv. 100+)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Équipement */}
+              <SectionTitle>Équipement</SectionTitle>
+              <div className="p-4 space-y-3 border-b border-stone-700/40">
+                <SelectField label="Arme" value={dummyConfig.weaponId} onChange={handleConfigWeaponChange}>
+                  <option value="">Aucune</option>
+                  {weaponFamilies.map(fam => (
+                    <optgroup key={fam.family} label={`${fam.emoji} ${fam.family}`}>
+                      {getWeaponsByFamily(fam.family).map(w => (
+                        <option key={w.id} value={w.id}>{w.nom} ({w.rarete})</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </SelectField>
+                {isLegendaryWeapon && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-stone-400 font-medium">Forge</label>
+                    <button
+                      type="button"
+                      onClick={() => updateConfig('forgeEnabled', !dummyConfig.forgeEnabled)}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${dummyConfig.forgeEnabled ? 'bg-amber-500' : 'bg-stone-600'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${dummyConfig.forgeEnabled ? 'translate-x-5' : ''}`} />
+                    </button>
+                    <span className="text-xs text-stone-500">{dummyConfig.forgeEnabled ? 'Active' : 'Inactive'}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Magie */}
+              <SectionTitle>Magie</SectionTitle>
+              <div className="p-4 space-y-3 border-b border-stone-700/40">
+                <SelectField label="Passif" value={dummyConfig.passiveId} onChange={handleConfigPassiveChange}>
+                  <option value="">Aucun</option>
+                  {allPassives.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                </SelectField>
+                {dummyConfig.passiveId && (
+                  <SelectField label="Niveau passif" value={dummyConfig.passiveLevel} onChange={v => updateConfig('passiveLevel', Number(v))}>
+                    <option value={1}>Niveau 1</option>
+                    <option value={2}>Niveau 2</option>
+                    <option value={3}>Niveau 3</option>
+                  </SelectField>
+                )}
+                {showExtension && (
+                  <>
+                    <SelectField label="Extension (Fusion)" value={dummyConfig.extensionId} onChange={v => updateConfig('extensionId', v)}>
+                      <option value="">Aucune</option>
+                      {extensionOptions.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+                    </SelectField>
+                    {dummyConfig.extensionId && (
+                      <SelectField label="Niveau extension" value={dummyConfig.extensionLevel} onChange={v => updateConfig('extensionLevel', Number(v))}>
+                        <option value={1}>Niveau 1</option>
+                        <option value={2}>Niveau 2</option>
+                        <option value={3}>Niveau 3</option>
+                      </SelectField>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Stats de base */}
+              <SectionTitle>Stats de base</SectionTitle>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField label="HP" value={dummyConfig.hp} onChange={v => updateConfig('hp', Math.max(1, v))} min={1} />
+                  <NumberField label="Auto" value={dummyConfig.auto} onChange={v => updateConfig('auto', Math.max(0, v))} min={0} />
+                  <NumberField label="Déf" value={dummyConfig.def} onChange={v => updateConfig('def', Math.max(0, v))} min={0} />
+                  <NumberField label="Cap" value={dummyConfig.cap} onChange={v => updateConfig('cap', Math.max(0, v))} min={0} />
+                  <NumberField label="ResC" value={dummyConfig.rescap} onChange={v => updateConfig('rescap', Math.max(0, v))} min={0} />
+                  <NumberField label="VIT" value={dummyConfig.spd} onChange={v => updateConfig('spd', Math.max(0, v))} min={0} />
+                </div>
+                <button
+                  type="button"
+                  onClick={resetStats}
+                  className="w-full text-xs text-stone-400 hover:text-amber-400 border border-stone-700 hover:border-amber-500/50 rounded px-3 py-1.5 transition-colors"
+                >
+                  Réinitialiser les stats
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
-          <button
-            onClick={handleStart}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-12 py-4 font-bold text-xl shadow-2xl border-2 border-orange-500 hover:border-orange-400 transition-all"
-          >
-            Commencer l'entraînement
-          </button>
-        </div>
+          {/* APERÇU MANNEQUIN */}
+          <div className="w-full lg:w-[420px] lg:flex-shrink-0">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+              {/* Header résumé */}
+              <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900/60 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{races[dummyConfig.race]?.emoji || '👤'}</span>
+                  <span className="text-sm font-bold text-stone-200">{dummyConfig.race}</span>
+                  <span className="text-stone-600">•</span>
+                  <span className="text-lg">{classes[dummyConfig.class]?.emoji || '⚔️'}</span>
+                  <span className="text-sm font-bold text-stone-200">{dummyConfig.class}</span>
+                </div>
+                <span className="text-xs text-amber-400 font-semibold">Niv. {dummyConfig.level}</span>
+              </div>
 
-        <div className="flex justify-center">
-          <button
-            onClick={() => navigate('/')}
-            className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500"
-          >
-            Retour
-          </button>
+              {/* Image mannequin */}
+              <div className="relative bg-stone-900 flex items-center justify-center">
+                <img src={mannequinImg} alt="Mannequin" className="w-full h-auto object-contain max-h-[300px]" />
+              </div>
+
+              {/* Stats finales */}
+              <div className="p-4 border-t border-stone-700/60">
+                <div className="text-xs text-stone-500 uppercase tracking-wider mb-2 font-bold">Stats finales (après bonus)</div>
+                <div className="grid grid-cols-3 gap-2 text-sm mb-4">
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">HP</div>
+                    <div className="text-red-400 font-bold">{dummyConfig.hp >= DUMMY_HP ? '∞' : previewDummy.base?.hp ?? '—'}</div>
+                  </div>
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">Auto</div>
+                    <div className="text-orange-400 font-bold">{previewDummy.base?.auto ?? '—'}</div>
+                  </div>
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">Déf</div>
+                    <div className="text-blue-400 font-bold">{previewDummy.base?.def ?? '—'}</div>
+                  </div>
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">Cap</div>
+                    <div className="text-purple-400 font-bold">{previewDummy.base?.cap ?? '—'}</div>
+                  </div>
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">ResC</div>
+                    <div className="text-teal-400 font-bold">{previewDummy.base?.rescap ?? '—'}</div>
+                  </div>
+                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-stone-500">VIT</div>
+                    <div className="text-yellow-400 font-bold">{previewDummy.base?.spd ?? '—'}</div>
+                  </div>
+                </div>
+
+                {/* Résumé équipement */}
+                <div className="space-y-1.5 text-xs">
+                  {selectedWeaponData && (
+                    <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                      <span className="text-amber-400">⚔️</span>
+                      <span className="text-stone-300">{selectedWeaponData.nom}</span>
+                      {dummyConfig.forgeEnabled && isLegendaryWeapon && <span className="text-amber-500 text-[10px] font-bold">FORGÉ</span>}
+                    </div>
+                  )}
+                  {dummyConfig.passiveId && (() => {
+                    const p = getMageTowerPassiveById(dummyConfig.passiveId);
+                    return p ? (
+                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                        <span>{p.emoji}</span>
+                        <span className="text-stone-300">{p.name} niv.{dummyConfig.passiveLevel}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  {dummyConfig.extensionId && (() => {
+                    const p = getMageTowerPassiveById(dummyConfig.extensionId);
+                    return p ? (
+                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                        <span>{p.emoji}</span>
+                        <span className="text-stone-300">Ext. {p.name} niv.{dummyConfig.extensionLevel}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  {dummyConfig.subclassId && (() => {
+                    const sc = getSubclassById(dummyConfig.subclassId);
+                    return sc ? (
+                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                        <span className="text-amber-400">🔱</span>
+                        <span className="text-stone-300">{sc.name}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  {isAwakened && (
+                    <div className="flex items-center gap-2 bg-amber-900/20 rounded px-2 py-1.5 border border-amber-500/20">
+                      <span className="text-amber-400">✨</span>
+                      <span className="text-amber-300">Awakening actif</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bouton lancer */}
+              <div className="p-4 pt-0">
+                <button
+                  onClick={handleStart}
+                  className="w-full bg-orange-600 hover:bg-orange-500 text-white py-3 font-bold text-lg rounded-lg shadow-lg border border-orange-500/60 transition-all"
+                >
+                  Commencer l'entraînement
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
