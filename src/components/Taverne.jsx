@@ -41,18 +41,18 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'tavernier', x: 22, y: 48, label: 'Derrière le bar' },
-  { id: 'bar-1', x: 29, y: 67, label: 'Comptoir' },
-  { id: 'bar-2', x: 35, y: 71, label: 'Comptoir' },
-  { id: 'table1-1', x: 28, y: 80, label: 'Table gauche' },
-  { id: 'table1-2', x: 41, y: 79, label: 'Table gauche' },
-  { id: 'table1-3', x: 34, y: 89, label: 'Table gauche' },
-  { id: 'table2-1', x: 51, y: 67, label: 'Table droite' },
-  { id: 'table2-2', x: 64, y: 67, label: 'Table droite' },
-  { id: 'table2-3', x: 58, y: 77, label: 'Table droite' },
-  { id: 'cheminee', x: 78, y: 59, label: 'Cheminée' },
-  { id: 'escalier', x: 50, y: 40, label: 'Escalier' },
-  { id: 'tonneaux', x: 86, y: 71, label: 'Tonneaux' },
+  { id: 'tavernier', x: 18, y: 40, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 24, y: 65, label: 'Comptoir' },
+  { id: 'bar-2', x: 35, y: 69, label: 'Comptoir' },
+  { id: 'table1-1', x: 29, y: 73, label: 'Table gauche' },
+  { id: 'table1-2', x: 41, y: 77, label: 'Table gauche' },
+  { id: 'table1-3', x: 34, y: 84, label: 'Table gauche' },
+  { id: 'table2-1', x: 49, y: 69, label: 'Table droite' },
+  { id: 'table2-2', x: 55, y: 74, label: 'Table droite' },
+  { id: 'table2-3', x: 65, y: 67, label: 'Table droite' },
+  { id: 'cheminee', x: 77, y: 60, label: 'Cheminée' },
+  { id: 'escalier', x: 50, y: 36, label: 'Escalier' },
+  { id: 'tonneaux', x: 87, y: 71, label: 'Tonneaux' },
 ];
 
 export default function Taverne() {
@@ -308,7 +308,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(168px, 28vw, 300px)', height: 'clamp(168px, 28vw, 300px)' }}
+                  style={{ width: 'clamp(150px, 25vw, 270px)', height: 'clamp(150px, 25vw, 270px)' }}
                 >
                   {imgSrc ? (
                     <img
