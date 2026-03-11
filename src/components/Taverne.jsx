@@ -344,17 +344,17 @@ export default function Taverne() {
         </div>
 
         {/* Chat en bas à gauche */}
-        <div className="absolute left-4 bottom-4 z-20 flex flex-col w-72 max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-stone-700 rounded-t-xl">
-            <span className="text-amber-400 font-bold text-sm">💬 Chat de la Taverne</span>
-            <span className="text-stone-500 text-xs">{presences.length} en ligne</span>
+        <div className="absolute left-4 bottom-4 z-20 flex flex-col w-96 max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-700 rounded-t-xl">
+            <span className="text-amber-400 font-bold">💬 Chat de la Taverne</span>
+            <span className="text-stone-500 text-sm">{presences.length} en ligne</span>
           </div>
-          <div className="overflow-y-auto max-h-[180px] min-h-[80px] p-2 space-y-1">
+          <div className="overflow-y-auto max-h-[260px] min-h-[100px] p-3 space-y-1.5">
             {messages.length === 0 && (
-              <p className="text-stone-500 text-xs text-center py-3">Aucun message.</p>
+              <p className="text-stone-500 text-sm text-center py-4">Aucun message.</p>
             )}
             {messages.map((m) => (
-              <div key={m.id} className="text-xs">
+              <div key={m.id} className="text-sm">
                 <span className="font-semibold text-amber-300">{m.characterName}</span>
                 <span className="text-stone-500 mx-1">:</span>
                 <span className="text-stone-200 break-words">{m.text}</span>
@@ -362,19 +362,19 @@ export default function Taverne() {
             ))}
             <div ref={chatEndRef} />
           </div>
-          <form onSubmit={handleSendMessage} className="p-2 flex gap-2 border-t border-stone-700">
+          <form onSubmit={handleSendMessage} className="p-3 flex gap-2 border-t border-stone-700">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Message…"
               maxLength={300}
-              className="flex-1 min-w-0 px-2 py-1.5 text-sm bg-stone-800 border border-stone-600 rounded-lg text-stone-200 placeholder-stone-500 focus:border-amber-500 focus:outline-none"
+              className="flex-1 min-w-0 px-3 py-2 text-sm bg-stone-800 border border-stone-600 rounded-lg text-stone-200 placeholder-stone-500 focus:border-amber-500 focus:outline-none"
             />
             <button
               type="submit"
               disabled={!chatInput.trim()}
-              className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900 font-bold rounded-lg border border-amber-500 transition"
+              className="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-stone-900 font-bold rounded-lg border border-amber-500 transition"
             >
               Envoyer
             </button>
