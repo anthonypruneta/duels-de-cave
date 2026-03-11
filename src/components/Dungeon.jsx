@@ -1573,28 +1573,22 @@ const Dungeon = () => {
           </div>
         </div>
 
+        {/* Aperçu des niveaux (compact, 1 ligne) */}
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl px-4 py-2.5 mb-6 shadow-lg flex items-center justify-center gap-6">
+          {levels.map((level, idx) => (
+            <div key={level.id} className="flex items-center gap-2">
+              <span className="text-xl">{getBossById(level.bossId)?.icon}</span>
+              <span className="text-white font-bold text-sm">Niv. {level.niveau}</span>
+              <span className={`text-xs ${DIFFICULTY_COLORS[level.difficulte]}`}>{DIFFICULTY_LABELS[level.difficulte]}</span>
+              <span className={`text-xs ${RARITY_COLORS[level.dropRarity]}`}>({level.dropRarity})</span>
+              {idx < levels.length - 1 && <span className="text-stone-600 ml-2">|</span>}
+            </div>
+          ))}
+        </div>
+
         {/* Carte du personnage */}
         <div className="flex justify-center mb-6">
           <CharacterCardContent character={character} detailsPlacement="right" />
-        </div>
-
-        {/* Aperçu des niveaux */}
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-5 mb-6 shadow-lg">
-          <h3 className="text-lg font-bold text-amber-400 mb-4 text-center uppercase tracking-wider">3 Niveaux progressifs</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {levels.map((level) => (
-              <div key={level.id} className="bg-stone-900/60 p-4 border border-stone-700/60 rounded-lg text-center">
-                <div className="text-3xl mb-2">{getBossById(level.bossId)?.icon}</div>
-                <p className="text-white font-bold">Niveau {level.niveau}</p>
-                <p className={`text-sm ${DIFFICULTY_COLORS[level.difficulte]}`}>
-                  {DIFFICULTY_LABELS[level.difficulte]}
-                </p>
-                <p className={`text-xs mt-1 ${RARITY_COLORS[level.dropRarity]}`}>
-                  Loot: {level.dropRarity}
-                </p>
-              </div>
-            ))}
-          </div>
         </div>
 
         {instantMessage && (

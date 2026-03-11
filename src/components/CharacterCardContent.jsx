@@ -340,19 +340,42 @@ export default function CharacterCardContent({
   };
 
   if (detailsPlacement) {
+    const includeStatsInPanel = !showHpBar;
+
+    const sidePanelContent = (
+      <>
+        {includeStatsInPanel && (
+          <div className="mb-3">
+            <div className="flex justify-between text-sm text-white font-bold mb-1">
+              {topStats}
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-sm text-gray-300">
+              {mainStats}
+            </div>
+          </div>
+        )}
+        {includeStatsInPanel && <div className="border-t border-stone-700/60 pt-3">{details}</div>}
+        {!includeStatsInPanel && details}
+      </>
+    );
+
     const sidePanel = (
       <div className="hidden lg:block w-[280px] flex-shrink-0">
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-3 shadow-lg overflow-visible">
-          {details}
+          {sidePanelContent}
         </div>
       </div>
     );
+
+    const sidePanelCardProps = includeStatsInPanel
+      ? { ...cardProps, topStats: <div className="lg:hidden">{topStats}</div>, mainStats: <div className="lg:hidden">{mainStats}</div> }
+      : cardProps;
 
     return (
       <div className="flex gap-3 items-start">
         {detailsPlacement === 'left' && sidePanel}
         <div className="flex-shrink-0">
-          <UnifiedCharacterCard {...cardProps} details={<div className="lg:hidden">{details}</div>} />
+          <UnifiedCharacterCard {...sidePanelCardProps} details={<div className="lg:hidden">{details}</div>} />
         </div>
         {detailsPlacement === 'right' && sidePanel}
       </div>
