@@ -1038,7 +1038,7 @@ const CharacterCreation = () => {
 
             {/* Info Panel (stats, weapon, passive, etc.) */}
             <div className="w-full lg:w-[320px] lg:flex-shrink-0 order-3">
-              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-visible shadow-lg">
                 <div className="p-4 space-y-3 overflow-visible">
                   <div className="flex justify-between text-sm text-white font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
