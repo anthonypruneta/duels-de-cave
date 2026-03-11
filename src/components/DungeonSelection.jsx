@@ -33,12 +33,10 @@ function DungeonCard({ icon, title, description, buttonLabel, onClick, accent = 
 function CategorySection({ title, children }) {
   return (
     <div className="mb-8">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="h-px flex-1 bg-stone-700/60" />
+      <div className="flex justify-center mb-4">
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-1.5 shadow">
           <h3 className="text-sm font-bold text-amber-400/90 uppercase tracking-widest">{title}</h3>
         </div>
-        <div className="h-px flex-1 bg-stone-700/60" />
       </div>
       <div className="flex flex-wrap justify-center gap-4">
         {children}
@@ -121,7 +119,7 @@ const DungeonSelection = () => {
           <DungeonCard
             icon="👁️"
             title="Extension du Territoire"
-            description="Passif niv.3 + second passif niv.1 à 3 (90%/9%/1%) — Gojo"
+            description="Fusionne un second passif mystique"
             buttonLabel="Étendre le territoire"
             onClick={() => navigate('/extension')}
             accent="violet"
