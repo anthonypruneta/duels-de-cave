@@ -41,18 +41,18 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'tavernier', x: 19, y: 47, label: 'Derrière le bar' },
-  { id: 'bar-1', x: 26, y: 66, label: 'Comptoir' },
-  { id: 'bar-2', x: 32, y: 69, label: 'Comptoir' },
-  { id: 'table1-1', x: 28, y: 78, label: 'Table gauche' },
-  { id: 'table1-2', x: 39, y: 78, label: 'Table gauche' },
-  { id: 'table1-3', x: 33, y: 88, label: 'Table gauche' },
-  { id: 'table2-1', x: 52, y: 68, label: 'Table droite' },
-  { id: 'table2-2', x: 62, y: 68, label: 'Table droite' },
-  { id: 'table2-3', x: 57, y: 78, label: 'Table droite' },
-  { id: 'cheminee', x: 76, y: 58, label: 'Cheminée' },
-  { id: 'escalier', x: 50, y: 42, label: 'Escalier' },
-  { id: 'tonneaux', x: 84, y: 70, label: 'Tonneaux' },
+  { id: 'tavernier', x: 22, y: 48, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 29, y: 67, label: 'Comptoir' },
+  { id: 'bar-2', x: 35, y: 71, label: 'Comptoir' },
+  { id: 'table1-1', x: 28, y: 80, label: 'Table gauche' },
+  { id: 'table1-2', x: 41, y: 79, label: 'Table gauche' },
+  { id: 'table1-3', x: 34, y: 89, label: 'Table gauche' },
+  { id: 'table2-1', x: 51, y: 67, label: 'Table droite' },
+  { id: 'table2-2', x: 64, y: 67, label: 'Table droite' },
+  { id: 'table2-3', x: 58, y: 77, label: 'Table droite' },
+  { id: 'cheminee', x: 78, y: 59, label: 'Cheminée' },
+  { id: 'escalier', x: 50, y: 40, label: 'Escalier' },
+  { id: 'tonneaux', x: 86, y: 71, label: 'Tonneaux' },
 ];
 
 export default function Taverne() {
@@ -255,7 +255,7 @@ export default function Taverne() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-stone-950">
+    <div className="min-h-screen flex flex-col bg-black">
       <Header />
       <audio id="taverne-music" loop>
         <source src="/assets/music/taverne.mp3" type="audio/mpeg" />
@@ -308,7 +308,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(84px, 14vw, 150px)', height: 'clamp(84px, 14vw, 150px)' }}
+                  style={{ width: 'clamp(168px, 28vw, 300px)', height: 'clamp(168px, 28vw, 300px)' }}
                 >
                   {imgSrc ? (
                     <img
