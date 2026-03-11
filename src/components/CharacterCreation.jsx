@@ -974,15 +974,11 @@ const CharacterCreation = () => {
         {renderIntroMusic()}
         {PseudoModal}
         <div className="max-w-[1400px] mx-auto pt-20">
-          <div className="flex flex-col items-center mb-6">
-            <h2 className="text-3xl font-bold text-stone-200 tracking-wide">Mon Personnage</h2>
-          </div>
-
           <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
             {/* Sidebar Menu */}
             <div className="w-full lg:w-[220px] lg:flex-shrink-0 order-2 lg:order-1">
-              <div className="bg-stone-900/70 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-800/50">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+                <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900/60">
                   <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">Menu</h3>
                 </div>
                 <nav className="p-1.5 space-y-0.5">
@@ -1042,7 +1038,7 @@ const CharacterCreation = () => {
 
             {/* Info Panel (stats, weapon, passive, etc.) */}
             <div className="w-full lg:w-[320px] lg:flex-shrink-0 order-3">
-              <div className="bg-stone-900/70 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
                 <div className="p-4 space-y-3 overflow-visible">
                   <div className="flex justify-between text-sm text-white font-bold">
                     <StatLine statKey="hp" label="HP" valueClassName="text-white" />
