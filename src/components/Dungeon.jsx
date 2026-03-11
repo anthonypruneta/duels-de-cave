@@ -1314,7 +1314,9 @@ const Dungeon = () => {
           </div>
 
           <div className="text-center mb-6">
-            <p className="text-amber-200/80 text-sm">Choisissez une arme :</p>
+            <div className="inline-block bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-2 shadow-lg">
+              <p className="text-amber-300 font-bold text-sm tracking-wide">Choisissez une arme</p>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-5 mb-8 max-w-4xl mx-auto">

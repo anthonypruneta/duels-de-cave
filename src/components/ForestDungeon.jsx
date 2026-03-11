@@ -317,6 +317,7 @@ const ForestDungeon = () => {
     const weaponState = initWeaponCombatState(char, weaponId);
     return {
       ...char,
+      _storedBase: { ...char.base },
       base: baseWithAwakening,
       baseWithoutWeapon,
     baseWithBoosts,
@@ -1356,7 +1357,7 @@ const ForestDungeon = () => {
     const StatOptionCard = ({ option, index, onSelect }) => (
       <button
         onClick={() => onSelect(index)}
-        className="flex-1 bg-stone-800 border border-stone-600 p-4 hover:border-amber-500 hover:bg-stone-700 transition-all cursor-pointer text-center"
+        className="flex-1 rounded-xl bg-stone-950/85 border border-stone-700/80 p-4 hover:bg-stone-800/90 hover:border-amber-500 hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer text-center shadow-lg"
       >
         <div className="text-2xl mb-2">🎲</div>
         <div className="text-amber-200 text-sm font-semibold mb-1">Option {index + 1}</div>
@@ -1376,12 +1377,14 @@ const ForestDungeon = () => {
         <audio id="forest-music" loop>
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-800 border border-amber-600 p-8 max-w-xl w-full text-center">
-          <div className="text-6xl mb-4">🌲</div>
-          <h2 className="text-3xl font-bold text-amber-400 mb-4">Victoire !</h2>
-          <p className="text-stone-300 mb-2">Choisissez votre distribution de stats :</p>
+        <div className="max-w-xl w-full text-center flex flex-col items-center gap-6">
+          <CharacterCardContent character={character} detailsPlacement="right" />
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 mt-4">
+          <div className="inline-block bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-2 shadow-lg">
+            <p className="text-amber-300 font-bold text-sm tracking-wide">Choisissez votre distribution de stats</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
             {options.map((option, i) => (
               <StatOptionCard key={i} option={option} index={i} onSelect={handleForestChoice} />
             ))}
@@ -1399,16 +1402,18 @@ const ForestDungeon = () => {
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
-            {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
-          </h2>
-          <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'La forêt vous renforce.' : 'Aucun gain cette fois-ci.'}
-          </p>
-          <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
-            Retour
-          </button>
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
+            <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
+            <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
+              {gameState === 'victory' ? 'Victoire totale !' : 'Défaite...'}
+            </h2>
+            <p className="text-gray-300 mb-8">
+              {gameState === 'victory' ? 'La forêt vous renforce.' : 'Aucun gain cette fois-ci.'}
+            </p>
+            <button onClick={handleBackToLobby} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition">
+              ← Retour aux donjons
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1423,11 +1428,39 @@ const ForestDungeon = () => {
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-6xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">Forêt — Niveau {currentLevelData?.niveau}</h2>
-            </div>
+          <div className="flex justify-center gap-3 md:gap-4 mb-4">
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating || !player || !boss}
+                className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
+            <button
+              onClick={handleBackToLobby}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+            >
+              ← Abandonner
+            </button>
           </div>
+
+          {combatResult === 'victory' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-stone-100 text-stone-900 px-8 py-3 rounded-lg font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
+                🏆 {player.name} remporte le combat! 🏆
+              </div>
+            </div>
+          )}
+
+          {combatResult === 'defeat' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-900 text-red-200 px-8 py-3 rounded-lg font-bold text-xl shadow-2xl border-2 border-red-600">
+                💀 {player.name} a été vaincu... 💀
+              </div>
+            </div>
+          )}
 
           {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
@@ -1436,42 +1469,9 @@ const ForestDungeon = () => {
             </div>
 
             <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-              <div className="flex justify-center gap-3 md:gap-4 mb-4">
-                {combatResult === null && (
-                  <button
-                    onClick={simulateCombat}
-                    disabled={isSimulating || !player || !boss}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
-                  >
-                    ▶️ Lancer le combat
-                  </button>
-                )}
-                <button
-                  onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-                >
-                  ← Abandonner
-                </button>
-              </div>
 
-              {combatResult === 'victory' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                    🏆 {player.name} remporte le combat! 🏆
-                  </div>
-                </div>
-              )}
-
-              {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
-                    💀 {player.name} a été vaincu... 💀
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900 p-3 border-b border-stone-600">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900/60 p-3 border-b border-stone-700/60 rounded-t-xl">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
                 <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
@@ -1578,12 +1578,16 @@ const ForestDungeon = () => {
       </audio>
       <div className="max-w-4xl mx-auto pt-20">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-stone-600 px-8 py-3">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg px-8 py-3">
               <h2 className="text-4xl font-bold text-stone-200">La Forêt</h2>
             </div>
           </div>
 
-        <div className="bg-stone-800 border border-amber-600 p-4 mb-8 flex justify-between items-center">
+        <div className="flex justify-center mb-6">
+          <CharacterCardContent character={character} detailsPlacement="right" />
+        </div>
+
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8 flex justify-between items-center">
           <div>
             <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
             <p className="text-white text-2xl">
@@ -1599,20 +1603,18 @@ const ForestDungeon = () => {
           </div>
         </div>
 
-        <div className="bg-stone-800 border border-stone-600 p-4 mb-8">
-          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {levels.map((level) => (
-              <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
-                <div className="text-3xl mb-2">{level.boss.icon}</div>
-                <p className="text-white font-bold">Niveau {level.niveau}</p>
-                <p className={`text-sm ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>
-                  {level.difficulte}
-                </p>
-                <p className="text-xs mt-1 text-amber-200">
-                  Gains: {level.rewardRolls} stats tirées
-                </p>
-              </div>
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8">
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            {levels.map((level, i) => (
+              <React.Fragment key={level.id}>
+                {i > 0 && <span className="text-stone-600 hidden sm:inline">→</span>}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{level.boss.icon}</span>
+                  <span className="text-white font-bold">Niv. {level.niveau}</span>
+                  <span className={`text-xs ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>{level.difficulte}</span>
+                  <span className="text-amber-200 text-xs">({level.rewardRolls} stats)</span>
+                </div>
+              </React.Fragment>
             ))}
           </div>
         </div>
@@ -1637,13 +1639,13 @@ const ForestDungeon = () => {
         )}
 
         <div className="flex gap-4 justify-center">
-          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500">
-            Retour
+          <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition">
+            ← Retour aux donjons
           </button>
           <button
             onClick={handleStartRun}
             disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
-            className={`px-12 py-4 font-bold text-xl ${
+            className={`px-12 py-4 font-bold text-xl rounded-lg transition ${
               dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
                 ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
@@ -1655,7 +1657,7 @@ const ForestDungeon = () => {
             <button
               onClick={handleInstantFinishRun}
               disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
-              className={`px-8 py-4 font-bold border ${
+              className={`px-8 py-4 font-bold border rounded-lg transition ${
                 dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
