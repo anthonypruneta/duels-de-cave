@@ -352,7 +352,7 @@ const ExtensionDungeon = () => {
                   key={t}
                   content={<span className="whitespace-normal block text-left max-w-[220px]">{spell.description}</span>}
                 >
-                  <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600 cursor-help">
+                  <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600 cursor-help">
                     <span className="text-lg">{emoji}</span>
                     <div>
                       <div className="text-amber-300 font-semibold">Tour {t}: {spell.name}</div>
@@ -402,19 +402,24 @@ const ExtensionDungeon = () => {
       : baseMixedName;
 
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="min-h-screen p-6">
         <Header />
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-800 border border-violet-600 p-8 max-w-2xl w-full text-center">
-          <div className="text-6xl mb-4">👁️</div>
-          <h2 className="text-3xl font-bold text-violet-400 mb-2">Satoru Gojo est vaincu !</h2>
-          <p className="text-stone-300 mb-6">Extension du Territoire : vous avez obtenu un passif aléatoire (niveau 1, 2 ou 3 selon le drop).</p>
+        <div className="max-w-5xl mx-auto pt-16 text-center">
+          <div className="flex justify-center mb-8">
+            <CharacterCardContent character={character} detailsPlacement="left" />
+          </div>
+
+          <div className="inline-block bg-stone-950/85 border border-violet-600/80 rounded-lg px-6 py-3 shadow-lg mb-6">
+            <h2 className="text-2xl font-bold text-violet-400">👁️ Satoru Gojo est vaincu !</h2>
+            <p className="text-stone-300 text-sm mt-1">Passif aléatoire obtenu (niveau 1, 2 ou 3 selon le drop).</p>
+          </div>
 
           {showUpgradeAnimation && rolledExtensionPassive && (
             <div
-              className="mb-6 py-6 px-4 rounded-lg border-2 animate-pulse"
+              className="mb-6 py-6 px-4 rounded-xl border-2 animate-pulse max-w-2xl mx-auto"
               style={{
                 background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(239, 68, 68, 0.2) 50%, rgba(139, 92, 246, 0.2) 100%)',
                 borderColor: 'rgba(139, 92, 246, 0.8)',
@@ -435,13 +440,13 @@ const ExtensionDungeon = () => {
           {!alreadyChose && rolledExtensionPassive ? (
             <>
               {/* Ancien vs nouveau second passif avec effets */}
-              <div className="mb-6 space-y-4">
+              <div className="mb-6 space-y-4 max-w-2xl mx-auto">
                 {hasExistingExtension && (() => {
                   const oldExt = character.mageTowerExtensionPassive;
                   const oldDetails = getPassiveDetails(oldExt);
                   const oldMixedName = getMixedPassiveDisplayName(primaryPassive?.id, oldExt?.id) || (oldDetails && `${primaryDetails?.name ?? ''} + ${oldDetails.name}`);
                   return oldDetails ? (
-                    <div className="p-4 bg-amber-900/20 border border-amber-600/60 rounded text-left">
+                    <div className="p-4 bg-amber-900/20 border border-amber-600/60 rounded-xl text-left shadow-lg">
                       <p className="text-amber-300 font-semibold mb-1">🟡 Ancien second passif (actuel)</p>
                       <p className="text-white font-medium">{oldMixedName} — Niv.{oldExt?.level ?? 1}</p>
                       <p className="text-stone-400 text-sm mt-2">{oldDetails.levelData?.description ?? '—'}</p>
@@ -452,7 +457,7 @@ const ExtensionDungeon = () => {
                   const newLevelData = getMageTowerPassiveLevel(rolledExtensionPassive.id, rolledExtensionPassive.level ?? 1);
                   const newMixedName = getMixedPassiveDisplayName(primaryPassive?.id, rolledExtensionPassive.id) || `${primaryDetails?.name ?? ''} + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name ?? rolledExtensionPassive.name}`;
                   return (
-                    <div className="p-4 bg-violet-900/20 border border-violet-600/60 rounded text-left">
+                    <div className="p-4 bg-violet-900/20 border border-violet-600/60 rounded-xl text-left shadow-lg">
                       <p className="text-violet-300 font-semibold mb-1">🟣 Nouveau second passif (récompense)</p>
                       <p className="text-white font-medium">{newMixedName} — Niv.{rolledExtensionPassive.level ?? 1}</p>
                       <p className="text-stone-400 text-sm mt-2">{newLevelData?.description ?? '—'}</p>
@@ -461,11 +466,11 @@ const ExtensionDungeon = () => {
                 })()}
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-w-md mx-auto">
                 <button
                   onClick={handleAcceptNewPassive}
                   disabled={savingChoice}
-                  className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-stone-600 text-white px-8 py-3 font-bold border border-violet-500"
+                  className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-stone-700 text-white px-8 py-3 rounded-lg font-bold border border-violet-500 transition shadow-lg"
                 >
                   {savingChoice ? 'Sauvegarde...' : 'Accepter le nouveau passif'}
                 </button>
@@ -473,7 +478,7 @@ const ExtensionDungeon = () => {
                   <button
                     onClick={handleKeepOldCombo}
                     disabled={savingChoice || !dungeonSummary?.runsRemaining}
-                    className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-600 text-white px-8 py-3 font-bold border border-amber-500"
+                    className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 text-white px-8 py-3 rounded-lg font-bold border border-amber-500 transition shadow-lg"
                   >
                     {savingChoice ? 'Sauvegarde...' : "Conserver l'ancienne combinaison (coûte 1 run)"}
                   </button>
@@ -484,16 +489,16 @@ const ExtensionDungeon = () => {
               </div>
             </>
           ) : alreadyChose ? (
-            <div className="mb-6">
+            <div className="mb-6 max-w-md mx-auto">
               {extensionChoice === 'new' && rolledExtensionPassive ? (
-                <div className="bg-violet-900/30 border border-violet-600 p-4">
+                <div className="bg-violet-900/30 border border-violet-600 rounded-xl p-4 shadow-lg">
                   <p className="text-violet-300 font-bold mb-2">Nouveau passif ajouté !</p>
                   <p className="text-white">
                     {mixedName || `${primaryDetails?.name} (Niv.3) + ${getMageTowerPassiveById(rolledExtensionPassive.id)?.name} (Niv.${rolledExtensionPassive?.level ?? 1})`}
                   </p>
                 </div>
               ) : (
-                <div className="bg-amber-900/30 border border-amber-600 p-4">
+                <div className="bg-amber-900/30 border border-amber-600 rounded-xl p-4 shadow-lg">
                   <p className="text-amber-300 font-bold mb-2">Ancienne combinaison conservée (1 run dépensé)</p>
                 </div>
               )}
@@ -503,9 +508,9 @@ const ExtensionDungeon = () => {
           {(extensionChoice !== null || !rolledExtensionPassive) && (
             <button
               onClick={handleBackToLobby}
-              className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400 mt-4"
+              className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition mt-4"
             >
-              Retour
+              ← Retour à l'extension
             </button>
           )}
         </div>
@@ -520,17 +525,19 @@ const ExtensionDungeon = () => {
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="text-8xl mb-6">{gameState === 'victory' ? '👁️' : '💀'}</div>
-          <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-violet-400' : 'text-red-400'}`}>
-            {gameState === 'victory' ? 'Victoire !' : 'Défaite...'}
-          </h2>
-          <p className="text-gray-300 mb-8">
-            {gameState === 'victory' ? 'Choisissez votre récompense.' : 'Gojo vous a dominé.'}
-          </p>
-          <button onClick={handleBackToLobby} className="bg-stone-100 hover:bg-white text-stone-900 px-8 py-4 font-bold border-2 border-stone-400">
-            Retour
-          </button>
+        <div className="max-w-2xl mx-auto pt-16 text-center">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
+            <div className="text-7xl mb-6">{gameState === 'victory' ? '👁️' : '💀'}</div>
+            <h2 className={`text-3xl font-bold mb-4 ${gameState === 'victory' ? 'text-violet-400' : 'text-red-400'}`}>
+              {gameState === 'victory' ? 'Victoire !' : 'Défaite...'}
+            </h2>
+            <p className="text-stone-300 mb-8">
+              {gameState === 'victory' ? 'Choisissez votre récompense.' : 'Gojo vous a dominé.'}
+            </p>
+            <button onClick={handleBackToLobby} className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition">
+              ← Retour à l'extension
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -543,57 +550,52 @@ const ExtensionDungeon = () => {
         <audio id="extension-music" loop>
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-6xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-800 border border-violet-600 px-8 py-3">
-              <h2 className="text-4xl font-bold text-violet-400">Extension du Territoire</h2>
-            </div>
+        <div className="max-w-6xl mx-auto pt-16">
+          {/* Boutons centrés en haut */}
+          <div className="flex justify-center gap-3 md:gap-4 mb-6">
+            {combatResult === null && (
+              <button
+                onClick={simulateCombat}
+                disabled={isSimulating || !player || !boss}
+                className="bg-violet-600 hover:bg-violet-700 disabled:bg-stone-700 disabled:text-stone-400 text-white px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-violet-500"
+              >
+                ▶️ Lancer le combat
+              </button>
+            )}
+            <button
+              onClick={handleBackToLobby}
+              className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-6 py-3 rounded-lg font-bold text-sm md:text-base flex items-center justify-center gap-2 transition shadow-lg border border-stone-500"
+            >
+              ← Abandonner
+            </button>
           </div>
 
+          {combatResult === 'victory' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-violet-600/90 text-white px-8 py-3 rounded-xl font-bold text-xl animate-pulse shadow-2xl border border-violet-400">
+                👁️ {player.name} étend son territoire ! 👁️
+              </div>
+            </div>
+          )}
+          {combatResult === 'defeat' && (
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-900/80 text-red-200 px-8 py-3 rounded-xl font-bold text-xl shadow-2xl border border-red-600">
+                💀 {player.name} a été dominé... 💀
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
+            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0 lg:w-auto lg:max-w-[340px]">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
             </div>
 
-            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-              <div className="flex justify-center gap-3 md:gap-4 mb-4">
-                {combatResult === null && (
-                  <button
-                    onClick={simulateCombat}
-                    disabled={isSimulating || !player || !boss}
-                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
-                  >
-                    ▶️ Lancer le combat
-                  </button>
-                )}
-                <button
-                  onClick={handleBackToLobby}
-                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
-                >
-                  ← Abandonner
-                </button>
-              </div>
-
-              {combatResult === 'victory' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                    👁️ {player.name} étend son territoire ! 👁️
-                  </div>
+            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900/90 p-3 border-b border-violet-600/50 rounded-t-xl">
+                  <h2 className="text-lg md:text-xl font-bold text-violet-300 text-center">👁️ Extension du Territoire</h2>
                 </div>
-              )}
-              {combatResult === 'defeat' && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-red-900 text-red-200 px-8 py-3 font-bold text-xl shadow-2xl border-2 border-red-600">
-                    💀 {player.name} a été dominé...
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900 p-3 border-b border-violet-600/50">
-                  <h2 className="text-lg md:text-2xl font-bold text-violet-300 text-center">👁️ Combat — Extension du Territoire</h2>
-                </div>
-                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                   {combatLog.length === 0 ? (
                     <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
                   ) : (
@@ -606,21 +608,21 @@ const ExtensionDungeon = () => {
                           if (log.includes('🏆') || log.includes('👁️')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div>
+                                <div className="bg-violet-600/90 text-white px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-violet-400">{cleanLog}</div>
                               </div>
                             );
                           }
                           if (log.includes('💀')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div>
+                                <div className="bg-red-900/80 text-red-200 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div>
                               </div>
                             );
                           }
                           if (log.includes('---') || log.includes('⚔️')) {
                             return (
                               <div key={idx} className="flex justify-center my-3">
-                                <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div>
+                                <div className="bg-stone-700/80 text-stone-200 px-4 py-1 rounded-lg text-sm font-bold border border-stone-500">{cleanLog}</div>
                               </div>
                             );
                           }
@@ -634,7 +636,7 @@ const ExtensionDungeon = () => {
                           return (
                             <div key={idx} className="flex justify-start">
                               <div className="max-w-[80%]">
-                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
                                   <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                                 </div>
                               </div>
@@ -644,7 +646,7 @@ const ExtensionDungeon = () => {
                         return (
                           <div key={idx} className="flex justify-end">
                             <div className="max-w-[80%]">
-                              <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-violet-500">
+                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-violet-500">
                                 <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                               </div>
                             </div>
@@ -658,7 +660,7 @@ const ExtensionDungeon = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
               <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
             </div>
           </div>
@@ -669,65 +671,69 @@ const ExtensionDungeon = () => {
 
   const bossImg = getExtensionImage(EXTENSION_BOSS.imageFile);
 
+  const LobbyBossCard = () => (
+    <UnifiedCharacterCard
+      header="Boss • Extension du Territoire"
+      name={EXTENSION_BOSS.nom}
+      image={bossImg}
+      fallback={<span className="text-7xl">{EXTENSION_BOSS.icon}</span>}
+      topStats={<><span>HP: {EXTENSION_BOSS.stats.hp}</span><span>VIT: {EXTENSION_BOSS.stats.spd}</span></>}
+      mainStats={
+        <>
+          <div>Auto: {EXTENSION_BOSS.stats.auto}</div>
+          <div>DEF: {EXTENSION_BOSS.stats.def}</div>
+          <div>CAP: {EXTENSION_BOSS.stats.cap}</div>
+          <div>RESC: {EXTENSION_BOSS.stats.rescap}</div>
+        </>
+      }
+      details={
+        <div className="space-y-2">
+          {[2, 4, 6].map((t) => {
+            const spell = EXTENSION_BOSS.spells[t];
+            const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
+            return (
+              <div key={t} className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
+                <span className="text-lg">{emoji}</span>
+                <div>
+                  <div className="text-violet-300 font-semibold">Tour {t}: {spell.name}</div>
+                  <div className="text-stone-400 text-[10px]">{spell.description}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      }
+      cardClassName="border-2 border-violet-600/50"
+    />
+  );
+
   return (
     <div className="min-h-screen p-6">
       <Header />
       <audio id="extension-music" loop>
         <source src="/assets/music/extension.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-stone-800 border border-violet-600 px-8 py-3">
-            <h2 className="text-4xl font-bold text-violet-400">Extension du Territoire</h2>
+      <div className="max-w-5xl mx-auto pt-16">
+        {/* Titre */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-stone-950/85 border border-violet-600/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-violet-400">👁️ Extension du Territoire</h2>
           </div>
         </div>
 
-        <div className="bg-stone-800 border border-violet-600/50 p-6 mb-8 text-center">
-          {bossImg && (
-            <img
-              src={bossImg}
-              alt={EXTENSION_BOSS.nom}
-              className="w-48 h-auto mx-auto mb-4 border-2 border-violet-600"
-            />
-          )}
-          <h3 className="text-2xl font-bold text-violet-300 mb-2">{EXTENSION_BOSS.nom}</h3>
-          <p className="text-stone-400 mb-2">Accédez à un second passif (niveau 1, 2 ou 3). Obligation d'avoir un passif Tour du Mage niveau 3.</p>
-          <p className="text-stone-500 text-sm mb-4">Taux de drop : {EXTENSION_LEVEL_DROP_LABEL}</p>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-lg mx-auto text-sm">
-            {Object.entries(EXTENSION_BOSS.stats).map(([stat, val]) => (
-              <div key={stat} className="bg-stone-900/60 border border-stone-700 p-2 text-center">
-                <div className="text-violet-300 font-bold">{STAT_LABELS[stat]}</div>
-                <div className="text-white">{val}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {[2, 4, 6].map((t) => {
-              const spell = EXTENSION_BOSS.spells[t];
-              const emoji = spell.color === 'bleu' ? '🔵' : spell.color === 'rouge' ? '🔴' : '🟣';
-              return (
-                <SharedTooltip
-                  key={t}
-                  content={
-                    <span className="whitespace-normal block text-left max-w-[220px]">
-                      {spell.description}
-                    </span>
-                  }
-                >
-                  <div className="bg-stone-900/60 border border-violet-600/30 px-3 py-2 cursor-help">
-                    <span className="text-violet-300 font-semibold">{emoji} Tour {t}: {spell.name}</span>
-                  </div>
-                </SharedTooltip>
-              );
-            })}
-          </div>
+        {/* Essais disponibles */}
+        <div className="bg-stone-950/85 border border-violet-600/60 rounded-xl p-5 mb-6 shadow-lg">
+          <p className="text-violet-300 font-bold text-sm uppercase tracking-wider">Essais disponibles</p>
+          <p className="text-white text-3xl font-bold mt-1">{dungeonSummary?.runsRemaining ?? 0}</p>
+          <p className="text-stone-400 text-xs mt-1">1 run = 1 combat (garder ancienne combinaison = +1 run)</p>
         </div>
 
+        {/* Extension actuelle */}
         {character.mageTowerExtensionPassive && (() => {
           const fused = getFusedPassiveDisplayData(character);
           return (
-            <div className="bg-stone-800 border border-violet-600 p-4 mb-8">
-              <h3 className="text-lg font-bold text-violet-400 mb-3 text-center">👁️ Extension actuelle</h3>
+            <div className="bg-stone-950/85 border border-violet-600/60 rounded-xl p-4 mb-6 shadow-lg text-center">
+              <p className="text-violet-400 font-bold text-sm uppercase tracking-wider mb-2">👁️ Extension actuelle</p>
               <div className="flex flex-wrap justify-center gap-4 items-center">
                 {fused ? (
                   <SharedTooltip
@@ -762,7 +768,7 @@ const ExtensionDungeon = () => {
                 )}
               </div>
               {fused && (
-                <p className="text-stone-400 text-sm mt-2 text-center">
+                <p className="text-stone-400 text-xs mt-2">
                   Niv.{fused.primaryDetails.level} (principal) + Niv.{fused.extensionDetails.level} (extension, 1 à 3)
                 </p>
               )}
@@ -770,50 +776,48 @@ const ExtensionDungeon = () => {
           );
         })()}
 
-        <div className="bg-stone-800 border border-violet-600/50 p-4 mb-8 flex justify-between items-center">
-          <div>
-            <p className="text-violet-300 font-bold">Essais disponibles</p>
-            <p className="text-white text-2xl">{dungeonSummary?.runsRemaining ?? 0}</p>
-            <p className="text-stone-400 text-sm">1 run = 1 combat (garder ancienne combinaison = +1 run)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-gray-400 text-sm">Passif Tour du Mage</p>
-            <p className={`font-bold ${canAccess ? 'text-amber-400' : 'text-red-400'}`}>
-              {canAccess ? `Niveau 3 — ${getMageTowerPassiveById(character.mageTowerPassive?.id)?.name}` : 'Niveau 3 requis'}
-            </p>
-          </div>
-        </div>
-
+        {/* Erreurs */}
         {error && (
-          <div className="bg-red-900/50 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/50 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300">{error}</p>
           </div>
         )}
 
         {!canAccess && (
-          <div className="bg-red-900/30 border border-red-600 p-4 mb-6 text-center">
+          <div className="bg-red-900/30 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300 font-bold">Vous devez avoir un passif Tour du Mage niveau 3 pour accéder à l'Extension du Territoire.</p>
           </div>
         )}
 
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={() => navigate('/dungeons')}
-            className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 font-bold border border-stone-500"
-          >
-            Retour
-          </button>
+        {/* Boutons */}
+        <div className="flex gap-4 justify-center mb-6">
           <button
             onClick={handleStartRun}
             disabled={!canAccess || !dungeonSummary?.runsRemaining}
-            className={`px-12 py-4 font-bold text-xl ${
+            className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
               canAccess && dungeonSummary?.runsRemaining > 0
                 ? 'bg-violet-600 hover:bg-violet-700 text-white border border-violet-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {canAccess && dungeonSummary?.runsRemaining > 0 ? 'Défier Satoru Gojo' : 'Accès impossible'}
+            {canAccess && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Satoru Gojo' : 'Accès impossible'}
           </button>
+          <button
+            onClick={() => navigate('/dungeons')}
+            className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition"
+          >
+            ← Retour aux donjons
+          </button>
+        </div>
+
+        {/* Personnage gauche - Boss droite */}
+        <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-start justify-center">
+          <div className="w-full md:w-auto md:flex-shrink-0">
+            <CharacterCardContent character={character} detailsPlacement="left" />
+          </div>
+          <div className="w-full md:w-[340px] md:flex-shrink-0">
+            <LobbyBossCard />
+          </div>
         </div>
       </div>
     </div>
