@@ -1362,9 +1362,9 @@ const ForestDungeon = () => {
         <div className="text-2xl mb-2">🎲</div>
         <div className="text-amber-200 text-sm font-semibold mb-1">Option {index + 1}</div>
         <div className="flex flex-col gap-1">
-          {Object.entries(option.gainsByStat).map(([stat, value]) => (
+          {['hp', 'spd', 'auto', 'def', 'cap', 'rescap'].filter(s => option.gainsByStat[s]).map(stat => (
             <span key={stat} className="text-green-400 font-semibold text-sm">
-              {labels[stat] || stat} +{value}
+              {labels[stat] || stat} +{option.gainsByStat[stat]}
             </span>
           ))}
         </div>
@@ -1576,47 +1576,47 @@ const ForestDungeon = () => {
       <audio id="forest-music" loop>
         <source src="/assets/music/forest.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">La Forêt</h2>
-            </div>
-          </div>
-
+      <div className="max-w-4xl mx-auto pt-16">
+        {/* Titre */}
         <div className="flex justify-center mb-6">
-          <CharacterCardContent character={character} detailsPlacement="right" />
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-stone-200">🌿 La Forêt</h2>
+          </div>
         </div>
 
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8 flex justify-between items-center">
+        {/* 1 - Essais disponibles */}
+        <div className="bg-stone-950/85 border border-amber-700/60 rounded-xl p-5 mb-6 flex justify-between items-center shadow-lg">
           <div>
-            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
-            <p className="text-white text-2xl">
+            <p className="text-amber-300 font-bold text-sm uppercase tracking-wider">Essais disponibles (cumulables)</p>
+            <p className="text-white text-3xl font-bold mt-1">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-sm">+5 à minuit et +5 à midi</p>
+            <p className="text-stone-400 text-xs mt-1">+5 à minuit et +5 à midi</p>
           </div>
           <div className="text-right">
-            <p className="text-gray-400 text-sm">Fin instantanée</p>
-            <p className="text-amber-400 font-bold">
+            <p className="text-stone-400 text-xs uppercase tracking-wider">Fin instantanée</p>
+            <p className="text-amber-400 font-bold text-xl mt-1">
               {canInstantFinish ? 'Débloquée' : 'À débloquer'}
             </p>
           </div>
         </div>
 
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8">
-          <div className="flex items-center justify-center gap-6 flex-wrap">
-            {levels.map((level, i) => (
-              <React.Fragment key={level.id}>
-                {i > 0 && <span className="text-stone-600 hidden sm:inline">→</span>}
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{level.boss.icon}</span>
-                  <span className="text-white font-bold">Niv. {level.niveau}</span>
-                  <span className={`text-xs ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>{level.difficulte}</span>
-                  <span className="text-amber-200 text-xs">({level.rewardRolls} stats)</span>
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
+        {/* 2 - Niveaux (compact, 1 ligne) */}
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl px-4 py-2.5 mb-6 shadow-lg flex items-center justify-center gap-6">
+          {levels.map((level, i) => (
+            <div key={level.id} className="flex items-center gap-2">
+              <span className="text-xl">{level.boss.icon}</span>
+              <span className="text-white font-bold text-sm">Niv. {level.niveau}</span>
+              <span className={`text-xs ${FOREST_DIFFICULTY_COLORS[level.difficulte]}`}>{level.difficulte}</span>
+              <span className="text-xs text-amber-200">({level.rewardRolls} stats)</span>
+              {i < levels.length - 1 && <span className="text-stone-600 ml-2">|</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* 3 - Carte du personnage */}
+        <div className="flex justify-center mb-6">
+          <CharacterCardContent character={character} detailsPlacement="right" />
         </div>
 
         {instantMessage && (

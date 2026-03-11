@@ -1280,20 +1280,21 @@ const MageTower = () => {
     );
 
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
+      <div className="min-h-screen p-6">
         <Header />
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-8 max-w-xl w-full text-center shadow-lg">
-          <div className="flex justify-center mb-6">
+        <div className="max-w-5xl mx-auto pt-16 text-center">
+          <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="right" />
           </div>
+
           <div className="inline-block bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-2 shadow-lg mb-6">
             <p className="text-amber-300 font-bold text-sm tracking-wide">Choisissez un passif</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-8 max-w-2xl mx-auto">
             {details.map((detail, i) => detail && (
               <PassiveCard key={i} passive={droppedPassives[i]} detail={detail} onSelect={handlePassiveDecision} />
             ))}
@@ -1302,12 +1303,11 @@ const MageTower = () => {
           <div className="mb-6">
             <button
               onClick={() => handleRewardContinue(equippedPassive)}
-              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-5 py-2 rounded-lg font-semibold"
+              className="bg-stone-700 hover:bg-stone-600 text-stone-100 border border-stone-500 px-6 py-3 rounded-lg font-semibold transition"
             >
               {equippedDetails ? 'Garder mon passif actuel' : 'Continuer sans changer de passif'}
             </button>
           </div>
-
         </div>
       </div>
     );
@@ -1494,49 +1494,47 @@ const MageTower = () => {
       <audio id="tower-music" loop>
         <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
-          <div className="flex flex-col items-center mb-8">
-            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg px-8 py-3">
-              <h2 className="text-4xl font-bold text-stone-200">Tour du Mage</h2>
-            </div>
-          </div>
-
+      <div className="max-w-4xl mx-auto pt-16">
+        {/* Titre */}
         <div className="flex justify-center mb-6">
-          <CharacterCardContent character={character} detailsPlacement="right" />
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">
+            <h2 className="text-3xl md:text-4xl font-bold text-stone-200">🔮 Tour du Mage</h2>
+          </div>
         </div>
 
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8 flex justify-between items-center">
+        {/* 1 - Essais disponibles */}
+        <div className="bg-stone-950/85 border border-amber-700/60 rounded-xl p-5 mb-6 flex justify-between items-center shadow-lg">
           <div>
-            <p className="text-amber-300 font-bold">Essais disponibles (cumulables)</p>
-            <p className="text-white text-2xl">
+            <p className="text-amber-300 font-bold text-sm uppercase tracking-wider">Essais disponibles (cumulables)</p>
+            <p className="text-white text-3xl font-bold mt-1">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-sm">+5 à minuit et +5 à midi</p>
+            <p className="text-stone-400 text-xs mt-1">+5 à minuit et +5 à midi</p>
           </div>
           <div className="text-right">
-            <p className="text-gray-400 text-sm">Fin instantanée</p>
-            <p className="text-amber-400 font-bold">
+            <p className="text-stone-400 text-xs uppercase tracking-wider">Fin instantanée</p>
+            <p className="text-amber-400 font-bold text-xl mt-1">
               {canInstantFinish ? 'Débloquée' : 'À débloquer'}
             </p>
           </div>
         </div>
 
-        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg p-4 mb-8">
-          <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">3 niveaux progressifs</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {levels.map((level) => (
-              <div key={level.id} className="bg-stone-900/50 p-3 border border-stone-700 rounded-lg text-center">
-                <div className="text-3xl mb-2">{level.boss.icon}</div>
-                <p className="text-white font-bold">Niveau {level.niveau}</p>
-                <p className={`text-sm ${MAGE_TOWER_DIFFICULTY_COLORS[level.difficulte]}`}>
-                  {level.difficulte}
-                </p>
-                <p className="text-xs mt-1 text-amber-200">
-                  Drop: passif niveau {level.niveau}
-                </p>
-              </div>
-            ))}
-          </div>
+        {/* 2 - Niveaux (compact, 1 ligne) */}
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl px-4 py-2.5 mb-6 shadow-lg flex items-center justify-center gap-6">
+          {levels.map((level, idx) => (
+            <div key={level.id} className="flex items-center gap-2">
+              <span className="text-xl">{level.boss.icon}</span>
+              <span className="text-white font-bold text-sm">Niv. {level.niveau}</span>
+              <span className={`text-xs ${MAGE_TOWER_DIFFICULTY_COLORS[level.difficulte]}`}>{level.difficulte}</span>
+              <span className="text-xs text-amber-200">(passif niv. {level.niveau})</span>
+              {idx < levels.length - 1 && <span className="text-stone-600 ml-2">|</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* 3 - Carte du personnage */}
+        <div className="flex justify-center mb-6">
+          <CharacterCardContent character={character} detailsPlacement="right" />
         </div>
 
         {instantMessage && (
