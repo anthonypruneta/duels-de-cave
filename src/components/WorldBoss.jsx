@@ -793,11 +793,10 @@ const WorldBoss = () => {
               <div className="w-full md:w-[440px] md:flex-shrink-0 order-3">
                 <BossCard />
               </div>
-            </div>
 
-            {/* Leaderboard en dessous, centré */}
-            <div className="w-full max-w-md">
-              <LeaderboardPanel />
+              <div className="w-full lg:w-[280px] md:flex-shrink-0 order-4">
+                <LeaderboardPanel />
+              </div>
             </div>
           </div>
         ) : (
@@ -923,11 +922,10 @@ const WorldBoss = () => {
               <div className="order-3 w-full md:w-[440px] md:flex-shrink-0">
                 <BossCard />
               </div>
-            </div>
 
-            {/* Leaderboard en dessous, centré */}
-            <div className="w-full max-w-md mx-auto">
-              <LeaderboardPanel />
+              <div className="order-4 w-full lg:w-[280px] md:flex-shrink-0">
+                <LeaderboardPanel />
+              </div>
             </div>
           </div>
         )}
