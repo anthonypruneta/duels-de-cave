@@ -41,14 +41,14 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'tavernier', x: 26, y: 48, label: 'Derrière le bar' },
-  { id: 'bar-1', x: 14, y: 84, label: 'Entrée' },
+  { id: 'tavernier', x: 26, y: 56, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 8, y: 92, label: 'Entrée' },
   { id: 'bar-2', x: 35, y: 69, label: 'Comptoir' },
-  { id: 'table1-1', x: 29, y: 73, label: 'Table gauche' },
-  { id: 'table1-2', x: 41, y: 77, label: 'Table gauche' },
+  { id: 'table1-1', x: 21, y: 83, label: 'Table gauche' },
+  { id: 'table1-2', x: 41, y: 86, label: 'Table gauche' },
   { id: 'table1-3', x: 34, y: 84, label: 'Table gauche' },
   { id: 'table2-1', x: 50, y: 80, label: 'Table droite' },
-  { id: 'table2-2', x: 66, y: 80, label: 'Table droite' },
+  { id: 'table2-2', x: 58, y: 68, label: 'Table droite' },
   { id: 'table2-3', x: 65, y: 67, label: 'Table droite' },
   { id: 'cheminee', x: 77, y: 60, label: 'Cheminée' },
   { id: 'escalier', x: 43, y: 46, label: 'Escalier' },
