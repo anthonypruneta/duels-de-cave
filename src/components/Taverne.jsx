@@ -308,7 +308,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(150px, 25vw, 270px)', height: 'clamp(150px, 25vw, 270px)' }}
+                  style={{ width: 'clamp(80px, 13vw, 140px)', height: 'clamp(150px, 25vw, 270px)' }}
                 >
                   {imgSrc ? (
                     <img
