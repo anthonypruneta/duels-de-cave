@@ -530,7 +530,7 @@ const InfiniteLabyrinth = () => {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-          <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0">
+          <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
             <CharacterCardContent
               character={playerCharacter}
               showHpBar
@@ -541,10 +541,11 @@ const InfiniteLabyrinth = () => {
               combatModifiers={replayP1Modifiers}
               opponent={enemyCharacter}
               combatStatus={replayP1Status}
+              detailsPlacement="left"
             />
           </div>
 
-          <div className="order-2 md:order-2 w-full md:w-[600px] md:flex-shrink-0 flex flex-col">
+          <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
             {replayWinner && (
               <div className="flex justify-center mb-4">
                 <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl rounded-lg border-2 border-stone-400">
@@ -593,7 +594,7 @@ const InfiniteLabyrinth = () => {
             {isAnimatingFight && <p className="text-amber-300 text-sm mt-3 text-center">Combat en cours...</p>}
           </div>
 
-          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+          <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
             <CharacterCardContent
               character={enemyCharacter}
               showHpBar
@@ -605,6 +606,7 @@ const InfiniteLabyrinth = () => {
               combatModifiers={replayP2Modifiers}
               opponent={playerCharacter}
               combatStatus={replayP2Status}
+              detailsPlacement="right"
             />
           </div>
         </div>

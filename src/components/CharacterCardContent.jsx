@@ -42,6 +42,8 @@ export default function CharacterCardContent({
   combatStatus = null,
   /** 'left' | 'right' | null — layout horizontal : infos à gauche ou droite de l'image */
   infoSide = null,
+  /** 'left' | 'right' | null — affiche les détails (arme/passif/race/sort) dans un panneau latéral séparé */
+  detailsPlacement = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -317,22 +319,45 @@ export default function CharacterCardContent({
     : (character?.race ?? '');
   const header = `${headerRacePart} • ${character?.class ?? ''} • Niveau ${character?.level ?? 1}`;
 
-  return (
-    <UnifiedCharacterCard
-      header={header}
-      name={displayName}
-      image={displayImage}
-      fallback={character?.race && races[character.race] ? <div className="h-96 w-full flex items-center justify-center"><div className="text-9xl opacity-20">{races[character.race].icon}</div></div> : <div className="h-48 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>}
-      topStats={topStats}
-      mainStats={mainStats}
-      details={details}
-      hpText={showHpBar ? `${displayName} — PV ${safeCurrentHP}/${safeMaxHP}` : undefined}
-      hpPercent={showHpBar ? hpPercent : undefined}
-      hpClass={showHpBar ? hpClass : undefined}
-      shieldPercent={showHpBar ? shieldPercent : undefined}
-      aboveHpBar={aboveHpBar}
-      cardClassName={cardClassName}
-      infoSide={infoSide}
-    />
-  );
+  const cardFallback = character?.race && races[character.race]
+    ? <div className="h-96 w-full flex items-center justify-center"><div className="text-9xl opacity-20">{races[character.race].icon}</div></div>
+    : <div className="h-48 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>;
+
+  const cardProps = {
+    header,
+    name: displayName,
+    image: displayImage,
+    fallback: cardFallback,
+    topStats,
+    mainStats,
+    hpText: showHpBar ? `${displayName} — PV ${safeCurrentHP}/${safeMaxHP}` : undefined,
+    hpPercent: showHpBar ? hpPercent : undefined,
+    hpClass: showHpBar ? hpClass : undefined,
+    shieldPercent: showHpBar ? shieldPercent : undefined,
+    aboveHpBar,
+    cardClassName,
+    infoSide,
+  };
+
+  if (detailsPlacement) {
+    const sidePanel = (
+      <div className="hidden lg:block w-[220px] flex-shrink-0">
+        <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-3 shadow-lg overflow-visible">
+          {details}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="flex gap-3 items-start">
+        {detailsPlacement === 'left' && sidePanel}
+        <div className="flex-shrink-0">
+          <UnifiedCharacterCard {...cardProps} details={<div className="lg:hidden">{details}</div>} />
+        </div>
+        {detailsPlacement === 'right' && sidePanel}
+      </div>
+    );
+  }
+
+  return <UnifiedCharacterCard {...cardProps} details={details} />;
 }
