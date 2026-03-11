@@ -41,15 +41,15 @@ function getTaverneCharacterImage(character) {
 const BUBBLE_DURATION_MS = 12000;
 
 const TAVERN_SLOTS = [
-  { id: 'tavernier', x: 26, y: 56, label: 'Derrière le bar' },
-  { id: 'bar-1', x: 8, y: 92, label: 'Entrée' },
+  { id: 'tavernier', x: 26, y: 60, label: 'Derrière le bar' },
+  { id: 'bar-1', x: 12, y: 85, label: 'Entrée' },
   { id: 'bar-2', x: 35, y: 69, label: 'Comptoir' },
-  { id: 'table1-1', x: 21, y: 83, label: 'Table gauche' },
-  { id: 'table1-2', x: 41, y: 86, label: 'Table gauche' },
-  { id: 'table1-3', x: 34, y: 84, label: 'Table gauche' },
-  { id: 'table2-1', x: 50, y: 80, label: 'Table droite' },
-  { id: 'table2-2', x: 58, y: 68, label: 'Table droite' },
-  { id: 'table2-3', x: 65, y: 67, label: 'Table droite' },
+  { id: 'table1-1', x: 24, y: 83, label: 'Table gauche' },
+  { id: 'table1-2', x: 41, y: 105, label: 'Table gauche' },
+  { id: 'table1-3', x: 34, y: 93, label: 'Table gauche' },
+  { id: 'table2-1', x: 60, y: 70, label: 'Table droite' },
+  { id: 'table2-2', x: 80, y: 90, label: 'Table droite' },
+  { id: 'table2-3', x: 60, y: 90, label: 'Table droite' },
   { id: 'cheminee', x: 77, y: 60, label: 'Cheminée' },
   { id: 'escalier', x: 43, y: 46, label: 'Escalier' },
   { id: 'tonneaux', x: 87, y: 71, label: 'Tonneaux' },
