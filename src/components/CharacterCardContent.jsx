@@ -45,6 +45,10 @@ export default function CharacterCardContent({
   infoSide = null,
   /** 'left' | 'right' | null — affiche les détails (arme/passif/race/sort) dans un panneau latéral séparé */
   detailsPlacement = null,
+  /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
+  imageClassName = '',
+  /** Contenu overlay sur l'image (ex: brume du miroir) */
+  imageOverlayContent = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -343,6 +347,8 @@ export default function CharacterCardContent({
     cardClassName,
     infoSide,
     borderClassName: character?.equippedBorder || null,
+    imageClassName,
+    imageOverlayContent,
   };
 
   if (detailsPlacement) {

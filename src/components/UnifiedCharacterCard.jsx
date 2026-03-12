@@ -48,6 +48,8 @@ const UnifiedCharacterCard = ({
   borderClassName = null,
   /** Contenu overlay sur l'image (ex: brume du miroir) */
   imageOverlayContent = null,
+  /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
+  imageClassName = '',
 }) => {
   const targetHp = typeof hpPercent === 'number' ? Math.max(0, Math.min(100, hpPercent)) : null;
   const targetShield = Math.max(0, Math.min(100, shieldPercent));
@@ -89,7 +91,7 @@ const UnifiedCharacterCard = ({
   const imageSection = (
     <div className={`relative bg-stone-900 flex items-center justify-center ${infoSide ? 'w-[220px] flex-shrink-0' : ''}`}>
       {image ? (
-        <img src={image} alt={name} className="w-full h-auto object-contain" />
+        <img src={image} alt={name} className={`w-full h-auto object-contain ${imageClassName}`.trim()} />
       ) : (
         <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
       )}

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter } from '../services/characterService';
-import { grantRunsToPlayer, getPlayerDungeonSummary } from '../services/dungeonService';
+import { grantRunsToPlayer } from '../services/dungeonService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { getBossRushBosses, createBossRushCombatant, BOSS_RUSH_COUNT } from '../data/bossRush';
 import { simulerMatch } from '../utils/tournamentCombat';
@@ -13,6 +13,24 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
+const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
+const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
+const extensionImageModules = import.meta.glob('../assets/extension/*.png', { eager: true, import: 'default' });
+const subclassImageModules = import.meta.glob('../assets/subclass/*.png', { eager: true, import: 'default' });
+
+const IMAGE_SOURCES = {
+  bosses: (f) => bossImageModules[`../assets/bosses/${f}`] || null,
+  forge: (f) => forgeImageModules[`../assets/forge/${f}`] || null,
+  extension: (f) => extensionImageModules[`../assets/extension/${f}`] || null,
+  subclass: (f) => subclassImageModules[`../assets/subclass/${f}`] || null,
+};
+
+const getBossImage = (imageFile, imageSource) => {
+  if (!imageFile || !imageSource) return null;
+  const resolver = IMAGE_SOURCES[imageSource];
+  return resolver ? resolver(imageFile) : null;
+};
+
 const BossRush = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -21,6 +39,8 @@ const BossRush = () => {
   const [character, setCharacter] = useState(null);
   const [gameState, setGameState] = useState('lobby');
   const [currentBossIndex, setCurrentBossIndex] = useState(0);
+  const [player, setPlayer] = useState(null);
+  const [boss, setBoss] = useState(null);
   const [playerHP, setPlayerHP] = useState(null);
   const [playerMaxHP, setPlayerMaxHP] = useState(null);
   const [bossHP, setBossHP] = useState(null);
@@ -79,6 +99,8 @@ const BossRush = () => {
     setCombatResult(null);
     setNewTitles([]);
     setRewardGiven(false);
+    setPlayer(null);
+    setBoss(null);
     startFight(0, null);
   };
 
@@ -96,15 +118,17 @@ const BossRush = () => {
     setBossShield(0);
 
     try {
-      const boss = createBossRushCombatant(bossIdx);
+      const bossData = createBossRushCombatant(bossIdx);
 
       const playerData = { ...character };
       if (previousHP !== null) {
         playerData._bossRushStartHP = previousHP;
       }
 
-      const result = simulerMatch(playerData, boss);
+      const result = simulerMatch(playerData, bossData);
 
+      setPlayer({ name: character.name });
+      setBoss({ ...bossData, imageFile: bosses[bossIdx].imageFile, imageSource: bosses[bossIdx].imageSource });
       setPlayerMaxHP(result.p1MaxHP);
       setBossMaxHP(result.p2MaxHP);
       setPlayerHP(result.p1MaxHP);
@@ -173,41 +197,158 @@ const BossRush = () => {
     startFight(nextIdx, carriedHP);
   };
 
+  const formatLogMessage = (text) => {
+    if (!player || !boss) return text;
+    const pName = player.name;
+    const bName = boss.name;
+    const parts = [];
+    let key = 0;
+    const nameRegex = new RegExp(`(${pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${bName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g');
+    const nameParts = text.split(nameRegex);
+    nameParts.forEach((part) => {
+      if (part === pName) {
+        parts.push(<span key={`n-${key++}`} className="font-bold text-blue-400">{part}</span>);
+      } else if (part === bName) {
+        parts.push(<span key={`n-${key++}`} className="font-bold text-red-400">{part}</span>);
+      } else if (part) {
+        parts.push(<span key={`n-${key++}`}>{part}</span>);
+      }
+    });
+    return parts.length > 0 ? parts : text;
+  };
+
+  const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
+    if (!bossChar) return null;
+    const base = bossCombatBaseOverride ?? bossChar.base;
+    const safeMaxHP = bossMaxHP || bossChar.maxHP || base.hp || 1;
+    const currentHP = Math.max(0, bossHP ?? safeMaxHP);
+    const hpPct = Math.max(0, Math.min(100, (currentHP / safeMaxHP) * 100));
+    const hpClass = hpPct > 50 ? 'bg-green-500' : hpPct > 25 ? 'bg-yellow-500' : 'bg-red-500';
+    const shieldPct = safeMaxHP > 0 ? Math.min(100, ((bossShield || 0) / safeMaxHP) * 100) : 0;
+    const bossImg = getBossImage(bossChar.imageFile, bossChar.imageSource);
+    const bossInfo = bosses[currentBossIndex];
+
+    return (
+      <UnifiedCharacterCard
+        header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
+        name={bossChar.name}
+        image={bossImg}
+        fallback={<span className="text-7xl">{bossInfo?.icon || '👹'}</span>}
+        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
+        hpText={`${bossChar.name} — PV ${currentHP}/${safeMaxHP}`}
+        hpPercent={hpPct}
+        hpClass={hpClass}
+        shieldPercent={shieldPct}
+        mainStats={
+          <>
+            <div>Auto: {base.auto}</div>
+            <div>Déf: {base.def}</div>
+            <div>Cap: {base.cap}</div>
+            <div>ResC: {base.rescap}</div>
+          </>
+        }
+        details={bossChar.ability ? (
+          <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
+            <span className="text-lg">⚡</span>
+            <div className="flex-1">
+              <div className="text-red-300 font-semibold mb-1">{bossChar.ability.name || bossChar.ability.nom}</div>
+              <div className="text-stone-400 text-[10px]">{bossChar.ability.description}</div>
+            </div>
+          </div>
+        ) : null}
+        cardClassName="border-2 border-red-600/50"
+      />
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        <div className="text-amber-400 text-xl animate-pulse">Chargement...</div>
+        <div className="text-red-400 text-2xl animate-pulse">Chargement du Boss Rush...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
         <Header />
         <div className="text-red-400 text-xl">{error}</div>
+        <button onClick={() => { setError(null); setGameState('lobby'); }} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500">
+          Retour
+        </button>
       </div>
     );
   }
 
   const currentBoss = bosses[currentBossIndex];
 
+  // LOBBY
+  if (gameState === 'lobby') {
+    return (
+      <div className="min-h-screen p-4">
+        <Header />
+        <div className="max-w-6xl mx-auto pt-20">
+          <div className="text-center mb-6">
+            <div className="bg-stone-900/70 border-2 border-red-600 rounded-xl px-6 py-3 shadow-xl inline-block">
+              <h2 className="text-3xl font-bold text-red-400">💀 Boss Rush</h2>
+              <p className="text-red-300/80 text-sm mt-1">6 boss sans répit. Vos PV persistent entre chaque combat.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-6 items-start justify-center mb-6">
+            <div className="w-full md:w-[340px] md:flex-shrink-0">
+              {character && <CharacterCardContent character={character} />}
+              <div className="text-center mt-2 text-xs text-stone-400">Votre personnage</div>
+            </div>
+
+            <div className="flex-1 max-w-2xl">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                {bosses.map((b) => {
+                  const img = getBossImage(b.imageFile, b.imageSource);
+                  return (
+                    <div key={b.id} className="bg-stone-800/80 border border-stone-600 rounded-lg p-3 text-center">
+                      {img ? (
+                        <img src={img} alt={b.nom} className="w-16 h-16 object-contain mx-auto mb-2" />
+                      ) : (
+                        <div className="text-3xl mb-2">{b.icon}</div>
+                      )}
+                      <div className="text-sm font-bold text-stone-200">{b.nom}</div>
+                      <div className="text-[10px] text-stone-500 mt-1">HP {b.stats.hp} • Stats ~{b.stats.auto}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {bossRushCompleted && (
+                <div className="bg-green-900/30 border border-green-600 rounded-lg p-3 mb-4 text-green-300 text-sm text-center">
+                  ✅ Boss Rush déjà complété ! Vous pouvez retenter sans récompense supplémentaire.
+                </div>
+              )}
+
+              <div className="text-center">
+                <button
+                  onClick={startBossRush}
+                  className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-10 py-4 rounded-lg font-bold text-xl shadow-lg border-2 border-red-500 transition-all transform hover:scale-105"
+                >
+                  💀 Commencer le Boss Rush
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // COMBAT / TRANSITION / VICTORY / DEFEAT
   return (
     <div className="min-h-screen p-4">
       <Header />
-
-      <div className="max-w-6xl mx-auto pt-20">
-        {/* Titre */}
-        <div className="text-center mb-6">
-          <div className="bg-stone-900/70 border-2 border-red-600 rounded-xl px-6 py-3 shadow-xl inline-block">
-            <h2 className="text-3xl font-bold text-red-400">💀 Boss Rush</h2>
-            <p className="text-red-300/80 text-sm mt-1">6 boss sans répit. Vos PV persistent entre chaque combat.</p>
-          </div>
-        </div>
-
+      <div className="max-w-[1800px] mx-auto pt-20">
         {/* Barre de progression des boss */}
-        <div className="flex justify-center gap-2 mb-6">
+        <div className="flex justify-center gap-2 mb-4">
           {bosses.map((b, i) => {
             let cls = 'bg-stone-800 border-stone-600 text-stone-500';
             if (i < currentBossIndex || gameState === 'victory') cls = 'bg-green-900/50 border-green-600 text-green-300';
@@ -216,181 +357,221 @@ const BossRush = () => {
             return (
               <div key={b.id} className={`border rounded-lg px-3 py-2 text-center text-xs ${cls}`}>
                 <div className="text-lg">{b.icon}</div>
-                <div className="font-bold">{b.nom}</div>
+                <div className="font-bold hidden md:block">{b.nom}</div>
               </div>
             );
           })}
         </div>
 
-        {/* LOBBY */}
-        {gameState === 'lobby' && (
-          <div className="text-center">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
-              {bosses.map((b) => (
-                <div key={b.id} className="bg-stone-800/80 border border-stone-600 rounded-lg p-3 text-center">
-                  <div className="text-3xl mb-2">{b.icon}</div>
-                  <div className="text-sm font-bold text-stone-200">{b.nom}</div>
-                  <div className="text-[10px] text-stone-500 mt-1">HP {b.stats.hp} • Stats ~{b.stats.auto}</div>
-                </div>
-              ))}
+        {/* Bandeaux de résultat */}
+        {combatResult?.isWin && gameState !== 'fighting' && (
+          <div className="flex justify-center mb-4">
+            <div className="bg-stone-100 text-stone-900 px-8 py-3 rounded-lg font-bold text-xl shadow-2xl border-2 border-stone-400">
+              🏆 {character.name} remporte le combat !
             </div>
-            {bossRushCompleted && (
-              <div className="bg-green-900/30 border border-green-600 rounded-lg p-3 mb-4 text-green-300 text-sm max-w-md mx-auto">
-                ✅ Boss Rush déjà complété ! Vous pouvez retenter sans récompense supplémentaire.
+          </div>
+        )}
+        {combatResult && !combatResult.isWin && gameState === 'defeat' && (
+          <div className="flex justify-center mb-4">
+            <div className="bg-red-900/80 text-red-200 px-8 py-3 rounded-xl font-bold text-xl shadow-2xl border border-red-600">
+              💀 {character.name} a été écrasé... 💀
+            </div>
+          </div>
+        )}
+
+        {/* Layout principal: Joueur | Chat | Boss */}
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+          {/* Carte joueur - Gauche */}
+          <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            {character && (
+              <CharacterCardContent
+                character={character}
+                showHpBar
+                currentHP={playerHP}
+                maxHP={playerMaxHP}
+                shield={playerShield}
+                combatBaseOverride={playerCombatBase}
+                combatModifiers={playerCombatModifiers}
+                opponent={boss}
+                combatStatus={playerCombatStatus}
+              />
+            )}
+            {carriedHP !== null && gameState === 'transition' && (
+              <div className="text-center mt-2 text-amber-300 text-sm font-bold">
+                PV restants: {carriedHP}/{playerMaxHP}
               </div>
             )}
-            <button
-              onClick={startBossRush}
-              className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-10 py-4 rounded-lg font-bold text-xl shadow-lg border-2 border-red-500 transition-all transform hover:scale-105"
-            >
-              💀 Commencer le Boss Rush
-            </button>
           </div>
-        )}
 
-        {/* COMBAT / TRANSITION / VICTORY / DEFEAT */}
-        {gameState !== 'lobby' && (
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            {/* Carte joueur */}
-            <div className="flex-shrink-0">
-              {character && (
-                <CharacterCardContent
-                  character={character}
-                  showHpBar={true}
-                  currentHP={playerHP}
-                  maxHP={playerMaxHP}
-                  shield={playerShield}
-                  combatBaseOverride={playerCombatBase}
-                  combatModifiers={playerCombatModifiers}
-                  combatStatus={playerCombatStatus}
-                />
-              )}
-              {carriedHP !== null && gameState === 'transition' && (
-                <div className="text-center mt-2 text-amber-300 text-sm font-bold">
-                  PV restants: {carriedHP}/{playerMaxHP}
-                </div>
-              )}
-            </div>
-
-            {/* Log de combat */}
-            <div className="flex-1 min-w-0">
-              <div
-                ref={logContainerRef}
-                className="bg-stone-900/80 border border-stone-600 rounded-lg p-3 h-[400px] overflow-y-auto text-xs space-y-1"
-              >
-                {combatLog.map((log, i) => (
-                  <div key={i} className={`${
-                    log.includes('CRITIQUE') ? 'text-red-400 font-bold' :
-                    log.includes('🏆') ? 'text-amber-400 font-bold' :
-                    log.includes('[P1]') ? 'text-blue-300' :
-                    log.includes('[P2]') ? 'text-red-300' :
-                    'text-stone-400'
-                  }`}>
-                    {log}
-                  </div>
-                ))}
-                <div ref={logEndRef} />
+          {/* Zone centrale - Chat */}
+          <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+              <div className="bg-stone-900/90 p-3 border-b border-red-600/50 rounded-t-xl">
+                <h2 className="text-lg md:text-xl font-bold text-red-300 text-center">💀 Boss Rush — {currentBoss?.nom}</h2>
               </div>
+              <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                {combatLog.length === 0 ? (
+                  <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Le combat va commencer...</p>
+                ) : (
+                  <>
+                    {combatLog.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
 
-              {/* Boutons de transition */}
-              {gameState === 'transition' && !isSimulating && (
-                <div className="text-center mt-4">
-                  <div className="text-green-400 font-bold mb-2">
-                    ✅ {currentBoss.nom} vaincu ! Prochain boss: {bosses[currentBossIndex + 1]?.nom}
-                  </div>
-                  <button
-                    onClick={proceedToNextBoss}
-                    className="bg-gradient-to-r from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-amber-400 transition-all"
-                  >
-                    ⚔️ Boss suivant ({currentBossIndex + 2}/{BOSS_RUSH_COUNT})
-                  </button>
-                </div>
-              )}
+                      if (!isP1 && !isP2) {
+                        if (log.includes('🏆')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-4">
+                              <div className="bg-stone-100 text-stone-900 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-stone-400">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (log.includes('💀')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-4">
+                              <div className="bg-red-900/80 text-red-200 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-red-600">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (log.includes('---') || log.includes('⚔️')) {
+                          return (
+                            <div key={idx} className="flex justify-center my-3">
+                              <div className="bg-stone-700/80 text-stone-200 px-4 py-1 rounded-lg text-sm font-bold border border-stone-500">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={idx} className="flex justify-center">
+                            <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                          </div>
+                        );
+                      }
 
-              {gameState === 'victory' && (
-                <div className="text-center mt-4 space-y-3">
-                  <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 border-2 border-amber-500 rounded-xl p-6">
-                    <div className="text-4xl mb-2">🏆</div>
-                    <div className="text-2xl font-bold text-amber-400">Boss Rush Complété !</div>
-                    <p className="text-amber-200 mt-2">Vous avez vaincu les 6 boss d'affilée !</p>
-                    {rewardGiven && (
-                      <div className="mt-3 text-green-300 font-bold">
-                        🎁 +10 essais de donjon obtenus !
-                      </div>
-                    )}
-                    {newTitles.length > 0 && (
-                      <div className="mt-2 text-purple-300 font-bold">
-                        🏅 Nouveau titre débloqué !
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setGameState('lobby')}
-                    className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500"
-                  >
-                    Retour au lobby
-                  </button>
-                </div>
-              )}
+                      if (isP1) {
+                        return (
+                          <div key={idx} className="flex justify-start">
+                            <div className="max-w-[80%]">
+                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
+                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
 
-              {gameState === 'defeat' && (
-                <div className="text-center mt-4 space-y-3">
-                  <div className="bg-red-900/30 border-2 border-red-600 rounded-xl p-6">
-                    <div className="text-4xl mb-2">💀</div>
-                    <div className="text-2xl font-bold text-red-400">Défaite...</div>
-                    <p className="text-red-200 mt-2">
-                      Tombé face à {currentBoss.nom} ({currentBossIndex + 1}/{BOSS_RUSH_COUNT})
-                    </p>
-                  </div>
-                  <button
-                    onClick={startBossRush}
-                    className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-red-500 transition-all"
-                  >
-                    🔄 Recommencer
-                  </button>
-                </div>
-              )}
+                      if (isP2) {
+                        return (
+                          <div key={idx} className="flex justify-end">
+                            <div className="max-w-[80%]">
+                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-red-500">
+                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                    <div ref={logEndRef} />
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* Carte boss */}
-            <div className="flex-shrink-0">
-              {currentBoss && (
-                <UnifiedCharacterCard
-                  header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT}`}
-                  name={currentBoss.nom}
-                  fallback={<div className="h-48 w-full flex items-center justify-center"><span className="text-7xl">{currentBoss.icon}</span></div>}
-                  hpText={bossMaxHP ? `${currentBoss.nom} — PV ${Math.max(0, bossHP)}/${bossMaxHP}` : undefined}
-                  hpPercent={bossMaxHP ? Math.max(0, (bossHP / bossMaxHP) * 100) : undefined}
-                  hpClass={bossHP > bossMaxHP * 0.5 ? 'bg-green-500' : bossHP > bossMaxHP * 0.25 ? 'bg-yellow-500' : 'bg-red-500'}
-                  shieldPercent={bossMaxHP ? Math.min(100, ((bossShield || 0) / bossMaxHP) * 100) : 0}
-                  mainStats={
-                    bossCombatBase ? (
-                      <>
-                        <div>Auto : <span className="text-white font-bold">{bossCombatBase.auto}</span></div>
-                        <div>Déf : <span className="text-white font-bold">{bossCombatBase.def}</span></div>
-                        <div>Cap : <span className="text-white font-bold">{bossCombatBase.cap}</span></div>
-                        <div>ResC : <span className="text-white font-bold">{bossCombatBase.rescap}</span></div>
-                      </>
-                    ) : (
-                      <>
-                        <div>Auto : <span className="text-white font-bold">{currentBoss.stats.auto}</span></div>
-                        <div>Déf : <span className="text-white font-bold">{currentBoss.stats.def}</span></div>
-                        <div>Cap : <span className="text-white font-bold">{currentBoss.stats.cap}</span></div>
-                        <div>ResC : <span className="text-white font-bold">{currentBoss.stats.rescap}</span></div>
-                      </>
-                    )
-                  }
-                  topStats={
-                    <>
-                      <span className="text-white font-bold">HP {currentBoss.stats.hp}</span>
-                      <span className="text-white font-bold">VIT {bossCombatBase?.spd ?? currentBoss.stats.spd}</span>
-                    </>
-                  }
-                />
-              )}
-            </div>
+            {/* Boutons de transition */}
+            {gameState === 'transition' && !isSimulating && (
+              <div className="text-center mt-4">
+                <div className="text-green-400 font-bold mb-2">
+                  ✅ {currentBoss.nom} vaincu ! Prochain boss: {bosses[currentBossIndex + 1]?.nom}
+                </div>
+                <button
+                  onClick={proceedToNextBoss}
+                  className="bg-gradient-to-r from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-amber-400 transition-all"
+                >
+                  ⚔️ Boss suivant ({currentBossIndex + 2}/{BOSS_RUSH_COUNT})
+                </button>
+              </div>
+            )}
+
+            {gameState === 'victory' && (
+              <div className="text-center mt-4 space-y-3">
+                <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 border-2 border-amber-500 rounded-xl p-6">
+                  <div className="text-4xl mb-2">🏆</div>
+                  <div className="text-2xl font-bold text-amber-400">Boss Rush Complété !</div>
+                  <p className="text-amber-200 mt-2">Vous avez vaincu les 6 boss d'affilée !</p>
+                  {rewardGiven && (
+                    <div className="mt-3 text-green-300 font-bold">🎁 +10 essais de donjon obtenus !</div>
+                  )}
+                  {newTitles.length > 0 && (
+                    <div className="mt-2 text-purple-300 font-bold">🏅 Nouveau titre débloqué !</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setGameState('lobby')}
+                  className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500"
+                >
+                  Retour au lobby
+                </button>
+              </div>
+            )}
+
+            {gameState === 'defeat' && (
+              <div className="text-center mt-4 space-y-3">
+                <div className="bg-red-900/30 border-2 border-red-600 rounded-xl p-6">
+                  <div className="text-4xl mb-2">💀</div>
+                  <div className="text-2xl font-bold text-red-400">Défaite...</div>
+                  <p className="text-red-200 mt-2">
+                    Tombé face à {currentBoss.nom} ({currentBossIndex + 1}/{BOSS_RUSH_COUNT})
+                  </p>
+                </div>
+                <button
+                  onClick={startBossRush}
+                  className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-red-500 transition-all"
+                >
+                  🔄 Recommencer
+                </button>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Carte boss - Droite */}
+          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+            {boss && <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
+            {!boss && currentBoss && (
+              <UnifiedCharacterCard
+                header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
+                name={currentBoss.nom}
+                image={getBossImage(currentBoss.imageFile, currentBoss.imageSource)}
+                fallback={<span className="text-7xl">{currentBoss.icon}</span>}
+                topStats={<><span>HP: {currentBoss.stats.hp}</span><span>VIT: {currentBoss.stats.spd}</span></>}
+                mainStats={
+                  <>
+                    <div>Auto: {currentBoss.stats.auto}</div>
+                    <div>Déf: {currentBoss.stats.def}</div>
+                    <div>Cap: {currentBoss.stats.cap}</div>
+                    <div>ResC: {currentBoss.stats.rescap}</div>
+                  </>
+                }
+                details={currentBoss.ability ? (
+                  <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
+                    <span className="text-lg">⚡</span>
+                    <div className="flex-1">
+                      <div className="text-red-300 font-semibold mb-1">{currentBoss.ability.name || currentBoss.ability.nom}</div>
+                      <div className="text-stone-400 text-[10px]">{currentBoss.ability.description}</div>
+                    </div>
+                  </div>
+                ) : null}
+                cardClassName="border-2 border-red-600/50"
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
