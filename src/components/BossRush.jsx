@@ -60,6 +60,7 @@ const BossRush = () => {
   const [bossRushCompleted, setBossRushCompleted] = useState(false);
   const [rewardGiven, setRewardGiven] = useState(false);
   const [newTitles, setNewTitles] = useState([]);
+  const minHPPercentRef = useRef(100);
   const [error, setError] = useState(null);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
@@ -113,6 +114,7 @@ const BossRush = () => {
     setCombatResult(null);
     setNewTitles([]);
     setRewardGiven(false);
+    minHPPercentRef.current = 100;
     setPlayer(null);
     setBoss(null);
     startFight(0, null);
@@ -168,6 +170,14 @@ const BossRush = () => {
       setCombatResult({ ...result, isWin });
       setIsSimulating(false);
 
+      // Tracker le HP min pour le titre boss_rush_parfait
+      for (const step of result.steps) {
+        if (step.p1HP !== undefined && result.p1MaxHP > 0) {
+          const pct = (step.p1HP / result.p1MaxHP) * 100;
+          if (pct < minHPPercentRef.current) minHPPercentRef.current = pct;
+        }
+      }
+
       const isFinalBoss = bossIdx === BOSS_RUSH_COUNT - 1;
       checkAndAwardTitles(
         currentUser.uid, result.steps, result, character,
@@ -190,6 +200,22 @@ const BossRush = () => {
             }, { merge: true });
             setBossRushCompleted(true);
             setRewardGiven(true);
+          }
+          // Titre boss_rush_parfait : jamais descendu sous 30% PV
+          if (minHPPercentRef.current >= 30) {
+            (async () => {
+              try {
+                const charSnap = await getDoc(doc(db, 'characters', currentUser.uid));
+                const earned = charSnap.data()?.earnedTitles || [];
+                if (!earned.includes('boss_rush_parfait')) {
+                  await setDoc(doc(db, 'characters', currentUser.uid), {
+                    earnedTitles: [...earned, 'boss_rush_parfait'],
+                    updatedAt: Timestamp.now(),
+                  }, { merge: true });
+                  setNewTitles(prev => [...prev, 'boss_rush_parfait']);
+                }
+              } catch (_) { /* silencieux */ }
+            })();
           }
           syncUnlockedBorders(currentUser.uid, character, { bossRushCompleted: true }).catch(() => {});
         } else {

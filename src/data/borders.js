@@ -7,6 +7,7 @@
 
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { TITLES } from './titles';
 
 export const BORDERS = {
   default: {
@@ -72,6 +73,27 @@ export const BORDERS = {
     cssClass: 'border-nature-emerald border-nature-glow',
     condition: 'Atteindre niveau 400',
   },
+  titane: {
+    id: 'titane',
+    nom: 'Titane',
+    icon: '⚙️',
+    cssClass: 'border-titane-metal border-titane-glow',
+    condition: 'Débloquer 10 titres',
+  },
+  cosmique: {
+    id: 'cosmique',
+    nom: 'Cosmique',
+    icon: '🌌',
+    cssClass: 'border-cosmique-galaxy border-cosmique-glow',
+    condition: 'Débloquer 20 titres',
+  },
+  transcendance: {
+    id: 'transcendance',
+    nom: 'Transcendance',
+    icon: '💠',
+    cssClass: 'border-transcendance-prism border-transcendance-glow',
+    condition: 'Débloquer tous les titres',
+  },
 };
 
 /**
@@ -122,6 +144,18 @@ export function checkBorderUnlocks(character, extras = {}) {
 
   if ((character.level ?? 1) >= 400) {
     unlocked.push('nature');
+  }
+
+  const titleCount = (character.earnedTitles || []).length;
+  if (titleCount >= 10) {
+    unlocked.push('titane');
+  }
+  if (titleCount >= 20) {
+    unlocked.push('cosmique');
+  }
+  const totalTitles = Object.keys(TITLES).length;
+  if (titleCount >= totalTitles) {
+    unlocked.push('transcendance');
   }
 
   return unlocked;

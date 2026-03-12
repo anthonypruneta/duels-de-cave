@@ -7,7 +7,7 @@
  *    Utilise tournamentRewards/{userId}.tournamentWins et .consecutiveFirstRoundLosses
  */
 
-import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, collection, Timestamp, increment } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { detectTitlesFromCombat, getFormattedTitle } from '../data/titles';
 
@@ -54,15 +54,11 @@ export async function checkAndAwardTitles(userId, steps, result, playerChar, con
  * Vérifie les titres basés sur l'historique et la progression du compte.
  * Appelé au chargement du personnage (page d'accueil).
  *
- * Vérifie :
- * - tournamentWins >= 2 → titre "legendaire"
- * - consecutiveFirstRoundLosses >= 3 → titre "maudit"
- * - bossRushCompleted → titre "survivant"
- * - labyrinth highestClearedFloor >= 120 → titre "fleau_labyrinthe"
- *
  * @param {string} userId - ID du compte
  * @param {Object} [extras] - Données de progression supplémentaires
  * @param {number} [extras.labyrinthHighestFloor] - Meilleur étage du labyrinthe
+ * @param {boolean} [extras.bossRushCompleted]
+ * @param {Object} [extras.dungeonCompletions] - { dungeon, forest, mageTower }
  * @returns {string[]} Nouveaux titres attribués
  */
 export async function checkCrossWeekTitles(userId, extras = {}) {
@@ -83,21 +79,66 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
 
     const newTitles = [];
 
+    // --- legendaire : 2+ tournois gagnés ---
     if (!earnedTitles.includes('legendaire') && (rewardData.tournamentWins ?? 0) >= 2) {
       newTitles.push('legendaire');
     }
 
+    // --- maudit : 3+ défaites consécutives au 1er tour ---
     if (!earnedTitles.includes('maudit') && (rewardData.consecutiveFirstRoundLosses ?? 0) >= 3) {
       newTitles.push('maudit');
     }
 
-    if (!earnedTitles.includes('survivant') && charData.bossRushCompleted) {
+    // --- survivant : boss rush complété ---
+    if (!earnedTitles.includes('survivant') && (charData.bossRushCompleted || extras.bossRushCompleted)) {
       newTitles.push('survivant');
     }
 
     const labFloor = extras.labyrinthHighestFloor ?? 0;
+
+    // --- fleau_labyrinthe : étage 120 ---
     if (!earnedTitles.includes('fleau_labyrinthe') && labFloor >= 120) {
       newTitles.push('fleau_labyrinthe');
+    }
+
+    // --- champion : 1+ tournoi gagné ---
+    if (!earnedTitles.includes('champion') && (rewardData.tournamentWins ?? 0) >= 1) {
+      newTitles.push('champion');
+    }
+
+    // --- roi_labyrinthe : étage 100+ ---
+    if (!earnedTitles.includes('roi_labyrinthe') && labFloor >= 100) {
+      newTitles.push('roi_labyrinthe');
+    }
+
+    // --- full_stuff : arme + passif niv3 + forge + extension + sous-classe ---
+    if (!earnedTitles.includes('full_stuff')) {
+      const hasWeapon = !!charData.equippedWeaponId;
+      const hasPassiveLv3 = !!charData.mageTowerPassive;
+      const hasForge = charData.forgeUpgrade && Object.keys(charData.forgeUpgrade).length > 0;
+      const hasExtension = !!charData.mageTowerExtensionPassive;
+      const hasSubclass = !!charData.subclass;
+      if (hasWeapon && hasPassiveLv3 && hasForge && hasExtension && hasSubclass) {
+        newTitles.push('full_stuff');
+      }
+    }
+
+    // --- collectionneur : 5+ bordures débloquées ---
+    if (!earnedTitles.includes('collectionneur') && (charData.unlockedBorders?.length ?? 0) >= 5) {
+      newTitles.push('collectionneur');
+    }
+
+    // --- sauveur_monde : 1 Cataclysme gagné ---
+    if (!earnedTitles.includes('sauveur_monde') && (rewardData.cataclysmeWins ?? 0) >= 1) {
+      newTitles.push('sauveur_monde');
+    }
+
+    // --- explorateur : 3 donjons de base complétés ---
+    if (!earnedTitles.includes('explorateur')) {
+      const completions = extras.dungeonCompletions || {};
+      if (completions.dungeon && completions.forest && completions.mageTower) {
+        newTitles.push('explorateur');
+      }
     }
 
     if (newTitles.length === 0) return [];
@@ -164,4 +205,36 @@ export async function equipTitle(userId, titleId) {
 export function getDisplayTitle(titleId, gender) {
   if (!titleId) return null;
   return getFormattedTitle(titleId, gender);
+}
+
+/**
+ * Calcule les statistiques d'obtention de tous les titres et bordures
+ * en parcourant tous les personnages actifs.
+ *
+ * @returns {{ total: number, titleCounts: Object, borderCounts: Object }}
+ */
+export async function getObtentionStats() {
+  try {
+    await waitForFirestore();
+    const snapshot = await getDocs(collection(db, 'characters'));
+    const allChars = snapshot.docs.map(d => d.data()).filter(c => !c.disabled);
+    const total = allChars.length;
+
+    const titleCounts = {};
+    const borderCounts = {};
+
+    for (const char of allChars) {
+      for (const tid of (char.earnedTitles || [])) {
+        titleCounts[tid] = (titleCounts[tid] || 0) + 1;
+      }
+      for (const bid of (char.unlockedBorders || [])) {
+        borderCounts[bid] = (borderCounts[bid] || 0) + 1;
+      }
+    }
+
+    return { total, titleCounts, borderCounts };
+  } catch (err) {
+    console.error('Erreur calcul stats obtention:', err);
+    return { total: 0, titleCounts: {}, borderCounts: {} };
+  }
 }

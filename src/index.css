@@ -455,6 +455,97 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.3), 0 0 25px rgba(6, 95, 70, 0.2);
 }
 
+/* ===== Bordure Titane (metallic silver/blue) ===== */
+
+.border-titane-metal {
+  position: relative;
+  overflow: visible;
+}
+
+.border-titane-metal::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, #94a3b8, #cbd5e1, #64748b, #e2e8f0, #475569, #cbd5e1, #94a3b8);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: titane-metal-glow 5s ease-in-out infinite;
+}
+
+@keyframes titane-metal-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.border-titane-glow {
+  box-shadow: 0 0 15px rgba(148, 163, 184, 0.4), 0 0 25px rgba(100, 116, 139, 0.25);
+}
+
+/* ===== Bordure Cosmique (galaxy purple/blue) ===== */
+
+.border-cosmique-galaxy {
+  position: relative;
+  overflow: visible;
+}
+
+.border-cosmique-galaxy::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, #1e1b4b, #6d28d9, #4338ca, #a855f7, #312e81, #7c3aed, #1e1b4b);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: cosmique-galaxy-glow 4s ease-in-out infinite;
+}
+
+@keyframes cosmique-galaxy-glow {
+  0% { background-position: 0% 50%; opacity: 0.9; }
+  33% { background-position: 50% 100%; opacity: 1; }
+  66% { background-position: 100% 50%; opacity: 0.9; }
+  100% { background-position: 0% 50%; opacity: 0.9; }
+}
+
+.border-cosmique-glow {
+  box-shadow: 0 0 18px rgba(124, 58, 237, 0.45), 0 0 30px rgba(67, 56, 202, 0.3), 0 0 8px rgba(168, 85, 247, 0.2);
+}
+
+/* ===== Bordure Transcendance (prismatic/iridescent) ===== */
+
+.border-transcendance-prism {
+  position: relative;
+  overflow: visible;
+}
+
+.border-transcendance-prism::before {
+  content: '';
+  position: absolute;
+  top: -5px; left: -5px; right: -5px; bottom: -5px;
+  border-radius: inherit;
+  background: linear-gradient(
+    60deg,
+    #ef4444, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #ef4444
+  );
+  background-size: 600% 600%;
+  z-index: -1;
+  animation: transcendance-prism-glow 6s linear infinite;
+}
+
+@keyframes transcendance-prism-glow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.border-transcendance-glow {
+  box-shadow:
+    0 0 20px rgba(139, 92, 246, 0.4),
+    0 0 30px rgba(59, 130, 246, 0.3),
+    0 0 40px rgba(236, 72, 153, 0.2),
+    0 0 10px rgba(234, 179, 8, 0.15);
+}
+
 /* ===== Admin Combat HD-2D — Attaque (avance + recul) ===== */
 
 @keyframes hd2d-attack-left {

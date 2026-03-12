@@ -190,6 +190,169 @@ export const TITLES = {
     category: 'racial',
     race: 'Mindflayer',
   },
+
+  // ======================== NOUVEAUX TITRES ========================
+
+  speedrunner: {
+    id: 'speedrunner',
+    male: 'l\'Éclair',
+    female: 'l\'Éclair',
+    description: 'Gagner un combat en 3 tours ou moins',
+    icon: '🏃',
+    category: 'general',
+  },
+  eternel: {
+    id: 'eternel',
+    male: 'l\'Éternel',
+    female: 'l\'Éternelle',
+    description: 'Gagner un combat en mort subite (tour 30)',
+    icon: '⏳',
+    category: 'general',
+  },
+  comeback: {
+    id: 'comeback',
+    male: 'le Phénix',
+    female: 'le Phénix',
+    description: 'Gagner après être passé sous 5% PV',
+    icon: '🔥',
+    category: 'general',
+  },
+  crit_machine: {
+    id: 'crit_machine',
+    male: 'Machine à Crits',
+    female: 'Machine à Crits',
+    description: 'Réaliser 5+ critiques dans un combat',
+    icon: '💥',
+    category: 'general',
+  },
+  pacifiste: {
+    id: 'pacifiste',
+    male: 'le Stratège',
+    female: 'la Stratège',
+    description: 'Gagner un combat de tournoi sans faire de critique',
+    icon: '🕊️',
+    category: 'general',
+  },
+  executeur: {
+    id: 'executeur',
+    male: 'l\'Exécuteur',
+    female: 'l\'Exécutrice',
+    description: 'Achever l\'ennemi avec une capacité spéciale',
+    icon: '⚔️',
+    category: 'general',
+  },
+  dominateur: {
+    id: 'dominateur',
+    male: 'le Dominateur',
+    female: 'la Dominatrice',
+    description: 'Gagner en tournoi sans jamais passer sous 50% PV',
+    icon: '👊',
+    category: 'general',
+  },
+  destruction: {
+    id: 'destruction',
+    male: 'Force Brute',
+    female: 'Force Brute',
+    description: 'Infliger un coup unique supérieur à 50% des PV max ennemis',
+    icon: '💣',
+    category: 'general',
+  },
+  tank_absolu: {
+    id: 'tank_absolu',
+    male: 'le Tank Absolu',
+    female: 'le Tank Absolu',
+    description: 'Subir plus de 200% de ses PV max en dégâts et gagner',
+    icon: '🛡️',
+    category: 'general',
+  },
+  ombre_fatale: {
+    id: 'ombre_fatale',
+    male: 'l\'Ombre Fatale',
+    female: 'l\'Ombre Fatale',
+    description: 'Esquiver 3+ attaques dans un combat',
+    icon: '🌑',
+    category: 'general',
+  },
+  miroir_parfait: {
+    id: 'miroir_parfait',
+    male: 'le Narcissique',
+    female: 'le Narcissique',
+    description: 'Gagner en mode miroir',
+    icon: '🪞',
+    category: 'general',
+  },
+  tueur_koro: {
+    id: 'tueur_koro',
+    male: 'le Diplômé',
+    female: 'la Diplômée',
+    description: 'Battre Koro Sensei en moins de 10 tours',
+    icon: '🎓',
+    category: 'general',
+  },
+  boss_rush_parfait: {
+    id: 'boss_rush_parfait',
+    male: 'l\'Impitoyable',
+    female: 'l\'Impitoyable',
+    description: 'Finir le Boss Rush sans descendre sous 30% PV',
+    icon: '☠️',
+    category: 'general',
+  },
+  maitre_soins: {
+    id: 'maitre_soins',
+    male: 'le Guérisseur Divin',
+    female: 'la Guérisseuse Divine',
+    description: 'Soigner 100%+ de ses PV max cumulés dans un combat',
+    icon: '💚',
+    category: 'general',
+  },
+  champion: {
+    id: 'champion',
+    male: 'le Champion',
+    female: 'la Championne',
+    description: 'Remporter un tournoi',
+    icon: '🏆',
+    category: 'general',
+  },
+  roi_labyrinthe: {
+    id: 'roi_labyrinthe',
+    male: 'Roi du Labyrinthe',
+    female: 'Reine du Labyrinthe',
+    description: 'Atteindre l\'étage 100 du Labyrinthe Infini',
+    icon: '🏰',
+    category: 'general',
+  },
+  full_stuff: {
+    id: 'full_stuff',
+    male: 'Full Stuff',
+    female: 'Full Stuff',
+    description: 'Avoir arme + passif niv3 + forge + extension + sous-classe',
+    icon: '💎',
+    category: 'general',
+  },
+  collectionneur: {
+    id: 'collectionneur',
+    male: 'le Collectionneur',
+    female: 'la Collectionneuse',
+    description: 'Débloquer 5+ bordures cosmétiques',
+    icon: '🖼️',
+    category: 'general',
+  },
+  sauveur_monde: {
+    id: 'sauveur_monde',
+    male: 'Sauveur du Monde',
+    female: 'Sauveuse du Monde',
+    description: 'Vaincre un Boss Mondial (Cataclysme)',
+    icon: '🌍',
+    category: 'general',
+  },
+  explorateur: {
+    id: 'explorateur',
+    male: 'l\'Explorateur',
+    female: 'l\'Exploratrice',
+    description: 'Compléter les 3 donjons de base (Donjon, Forêt, Tour)',
+    icon: '🗺️',
+    category: 'general',
+  },
 };
 
 /**
@@ -307,6 +470,141 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
   // --- fleau_labyrinthe : étage 120 ---
   if (isWinner && context.mode === 'labyrinthe' && context.floor === 120) {
     detected.push('fleau_labyrinthe');
+  }
+
+  // ======================== NOUVEAUX TITRES DE COMBAT ========================
+
+  const lastTurnStep = [...steps].reverse().find(s => s.turn);
+  const lastTurn = lastTurnStep ? lastTurnStep.turn : 0;
+  const playerPrefix = playerIsP1 ? '[P1]' : '[P2]';
+  const enemyPrefix = playerIsP1 ? '[P2]' : '[P1]';
+  const enemyMaxHP = playerIsP1 ? result.p2MaxHP : result.p1MaxHP;
+
+  // --- speedrunner : gagner en 3 tours ou moins ---
+  if (isWinner && lastTurn > 0 && lastTurn <= 3) {
+    detected.push('speedrunner');
+  }
+
+  // --- eternel : gagner en mort subite (tour 30) ---
+  if (isWinner && lastTurn >= 30) {
+    detected.push('eternel');
+  }
+
+  // --- comeback : gagner après être passé sous 5% PV ---
+  if (isWinner) {
+    const wentBelow5 = steps.some(s => {
+      const hp = playerIsP1 ? s.p1HP : s.p2HP;
+      return hp > 0 && hp < playerMaxHP * 0.05;
+    });
+    if (wentBelow5) detected.push('comeback');
+  }
+
+  // --- crit_machine : 5+ critiques dans un combat ---
+  if (isWinner) {
+    let critCount = 0;
+    for (const step of actionSteps) {
+      if (step.logs?.some(l => l.includes(playerPrefix) && l.includes('CRITIQUE'))) {
+        critCount++;
+      }
+    }
+    if (critCount >= 5) detected.push('crit_machine');
+  }
+
+  // --- pacifiste : gagner en tournoi sans crit ---
+  if (isWinner && context.mode === 'tournoi') {
+    const hadCrit = actionSteps.some(s =>
+      s.logs?.some(l => l.includes(playerPrefix) && l.includes('CRITIQUE'))
+    );
+    if (!hadCrit) detected.push('pacifiste');
+  }
+
+  // --- executeur : achever avec une capacité spéciale ---
+  if (isWinner) {
+    const deathStep = [...actionSteps].reverse().find(s => {
+      const eHP = playerIsP1 ? s.p2HP : s.p1HP;
+      return eHP <= 0;
+    });
+    if (deathStep) {
+      const hasAbilityKill = deathStep.logs?.some(l =>
+        l.includes(playerPrefix) && (l.includes('capacité') || l.includes('sort') || l.includes('Explosion') || l.includes('Souffle') || l.includes('tir') || l.includes('Tir') || l.includes('riposte') || l.includes('purge') || l.includes('fouet') || l.includes('Charge'))
+      );
+      if (hasAbilityKill) detected.push('executeur');
+    }
+  }
+
+  // --- dominateur : gagner en tournoi sans passer sous 50% PV ---
+  if (isWinner && context.mode === 'tournoi') {
+    const alwaysAbove50 = steps.every(s => {
+      const hp = playerIsP1 ? s.p1HP : s.p2HP;
+      return hp === undefined || hp >= playerMaxHP * 0.5;
+    });
+    if (alwaysAbove50) detected.push('dominateur');
+  }
+
+  // --- destruction : un coup unique > 50% PV max ennemi ---
+  if (isWinner) {
+    let prevEnemyHP = enemyMaxHP;
+    for (const step of steps) {
+      const currEnemyHP = playerIsP1 ? step.p2HP : step.p1HP;
+      if (currEnemyHP !== undefined && prevEnemyHP !== undefined) {
+        const singleHitDmg = prevEnemyHP - currEnemyHP;
+        if (singleHitDmg > enemyMaxHP * 0.5) {
+          detected.push('destruction');
+          break;
+        }
+      }
+      if (currEnemyHP !== undefined) prevEnemyHP = currEnemyHP;
+    }
+  }
+
+  // --- tank_absolu : subir 200%+ PV max en dégâts et gagner ---
+  if (isWinner) {
+    let totalDmgReceived = 0;
+    let prevPlayerHP = playerMaxHP;
+    for (const step of steps) {
+      const currHP = playerIsP1 ? step.p1HP : step.p2HP;
+      if (currHP !== undefined && prevPlayerHP !== undefined) {
+        const lost = prevPlayerHP - currHP;
+        if (lost > 0) totalDmgReceived += lost;
+      }
+      if (currHP !== undefined) prevPlayerHP = currHP;
+    }
+    if (totalDmgReceived >= playerMaxHP * 2) detected.push('tank_absolu');
+  }
+
+  // --- ombre_fatale : esquiver 3+ attaques ---
+  if (isWinner) {
+    let dodgeCount = 0;
+    for (const step of actionSteps) {
+      if (step.logs?.some(l => l.includes(playerPrefix) && l.includes('esquive'))) {
+        dodgeCount++;
+      }
+    }
+    if (dodgeCount >= 3) detected.push('ombre_fatale');
+  }
+
+  // --- miroir_parfait : gagner en mode miroir ---
+  if (isWinner && context.mode === 'mirror') {
+    detected.push('miroir_parfait');
+  }
+
+  // --- tueur_koro : battre Koro Sensei en < 10 tours ---
+  if (isWinner && (context.bossId === 'koro_sensei' || context.bossId === 'koro') && lastTurn < 10) {
+    detected.push('tueur_koro');
+  }
+
+  // --- maitre_soins : soigner 100%+ PV max cumulés dans un combat ---
+  if (isWinner) {
+    let totalHealing = 0;
+    for (const step of steps) {
+      for (const log of (step.logs || [])) {
+        if (log.includes(playerPrefix) && (log.includes('récupère') || log.includes('soigne') || log.includes('régénère') || log.includes('Régénération') || log.includes('Soin'))) {
+          const match = log.match(/(\d+)\s*PV/);
+          if (match) totalHealing += parseInt(match[1], 10);
+        }
+      }
+    }
+    if (totalHealing >= playerMaxHP) detected.push('maitre_soins');
   }
 
   // ======================== TITRES RACIAUX ========================

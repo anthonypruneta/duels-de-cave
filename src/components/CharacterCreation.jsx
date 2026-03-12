@@ -25,7 +25,7 @@ import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 import SubclassDetailBlock from './SubclassDetailBlock';
-import { getDisplayTitle, equipTitle, checkCrossWeekTitles } from '../services/titleService';
+import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } from '../services/titleService';
 import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, getBorderCssClass, equipBorder, syncUnlockedBorders } from '../data/borders';
 
@@ -212,6 +212,7 @@ const CharacterCreation = () => {
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
   const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
   const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
+  const [obtentionStats, setObtentionStats] = useState(null);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const weaponFamilies = getWeaponFamilyInfo();
@@ -454,7 +455,8 @@ const CharacterCreation = () => {
         ]).then(([labResult, summaryResult]) => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
           const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
-          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone };
+          const dungeonCompletions = summaryResult.success ? (summaryResult.data?.dungeonCompletions || {}) : {};
+          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone, dungeonCompletions };
 
           syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
             if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {
@@ -471,6 +473,7 @@ const CharacterCreation = () => {
             }
           });
         });
+        getObtentionStats().then(setObtentionStats).catch(() => {});
         const pseudoValue = normalized.ownerPseudo || accountPseudo || storedPseudo;
         setOwnerPseudo(pseudoValue);
         setShowPseudoModal(!pseudoValue);
@@ -1170,7 +1173,17 @@ const CharacterCreation = () => {
                           <span className="mr-1.5">{t.icon}</span>
                           <span className="font-semibold">{getFormattedTitle(tid, existingCharacter.gender)}</span>
                           {isEquipped && <span className="ml-2 text-amber-400 text-[10px]">ÉQUIPÉ</span>}
-                          <div className="text-[10px] text-stone-500 mt-0.5 ml-5">{t.description}</div>
+                          <div className="text-[10px] text-stone-500 mt-0.5 ml-5 flex items-center gap-1.5">
+                            <span>{t.description}</span>
+                            {obtentionStats && obtentionStats.total > 0 && (
+                              <span className="text-amber-600/80 whitespace-nowrap">
+                                — {(() => {
+                                  const pct = Math.round(((obtentionStats.titleCounts[tid] || 0) / obtentionStats.total) * 100);
+                                  return pct === 0 && (obtentionStats.titleCounts[tid] || 0) > 0 ? '< 1%' : `${pct}%`;
+                                })()}
+                              </span>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -1189,28 +1202,41 @@ const CharacterCreation = () => {
                     const isEquipped = (existingCharacter.equippedBorder || 'default') === getBorderCssClass(border.id);
                     const isDefault = border.id === 'default' && !existingCharacter.equippedBorder;
                     return (
-                      <button
-                        key={border.id}
-                        disabled={!unlocked}
-                        onClick={async () => {
-                          if (!unlocked) return;
-                          const cls = border.id === 'default' ? null : getBorderCssClass(border.id);
-                          await equipBorder(currentUser.uid, cls);
-                          setExistingCharacter(prev => ({ ...prev, equippedBorder: cls }));
-                        }}
-                        className={`text-center rounded-lg p-2 text-[10px] transition-colors ${
-                          !unlocked
-                            ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
-                            : (isEquipped || isDefault)
-                              ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
-                              : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
-                        }`}
-                      >
-                        <div className="text-lg mb-1">{border.icon}</div>
-                        <div className="font-semibold">{border.nom}</div>
-                        {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
-                        {(isEquipped || isDefault) && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
-                      </button>
+                      <SharedTooltip key={border.id} content={
+                        <span>
+                          {border.condition}
+                          {obtentionStats && obtentionStats.total > 0 && border.id !== 'default' && (
+                            <span className="text-amber-500/80">
+                              {' — '}{(() => {
+                                const pct = Math.round(((obtentionStats.borderCounts[border.id] || 0) / obtentionStats.total) * 100);
+                                return pct === 0 && (obtentionStats.borderCounts[border.id] || 0) > 0 ? '< 1%' : `${pct}%`;
+                              })()}{' des joueurs'}
+                            </span>
+                          )}
+                        </span>
+                      }>
+                        <button
+                          disabled={!unlocked}
+                          onClick={async () => {
+                            if (!unlocked) return;
+                            const cls = border.id === 'default' ? null : getBorderCssClass(border.id);
+                            await equipBorder(currentUser.uid, cls);
+                            setExistingCharacter(prev => ({ ...prev, equippedBorder: cls }));
+                          }}
+                          className={`text-center rounded-lg p-2 text-[10px] transition-colors ${
+                            !unlocked
+                              ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
+                              : (isEquipped || isDefault)
+                                ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
+                                : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
+                          }`}
+                        >
+                          <div className="text-lg mb-1">{border.icon}</div>
+                          <div className="font-semibold">{border.nom}</div>
+                          {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
+                          {(isEquipped || isDefault) && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                        </button>
+                      </SharedTooltip>
                     );
                   })}
                 </div>
