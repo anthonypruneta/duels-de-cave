@@ -7,79 +7,166 @@ function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
 function hsl(h, s, l, a = 1) { return `hsla(${h},${s}%,${l}%,${a})`; }
 
-// ─── Lave : cascade de lave sur les côtés ────────────────────────────────────
+// ─── Lave : cascades continues sur les côtés + bassin en bas + étincelles ────
 
 function initLava(w, h) {
-  const particles = [];
-  for (let i = 0; i < 40; i++) {
-    particles.push(spawnLava(w, h, true));
+  const STREAM_W = 12;
+  const streamLeft = [];
+  const streamRight = [];
+  for (let i = 0; i < 50; i++) {
+    streamLeft.push(spawnStream(0, STREAM_W, h, true));
+    streamRight.push(spawnStream(w - STREAM_W, STREAM_W, h, true));
   }
-  return { particles, embers: Array.from({ length: 15 }, () => spawnEmber(w, h, true)) };
-}
-
-function spawnLava(w, h, randomY = false) {
-  const side = Math.random() < 0.5 ? 0 : 1;
   return {
-    x: side === 0 ? rand(-2, 6) : rand(w - 6, w + 2),
-    y: randomY ? rand(-10, h) : rand(-20, -5),
-    vy: rand(0.3, 0.9),
-    vx: side === 0 ? rand(-0.1, 0.3) : rand(-0.3, 0.1),
-    r: rand(2, 5),
-    life: 1,
-    hue: rand(10, 40),
-    side,
+    streamLeft, streamRight, STREAM_W,
+    poolPhase: 0,
+    embers: Array.from({ length: 20 }, () => spawnPoolEmber(w, h)),
+    poolBubbles: Array.from({ length: 10 }, () => spawnBubble(w, h)),
   };
 }
 
-function spawnEmber(w, h, randomY = false) {
-  const side = Math.random() < 0.5 ? 0 : 1;
+function spawnStream(xBase, streamW, h, randomY = false) {
   return {
-    x: side === 0 ? rand(0, 15) : rand(w - 15, w),
-    y: randomY ? rand(0, h) : rand(h * 0.5, h),
-    vy: rand(-0.5, -1.5),
-    vx: rand(-0.3, 0.3),
-    r: rand(1, 2.5),
+    x: rand(xBase, xBase + streamW),
+    y: randomY ? rand(-10, h) : rand(-25, -5),
+    vy: rand(1.0, 2.2),
+    vx: rand(-0.15, 0.15),
+    r: rand(2.5, 5.5),
+    hue: rand(8, 42),
+    bright: rand(50, 65),
+  };
+}
+
+function spawnPoolEmber(w, h) {
+  return {
+    x: rand(5, w - 5),
+    y: h,
+    vy: rand(-1.2, -3.0),
+    vx: rand(-0.6, 0.6),
+    r: rand(1, 3),
     life: 1,
-    decay: rand(0.005, 0.015),
+    decay: rand(0.012, 0.025),
+    hue: rand(15, 45),
+  };
+}
+
+function spawnBubble(w, h) {
+  const poolH = h * 0.08;
+  return {
+    x: rand(5, w - 5),
+    y: rand(h - poolH, h),
+    r: rand(1.5, 4),
+    phase: rand(0, Math.PI * 2),
+    speed: rand(0.04, 0.1),
+    alpha: rand(0.3, 0.7),
   };
 }
 
 function updateLava(state, w, h, dt) {
   const s = dt / 16;
-  for (let i = 0; i < state.particles.length; i++) {
-    const p = state.particles[i];
+  state.poolPhase += 0.025 * s;
+
+  for (const p of state.streamLeft) {
     p.y += p.vy * s;
     p.x += p.vx * s;
-    if (p.y > h + 10) Object.assign(p, spawnLava(w, h));
+    if (p.y > h + 5) Object.assign(p, spawnStream(0, state.STREAM_W, h));
   }
-  for (let i = 0; i < state.embers.length; i++) {
-    const e = state.embers[i];
+  for (const p of state.streamRight) {
+    p.y += p.vy * s;
+    p.x += p.vx * s;
+    if (p.y > h + 5) Object.assign(p, spawnStream(w - state.STREAM_W, state.STREAM_W, h));
+  }
+  for (const e of state.embers) {
     e.y += e.vy * s;
     e.x += e.vx * s;
+    e.vy += 0.03 * s;
     e.life -= e.decay * s;
-    if (e.life <= 0 || e.y < -10) Object.assign(e, spawnEmber(w, h));
+    if (e.life <= 0 || e.y < -10) Object.assign(e, spawnPoolEmber(w, h));
+  }
+  for (const b of state.poolBubbles) {
+    b.phase += b.speed * s;
+    b.alpha = 0.3 + 0.3 * Math.sin(b.phase);
+    if (b.phase > Math.PI * 6) Object.assign(b, spawnBubble(w, h));
   }
 }
 
 function drawLava(ctx, state, w, h) {
-  for (const p of state.particles) {
-    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2);
-    g.addColorStop(0, hsl(p.hue, 100, 60, 0.9));
-    g.addColorStop(0.5, hsl(p.hue - 10, 100, 45, 0.5));
-    g.addColorStop(1, hsl(p.hue - 20, 100, 30, 0));
+  const poolH = h * 0.08;
+  const SW = state.STREAM_W;
+
+  // Lueur latérale continue (fond des cascades)
+  for (const side of [0, w - SW]) {
+    const g = ctx.createLinearGradient(side, 0, side + SW * 2.5, 0);
+    if (side === 0) {
+      g.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+      g.addColorStop(0.4, 'rgba(249, 115, 22, 0.15)');
+      g.addColorStop(1, 'rgba(249, 115, 22, 0)');
+    } else {
+      g.addColorStop(0, 'rgba(249, 115, 22, 0)');
+      g.addColorStop(0.6, 'rgba(249, 115, 22, 0.15)');
+      g.addColorStop(1, 'rgba(239, 68, 68, 0.35)');
+    }
     ctx.fillStyle = g;
+    ctx.fillRect(side === 0 ? 0 : w - SW * 2.5, 0, SW * 2.5, h);
+  }
+
+  // Particules des cascades
+  const drawStream = (particles) => {
+    for (const p of particles) {
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 1.8);
+      g.addColorStop(0, hsl(p.hue, 100, p.bright, 0.9));
+      g.addColorStop(0.5, hsl(p.hue - 5, 100, p.bright - 15, 0.55));
+      g.addColorStop(1, hsl(p.hue - 10, 100, 30, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  drawStream(state.streamLeft);
+  drawStream(state.streamRight);
+
+  // Bassin de lave en bas avec ondulation
+  const poolG = ctx.createLinearGradient(0, h - poolH * 1.5, 0, h);
+  poolG.addColorStop(0, 'rgba(180, 30, 0, 0)');
+  poolG.addColorStop(0.3, 'rgba(220, 50, 10, 0.25)');
+  poolG.addColorStop(0.7, 'rgba(249, 115, 22, 0.55)');
+  poolG.addColorStop(1, 'rgba(234, 88, 12, 0.7)');
+  ctx.fillStyle = poolG;
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  for (let x = 0; x <= w; x += 4) {
+    const wave = Math.sin(state.poolPhase + x * 0.04) * 3 + Math.sin(state.poolPhase * 1.7 + x * 0.07) * 2;
+    ctx.lineTo(x, h - poolH + wave);
+  }
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bulles dans le bassin
+  for (const b of state.poolBubbles) {
+    ctx.fillStyle = hsl(25, 100, 65, b.alpha * 0.5);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r * 2, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Étincelles qui sautent depuis le bassin
   for (const e of state.embers) {
-    ctx.globalAlpha = e.life;
-    ctx.fillStyle = hsl(30, 100, 70, e.life);
+    if (e.life <= 0) continue;
+    ctx.fillStyle = hsl(e.hue, 100, 75, e.life);
     ctx.beginPath();
-    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.arc(e.x, e.y, e.r * e.life, 0, Math.PI * 2);
+    ctx.fill();
+    const glowR = e.r * 3 * e.life;
+    const eg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, glowR);
+    eg.addColorStop(0, hsl(e.hue, 100, 70, e.life * 0.3));
+    eg.addColorStop(1, hsl(e.hue, 100, 50, 0));
+    ctx.fillStyle = eg;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, glowR, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
 }
 
 // ─── Givre : vent glacé horizontal ───────────────────────────────────────────
@@ -153,75 +240,130 @@ function drawIce(ctx, state) {
   }
 }
 
-// ─── Ombre : brume noir/violet depuis le bas ─────────────────────────────────
+// ─── Ombre : brume épaisse noir/violet depuis le bas ─────────────────────────
 
 function initShadow(w, h) {
   return {
-    clouds: Array.from({ length: 20 }, () => spawnShadowCloud(w, h, true)),
-    wisps: Array.from({ length: 12 }, () => spawnWisp(w, h, true)),
+    clouds: Array.from({ length: 30 }, () => spawnShadowCloud(w, h, true)),
+    wisps: Array.from({ length: 18 }, () => spawnWisp(w, h, true)),
+    tendrils: Array.from({ length: 6 }, () => spawnTendril(w, h)),
+    fogPhase: 0,
   };
 }
 
 function spawnShadowCloud(w, h, randomY = false) {
   return {
-    x: rand(0, w),
-    y: randomY ? rand(h * 0.5, h + 20) : rand(h, h + 30),
-    r: rand(15, 35),
-    vy: rand(-0.15, -0.4),
-    vx: rand(-0.2, 0.2),
-    alpha: rand(0.1, 0.25),
-    hue: rand(260, 290),
+    x: rand(-20, w + 20),
+    y: randomY ? rand(h * 0.35, h + 20) : rand(h, h + 30),
+    r: rand(25, 55),
+    vy: rand(-0.2, -0.55),
+    vx: rand(-0.25, 0.25),
+    alpha: rand(0.2, 0.45),
+    hue: rand(260, 295),
   };
 }
 
 function spawnWisp(w, h, randomY = false) {
   return {
     x: rand(0, w),
-    y: randomY ? rand(h * 0.6, h) : h + 5,
-    vy: rand(-0.3, -0.8),
-    vx: rand(-0.15, 0.15),
-    alpha: rand(0.15, 0.35),
-    r: rand(2, 4),
+    y: randomY ? rand(h * 0.4, h) : h + 5,
+    vy: rand(-0.4, -1.2),
+    vx: rand(-0.2, 0.2),
+    alpha: rand(0.3, 0.6),
+    r: rand(3, 6),
     life: 1,
-    decay: rand(0.004, 0.01),
+    decay: rand(0.003, 0.008),
+  };
+}
+
+function spawnTendril(w, h) {
+  return {
+    x: rand(w * 0.1, w * 0.9),
+    baseY: h,
+    reach: rand(h * 0.3, h * 0.6),
+    phase: rand(0, Math.PI * 2),
+    speed: rand(0.015, 0.04),
+    width: rand(8, 20),
+    hue: rand(265, 290),
+    alpha: rand(0.12, 0.25),
   };
 }
 
 function updateShadow(state, w, h, dt) {
   const s = dt / 16;
+  state.fogPhase += 0.02 * s;
   for (const c of state.clouds) {
     c.y += c.vy * s;
     c.x += c.vx * s;
-    if (c.y < h * 0.2 - c.r) Object.assign(c, spawnShadowCloud(w, h));
+    if (c.y < h * 0.1 - c.r) Object.assign(c, spawnShadowCloud(w, h));
   }
   for (const wp of state.wisps) {
     wp.y += wp.vy * s;
     wp.x += wp.vx * s;
     wp.life -= wp.decay * s;
-    if (wp.life <= 0 || wp.y < h * 0.2) Object.assign(wp, spawnWisp(w, h));
+    if (wp.life <= 0 || wp.y < h * 0.05) Object.assign(wp, spawnWisp(w, h));
+  }
+  for (const t of state.tendrils) {
+    t.phase += t.speed * s;
   }
 }
 
 function drawShadow(ctx, state, w, h) {
-  const grad = ctx.createLinearGradient(0, h, 0, h * 0.5);
-  grad.addColorStop(0, 'rgba(30, 0, 50, 0.25)');
+  // Fond brumeux dense depuis le bas (couvre 60% de la carte)
+  const grad = ctx.createLinearGradient(0, h, 0, h * 0.3);
+  grad.addColorStop(0, 'rgba(20, 0, 40, 0.6)');
+  grad.addColorStop(0.4, 'rgba(30, 0, 50, 0.35)');
+  grad.addColorStop(0.7, 'rgba(30, 0, 50, 0.12)');
   grad.addColorStop(1, 'rgba(30, 0, 50, 0)');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, h * 0.5, w, h * 0.5);
+  ctx.fillRect(0, h * 0.3, w, h * 0.7);
 
+  // Tentacules de brume qui ondulent vers le haut
+  for (const t of state.tendrils) {
+    const sway = Math.sin(t.phase) * 15;
+    const swayMid = Math.sin(t.phase * 1.3 + 1) * 10;
+    ctx.beginPath();
+    ctx.moveTo(t.x - t.width / 2, t.baseY);
+    ctx.quadraticCurveTo(
+      t.x + swayMid, t.baseY - t.reach * 0.5,
+      t.x + sway, t.baseY - t.reach
+    );
+    ctx.quadraticCurveTo(
+      t.x + swayMid + t.width * 0.3, t.baseY - t.reach * 0.5,
+      t.x + t.width / 2, t.baseY
+    );
+    ctx.closePath();
+    const tg = ctx.createLinearGradient(t.x, t.baseY, t.x, t.baseY - t.reach);
+    tg.addColorStop(0, hsl(t.hue, 70, 20, t.alpha));
+    tg.addColorStop(0.6, hsl(t.hue, 60, 15, t.alpha * 0.5));
+    tg.addColorStop(1, hsl(t.hue, 60, 10, 0));
+    ctx.fillStyle = tg;
+    ctx.fill();
+  }
+
+  // Nuages denses
   for (const c of state.clouds) {
     const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-    g.addColorStop(0, hsl(c.hue, 60, 15, c.alpha));
-    g.addColorStop(1, hsl(c.hue, 60, 10, 0));
+    g.addColorStop(0, hsl(c.hue, 70, 12, c.alpha));
+    g.addColorStop(0.6, hsl(c.hue, 60, 10, c.alpha * 0.5));
+    g.addColorStop(1, hsl(c.hue, 60, 8, 0));
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Mèches violettes lumineuses
   for (const wp of state.wisps) {
-    ctx.fillStyle = hsl(275, 70, 40, wp.alpha * wp.life);
+    const a = wp.alpha * wp.life;
+    if (a <= 0) continue;
+    const g = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, wp.r * 2.5);
+    g.addColorStop(0, hsl(275, 80, 50, a * 0.8));
+    g.addColorStop(0.4, hsl(275, 70, 40, a * 0.4));
+    g.addColorStop(1, hsl(275, 60, 30, 0));
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(wp.x, wp.y, wp.r, 0, Math.PI * 2);
+    ctx.arc(wp.x, wp.y, wp.r * 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 }
