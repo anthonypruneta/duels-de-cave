@@ -127,7 +127,8 @@ const MirrorMode = () => {
       setCloneHP(result.p2MaxHP);
 
       await replayCombatSteps(result.steps, {
-        onStep: (step) => {
+        setCombatLog,
+        onStepHP: (step) => {
           setPlayerHP(step.p1HP);
           setCloneHP(step.p2HP);
           setPlayerShield(step.p1Shield || 0);
@@ -136,10 +137,8 @@ const MirrorMode = () => {
           setCloneCombatBase(step.p2Base || null);
           setPlayerCombatModifiers(step.p1Modifiers || null);
           setPlayerCombatStatus(step.p1Status || null);
-          setCombatLog(prev => [...prev, ...step.logs]);
         },
-        delayMs: 600,
-        introDelayMs: 1200,
+        speed: 'normal',
       });
 
       const isWin = result.winnerId === character.userId;

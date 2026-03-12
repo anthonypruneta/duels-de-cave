@@ -111,7 +111,8 @@ const BossRush = () => {
       setBossHP(result.p2MaxHP);
 
       await replayCombatSteps(result.steps, {
-        onStep: (step) => {
+        setCombatLog,
+        onStepHP: (step) => {
           setPlayerHP(step.p1HP);
           setBossHP(step.p2HP);
           setPlayerShield(step.p1Shield || 0);
@@ -120,10 +121,8 @@ const BossRush = () => {
           setBossCombatBase(step.p2Base || null);
           setPlayerCombatModifiers(step.p1Modifiers || null);
           setPlayerCombatStatus(step.p1Status || null);
-          setCombatLog(prev => [...prev, ...step.logs]);
         },
-        delayMs: 600,
-        introDelayMs: 1200,
+        speed: 'fast',
       });
 
       const isWin = result.winnerId === character.userId;
