@@ -654,28 +654,33 @@ const Tournament = () => {
 
     if (isBye || !hasAnyParticipant) return null;
 
-    const borderClass = isCurrentMatch ? 'border-amber-400 bg-amber-900/20' :
-      isTermine ? 'border-stone-600 bg-stone-800/50' : 'border-stone-700 bg-stone-900/30';
+    const borderClass = isCurrentMatch
+      ? 'border-amber-500/70 bg-amber-900/20'
+      : isTermine
+        ? 'border-stone-700/60 bg-stone-900/60'
+        : 'border-stone-700/40 bg-stone-900/40';
+
+    const p1Won = showWinner && match.winnerId === match.p1;
+    const p2Won = showWinner && match.winnerId === match.p2;
 
     return (
       <div
         key={matchId}
-        className={`border ${borderClass} p-2 text-xs cursor-pointer hover:border-amber-500 transition mb-2`}
+        className={`border ${borderClass} rounded-lg p-2.5 text-xs mb-2 transition-colors ${isTermine ? 'cursor-pointer hover:border-amber-600/60' : ''}`}
         onClick={() => isTermine && rejouerMatch(matchId)}
         title={isTermine ? 'Cliquer pour revoir' : ''}
       >
-        <div className="text-stone-500 text-[10px] mb-1">{match.roundLabel}</div>
-        <div className={`flex justify-between items-center ${showWinner && match.winnerId === match.p1 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
-          <span>{p1 ? p1.nom : '?'}</span>
-          {showWinner && match.winnerId === match.p1 && <span className="text-green-400 text-[10px]">W</span>}
+        <div className="text-stone-600 text-[10px] mb-1.5 font-medium">{match.roundLabel}</div>
+        <div className={`flex justify-between items-center py-0.5 ${p1Won ? 'text-amber-300 font-bold' : showWinner && !p1Won ? 'text-stone-600' : 'text-stone-300'}`}>
+          <span className="truncate">{p1 ? p1.nom : '?'}</span>
+          {p1Won && <span className="text-emerald-400 text-[10px] ml-1 flex-shrink-0">✓</span>}
         </div>
-        <div className="text-stone-600 text-center text-[10px]">vs</div>
-        <div className={`flex justify-between items-center ${showWinner && match.winnerId === match.p2 ? 'text-amber-300 font-bold' : 'text-stone-400'}`}>
-          <span>{p2 ? p2.nom : '?'}</span>
-          {showWinner && match.winnerId === match.p2 && <span className="text-green-400 text-[10px]">W</span>}
+        <div className="text-stone-700 text-center text-[9px] leading-none">vs</div>
+        <div className={`flex justify-between items-center py-0.5 ${p2Won ? 'text-amber-300 font-bold' : showWinner && !p2Won ? 'text-stone-600' : 'text-stone-300'}`}>
+          <span className="truncate">{p2 ? p2.nom : '?'}</span>
+          {p2Won && <span className="text-emerald-400 text-[10px] ml-1 flex-shrink-0">✓</span>}
         </div>
-        {isCurrentMatch && <div className="text-amber-400 text-center text-[10px] mt-1 animate-pulse">EN COURS</div>}
-        {isTermine && <div className="text-stone-500 text-center text-[10px] mt-1">Cliquer pour revoir</div>}
+        {isCurrentMatch && <div className="text-amber-400 text-center text-[10px] mt-1.5 animate-pulse font-semibold">⚔️ EN COURS</div>}
       </div>
     );
   };
@@ -718,12 +723,12 @@ const Tournament = () => {
     }
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div>
-          <h3 className="text-amber-400 font-bold mb-2">🏆 Winners Bracket</h3>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2">🏆 Winners Bracket</h3>
+          <div className="flex gap-3 overflow-x-auto pb-2">
             {Object.keys(winnersRounds).sort((a, b) => a - b).map(round => (
-              <div key={`wr-${round}`} className="min-w-[160px]">
+              <div key={`wr-${round}`} className="min-w-[155px]">
                 {winnersRounds[round].sort().map(id => renderBracketMatch(id))}
               </div>
             ))}
@@ -732,10 +737,10 @@ const Tournament = () => {
 
         {Object.keys(losersRounds).length > 0 && (
           <div>
-            <h3 className="text-red-400 font-bold mb-2">💀 Losers Bracket</h3>
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">💀 Losers Bracket</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
               {Object.keys(losersRounds).sort((a, b) => a - b).map(round => (
-                <div key={`lr-${round}`} className="min-w-[160px]">
+                <div key={`lr-${round}`} className="min-w-[155px]">
                   {losersRounds[round].sort().map(id => renderBracketMatch(id))}
                 </div>
               ))}
@@ -745,8 +750,8 @@ const Tournament = () => {
 
         {hasGF && (
           <div>
-            <h3 className="text-yellow-300 font-bold mb-2">👑 Grande Finale</h3>
-            <div className="max-w-[200px]">
+            <h3 className="text-xs font-bold text-yellow-300 uppercase tracking-widest mb-2">👑 Grande Finale</h3>
+            <div className="max-w-[180px]">
               {renderBracketMatch('GF')}
               {hasGFR && renderBracketMatch('GFR')}
             </div>
@@ -936,43 +941,41 @@ const Tournament = () => {
         <div className="max-w-2xl mx-auto pt-20 text-center">
           {isSimulation ? (
             <>
-              <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
-                <h1 className="text-4xl font-bold text-amber-400">🎲 Simulation de Tournoi</h1>
+              <h1 className="text-3xl font-bold text-amber-400 mb-6">🎲 Simulation de Tournoi</h1>
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-8">
+                <p className="text-stone-300 text-lg">Aucune simulation en cours</p>
+                <p className="text-stone-500 mt-2 text-sm">Lancez une simulation depuis le panel admin</p>
               </div>
-              <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
-                <p className="text-stone-300 text-xl">Aucune simulation en cours</p>
-                <p className="text-stone-500 mt-2">Lancez une simulation depuis le panel admin</p>
-              </div>
-              <button onClick={() => navigate('/admin')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+              <button onClick={() => navigate('/admin')} className="mt-6 bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600">
                 ← Retour à l'admin
               </button>
             </>
           ) : (
             <>
-              <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block mb-8">
-                <h1 className="text-4xl font-bold text-amber-400">🏟️ Tournoi du Samedi</h1>
-              </div>
+              <h1 className="text-3xl font-bold text-amber-400 mb-6">🏟️ Tournoi du Samedi</h1>
 
               {phase === 'attente' && countdown && (
-                <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl">
-                  <p className="text-stone-300 text-xl mb-6">Prochain tournoi dans</p>
+                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-8">
+                  <p className="text-stone-400 text-sm uppercase tracking-widest mb-4">Prochain tournoi dans</p>
                   <div className="text-5xl md:text-6xl font-bold text-amber-400 font-mono tracking-wider mb-6">
                     {countdown}
                   </div>
-                  <p className="text-stone-500">Samedi à 18h — Annonce des duels</p>
-                  <p className="text-stone-500">Samedi à 19h — Début des combats</p>
+                  <div className="flex justify-center gap-6 text-sm text-stone-500">
+                    <span>📣 18h — Annonce</span>
+                    <span>⚔️ 19h — Combats</span>
+                  </div>
                 </div>
               )}
 
               {(phase === 'annonce' || phase === 'combat') && (
-                <div className="bg-stone-800/90 p-8 border-2 border-amber-500 rounded-xl">
+                <div className="bg-stone-950/85 border border-amber-700/60 rounded-xl p-8">
                   <div className="text-4xl mb-4 animate-pulse">⏳</div>
-                  <p className="text-amber-300 text-xl font-bold">Préparation du tournoi en cours...</p>
-                  <p className="text-stone-400 mt-2">Les duels seront annoncés dans un instant</p>
+                  <p className="text-amber-300 text-lg font-bold">Préparation du tournoi en cours...</p>
+                  <p className="text-stone-500 mt-2 text-sm">Les duels seront annoncés dans un instant</p>
                 </div>
               )}
 
-              <button onClick={() => navigate('/')} className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+              <button onClick={() => navigate('/')} className="mt-6 bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600">
                 ← Retour
               </button>
             </>
@@ -989,42 +992,39 @@ const Tournament = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="max-w-4xl mx-auto pt-20">
-          <div className="text-center mb-8">
-            <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
-              <h1 className="text-4xl font-bold text-amber-400">
-                {isSimulation ? '🎲 Simulation — Les duels sont prêts !' : '🏟️ Les duels sont annoncés !'}
-              </h1>
-              <p className="text-stone-400 mt-2">
-                {tournoi.participantsList?.length || 0} combattants{isSimulation ? '' : ' • Début à 19h'}
-              </p>
-            </div>
+        <div className="max-w-5xl mx-auto pt-20">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold text-amber-400">
+              {isSimulation ? '🎲 Simulation — Les duels sont prêts !' : '🏟️ Les duels sont annoncés !'}
+            </h1>
+            <p className="text-stone-400 mt-2 text-sm">
+              {tournoi.participantsList?.length || 0} combattants{isSimulation ? '' : ' • Début à 19h'}
+            </p>
           </div>
 
-          <div className="bg-stone-800/90 border border-stone-600 p-4 rounded-xl mb-8 overflow-x-auto">
-            <h2 className="text-xl font-bold text-stone-200 mb-4">📊 Arbre du tournoi</h2>
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6 overflow-x-auto">
+            <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">📊 Arbre du tournoi</h2>
             {renderBracket()}
           </div>
 
-          <div className="bg-stone-800 border border-stone-600 p-6 rounded-xl mb-8">
-            <h2 className="text-xl font-bold text-amber-300 mb-4">Participants</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6">
+            <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">👥 Participants</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {tournoi.participantsList?.map(p => (
-                <div key={p.participantId || p.userId} className="bg-stone-900/50 p-3 border border-stone-700 text-center">
+                <div key={p.participantId || p.userId} className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3 text-center">
                   {p.characterImage && (
-                    <img src={p.characterImage} alt={p.nom} className="w-16 h-auto mx-auto mb-2 object-contain" />
+                    <img src={p.characterImage} alt={p.nom} className="w-14 h-auto mx-auto mb-2 object-contain rounded" />
                   )}
-                  <p className="text-white font-bold text-sm">{p.nom}</p>
-                  <p className="text-stone-400 text-xs">{p.race} • {p.classe}</p>
+                  <p className="text-white font-bold text-xs truncate">{p.nom}</p>
+                  <p className="text-stone-500 text-[10px]">{p.race} • {p.classe}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {isAdmin && (
-            <div className="text-center bg-stone-900 border border-red-600 p-6 rounded-xl">
-              <h3 className="text-red-400 font-bold mb-4">Admin</h3>
-              <p className="text-stone-500 text-sm mb-4">Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.</p>
+            <div className="text-center bg-stone-950/85 border border-red-800/50 rounded-xl p-6">
+              <p className="text-stone-500 text-xs mb-4">Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.</p>
               <button
                 onClick={async () => {
                   setActionLoading(true);
@@ -1032,9 +1032,9 @@ const Tournament = () => {
                   setActionLoading(false);
                 }}
                 disabled={actionLoading}
-                className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-12 py-4 font-bold text-xl rounded-lg transition"
+                className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-10 py-3 font-bold text-lg rounded-lg transition"
               >
-                {actionLoading ? '⏳ Lancement...' : '🚀 LANCER MANUELLEMENT'}
+                {actionLoading ? '⏳ Lancement...' : '🚀 Lancer manuellement'}
               </button>
             </div>
           )}
@@ -1065,21 +1065,19 @@ const Tournament = () => {
 
       <div className="max-w-[1800px] mx-auto pt-16">
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
-            <h1 className="text-3xl md:text-4xl font-bold text-amber-400">
-              {isSimulation ? '🎲' : '🏟️'} {isTournoiTermine
-                ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
-                : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
-            </h1>
-            {matchProgress && <p className="text-stone-400 mt-1">{matchProgress}</p>}
-          </div>
+        <div className="text-center mb-5">
+          <h1 className="text-2xl md:text-3xl font-bold text-amber-400">
+            {isSimulation ? '🎲' : '🏟️'} {isTournoiTermine
+              ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
+              : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
+          </h1>
+          {matchProgress && <p className="text-stone-500 text-sm mt-1">{matchProgress}</p>}
         </div>
 
         {/* Annonce DBZ */}
         {annonceActuelle && (
-          <div className="mb-6 bg-gradient-to-r from-red-900/80 via-amber-900/80 to-red-900/80 border-2 border-amber-500 p-6 text-center animate-pulse rounded-xl">
-            <p className="text-amber-200 font-bold text-lg md:text-xl whitespace-pre-line">
+          <div className="mb-5 bg-gradient-to-r from-red-950/70 via-amber-950/70 to-red-950/70 border border-amber-600/60 rounded-xl p-5 text-center">
+            <p className="text-amber-200 font-bold text-base md:text-lg whitespace-pre-line animate-pulse">
               📢 {annonceActuelle}
             </p>
           </div>
