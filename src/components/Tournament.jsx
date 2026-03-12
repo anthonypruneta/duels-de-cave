@@ -797,23 +797,23 @@ const Tournament = () => {
         <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
           {/* Message de victoire */}
           {winner && (
-            <div className="flex justify-center mb-4">
-              <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl border-2 border-stone-400">
-                🏆 {winner} remporte le combat! 🏆
+            <div className="flex justify-center mb-3">
+              <div className="bg-amber-500/10 border border-amber-500/60 text-amber-200 px-6 py-2.5 font-bold text-lg rounded-lg animate-pulse">
+                🏆 {winner} remporte le combat !
               </div>
             </div>
           )}
 
           {/* Zone de chat messenger */}
-          <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-            <div className="bg-stone-900 p-3 border-b border-stone-600">
-              <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col h-[480px] md:h-[600px]">
+            <div className="p-3 border-b border-stone-700/60">
+              <h2 className="text-sm font-bold text-stone-300 text-center uppercase tracking-wider">
                 ⚔️ {replayMatchId ? 'Replay' : 'Combat en direct'}
               </h2>
             </div>
-            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2.5 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent">
               {combatLog.length === 0 && !isAnimating ? (
-                <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">
+                <p className="text-stone-600 italic text-center py-8 text-sm">
                   En attente du combat...
                 </p>
               ) : (
@@ -826,8 +826,8 @@ const Tournament = () => {
                     if (!isP1 && !isP2) {
                       if (log.includes('🏆')) {
                         return (
-                          <div key={idx} className="flex justify-center my-4">
-                            <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                          <div key={idx} className="flex justify-center my-3">
+                            <div className="bg-amber-500/10 border border-amber-500/50 text-amber-200 px-5 py-2 font-bold text-sm rounded-lg">
                               {cleanLog}
                             </div>
                           </div>
@@ -835,8 +835,8 @@ const Tournament = () => {
                       }
                       if (log.includes('---')) {
                         return (
-                          <div key={idx} className="flex justify-center my-3">
-                            <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                          <div key={idx} className="flex justify-center my-2">
+                            <div className="bg-stone-800/80 text-stone-400 px-4 py-1 text-xs font-bold rounded-md border border-stone-700/50">
                               {cleanLog}
                             </div>
                           </div>
@@ -844,7 +844,7 @@ const Tournament = () => {
                       }
                       return (
                         <div key={idx} className="flex justify-center">
-                          <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                          <div className="text-stone-500 text-xs italic">{cleanLog}</div>
                         </div>
                       );
                     }
@@ -853,7 +853,7 @@ const Tournament = () => {
                       return (
                         <div key={idx} className="flex justify-start">
                           <div className="max-w-[80%]">
-                            <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                            <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-blue-500/70">
                               <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                             </div>
                           </div>
@@ -864,7 +864,7 @@ const Tournament = () => {
                     return (
                       <div key={idx} className="flex justify-end">
                         <div className="max-w-[80%]">
-                          <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500">
+                          <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-purple-500/70">
                             <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
                           </div>
                         </div>
@@ -906,7 +906,7 @@ const Tournament = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
-        <div className="text-amber-400 text-2xl">Chargement du tournoi...</div>
+        <div className="text-amber-400 text-lg animate-pulse">Chargement du tournoi...</div>
       </div>
     );
   }
@@ -916,13 +916,13 @@ const Tournament = () => {
       <div className="min-h-screen p-6">
         <Header />
         <div className="max-w-2xl mx-auto pt-20 text-center">
-          <div className="bg-stone-800/90 p-8 border-2 border-red-700 rounded-xl">
-            <p className="text-red-300 text-xl">Impossible de charger le tournoi</p>
-            <p className="text-stone-400 mt-2 text-sm">{listenerError}</p>
+          <div className="bg-stone-950/85 border border-red-800/50 rounded-xl p-8">
+            <p className="text-red-400 text-lg font-bold">Impossible de charger le tournoi</p>
+            <p className="text-stone-500 mt-2 text-sm">{listenerError}</p>
           </div>
           <button
             onClick={() => navigate('/admin')}
-            className="mt-6 bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition"
+            className="mt-6 bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600"
           >
             ← Retour à l'admin
           </button>
@@ -1085,15 +1085,15 @@ const Tournament = () => {
 
         {/* Champion */}
         {isTournoiTermine && tournoi.champion && (
-          <div className="mb-6 bg-gradient-to-r from-yellow-900/50 via-amber-800/50 to-yellow-900/50 border-2 border-yellow-500 p-8 text-center rounded-xl">
-            <div className="text-6xl mb-4">👑</div>
+          <div className="mb-5 bg-stone-950/85 border border-amber-600/50 rounded-xl p-6 text-center">
+            <div className="text-5xl mb-3">👑</div>
             {tournoi.champion.characterImage && (
-              <img src={tournoi.champion.characterImage} alt={tournoi.champion.nom} className="w-32 h-auto mx-auto mb-4 object-contain" />
+              <img src={tournoi.champion.characterImage} alt={tournoi.champion.nom} className="w-28 h-auto mx-auto mb-3 object-contain rounded-lg" />
             )}
-            <h2 className="text-3xl font-bold text-yellow-300">{tournoi.champion.nom}</h2>
-            <p className="text-amber-300">{tournoi.champion.race} • {tournoi.champion.classe}</p>
-            <p className="text-yellow-400 font-bold mt-2">{isSimulation ? 'CHAMPION DE LA SIMULATION' : 'CHAMPION DU TOURNOI'}</p>
-            {!isSimulation && <p className="text-stone-400 text-sm mt-1">Récompense: 3 rolls pour le prochain personnage</p>}
+            <h2 className="text-2xl font-bold text-amber-300">{tournoi.champion.nom}</h2>
+            <p className="text-stone-400 text-sm mt-1">{tournoi.champion.race} • {tournoi.champion.classe}</p>
+            <p className="text-amber-400 font-bold text-sm mt-2 uppercase tracking-widest">{isSimulation ? 'Champion de la simulation' : 'Champion du tournoi'}</p>
+            {!isSimulation && <p className="text-stone-500 text-xs mt-1">Récompense : 3 rolls pour le prochain personnage</p>}
           </div>
         )}
 
@@ -1101,15 +1101,15 @@ const Tournament = () => {
         {renderCombatUI()}
 
         {/* Bracket (toggle) */}
-        <div className="mt-6">
+        <div className="mt-5">
           <button
             onClick={() => setShowBracket(!showBracket)}
-            className="bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600 w-full text-left font-bold"
+            className="bg-stone-950/85 hover:bg-stone-900 text-stone-300 px-5 py-2.5 rounded-xl transition border border-stone-700/80 w-full text-left text-sm font-bold"
           >
             {showBracket ? '▼' : '▶'} 📊 Arbre du tournoi
           </button>
           {showBracket && (
-            <div className="bg-stone-800/90 border border-stone-600 p-4 rounded-b-xl overflow-x-auto">
+            <div className="bg-stone-950/85 border border-stone-700/80 border-t-0 rounded-b-xl p-4 overflow-x-auto">
               {renderBracket()}
             </div>
           )}
@@ -1117,11 +1117,11 @@ const Tournament = () => {
 
         {/* Admin Controls */}
         {isAdmin && !isTournoiTermine && (
-          <div className="mt-6 bg-stone-900 border border-red-600 p-4 rounded-xl flex flex-wrap gap-4 justify-center">
+          <div className="mt-5 bg-stone-950/85 border border-red-800/40 rounded-xl p-4 flex flex-wrap gap-3 justify-center">
             <button
               onClick={handleMatchSuivant}
               disabled={actionLoading || isAnimating}
-              className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition"
+              className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-6 py-2.5 font-bold text-sm rounded-lg transition"
             >
               {actionLoading ? '⏳ Simulation...' : '⏭️ Match suivant'}
             </button>
@@ -1129,18 +1129,17 @@ const Tournament = () => {
         )}
 
         {isAdmin && isTournoiTermine && (
-          <div className="mt-6 bg-stone-900 border border-red-600 p-4 rounded-xl flex flex-wrap gap-4 justify-center">
+          <div className="mt-5 bg-stone-950/85 border border-red-800/40 rounded-xl p-4 flex flex-wrap gap-3 justify-center">
             <button
               onClick={handleTerminerTournoi}
               disabled={actionLoading}
-              className={`${isSimulation ? 'bg-stone-600 hover:bg-stone-500' : 'bg-red-600 hover:bg-red-500'} disabled:bg-stone-700 text-white px-8 py-3 font-bold rounded-lg transition`}
+              className={`${isSimulation ? 'bg-stone-700 hover:bg-stone-600' : 'bg-red-700 hover:bg-red-600'} disabled:bg-stone-700 text-white px-6 py-2.5 font-bold text-sm rounded-lg transition`}
             >
               {actionLoading ? '⏳...' : isSimulation ? '← Quitter la simulation' : '🏁 Archiver & Terminer'}
             </button>
           </div>
         )}
 
-        {/* Bouton quitter simulation (toujours visible en simulation) */}
         {isSimulation && !isTournoiTermine && (
           <div className="mt-4 text-center">
             <button
@@ -1153,7 +1152,7 @@ const Tournament = () => {
                 navigate('/admin');
               }}
               disabled={actionLoading}
-              className="bg-stone-600 hover:bg-stone-500 disabled:bg-stone-700 text-white px-6 py-2 rounded-lg transition"
+              className="bg-stone-800 hover:bg-stone-700 disabled:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600"
             >
               {actionLoading ? '⏳...' : '← Quitter la simulation'}
             </button>
@@ -1161,8 +1160,8 @@ const Tournament = () => {
         )}
 
         {/* Navigation */}
-        <div className="mt-6 text-center">
-          <button onClick={() => navigate(isSimulation ? '/admin' : '/')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg transition">
+        <div className="mt-5 text-center">
+          <button onClick={() => navigate(isSimulation ? '/admin' : '/')} className="bg-stone-800 hover:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600">
             ← Retour
           </button>
         </div>
