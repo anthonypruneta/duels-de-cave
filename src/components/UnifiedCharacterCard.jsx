@@ -28,6 +28,7 @@ function animateValue(from, to, durationMs, onUpdate, onComplete) {
 const UnifiedCharacterCard = ({
   header,
   name,
+  title = null,
   image,
   fallback,
   topStats,
@@ -43,6 +44,10 @@ const UnifiedCharacterCard = ({
   infoSide = null,
   /** Masquer la section info sur lg (quand les stats/details sont dans un panneau latéral externe) */
   hideInfoOnLg = false,
+  /** Classe CSS de bordure cosmétique (ex: 'forge-lava-border') */
+  borderClassName = null,
+  /** Contenu overlay sur l'image (ex: brume du miroir) */
+  imageOverlayContent = null,
 }) => {
   const targetHp = typeof hpPercent === 'number' ? Math.max(0, Math.min(100, hpPercent)) : null;
   const targetShield = Math.max(0, Math.min(100, shieldPercent));
@@ -88,8 +93,12 @@ const UnifiedCharacterCard = ({
       ) : (
         <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
       )}
-      <div className="absolute bottom-5 left-2 right-2 py-1 text-center">
+      {imageOverlayContent}
+      <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}>
         <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
+        {title && (
+          <div className="character-card-name text-sm leading-tight mt-0.5" style={nameStyle}>{title}</div>
+        )}
       </div>
     </div>
   );
@@ -118,18 +127,21 @@ const UnifiedCharacterCard = ({
     </div>
   );
 
+  const borderCls = borderClassName || '';
+  const baseBorder = borderClassName ? '' : 'border border-stone-600';
+
   if (infoSide) {
     return (
       <div className={`w-full ${cardClassName}`.trim()}>
-        <div className="relative shadow-2xl">
+        <div className={`relative shadow-2xl ${borderCls}`}>
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
             {header}
           </div>
-          <div className="overflow-visible border border-stone-600 bg-stone-900 hidden md:flex md:flex-row">
+          <div className={`overflow-visible ${baseBorder} bg-stone-900 hidden md:flex md:flex-row`}>
             {infoSide === 'left' ? <>{infoSection}{imageSection}</> : <>{imageSection}{infoSection}</>}
           </div>
           {/* Fallback vertical pour mobile */}
-          <div className="overflow-visible border border-stone-600 bg-stone-900 md:hidden">
+          <div className={`overflow-visible ${baseBorder} bg-stone-900 md:hidden`}>
             {imageSection}
             {infoSection}
           </div>
@@ -140,11 +152,11 @@ const UnifiedCharacterCard = ({
 
   return (
     <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
-      <div className="relative shadow-2xl">
+      <div className={`relative shadow-2xl ${borderCls}`}>
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {header}
         </div>
-        <div className="overflow-visible border border-stone-600 bg-stone-900">
+        <div className={`overflow-visible ${baseBorder} bg-stone-900`}>
           {imageSection}
           {infoSection}
         </div>

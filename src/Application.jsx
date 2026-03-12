@@ -24,6 +24,8 @@ import ForgeDungeon from './components/ForgeDungeon';
 import ExtensionDungeon from './components/ExtensionDungeon';
 import SubclassDungeon from './components/SubclassDungeon';
 import Encyclopedia from './components/Encyclopedia';
+import BossRush from './components/BossRush';
+import MirrorMode from './components/MirrorMode';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -179,6 +181,24 @@ function Application() {
               <ProtectedRoute>
                 <ModeAvailabilityRoute>
                   <SubclassDungeon />
+                </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/boss-rush"
+            element={
+              <ProtectedRoute>
+                <BossRush />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mirror"
+            element={
+              <ProtectedRoute>
+                <ModeAvailabilityRoute>
+                  <MirrorMode />
                 </ModeAvailabilityRoute>
               </ProtectedRoute>
             }

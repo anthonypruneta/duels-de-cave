@@ -41,6 +41,7 @@ import SharedTooltip from './SharedTooltip';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
+import { checkAndAwardTitles } from '../services/titleService';
 
 const extensionImageModules = import.meta.glob('../assets/extension/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -104,6 +105,7 @@ const ExtensionDungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const [rolledExtensionPassive, setRolledExtensionPassive] = useState(null);
+  const [previousExtensionPassive, setPreviousExtensionPassive] = useState(null);
   const [extensionChoice, setExtensionChoice] = useState(null);
   const [savingChoice, setSavingChoice] = useState(false);
   const [showUpgradeAnimation, setShowUpgradeAnimation] = useState(false);
@@ -185,6 +187,7 @@ const ExtensionDungeon = () => {
   const handleStartRun = async () => {
     setError(null);
     setRolledExtensionPassive(null);
+    setPreviousExtensionPassive(null);
     setExtensionChoice(null);
     const result = await startDungeonRun(currentUser.uid);
     if (!result.success) {
@@ -219,6 +222,7 @@ const ExtensionDungeon = () => {
     const b = { ...boss };
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
     const matchResult = simulerMatch(character, createExtensionBossCombatant());
+    checkAndAwardTitles(currentUser.uid, matchResult.steps, matchResult, character, { mode: 'extension', bossId: 'gojo' });
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {
@@ -242,6 +246,16 @@ const ExtensionDungeon = () => {
       setCombatResult('victory');
       const rolled = rollExtensionPassive(character.mageTowerPassive?.id);
       setRolledExtensionPassive(rolled);
+      if (rolled) {
+        const newExtension = { id: rolled.id, level: rolled.level ?? 1 };
+        setPreviousExtensionPassive(character.mageTowerExtensionPassive || null);
+        updateCharacterMageTowerExtensionPassive(currentUser.uid, newExtension)
+          .then(result => {
+            if (result.success) {
+              setCharacter(prev => prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev);
+            }
+          });
+      }
       setGameState('reward');
     } else {
       logs.push(`💀 ${player?.name ?? p.name} a été vaincu par ${boss?.name ?? b.name}...`);
@@ -256,24 +270,18 @@ const ExtensionDungeon = () => {
     if (!rolledExtensionPassive) return;
     setSavingChoice(true);
     const newExtension = { id: rolledExtensionPassive.id, level: rolledExtensionPassive.level ?? 1 };
-    const result = await updateCharacterMageTowerExtensionPassive(currentUser.uid, newExtension);
-    if (result.success) {
-      setCharacter((prev) => (prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev));
-      setExtensionChoice('new');
-      setShowUpgradeAnimation(true);
-      if (newExtension.level === 3) {
-        const primaryName = getMageTowerPassiveById(character.mageTowerPassive?.id)?.name ?? 'Passif principal';
-        const extensionName = getMageTowerPassiveById(newExtension.id)?.name ?? 'Passif extension';
-        const mixedName = getMixedPassiveDisplayName(character.mageTowerPassive?.id, newExtension.id) || `${primaryName} + ${extensionName}`;
-        envoyerAnnonceDiscord({
-          titre: '👁️ MESDAMES ET MESSIEURS — DROP LEGENDAIRE !!!',
-          message: `**INCREDIBLE!!!** La foule en délire!!! **${character?.name ?? 'Un combattant'}** vient de décrocher le graal : un passif d'extension **NIVEAU TROIS**!!!\n\n` +
-            `*"Quelle rareté!!! Une chance sur cent!!! On n'avait jamais vu ça depuis le début du Tenka— euh, de l'Extension du Territoire!!!"*\n\n` +
-            `**${mixedName}** — la fusion de ${primaryName} et ${extensionName} — résonne dans l'arène!!! QUELLE PUISSANCE!!!`,
-        }).catch((err) => console.warn('Annonce Discord extension niv.3:', err));
-      }
-    } else {
-      setError('Erreur lors de la sauvegarde du passif.');
+    setExtensionChoice('new');
+    setShowUpgradeAnimation(true);
+    if (newExtension.level === 3) {
+      const primaryName = getMageTowerPassiveById(character.mageTowerPassive?.id)?.name ?? 'Passif principal';
+      const extensionName = getMageTowerPassiveById(newExtension.id)?.name ?? 'Passif extension';
+      const mixedName = getMixedPassiveDisplayName(character.mageTowerPassive?.id, newExtension.id) || `${primaryName} + ${extensionName}`;
+      envoyerAnnonceDiscord({
+        titre: '👁️ MESDAMES ET MESSIEURS — DROP LEGENDAIRE !!!',
+        message: `**INCREDIBLE!!!** La foule en délire!!! **${character?.name ?? 'Un combattant'}** vient de décrocher le graal : un passif d'extension **NIVEAU TROIS**!!!\n\n` +
+          `*"Quelle rareté!!! Une chance sur cent!!! On n'avait jamais vu ça depuis le début du Tenka— euh, de l'Extension du Territoire!!!"*\n\n` +
+          `**${mixedName}** — la fusion de ${primaryName} et ${extensionName} — résonne dans l'arène!!! QUELLE PUISSANCE!!!`,
+      }).catch((err) => console.warn('Annonce Discord extension niv.3:', err));
     }
     setSavingChoice(false);
   };
@@ -285,6 +293,10 @@ const ExtensionDungeon = () => {
       setError('Plus de runs disponibles pour conserver l\'ancienne combinaison.');
       setSavingChoice(false);
       return;
+    }
+    const revertResult = await updateCharacterMageTowerExtensionPassive(currentUser.uid, previousExtensionPassive);
+    if (revertResult.success) {
+      setCharacter(prev => prev ? { ...prev, mageTowerExtensionPassive: previousExtensionPassive } : prev);
     }
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
     if (summaryResult.success) setDungeonSummary(summaryResult.data);
@@ -300,6 +312,7 @@ const ExtensionDungeon = () => {
     setCombatLog([]);
     setCombatResult(null);
     setRolledExtensionPassive(null);
+    setPreviousExtensionPassive(null);
     setExtensionChoice(null);
     setShowUpgradeAnimation(false);
   };

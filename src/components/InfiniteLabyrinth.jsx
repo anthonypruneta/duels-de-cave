@@ -28,6 +28,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
+import { checkAndAwardTitles } from '../services/titleService';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -409,6 +410,9 @@ const InfiniteLabyrinth = () => {
       startFightMusic();
       while (!token.cancelled) {
         const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
+        if (result.success && result.result?.steps) {
+          checkAndAwardTitles(currentUser.uid, result.result.steps, result.result, playerCharacter, { mode: 'labyrinthe', floor: currentFloor });
+        }
         if (!result.success) {
           setError(result.error || 'Combat impossible.');
           break;

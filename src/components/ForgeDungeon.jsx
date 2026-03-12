@@ -39,6 +39,7 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
+import { checkAndAwardTitles } from '../services/titleService';
 
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -147,10 +148,10 @@ const ForgeDungeon = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
-  // Upgrade state
-  const [currentUpgrade, setCurrentUpgrade] = useState(null); // upgrade actuel du joueur
-  const [newUpgradeRoll, setNewUpgradeRoll] = useState(null); // nouveau roll proposé
-  const [upgradeChoice, setUpgradeChoice] = useState(null); // 'new' ou 'keep'
+  const [currentUpgrade, setCurrentUpgrade] = useState(null);
+  const [previousUpgrade, setPreviousUpgrade] = useState(null);
+  const [newUpgradeRoll, setNewUpgradeRoll] = useState(null);
+  const [upgradeChoice, setUpgradeChoice] = useState(null);
   const [savingUpgrade, setSavingUpgrade] = useState(false);
 
   const ensureForgeMusic = () => {
@@ -255,6 +256,7 @@ const ForgeDungeon = () => {
   const handleStartRun = async () => {
     setError(null);
     setNewUpgradeRoll(null);
+    setPreviousUpgrade(null);
     setUpgradeChoice(null);
 
     const result = await startDungeonRun(currentUser.uid);
@@ -295,6 +297,7 @@ const ForgeDungeon = () => {
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
     const matchResult = simulerMatch(character, createForgeBossCombatant());
+    checkAndAwardTitles(currentUser.uid, matchResult.steps, matchResult, character, { mode: 'forge', bossId: 'ornn' });
 
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
@@ -319,10 +322,17 @@ const ForgeDungeon = () => {
       setCombatLog([...logs]);
       setCombatResult('victory');
 
-      // Generer le nouveau roll d'upgrade
       const weaponId = character.equippedWeaponId || equippedWeapon?.id;
       const roll = generateForgeUpgradeRoll(weaponId);
       setNewUpgradeRoll(roll);
+      setPreviousUpgrade(currentUpgrade || null);
+      saveWeaponUpgrade(currentUser.uid, { ...roll, weaponId })
+        .then(result => {
+          if (result.success) {
+            setCurrentUpgrade(roll);
+            setCharacter(prev => ({ ...prev, forgeUpgrade: roll }));
+          }
+        });
       setGameState('reward');
     } else {
       logs.push(`💀 ${player?.name ?? p.name} a été vaincu par ${boss?.name ?? b.name}...`);
@@ -337,35 +347,24 @@ const ForgeDungeon = () => {
   const handleAcceptNewRoll = async () => {
     if (!newUpgradeRoll) return;
     setSavingUpgrade(true);
-
-    const weaponId = character?.equippedWeaponId || equippedWeapon?.id;
-    const result = await saveWeaponUpgrade(currentUser.uid, { ...newUpgradeRoll, weaponId });
-    if (result.success) {
-      setCurrentUpgrade(newUpgradeRoll);
-      setCharacter(prev => ({ ...prev, forgeUpgrade: newUpgradeRoll }));
-      setUpgradeChoice('new');
-      if (isForgeRollHighPerfection(newUpgradeRoll, 0.9)) {
-        const { bonuses, penalties } = extractForgeUpgrade(newUpgradeRoll);
-        const bonusStr = Object.entries(bonuses).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} +${formatUpgradePct(v)}`).join(', ');
-        const penaltyStr = Object.entries(penalties).filter(([, v]) => v > 0).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} -${formatUpgradePct(v)}`).join(', ');
-        const rollDesc = [bonusStr, penaltyStr].filter(Boolean).join(' • ');
-        const weaponName = character?.equippedWeaponData?.nom ?? character?.equippedWeaponId ?? 'arme légendaire';
-        envoyerAnnonceDiscord({
-          titre: '🔨 MESDAMES ET MESSIEURS — LA FORGE A PARLÉ !!!',
-          message: `**INCROYABLE!!!** Le dieu Ornn lui-même doit être impressionné!!! **${character?.name ?? 'Un combattant'}** vient de produire une forge **AU-DESSUS DE 90% DE PERFECTION**!!!\n\n` +
-            `*"Regardez-moi ça!!! Une telle qualité!!! On dirait presque une arme des dieux!!! La foule n'en revient pas!!!"*\n\n` +
-            `**${weaponName}** : ${rollDesc} — QUELLE ŒUVRE!!!`,
-        }).catch((err) => console.warn('Annonce Discord forge perfection:', err));
-      }
-    } else {
-      setError('Erreur lors de la sauvegarde de l\'upgrade.');
+    setUpgradeChoice('new');
+    if (isForgeRollHighPerfection(newUpgradeRoll, 0.9)) {
+      const { bonuses, penalties } = extractForgeUpgrade(newUpgradeRoll);
+      const bonusStr = Object.entries(bonuses).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} +${formatUpgradePct(v)}`).join(', ');
+      const penaltyStr = Object.entries(penalties).filter(([, v]) => v > 0).map(([k, v]) => `${FORGE_STAT_LABELS[k] || k} -${formatUpgradePct(v)}`).join(', ');
+      const rollDesc = [bonusStr, penaltyStr].filter(Boolean).join(' • ');
+      const weaponName = character?.equippedWeaponData?.nom ?? character?.equippedWeaponId ?? 'arme légendaire';
+      envoyerAnnonceDiscord({
+        titre: '🔨 MESDAMES ET MESSIEURS — LA FORGE A PARLÉ !!!',
+        message: `**INCROYABLE!!!** Le dieu Ornn lui-même doit être impressionné!!! **${character?.name ?? 'Un combattant'}** vient de produire une forge **AU-DESSUS DE 90% DE PERFECTION**!!!\n\n` +
+          `*"Regardez-moi ça!!! Une telle qualité!!! On dirait presque une arme des dieux!!! La foule n'en revient pas!!!"*\n\n` +
+          `**${weaponName}** : ${rollDesc} — QUELLE ŒUVRE!!!`,
+      }).catch((err) => console.warn('Annonce Discord forge perfection:', err));
     }
-
     setSavingUpgrade(false);
   };
 
   const handleKeepOldRoll = async () => {
-    // Coute 1 run supplementaire
     setSavingUpgrade(true);
 
     const runResult = await startDungeonRun(currentUser.uid);
@@ -375,7 +374,15 @@ const ForgeDungeon = () => {
       return;
     }
 
-    // Refresh le summary
+    if (previousUpgrade) {
+      const weaponId = character?.equippedWeaponId || equippedWeapon?.id;
+      const revertResult = await saveWeaponUpgrade(currentUser.uid, { ...previousUpgrade, weaponId });
+      if (revertResult.success) {
+        setCurrentUpgrade(previousUpgrade);
+        setCharacter(prev => ({ ...prev, forgeUpgrade: previousUpgrade }));
+      }
+    }
+
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
     if (summaryResult.success) {
       setDungeonSummary(summaryResult.data);
@@ -393,6 +400,7 @@ const ForgeDungeon = () => {
     setCombatLog([]);
     setCombatResult(null);
     setNewUpgradeRoll(null);
+    setPreviousUpgrade(null);
     setUpgradeChoice(null);
   };
 

@@ -20,6 +20,7 @@ import { buildSubclassDescription } from '../utils/descriptionBuilders';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { isSubclassDungeonVisible } from '../data/featureFlags';
+import { checkAndAwardTitles } from '../services/titleService';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
@@ -147,6 +148,7 @@ const SubclassDungeon = () => {
     setPlayerCombatStatus(null);
     const logs = [...combatLog, `--- Combat contre ${boss.name} ---`];
     const matchResult = simulerMatch(character, createSubclassBossCombatant());
+    checkAndAwardTitles(currentUser.uid, matchResult.steps, matchResult, character, { mode: 'sous-classe', bossId: 'koro_sensei' });
     const finalLogs = await replayCombatSteps(matchResult.steps, {
       setCombatLog,
       onStepHP: (step) => {

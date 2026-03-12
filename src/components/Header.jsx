@@ -120,6 +120,8 @@ function Header() {
     { path: '/', label: '🏠 Accueil' },
     { path: '/dungeons', label: '🏰 Donjons' },
     { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
+    { path: '/boss-rush', label: '💀 Boss Rush' },
+    { path: '/mirror', label: '🪞 Miroir' },
     { path: '/cataclysme', label: '☄️ Cataclysme' },
     { path: '/tournament', label: '🏆 Tournoi' },
     { path: '/training', label: '🎯 Entraînement' },

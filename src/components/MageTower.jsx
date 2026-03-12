@@ -64,6 +64,7 @@ import CharacterCardContent from './CharacterCardContent';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { checkAndAwardTitles } from '../services/titleService';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -1028,6 +1029,7 @@ const MageTower = () => {
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
     const matchResult = simulerMatch(charForSim, b);
+    checkAndAwardTitles(currentUser.uid, matchResult.steps, matchResult, character, { mode: 'mage-tower', bossId: b.bossId || b.name });
 
     // Replay animé des steps
     const finalLogs = await replayCombatSteps(matchResult.steps, {

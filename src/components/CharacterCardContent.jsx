@@ -17,6 +17,7 @@ import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLORS } from '../utils/weaponDisplayUtils';
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
+import { getDisplayTitle } from '../services/titleService';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -64,6 +65,9 @@ export default function CharacterCardContent({
 
   const displayName = nameOverride ?? character?.name ?? '';
   const displayImage = imageOverride ?? character?.characterImage ?? null;
+  const displayTitle = character?.equippedTitle
+    ? getDisplayTitle(character.equippedTitle, character?.gender)
+    : null;
   const safeMaxHP = Math.max(1, maxHP ?? character?.maxHP ?? (combatBaseOverride?.hp ?? finalStats.hp) ?? 1);
   const rawCurrentHP = currentHP ?? character?.currentHP ?? safeMaxHP;
   const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, Math.round(rawCurrentHP)));
@@ -326,6 +330,7 @@ export default function CharacterCardContent({
   const cardProps = {
     header,
     name: displayName,
+    title: displayTitle,
     image: displayImage,
     fallback: cardFallback,
     topStats,
@@ -337,6 +342,7 @@ export default function CharacterCardContent({
     aboveHpBar,
     cardClassName,
     infoSide,
+    borderClassName: character?.equippedBorder || null,
   };
 
   if (detailsPlacement) {

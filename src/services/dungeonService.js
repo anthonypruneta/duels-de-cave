@@ -701,6 +701,43 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
   }
 };
 
+/**
+ * Ajoute des essais de donjon à un joueur spécifique.
+ */
+export async function grantRunsToPlayer(userId, attempts) {
+  try {
+    await retryOperation(async () => {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      const snap = await getDoc(progressRef);
+      const now = Timestamp.now();
+      if (snap.exists()) {
+        await updateDoc(progressRef, {
+          runsAvailable: increment(attempts),
+          updatedAt: now,
+        });
+      } else {
+        await setDoc(progressRef, {
+          userId,
+          runsAvailable: attempts,
+          updatedAt: now,
+          lastCreditDate: now,
+          createdAt: now,
+          runsToday: 0,
+          totalRuns: 0,
+          bestRun: 0,
+          totalBossKills: 0,
+          equippedWeapon: null,
+          lastRunDate: null,
+        }, { merge: true });
+      }
+    });
+    return true;
+  } catch (err) {
+    console.error('Erreur grantRunsToPlayer:', err);
+    return false;
+  }
+}
+
 export const getLatestDungeonRunsGrant = async () => {
   try {
     const result = await retryOperation(async () => {

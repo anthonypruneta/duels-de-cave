@@ -67,6 +67,7 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CharacterCardContent from './CharacterCardContent';
 import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { checkAndAwardTitles } from '../services/titleService';
 
 // Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -1001,6 +1002,7 @@ const Dungeon = () => {
     const logs = [...combatLog, `--- Combat contre ${b.name} ---`];
 
     const matchResult = simulerMatch(character, b);
+    checkAndAwardTitles(currentUser.uid, matchResult.steps, matchResult, character, { mode: 'donjon', bossId: getDungeonLevelByNumber(currentLevel).bossId });
 
     // Replay animé des steps : mettre à jour l'état affiché depuis les steps (pas de mutation du perso)
     const finalLogs = await replayCombatSteps(matchResult.steps, {

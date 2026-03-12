@@ -227,13 +227,16 @@ export function preparerCombattant(char) {
     }
   }
   const weaponState = initWeaponCombatState(char, weaponId);
+  const startHP = (typeof char._bossRushStartHP === 'number' && char._bossRushStartHP > 0)
+    ? Math.min(char._bossRushStartHP, baseFinal.hp)
+    : baseFinal.hp;
   return {
     ...char,
     _storedBase: char.base,
     base: baseFinal,
     baseWithoutWeapon,
     baseWithBoosts,
-    currentHP: baseFinal.hp,
+    currentHP: startHP,
     maxHP: baseFinal.hp,
     cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
     undead: false,

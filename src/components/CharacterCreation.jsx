@@ -25,6 +25,9 @@ import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 import SubclassDetailBlock from './SubclassDetailBlock';
+import { getDisplayTitle, equipTitle } from '../services/titleService';
+import { TITLES, getFormattedTitle } from '../data/titles';
+import { BORDERS, checkBorderUnlocks, getBorderCssClass, equipBorder, syncUnlockedBorders } from '../data/borders';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -443,10 +446,12 @@ const CharacterCreation = () => {
             forgeUpgradeData = upgradeResult.data;
           }
         }
-        setExistingCharacter({
-          ...normalized,
-          level,
-          forgeUpgrade: forgeUpgradeData,
+        const charData = { ...normalized, level, forgeUpgrade: forgeUpgradeData };
+        setExistingCharacter(charData);
+        syncUnlockedBorders(currentUser.uid, charData).then(borders => {
+          if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {
+            setExistingCharacter(prev => ({ ...prev, unlockedBorders: borders }));
+          }
         });
         const pseudoValue = normalized.ownerPseudo || accountPseudo || storedPseudo;
         setOwnerPseudo(pseudoValue);
@@ -907,7 +912,7 @@ const CharacterCreation = () => {
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                   {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
                 </div>
-                <div className="overflow-visible border border-stone-600 bg-stone-900 rounded-lg">
+                <div className={`overflow-visible bg-stone-900 rounded-lg ${existingCharacter.equippedBorder || 'border border-stone-600'}`}>
                   <InteractiveCharacterCard>
                     <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
                       {existingCharacter.characterImage ? (
@@ -922,10 +927,15 @@ const CharacterCreation = () => {
                         </div>
                       )}
                       <div
-                        className="absolute bottom-5 left-2 right-2 py-1 text-center"
+                        className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
                         style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
                       >
                         <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
+                        {existingCharacter.equippedTitle && (
+                          <div className="character-card-name text-sm leading-tight mt-0.5">
+                            {getDisplayTitle(existingCharacter.equippedTitle, existingCharacter.gender)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </InteractiveCharacterCard>
@@ -1101,6 +1111,94 @@ const CharacterCreation = () => {
               </div>
             </div>
           </div>
+
+          {/* Titres et Bordures */}
+          {existingCharacter && (
+            <div className="max-w-[1400px] mx-auto mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 px-2">
+              {/* Section Titres */}
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
+                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">🏅 Titres</h3>
+                {(existingCharacter.earnedTitles?.length > 0) ? (
+                  <div className="space-y-1.5">
+                    {existingCharacter.equippedTitle && (
+                      <button
+                        onClick={async () => {
+                          await equipTitle(currentUser.uid, null);
+                          setExistingCharacter(prev => ({ ...prev, equippedTitle: null }));
+                        }}
+                        className="w-full text-left text-xs bg-stone-800 border border-red-700/50 rounded px-3 py-2 text-red-300 hover:bg-red-900/30 transition-colors"
+                      >
+                        ✕ Retirer le titre
+                      </button>
+                    )}
+                    {existingCharacter.earnedTitles.map(tid => {
+                      const t = TITLES[tid];
+                      if (!t) return null;
+                      const isEquipped = existingCharacter.equippedTitle === tid;
+                      return (
+                        <button
+                          key={tid}
+                          onClick={async () => {
+                            if (isEquipped) return;
+                            await equipTitle(currentUser.uid, tid);
+                            setExistingCharacter(prev => ({ ...prev, equippedTitle: tid }));
+                          }}
+                          className={`w-full text-left text-xs rounded px-3 py-2 transition-colors ${
+                            isEquipped
+                              ? 'bg-amber-900/40 border border-amber-500 text-amber-200'
+                              : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600'
+                          }`}
+                        >
+                          <span className="mr-1.5">{t.icon}</span>
+                          <span className="font-semibold">{getFormattedTitle(tid, existingCharacter.gender)}</span>
+                          {isEquipped && <span className="ml-2 text-amber-400 text-[10px]">ÉQUIPÉ</span>}
+                          <div className="text-[10px] text-stone-500 mt-0.5 ml-5">{t.description}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-500">Aucun titre obtenu. Combattez pour en débloquer !</p>
+                )}
+              </div>
+
+              {/* Section Bordures */}
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
+                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">🖼️ Bordures</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.values(BORDERS).map(border => {
+                    const unlocked = existingCharacter.unlockedBorders?.includes(border.id) || border.id === 'default';
+                    const isEquipped = (existingCharacter.equippedBorder || 'default') === getBorderCssClass(border.id);
+                    const isDefault = border.id === 'default' && !existingCharacter.equippedBorder;
+                    return (
+                      <button
+                        key={border.id}
+                        disabled={!unlocked}
+                        onClick={async () => {
+                          if (!unlocked) return;
+                          const cls = border.id === 'default' ? null : getBorderCssClass(border.id);
+                          await equipBorder(currentUser.uid, cls);
+                          setExistingCharacter(prev => ({ ...prev, equippedBorder: cls }));
+                        }}
+                        className={`text-center rounded-lg p-2 text-[10px] transition-colors ${
+                          !unlocked
+                            ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
+                            : (isEquipped || isDefault)
+                              ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
+                              : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{border.icon}</div>
+                        <div className="font-semibold">{border.nom}</div>
+                        {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
+                        {(isEquipped || isDefault) && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       {renderDungeonGrantPopup()}
       </div>
