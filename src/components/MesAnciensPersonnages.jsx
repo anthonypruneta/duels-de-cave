@@ -49,7 +49,7 @@ const MesAnciensPersonnages = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
-      <div className="max-w-[1800px] mx-auto pt-20">
+      <div className="max-w-3xl mx-auto pt-20">
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h1 className="text-4xl font-bold text-amber-400">📜 Mes Anciens Personnages</h1>
@@ -63,21 +63,20 @@ const MesAnciensPersonnages = () => {
             <p className="text-stone-500 mt-2">Tes personnages apparaîtront ici après chaque tournoi</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8 justify-items-center">
             {characters.map((char) => (
-              <div key={char.id} className="relative">
+              <div key={char.id} className="w-full max-w-[340px] flex flex-col items-center">
                 {char.tournamentChampion && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold z-20 shadow-lg">
+                  <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg mb-2">
                     👑 CHAMPION
                   </div>
                 )}
                 <CharacterCardContent
                   character={char}
                   borderId={char.tournamentChampion ? 'champion' : null}
-                  detailsPlacement="left"
                 />
                 {char.archivedAt && (
-                  <div className="text-stone-600 text-xs text-center mt-1">
+                  <div className="text-stone-600 text-xs mt-1">
                     Archivé le {char.archivedAt.toDate?.().toLocaleDateString('fr-FR') || ''}
                   </div>
                 )}
