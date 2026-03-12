@@ -407,6 +407,7 @@ const BossRush = () => {
                 combatModifiers={playerCombatModifiers}
                 opponent={boss}
                 combatStatus={playerCombatStatus}
+                detailsPlacement="left"
               />
             )}
             {carriedHP !== null && gameState === 'transition' && (

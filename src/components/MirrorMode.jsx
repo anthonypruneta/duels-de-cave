@@ -209,7 +209,7 @@ const MirrorMode = () => {
     return parts.length > 0 ? parts : text;
   };
 
-  const CloneCard = ({ showHp = false }) => {
+  const CloneCard = ({ showHp = false, detailsPlacement = null }) => {
     if (!mirrorCloneForDisplay) return null;
     return (
       <CharacterCardContent
@@ -223,6 +223,7 @@ const MirrorMode = () => {
         cardClassName="border-2 border-stone-500/50"
         imageClassName="scale-x-[-1]"
         imageOverlayContent={<div className="mirror-fog-overlay" />}
+        detailsPlacement={detailsPlacement}
       />
     );
   };
@@ -332,6 +333,7 @@ const MirrorMode = () => {
                 combatBaseOverride={playerCombatBase}
                 combatModifiers={playerCombatModifiers}
                 combatStatus={playerCombatStatus}
+                detailsPlacement="left"
               />
             )}
           </div>
@@ -454,8 +456,8 @@ const MirrorMode = () => {
           </div>
 
           {/* Carte clone - Droite */}
-          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            <CloneCard showHp />
+          <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <CloneCard showHp detailsPlacement="right" />
           </div>
         </div>
       </div>
