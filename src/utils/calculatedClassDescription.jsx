@@ -468,6 +468,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
             <span className="text-green-400">{shieldVal}</span>
           </Tooltip>
+          .{' '}
+          <Tooltip content="Vous attaquez avant l'ennemi le tour où la capacité est utilisée, peu importe la vitesse.">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Priorité au tour capacité</span>
+          </Tooltip>
           . Inflige{' '}
           <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg} + ${(c.defScale ?? 0) * 100}% × DEF (${def}) = ${defDmg}`}>
             <span className="text-green-400">{total}</span>
@@ -490,7 +494,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${(c.capShieldPercent ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldCap}</span>
           </Tooltip>
-          {' '}au soin.
+          {' '}au soin.{' '}
+          <Tooltip content="Les soins excédentaires (au-delà du PV max) sont convertis en bouclier.">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Overheal → bouclier</span>
+          </Tooltip>.
         </>
       );
     }
@@ -513,6 +520,8 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const returnBasePct = Math.round((c.returnBase ?? 0) * 100);
       const returnTotalPct = returnBasePct + returnBonusPct;
       const healPct = Math.round((c.healPercent ?? 0) * 100);
+      const defReductionPct = Math.round((1 - (c.defMultiplier ?? 1)) * 100);
+      const autoIncreasePct = Math.round(((c.autoMultiplier ?? 1) - 1) * 100);
       return (
         <>
           Renvoie{' '}
@@ -520,7 +529,9 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
             <span className="text-green-400">{returnTotalPct}%</span>
           </Tooltip>
           {' '}dégâts accumulés + <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap. Soigne{' '}
-          <span className="text-green-400">{healPct}%</span> dégâts accumulés.
+          <span className="text-green-400">{healPct}%</span> dégâts accumulés. DEF{' '}
+          <span className="text-red-400">-{defReductionPct}%</span>, Auto{' '}
+          <span className="text-green-400">+{autoIncreasePct}%</span>.
         </>
       );
     }
@@ -544,7 +555,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const critBonusPct = Math.round((c.critPerCap ?? 0) * cap * 100);
       return (
         <>
-          +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
+          Esquive 1 coup. +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
           <Tooltip content={`${(c.critPerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{critBonusPct}%</span>
           </Tooltip>
@@ -556,7 +567,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const critBonusPct = Math.round((c.critPerCap ?? 0) * cap * 100);
       return (
         <>
-          +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
+          Esquive 1 coup. +<span className="text-green-400">{c.spdBonus ?? 0}</span> VIT, +{' '}
           <Tooltip content={`${(c.critPerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{critBonusPct}%</span>
           </Tooltip>
