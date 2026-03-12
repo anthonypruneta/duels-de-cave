@@ -66,6 +66,8 @@ const MirrorMode = () => {
   const [cloneCombatBase, setCloneCombatBase] = useState(null);
   const [playerCombatModifiers, setPlayerCombatModifiers] = useState(null);
   const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
+  const [cloneCombatModifiers, setCloneCombatModifiers] = useState(null);
+  const [cloneCombatStatus, setCloneCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
@@ -130,6 +132,8 @@ const MirrorMode = () => {
     setCloneCombatBase(null);
     setPlayerCombatModifiers(null);
     setPlayerCombatStatus(null);
+    setCloneCombatModifiers(null);
+    setCloneCombatStatus(null);
     setPlayerShield(0);
     setCloneShield(0);
     setRewardGiven(false);
@@ -154,6 +158,8 @@ const MirrorMode = () => {
           setCloneCombatBase(step.p2Base || null);
           setPlayerCombatModifiers(step.p1Modifiers || null);
           setPlayerCombatStatus(step.p1Status || null);
+          setCloneCombatModifiers(step.p2Modifiers || null);
+          setCloneCombatStatus(step.p2Status || null);
         },
         speed: 'normal',
       });
@@ -220,6 +226,9 @@ const MirrorMode = () => {
         maxHP={cloneMaxHP}
         shield={cloneShield}
         combatBaseOverride={showHp ? cloneCombatBase : null}
+        combatModifiers={showHp ? cloneCombatModifiers : null}
+        opponent={showHp ? character : null}
+        combatStatus={showHp ? cloneCombatStatus : null}
         cardClassName="border-2 border-stone-500/50"
         imageClassName="scale-x-[-1]"
         imageOverlayContent={<div className="mirror-fog-overlay" />}
@@ -332,6 +341,7 @@ const MirrorMode = () => {
                 shield={playerShield}
                 combatBaseOverride={playerCombatBase}
                 combatModifiers={playerCombatModifiers}
+                opponent={mirrorCloneForDisplay}
                 combatStatus={playerCombatStatus}
                 detailsPlacement="left"
               />

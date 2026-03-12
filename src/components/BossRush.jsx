@@ -204,7 +204,9 @@ const BossRush = () => {
   };
 
   const proceedToNextBoss = () => {
+    if (!combatResult?.isWin || isSimulating) return;
     const nextIdx = currentBossIndex + 1;
+    if (nextIdx >= BOSS_RUSH_COUNT) return;
     setCurrentBossIndex(nextIdx);
     setGameState('fighting');
     startFight(nextIdx, carriedHP);
@@ -499,7 +501,7 @@ const BossRush = () => {
             </div>
 
             {/* Boutons de transition */}
-            {gameState === 'transition' && !isSimulating && (
+            {gameState === 'transition' && !isSimulating && combatResult?.isWin && (
               <div className="text-center mt-4">
                 <div className="text-green-400 font-bold mb-2">
                   ✅ {currentBoss.nom} vaincu ! Prochain boss: {bosses[currentBossIndex + 1]?.nom}
