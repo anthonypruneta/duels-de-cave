@@ -78,16 +78,21 @@ const MirrorMode = () => {
     if (!currentUser) return;
     (async () => {
       try {
-        const char = await getUserCharacter(currentUser.uid);
-        if (!char) { navigate('/'); return; }
-        setCharacter(char);
+        const charResult = await getUserCharacter(currentUser.uid);
+        if (!charResult.success || !charResult.data) { navigate('/'); return; }
+        setCharacter(charResult.data);
 
         const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
         const progressSnap = await getDoc(progressRef);
         if (progressSnap.exists()) {
           const data = progressSnap.data();
-          if (data.lastMirrorDate && isSameDay(data.lastMirrorDate.toDate(), new Date())) {
-            setAlreadyDone(true);
+          if (data.lastMirrorDate) {
+            const lastDate = typeof data.lastMirrorDate.toDate === 'function'
+              ? data.lastMirrorDate.toDate()
+              : new Date(data.lastMirrorDate);
+            if (isSameDay(lastDate, new Date())) {
+              setAlreadyDone(true);
+            }
           }
         }
       } catch (err) {

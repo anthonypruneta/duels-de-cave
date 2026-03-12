@@ -48,9 +48,9 @@ const BossRush = () => {
     if (!currentUser) return;
     (async () => {
       try {
-        const char = await getUserCharacter(currentUser.uid);
-        if (!char) { navigate('/'); return; }
-        setCharacter(char);
+        const charResult = await getUserCharacter(currentUser.uid);
+        if (!charResult.success || !charResult.data) { navigate('/'); return; }
+        setCharacter(charResult.data);
 
         const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
         const progressSnap = await getDoc(progressRef);
