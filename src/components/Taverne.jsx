@@ -40,6 +40,26 @@ function getTaverneCharacterImage(character) {
 
 const BUBBLE_DURATION_MS = 12000;
 
+const CHAT_STORAGE_KEY = 'taverne-chat-layout';
+const DEFAULT_CHAT_WIDTH = 420;
+const DEFAULT_CHAT_HEIGHT = 400;
+const MIN_CHAT_WIDTH = 280;
+const MIN_CHAT_HEIGHT = 200;
+
+function loadChatLayout() {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveChatLayout(layout) {
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(layout));
+  } catch { /* ignore */ }
+}
+
 const TAVERN_SLOTS = [
   { id: 'tavernier', x: 26, y: 60, label: 'Derrière le bar' },
   { id: 'bar-1', x: 12, y: 85, label: 'Entrée' },
@@ -70,6 +90,79 @@ export default function Taverne() {
   const [hoveredSlotId, setHoveredSlotId] = useState(null);
   const chatEndRef = useRef(null);
   const hasEnteredRef = useRef(false);
+
+  const savedLayout = useRef(loadChatLayout());
+  const [chatPos, setChatPos] = useState(() => savedLayout.current?.pos ?? null);
+  const [chatSize, setChatSize] = useState(() => ({
+    w: savedLayout.current?.size?.w ?? DEFAULT_CHAT_WIDTH,
+    h: savedLayout.current?.size?.h ?? DEFAULT_CHAT_HEIGHT,
+  }));
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+  const chatBoxRef = useRef(null);
+
+  const persistLayout = useCallback((pos, size) => {
+    saveChatLayout({ pos, size });
+  }, []);
+
+  const handleDragStart = useCallback((e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const box = chatBoxRef.current;
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origLeft: rect.left, origTop: rect.top };
+
+    const onMove = (ev) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = ev.clientX - d.startX;
+      const dy = ev.clientY - d.startY;
+      const newLeft = Math.max(0, Math.min(window.innerWidth - 100, d.origLeft + dx));
+      const newTop = Math.max(0, Math.min(window.innerHeight - 60, d.origTop + dy));
+      setChatPos({ x: newLeft, y: newTop });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setChatPos((p) => { setChatSize((s) => { persistLayout(p, s); return s; }); return p; });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [persistLayout]);
+
+  const handleResizeStart = useCallback((e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const box = chatBoxRef.current;
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, origW: rect.width, origH: rect.height };
+
+    const onMove = (ev) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const newW = Math.max(MIN_CHAT_WIDTH, r.origW + (ev.clientX - r.startX));
+      const newH = Math.max(MIN_CHAT_HEIGHT, r.origH + (ev.clientY - r.startY));
+      setChatSize({ w: newW, h: newH });
+    };
+    const onUp = () => {
+      resizeRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setChatPos((p) => { setChatSize((s) => { persistLayout(p, s); return s; }); return p; });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [persistLayout]);
+
+  const handleResetChatLayout = useCallback(() => {
+    setChatPos(null);
+    setChatSize({ w: DEFAULT_CHAT_WIDTH, h: DEFAULT_CHAT_HEIGHT });
+    saveChatLayout(null);
+  }, []);
 
   const stopTaverneMusic = useCallback(() => {
     const el = document.getElementById('taverne-music');
@@ -346,13 +439,38 @@ export default function Taverne() {
           })}
         </div>
 
-        {/* Chat en bas à gauche */}
-        <div className="absolute left-4 bottom-4 z-20 flex flex-col w-[420px] max-w-[calc(100vw-2rem)] bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-700 rounded-t-xl">
+        {/* Chat déplaçable et redimensionnable */}
+        <div
+          ref={chatBoxRef}
+          className="fixed z-20 flex flex-col bg-stone-900/95 border border-stone-600 rounded-xl shadow-2xl backdrop-blur-sm"
+          style={{
+            width: `${chatSize.w}px`,
+            height: `${chatSize.h}px`,
+            ...(chatPos
+              ? { left: `${chatPos.x}px`, top: `${chatPos.y}px` }
+              : { left: '1rem', bottom: '1rem' }),
+            maxWidth: 'calc(100vw - 1rem)',
+            maxHeight: 'calc(100vh - 1rem)',
+          }}
+        >
+          <div
+            className="flex items-center justify-between px-4 py-2.5 border-b border-stone-700 rounded-t-xl cursor-grab active:cursor-grabbing select-none shrink-0"
+            onMouseDown={handleDragStart}
+          >
             <span className="text-amber-400 font-bold text-base">💬 Chat de la Taverne</span>
-            <span className="text-stone-500 text-sm">{presences.length} en ligne</span>
+            <div className="flex items-center gap-2">
+              <span className="text-stone-500 text-sm">{presences.length} en ligne</span>
+              <button
+                type="button"
+                onClick={handleResetChatLayout}
+                className="text-stone-500 hover:text-amber-400 transition text-xs px-1.5 py-0.5 rounded hover:bg-stone-700"
+                title="Réinitialiser position et taille"
+              >
+                ↺
+              </button>
+            </div>
           </div>
-          <div className="overflow-y-auto max-h-[300px] min-h-[120px] p-3 space-y-1.5">
+          <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-1.5">
             {messages.length === 0 && (
               <p className="text-stone-500 text-sm text-center py-4">Aucun message.</p>
             )}
@@ -365,7 +483,7 @@ export default function Taverne() {
             ))}
             <div ref={chatEndRef} />
           </div>
-          <form onSubmit={handleSendMessage} className="p-3 flex gap-2 border-t border-stone-700">
+          <form onSubmit={handleSendMessage} className="p-3 flex gap-2 border-t border-stone-700 shrink-0">
             <input
               type="text"
               value={chatInput}
@@ -382,6 +500,15 @@ export default function Taverne() {
               Envoyer
             </button>
           </form>
+          {/* Poignée de redimensionnement */}
+          <div
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize z-30 flex items-end justify-end pr-0.5 pb-0.5"
+            onMouseDown={handleResizeStart}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" className="text-stone-500 opacity-70 hover:opacity-100 transition">
+              <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
         </div>
       </div>
 
