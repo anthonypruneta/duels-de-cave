@@ -481,7 +481,7 @@ const Training = () => {
                 <span className="text-lg">🎯</span>
                 <div className="flex-1">
                   <div className="text-orange-300 font-semibold mb-1">Mannequin d'entraînement</div>
-                  <div className="text-stone-400 text-[10px]">Cible passive avec des PV infinis. Ne riposte jamais.</div>
+                  <div className="text-stone-400 text-[10px]">Cible d'entraînement configurable. Attaque normalement si ses stats le permettent.</div>
                 </div>
               </div>
               {totalDmgTaken > 0 && (
