@@ -7,7 +7,7 @@
  *    Utilise tournamentRewards/{userId}.tournamentWins et .consecutiveFirstRoundLosses
  */
 
-import { doc, getDoc, setDoc, getDocs, collection, Timestamp, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, collection, query, where, Timestamp, increment } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { detectTitlesFromCombat, getFormattedTitle } from '../data/titles';
 
@@ -77,10 +77,23 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
     const earnedTitles = charData.earnedTitles || [];
     const rewardData = rewardSnap.exists() ? rewardSnap.data() : {};
 
+    let tournamentWins = rewardData.tournamentWins ?? 0;
+    if (tournamentWins === 0 && (!earnedTitles.includes('champion') || !earnedTitles.includes('legendaire'))) {
+      try {
+        const q = query(
+          collection(db, 'archivedCharacters'),
+          where('userId', '==', userId),
+          where('tournamentChampion', '==', true)
+        );
+        const archSnap = await getDocs(q);
+        if (!archSnap.empty) tournamentWins = archSnap.size;
+      } catch (_) { /* ignore */ }
+    }
+
     const newTitles = [];
 
     // --- legendaire : 2+ tournois gagnés ---
-    if (!earnedTitles.includes('legendaire') && (rewardData.tournamentWins ?? 0) >= 2) {
+    if (!earnedTitles.includes('legendaire') && tournamentWins >= 2) {
       newTitles.push('legendaire');
     }
 
@@ -102,7 +115,7 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
     }
 
     // --- champion : 1+ tournoi gagné ---
-    if (!earnedTitles.includes('champion') && (rewardData.tournamentWins ?? 0) >= 1) {
+    if (!earnedTitles.includes('champion') && tournamentWins >= 1) {
       newTitles.push('champion');
     }
 

@@ -177,10 +177,16 @@ const MirrorMode = () => {
       if (isWin) {
         setGameState('victory');
         await grantRunsToPlayer(currentUser.uid, 2);
-        await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
-          lastMirrorDate: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        }, { merge: true });
+        await Promise.all([
+          setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
+            lastMirrorDate: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          }, { merge: true }),
+          setDoc(doc(db, 'characters', currentUser.uid), {
+            mirrorDefeated: true,
+            updatedAt: Timestamp.now(),
+          }, { merge: true }),
+        ]);
         setAlreadyDone(true);
         setRewardGiven(true);
       } else {

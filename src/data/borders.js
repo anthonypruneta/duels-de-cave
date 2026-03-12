@@ -5,7 +5,7 @@
  * une description de la condition de déblocage, et un checker.
  */
 
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { TITLES } from './titles';
 
@@ -44,7 +44,7 @@ export const BORDERS = {
     icon: '🌑',
     cssClass: 'border-shadow-dark border-shadow-glow',
     type: 'character',
-    condition: 'Battre Gojo (Extension)',
+    condition: 'Vaincre son Doppelganger (Miroir)',
   },
   gold: {
     id: 'gold',
@@ -173,8 +173,11 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('ice');
   }
 
-  if (character.mageTowerExtensionPassive) {
+  if (character.mirrorDefeated || (character.earnedTitles || []).includes('miroir_parfait')) {
     unlocked.push('shadow');
+  }
+
+  if (character.mageTowerExtensionPassive) {
     unlocked.push('territory');
   }
 
@@ -214,12 +217,27 @@ export function checkBorderUnlocks(character, extras = {}) {
  */
 export async function syncUnlockedBorders(userId, character, extras = {}) {
   if (extras.tournamentWins === undefined) {
+    let wins = 0;
     try {
       const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
       if (rewardSnap.exists()) {
-        extras = { ...extras, tournamentWins: rewardSnap.data().tournamentWins ?? 0 };
+        wins = rewardSnap.data().tournamentWins ?? 0;
       }
     } catch (_) { /* ignore */ }
+
+    if (wins === 0) {
+      try {
+        const q = query(
+          collection(db, 'archivedCharacters'),
+          where('userId', '==', userId),
+          where('tournamentChampion', '==', true)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) wins = snap.size;
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, tournamentWins: wins };
   }
 
   const newUnlocked = checkBorderUnlocks(character, extras);
