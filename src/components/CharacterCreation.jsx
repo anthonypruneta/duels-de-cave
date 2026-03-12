@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
-import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getHallOfFame } from '../services/tournamentService';
+import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
 import { getWorldBossEvent } from '../services/worldBossService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
@@ -184,10 +184,12 @@ const RecapPanel = ({ data }) => {
       )}
 
       {/* Tournoi */}
-      {data.lastChampion && (
-        <div className="text-xs">
-          <span className="text-stone-400">🏆 Champion : </span>
-          <span className="font-semibold text-amber-300">{data.lastChampion.name || data.lastChampion.characterName || '???'}</span>
+      {data.tournamentRank && data.tournamentRank.rank != null && (
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-stone-400">🏆 Tournoi</span>
+          <span className={`font-bold ${data.tournamentRank.rank === 1 ? 'text-amber-300' : 'text-white'}`}>
+            {data.tournamentRank.rank === 1 ? 'Champion !' : `${data.tournamentRank.rank}e / ${data.tournamentRank.total}`}
+          </span>
         </div>
       )}
 
@@ -553,8 +555,8 @@ const CharacterCreation = () => {
           getUserLabyrinthProgress(currentUser.uid),
           getPlayerDungeonSummary(currentUser.uid),
           getWorldBossEvent(),
-          getHallOfFame(),
-        ]).then(([labResult, summaryResult, wbResult, hofResult]) => {
+          getPlayerTournamentRank(currentUser.uid),
+        ]).then(([labResult, summaryResult, wbResult, rankResult]) => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
           const labCurrentFloor = labResult.success ? (labResult.data?.currentFloor ?? labFloor + 1) : 1;
           const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
@@ -590,7 +592,7 @@ const CharacterCreation = () => {
           }
 
           const wbData = wbResult.success ? wbResult.data : null;
-          const lastChampion = (hofResult.success && hofResult.data?.length > 0) ? hofResult.data[0] : null;
+          const tournamentRank = rankResult.success ? rankResult.data : null;
 
           setRecapData({
             runsRemaining,
@@ -602,7 +604,7 @@ const CharacterCreation = () => {
             worldBossHp: wbData?.hpRemaining ?? null,
             worldBossMaxHp: wbData?.hpMax ?? null,
             worldBossStatus: wbData?.status || null,
-            lastChampion,
+            tournamentRank,
             missingWeapon: !charData.equippedWeaponId,
             missingPassive: !charData.mageTowerPassive,
             missingForest: !charData.forestBoosts || Object.values(charData.forestBoosts || {}).every(v => !v),
