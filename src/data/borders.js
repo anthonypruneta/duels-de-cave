@@ -5,16 +5,21 @@
  * une description de la condition de déblocage, et un checker.
  */
 
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { TITLES } from './titles';
 
+/**
+ * type: 'character' = lié à la progression hebdomadaire du personnage (reset chaque semaine)
+ * type: 'account'   = lié à la progression du compte (persiste d'une semaine à l'autre)
+ */
 export const BORDERS = {
   default: {
     id: 'default',
     nom: 'Standard',
     icon: '🪨',
     cssClass: null,
+    type: 'character',
     condition: 'Toujours disponible',
   },
   lava: {
@@ -22,6 +27,7 @@ export const BORDERS = {
     nom: 'Lave',
     icon: '🔥',
     cssClass: 'forge-lava-border forge-lava-glow',
+    type: 'character',
     condition: 'Forger son arme',
   },
   ice: {
@@ -29,6 +35,7 @@ export const BORDERS = {
     nom: 'Givre',
     icon: '❄️',
     cssClass: 'border-ice-frost border-ice-glow',
+    type: 'character',
     condition: 'Atteindre l\'étage 80 du Labyrinthe',
   },
   shadow: {
@@ -36,6 +43,7 @@ export const BORDERS = {
     nom: 'Ombre',
     icon: '🌑',
     cssClass: 'border-shadow-dark border-shadow-glow',
+    type: 'character',
     condition: 'Battre Gojo (Extension)',
   },
   gold: {
@@ -43,6 +51,7 @@ export const BORDERS = {
     nom: 'Or',
     icon: '✨',
     cssClass: 'subclass-gold-border subclass-gold-glow',
+    type: 'character',
     condition: 'Obtenir une sous-classe',
   },
   champion: {
@@ -50,6 +59,7 @@ export const BORDERS = {
     nom: 'Champion',
     icon: '👑',
     cssClass: 'border-champion-rainbow border-champion-glow',
+    type: 'account',
     condition: 'Remporter un tournoi',
   },
   territory: {
@@ -57,6 +67,7 @@ export const BORDERS = {
     nom: 'Territoire',
     icon: '👁️',
     cssClass: 'extension-territory-border extension-territory-glow',
+    type: 'character',
     condition: 'Obtenir le 2e passif',
   },
   blood: {
@@ -64,6 +75,7 @@ export const BORDERS = {
     nom: 'Sang',
     icon: '🩸',
     cssClass: 'border-blood-pulse border-blood-glow',
+    type: 'character',
     condition: 'Compléter le Boss Rush',
   },
   nature: {
@@ -71,6 +83,7 @@ export const BORDERS = {
     nom: 'Nature',
     icon: '🌿',
     cssClass: 'border-nature-emerald border-nature-glow',
+    type: 'character',
     condition: 'Atteindre niveau 400',
   },
   titane: {
@@ -78,6 +91,7 @@ export const BORDERS = {
     nom: 'Titane',
     icon: '⚙️',
     cssClass: 'border-titane-metal border-titane-glow',
+    type: 'account',
     condition: 'Débloquer 10 titres',
   },
   cosmique: {
@@ -85,6 +99,7 @@ export const BORDERS = {
     nom: 'Cosmique',
     icon: '🌌',
     cssClass: 'border-cosmique-galaxy border-cosmique-glow',
+    type: 'account',
     condition: 'Débloquer 20 titres',
   },
   transcendance: {
@@ -92,9 +107,14 @@ export const BORDERS = {
     nom: 'Transcendance',
     icon: '💠',
     cssClass: 'border-transcendance-prism border-transcendance-glow',
+    type: 'account',
     condition: 'Débloquer tous les titres',
   },
 };
+
+export const ACCOUNT_BORDER_IDS = new Set(
+  Object.values(BORDERS).filter(b => b.type === 'account').map(b => b.id)
+);
 
 /**
  * Retourne la classe CSS d'une bordure par ID.
@@ -162,7 +182,7 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('gold');
   }
 
-  if (character.isChampion || character.championCount >= 1) {
+  if ((extras.tournamentWins ?? 0) >= 1) {
     unlocked.push('champion');
   }
 
@@ -193,6 +213,15 @@ export function checkBorderUnlocks(character, extras = {}) {
  * Met à jour les bordures débloquées en Firestore si nécessaire.
  */
 export async function syncUnlockedBorders(userId, character, extras = {}) {
+  if (extras.tournamentWins === undefined) {
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      if (rewardSnap.exists()) {
+        extras = { ...extras, tournamentWins: rewardSnap.data().tournamentWins ?? 0 };
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 

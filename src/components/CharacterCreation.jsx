@@ -1206,55 +1206,70 @@ const CharacterCreation = () => {
               {/* Section Bordures */}
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
                 <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">🖼️ Bordures</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.values(BORDERS).map(border => {
-                    const unlocked = existingCharacter.unlockedBorders?.includes(border.id) || border.id === 'default';
-                    const currentBorderId = resolveBorderId(existingCharacter.equippedBorder);
-                    const isEquipped = currentBorderId === border.id;
-                    return (
-                      <SharedTooltip key={border.id} content={
-                        <span>
-                          {border.condition}
-                          {obtentionStats && obtentionStats.total > 0 && border.id !== 'default' && (
-                            <span className="text-amber-500/80">
-                              {' — '}{(() => {
-                                const pct = Math.round(((obtentionStats.borderCounts[border.id] || 0) / obtentionStats.total) * 100);
-                                return pct === 0 && (obtentionStats.borderCounts[border.id] || 0) > 0 ? '< 1%' : `${pct}%`;
-                              })()}{' des joueurs'}
-                            </span>
-                          )}
-                        </span>
-                      }>
-                        <button
-                          disabled={!unlocked}
-                          onClick={async () => {
-                            if (!unlocked) return;
-                            const id = border.id === 'default' ? null : border.id;
-                            await equipBorder(currentUser.uid, id);
-                            setExistingCharacter(prev => ({ ...prev, equippedBorder: id }));
-                          }}
-                          className={`relative text-center rounded-lg p-2 text-[10px] transition-colors overflow-hidden ${
-                            !unlocked
-                              ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
-                              : isEquipped
-                                ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
-                                : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
-                          }`}
-                        >
-                          {unlocked && border.id !== 'default' && (
-                            <CardBorderCanvas borderId={border.id} />
-                          )}
-                          <div className="relative z-10">
-                            <div className="text-lg mb-1">{border.icon}</div>
-                            <div className="font-semibold">{border.nom}</div>
-                            {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
-                            {isEquipped && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
-                          </div>
-                        </button>
-                      </SharedTooltip>
-                    );
-                  })}
-                </div>
+                {[
+                  { label: 'Personnage', desc: 'Liées à la progression du personnage', filter: b => b.type !== 'account' },
+                  { label: 'Compte', desc: 'Conservées de semaine en semaine', filter: b => b.type === 'account' },
+                ].map(section => {
+                  const borders = Object.values(BORDERS).filter(section.filter);
+                  if (!borders.length) return null;
+                  return (
+                    <div key={section.label} className="mb-3 last:mb-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">{section.label}</span>
+                        <span className="text-[9px] text-stone-600 italic">{section.desc}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {borders.map(border => {
+                          const unlocked = existingCharacter.unlockedBorders?.includes(border.id) || border.id === 'default';
+                          const currentBorderId = resolveBorderId(existingCharacter.equippedBorder);
+                          const isEquipped = currentBorderId === border.id;
+                          return (
+                            <SharedTooltip key={border.id} content={
+                              <span>
+                                {border.condition}
+                                {obtentionStats && obtentionStats.total > 0 && border.id !== 'default' && (
+                                  <span className="text-amber-500/80">
+                                    {' — '}{(() => {
+                                      const pct = Math.round(((obtentionStats.borderCounts[border.id] || 0) / obtentionStats.total) * 100);
+                                      return pct === 0 && (obtentionStats.borderCounts[border.id] || 0) > 0 ? '< 1%' : `${pct}%`;
+                                    })()}{' des joueurs'}
+                                  </span>
+                                )}
+                              </span>
+                            }>
+                              <button
+                                disabled={!unlocked}
+                                onClick={async () => {
+                                  if (!unlocked) return;
+                                  const id = border.id === 'default' ? null : border.id;
+                                  await equipBorder(currentUser.uid, id);
+                                  setExistingCharacter(prev => ({ ...prev, equippedBorder: id }));
+                                }}
+                                className={`relative text-center rounded-lg p-2 text-[10px] transition-colors overflow-hidden ${
+                                  !unlocked
+                                    ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
+                                    : isEquipped
+                                      ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
+                                      : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
+                                }`}
+                              >
+                                {unlocked && border.id !== 'default' && (
+                                  <CardBorderCanvas borderId={border.id} />
+                                )}
+                                <div className="relative z-10">
+                                  <div className="text-lg mb-1">{border.icon}</div>
+                                  <div className="font-semibold">{border.nom}</div>
+                                  {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
+                                  {isEquipped && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                                </div>
+                              </button>
+                            </SharedTooltip>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

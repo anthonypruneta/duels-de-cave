@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
+import { ACCOUNT_BORDER_IDS } from '../data/borders';
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
@@ -75,8 +76,21 @@ export const saveCharacter = async (userId, characterData) => {
           });
         }
       }
+      const persistedCosmetics = {};
+      if (existingSnap.exists()) {
+        const prev = existingSnap.data();
+        if (prev.earnedTitles?.length) persistedCosmetics.earnedTitles = prev.earnedTitles;
+        if (prev.equippedTitle)        persistedCosmetics.equippedTitle = prev.equippedTitle;
+        const accountBorders = (prev.unlockedBorders || []).filter(id => ACCOUNT_BORDER_IDS.has(id));
+        if (accountBorders.length) persistedCosmetics.unlockedBorders = accountBorders;
+        if (prev.equippedBorder && ACCOUNT_BORDER_IDS.has(prev.equippedBorder)) {
+          persistedCosmetics.equippedBorder = prev.equippedBorder;
+        }
+      }
+
       const data = {
         ...characterData,
+        ...persistedCosmetics,
         userId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
