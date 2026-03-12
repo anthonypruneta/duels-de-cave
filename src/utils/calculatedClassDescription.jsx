@@ -325,9 +325,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
             <span className="text-green-400">{total}</span>
           </Tooltip>
           {' '}(vs RésCap).{' '}
-          <Tooltip content="Applique Brûlure du Néant : l'ennemi perd 2% PV par tour et inflige -10% dégâts auto (permanent)">
+          <Tooltip content="Effet permanent appliqué à chaque lancement de la capacité.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Brûlure du Néant</span>
-          </Tooltip>.
+          </Tooltip>
+          {' '}: ennemi perd <span className="text-green-400">2%</span> PV actuels/tour, <span className="text-red-400">-10%</span> dégâts auto.
         </>
       );
     }
