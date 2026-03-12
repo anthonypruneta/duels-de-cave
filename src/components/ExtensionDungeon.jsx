@@ -454,8 +454,8 @@ const ExtensionDungeon = () => {
             <>
               {/* Ancien vs nouveau second passif avec effets */}
               <div className="mb-6 space-y-4 max-w-2xl mx-auto">
-                {hasExistingExtension && (() => {
-                  const oldExt = character.mageTowerExtensionPassive;
+                {previousExtensionPassive && (() => {
+                  const oldExt = previousExtensionPassive;
                   const oldDetails = getPassiveDetails(oldExt);
                   const oldMixedName = getMixedPassiveDisplayName(primaryPassive?.id, oldExt?.id) || (oldDetails && `${primaryDetails?.name ?? ''} + ${oldDetails.name}`);
                   return oldDetails ? (
@@ -487,7 +487,7 @@ const ExtensionDungeon = () => {
                 >
                   {savingChoice ? 'Sauvegarde...' : 'Accepter le nouveau passif'}
                 </button>
-                {hasExistingExtension && (
+                {previousExtensionPassive && (
                   <button
                     onClick={handleKeepOldCombo}
                     disabled={savingChoice || !dungeonSummary?.runsRemaining}
@@ -496,7 +496,7 @@ const ExtensionDungeon = () => {
                     {savingChoice ? 'Sauvegarde...' : "Conserver l'ancienne combinaison (coûte 1 run)"}
                   </button>
                 )}
-                {hasExistingExtension && !dungeonSummary?.runsRemaining && (
+                {previousExtensionPassive && !dungeonSummary?.runsRemaining && (
                   <p className="text-red-400 text-sm">Plus de runs pour conserver l'ancienne combinaison.</p>
                 )}
               </div>

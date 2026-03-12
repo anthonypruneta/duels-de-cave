@@ -164,7 +164,8 @@ const MirrorMode = () => {
         speed: 'normal',
       });
 
-      const isWin = result.winnerId === character.userId;
+      const lastStep = result.steps[result.steps.length - 1];
+      const isWin = lastStep ? lastStep.p1HP > 0 : false;
       setCombatResult({ ...result, isWin });
       setIsSimulating(false);
 

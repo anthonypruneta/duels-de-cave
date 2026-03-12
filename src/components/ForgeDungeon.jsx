@@ -540,7 +540,7 @@ const ForgeDungeon = () => {
 
   // Reward screen after victory
   if (gameState === 'reward' && newUpgradeRoll) {
-    const hasExistingUpgrade = hasAnyForgeUpgrade(currentUpgrade);
+    const hadPreviousUpgrade = hasAnyForgeUpgrade(previousUpgrade);
     const alreadyChose = upgradeChoice !== null;
 
     return (
@@ -563,9 +563,9 @@ const ForgeDungeon = () => {
           {!alreadyChose ? (
             <>
               <div className="flex flex-col sm:flex-row gap-4 mb-6 max-w-2xl mx-auto">
-                {hasExistingUpgrade && (
+                {hadPreviousUpgrade && (
                   <UpgradeRollDisplay
-                    roll={currentUpgrade}
+                    roll={previousUpgrade}
                     label="Roll actuel"
                     isCurrent={true}
                   />
@@ -586,7 +586,7 @@ const ForgeDungeon = () => {
                   {savingUpgrade ? 'Sauvegarde...' : 'Accepter le nouveau roll'}
                 </button>
 
-                {hasExistingUpgrade && (
+                {hadPreviousUpgrade && (
                   <button
                     onClick={handleKeepOldRoll}
                     disabled={savingUpgrade || !dungeonSummary?.runsRemaining}
@@ -596,7 +596,7 @@ const ForgeDungeon = () => {
                   </button>
                 )}
 
-                {hasExistingUpgrade && !dungeonSummary?.runsRemaining && (
+                {hadPreviousUpgrade && !dungeonSummary?.runsRemaining && (
                   <p className="text-red-400 text-sm">Plus de runs pour conserver l'ancien roll.</p>
                 )}
               </div>
@@ -617,7 +617,7 @@ const ForgeDungeon = () => {
             </div>
           )}
 
-          {(alreadyChose || !hasExistingUpgrade) && upgradeChoice !== null && (
+          {(alreadyChose || !hadPreviousUpgrade) && upgradeChoice !== null && (
             <button
               onClick={handleBackToLobby}
               className="bg-stone-700 hover:bg-stone-600 text-white px-8 py-4 rounded-lg font-bold border border-stone-500 transition mt-4"
@@ -626,7 +626,7 @@ const ForgeDungeon = () => {
             </button>
           )}
 
-          {!alreadyChose && !hasExistingUpgrade && (
+          {!alreadyChose && !hadPreviousUpgrade && (
             <p className="text-stone-500 text-sm mt-2">Première forge — le roll sera automatiquement appliqué.</p>
           )}
         </div>
