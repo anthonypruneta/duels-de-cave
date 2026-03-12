@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
-import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
+import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getHallOfFame } from '../services/tournamentService';
+import { getWorldBossEvent } from '../services/worldBossService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -110,6 +111,125 @@ const getWeaponTooltipContent = (weapon, hideFlatStats = false) => {
 };
 
 
+const RecapPanel = ({ data }) => {
+  if (!data) return null;
+
+  const reminders = [];
+  if (data.missingWeapon) reminders.push({ icon: '⚔️', text: "Tu n'as pas d'arme — fais la Grotte !" });
+  if (data.missingPassive) reminders.push({ icon: '🔮', text: "Tu n'as pas de passif — fais la Tour du Mage !" });
+  if (data.missingForest) reminders.push({ icon: '🌿', text: "Tu n'as pas de boost forêt — fais la Forêt Enchantée !" });
+  if (data.missingForge) reminders.push({ icon: '🔨', text: "Tu n'as pas d'amélioration Ornn — fais la Forge !" });
+  if (data.missingExtension) reminders.push({ icon: '🌀', text: "Tu n'as pas d'extension — fais l'Extension du Territoire !" });
+  if (data.missingSubclass) reminders.push({ icon: '🎓', text: "Tu n'as pas de sous-classe — fais le Collège !" });
+
+  const runsPct = data.maxRuns > 0 ? (data.runsRemaining / data.maxRuns) * 100 : 0;
+  const labPct = (data.labFloor / 120) * 100;
+  const bossPct = (data.worldBossMaxHp && data.worldBossMaxHp > 0)
+    ? (data.worldBossHp / data.worldBossMaxHp) * 100
+    : 0;
+
+  return (
+    <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
+      <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">📋 Récap hebdomadaire</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Essais donjon */}
+        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-stone-400">⚔️ Essais donjon</span>
+            <span className="text-sm font-bold text-white">{data.runsRemaining}/{data.maxRuns}</span>
+          </div>
+          <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${runsPct}%`,
+                background: runsPct > 50 ? '#22c55e' : runsPct > 20 ? '#eab308' : '#ef4444'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Labyrinthe */}
+        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-stone-400">🏰 Labyrinthe</span>
+            <span className="text-sm font-bold text-white">Étage {data.labFloor}/120</span>
+          </div>
+          <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-violet-500 rounded-full transition-all duration-500"
+              style={{ width: `${labPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Miroir */}
+        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-stone-400">🪞 Miroir</span>
+            {data.mirrorDoneToday ? (
+              <span className="text-xs font-semibold text-stone-500">Déjà fait aujourd'hui</span>
+            ) : (
+              <span className="text-xs font-semibold text-emerald-400">Disponible !</span>
+            )}
+          </div>
+          <div className={`mt-1 w-2 h-2 rounded-full ${data.mirrorDoneToday ? 'bg-stone-600' : 'bg-emerald-400 shadow-[0_0_6px_#34d399]'}`} />
+        </div>
+
+        {/* Cataclysme */}
+        {data.worldBossStatus === 'active' && data.worldBossHp != null && (
+          <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-stone-400">💀 Cataclysme</span>
+              <span className="text-xs font-bold text-red-400">
+                {data.worldBossHp.toLocaleString()} / {data.worldBossMaxHp.toLocaleString()} HP
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 rounded-full transition-all duration-500"
+                style={{ width: `${bossPct}%` }}
+              />
+            </div>
+            {data.worldBossName && (
+              <div className="text-[11px] text-stone-500 mt-1">{data.worldBossName}</div>
+            )}
+          </div>
+        )}
+
+        {/* Tournoi */}
+        {data.lastChampion && (
+          <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
+            <div className="text-xs text-stone-400 mb-1">🏆 Dernier champion</div>
+            <div className="text-sm font-semibold text-amber-300">{data.lastChampion.name || data.lastChampion.characterName || '???'}</div>
+            {data.lastChampion.date && (
+              <div className="text-[10px] text-stone-500 mt-0.5">
+                {typeof data.lastChampion.date?.toDate === 'function'
+                  ? data.lastChampion.date.toDate().toLocaleDateString('fr-FR')
+                  : new Date(data.lastChampion.date).toLocaleDateString('fr-FR')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Rappels */}
+        {reminders.length > 0 && (
+          <div className={`bg-stone-900/80 border border-amber-700/40 rounded-lg p-3 ${reminders.length > 2 ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+            <div className="text-xs text-amber-400 font-semibold mb-2">💡 N'oublie pas</div>
+            <div className="flex flex-wrap gap-2">
+              {reminders.map((r, i) => (
+                <span key={i} className="text-[11px] text-stone-300 bg-stone-800/80 border border-stone-700/50 rounded-md px-2 py-1">
+                  {r.icon} {r.text}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const splitDescriptionLines = (text) => {
   if (!text) return [];
   return text
@@ -214,6 +334,7 @@ const CharacterCreation = () => {
   const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
   const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
   const [obtentionStats, setObtentionStats] = useState(null);
+  const [recapData, setRecapData] = useState(null);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const weaponFamilies = getWeaponFamilyInfo();
@@ -453,8 +574,11 @@ const CharacterCreation = () => {
         Promise.all([
           getUserLabyrinthProgress(currentUser.uid),
           getPlayerDungeonSummary(currentUser.uid),
-        ]).then(([labResult, summaryResult]) => {
+          getWorldBossEvent(),
+          getHallOfFame(),
+        ]).then(([labResult, summaryResult, wbResult, hofResult]) => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
+          const labCurrentFloor = labResult.success ? (labResult.data?.currentFloor ?? labFloor + 1) : 1;
           const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
           const dungeonCompletions = summaryResult.success ? (summaryResult.data?.dungeonCompletions || {}) : {};
           const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone, dungeonCompletions };
@@ -472,6 +596,41 @@ const CharacterCreation = () => {
                 earnedTitles: [...(prev?.earnedTitles || []), ...newTitles],
               }));
             }
+          });
+
+          const runsRemaining = summaryResult.success ? (summaryResult.data?.runsRemaining ?? 0) : 0;
+          const maxRuns = summaryResult.success ? (summaryResult.data?.maxRuns ?? 5) : 5;
+
+          let mirrorDoneToday = false;
+          if (summaryResult.success && summaryResult.data?.lastMirrorDate) {
+            const raw = summaryResult.data.lastMirrorDate;
+            const lastDate = typeof raw.toDate === 'function' ? raw.toDate() : new Date(raw);
+            const now = new Date();
+            mirrorDoneToday = lastDate.getFullYear() === now.getFullYear()
+              && lastDate.getMonth() === now.getMonth()
+              && lastDate.getDate() === now.getDate();
+          }
+
+          const wbData = wbResult.success ? wbResult.data : null;
+          const lastChampion = (hofResult.success && hofResult.data?.length > 0) ? hofResult.data[0] : null;
+
+          setRecapData({
+            runsRemaining,
+            maxRuns,
+            labFloor,
+            labCurrentFloor,
+            mirrorDoneToday,
+            worldBossName: wbData?.bossName || null,
+            worldBossHp: wbData?.hpRemaining ?? null,
+            worldBossMaxHp: wbData?.hpMax ?? null,
+            worldBossStatus: wbData?.status || null,
+            lastChampion,
+            missingWeapon: !charData.equippedWeaponId,
+            missingPassive: !charData.mageTowerPassive,
+            missingForest: !charData.forestBoosts || Object.values(charData.forestBoosts || {}).every(v => !v),
+            missingForge: !charData.forgeUpgrade,
+            missingExtension: !charData.mageTowerExtensionPassive,
+            missingSubclass: !charData.subclass,
           });
         });
         getObtentionStats().then(setObtentionStats).catch(() => {});
@@ -1142,6 +1301,13 @@ const CharacterCreation = () => {
               </div>
             </div>
           </div>
+
+          {/* Recap Panel */}
+          {existingCharacter && recapData && (
+            <div className="max-w-[1400px] mx-auto mt-6 px-2">
+              <RecapPanel data={recapData} />
+            </div>
+          )}
 
           {/* Titres et Bordures */}
           {existingCharacter && (
