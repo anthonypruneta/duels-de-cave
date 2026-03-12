@@ -313,7 +313,7 @@ const SubclassDungeon = () => {
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
             <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0 lg:w-auto lg:max-w-[340px]">
-              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} />
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
             </div>
 
             <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
