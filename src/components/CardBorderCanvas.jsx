@@ -169,30 +169,59 @@ function drawLava(ctx, state, w, h) {
   }
 }
 
-// ─── Givre : vent glacé + craquelures de glace aux coins ─────────────────────
+// ─── Givre : vent glacé + failles de glacier depuis les bords ─────────────────
+
+function buildFissure(ox, oy, baseAngle, maxLen, depth) {
+  const segments = [];
+  let x = ox, y = oy, angle = baseAngle;
+  const segCount = randInt(6, 12);
+  const segLen = maxLen / segCount;
+  for (let i = 0; i < segCount; i++) {
+    angle += rand(-0.4, 0.4);
+    const len = segLen * rand(0.6, 1.4);
+    const nx = x + Math.cos(angle) * len;
+    const ny = y + Math.sin(angle) * len;
+    const width = lerp(2.5, 0.3, i / segCount) * (depth === 0 ? 1 : 0.5);
+    segments.push({ x1: x, y1: y, x2: nx, y2: ny, width, t: i / segCount });
+    if (depth < 2 && i > 1 && Math.random() < 0.4) {
+      const branchAngle = angle + rand(-1.0, 1.0);
+      const branchLen = (maxLen - i * segLen) * rand(0.25, 0.55);
+      const sub = buildFissure(x, y, branchAngle, branchLen, depth + 1);
+      segments.push(...sub);
+    }
+    x = nx;
+    y = ny;
+  }
+  return segments;
+}
+
+function initIceFissures(w, h) {
+  const fissures = [];
+  const minDim = Math.min(w, h);
+  const reach = minDim * rand(0.45, 0.7);
+  const edgeSpawns = [
+    { x: rand(w * 0.05, w * 0.35), y: 0, aMin: 0.3, aMax: 1.3 },
+    { x: rand(w * 0.65, w * 0.95), y: 0, aMin: 1.8, aMax: 2.8 },
+    { x: 0, y: rand(h * 0.1, h * 0.4), aMin: -0.4, aMax: 0.5 },
+    { x: w, y: rand(h * 0.1, h * 0.4), aMin: 2.6, aMax: 3.5 },
+    { x: rand(w * 0.15, w * 0.45), y: h, aMin: -1.3, aMax: -0.3 },
+    { x: rand(w * 0.55, w * 0.85), y: h, aMin: -2.8, aMax: -1.8 },
+    { x: 0, y: rand(h * 0.6, h * 0.9), aMin: -0.5, aMax: 0.4 },
+    { x: w, y: rand(h * 0.6, h * 0.9), aMin: 2.7, aMax: 3.6 },
+  ];
+  for (const sp of edgeSpawns) {
+    const angle = rand(sp.aMin, sp.aMax);
+    const len = reach * rand(0.6, 1.0);
+    fissures.push(...buildFissure(sp.x, sp.y, angle, len, 0));
+  }
+  return fissures;
+}
 
 function initIce(w, h) {
-  const crackSize = Math.min(w, h) * 0.22;
-  const cracks = [];
-  const corners = [[0, 0], [w, 0], [0, h], [w, h]];
-  for (const [cx, cy] of corners) {
-    for (let i = 0; i < 5; i++) {
-      const a = Math.atan2(cy === 0 ? 1 : -1, cx === 0 ? 1 : -1) + rand(-0.6, 0.6);
-      const len = rand(crackSize * 0.3, crackSize);
-      const branches = [];
-      const numBranch = randInt(1, 3);
-      for (let b = 0; b < numBranch; b++) {
-        const t = rand(0.3, 0.8);
-        const ba = a + rand(-0.8, 0.8);
-        branches.push({ t, angle: ba, len: rand(len * 0.2, len * 0.5) });
-      }
-      cracks.push({ cx, cy, angle: a, len, branches, alpha: rand(0.25, 0.5) });
-    }
-  }
   return {
     particles: Array.from({ length: 45 }, () => spawnIce(w, h, true)),
     streaks: Array.from({ length: 12 }, () => spawnIceStreak(w, h, true)),
-    cracks,
+    fissures: initIceFissures(w, h),
     frostPhase: 0,
   };
 }
@@ -236,46 +265,69 @@ function updateIce(state, w, h, dt) {
   }
 }
 
-function drawIceCracks(ctx, cracks, frostPhase) {
-  const pulse = 0.8 + 0.2 * Math.sin(frostPhase);
-  for (const cr of cracks) {
-    const ex = cr.cx + Math.cos(cr.angle) * cr.len;
-    const ey = cr.cy + Math.sin(cr.angle) * cr.len;
-    ctx.strokeStyle = `rgba(186, 230, 253, ${cr.alpha * pulse})`;
-    ctx.lineWidth = 1.2;
+function drawIceFissures(ctx, fissures, phase) {
+  const pulse = 0.85 + 0.15 * Math.sin(phase);
+
+  for (const seg of fissures) {
+    const glowW = seg.width * 6;
+    const ga = 0.07 * pulse * (1 - seg.t);
+    ctx.strokeStyle = `rgba(103, 232, 249, ${ga})`;
+    ctx.lineWidth = glowW;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(cr.cx, cr.cy);
-    ctx.lineTo(ex, ey);
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
     ctx.stroke();
-    for (const b of cr.branches) {
-      const bx = cr.cx + Math.cos(cr.angle) * cr.len * b.t;
-      const by = cr.cy + Math.sin(cr.angle) * cr.len * b.t;
-      const bex = bx + Math.cos(b.angle) * b.len;
-      const bey = by + Math.sin(b.angle) * b.len;
-      ctx.strokeStyle = `rgba(186, 230, 253, ${cr.alpha * pulse * 0.6})`;
-      ctx.lineWidth = 0.7;
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bex, bey);
-      ctx.stroke();
-    }
+  }
+
+  for (const seg of fissures) {
+    const a = (0.55 + 0.15 * Math.sin(phase + seg.x1 * 0.01)) * (1 - seg.t * 0.5) * pulse;
+    ctx.strokeStyle = `rgba(220, 245, 255, ${a})`;
+    ctx.lineWidth = seg.width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
+    ctx.stroke();
+  }
+
+  for (const seg of fissures) {
+    const coreA = 0.9 * pulse * (1 - seg.t * 0.6);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${coreA})`;
+    ctx.lineWidth = Math.max(0.4, seg.width * 0.35);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
+    ctx.stroke();
   }
 }
 
 function drawIce(ctx, state, w, h) {
-  // Frost glow aux coins
-  const corners = [[0, 0], [w, 0], [0, h], [w, h]];
-  const cornerR = Math.min(w, h) * 0.3;
-  for (const [cx, cy] of corners) {
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cornerR);
-    g.addColorStop(0, `rgba(186, 230, 253, ${0.12 + 0.04 * Math.sin(state.frostPhase)})`);
-    g.addColorStop(1, 'rgba(186, 230, 253, 0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, cornerR, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  drawIceCracks(ctx, state.cracks, state.frostPhase);
+  const edgeFrost = Math.min(w, h) * 0.08;
+  const frostA = 0.06 + 0.02 * Math.sin(state.frostPhase * 0.7);
+  const topG = ctx.createLinearGradient(0, 0, 0, edgeFrost);
+  topG.addColorStop(0, `rgba(186, 230, 253, ${frostA})`);
+  topG.addColorStop(1, 'rgba(186, 230, 253, 0)');
+  ctx.fillStyle = topG;
+  ctx.fillRect(0, 0, w, edgeFrost);
+  const botG = ctx.createLinearGradient(0, h, 0, h - edgeFrost);
+  botG.addColorStop(0, `rgba(186, 230, 253, ${frostA})`);
+  botG.addColorStop(1, 'rgba(186, 230, 253, 0)');
+  ctx.fillStyle = botG;
+  ctx.fillRect(0, h - edgeFrost, w, edgeFrost);
+  const leftG = ctx.createLinearGradient(0, 0, edgeFrost, 0);
+  leftG.addColorStop(0, `rgba(186, 230, 253, ${frostA})`);
+  leftG.addColorStop(1, 'rgba(186, 230, 253, 0)');
+  ctx.fillStyle = leftG;
+  ctx.fillRect(0, 0, edgeFrost, h);
+  const rightG = ctx.createLinearGradient(w, 0, w - edgeFrost, 0);
+  rightG.addColorStop(0, `rgba(186, 230, 253, ${frostA})`);
+  rightG.addColorStop(1, 'rgba(186, 230, 253, 0)');
+  ctx.fillStyle = rightG;
+  ctx.fillRect(w - edgeFrost, 0, edgeFrost, h);
+
+  drawIceFissures(ctx, state.fissures, state.frostPhase);
 
   for (const st of state.streaks) {
     ctx.strokeStyle = `rgba(103, 232, 249, ${st.alpha})`;
