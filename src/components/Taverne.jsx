@@ -576,6 +576,12 @@ export default function Taverne() {
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span>💀 Boss Rush</span>
+                    <span className="text-amber-200 font-semibold">
+                      {selectedProgression?.dungeon?.bossRushCompleted ? '✓' : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>🌀 Labyrinthe (étage max)</span>
                     <span className="text-amber-200 font-semibold">
                       {selectedProgression?.labyrinth?.highestClearedFloor != null
