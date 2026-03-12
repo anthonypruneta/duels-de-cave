@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
-import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
+import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
@@ -448,9 +448,13 @@ const CharacterCreation = () => {
         }
         const charData = { ...normalized, level, forgeUpgrade: forgeUpgradeData };
         setExistingCharacter(charData);
-        getUserLabyrinthProgress(currentUser.uid).then(labResult => {
+        Promise.all([
+          getUserLabyrinthProgress(currentUser.uid),
+          getPlayerDungeonSummary(currentUser.uid),
+        ]).then(([labResult, summaryResult]) => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
-          const extras = { labyrinthHighestFloor: labFloor };
+          const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
+          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone };
 
           syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
             if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {

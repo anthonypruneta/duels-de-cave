@@ -116,7 +116,7 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('champion');
   }
 
-  if (character.bossRushCompleted) {
+  if (character.bossRushCompleted || extras.bossRushCompleted) {
     unlocked.push('blood');
   }
 

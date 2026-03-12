@@ -11,6 +11,7 @@ import { replayCombatSteps } from '../utils/combatReplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
+import { syncUnlockedBorders } from '../data/borders';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -190,6 +191,7 @@ const BossRush = () => {
             setBossRushCompleted(true);
             setRewardGiven(true);
           }
+          syncUnlockedBorders(currentUser.uid, character, { bossRushCompleted: true }).catch(() => {});
         } else {
           setGameState('transition');
         }
