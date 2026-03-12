@@ -115,117 +115,95 @@ const RecapPanel = ({ data }) => {
   if (!data) return null;
 
   const reminders = [];
-  if (data.missingWeapon) reminders.push({ icon: '⚔️', text: "Tu n'as pas d'arme — fais la Grotte !" });
-  if (data.missingPassive) reminders.push({ icon: '🔮', text: "Tu n'as pas de passif — fais la Tour du Mage !" });
-  if (data.missingForest) reminders.push({ icon: '🌿', text: "Tu n'as pas de boost forêt — fais la Forêt Enchantée !" });
-  if (data.missingForge) reminders.push({ icon: '🔨', text: "Tu n'as pas d'amélioration Ornn — fais la Forge !" });
-  if (data.missingExtension) reminders.push({ icon: '🌀', text: "Tu n'as pas d'extension — fais l'Extension du Territoire !" });
-  if (data.missingSubclass) reminders.push({ icon: '🎓', text: "Tu n'as pas de sous-classe — fais le Collège !" });
+  if (data.missingWeapon) reminders.push({ icon: '⚔️', text: "Pas d'arme — fais la Grotte !" });
+  if (data.missingPassive) reminders.push({ icon: '🔮', text: "Pas de passif — fais la Tour !" });
+  if (data.missingForest) reminders.push({ icon: '🌿', text: "Pas de boost — fais la Forêt !" });
+  if (data.missingForge) reminders.push({ icon: '🔨', text: "Pas de forge — défie Ornn !" });
+  if (data.missingExtension) reminders.push({ icon: '🌀', text: "Pas d'extension — fais Gojo !" });
+  if (data.missingSubclass) reminders.push({ icon: '🎓', text: "Pas de sous-classe — fais le Collège !" });
 
-  const runsPct = data.maxRuns > 0 ? (data.runsRemaining / data.maxRuns) * 100 : 0;
   const labPct = (data.labFloor / 120) * 100;
+  const bossDead = data.worldBossHp != null && data.worldBossHp <= 0;
   const bossPct = (data.worldBossMaxHp && data.worldBossMaxHp > 0)
     ? (data.worldBossHp / data.worldBossMaxHp) * 100
     : 0;
 
   return (
-    <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
-      <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">📋 Récap hebdomadaire</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {/* Essais donjon */}
-        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-stone-400">⚔️ Essais donjon</span>
-            <span className="text-sm font-bold text-white">{data.runsRemaining}/{data.maxRuns}</span>
-          </div>
-          <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${runsPct}%`,
-                background: runsPct > 50 ? '#22c55e' : runsPct > 20 ? '#eab308' : '#ef4444'
-              }}
-            />
-          </div>
+    <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-3 shadow-lg space-y-2">
+      <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest">📋 Récap</h3>
+
+      {/* Essais donjon */}
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-stone-400">⚔️ Essais restants</span>
+        <span className={`font-bold ${data.runsRemaining > 0 ? 'text-white' : 'text-red-400'}`}>{data.runsRemaining}</span>
+      </div>
+
+      {/* Labyrinthe */}
+      <div>
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-stone-400">🏰 Labyrinthe</span>
+          <span className="font-bold text-white">Étage {data.labFloor}/120</span>
         </div>
-
-        {/* Labyrinthe */}
-        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-stone-400">🏰 Labyrinthe</span>
-            <span className="text-sm font-bold text-white">Étage {data.labFloor}/120</span>
-          </div>
-          <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-violet-500 rounded-full transition-all duration-500"
-              style={{ width: `${labPct}%` }}
-            />
-          </div>
+        <div className="w-full h-1 bg-stone-800 rounded-full overflow-hidden">
+          <div className="h-full bg-violet-500 rounded-full" style={{ width: `${labPct}%` }} />
         </div>
+      </div>
 
-        {/* Miroir */}
-        <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-stone-400">🪞 Miroir</span>
-            {data.mirrorDoneToday ? (
-              <span className="text-xs font-semibold text-stone-500">Déjà fait aujourd'hui</span>
-            ) : (
-              <span className="text-xs font-semibold text-emerald-400">Disponible !</span>
-            )}
-          </div>
-          <div className={`mt-1 w-2 h-2 rounded-full ${data.mirrorDoneToday ? 'bg-stone-600' : 'bg-emerald-400 shadow-[0_0_6px_#34d399]'}`} />
-        </div>
-
-        {/* Cataclysme */}
-        {data.worldBossStatus === 'active' && data.worldBossHp != null && (
-          <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-stone-400">💀 Cataclysme</span>
-              <span className="text-xs font-bold text-red-400">
-                {data.worldBossHp.toLocaleString()} / {data.worldBossMaxHp.toLocaleString()} HP
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-red-500 rounded-full transition-all duration-500"
-                style={{ width: `${bossPct}%` }}
-              />
-            </div>
-            {data.worldBossName && (
-              <div className="text-[11px] text-stone-500 mt-1">{data.worldBossName}</div>
-            )}
-          </div>
-        )}
-
-        {/* Tournoi */}
-        {data.lastChampion && (
-          <div className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3">
-            <div className="text-xs text-stone-400 mb-1">🏆 Dernier champion</div>
-            <div className="text-sm font-semibold text-amber-300">{data.lastChampion.name || data.lastChampion.characterName || '???'}</div>
-            {data.lastChampion.date && (
-              <div className="text-[10px] text-stone-500 mt-0.5">
-                {typeof data.lastChampion.date?.toDate === 'function'
-                  ? data.lastChampion.date.toDate().toLocaleDateString('fr-FR')
-                  : new Date(data.lastChampion.date).toLocaleDateString('fr-FR')}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Rappels */}
-        {reminders.length > 0 && (
-          <div className={`bg-stone-900/80 border border-amber-700/40 rounded-lg p-3 ${reminders.length > 2 ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
-            <div className="text-xs text-amber-400 font-semibold mb-2">💡 N'oublie pas</div>
-            <div className="flex flex-wrap gap-2">
-              {reminders.map((r, i) => (
-                <span key={i} className="text-[11px] text-stone-300 bg-stone-800/80 border border-stone-700/50 rounded-md px-2 py-1">
-                  {r.icon} {r.text}
-                </span>
-              ))}
-            </div>
-          </div>
+      {/* Miroir */}
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-stone-400">🪞 Miroir</span>
+        {data.mirrorDoneToday ? (
+          <span className="font-semibold text-stone-500">Fait ✓</span>
+        ) : (
+          <span className="font-semibold text-emerald-400">Disponible</span>
         )}
       </div>
+
+      {/* Cataclysme */}
+      {data.worldBossHp != null && (
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-stone-400">💀 Cataclysme</span>
+            {bossDead ? (
+              <span className="font-bold text-stone-500">Mort 💀</span>
+            ) : (
+              <span className="font-bold text-red-400">
+                {data.worldBossHp.toLocaleString()} / {data.worldBossMaxHp.toLocaleString()}
+              </span>
+            )}
+          </div>
+          {!bossDead && (
+            <div className="w-full h-1 bg-stone-800 rounded-full overflow-hidden">
+              <div className="h-full bg-red-500 rounded-full" style={{ width: `${bossPct}%` }} />
+            </div>
+          )}
+          {data.worldBossName && (
+            <div className="text-[10px] text-stone-500 mt-0.5">{data.worldBossName}</div>
+          )}
+        </div>
+      )}
+
+      {/* Tournoi */}
+      {data.lastChampion && (
+        <div className="text-xs">
+          <span className="text-stone-400">🏆 Champion : </span>
+          <span className="font-semibold text-amber-300">{data.lastChampion.name || data.lastChampion.characterName || '???'}</span>
+        </div>
+      )}
+
+      {/* Rappels */}
+      {reminders.length > 0 && (
+        <div className="border-t border-stone-700/60 pt-2">
+          <div className="text-[10px] text-amber-400 font-semibold mb-1.5">💡 N'oublie pas</div>
+          <div className="space-y-1">
+            {reminders.map((r, i) => (
+              <div key={i} className="text-[11px] text-stone-300">
+                {r.icon} {r.text}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1300,14 +1278,14 @@ const CharacterCreation = () => {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Recap Panel */}
-          {existingCharacter && recapData && (
-            <div className="max-w-[1400px] mx-auto mt-6 px-2">
-              <RecapPanel data={recapData} />
-            </div>
-          )}
+            {/* Recap Panel */}
+            {recapData && (
+              <div className="w-full lg:w-[240px] lg:flex-shrink-0">
+                <RecapPanel data={recapData} />
+              </div>
+            )}
+          </div>
 
           {/* Titres et Bordures */}
           {existingCharacter && (
