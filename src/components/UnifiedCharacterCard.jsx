@@ -52,6 +52,8 @@ const UnifiedCharacterCard = ({
   imageOverlayContent = null,
   /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
   imageClassName = '',
+  /** Si true, l'effet Canvas bordure n'apparaît que sur l'image (pas sur les stats/infos) */
+  borderOnImageOnly = false,
 }) => {
   const targetHp = typeof hpPercent === 'number' ? Math.max(0, Math.min(100, hpPercent)) : null;
   const targetShield = Math.max(0, Math.min(100, shieldPercent));
@@ -91,7 +93,8 @@ const UnifiedCharacterCard = ({
   };
 
   const imageSection = (
-    <div className={`relative bg-stone-900 flex items-center justify-center ${infoSide ? 'w-[220px] flex-shrink-0' : ''}`}>
+    <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
+      {borderOnImageOnly && canvasOverlay}
       {image ? (
         <img src={image} alt={name} className={`w-full h-auto object-contain ${imageClassName}`.trim()} />
       ) : (
@@ -134,15 +137,18 @@ const UnifiedCharacterCard = ({
   const resolvedBorder = resolveBorderId(borderId);
   const hasCanvasBorder = resolvedBorder && resolvedBorder !== 'default';
   const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
-  const baseBorder = hasCanvasBorder ? '' : 'border border-stone-600';
+  const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
 
   const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
+
+  const wrapperGlow = borderOnImageOnly ? '' : glowCls;
+  const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
 
   if (infoSide) {
     return (
       <div className={`w-full ${cardClassName}`.trim()}>
-        <div className={`relative shadow-2xl overflow-hidden ${glowCls}`}>
-          {canvasOverlay}
+        <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
+          {wrapperCanvas}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
             {header}
           </div>
@@ -160,8 +166,8 @@ const UnifiedCharacterCard = ({
 
   return (
     <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
-      <div className={`relative shadow-2xl overflow-hidden ${glowCls}`}>
-        {canvasOverlay}
+      <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
+        {wrapperCanvas}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {header}
         </div>

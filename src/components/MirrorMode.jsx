@@ -222,7 +222,7 @@ const MirrorMode = () => {
     return parts.length > 0 ? parts : text;
   };
 
-  const CloneCard = ({ showHp = false, detailsPlacement = null }) => {
+  const CloneCard = ({ showHp = false, detailsPlacement = null, infoSide = null }) => {
     if (!mirrorCloneForDisplay) return null;
     return (
       <CharacterCardContent
@@ -238,7 +238,9 @@ const MirrorMode = () => {
         combatStatus={showHp ? cloneCombatStatus : null}
         cardClassName=""
         borderId="shadow"
+        borderOnImageOnly
         imageClassName="scale-x-[-1]"
+        infoSide={infoSide}
         detailsPlacement={detailsPlacement}
       />
     );
@@ -278,9 +280,9 @@ const MirrorMode = () => {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 items-start justify-center mb-6">
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
-              {character && <CharacterCardContent character={character} />}
+          <div className="flex flex-col md:flex-row gap-4 items-start justify-center mb-6">
+            <div className="w-full md:flex-1">
+              {character && <CharacterCardContent character={character} infoSide="left" />}
               <div className="text-center mt-2 text-xs text-stone-400">Vous</div>
             </div>
 
@@ -288,8 +290,8 @@ const MirrorMode = () => {
               ⚔️
             </div>
 
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
-              <CloneCard />
+            <div className="w-full md:flex-1">
+              <CloneCard infoSide="right" />
               <div className="text-center mt-2 text-xs text-stone-400">Doppelgänger</div>
             </div>
           </div>

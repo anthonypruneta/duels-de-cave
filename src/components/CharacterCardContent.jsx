@@ -51,6 +51,8 @@ export default function CharacterCardContent({
   imageOverlayContent = null,
   /** Override de bordure Canvas (ex: 'lava' pour un boss). Si absent, utilise character.equippedBorder. */
   borderId: borderIdOverride = null,
+  /** Si true, l'effet Canvas bordure n'apparaît que sur l'image */
+  borderOnImageOnly = false,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -349,6 +351,7 @@ export default function CharacterCardContent({
     cardClassName,
     infoSide,
     borderId: borderIdOverride || character?.equippedBorder || null,
+    borderOnImageOnly,
     imageClassName,
     imageOverlayContent,
   };
