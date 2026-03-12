@@ -505,7 +505,7 @@ const InfiniteLabyrinth = () => {
             )}
 
             <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px] overflow-hidden">
-              <div className="bg-stone-900/60 p-3 border-b border-stone-700/60">
+              <div className="bg-stone-900 p-3 border-b border-stone-700">
                 <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
               </div>
               <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">

@@ -103,7 +103,7 @@ const getPassiveDetails = (passive) => {
 const DUMMY_HP = 999999;
 
 const SectionTitle = ({ children }) => (
-  <div className="px-4 py-2.5 border-b border-stone-700/60 bg-stone-900/60">
+  <div className="px-4 py-2.5 border-b border-stone-700/60 bg-stone-900">
     <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">{children}</h3>
   </div>
 );
@@ -518,7 +518,7 @@ const Training = () => {
                 </div>
               </div>
               {totalDmgTaken > 0 && (
-                <div className="flex items-start gap-2 bg-red-900/30 p-2 text-xs border border-red-700/50">
+                <div className="flex items-start gap-2 bg-red-900 p-2 text-xs border border-red-700">
                   <span className="text-lg">💥</span>
                   <div className="flex-1">
                     <div className="text-red-300 font-semibold">Dégâts encaissés: {totalDmgTaken.toLocaleString()}</div>
@@ -684,7 +684,7 @@ const Training = () => {
                           if (log.includes('📊')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-amber-900/50 text-amber-200 px-6 py-3 font-bold text-lg shadow-lg border border-amber-600">
+                                <div className="bg-amber-900 text-amber-200 px-6 py-3 font-bold text-lg shadow-lg border border-amber-600">
                                   {cleanLog}
                                 </div>
                               </div>
@@ -944,7 +944,7 @@ const Training = () => {
           <div className="w-full lg:w-[420px] lg:flex-shrink-0">
             <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-hidden shadow-lg">
               {/* Header résumé */}
-              <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900/60 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-stone-700/60 bg-stone-900 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{races[dummyConfig.race]?.icon || '👤'}</span>
                   <span className="text-sm font-bold text-stone-200">{dummyConfig.race}</span>
@@ -964,27 +964,27 @@ const Training = () => {
               <div className="p-4 border-t border-stone-700/60">
                 <div className="text-xs text-stone-500 uppercase tracking-wider mb-2 font-bold">Stats finales (après bonus)</div>
                 <div className="grid grid-cols-3 gap-2 text-sm mb-4">
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">HP</div>
                     <div className="text-red-400 font-bold">{dummyConfig.hp >= DUMMY_HP ? '∞' : previewDummy.base?.hp ?? '—'}</div>
                   </div>
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">Auto</div>
                     <div className="text-orange-400 font-bold">{previewDummy.base?.auto ?? '—'}</div>
                   </div>
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">Déf</div>
                     <div className="text-blue-400 font-bold">{previewDummy.base?.def ?? '—'}</div>
                   </div>
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">Cap</div>
                     <div className="text-purple-400 font-bold">{previewDummy.base?.cap ?? '—'}</div>
                   </div>
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">ResC</div>
                     <div className="text-teal-400 font-bold">{previewDummy.base?.rescap ?? '—'}</div>
                   </div>
-                  <div className="bg-stone-800/60 rounded px-2 py-1.5 text-center">
+                  <div className="bg-stone-800 rounded px-2 py-1.5 text-center">
                     <div className="text-[10px] text-stone-500">VIT</div>
                     <div className="text-yellow-400 font-bold">{previewDummy.base?.spd ?? '—'}</div>
                   </div>
@@ -993,7 +993,7 @@ const Training = () => {
                 {/* Résumé équipement */}
                 <div className="space-y-1.5 text-xs">
                   {selectedWeaponData && (
-                    <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                    <div className="flex items-center gap-2 bg-stone-800 rounded px-2 py-1.5">
                       <span className="text-amber-400">⚔️</span>
                       <span className="text-stone-300">{selectedWeaponData.nom}</span>
                       {dummyConfig.forgeEnabled && isLegendaryWeapon && <span className="text-amber-500 text-[10px] font-bold">FORGÉ</span>}
@@ -1002,7 +1002,7 @@ const Training = () => {
                   {dummyConfig.passiveId && (() => {
                     const p = getMageTowerPassiveById(dummyConfig.passiveId);
                     return p ? (
-                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                      <div className="flex items-center gap-2 bg-stone-800 rounded px-2 py-1.5">
                         <span>{p.icon}</span>
                         <span className="text-stone-300">{p.name} niv.{dummyConfig.passiveLevel}</span>
                       </div>
@@ -1011,7 +1011,7 @@ const Training = () => {
                   {dummyConfig.extensionId && (() => {
                     const p = getMageTowerPassiveById(dummyConfig.extensionId);
                     return p ? (
-                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                      <div className="flex items-center gap-2 bg-stone-800 rounded px-2 py-1.5">
                         <span>{p.icon}</span>
                         <span className="text-stone-300">Ext. {p.name} niv.{dummyConfig.extensionLevel}</span>
                       </div>
@@ -1020,14 +1020,14 @@ const Training = () => {
                   {dummyConfig.subclassId && (() => {
                     const sc = getSubclassById(dummyConfig.subclassId);
                     return sc ? (
-                      <div className="flex items-center gap-2 bg-stone-800/60 rounded px-2 py-1.5">
+                      <div className="flex items-center gap-2 bg-stone-800 rounded px-2 py-1.5">
                         <span className="text-amber-400">🔱</span>
                         <span className="text-stone-300">{sc.name}</span>
                       </div>
                     ) : null;
                   })()}
                   {isAwakened && (
-                    <div className="flex items-center gap-2 bg-amber-900/20 rounded px-2 py-1.5 border border-amber-500/20">
+                    <div className="flex items-center gap-2 bg-amber-900 rounded px-2 py-1.5 border border-amber-500">
                       <span className="text-amber-400">✨</span>
                       <span className="text-amber-300">Awakening actif</span>
                     </div>

@@ -1473,7 +1473,7 @@ const ForestDungeon = () => {
             <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
 
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-                <div className="bg-stone-900/60 p-3 border-b border-stone-700/60 rounded-t-xl">
+                <div className="bg-stone-900 p-3 border-b border-stone-700 rounded-t-xl">
                   <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                 </div>
                 <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
@@ -1634,7 +1634,7 @@ const ForestDungeon = () => {
         )}
 
         {(character?.level ?? 0) >= MAX_LEVEL && (
-          <div className="bg-amber-900/40 border border-amber-600 p-4 mb-6 text-center">
+          <div className="bg-amber-900 border border-amber-600 p-4 mb-6 text-center">
             <p className="text-amber-200 font-semibold">Donjon bloqué : niveau maximum (400) atteint.</p>
             <p className="text-stone-400 text-sm mt-1">Aucun gain possible au-delà du niveau 400.</p>
           </div>

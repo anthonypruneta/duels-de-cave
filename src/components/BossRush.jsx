@@ -309,7 +309,7 @@ const BossRush = () => {
         <Header />
         <div className="max-w-6xl mx-auto pt-20">
           <div className="text-center mb-6">
-            <div className="bg-stone-900/70 border-2 border-red-600 rounded-xl px-6 py-3 shadow-xl inline-block">
+            <div className="bg-stone-900 border-2 border-red-600 rounded-xl px-6 py-3 shadow-xl inline-block">
               <h2 className="text-3xl font-bold text-red-400">💀 Boss Rush</h2>
               <p className="text-red-300/80 text-sm mt-1">6 boss sans répit. Vos PV persistent entre chaque combat.</p>
             </div>
@@ -326,7 +326,7 @@ const BossRush = () => {
                 {bosses.map((b) => {
                   const img = getBossImage(b.imageFile, b.imageSource);
                   return (
-                    <div key={b.id} className="bg-stone-800/80 border border-stone-600 rounded-lg p-3 text-center">
+                    <div key={b.id} className="bg-stone-800 border border-stone-600 rounded-lg p-3 text-center">
                       {img ? (
                         <img src={img} alt={b.nom} className="w-16 h-16 object-contain mx-auto mb-2" />
                       ) : (
@@ -340,7 +340,7 @@ const BossRush = () => {
               </div>
 
               {bossRushCompleted && (
-                <div className="bg-green-900/30 border border-green-600 rounded-lg p-3 mb-4 text-green-300 text-sm text-center">
+                <div className="bg-green-900 border border-green-600 rounded-lg p-3 mb-4 text-green-300 text-sm text-center">
                   ✅ Boss Rush déjà complété ! Vous pouvez retenter sans récompense supplémentaire.
                 </div>
               )}
@@ -369,9 +369,9 @@ const BossRush = () => {
         <div className="flex justify-center gap-2 mb-4">
           {bosses.map((b, i) => {
             let cls = 'bg-stone-800 border-stone-600 text-stone-500';
-            if (i < currentBossIndex || gameState === 'victory') cls = 'bg-green-900/50 border-green-600 text-green-300';
-            else if (i === currentBossIndex && (gameState === 'fighting' || gameState === 'transition')) cls = 'bg-amber-900/50 border-amber-500 text-amber-300';
-            else if (i === currentBossIndex && gameState === 'defeat') cls = 'bg-red-900/50 border-red-600 text-red-300';
+            if (i < currentBossIndex || gameState === 'victory') cls = 'bg-green-900 border-green-600 text-green-300';
+            else if (i === currentBossIndex && (gameState === 'fighting' || gameState === 'transition')) cls = 'bg-amber-900 border-amber-500 text-amber-300';
+            else if (i === currentBossIndex && gameState === 'defeat') cls = 'bg-red-900 border-red-600 text-red-300';
             return (
               <div key={b.id} className={`border rounded-lg px-3 py-2 text-center text-xs ${cls}`}>
                 <div className="text-lg">{b.icon}</div>
@@ -520,7 +520,7 @@ const BossRush = () => {
 
             {gameState === 'victory' && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 border-2 border-amber-500 rounded-xl p-6">
+                <div className="bg-gradient-to-r from-amber-900 to-yellow-900 border-2 border-amber-500 rounded-xl p-6">
                   <div className="text-4xl mb-2">🏆</div>
                   <div className="text-2xl font-bold text-amber-400">Boss Rush Complété !</div>
                   <p className="text-amber-200 mt-2">Vous avez vaincu les 6 boss d'affilée !</p>
@@ -542,7 +542,7 @@ const BossRush = () => {
 
             {gameState === 'defeat' && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-red-900/30 border-2 border-red-600 rounded-xl p-6">
+                <div className="bg-red-900 border-2 border-red-600 rounded-xl p-6">
                   <div className="text-4xl mb-2">💀</div>
                   <div className="text-2xl font-bold text-red-400">Défaite...</div>
                   <p className="text-red-200 mt-2">
