@@ -488,150 +488,135 @@ const Combat = () => {
   // Phase de sélection — style fighting game
   if (phase === 'selection') {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="h-screen flex flex-col overflow-hidden">
         <Header />
 
-        <div className="flex-1 flex flex-col items-center pt-20 px-4 pb-4">
-          {loadingCharacters ? (
-            <div className="text-center text-stone-300 text-xl mt-20">Chargement des personnages...</div>
-          ) : availableCharacters.length < 2 ? (
-            <div className="bg-stone-800/50 p-8 border border-stone-600 text-center mt-20">
-              <p className="text-stone-400 text-xl mb-4">Il faut au moins 2 personnages pour combattre</p>
-            </div>
-          ) : (
-            <>
-              {/* Preview des 2 combattants sélectionnés */}
-              <div className="w-full max-w-5xl flex items-end justify-center gap-2 md:gap-6 mb-6">
-                {/* P1 */}
-                <div
-                  className={`flex-1 max-w-[280px] flex flex-col items-center cursor-pointer transition-all ${selectingFor === 1 ? 'scale-105' : 'opacity-70 hover:opacity-90'}`}
-                  onClick={() => setSelectingFor(1)}
-                >
-                  <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1">P1</div>
-                  <div className={`relative w-full aspect-[3/4] bg-stone-900/80 border-2 ${selectingFor === 1 ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border-stone-700'} overflow-hidden transition-all`}>
-                    {selectedChar1 ? (
-                      <>
-                        <img
-                          src={selectedChar1.characterImage}
-                          alt={selectedChar1.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3">
-                          <div className="text-white font-bold text-lg leading-tight truncate">{selectedChar1.name}</div>
-                          <div className="text-blue-300 text-xs">{selectedChar1.race} • {selectedChar1.class} • Niv.{selectedChar1.level ?? 1}</div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-stone-600">
-                        <span className="text-5xl mb-2">?</span>
-                        <span className="text-xs">Sélectionner</span>
-                      </div>
-                    )}
+        {loadingCharacters ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-stone-300 text-xl">Chargement des personnages...</div>
+          </div>
+        ) : availableCharacters.length < 2 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-stone-400 text-xl">Il faut au moins 2 personnages pour combattre</div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col pt-14">
+            {/* Zone principale — les 2 combattants côte à côte */}
+            <div className="flex-1 flex items-stretch min-h-0 relative">
+              {/* P1 — gauche */}
+              <div
+                className={`flex-1 flex flex-col items-center justify-end cursor-pointer relative overflow-hidden transition-opacity ${selectingFor === 1 ? '' : 'opacity-60 hover:opacity-80'}`}
+                onClick={() => setSelectingFor(1)}
+              >
+                {selectedChar1 ? (
+                  <img
+                    src={selectedChar1.characterImage}
+                    alt={selectedChar1.name}
+                    className="absolute inset-0 w-full h-full object-contain object-bottom"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-8xl text-stone-700/50 select-none">?</span>
                   </div>
-                </div>
-
-                {/* VS */}
-                <div className="flex flex-col items-center gap-3 pb-10">
-                  <div className="text-4xl md:text-6xl font-black text-stone-500 select-none" style={{ textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>VS</div>
-                  {selectedChar1 && selectedChar2 && (
-                    <button
-                      onClick={startCombat}
-                      className="bg-red-600 hover:bg-red-500 text-white px-6 md:px-10 py-3 font-black text-lg md:text-xl uppercase tracking-wider shadow-2xl border-2 border-red-400 hover:border-red-300 transition-all animate-pulse hover:animate-none"
-                    >
-                      Fight!
-                    </button>
+                )}
+                <div className="relative z-10 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="text-white font-black text-2xl md:text-4xl uppercase tracking-wide text-center drop-shadow-lg" style={{ textShadow: '2px 2px 0 #000, -1px -1px 0 #000' }}>
+                    {selectedChar1?.name || '—'}
+                  </div>
+                  {selectedChar1 && (
+                    <div className="text-blue-300 text-xs md:text-sm text-center mt-1">
+                      {selectedChar1.race} • {selectedChar1.class} • Niv.{selectedChar1.level ?? 1}
+                    </div>
                   )}
                 </div>
-
-                {/* P2 */}
-                <div
-                  className={`flex-1 max-w-[280px] flex flex-col items-center cursor-pointer transition-all ${selectingFor === 2 ? 'scale-105' : 'opacity-70 hover:opacity-90'}`}
-                  onClick={() => setSelectingFor(2)}
-                >
-                  <div className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1">P2</div>
-                  <div className={`relative w-full aspect-[3/4] bg-stone-900/80 border-2 ${selectingFor === 2 ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-stone-700'} overflow-hidden transition-all`}>
-                    {selectedChar2 ? (
-                      <>
-                        <img
-                          src={selectedChar2.characterImage}
-                          alt={selectedChar2.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3">
-                          <div className="text-white font-bold text-lg leading-tight truncate">{selectedChar2.name}</div>
-                          <div className="text-purple-300 text-xs">{selectedChar2.race} • {selectedChar2.class} • Niv.{selectedChar2.level ?? 1}</div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-stone-600">
-                        <span className="text-5xl mb-2">?</span>
-                        <span className="text-xs">Sélectionner</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Indicateur P1 */}
+                <div className={`absolute top-2 left-3 z-10 text-xs font-black uppercase tracking-widest ${selectingFor === 1 ? 'text-blue-400' : 'text-blue-400/40'}`}>P1</div>
               </div>
 
-              {/* Roster — grille de portraits */}
-              <div className="w-full max-w-5xl">
-                <div className="bg-stone-900/80 border border-stone-700 p-3 md:p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-stone-500 uppercase tracking-wider">
-                      Sélection pour <span className={selectingFor === 1 ? 'text-blue-400 font-bold' : 'text-purple-400 font-bold'}>{selectingFor === 1 ? 'P1' : 'P2'}</span>
-                    </span>
-                    <button
-                      onClick={() => navigate('/')}
-                      className="text-xs text-stone-500 hover:text-stone-300 transition"
+              {/* Séparateur central + VS + Fight */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+                <div className="text-center mb-2">
+                  <div className="text-stone-400 text-[10px] md:text-xs uppercase tracking-[0.3em]">Choix du personnage</div>
+                </div>
+                {selectedChar1 && selectedChar2 && (
+                  <button
+                    onClick={startCombat}
+                    className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white px-8 md:px-12 py-3 md:py-4 font-black text-xl md:text-2xl uppercase tracking-wider shadow-2xl border-2 border-red-400 hover:border-red-300 transition-all animate-pulse hover:animate-none"
+                  >
+                    Fight!
+                  </button>
+                )}
+              </div>
+
+              {/* P2 — droite */}
+              <div
+                className={`flex-1 flex flex-col items-center justify-end cursor-pointer relative overflow-hidden transition-opacity ${selectingFor === 2 ? '' : 'opacity-60 hover:opacity-80'}`}
+                onClick={() => setSelectingFor(2)}
+              >
+                {selectedChar2 ? (
+                  <img
+                    src={selectedChar2.characterImage}
+                    alt={selectedChar2.name}
+                    className="absolute inset-0 w-full h-full object-contain object-bottom"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-8xl text-stone-700/50 select-none">?</span>
+                  </div>
+                )}
+                <div className="relative z-10 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="text-white font-black text-2xl md:text-4xl uppercase tracking-wide text-center drop-shadow-lg" style={{ textShadow: '2px 2px 0 #000, -1px -1px 0 #000' }}>
+                    {selectedChar2?.name || '—'}
+                  </div>
+                  {selectedChar2 && (
+                    <div className="text-purple-300 text-xs md:text-sm text-center mt-1">
+                      {selectedChar2.race} • {selectedChar2.class} • Niv.{selectedChar2.level ?? 1}
+                    </div>
+                  )}
+                </div>
+                <div className={`absolute top-2 right-3 z-10 text-xs font-black uppercase tracking-widest ${selectingFor === 2 ? 'text-purple-400' : 'text-purple-400/40'}`}>P2</div>
+              </div>
+            </div>
+
+            {/* Roster — une ligne en bas, pas de fond */}
+            <div className="flex-shrink-0 px-2 md:px-4 py-2">
+              <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto justify-center pb-1">
+                {availableCharacters.map(char => {
+                  const isP1 = selectedChar1?.id === char.id;
+                  const isP2 = selectedChar2?.id === char.id;
+                  const isDisabled = (selectingFor === 1 && isP2) || (selectingFor === 2 && isP1);
+                  return (
+                    <div
+                      key={char.id}
+                      onClick={() => !isDisabled && handleRosterClick(char)}
+                      className={`
+                        relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 overflow-hidden cursor-pointer transition-all
+                        border-2
+                        ${isP1 ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)] scale-110 z-10' : ''}
+                        ${isP2 ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-110 z-10' : ''}
+                        ${!isP1 && !isP2 ? 'border-stone-600/60 hover:border-stone-400' : ''}
+                        ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110'}
+                      `}
                     >
-                      ← Retour
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {availableCharacters.map(char => {
-                      const isP1 = selectedChar1?.id === char.id;
-                      const isP2 = selectedChar2?.id === char.id;
-                      const isSelected = isP1 || isP2;
-                      const isDisabled = (selectingFor === 1 && isP2) || (selectingFor === 2 && isP1);
-                      return (
-                        <div
-                          key={char.id}
-                          onClick={() => !isDisabled && handleRosterClick(char)}
-                          className={`
-                            relative aspect-square overflow-hidden cursor-pointer transition-all group
-                            border-2
-                            ${isP1 ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)] ring-1 ring-blue-400/50' : ''}
-                            ${isP2 ? 'border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)] ring-1 ring-purple-400/50' : ''}
-                            ${!isSelected ? 'border-stone-700 hover:border-stone-500' : ''}
-                            ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:scale-105'}
-                          `}
-                        >
-                          {char.characterImage ? (
-                            <img
-                              src={char.characterImage}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-stone-800 flex items-center justify-center">
-                              <span className="text-3xl">{races[char.race]?.icon || '❓'}</span>
-                            </div>
-                          )}
-                          {/* Overlay nom */}
-                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent px-1 py-0.5">
-                            <div className="text-white text-[10px] font-bold truncate text-center">{char.name}</div>
-                          </div>
-                          {/* Badge P1/P2 */}
-                          {isP1 && <div className="absolute top-0.5 left-0.5 bg-blue-600 text-white text-[9px] font-black px-1 rounded-sm">P1</div>}
-                          {isP2 && <div className="absolute top-0.5 right-0.5 bg-purple-600 text-white text-[9px] font-black px-1 rounded-sm">P2</div>}
+                      {char.characterImage ? (
+                        <img src={char.characterImage} alt={char.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-stone-800 flex items-center justify-center">
+                          <span className="text-2xl">{races[char.race]?.icon || '❓'}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      )}
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-0.5">
+                        <div className="text-white text-[8px] md:text-[9px] font-bold truncate text-center">{char.name}</div>
+                      </div>
+                      {isP1 && <div className="absolute top-0 left-0 bg-blue-600 text-white text-[8px] font-black px-1">P1</div>}
+                      {isP2 && <div className="absolute top-0 right-0 bg-purple-600 text-white text-[8px] font-black px-1">P2</div>}
+                    </div>
+                  );
+                })}
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
