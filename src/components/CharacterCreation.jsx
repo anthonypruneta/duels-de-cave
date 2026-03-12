@@ -27,7 +27,8 @@ import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_L
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } from '../services/titleService';
 import { TITLES, getFormattedTitle } from '../data/titles';
-import { BORDERS, checkBorderUnlocks, getBorderCssClass, equipBorder, syncUnlockedBorders } from '../data/borders';
+import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveBorderId, getBorderGlowClass } from '../data/borders';
+import CardBorderCanvas from './CardBorderCanvas';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -933,7 +934,16 @@ const CharacterCreation = () => {
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
                   {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
                 </div>
-                <div className={`overflow-visible bg-stone-900 rounded-lg ${existingCharacter.equippedBorder || 'border border-stone-600'}`}>
+                <div className={`relative overflow-hidden bg-stone-900 rounded-lg ${
+                  (() => {
+                    const bid = resolveBorderId(existingCharacter.equippedBorder);
+                    return bid !== 'default' ? (getBorderGlowClass(bid) || '') : 'border border-stone-600';
+                  })()
+                }`}>
+                  {(() => {
+                    const bid = resolveBorderId(existingCharacter.equippedBorder);
+                    return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
+                  })()}
                   <InteractiveCharacterCard>
                     <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
                       {existingCharacter.characterImage ? (
@@ -1199,8 +1209,8 @@ const CharacterCreation = () => {
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(BORDERS).map(border => {
                     const unlocked = existingCharacter.unlockedBorders?.includes(border.id) || border.id === 'default';
-                    const isEquipped = (existingCharacter.equippedBorder || 'default') === getBorderCssClass(border.id);
-                    const isDefault = border.id === 'default' && !existingCharacter.equippedBorder;
+                    const currentBorderId = resolveBorderId(existingCharacter.equippedBorder);
+                    const isEquipped = currentBorderId === border.id;
                     return (
                       <SharedTooltip key={border.id} content={
                         <span>
@@ -1219,22 +1229,27 @@ const CharacterCreation = () => {
                           disabled={!unlocked}
                           onClick={async () => {
                             if (!unlocked) return;
-                            const cls = border.id === 'default' ? null : getBorderCssClass(border.id);
-                            await equipBorder(currentUser.uid, cls);
-                            setExistingCharacter(prev => ({ ...prev, equippedBorder: cls }));
+                            const id = border.id === 'default' ? null : border.id;
+                            await equipBorder(currentUser.uid, id);
+                            setExistingCharacter(prev => ({ ...prev, equippedBorder: id }));
                           }}
-                          className={`text-center rounded-lg p-2 text-[10px] transition-colors ${
+                          className={`relative text-center rounded-lg p-2 text-[10px] transition-colors overflow-hidden ${
                             !unlocked
                               ? 'bg-stone-900 border border-stone-700 text-stone-600 cursor-not-allowed opacity-50'
-                              : (isEquipped || isDefault)
+                              : isEquipped
                                 ? 'bg-amber-900/40 border-2 border-amber-500 text-amber-200'
                                 : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
                           }`}
                         >
-                          <div className="text-lg mb-1">{border.icon}</div>
-                          <div className="font-semibold">{border.nom}</div>
-                          {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
-                          {(isEquipped || isDefault) && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                          {unlocked && border.id !== 'default' && (
+                            <CardBorderCanvas borderId={border.id} />
+                          )}
+                          <div className="relative z-10">
+                            <div className="text-lg mb-1">{border.icon}</div>
+                            <div className="font-semibold">{border.nom}</div>
+                            {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
+                            {isEquipped && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                          </div>
                         </button>
                       </SharedTooltip>
                     );

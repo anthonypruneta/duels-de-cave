@@ -346,7 +346,7 @@ export default function CharacterCardContent({
     aboveHpBar,
     cardClassName,
     infoSide,
-    borderClassName: character?.equippedBorder || null,
+    borderId: character?.equippedBorder || null,
     imageClassName,
     imageOverlayContent,
   };

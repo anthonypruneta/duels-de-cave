@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CardBorderCanvas from './CardBorderCanvas';
+import { resolveBorderId, getBorderGlowClass } from '../data/borders';
 
 const BAR_ANIMATION_MS = 500;
 
@@ -44,8 +46,8 @@ const UnifiedCharacterCard = ({
   infoSide = null,
   /** Masquer la section info sur lg (quand les stats/details sont dans un panneau latéral externe) */
   hideInfoOnLg = false,
-  /** Classe CSS de bordure cosmétique (ex: 'forge-lava-border') */
-  borderClassName = null,
+  /** ID de bordure cosmétique (ex: 'lava', 'ice') — accepte aussi les anciennes classes CSS */
+  borderId = null,
   /** Contenu overlay sur l'image (ex: brume du miroir) */
   imageOverlayContent = null,
   /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
@@ -129,21 +131,25 @@ const UnifiedCharacterCard = ({
     </div>
   );
 
-  const borderCls = borderClassName || '';
-  const baseBorder = borderClassName ? '' : 'border border-stone-600';
+  const resolvedBorder = resolveBorderId(borderId);
+  const hasCanvasBorder = resolvedBorder && resolvedBorder !== 'default';
+  const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
+  const baseBorder = hasCanvasBorder ? '' : 'border border-stone-600';
+
+  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
 
   if (infoSide) {
     return (
       <div className={`w-full ${cardClassName}`.trim()}>
-        <div className={`relative shadow-2xl ${borderCls}`}>
+        <div className={`relative shadow-2xl overflow-hidden ${glowCls}`}>
+          {canvasOverlay}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
             {header}
           </div>
-          <div className={`overflow-visible ${baseBorder} bg-stone-900 hidden md:flex md:flex-row`}>
+          <div className={`${baseBorder} bg-stone-900 hidden md:flex md:flex-row`}>
             {infoSide === 'left' ? <>{infoSection}{imageSection}</> : <>{imageSection}{infoSection}</>}
           </div>
-          {/* Fallback vertical pour mobile */}
-          <div className={`overflow-visible ${baseBorder} bg-stone-900 md:hidden`}>
+          <div className={`${baseBorder} bg-stone-900 md:hidden`}>
             {imageSection}
             {infoSection}
           </div>
@@ -154,11 +160,12 @@ const UnifiedCharacterCard = ({
 
   return (
     <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
-      <div className={`relative shadow-2xl ${borderCls}`}>
+      <div className={`relative shadow-2xl overflow-hidden ${glowCls}`}>
+        {canvasOverlay}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {header}
         </div>
-        <div className={`overflow-visible ${baseBorder} bg-stone-900`}>
+        <div className={`${baseBorder} bg-stone-900`}>
           {imageSection}
           {infoSection}
         </div>

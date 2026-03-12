@@ -105,6 +105,34 @@ export function getBorderCssClass(borderId) {
 }
 
 /**
+ * Retourne uniquement la classe CSS de glow (box-shadow) pour un ID de bordure.
+ */
+export function getBorderGlowClass(borderId) {
+  const border = BORDERS[borderId];
+  if (!border?.cssClass) return null;
+  const parts = border.cssClass.split(' ');
+  return parts.find(p => p.includes('glow')) || null;
+}
+
+const _cssToIdCache = {};
+/**
+ * Résout une valeur equippedBorder (ancienne cssClass OU nouvel ID) vers un ID de bordure.
+ * Rétro-compatible : si la valeur est une ancienne classe CSS, la mappe vers l'ID.
+ */
+export function resolveBorderId(value) {
+  if (!value) return 'default';
+  if (BORDERS[value]) return value;
+  if (_cssToIdCache[value]) return _cssToIdCache[value];
+  for (const border of Object.values(BORDERS)) {
+    if (border.cssClass === value) {
+      _cssToIdCache[value] = border.id;
+      return border.id;
+    }
+  }
+  return 'default';
+}
+
+/**
  * Vérifie quelles bordures sont débloquées d'après les données du personnage.
  *
  * @param {Object} character - Données du personnage
@@ -184,12 +212,14 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
 }
 
 /**
- * Équipe une bordure pour le personnage.
+ * Équipe une bordure pour le personnage (stocke l'ID, ex: 'lava', 'ice').
  */
-export async function equipBorder(userId, borderCssClass) {
+export async function equipBorder(userId, borderId) {
+  const resolvedId = (borderId && borderId !== 'default') ? resolveBorderId(borderId) : null;
+  const value = (resolvedId && resolvedId !== 'default') ? resolvedId : null;
   try {
     await setDoc(doc(db, 'characters', userId), {
-      equippedBorder: borderCssClass || null,
+      equippedBorder: value,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {

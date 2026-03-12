@@ -315,228 +315,49 @@ body.cataclysm-bg::before {
   100% { opacity: 0.85; transform: scale(1.05) translateY(-4px); }
 }
 
-/* ===== Bordure Givre (ice) ===== */
-
-.border-ice-frost {
-  position: relative;
-  overflow: visible;
-}
-
-.border-ice-frost::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #67e8f9, #22d3ee, #06b6d4, #0891b2, #22d3ee, #67e8f9);
-  background-size: 300% 300%;
-  z-index: -1;
-  animation: ice-frost-glow 4s ease-in-out infinite;
-}
-
-@keyframes ice-frost-glow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* ===== Bordure Givre (ice) — glow seul, effet Canvas ===== */
 
 .border-ice-glow {
   box-shadow: 0 0 15px rgba(34, 211, 238, 0.3), 0 0 30px rgba(103, 232, 249, 0.15);
 }
 
-/* ===== Bordure Ombre (shadow) ===== */
-
-.border-shadow-dark {
-  position: relative;
-  overflow: visible;
-}
-
-.border-shadow-dark::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #1e1b4b, #581c87, #312e81, #4c1d95, #1e1b4b);
-  background-size: 300% 300%;
-  z-index: -1;
-  animation: shadow-dark-glow 4s ease-in-out infinite;
-}
-
-@keyframes shadow-dark-glow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* ===== Bordure Ombre (shadow) — glow seul, effet Canvas ===== */
 
 .border-shadow-glow {
   box-shadow: 0 0 15px rgba(88, 28, 135, 0.4), 0 0 25px rgba(30, 27, 75, 0.3);
 }
 
-/* ===== Bordure Champion (rainbow) ===== */
-
-.border-champion-rainbow {
-  position: relative;
-  overflow: visible;
-}
-
-.border-champion-rainbow::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899, #ef4444);
-  background-size: 400% 400%;
-  z-index: -1;
-  animation: champion-rainbow-glow 5s ease-in-out infinite;
-}
-
-@keyframes champion-rainbow-glow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* ===== Bordure Champion (rainbow) — glow seul, effet Canvas ===== */
 
 .border-champion-glow {
   box-shadow: 0 0 15px rgba(234, 179, 8, 0.35), 0 0 25px rgba(139, 92, 246, 0.2), 0 0 35px rgba(236, 72, 153, 0.15);
 }
 
-/* ===== Bordure Sang (blood) ===== */
-
-.border-blood-pulse {
-  position: relative;
-  overflow: visible;
-}
-
-.border-blood-pulse::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #7f1d1d, #dc2626, #991b1b, #b91c1c, #7f1d1d);
-  background-size: 300% 300%;
-  z-index: -1;
-  animation: blood-pulse-glow 3s ease-in-out infinite;
-}
-
-@keyframes blood-pulse-glow {
-  0% { background-position: 0% 50%; opacity: 0.8; }
-  50% { background-position: 100% 50%; opacity: 1; }
-  100% { background-position: 0% 50%; opacity: 0.8; }
-}
+/* ===== Bordure Sang (blood) — glow seul, effet Canvas ===== */
 
 .border-blood-glow {
   box-shadow: 0 0 15px rgba(220, 38, 38, 0.4), 0 0 30px rgba(127, 29, 29, 0.25);
 }
 
-/* ===== Bordure Nature (emerald) ===== */
-
-.border-nature-emerald {
-  position: relative;
-  overflow: visible;
-}
-
-.border-nature-emerald::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #065f46, #10b981, #059669, #34d399, #065f46);
-  background-size: 300% 300%;
-  z-index: -1;
-  animation: nature-emerald-glow 4s ease-in-out infinite;
-}
-
-@keyframes nature-emerald-glow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* ===== Bordure Nature (emerald) — glow seul, effet Canvas ===== */
 
 .border-nature-glow {
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.3), 0 0 25px rgba(6, 95, 70, 0.2);
 }
 
-/* ===== Bordure Titane (metallic silver/blue) ===== */
-
-.border-titane-metal {
-  position: relative;
-  overflow: visible;
-}
-
-.border-titane-metal::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #94a3b8, #cbd5e1, #64748b, #e2e8f0, #475569, #cbd5e1, #94a3b8);
-  background-size: 400% 400%;
-  z-index: -1;
-  animation: titane-metal-glow 5s ease-in-out infinite;
-}
-
-@keyframes titane-metal-glow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* ===== Bordure Titane (metallic) — glow seul, effet Canvas ===== */
 
 .border-titane-glow {
   box-shadow: 0 0 15px rgba(148, 163, 184, 0.4), 0 0 25px rgba(100, 116, 139, 0.25);
 }
 
-/* ===== Bordure Cosmique (galaxy purple/blue) ===== */
-
-.border-cosmique-galaxy {
-  position: relative;
-  overflow: visible;
-}
-
-.border-cosmique-galaxy::before {
-  content: '';
-  position: absolute;
-  top: -4px; left: -4px; right: -4px; bottom: -4px;
-  border-radius: inherit;
-  background: linear-gradient(45deg, #1e1b4b, #6d28d9, #4338ca, #a855f7, #312e81, #7c3aed, #1e1b4b);
-  background-size: 400% 400%;
-  z-index: -1;
-  animation: cosmique-galaxy-glow 4s ease-in-out infinite;
-}
-
-@keyframes cosmique-galaxy-glow {
-  0% { background-position: 0% 50%; opacity: 0.9; }
-  33% { background-position: 50% 100%; opacity: 1; }
-  66% { background-position: 100% 50%; opacity: 0.9; }
-  100% { background-position: 0% 50%; opacity: 0.9; }
-}
+/* ===== Bordure Cosmique (galaxy) — glow seul, effet Canvas ===== */
 
 .border-cosmique-glow {
   box-shadow: 0 0 18px rgba(124, 58, 237, 0.45), 0 0 30px rgba(67, 56, 202, 0.3), 0 0 8px rgba(168, 85, 247, 0.2);
 }
 
-/* ===== Bordure Transcendance (prismatic/iridescent) ===== */
-
-.border-transcendance-prism {
-  position: relative;
-  overflow: visible;
-}
-
-.border-transcendance-prism::before {
-  content: '';
-  position: absolute;
-  top: -5px; left: -5px; right: -5px; bottom: -5px;
-  border-radius: inherit;
-  background: linear-gradient(
-    60deg,
-    #ef4444, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #ef4444
-  );
-  background-size: 600% 600%;
-  z-index: -1;
-  animation: transcendance-prism-glow 6s linear infinite;
-}
-
-@keyframes transcendance-prism-glow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
-}
+/* ===== Bordure Transcendance (prismatic) — glow seul, effet Canvas ===== */
 
 .border-transcendance-glow {
   box-shadow:
