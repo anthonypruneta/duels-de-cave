@@ -293,28 +293,6 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 15px rgba(245, 158, 11, 0.3), 0 0 25px rgba(234, 179, 8, 0.2);
 }
 
-/* ===== Mode Miroir — Brume animée ===== */
-
-.mirror-fog-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center,
-    rgba(0,0,0,0.25) 0%,
-    rgba(40,40,40,0.45) 30%,
-    rgba(0,0,0,0.65) 70%,
-    rgba(0,0,0,0.8) 100%
-  );
-  animation: mirror-fog-drift 4s ease-in-out infinite alternate;
-  pointer-events: none;
-  z-index: 1;
-}
-
-@keyframes mirror-fog-drift {
-  0% { opacity: 0.5; transform: scale(1) translateY(0); }
-  50% { opacity: 0.7; transform: scale(1.02) translateY(-2px); }
-  100% { opacity: 0.85; transform: scale(1.05) translateY(-4px); }
-}
-
 /* ===== Bordure Givre (ice) — glow seul, effet Canvas ===== */
 
 .border-ice-glow {

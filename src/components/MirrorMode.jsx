@@ -236,9 +236,9 @@ const MirrorMode = () => {
         combatModifiers={showHp ? cloneCombatModifiers : null}
         opponent={showHp ? character : null}
         combatStatus={showHp ? cloneCombatStatus : null}
-        cardClassName="border-2 border-stone-500/50"
+        cardClassName=""
+        borderId="shadow"
         imageClassName="scale-x-[-1]"
-        imageOverlayContent={<div className="mirror-fog-overlay" />}
         detailsPlacement={detailsPlacement}
       />
     );

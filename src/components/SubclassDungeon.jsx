@@ -249,7 +249,8 @@ const SubclassDungeon = () => {
             </div>
           </div>
         ) : null}
-        cardClassName="border-2 border-yellow-500/50"
+        cardClassName=""
+        borderId="gold"
       />
     );
   };
@@ -506,7 +507,8 @@ const SubclassDungeon = () => {
           </div>
         </div>
       }
-      cardClassName="border-2 border-yellow-500/50"
+      cardClassName=""
+      borderId="gold"
     />
   );
 

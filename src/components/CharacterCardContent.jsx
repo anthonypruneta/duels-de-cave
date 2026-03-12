@@ -49,6 +49,8 @@ export default function CharacterCardContent({
   imageClassName = '',
   /** Contenu overlay sur l'image (ex: brume du miroir) */
   imageOverlayContent = null,
+  /** Override de bordure Canvas (ex: 'lava' pour un boss). Si absent, utilise character.equippedBorder. */
+  borderId: borderIdOverride = null,
 }) {
   const statsDisplay = useCharacterStatsDisplay(character, weaponOverride);
   const {
@@ -346,7 +348,7 @@ export default function CharacterCardContent({
     aboveHpBar,
     cardClassName,
     infoSide,
-    borderId: character?.equippedBorder || null,
+    borderId: borderIdOverride || character?.equippedBorder || null,
     imageClassName,
     imageOverlayContent,
   };

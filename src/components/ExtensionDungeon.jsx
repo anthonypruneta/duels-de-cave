@@ -377,7 +377,8 @@ const ExtensionDungeon = () => {
             })}
           </div>
         }
-        cardClassName="border-2 border-violet-600/50"
+        cardClassName=""
+        borderId="territory"
       />
     );
   };
@@ -716,7 +717,8 @@ const ExtensionDungeon = () => {
           })}
         </div>
       }
-      cardClassName="border-2 border-violet-600/50"
+      cardClassName=""
+      borderId="territory"
     />
   );
 

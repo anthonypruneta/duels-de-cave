@@ -512,7 +512,8 @@ const ForgeDungeon = () => {
             </div>
           </div>
         ) : null}
-        cardClassName="border-2 border-orange-600/50"
+        cardClassName=""
+        borderId="lava"
       />
     );
   };
@@ -826,7 +827,8 @@ const ForgeDungeon = () => {
           </div>
         </div>
       }
-      cardClassName="border-2 border-orange-600/50"
+      cardClassName=""
+      borderId="lava"
     />
   );
 
