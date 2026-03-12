@@ -102,6 +102,39 @@ const getPassiveDetails = (passive) => {
 
 const DUMMY_HP = 999999;
 
+const SectionTitle = ({ children }) => (
+  <div className="px-4 py-2.5 border-b border-stone-700/60 bg-stone-900/60">
+    <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">{children}</h3>
+  </div>
+);
+
+const SelectField = ({ label, value, onChange, children }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs text-stone-400 font-medium">{label}</label>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 focus:border-amber-500 focus:outline-none"
+    >
+      {children}
+    </select>
+  </div>
+);
+
+const NumberField = ({ label, value, onChange, min, max }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs text-stone-400 font-medium">{label}</label>
+    <input
+      type="number"
+      value={value}
+      onChange={e => onChange(Number(e.target.value))}
+      min={min}
+      max={max}
+      className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 w-full focus:border-amber-500 focus:outline-none"
+    />
+  </div>
+);
+
 const DEFAULT_DUMMY_CONFIG = {
   race: 'Humain',
   class: 'Guerrier',
@@ -770,39 +803,6 @@ const Training = () => {
       spd: DEFAULT_DUMMY_CONFIG.spd,
     }));
   };
-
-  const SectionTitle = ({ children }) => (
-    <div className="px-4 py-2.5 border-b border-stone-700/60 bg-stone-900/60">
-      <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest">{children}</h3>
-    </div>
-  );
-
-  const SelectField = ({ label, value, onChange, children }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-stone-400 font-medium">{label}</label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 focus:border-amber-500 focus:outline-none"
-      >
-        {children}
-      </select>
-    </div>
-  );
-
-  const NumberField = ({ label, value, onChange, min, max }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-stone-400 font-medium">{label}</label>
-      <input
-        type="number"
-        value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        min={min}
-        max={max}
-        className="bg-stone-800 border border-stone-600 text-stone-200 text-sm rounded px-2 py-1.5 w-full focus:border-amber-500 focus:outline-none"
-      />
-    </div>
-  );
 
   // ============================================================================
   // LOBBY
