@@ -95,67 +95,75 @@ const BossRush = () => {
     setPlayerShield(0);
     setBossShield(0);
 
-    const boss = createBossRushCombatant(bossIdx);
+    try {
+      const boss = createBossRushCombatant(bossIdx);
 
-    const playerData = { ...character };
-    if (previousHP !== null) {
-      playerData._bossRushStartHP = previousHP;
-    }
+      const playerData = { ...character };
+      if (previousHP !== null) {
+        playerData._bossRushStartHP = previousHP;
+      }
 
-    const result = simulerMatch(playerData, boss);
+      const result = simulerMatch(playerData, boss);
 
-    setPlayerMaxHP(result.p1MaxHP);
-    setBossMaxHP(result.p2MaxHP);
-    setPlayerHP(result.p1MaxHP);
-    setBossHP(result.p2MaxHP);
+      setPlayerMaxHP(result.p1MaxHP);
+      setBossMaxHP(result.p2MaxHP);
+      setPlayerHP(result.p1MaxHP);
+      setBossHP(result.p2MaxHP);
 
-    await replayCombatSteps(result.steps, {
-      onStep: (step) => {
-        setPlayerHP(step.p1HP);
-        setBossHP(step.p2HP);
-        setPlayerShield(step.p1Shield || 0);
-        setBossShield(step.p2Shield || 0);
-        setPlayerCombatBase(step.p1Base || null);
-        setBossCombatBase(step.p2Base || null);
-        setPlayerCombatModifiers(step.p1Modifiers || null);
-        setPlayerCombatStatus(step.p1Status || null);
-        setCombatLog(prev => [...prev, ...step.logs]);
-      },
-      delayMs: 600,
-      introDelayMs: 1200,
-    });
+      await replayCombatSteps(result.steps, {
+        onStep: (step) => {
+          setPlayerHP(step.p1HP);
+          setBossHP(step.p2HP);
+          setPlayerShield(step.p1Shield || 0);
+          setBossShield(step.p2Shield || 0);
+          setPlayerCombatBase(step.p1Base || null);
+          setBossCombatBase(step.p2Base || null);
+          setPlayerCombatModifiers(step.p1Modifiers || null);
+          setPlayerCombatStatus(step.p1Status || null);
+          setCombatLog(prev => [...prev, ...step.logs]);
+        },
+        delayMs: 600,
+        introDelayMs: 1200,
+      });
 
-    const isWin = result.winnerId === character.userId;
-    setCombatResult({ ...result, isWin });
-    setIsSimulating(false);
+      const isWin = result.winnerId === character.userId;
+      setCombatResult({ ...result, isWin });
+      setIsSimulating(false);
 
-    const isFinalBoss = bossIdx === BOSS_RUSH_COUNT - 1;
-    const titles = await checkAndAwardTitles(
-      currentUser.uid, result.steps, result, character,
-      { mode: 'boss-rush', bossId: bosses[bossIdx].id, isFinalBoss: isFinalBoss && isWin }
-    );
-    if (titles.length > 0) setNewTitles(prev => [...prev, ...titles]);
+      const isFinalBoss = bossIdx === BOSS_RUSH_COUNT - 1;
+      checkAndAwardTitles(
+        currentUser.uid, result.steps, result, character,
+        { mode: 'boss-rush', bossId: bosses[bossIdx].id, isFinalBoss: isFinalBoss && isWin }
+      ).then(titles => {
+        if (titles.length > 0) setNewTitles(prev => [...prev, ...titles]);
+      }).catch(() => {});
 
-    if (isWin) {
-      const finalHP = result.steps[result.steps.length - 1]?.p1HP ?? 0;
-      setCarriedHP(finalHP);
+      if (isWin) {
+        const finalHP = result.steps[result.steps.length - 1]?.p1HP ?? 0;
+        setCarriedHP(finalHP);
 
-      if (isFinalBoss) {
-        setGameState('victory');
-        if (!bossRushCompleted) {
-          await grantRunsToPlayer(currentUser.uid, 10);
-          await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
-            bossRushCompleted: true,
-            updatedAt: Timestamp.now(),
-          }, { merge: true });
-          setBossRushCompleted(true);
-          setRewardGiven(true);
+        if (isFinalBoss) {
+          setGameState('victory');
+          if (!bossRushCompleted) {
+            await grantRunsToPlayer(currentUser.uid, 10);
+            await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
+              bossRushCompleted: true,
+              updatedAt: Timestamp.now(),
+            }, { merge: true });
+            setBossRushCompleted(true);
+            setRewardGiven(true);
+          }
+        } else {
+          setGameState('transition');
         }
       } else {
-        setGameState('transition');
+        setGameState('defeat');
       }
-    } else {
-      setGameState('defeat');
+    } catch (err) {
+      console.error('Erreur combat Boss Rush:', err);
+      setIsSimulating(false);
+      setError('Erreur lors du combat: ' + err.message);
+      setGameState('lobby');
     }
   };
 

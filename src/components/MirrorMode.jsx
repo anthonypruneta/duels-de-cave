@@ -117,50 +117,57 @@ const MirrorMode = () => {
     setCloneShield(0);
     setRewardGiven(false);
 
-    const clone = buildMirrorClone(character);
-    const result = simulerMatch(character, clone);
+    try {
+      const clone = buildMirrorClone(character);
+      const result = simulerMatch(character, clone);
 
-    setPlayerMaxHP(result.p1MaxHP);
-    setCloneMaxHP(result.p2MaxHP);
-    setPlayerHP(result.p1MaxHP);
-    setCloneHP(result.p2MaxHP);
+      setPlayerMaxHP(result.p1MaxHP);
+      setCloneMaxHP(result.p2MaxHP);
+      setPlayerHP(result.p1MaxHP);
+      setCloneHP(result.p2MaxHP);
 
-    await replayCombatSteps(result.steps, {
-      onStep: (step) => {
-        setPlayerHP(step.p1HP);
-        setCloneHP(step.p2HP);
-        setPlayerShield(step.p1Shield || 0);
-        setCloneShield(step.p2Shield || 0);
-        setPlayerCombatBase(step.p1Base || null);
-        setCloneCombatBase(step.p2Base || null);
-        setPlayerCombatModifiers(step.p1Modifiers || null);
-        setPlayerCombatStatus(step.p1Status || null);
-        setCombatLog(prev => [...prev, ...step.logs]);
-      },
-      delayMs: 600,
-      introDelayMs: 1200,
-    });
+      await replayCombatSteps(result.steps, {
+        onStep: (step) => {
+          setPlayerHP(step.p1HP);
+          setCloneHP(step.p2HP);
+          setPlayerShield(step.p1Shield || 0);
+          setCloneShield(step.p2Shield || 0);
+          setPlayerCombatBase(step.p1Base || null);
+          setCloneCombatBase(step.p2Base || null);
+          setPlayerCombatModifiers(step.p1Modifiers || null);
+          setPlayerCombatStatus(step.p1Status || null);
+          setCombatLog(prev => [...prev, ...step.logs]);
+        },
+        delayMs: 600,
+        introDelayMs: 1200,
+      });
 
-    const isWin = result.winnerId === character.userId;
-    setCombatResult({ ...result, isWin });
-    setIsSimulating(false);
+      const isWin = result.winnerId === character.userId;
+      setCombatResult({ ...result, isWin });
+      setIsSimulating(false);
 
-    await checkAndAwardTitles(
-      currentUser.uid, result.steps, result, character,
-      { mode: 'mirror' }
-    );
+      checkAndAwardTitles(
+        currentUser.uid, result.steps, result, character,
+        { mode: 'mirror' }
+      ).catch(() => {});
 
-    if (isWin) {
-      setGameState('victory');
-      await grantRunsToPlayer(currentUser.uid, 2);
-      await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
-        lastMirrorDate: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
-      setAlreadyDone(true);
-      setRewardGiven(true);
-    } else {
-      setGameState('defeat');
+      if (isWin) {
+        setGameState('victory');
+        await grantRunsToPlayer(currentUser.uid, 2);
+        await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
+          lastMirrorDate: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        }, { merge: true });
+        setAlreadyDone(true);
+        setRewardGiven(true);
+      } else {
+        setGameState('defeat');
+      }
+    } catch (err) {
+      console.error('Erreur combat miroir:', err);
+      setIsSimulating(false);
+      setError('Erreur lors du combat: ' + err.message);
+      setGameState('lobby');
     }
   };
 

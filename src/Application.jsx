@@ -197,9 +197,7 @@ function Application() {
             path="/mirror"
             element={
               <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <MirrorMode />
-                </ModeAvailabilityRoute>
+                <MirrorMode />
               </ProtectedRoute>
             }
           />
