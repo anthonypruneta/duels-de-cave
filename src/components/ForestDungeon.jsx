@@ -1634,7 +1634,7 @@ const ForestDungeon = () => {
         )}
 
         {(character?.level ?? 0) >= MAX_LEVEL && (
-          <div className="bg-amber-900 border border-amber-600 p-4 mb-6 text-center">
+          <div className="bg-amber-950 border border-amber-600 p-4 mb-6 text-center">
             <p className="text-amber-200 font-semibold">Donjon bloqué : niveau maximum (400) atteint.</p>
             <p className="text-stone-400 text-sm mt-1">Aucun gain possible au-delà du niveau 400.</p>
           </div>

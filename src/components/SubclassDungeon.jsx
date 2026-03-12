@@ -539,7 +539,7 @@ const SubclassDungeon = () => {
         )}
 
         {characterLevel < SUBCLASS_DUNGEON_LEVEL_REQUIRED && (
-          <div className="bg-red-900 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
+          <div className="bg-red-950 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300 font-bold">Le Collège Kunugigaoka est accessible à partir du niveau {SUBCLASS_DUNGEON_LEVEL_REQUIRED}.</p>
           </div>
         )}

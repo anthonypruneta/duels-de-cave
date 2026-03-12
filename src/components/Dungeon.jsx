@@ -1294,7 +1294,7 @@ const Dungeon = () => {
         </div>
 
         {weapon.effet && typeof weapon.effet === 'object' ? (
-          <div className="mt-4 bg-amber-900 border border-amber-700 rounded-lg p-3">
+          <div className="mt-4 bg-amber-950 border border-amber-700 rounded-lg p-3">
             <p className="text-amber-300 font-bold text-sm">{weapon.effet.nom}</p>
             <p className="text-amber-200/80 text-xs mt-1">{weapon.effet.description}</p>
           </div>

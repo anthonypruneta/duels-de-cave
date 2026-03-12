@@ -880,7 +880,7 @@ const ForgeDungeon = () => {
         )}
 
         {!isLegendaryEquipped && (
-          <div className="bg-red-900 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
+          <div className="bg-red-950 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg">
             <p className="text-red-300 font-bold">Vous devez équiper une arme légendaire pour accéder à la Forge.</p>
           </div>
         )}

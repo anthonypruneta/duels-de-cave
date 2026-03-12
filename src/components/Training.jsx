@@ -518,7 +518,7 @@ const Training = () => {
                 </div>
               </div>
               {totalDmgTaken > 0 && (
-                <div className="flex items-start gap-2 bg-red-900 p-2 text-xs border border-red-700">
+                <div className="flex items-start gap-2 bg-red-950 p-2 text-xs border border-red-700">
                   <span className="text-lg">💥</span>
                   <div className="flex-1">
                     <div className="text-red-300 font-semibold">Dégâts encaissés: {totalDmgTaken.toLocaleString()}</div>
@@ -684,7 +684,7 @@ const Training = () => {
                           if (log.includes('📊')) {
                             return (
                               <div key={idx} className="flex justify-center my-4">
-                                <div className="bg-amber-900 text-amber-200 px-6 py-3 font-bold text-lg shadow-lg border border-amber-600">
+                                <div className="bg-amber-950 text-amber-200 px-6 py-3 font-bold text-lg shadow-lg border border-amber-600">
                                   {cleanLog}
                                 </div>
                               </div>
@@ -1027,7 +1027,7 @@ const Training = () => {
                     ) : null;
                   })()}
                   {isAwakened && (
-                    <div className="flex items-center gap-2 bg-amber-900 rounded px-2 py-1.5 border border-amber-500">
+                    <div className="flex items-center gap-2 bg-amber-950 rounded px-2 py-1.5 border border-amber-500">
                       <span className="text-amber-400">✨</span>
                       <span className="text-amber-300">Awakening actif</span>
                     </div>

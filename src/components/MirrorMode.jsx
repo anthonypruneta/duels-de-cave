@@ -266,7 +266,7 @@ const MirrorMode = () => {
         <Header />
         <div className="max-w-6xl mx-auto pt-20">
           <div className="text-center mb-6">
-            <div className="bg-stone-900 border-2 border-stone-500 rounded-xl px-6 py-3 shadow-xl inline-block">
+            <div className="bg-stone-950 border-2 border-stone-500 rounded-xl px-6 py-3 shadow-xl inline-block">
               <h2 className="text-3xl font-bold text-stone-300">🪞 Mode Miroir</h2>
               <p className="text-stone-400 text-sm mt-1">Affrontez votre clone aux stats inversées. 1 fois par jour.</p>
             </div>
@@ -433,7 +433,7 @@ const MirrorMode = () => {
             {/* Résultat */}
             {gameState === 'victory' && !isSimulating && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-green-900 border-2 border-green-600 rounded-xl p-6">
+                <div className="bg-green-950 border-2 border-green-600 rounded-xl p-6">
                   <div className="text-3xl mb-2">🏆</div>
                   <div className="text-xl font-bold text-green-400">Victoire contre votre Doppelgänger !</div>
                   {rewardGiven && (
@@ -451,7 +451,7 @@ const MirrorMode = () => {
 
             {gameState === 'defeat' && !isSimulating && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-red-900 border-2 border-red-600 rounded-xl p-6">
+                <div className="bg-red-950 border-2 border-red-600 rounded-xl p-6">
                   <div className="text-3xl mb-2">💀</div>
                   <div className="text-xl font-bold text-red-400">Défaite face à votre Doppelgänger</div>
                   <p className="text-red-200 text-sm mt-1">Pas de récompense aujourd'hui.</p>
