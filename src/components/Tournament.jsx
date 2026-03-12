@@ -200,6 +200,10 @@ const Tournament = () => {
   // Bracket toggle
   const [showBracket, setShowBracket] = useState(false);
 
+  // Cooldown between matches
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const cooldownIntervalRef = useRef(null);
+
   // Admin
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -297,10 +301,11 @@ const Tournament = () => {
     }
   }, [combatLog]);
 
-  // Cleanup auto-advance on unmount
+  // Cleanup auto-advance + cooldown on unmount
   useEffect(() => {
     return () => {
       if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
     };
   }, []);
 
@@ -343,7 +348,10 @@ const Tournament = () => {
     setIsAnimating(true);
     setCombatLog([]);
     setMatchEnCours(matchId);
+    setCooldownRemaining(0);
+    if (cooldownIntervalRef.current) { clearInterval(cooldownIntervalRef.current); cooldownIntervalRef.current = null; }
     if (!isReplay) {
+      setShowBracket(false);
       setReplayMatchId(null);
     }
     setWinner(null);
@@ -522,12 +530,29 @@ const Tournament = () => {
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Auto-avancer après 8 secondes (admin seulement, pas en replay)
+    // Cooldown + auto-avancer (admin seulement, pas en replay)
     if (isAdmin && !isReplay) {
+      setShowBracket(true);
+      const COOLDOWN_SECONDS = 60;
+      setCooldownRemaining(COOLDOWN_SECONDS);
+      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = setInterval(() => {
+        setCooldownRemaining(prev => {
+          if (prev <= 1) {
+            clearInterval(cooldownIntervalRef.current);
+            cooldownIntervalRef.current = null;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
       autoAdvanceRef.current = setTimeout(async () => {
         autoAdvanceRef.current = null;
+        setCooldownRemaining(0);
+        if (cooldownIntervalRef.current) { clearInterval(cooldownIntervalRef.current); cooldownIntervalRef.current = null; }
+        setShowBracket(false);
         await avancerMatch(docId);
-      }, 8000);
+      }, COOLDOWN_SECONDS * 1000);
     }
   };
 
@@ -550,6 +575,9 @@ const Tournament = () => {
       clearTimeout(autoAdvanceRef.current);
       autoAdvanceRef.current = null;
     }
+    if (cooldownIntervalRef.current) { clearInterval(cooldownIntervalRef.current); cooldownIntervalRef.current = null; }
+    setCooldownRemaining(0);
+    setShowBracket(false);
     setActionLoading(true);
     const result = await avancerMatch(docId);
     if (!result.success) alert('Erreur: ' + result.error);
@@ -623,7 +651,15 @@ const Tournament = () => {
   // RENDER BRACKET
   // ============================================================================
 
-  const renderBracketMatch = (matchId) => {
+  // Déterminer le prochain match (pour highlight pendant le cooldown)
+  const getNextMatchId = () => {
+    if (!tournoi || !tournoi.matchOrder) return null;
+    const nextIdx = (tournoi.matchActuel ?? -1) + 1;
+    if (nextIdx >= tournoi.matchOrder.length) return null;
+    return tournoi.matchOrder[nextIdx];
+  };
+
+  const renderBracketMatch = (matchId, isGrandFinale = false) => {
     if (!tournoi) return null;
     const match = tournoi.matches[matchId];
     if (!match) return null;
@@ -634,8 +670,6 @@ const Tournament = () => {
     const shouldHidePropagatedParticipant = (participantId) => {
       if (!participantId || participantId === 'BYE' || !currentAnimatedMatch) return false;
       if (matchId === matchEnCours) return false;
-      // Ne masquer que les matchs pas encore terminés pour conserver
-      // l'historique visuel des duels déjà joués dans le bracket.
       if (match.statut === 'termine') return false;
       return participantId === currentAnimatedMatch.winnerId || participantId === currentAnimatedMatch.loserId;
     };
@@ -646,6 +680,7 @@ const Tournament = () => {
     const p1 = displayedP1Id && displayedP1Id !== 'BYE' ? tournoi.participants[displayedP1Id] : null;
     const p2 = displayedP2Id && displayedP2Id !== 'BYE' ? tournoi.participants[displayedP2Id] : null;
     const isCurrentMatch = tournoi.matchOrder[tournoi.matchActuel] === matchId;
+    const isNextMatch = cooldownRemaining > 0 && getNextMatchId() === matchId;
     const isTermine = match.statut === 'termine';
     const isBye = match.statut === 'bye';
     const hasAnyParticipant = Boolean(p1 || p2 || match.winnerId || match.loserId);
@@ -654,33 +689,71 @@ const Tournament = () => {
 
     if (isBye || !hasAnyParticipant) return null;
 
-    const borderClass = isCurrentMatch
-      ? 'border-amber-500/70 bg-amber-900/20'
-      : isTermine
-        ? 'border-stone-700/60 bg-stone-900/60'
-        : 'border-stone-700/40 bg-stone-900/40';
-
     const p1Won = showWinner && match.winnerId === match.p1;
     const p2Won = showWinner && match.winnerId === match.p2;
+
+    const cardWidth = isGrandFinale ? 'w-[220px]' : 'w-[185px]';
+
+    const borderClass = isCurrentMatch
+      ? 'border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+      : isNextMatch
+        ? 'border-amber-600/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
+        : isTermine
+          ? 'border-stone-700/50'
+          : 'border-stone-700/30';
+
+    const bgClass = isCurrentMatch
+      ? 'bg-amber-950/40'
+      : isNextMatch
+        ? 'bg-amber-950/20'
+        : isTermine
+          ? 'bg-stone-900/70'
+          : 'bg-stone-900/40';
+
+    const renderPlayer = (pData, pId, won, lost) => {
+      const imgSize = isGrandFinale ? 'w-8 h-8' : 'w-6 h-6';
+      const textSize = isGrandFinale ? 'text-sm' : 'text-xs';
+      return (
+        <div className={`flex items-center gap-2 px-2.5 py-1.5 ${won ? 'bg-amber-500/10' : ''}`}>
+          {pData?.characterImage ? (
+            <img src={pData.characterImage} alt="" className={`${imgSize} rounded object-cover flex-shrink-0`} />
+          ) : pId && pId !== 'BYE' ? (
+            <div className={`${imgSize} rounded bg-stone-800 flex-shrink-0 flex items-center justify-center text-stone-600 text-[10px]`}>?</div>
+          ) : null}
+          <span className={`${textSize} truncate flex-1 ${
+            won ? 'text-amber-300 font-bold'
+            : lost ? 'text-stone-600 line-through'
+            : 'text-stone-300'
+          }`}>
+            {pData?.nom || (pId === 'BYE' ? '' : '?')}
+          </span>
+          {pData && !won && !lost && (
+            <span className="text-[9px] text-stone-600 flex-shrink-0 hidden sm:inline">{pData.race}</span>
+          )}
+          {won && <span className="text-emerald-400 text-[10px] flex-shrink-0">✓</span>}
+        </div>
+      );
+    };
 
     return (
       <div
         key={matchId}
-        className={`border ${borderClass} rounded-lg p-2.5 text-xs mb-2 transition-colors ${isTermine ? 'cursor-pointer hover:border-amber-600/60' : ''}`}
+        className={`${cardWidth} border ${borderClass} ${bgClass} rounded-lg overflow-hidden transition-all duration-300 ${isTermine ? 'cursor-pointer hover:border-amber-600/50' : ''}`}
         onClick={() => isTermine && rejouerMatch(matchId)}
-        title={isTermine ? 'Cliquer pour revoir' : ''}
       >
-        <div className="text-stone-600 text-[10px] mb-1.5 font-medium">{match.roundLabel}</div>
-        <div className={`flex justify-between items-center py-0.5 ${p1Won ? 'text-amber-300 font-bold' : showWinner && !p1Won ? 'text-stone-600' : 'text-stone-300'}`}>
-          <span className="truncate">{p1 ? p1.nom : '?'}</span>
-          {p1Won && <span className="text-emerald-400 text-[10px] ml-1 flex-shrink-0">✓</span>}
+        <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
+          <span className="text-[9px] text-stone-600 font-medium">{match.roundLabel}</span>
+          {isTermine && <span className="text-[8px] text-stone-700">▶ replay</span>}
         </div>
-        <div className="text-stone-700 text-center text-[9px] leading-none">vs</div>
-        <div className={`flex justify-between items-center py-0.5 ${p2Won ? 'text-amber-300 font-bold' : showWinner && !p2Won ? 'text-stone-600' : 'text-stone-300'}`}>
-          <span className="truncate">{p2 ? p2.nom : '?'}</span>
-          {p2Won && <span className="text-emerald-400 text-[10px] ml-1 flex-shrink-0">✓</span>}
-        </div>
-        {isCurrentMatch && <div className="text-amber-400 text-center text-[10px] mt-1.5 animate-pulse font-semibold">⚔️ EN COURS</div>}
+        {renderPlayer(p1, displayedP1Id, p1Won, p2Won)}
+        <div className="h-px bg-stone-700/30 mx-2" />
+        {renderPlayer(p2, displayedP2Id, p2Won, p1Won)}
+        {isCurrentMatch && (
+          <div className="text-amber-400 text-center text-[9px] py-1 font-semibold bg-amber-500/5 animate-pulse">⚔️ EN COURS</div>
+        )}
+        {isNextMatch && (
+          <div className="text-amber-500/80 text-center text-[9px] py-1 font-semibold bg-amber-500/5 animate-pulse">⏳ PROCHAIN</div>
+        )}
       </div>
     );
   };
@@ -699,11 +772,7 @@ const Tournament = () => {
       const hasP2 = Boolean(match.p2 && match.p2 !== 'BYE');
       const hasWinner = Boolean(match.winnerId && match.winnerId !== 'BYE');
       const hasLoser = Boolean(match.loserId && match.loserId !== 'BYE');
-
-      // Éviter l'affichage des matchs fantômes ('?' vs '?') qui peuvent exister
-      // temporairement pendant le remplissage des tableaux.
       if (!hasP1 && !hasP2) return false;
-
       return hasP1 || hasP2 || hasWinner || hasLoser;
     };
 
@@ -722,38 +791,91 @@ const Tournament = () => {
       }
     }
 
-    return (
-      <div className="space-y-5">
+    for (const r of Object.values(winnersRounds)) {
+      r.sort((a, b) => tournoi.matches[a].matchInRound - tournoi.matches[b].matchInRound);
+    }
+    for (const r of Object.values(losersRounds)) {
+      r.sort((a, b) => tournoi.matches[a].matchInRound - tournoi.matches[b].matchInRound);
+    }
+
+    const SLOT_H = 76;
+
+    const renderBracketSection = (rounds, label, icon, labelColor) => {
+      const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
+      if (roundKeys.length === 0) return null;
+
+      return (
         <div>
-          <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-2">🏆 Winners Bracket</h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {Object.keys(winnersRounds).sort((a, b) => a - b).map(round => (
-              <div key={`wr-${round}`} className="min-w-[155px]">
-                {winnersRounds[round].sort().map(id => renderBracketMatch(id))}
-              </div>
-            ))}
+          <h3 className={`text-xs font-bold ${labelColor} uppercase tracking-widest mb-3`}>{icon} {label}</h3>
+          <div className="flex items-start overflow-x-auto pb-2">
+            {roundKeys.map((round, rIdx) => {
+              const slotH = SLOT_H * Math.pow(2, rIdx);
+              const matchIds = rounds[round];
+              const isLast = rIdx === roundKeys.length - 1;
+
+              return (
+                <React.Fragment key={round}>
+                  <div className="flex flex-col flex-shrink-0">
+                    {matchIds.map(id => (
+                      <div key={id} className="flex items-center px-1" style={{ height: slotH }}>
+                        {rIdx > 0 && <div className="flex-shrink-0 border-t border-stone-600/30" style={{ width: 10 }} />}
+                        {renderBracketMatch(id)}
+                      </div>
+                    ))}
+                  </div>
+
+                  {!isLast && matchIds.length >= 2 && (
+                    <div className="flex flex-col flex-shrink-0" style={{ width: 24 }}>
+                      {matchIds.map((id, mIdx) => {
+                        const isTop = mIdx % 2 === 0;
+                        return (
+                          <div key={`c-${id}`} className="flex flex-col" style={{ height: slotH }}>
+                            {isTop ? (
+                              <>
+                                <div className="flex-1" />
+                                <div className="flex-1 border-t border-r border-stone-600/30" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex-1 border-r border-b border-stone-600/30" />
+                                <div className="flex-1" />
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
+      );
+    };
 
-        {Object.keys(losersRounds).length > 0 && (
+    return (
+      <div className="space-y-6">
+        {renderBracketSection(winnersRounds, 'Winners Bracket', '🏆', 'text-amber-400')}
+
+        {Object.keys(losersRounds).length > 0 &&
+          renderBracketSection(losersRounds, 'Losers Bracket', '💀', 'text-red-400')}
+
+        {hasGF && (
           <div>
-            <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">💀 Losers Bracket</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {Object.keys(losersRounds).sort((a, b) => a - b).map(round => (
-                <div key={`lr-${round}`} className="min-w-[155px]">
-                  {losersRounds[round].sort().map(id => renderBracketMatch(id))}
-                </div>
-              ))}
+            <h3 className="text-xs font-bold text-yellow-300 uppercase tracking-widest mb-3">👑 Grande Finale</h3>
+            <div className="flex flex-col gap-2 items-start">
+              {renderBracketMatch('GF', true)}
+              {hasGFR && renderBracketMatch('GFR', true)}
             </div>
           </div>
         )}
 
-        {hasGF && (
-          <div>
-            <h3 className="text-xs font-bold text-yellow-300 uppercase tracking-widest mb-2">👑 Grande Finale</h3>
-            <div className="max-w-[180px]">
-              {renderBracketMatch('GF')}
-              {hasGFR && renderBracketMatch('GFR')}
+        {cooldownRemaining > 0 && (
+          <div className="flex justify-center">
+            <div className="bg-amber-500/10 border border-amber-600/40 rounded-lg px-6 py-3 text-center">
+              <div className="text-amber-400 font-bold text-lg font-mono">{cooldownRemaining}s</div>
+              <div className="text-stone-400 text-xs mt-0.5">avant le prochain combat</div>
             </div>
           </div>
         )}
@@ -1104,12 +1226,19 @@ const Tournament = () => {
         <div className="mt-5">
           <button
             onClick={() => setShowBracket(!showBracket)}
-            className="bg-stone-950/85 hover:bg-stone-900 text-stone-300 px-5 py-2.5 rounded-xl transition border border-stone-700/80 w-full text-left text-sm font-bold"
+            className={`bg-stone-950/85 hover:bg-stone-900 text-stone-300 px-5 py-2.5 transition border w-full text-left text-sm font-bold ${
+              showBracket ? 'rounded-t-xl border-stone-700/80' : 'rounded-xl border-stone-700/80'
+            } ${cooldownRemaining > 0 ? 'border-amber-700/40' : ''}`}
           >
             {showBracket ? '▼' : '▶'} 📊 Arbre du tournoi
+            {cooldownRemaining > 0 && (
+              <span className="ml-3 text-amber-400 font-mono text-xs">
+                ⏳ {cooldownRemaining}s
+              </span>
+            )}
           </button>
           {showBracket && (
-            <div className="bg-stone-950/85 border border-stone-700/80 border-t-0 rounded-b-xl p-4 overflow-x-auto">
+            <div className={`bg-stone-950/85 border border-t-0 rounded-b-xl p-4 overflow-x-auto ${cooldownRemaining > 0 ? 'border-amber-700/40' : 'border-stone-700/80'}`}>
               {renderBracket()}
             </div>
           )}
