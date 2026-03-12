@@ -272,7 +272,7 @@ const MirrorMode = () => {
     return (
       <div className="min-h-screen p-4">
         <Header />
-        <div className="max-w-6xl mx-auto pt-20">
+        <div className="max-w-[1800px] mx-auto pt-20">
           <div className="text-center mb-6">
             <div className="bg-stone-950 border-2 border-stone-500 rounded-xl px-6 py-3 shadow-xl inline-block">
               <h2 className="text-3xl font-bold text-stone-300">🪞 Mode Miroir</h2>
@@ -280,36 +280,36 @@ const MirrorMode = () => {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 items-start justify-center mb-6">
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
-              {character && <CharacterCardContent character={character} />}
-              <div className="text-center mt-2 text-xs text-stone-400">Vous</div>
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              {character && <CharacterCardContent character={character} detailsPlacement="left" />}
             </div>
 
-            <div className="flex items-center justify-center text-4xl text-stone-500 font-bold self-center">
-              ⚔️
-            </div>
+            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col items-center justify-center">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl p-8 text-center w-full max-w-[500px]">
+                <div className="text-6xl mb-4">⚔️</div>
+                <h3 className="text-xl font-bold text-stone-300 mb-2">Duel contre votre Doppelgänger</h3>
+                <p className="text-stone-500 text-sm mb-6">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
 
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
-              <CloneCard />
-              <div className="text-center mt-2 text-xs text-stone-400">Doppelgänger</div>
-            </div>
-          </div>
-
-          <div className="text-center">
-            {alreadyDone ? (
-              <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4 max-w-md mx-auto">
-                <p className="text-stone-400">🪞 Miroir déjà affronté aujourd'hui. Revenez demain !</p>
+                {alreadyDone ? (
+                  <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4">
+                    <p className="text-stone-400">🪞 Miroir déjà affronté aujourd'hui. Revenez demain !</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startMirrorFight}
+                    className="bg-gradient-to-r from-stone-600 to-stone-800 hover:from-stone-500 hover:to-stone-700 text-white px-10 py-4 rounded-lg font-bold text-xl shadow-lg border-2 border-stone-400 transition-all transform hover:scale-105"
+                  >
+                    🪞 Affronter mon Miroir
+                  </button>
+                )}
+                <p className="text-stone-500 text-xs mt-3">Récompense : +2 essais de donjon</p>
               </div>
-            ) : (
-              <button
-                onClick={startMirrorFight}
-                className="bg-gradient-to-r from-stone-600 to-stone-800 hover:from-stone-500 hover:to-stone-700 text-white px-10 py-4 rounded-lg font-bold text-xl shadow-lg border-2 border-stone-400 transition-all transform hover:scale-105"
-              >
-                🪞 Affronter mon Miroir
-              </button>
-            )}
-            <p className="text-stone-500 text-xs mt-3">Récompense : +2 essais de donjon</p>
+            </div>
+
+            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              <CloneCard detailsPlacement="right" />
+            </div>
           </div>
         </div>
       </div>
