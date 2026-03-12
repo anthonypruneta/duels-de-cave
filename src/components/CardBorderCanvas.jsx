@@ -169,12 +169,31 @@ function drawLava(ctx, state, w, h) {
   }
 }
 
-// ─── Givre : vent glacé horizontal ───────────────────────────────────────────
+// ─── Givre : vent glacé + craquelures de glace aux coins ─────────────────────
 
 function initIce(w, h) {
+  const crackSize = Math.min(w, h) * 0.22;
+  const cracks = [];
+  const corners = [[0, 0], [w, 0], [0, h], [w, h]];
+  for (const [cx, cy] of corners) {
+    for (let i = 0; i < 5; i++) {
+      const a = Math.atan2(cy === 0 ? 1 : -1, cx === 0 ? 1 : -1) + rand(-0.6, 0.6);
+      const len = rand(crackSize * 0.3, crackSize);
+      const branches = [];
+      const numBranch = randInt(1, 3);
+      for (let b = 0; b < numBranch; b++) {
+        const t = rand(0.3, 0.8);
+        const ba = a + rand(-0.8, 0.8);
+        branches.push({ t, angle: ba, len: rand(len * 0.2, len * 0.5) });
+      }
+      cracks.push({ cx, cy, angle: a, len, branches, alpha: rand(0.25, 0.5) });
+    }
+  }
   return {
-    particles: Array.from({ length: 35 }, () => spawnIce(w, h, true)),
-    streaks: Array.from({ length: 8 }, () => spawnIceStreak(w, h, true)),
+    particles: Array.from({ length: 45 }, () => spawnIce(w, h, true)),
+    streaks: Array.from({ length: 12 }, () => spawnIceStreak(w, h, true)),
+    cracks,
+    frostPhase: 0,
   };
 }
 
@@ -182,11 +201,11 @@ function spawnIce(w, h, randomX = false) {
   return {
     x: randomX ? rand(0, w) : rand(-20, -5),
     y: rand(0, h),
-    vx: rand(0.5, 1.8),
-    vy: rand(-0.2, 0.2),
-    r: rand(1, 3),
+    vx: rand(0.5, 2.0),
+    vy: rand(-0.3, 0.3),
+    r: rand(1, 3.5),
     life: 1,
-    decay: rand(0.003, 0.008),
+    decay: rand(0.003, 0.007),
     twinkle: rand(0, Math.PI * 2),
   };
 }
@@ -195,14 +214,15 @@ function spawnIceStreak(w, h, randomX = false) {
   return {
     x: randomX ? rand(0, w) : rand(-50, -10),
     y: rand(0, h),
-    len: rand(20, 50),
-    vx: rand(1.5, 3),
-    alpha: rand(0.05, 0.15),
+    len: rand(25, 60),
+    vx: rand(1.5, 3.5),
+    alpha: rand(0.06, 0.18),
   };
 }
 
 function updateIce(state, w, h, dt) {
   const s = dt / 16;
+  state.frostPhase += 0.015 * s;
   for (const p of state.particles) {
     p.x += p.vx * s;
     p.y += p.vy * s;
@@ -216,7 +236,47 @@ function updateIce(state, w, h, dt) {
   }
 }
 
-function drawIce(ctx, state) {
+function drawIceCracks(ctx, cracks, frostPhase) {
+  const pulse = 0.8 + 0.2 * Math.sin(frostPhase);
+  for (const cr of cracks) {
+    const ex = cr.cx + Math.cos(cr.angle) * cr.len;
+    const ey = cr.cy + Math.sin(cr.angle) * cr.len;
+    ctx.strokeStyle = `rgba(186, 230, 253, ${cr.alpha * pulse})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cr.cx, cr.cy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    for (const b of cr.branches) {
+      const bx = cr.cx + Math.cos(cr.angle) * cr.len * b.t;
+      const by = cr.cy + Math.sin(cr.angle) * cr.len * b.t;
+      const bex = bx + Math.cos(b.angle) * b.len;
+      const bey = by + Math.sin(b.angle) * b.len;
+      ctx.strokeStyle = `rgba(186, 230, 253, ${cr.alpha * pulse * 0.6})`;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bex, bey);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawIce(ctx, state, w, h) {
+  // Frost glow aux coins
+  const corners = [[0, 0], [w, 0], [0, h], [w, h]];
+  const cornerR = Math.min(w, h) * 0.3;
+  for (const [cx, cy] of corners) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cornerR);
+    g.addColorStop(0, `rgba(186, 230, 253, ${0.12 + 0.04 * Math.sin(state.frostPhase)})`);
+    g.addColorStop(1, 'rgba(186, 230, 253, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cornerR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  drawIceCracks(ctx, state.cracks, state.frostPhase);
+
   for (const st of state.streaks) {
     ctx.strokeStyle = `rgba(103, 232, 249, ${st.alpha})`;
     ctx.lineWidth = 1;
@@ -368,10 +428,17 @@ function drawShadow(ctx, state, w, h) {
   }
 }
 
-// ─── Or : scintillements dorés aléatoires ────────────────────────────────────
+// ─── Or : scintillements dorés + sweep de brillance ──────────────────────────
 
 function initGold(w, h) {
-  return { sparkles: Array.from({ length: 20 }, () => spawnGold(w, h)) };
+  const diag = Math.sqrt(w * w + h * h);
+  return {
+    sparkles: Array.from({ length: 25 }, () => spawnGold(w, h)),
+    sweepPos: -diag * 0.3,
+    sweepDiag: diag,
+    sweepActive: false,
+    sweepTimer: rand(150, 300),
+  };
 }
 
 function spawnGold(w, h) {
@@ -393,9 +460,40 @@ function updateGold(state, w, h, dt) {
     sp.life += s;
     if (sp.life > sp.maxLife) Object.assign(sp, spawnGold(w, h));
   }
+  if (!state.sweepActive) {
+    state.sweepTimer -= s;
+    if (state.sweepTimer <= 0) {
+      state.sweepActive = true;
+      state.sweepPos = -state.sweepDiag * 0.3;
+    }
+  } else {
+    state.sweepPos += 2.5 * s;
+    if (state.sweepPos > state.sweepDiag * 1.3) {
+      state.sweepActive = false;
+      state.sweepTimer = rand(180, 350);
+    }
+  }
 }
 
-function drawGold(ctx, state) {
+function drawGold(ctx, state, w, h) {
+  // Sweep de brillance diagonal
+  if (state.sweepActive) {
+    ctx.save();
+    ctx.translate(0, 0);
+    ctx.rotate(Math.PI / 4);
+    const sw = state.sweepDiag * 0.12;
+    const pos = state.sweepPos;
+    const g = ctx.createLinearGradient(pos - sw, 0, pos + sw, 0);
+    g.addColorStop(0, 'rgba(251, 191, 36, 0)');
+    g.addColorStop(0.3, 'rgba(251, 191, 36, 0.06)');
+    g.addColorStop(0.5, 'rgba(253, 224, 71, 0.18)');
+    g.addColorStop(0.7, 'rgba(251, 191, 36, 0.06)');
+    g.addColorStop(1, 'rgba(251, 191, 36, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(pos - sw, -h, sw * 2, h * 3);
+    ctx.restore();
+  }
+
   for (const sp of state.sparkles) {
     if (sp.delay > 0) continue;
     const t = sp.life / sp.maxLife;
@@ -425,11 +523,13 @@ function drawStar(ctx, cx, cy, r, points, color) {
   ctx.fill();
 }
 
-// ─── Territoire : effet magique pulsant bleu/rouge/violet ────────────────────
+// ─── Territoire : orbes pulsantes + comètes magiques ─────────────────────────
 
 function initTerritory(w, h) {
   return {
     orbs: Array.from({ length: 10 }, () => spawnOrb(w, h)),
+    comets: [],
+    cometTimer: rand(40, 100),
     pulseTime: 0,
   };
 }
@@ -448,6 +548,16 @@ function spawnOrb(w, h) {
   };
 }
 
+function spawnTerrComet(w, h) {
+  const edge = randInt(0, 3);
+  let x, y, vx, vy;
+  if (edge === 0) { x = -5; y = rand(0, h); vx = rand(2, 4.5); vy = rand(-1, 1); }
+  else if (edge === 1) { x = w + 5; y = rand(0, h); vx = rand(-4.5, -2); vy = rand(-1, 1); }
+  else if (edge === 2) { x = rand(0, w); y = -5; vx = rand(-1, 1); vy = rand(2, 4.5); }
+  else { x = rand(0, w); y = h + 5; vx = rand(-1, 1); vy = rand(-4.5, -2); }
+  return { x, y, vx, vy, colorIdx: randInt(0, 2), life: 1, tailLen: rand(12, 25) };
+}
+
 const TERR_COLORS = [
   [220, 80, 60],
   [0, 80, 55],
@@ -464,9 +574,23 @@ function updateTerritory(state, w, h, dt) {
     o.alpha = t < 0.2 ? t / 0.2 : t < 0.7 ? 1 : Math.max(0, (1 - t) / 0.3);
     if (o.maxLife > o.life) Object.assign(o, spawnOrb(w, h));
   }
+  state.cometTimer -= s;
+  if (state.cometTimer <= 0) {
+    state.comets.push(spawnTerrComet(w, h));
+    state.cometTimer = rand(50, 140);
+  }
+  for (let i = state.comets.length - 1; i >= 0; i--) {
+    const c = state.comets[i];
+    c.x += c.vx * s;
+    c.y += c.vy * s;
+    c.life -= 0.01 * s;
+    if (c.life <= 0 || c.x < -30 || c.x > w + 30 || c.y < -30 || c.y > h + 30) {
+      state.comets.splice(i, 1);
+    }
+  }
 }
 
-function drawTerritory(ctx, state) {
+function drawTerritory(ctx, state, w, h) {
   for (const o of state.orbs) {
     if (o.alpha <= 0) continue;
     const pulse = 1 + 0.3 * Math.sin(o.phase);
@@ -487,38 +611,118 @@ function drawTerritory(ctx, state) {
     ctx.arc(o.x, o.y, r * 1.8, 0, Math.PI * 2);
     ctx.stroke();
   }
+  for (const c of state.comets) {
+    const [ch, cs, cl] = TERR_COLORS[c.colorIdx];
+    const speed = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
+    const nx = -c.vx / speed;
+    const ny = -c.vy / speed;
+    const tailX = c.x + nx * c.tailLen;
+    const tailY = c.y + ny * c.tailLen;
+    const g = ctx.createLinearGradient(c.x, c.y, tailX, tailY);
+    g.addColorStop(0, hsl(ch, cs, cl + 15, c.life * 0.9));
+    g.addColorStop(1, hsl(ch, cs, cl, 0));
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.lineTo(tailX, tailY);
+    ctx.stroke();
+    const glow = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 6);
+    glow.addColorStop(0, hsl(ch, cs, cl + 20, c.life * 0.5));
+    glow.addColorStop(1, hsl(ch, cs, cl, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-// ─── Sang : gouttes de sang qui perlent ──────────────────────────────────────
+// ─── Sang : débordement en haut + gouttes qui perlent ────────────────────────
 
 function initBlood(w, h) {
+  const overflowDrips = [];
+  const count = Math.floor(w / 18);
+  for (let i = 0; i < count; i++) {
+    overflowDrips.push({
+      x: rand(2, w - 2),
+      len: rand(8, 45),
+      targetLen: rand(15, 55),
+      speed: rand(0.08, 0.25),
+      width: rand(2, 5),
+      phase: rand(0, Math.PI * 2),
+    });
+  }
   return {
-    drops: Array.from({ length: 18 }, () => spawnDrop(w, h, true)),
-    trails: [],
+    drops: Array.from({ length: 22 }, () => spawnDrop(w, h, true)),
+    overflowDrips,
+    poolPhase: 0,
   };
 }
 
 function spawnDrop(w, h, randomY = false) {
   return {
     x: rand(3, w - 3),
-    y: randomY ? rand(-10, h * 0.8) : rand(-20, -5),
-    vy: rand(0.2, 0.6),
+    y: randomY ? rand(12, h * 0.8) : rand(8, 15),
+    vy: rand(0.2, 0.7),
     r: rand(1.5, 3.5),
     streakLen: 0,
-    maxStreak: rand(10, 30),
+    maxStreak: rand(10, 35),
   };
 }
 
 function updateBlood(state, w, h, dt) {
   const s = dt / 16;
+  state.poolPhase += 0.02 * s;
   for (const d of state.drops) {
     d.y += d.vy * s;
     d.streakLen = Math.min(d.streakLen + d.vy * s * 0.8, d.maxStreak);
     if (d.y > h + 10) Object.assign(d, spawnDrop(w, h));
   }
+  for (const drip of state.overflowDrips) {
+    drip.phase += 0.01 * s;
+    drip.targetLen = 20 + 25 * (0.5 + 0.5 * Math.sin(drip.phase));
+    if (drip.len < drip.targetLen) drip.len += drip.speed * s;
+    else drip.len -= drip.speed * 0.3 * s;
+    drip.len = Math.max(5, drip.len);
+  }
 }
 
-function drawBlood(ctx, state) {
+function drawBlood(ctx, state, w, h) {
+  // Bande de sang en haut (nappe qui déborde)
+  const poolH = 8;
+  const poolG = ctx.createLinearGradient(0, 0, 0, poolH + 4);
+  poolG.addColorStop(0, 'rgba(153, 27, 27, 0.8)');
+  poolG.addColorStop(0.5, 'rgba(185, 28, 28, 0.65)');
+  poolG.addColorStop(1, 'rgba(127, 29, 29, 0)');
+  ctx.fillStyle = poolG;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(w, 0);
+  for (let x = w; x >= 0; x -= 3) {
+    const wave = Math.sin(state.poolPhase * 1.5 + x * 0.06) * 2;
+    ctx.lineTo(x, poolH + wave);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Coulures de sang qui pendent depuis le bord supérieur
+  for (const drip of state.overflowDrips) {
+    const g = ctx.createLinearGradient(drip.x, poolH - 2, drip.x, poolH + drip.len);
+    g.addColorStop(0, 'rgba(185, 28, 28, 0.75)');
+    g.addColorStop(0.7, 'rgba(153, 27, 27, 0.5)');
+    g.addColorStop(1, 'rgba(127, 29, 29, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(drip.x - drip.width / 2, poolH - 2);
+    ctx.lineTo(drip.x + drip.width / 2, poolH - 2);
+    ctx.lineTo(drip.x + drip.width * 0.3, poolH + drip.len * 0.8);
+    ctx.quadraticCurveTo(drip.x, poolH + drip.len + 3, drip.x - drip.width * 0.3, poolH + drip.len * 0.8);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Gouttes qui tombent
   for (const d of state.drops) {
     if (d.streakLen > 1) {
       const g = ctx.createLinearGradient(d.x, d.y - d.streakLen, d.x, d.y);
@@ -543,15 +747,22 @@ function drawBlood(ctx, state) {
   }
 }
 
-// ─── Nature : feuilles qui tombent ───────────────────────────────────────────
+// ─── Nature : feuilles qui tombent + bourrasques ─────────────────────────────
 
 function initNature(w, h) {
-  return { leaves: Array.from({ length: 18 }, () => spawnLeaf(w, h, true)) };
+  return {
+    leaves: Array.from({ length: 35 }, () => spawnLeaf(w, h, true)),
+    gustActive: false,
+    gustTimer: rand(200, 400),
+    gustVx: 0,
+    gustVy: 0,
+    gustFade: 0,
+  };
 }
 
 function spawnLeaf(w, h, randomY = false) {
   return {
-    x: rand(0, w),
+    x: rand(-10, w + 10),
     y: randomY ? rand(-10, h) : rand(-30, -5),
     vy: rand(0.3, 0.7),
     vx: rand(-0.15, 0.15),
@@ -559,20 +770,49 @@ function spawnLeaf(w, h, randomY = false) {
     rotSpeed: rand(0.01, 0.04) * (Math.random() < 0.5 ? 1 : -1),
     swayPhase: rand(0, Math.PI * 2),
     swayAmp: rand(0.3, 0.8),
-    size: rand(3, 6),
-    hue: rand(130, 160),
-    lightness: rand(35, 50),
+    size: rand(3, 7),
+    hue: randInt(0, 3) === 0 ? rand(25, 45) : rand(100, 160),
+    lightness: rand(30, 50),
   };
 }
 
 function updateNature(state, w, h, dt) {
   const s = dt / 16;
+
+  if (!state.gustActive) {
+    state.gustTimer -= s;
+    if (state.gustTimer <= 0) {
+      state.gustActive = true;
+      state.gustVx = rand(-3, 3);
+      state.gustVy = rand(-1.5, 1.5);
+      state.gustFade = 1;
+      state.gustTimer = rand(250, 500);
+      for (const l of state.leaves) {
+        l.rotSpeed = rand(0.04, 0.1) * (Math.random() < 0.5 ? 1 : -1);
+      }
+    }
+  } else {
+    state.gustFade -= 0.008 * s;
+    if (state.gustFade <= 0) {
+      state.gustActive = false;
+      state.gustFade = 0;
+      for (const l of state.leaves) {
+        l.rotSpeed = rand(0.01, 0.04) * (Math.random() < 0.5 ? 1 : -1);
+      }
+    }
+  }
+
+  const gx = state.gustActive ? state.gustVx * state.gustFade : 0;
+  const gy = state.gustActive ? state.gustVy * state.gustFade : 0;
+
   for (const l of state.leaves) {
-    l.y += l.vy * s;
+    l.y += (l.vy + gy) * s;
     l.swayPhase += 0.03 * s;
-    l.x += (l.vx + Math.sin(l.swayPhase) * l.swayAmp) * s;
+    l.x += (l.vx + Math.sin(l.swayPhase) * l.swayAmp + gx) * s;
     l.angle += l.rotSpeed * s;
-    if (l.y > h + 10 || l.x < -20 || l.x > w + 20) Object.assign(l, spawnLeaf(w, h));
+    if (l.y > h + 10 || l.x < -30 || l.x > w + 30 || l.y < -30) {
+      Object.assign(l, spawnLeaf(w, h));
+    }
   }
 }
 
@@ -581,7 +821,7 @@ function drawNature(ctx, state) {
     ctx.save();
     ctx.translate(l.x, l.y);
     ctx.rotate(l.angle);
-    ctx.fillStyle = hsl(l.hue, 70, l.lightness, 0.8);
+    ctx.fillStyle = hsl(l.hue, 70, l.lightness, 0.85);
     ctx.beginPath();
     ctx.ellipse(0, 0, l.size, l.size * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -595,12 +835,15 @@ function drawNature(ctx, state) {
   }
 }
 
-// ─── Titane : reflet métallique + étincelles ─────────────────────────────────
+// ─── Titane : reflet métallique + étincelles + éclairs de bord ────────────────
 
 function initTitane(w, h) {
   return {
     sweepX: -w * 0.3,
-    sparks: Array.from({ length: 12 }, () => spawnSpark(w, h)),
+    sparks: Array.from({ length: 18 }, () => spawnSpark(w, h)),
+    edgeBolts: [],
+    boltTimer: rand(60, 150),
+    platePhase: 0,
   };
 }
 
@@ -611,115 +854,211 @@ function spawnSpark(w, h) {
     life: 0,
     maxLife: rand(20, 50),
     delay: rand(0, 80),
-    size: rand(1, 2.5),
+    size: rand(1, 3),
   };
+}
+
+function spawnBolt(w, h) {
+  const edge = randInt(0, 3);
+  const pts = [];
+  const steps = randInt(4, 8);
+  let x, y;
+  if (edge === 0) { x = 0; y = rand(0, h); }
+  else if (edge === 1) { x = w; y = rand(0, h); }
+  else if (edge === 2) { x = rand(0, w); y = 0; }
+  else { x = rand(0, w); y = h; }
+  pts.push({ x, y });
+  for (let i = 0; i < steps; i++) {
+    const inward = (edge === 0) ? rand(5, 25) : (edge === 1) ? rand(-25, -5) :
+                   (edge === 2) ? rand(5, 25) : rand(-25, -5);
+    const lateral = rand(-15, 15);
+    if (edge <= 1) { x += lateral; y += (edge === 0 ? inward : -inward); x += inward; }
+    else { x += lateral; y += inward; }
+    pts.push({ x: Math.max(0, Math.min(w, x)), y: Math.max(0, Math.min(h, y)) });
+  }
+  return { pts, life: 1, decay: rand(0.03, 0.06) };
 }
 
 function updateTitane(state, w, h, dt) {
   const s = dt / 16;
-  state.sweepX += 0.8 * s;
+  state.sweepX += 1.0 * s;
+  state.platePhase += 0.02 * s;
   if (state.sweepX > w * 1.3) state.sweepX = -w * 0.3;
   for (const sp of state.sparks) {
     if (sp.delay > 0) { sp.delay -= s; continue; }
     sp.life += s;
     if (sp.life > sp.maxLife) Object.assign(sp, spawnSpark(w, h));
   }
+  state.boltTimer -= s;
+  if (state.boltTimer <= 0) {
+    state.edgeBolts.push(spawnBolt(w, h));
+    state.boltTimer = rand(70, 180);
+  }
+  for (let i = state.edgeBolts.length - 1; i >= 0; i--) {
+    state.edgeBolts[i].life -= state.edgeBolts[i].decay * s;
+    if (state.edgeBolts[i].life <= 0) state.edgeBolts.splice(i, 1);
+  }
 }
 
 function drawTitane(ctx, state, w, h) {
-  const sw = w * 0.15;
+  // Plaque métallique subtile avec reflet
+  const plateAlpha = 0.03 + 0.02 * Math.sin(state.platePhase);
+  ctx.fillStyle = `rgba(148, 163, 184, ${plateAlpha})`;
+  ctx.fillRect(0, 0, w, h);
+
+  // Sweep
+  const sw = w * 0.18;
   const g = ctx.createLinearGradient(state.sweepX - sw, 0, state.sweepX + sw, 0);
   g.addColorStop(0, 'rgba(203, 213, 225, 0)');
-  g.addColorStop(0.4, 'rgba(226, 232, 240, 0.12)');
-  g.addColorStop(0.5, 'rgba(241, 245, 249, 0.2)');
-  g.addColorStop(0.6, 'rgba(226, 232, 240, 0.12)');
+  g.addColorStop(0.35, 'rgba(226, 232, 240, 0.15)');
+  g.addColorStop(0.5, 'rgba(241, 245, 249, 0.28)');
+  g.addColorStop(0.65, 'rgba(226, 232, 240, 0.15)');
   g.addColorStop(1, 'rgba(203, 213, 225, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
+
+  // Edge bolts
+  for (const bolt of state.edgeBolts) {
+    ctx.strokeStyle = `rgba(226, 232, 240, ${bolt.life * 0.7})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bolt.pts[0].x, bolt.pts[0].y);
+    for (let i = 1; i < bolt.pts.length; i++) {
+      ctx.lineTo(bolt.pts[i].x, bolt.pts[i].y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255, 255, 255, ${bolt.life * 0.3})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
 
   for (const sp of state.sparks) {
     if (sp.delay > 0) continue;
     const t = sp.life / sp.maxLife;
     const alpha = t < 0.3 ? t / 0.3 : (1 - t) / 0.7;
-    ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.8})`;
+    ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.9})`;
     ctx.beginPath();
     ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
-// ─── Cosmique : étoiles + nébuleuse ──────────────────────────────────────────
+// ─── Cosmique : étoiles + nébuleuses + galaxies + étoiles filantes ───────────
 
 function initCosmic(w, h) {
   return {
-    stars: Array.from({ length: 30 }, () => ({
+    stars: Array.from({ length: 45 }, () => ({
       x: rand(0, w), y: rand(0, h),
-      r: rand(0.5, 2),
+      r: rand(0.5, 2.5),
       twinkle: rand(0, Math.PI * 2),
       speed: rand(0.03, 0.08),
       brightness: rand(0.4, 1),
+      hue: Math.random() < 0.3 ? rand(200, 280) : -1,
     })),
-    nebulae: Array.from({ length: 4 }, () => ({
-      x: rand(w * 0.1, w * 0.9),
-      y: rand(h * 0.1, h * 0.9),
-      r: rand(30, 60),
-      hue: rand(250, 290),
+    nebulae: Array.from({ length: 6 }, () => ({
+      x: rand(w * 0.05, w * 0.95),
+      y: rand(h * 0.05, h * 0.95),
+      r: rand(30, 70),
+      hue: rand(240, 300),
       phase: rand(0, Math.PI * 2),
     })),
-    shootingStar: null,
-    shootTimer: rand(100, 250),
+    galaxies: Array.from({ length: 2 }, () => ({
+      x: rand(w * 0.2, w * 0.8),
+      y: rand(h * 0.2, h * 0.8),
+      r: rand(12, 22),
+      angle: rand(0, Math.PI * 2),
+      rotSpeed: rand(0.003, 0.008),
+      hue: rand(250, 290),
+    })),
+    shootingStars: [],
+    shootTimer: rand(40, 100),
+    dustPhase: 0,
   };
 }
 
 function updateCosmic(state, w, h, dt) {
   const s = dt / 16;
+  state.dustPhase += 0.008 * s;
   for (const st of state.stars) st.twinkle += st.speed * s;
-  for (const n of state.nebulae) n.phase += 0.01 * s;
+  for (const n of state.nebulae) n.phase += 0.012 * s;
+  for (const g of state.galaxies) g.angle += g.rotSpeed * s;
 
   state.shootTimer -= s;
-  if (state.shootTimer <= 0 && !state.shootingStar) {
-    state.shootingStar = {
-      x: rand(0, w * 0.5), y: rand(0, h * 0.3),
-      vx: rand(2, 4), vy: rand(1, 2.5),
-      life: 1, len: rand(15, 30),
-    };
-    state.shootTimer = rand(120, 300);
+  if (state.shootTimer <= 0) {
+    state.shootingStars.push({
+      x: rand(0, w * 0.6), y: rand(0, h * 0.4),
+      vx: rand(2.5, 5), vy: rand(1, 3),
+      life: 1, len: rand(18, 35),
+    });
+    state.shootTimer = rand(50, 150);
   }
-  if (state.shootingStar) {
-    const ss = state.shootingStar;
+  for (let i = state.shootingStars.length - 1; i >= 0; i--) {
+    const ss = state.shootingStars[i];
     ss.x += ss.vx * s;
     ss.y += ss.vy * s;
-    ss.life -= 0.02 * s;
-    if (ss.life <= 0 || ss.x > w || ss.y > h) state.shootingStar = null;
+    ss.life -= 0.025 * s;
+    if (ss.life <= 0 || ss.x > w + 10 || ss.y > h + 10) {
+      state.shootingStars.splice(i, 1);
+    }
   }
 }
 
 function drawCosmic(ctx, state, w, h) {
+  // Poussière d'étoiles subtile
+  const dustAlpha = 0.03 + 0.01 * Math.sin(state.dustPhase);
+  const dg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.6);
+  dg.addColorStop(0, `rgba(109, 40, 217, ${dustAlpha})`);
+  dg.addColorStop(1, 'rgba(30, 27, 75, 0)');
+  ctx.fillStyle = dg;
+  ctx.fillRect(0, 0, w, h);
+
   for (const n of state.nebulae) {
-    const alpha = 0.06 + 0.03 * Math.sin(n.phase);
+    const alpha = 0.07 + 0.04 * Math.sin(n.phase);
     const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
     g.addColorStop(0, hsl(n.hue, 80, 40, alpha));
+    g.addColorStop(0.6, hsl(n.hue + 20, 70, 30, alpha * 0.4));
     g.addColorStop(1, hsl(n.hue, 80, 20, 0));
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Galaxies spirales
+  for (const gx of state.galaxies) {
+    ctx.save();
+    ctx.translate(gx.x, gx.y);
+    ctx.rotate(gx.angle);
+    const gg = ctx.createRadialGradient(0, 0, 0, 0, 0, gx.r);
+    gg.addColorStop(0, hsl(gx.hue, 70, 70, 0.2));
+    gg.addColorStop(0.4, hsl(gx.hue, 60, 50, 0.08));
+    gg.addColorStop(1, hsl(gx.hue, 60, 40, 0));
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, gx.r, gx.r * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   for (const st of state.stars) {
     const a = st.brightness * (0.4 + 0.6 * Math.abs(Math.sin(st.twinkle)));
-    ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+    if (st.hue >= 0) {
+      ctx.fillStyle = hsl(st.hue, 60, 80, a);
+    } else {
+      ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+    }
     ctx.beginPath();
     ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
     ctx.fill();
   }
-  if (state.shootingStar) {
-    const ss = state.shootingStar;
+
+  for (const ss of state.shootingStars) {
     const g = ctx.createLinearGradient(
       ss.x, ss.y,
       ss.x - ss.vx * ss.len * 0.3, ss.y - ss.vy * ss.len * 0.3
     );
     g.addColorStop(0, `rgba(255, 255, 255, ${ss.life})`);
-    g.addColorStop(1, `rgba(168, 85, 247, 0)`);
+    g.addColorStop(1, 'rgba(168, 85, 247, 0)');
     ctx.strokeStyle = g;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -729,12 +1068,15 @@ function drawCosmic(ctx, state, w, h) {
   }
 }
 
-// ─── Transcendance : prismes / diamants iridescents ──────────────────────────
+// ─── Transcendance : prismes intenses + halos iridescents + faisceaux ────────
 
 function initTranscendance(w, h) {
   return {
-    prisms: Array.from({ length: 14 }, () => spawnPrism(w, h)),
-    beams: Array.from({ length: 5 }, () => spawnBeam(w, h)),
+    prisms: Array.from({ length: 18 }, () => spawnPrism(w, h)),
+    beams: Array.from({ length: 7 }, () => spawnBeam(w, h)),
+    haloPhase: 0,
+    flashTimer: rand(80, 200),
+    flash: null,
   };
 }
 
@@ -742,43 +1084,63 @@ function spawnPrism(w, h) {
   return {
     x: rand(5, w - 5), y: rand(5, h - 5),
     angle: rand(0, Math.PI * 2),
-    rotSpeed: rand(0.01, 0.04),
-    size: rand(3, 6),
-    life: 0, maxLife: rand(60, 130),
-    delay: rand(0, 80),
+    rotSpeed: rand(0.015, 0.05),
+    size: rand(3, 7),
+    life: 0, maxLife: rand(50, 110),
+    delay: rand(0, 60),
     hueOffset: rand(0, 360),
   };
 }
 
 function spawnBeam(w, h) {
   return {
-    x: rand(0, w), angle: rand(-0.3, 0.3),
-    width: rand(1, 3), alpha: 0,
-    life: 0, maxLife: rand(40, 80), delay: rand(0, 100),
+    x: rand(0, w), angle: rand(-0.4, 0.4),
+    width: rand(1.5, 4), alpha: 0,
+    life: 0, maxLife: rand(40, 80), delay: rand(0, 90),
     hue: rand(0, 360),
   };
 }
 
 function updateTranscendance(state, w, h, dt) {
   const s = dt / 16;
+  state.haloPhase += 0.015 * s;
   for (const p of state.prisms) {
     if (p.delay > 0) { p.delay -= s; continue; }
     p.angle += p.rotSpeed * s;
     p.life += s;
-    p.hueOffset += 1.5 * s;
+    p.hueOffset += 2 * s;
     if (p.life > p.maxLife) Object.assign(p, spawnPrism(w, h));
   }
   for (const b of state.beams) {
     if (b.delay > 0) { b.delay -= s; continue; }
     b.life += s;
-    b.hue += 2 * s;
+    b.hue += 2.5 * s;
     const t = b.life / b.maxLife;
-    b.alpha = t < 0.2 ? t / 0.2 * 0.08 : t < 0.7 ? 0.08 : (1 - t) / 0.3 * 0.08;
+    b.alpha = t < 0.2 ? t / 0.2 * 0.1 : t < 0.7 ? 0.1 : (1 - t) / 0.3 * 0.1;
     if (b.life > b.maxLife) Object.assign(b, spawnBeam(w, h));
+  }
+  state.flashTimer -= s;
+  if (state.flashTimer <= 0) {
+    state.flash = { life: 1, x: rand(w * 0.1, w * 0.9), y: rand(h * 0.1, h * 0.9), hue: rand(0, 360) };
+    state.flashTimer = rand(100, 250);
+  }
+  if (state.flash) {
+    state.flash.life -= 0.04 * s;
+    if (state.flash.life <= 0) state.flash = null;
   }
 }
 
 function drawTranscendance(ctx, state, w, h) {
+  // Halo iridescent central
+  const haloAlpha = 0.04 + 0.02 * Math.sin(state.haloPhase);
+  const haloHue = (state.haloPhase * 30) % 360;
+  const hg = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.5);
+  hg.addColorStop(0, hsl(haloHue, 70, 70, haloAlpha));
+  hg.addColorStop(0.5, hsl((haloHue + 60) % 360, 60, 60, haloAlpha * 0.4));
+  hg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = hg;
+  ctx.fillRect(0, 0, w, h);
+
   for (const b of state.beams) {
     if (b.delay > 0 || b.alpha <= 0) continue;
     ctx.save();
@@ -788,6 +1150,7 @@ function drawTranscendance(ctx, state, w, h) {
     ctx.fillRect(-b.width / 2, 0, b.width, h);
     ctx.restore();
   }
+
   for (const p of state.prisms) {
     if (p.delay > 0) continue;
     const t = p.life / p.maxLife;
@@ -795,9 +1158,9 @@ function drawTranscendance(ctx, state, w, h) {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
-    const hue = p.hueOffset % 360;
+    const hu = p.hueOffset % 360;
 
-    ctx.fillStyle = hsl(hue, 70, 70, alpha * 0.6);
+    ctx.fillStyle = hsl(hu, 75, 72, alpha * 0.7);
     ctx.beginPath();
     ctx.moveTo(0, -p.size);
     ctx.lineTo(p.size * 0.6, 0);
@@ -806,52 +1169,89 @@ function drawTranscendance(ctx, state, w, h) {
     ctx.closePath();
     ctx.fill();
 
-    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 2);
-    glow.addColorStop(0, hsl(hue, 80, 80, alpha * 0.25));
-    glow.addColorStop(1, hsl(hue, 80, 60, 0));
+    ctx.strokeStyle = hsl((hu + 90) % 360, 80, 80, alpha * 0.4);
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 2.5);
+    glow.addColorStop(0, hsl(hu, 80, 85, alpha * 0.3));
+    glow.addColorStop(1, hsl(hu, 80, 60, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, p.size * 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, p.size * 2.5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
+
+  // Flash lumineux occasionnel
+  if (state.flash) {
+    const f = state.flash;
+    const r = 40 * f.life;
+    const fg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+    fg.addColorStop(0, hsl(f.hue, 80, 90, f.life * 0.35));
+    fg.addColorStop(0.5, hsl((f.hue + 60) % 360, 70, 70, f.life * 0.1));
+    fg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-// ─── Champion : particules rainbow + étoiles dorées ──────────────────────────
+// ─── Champion : confettis rainbow + étoiles + traînées lumineuses ─────────────
 
 function initChampion(w, h) {
   return {
-    particles: Array.from({ length: 25 }, () => spawnChampionParticle(w, h)),
-    stars: Array.from({ length: 8 }, () => spawnChampionStar(w, h)),
+    particles: Array.from({ length: 35 }, () => spawnChampionParticle(w, h)),
+    confetti: Array.from({ length: 20 }, () => spawnConfetti(w, h, true)),
+    stars: Array.from({ length: 10 }, () => spawnChampionStar(w, h)),
+    rainbowPhase: 0,
   };
 }
 
 function spawnChampionParticle(w, h) {
   const edge = randInt(0, 3);
   let x, y, vx, vy;
-  if (edge === 0) { x = rand(0, w); y = -3; vx = rand(-0.3, 0.3); vy = rand(0.3, 0.7); }
-  else if (edge === 1) { x = rand(0, w); y = h + 3; vx = rand(-0.3, 0.3); vy = rand(-0.7, -0.3); }
-  else if (edge === 2) { x = -3; y = rand(0, h); vx = rand(0.3, 0.7); vy = rand(-0.3, 0.3); }
-  else { x = w + 3; y = rand(0, h); vx = rand(-0.7, -0.3); vy = rand(-0.3, 0.3); }
+  if (edge === 0) { x = rand(0, w); y = -3; vx = rand(-0.3, 0.3); vy = rand(0.3, 0.8); }
+  else if (edge === 1) { x = rand(0, w); y = h + 3; vx = rand(-0.3, 0.3); vy = rand(-0.8, -0.3); }
+  else if (edge === 2) { x = -3; y = rand(0, h); vx = rand(0.3, 0.8); vy = rand(-0.3, 0.3); }
+  else { x = w + 3; y = rand(0, h); vx = rand(-0.8, -0.3); vy = rand(-0.3, 0.3); }
   return {
     x, y, vx, vy,
     hue: rand(0, 360), hueSpeed: rand(1, 4),
-    r: rand(1.5, 3), life: 1, decay: rand(0.005, 0.012),
+    r: rand(1.5, 3.5), life: 1, decay: rand(0.004, 0.01),
+    trail: [],
+  };
+}
+
+function spawnConfetti(w, h, randomY = false) {
+  return {
+    x: rand(0, w),
+    y: randomY ? rand(-10, h) : rand(-20, -5),
+    vy: rand(0.3, 0.8),
+    vx: rand(-0.3, 0.3),
+    angle: rand(0, Math.PI * 2),
+    rotSpeed: rand(0.03, 0.08),
+    w: rand(2, 4), h: rand(3, 6),
+    hue: rand(0, 360),
   };
 }
 
 function spawnChampionStar(w, h) {
   return {
     x: rand(10, w - 10), y: rand(10, h - 10),
-    size: rand(3, 6), life: 0, maxLife: rand(50, 100),
+    size: rand(3, 7), life: 0, maxLife: rand(50, 100),
     delay: rand(0, 100), rotation: rand(0, Math.PI),
   };
 }
 
 function updateChampion(state, w, h, dt) {
   const s = dt / 16;
+  state.rainbowPhase += 0.02 * s;
   for (const p of state.particles) {
+    p.trail.push({ x: p.x, y: p.y, a: p.life * 0.3 });
+    if (p.trail.length > 6) p.trail.shift();
     p.x += p.vx * s;
     p.y += p.vy * s;
     p.hue += p.hueSpeed * s;
@@ -859,6 +1259,12 @@ function updateChampion(state, w, h, dt) {
     if (p.life <= 0 || p.x < -10 || p.x > w + 10 || p.y < -10 || p.y > h + 10) {
       Object.assign(p, spawnChampionParticle(w, h));
     }
+  }
+  for (const c of state.confetti) {
+    c.y += c.vy * s;
+    c.x += c.vx * s;
+    c.angle += c.rotSpeed * s;
+    if (c.y > h + 10) Object.assign(c, spawnConfetti(w, h));
   }
   for (const st of state.stars) {
     if (st.delay > 0) { st.delay -= s; continue; }
@@ -868,13 +1274,31 @@ function updateChampion(state, w, h, dt) {
   }
 }
 
-function drawChampion(ctx, state) {
+function drawChampion(ctx, state, w, h) {
+  // Traînées des particules
   for (const p of state.particles) {
-    ctx.fillStyle = hsl(p.hue % 360, 90, 60, p.life * 0.7);
+    for (const t of p.trail) {
+      ctx.fillStyle = hsl(p.hue % 360, 80, 60, t.a);
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, p.r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = hsl(p.hue % 360, 90, 65, p.life * 0.8);
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Confettis
+  for (const c of state.confetti) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.angle);
+    ctx.fillStyle = hsl(c.hue, 85, 60, 0.75);
+    ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+    ctx.restore();
+  }
+
   for (const st of state.stars) {
     if (st.delay > 0) continue;
     const t = st.life / st.maxLife;
@@ -882,7 +1306,7 @@ function drawChampion(ctx, state) {
     ctx.save();
     ctx.translate(st.x, st.y);
     ctx.rotate(st.rotation);
-    drawStar(ctx, 0, 0, st.size, 4, hsl(45, 100, 60, alpha * 0.8));
+    drawStar(ctx, 0, 0, st.size, 4, hsl(45, 100, 60, alpha * 0.9));
     ctx.restore();
   }
 }
