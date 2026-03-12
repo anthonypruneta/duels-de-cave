@@ -93,11 +93,12 @@ export function getCalculatedClassDescription(className, cap, auto) {
       const { capBase, capPerCap } = classConstants.mage;
       const magicPct = capBase + capPerCap * cap;
       const magicDmgTotal = Math.round(magicPct * cap);
+      const total = auto + magicDmgTotal;
       return (
         <>
-          Dégâts = Auto +{' '}
-          <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap})`}>
-            <span className="text-green-400">{auto + magicDmgTotal}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(magicPct * 100).toFixed(1)}% × Cap (${cap}) = ${magicDmgTotal}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
           {' '}dégâts magiques (vs ResC)
         </>
@@ -143,6 +144,7 @@ export function getCalculatedClassDescription(className, cap, auto) {
       const shieldDmgPct = Math.round(shieldFromSpellDamage * 100);
       const shieldCapValue = Math.round(shieldFromCap * cap);
       const autoBonusValue = Math.round(autoCapBonus * cap);
+      const autoTotal = auto + autoBonusValue;
       const antiHealPct = Math.round(antiHealReduction * 100);
       return (
         <>
@@ -150,9 +152,9 @@ export function getCalculatedClassDescription(className, cap, auto) {
           <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
           </Tooltip>
-          {' '}| Auto +{' '}
-          <Tooltip content={`${autoCapBonus * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{autoBonusValue}</span>
+          {' '}| Auto ={' '}
+          <Tooltip content={`Auto (${auto}) + ${autoCapBonus * 100}% × Cap (${cap}) = ${autoBonusValue}`}>
+            <span className="text-green-400">{autoTotal}</span>
           </Tooltip>
           {' '}| -{antiHealPct}% soins adverses
         </>
@@ -162,14 +164,15 @@ export function getCalculatedClassDescription(className, cap, auto) {
     case 'Succube': {
       const { capScale, nextAttackReduction } = classConstants.succube;
       const capDmg = Math.round(capScale * cap);
+      const total = auto + capDmg;
       const reductionPct = Math.round(nextAttackReduction * 100);
       return (
         <>
-          Auto +{' '}
-          <Tooltip content={`${capScale * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{capDmg}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}CAP | Prochaine attaque adverse -{reductionPct}%
+          {' '}(vs RésCap) | Attaque adverse -{reductionPct}%
         </>
       );
     }
@@ -179,12 +182,14 @@ export function getCalculatedClassDescription(className, cap, auto) {
       const defBonusPct = Math.round(defPercentBonus * 100);
       const shieldPct = Math.round(startShieldFromDef * 100);
       const capDmg = Math.round(capScale * cap);
+      const totalBase = auto + capDmg;
       return (
         <>
-          Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Auto +{' '}
-          <Tooltip content={`${capScale * 100}% × Cap (${cap}) + ${defScale * 100}% DEF`}>
-            <span className="text-green-400">{capDmg}</span>
+          Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg}, + ${defScale * 100}% × DEF`}>
+            <span className="text-green-400">{totalBase}</span>
           </Tooltip>
+          {' '}+ {Math.round(defScale * 100)}% DEF
         </>
       );
     }
@@ -212,13 +217,14 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
   switch (subclassId) {
     case 'maitre_armes': {
       const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const total = auto + capDmg;
       return (
         <>
-          Ignore totalement la def/resC et inflige Auto +{' '}
-          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{capDmg}</span>
+          Ignore totalement la def/resC et inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}CAP.
+          {' '}dégâts.
         </>
       );
     }
@@ -297,26 +303,31 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
     }
     case 'arcaniste_instable': {
       const spellDmg = Math.round((c.capBase ?? 0) * cap);
+      const total = auto + spellDmg;
       const stackPct = Math.round((c.damageTakenStack ?? 0) * 100);
       return (
         <>
-          Inflige Auto +{' '}
-          <Tooltip content={`${(c.capBase ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{spellDmg}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capBase ?? 0) * 100}% × Cap (${cap}) = ${spellDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). Débuff: +<span className="text-green-400">{stackPct}%</span> dégâts subis (stackable).
+          {' '}(vs RésCap). Débuff: +<span className="text-green-400">{stackPct}%</span> dégâts subis (cumulable).
         </>
       );
     }
     case 'sorcier_neant': {
       const spellDmg = Math.round((c.capBase ?? 0) * cap);
+      const total = auto + spellDmg;
       return (
         <>
-          Inflige Auto +{' '}
-          <Tooltip content={`${(c.capBase ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{spellDmg}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capBase ?? 0) * 100}% × Cap (${cap}) = ${spellDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). Brûlure du Néant (fixe).
+          {' '}(vs RésCap).{' '}
+          <Tooltip content="Applique Brûlure du Néant : l'ennemi perd 2% PV par tour et inflige -10% dégâts auto (permanent)">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Brûlure du Néant</span>
+          </Tooltip>.
         </>
       );
     }
@@ -355,6 +366,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
     case 'stratege_arcanique': {
       const shieldCapVal = Math.round((c.shieldFromCap ?? 0) * cap);
       const autoBonusVal = Math.round((c.autoCapBonus ?? 0) * cap);
+      const autoTotal = auto + autoBonusVal;
       const shieldDmgPct = Math.round((c.shieldFromSpellDamage ?? 0) * 100);
       const nextSpellPct = Math.round((c.nextSpellReduction ?? 0) * 100);
       const antiHealPct = Math.round((c.antiHealReduction ?? 0) * 100);
@@ -364,9 +376,9 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
           </Tooltip>
-          . Prochain sort -<span className="text-green-400">{nextSpellPct}%</span>. Soins adverses -{antiHealPct}%. Auto +{' '}
-          <Tooltip content={`${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{autoBonusVal}</span>
+          . Sort -{nextSpellPct}%. Soins adverses -{antiHealPct}%. Auto ={' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap}) = ${autoBonusVal}`}>
+            <span className="text-green-400">{autoTotal}</span>
           </Tooltip>
           .
         </>
@@ -378,42 +390,51 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const shieldDmgPct = Math.round((c.shieldFromSpellDamage ?? 0) * 100);
       const antiHealPct = Math.round((c.antiHealReduction ?? 0) * 100);
       const autoBonusVal = Math.round((c.autoCapBonus ?? 0) * cap);
+      const autoTotal = auto + autoBonusVal;
       return (
         <>
           Après capacité subie: bouclier{' '}
           <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
           </Tooltip>
-          , DEF +<span className="text-green-400">{defStackPct}%</span> (stackable). Soins adverses -{antiHealPct}%. Auto +{' '}
-          <span className="text-green-400">{autoBonusVal}</span>.
+          , DEF +<span className="text-green-400">{defStackPct}%</span> (cumulable). Soins adverses -{antiHealPct}%. Auto ={' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap}) = ${autoBonusVal}`}>
+            <span className="text-green-400">{autoTotal}</span>
+          </Tooltip>
+          .
         </>
       );
     }
     case 'dompteuse_chair': {
       const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const total = auto + capDmg;
       const nextPct = Math.round((c.nextAttackReduction ?? 0) * 100);
       const autoRedPct = Math.round((c.autoReductionStack ?? 0) * 100);
       return (
         <>
-          Inflige Auto +{' '}
-          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{capDmg}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}CAP. Prochaine attaque adverse -<span className="text-green-400">{nextPct}%</span>. Réduit Auto ennemi de{' '}
-          <span className="text-green-400">{autoRedPct}%</span> (stackable).
+          {' '}(vs RésCap). Attaque adverse -{nextPct}%. Auto ennemi -{' '}
+          <span className="text-green-400">{autoRedPct}%</span> (cumulable).
         </>
       );
     }
     case 'ame_tentatrice': {
       const capDmg = Math.round((c.capScale ?? 0) * cap);
+      const total = auto + capDmg;
       const nextPct = Math.round((c.nextAttackReduction ?? 0) * 100);
       return (
         <>
-          Inflige Auto +{' '}
-          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap})`}>
-            <span className="text-green-400">{capDmg}</span>
+          Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}CAP. Prochaine attaque adverse -<span className="text-green-400">{nextPct}%</span>. Crit alterné (fixe).
+          {' '}(vs RésCap). Attaque adverse -{nextPct}%.{' '}
+          <Tooltip content="Si le dernier sort n'était pas critique, le prochain est garanti crit. +10% crit sur les autos.">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Crit alterné</span>
+          </Tooltip>.
         </>
       );
     }
@@ -421,17 +442,18 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const shieldVal = Math.round((c.startShieldFromDef ?? 0) * def);
       const capDmg = Math.round((c.capScale ?? 0) * cap);
       const defDmg = Math.round((c.defScale ?? 0) * def);
+      const total = auto + capDmg + defDmg;
       return (
         <>
-          Début combat: bouclier{' '}
+          Bouclier initial{' '}
           <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
             <span className="text-green-400">{shieldVal}</span>
           </Tooltip>
-          . Inflige Auto +{' '}
-          <Tooltip content={`${(c.capScale ?? 0) * 100}% × Cap (${cap}) + ${(c.defScale ?? 0) * 100}% × DEF (${def})`}>
-            <span className="text-green-400">{capDmg}+{defDmg}</span>
+          . Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg} + ${(c.defScale ?? 0) * 100}% × DEF (${def}) = ${defDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          .
+          {' '}dégâts.
         </>
       );
     }
@@ -439,13 +461,18 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const shieldVal = Math.round((c.startShieldFromDef ?? 0) * def);
       const capDmg = Math.round((c.capScale ?? 0) * cap);
       const defDmg = Math.round((c.defScale ?? 0) * def);
+      const total = auto + capDmg + defDmg;
       return (
         <>
-          Début combat: bouclier{' '}
+          Bouclier initial{' '}
           <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
             <span className="text-green-400">{shieldVal}</span>
           </Tooltip>
-          . Inflige Auto + <span className="text-green-400">{capDmg}+{defDmg}</span>.
+          . Inflige{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg} + ${(c.defScale ?? 0) * 100}% × DEF (${def}) = ${defDmg}`}>
+            <span className="text-green-400">{total}</span>
+          </Tooltip>
+          {' '}dégâts.
         </>
       );
     }
@@ -533,7 +560,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${(c.critPerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{critBonusPct}%</span>
           </Tooltip>
-          {' '}crit. Vole 8% stat ennemie (fixe).
+          {' '}crit.{' '}
+          <Tooltip content="Vole 8% d'une stat aléatoire de l'ennemi (Auto/Déf/Cap/ResC/Vit) à chaque esquive.">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Vol de stat</span>
+          </Tooltip>.
         </>
       );
     }
