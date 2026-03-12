@@ -28,7 +28,7 @@ export const BORDERS = {
     nom: 'Givre',
     icon: '❄️',
     cssClass: 'border-ice-frost border-ice-glow',
-    condition: 'Atteindre l\'étage 60 du Labyrinthe',
+    condition: 'Atteindre l\'étage 80 du Labyrinthe',
   },
   shadow: {
     id: 'shadow',
@@ -84,9 +84,13 @@ export function getBorderCssClass(borderId) {
 
 /**
  * Vérifie quelles bordures sont débloquées d'après les données du personnage.
- * Retourne un tableau d'IDs.
+ *
+ * @param {Object} character - Données du personnage
+ * @param {Object} [extras] - Données supplémentaires (progression labyrinthe, etc.)
+ * @param {number} [extras.labyrinthHighestFloor] - Meilleur étage du labyrinthe cette semaine
+ * @returns {string[]} IDs des bordures débloquées
  */
-export function checkBorderUnlocks(character) {
+export function checkBorderUnlocks(character, extras = {}) {
   if (!character) return ['default'];
   const unlocked = ['default'];
 
@@ -94,7 +98,8 @@ export function checkBorderUnlocks(character) {
     unlocked.push('lava');
   }
 
-  if (character.labyrinthBestFloor >= 60) {
+  const labFloor = extras.labyrinthHighestFloor ?? character.labyrinthBestFloor ?? 0;
+  if (labFloor >= 80) {
     unlocked.push('ice');
   }
 
@@ -125,8 +130,8 @@ export function checkBorderUnlocks(character) {
 /**
  * Met à jour les bordures débloquées en Firestore si nécessaire.
  */
-export async function syncUnlockedBorders(userId, character) {
-  const newUnlocked = checkBorderUnlocks(character);
+export async function syncUnlockedBorders(userId, character, extras = {}) {
+  const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 
   const hasNew = newUnlocked.some(id => !currentUnlocked.includes(id));

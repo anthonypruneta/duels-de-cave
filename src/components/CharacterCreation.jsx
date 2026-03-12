@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant } from '../services/dungeonService';
-import { resetUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
+import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount } from '../services/tournamentService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
@@ -25,7 +25,7 @@ import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
 import SubclassDetailBlock from './SubclassDetailBlock';
-import { getDisplayTitle, equipTitle } from '../services/titleService';
+import { getDisplayTitle, equipTitle, checkCrossWeekTitles } from '../services/titleService';
 import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, getBorderCssClass, equipBorder, syncUnlockedBorders } from '../data/borders';
 
@@ -448,10 +448,24 @@ const CharacterCreation = () => {
         }
         const charData = { ...normalized, level, forgeUpgrade: forgeUpgradeData };
         setExistingCharacter(charData);
-        syncUnlockedBorders(currentUser.uid, charData).then(borders => {
-          if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {
-            setExistingCharacter(prev => ({ ...prev, unlockedBorders: borders }));
-          }
+        getUserLabyrinthProgress(currentUser.uid).then(labResult => {
+          const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
+          const extras = { labyrinthHighestFloor: labFloor };
+
+          syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
+            if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {
+              setExistingCharacter(prev => ({ ...prev, unlockedBorders: borders }));
+            }
+          });
+
+          checkCrossWeekTitles(currentUser.uid, extras).then(newTitles => {
+            if (newTitles?.length > 0) {
+              setExistingCharacter(prev => ({
+                ...prev,
+                earnedTitles: [...(prev?.earnedTitles || []), ...newTitles],
+              }));
+            }
+          });
         });
         const pseudoValue = normalized.ownerPseudo || accountPseudo || storedPseudo;
         setOwnerPseudo(pseudoValue);

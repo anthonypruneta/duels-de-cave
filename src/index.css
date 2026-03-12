@@ -91,10 +91,11 @@ body.cataclysm-bg::before {
 .forge-lava-border::before {
   content: '';
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #ef4444, #f97316, #eab308, #f97316, #ef4444, #f97316);
   background-size: 300% 300%;
   z-index: -1;
@@ -167,10 +168,11 @@ body.cataclysm-bg::before {
 .extension-territory-border::before {
   content: '';
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #3b82f6, #ef4444, #8b5cf6, #ef4444, #3b82f6);
   background-size: 300% 300%;
   z-index: -1;
@@ -241,10 +243,11 @@ body.cataclysm-bg::before {
 .subclass-gold-border::before {
   content: '';
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #d97706, #f59e0b, #eab308, #fbbf24, #f59e0b, #d97706);
   background-size: 300% 300%;
   z-index: -1;
@@ -322,7 +325,8 @@ body.cataclysm-bg::before {
 .border-ice-frost::before {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #67e8f9, #22d3ee, #06b6d4, #0891b2, #22d3ee, #67e8f9);
   background-size: 300% 300%;
   z-index: -1;
@@ -349,7 +353,8 @@ body.cataclysm-bg::before {
 .border-shadow-dark::before {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #1e1b4b, #581c87, #312e81, #4c1d95, #1e1b4b);
   background-size: 300% 300%;
   z-index: -1;
@@ -376,7 +381,8 @@ body.cataclysm-bg::before {
 .border-champion-rainbow::before {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6, #ec4899, #ef4444);
   background-size: 400% 400%;
   z-index: -1;
@@ -403,7 +409,8 @@ body.cataclysm-bg::before {
 .border-blood-pulse::before {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #7f1d1d, #dc2626, #991b1b, #b91c1c, #7f1d1d);
   background-size: 300% 300%;
   z-index: -1;
@@ -430,7 +437,8 @@ body.cataclysm-bg::before {
 .border-nature-emerald::before {
   content: '';
   position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  top: -4px; left: -4px; right: -4px; bottom: -4px;
+  border-radius: inherit;
   background: linear-gradient(45deg, #065f46, #10b981, #059669, #34d399, #065f46);
   background-size: 300% 300%;
   z-index: -1;

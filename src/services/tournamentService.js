@@ -17,6 +17,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
 import { envoyerAnnonceDiscord } from './discordService';
 import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteLabyrinthEnemyPool } from './infiniteLabyrinthService';
+import { checkAndAwardTitles, trackTournamentFirstRoundResult, checkCrossWeekTitles } from './titleService';
 
 // ============================================================================
 // ANNONCES DISCORD DU TOURNOI (fire-and-forget, ne bloque jamais le tournoi)
@@ -259,7 +260,55 @@ function simulerUnMatch(matches, participants, matchId) {
     },
     winnerId: result.winnerId,
     loserId: result.loserId,
+    matchBracket: match.bracket,
+    matchRound: match.round,
+    p1Data,
+    p2Data,
+    result,
   };
+}
+
+/**
+ * Gère le tracking des titres après un match de tournoi (fire-and-forget).
+ * - Détecte les titres basés sur le combat (grosse_cave, miracle, etc.)
+ * - Track les défaites au 1er tour pour le titre "maudit"
+ * - Track les victoires en tournoi pour le titre "legendaire" (via terminerTournoi)
+ */
+function trackTournamentTitles(matchResult, participants, docId) {
+  if (docId !== 'current' || !matchResult) return;
+
+  const { winnerId, loserId, matchBracket, matchRound, p1Data, p2Data, result } = matchResult;
+
+  const winnerData = participants[winnerId];
+  const loserData = participants[loserId];
+
+  const isFirstRoundWinners = matchBracket === 'winners' && matchRound === 0;
+
+  const winnerIsP1 = winnerId === p1Data?.userId;
+
+  if (winnerData?.ownerUserId && result?.steps) {
+    checkAndAwardTitles(winnerData.ownerUserId, result.steps, result, winnerData, {
+      mode: 'tournoi',
+      playerIsP1: winnerIsP1,
+    }).catch(() => {});
+  }
+  if (loserData?.ownerUserId && result?.steps) {
+    checkAndAwardTitles(loserData.ownerUserId, result.steps, result, loserData, {
+      mode: 'tournoi',
+      playerIsP1: !winnerIsP1,
+    }).catch(() => {});
+  }
+
+  // Track 1er tour : le perdant incrémente ses défaites consécutives,
+  // les participants qui passent le 1er tour remettent le compteur à 0
+  if (isFirstRoundWinners) {
+    if (loserData?.ownerUserId) {
+      trackTournamentFirstRoundResult(loserData.ownerUserId, true).catch(() => {});
+    }
+    if (winnerData?.ownerUserId) {
+      trackTournamentFirstRoundResult(winnerData.ownerUserId, false).catch(() => {});
+    }
+  }
 }
 
 function isMatchPlayable(match) {
@@ -338,6 +387,9 @@ export async function lancerTournoi(docId = 'current') {
 
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', firstMatchId), result.combatLogData);
+
+    // Tracking des titres de tournoi (fire-and-forget)
+    trackTournamentTitles(result, participants, docId);
 
     // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
     if (docId === 'current') {
@@ -445,6 +497,9 @@ export async function avancerMatch(docId = 'current') {
 
     // Stocker le combat log
     await setDoc(doc(db, 'tournaments', docId, 'combatLogs', nextMatchId), result.combatLogData);
+
+    // Tracking des titres de tournoi (fire-and-forget)
+    trackTournamentTitles(result, participants, docId);
 
     // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
     if (docId === 'current') {

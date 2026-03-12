@@ -33,7 +33,8 @@ function buildMirrorClone(character) {
     fb.rescap = tmpCap;
     clone.forestBoosts = fb;
   }
-  clone.name = character.name + ' (Miroir)';
+  const reversed = character.name.split('').reverse().join('');
+  clone.name = reversed.charAt(0).toUpperCase() + reversed.slice(1).toLowerCase();
   clone.userId = 'mirror_clone';
   return clone;
 }
@@ -235,7 +236,7 @@ const MirrorMode = () => {
                     }
                   />
                 )}
-                <div className="text-center mt-2 text-xs text-stone-400">Clone inversé</div>
+                <div className="text-center mt-2 text-xs text-stone-400">Doppelgänger</div>
               </div>
             </div>
 

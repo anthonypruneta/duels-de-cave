@@ -225,7 +225,8 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
   const playerId = playerChar.userId;
   const isWinner = result.winnerId === playerId;
   const isLoser = !isWinner;
-  const playerIsP1 = true; // Le joueur est toujours P1 dans les donjons/labyrinthe
+  // En tournoi, le joueur peut être P1 ou P2 ; en PvE il est toujours P1
+  const playerIsP1 = context.playerIsP1 !== undefined ? context.playerIsP1 : true;
 
   const victoryStep = steps.find(s => s.phase === 'victory');
   const introStep = steps.find(s => s.phase === 'intro');
