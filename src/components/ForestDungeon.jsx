@@ -1429,7 +1429,7 @@ const ForestDungeon = () => {
         <audio id="forest-music" loop>
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-6xl mx-auto pt-20">
+        <div className="max-w-[1800px] mx-auto pt-20">
           <div className="flex justify-center gap-3 md:gap-4 mb-4">
             {combatResult === null && (
               <button

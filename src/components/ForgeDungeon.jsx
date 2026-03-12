@@ -668,7 +668,7 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-6xl mx-auto pt-16">
+        <div className="max-w-[1800px] mx-auto pt-16">
           {/* Boutons centrés en haut */}
           <div className="flex justify-center gap-3 md:gap-4 mb-6">
             {combatResult === null && (
@@ -705,7 +705,7 @@ const ForgeDungeon = () => {
           )}
 
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] md:flex-shrink-0 lg:w-auto lg:max-w-[340px]">
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
               <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
             </div>
 
