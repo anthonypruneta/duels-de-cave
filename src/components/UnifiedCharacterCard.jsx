@@ -92,6 +92,16 @@ const UnifiedCharacterCard = ({
     textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
   };
 
+  const resolvedBorder = resolveBorderId(borderId);
+  const hasCanvasBorder = resolvedBorder && resolvedBorder !== 'default';
+  const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
+  const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
+
+  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
+
+  const wrapperGlow = borderOnImageOnly ? '' : glowCls;
+  const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
+
   const imageSection = (
     <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
       {borderOnImageOnly && canvasOverlay}
@@ -133,16 +143,6 @@ const UnifiedCharacterCard = ({
       {details && <div className="space-y-2">{details}</div>}
     </div>
   );
-
-  const resolvedBorder = resolveBorderId(borderId);
-  const hasCanvasBorder = resolvedBorder && resolvedBorder !== 'default';
-  const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
-  const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
-
-  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
-
-  const wrapperGlow = borderOnImageOnly ? '' : glowCls;
-  const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
 
   if (infoSide) {
     return (
