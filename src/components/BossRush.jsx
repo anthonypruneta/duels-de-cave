@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter } from '../services/characterService';
-import { grantRunsToPlayer } from '../services/dungeonService';
+import { grantRunsToPlayer, getPlayerDungeonSummary } from '../services/dungeonService';
+import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { getBossRushBosses, createBossRushCombatant, BOSS_RUSH_COUNT } from '../data/bossRush';
 import { simulerMatch } from '../utils/tournamentCombat';
@@ -70,7 +71,19 @@ const BossRush = () => {
       try {
         const charResult = await getUserCharacter(currentUser.uid);
         if (!charResult.success || !charResult.data) { navigate('/'); return; }
-        setCharacter(charResult.data);
+        const charData = { ...charResult.data, level: charResult.data.level ?? 1 };
+
+        const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+        if (summaryResult.success && summaryResult.data?.equippedWeaponData) {
+          charData.equippedWeaponData = summaryResult.data.equippedWeaponData;
+          charData.equippedWeaponId = summaryResult.data.equippedWeaponData.id || null;
+        }
+        const upgradeResult = await getWeaponUpgrade(currentUser.uid);
+        if (upgradeResult.success && upgradeResult.data) {
+          charData.forgeUpgrade = upgradeResult.data;
+        }
+
+        setCharacter(charData);
 
         const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
         const progressSnap = await getDoc(progressRef);
