@@ -753,6 +753,62 @@ export async function getHallOfFame() {
 }
 
 // ============================================================================
+// CLASSEMENT DU JOUEUR DANS LE TOURNOI ACTUEL / TERMINÉ
+// ============================================================================
+
+export async function getPlayerTournamentRank(userId) {
+  try {
+    const tournoiDoc = await getDoc(doc(db, 'tournaments', 'current'));
+    if (!tournoiDoc.exists()) return { success: true, data: null };
+
+    const tournoi = tournoiDoc.data();
+    const { matches, matchOrder, participantsList, champion, statut } = tournoi;
+    if (!matches || !matchOrder || !participantsList) return { success: true, data: null };
+
+    const participant = participantsList.find(p => p.userId === userId);
+    if (!participant) return { success: true, data: null };
+
+    const pid = participant.participantId || participant.userId;
+    const nbParticipants = participantsList.length;
+
+    if (champion && (champion.userId === userId)) {
+      return { success: true, data: { rank: 1, total: nbParticipants, statut } };
+    }
+
+    const eliminatedPlayers = [];
+    for (const matchId of matchOrder) {
+      const match = matches[matchId];
+      if (!match || match.statut !== 'termine') continue;
+      const loserId = match.loserId;
+      if (!loserId || loserId === 'BYE') continue;
+
+      const isLosersElimination = match.bracket === 'losers';
+      const isGrandFinalLoss = match.bracket === 'grand_final' || match.bracket === 'grand_final_reset';
+
+      if (isLosersElimination || isGrandFinalLoss) {
+        if (!eliminatedPlayers.includes(loserId)) {
+          eliminatedPlayers.push(loserId);
+        }
+      }
+    }
+
+    const playerIdx = eliminatedPlayers.indexOf(pid);
+    if (playerIdx === -1) {
+      if (statut === 'termine' || statut === 'preparation') {
+        return { success: true, data: null };
+      }
+      return { success: true, data: { rank: null, total: nbParticipants, statut, inProgress: true } };
+    }
+
+    const rank = nbParticipants - playerIdx;
+    return { success: true, data: { rank, total: nbParticipants, statut } };
+  } catch (error) {
+    console.error('Erreur récupération classement tournoi:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
 // ANCIENS PERSONNAGES
 // ============================================================================
 
