@@ -578,9 +578,9 @@ const Combat = () => {
               </div>
             </div>
 
-            {/* Roster — une ligne en bas, pas de fond */}
-            <div className="flex-shrink-0 px-2 md:px-4 py-2">
-              <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto justify-center pb-1">
+            {/* Roster — une ligne en bas */}
+            <div className="flex-shrink-0 px-2 md:px-6 py-3">
+              <div className="flex items-center gap-2 md:gap-3 overflow-x-auto justify-center pb-1">
                 {availableCharacters.map(char => {
                   const isP1 = selectedChar1?.id === char.id;
                   const isP2 = selectedChar2?.id === char.id;
@@ -590,26 +590,26 @@ const Combat = () => {
                       key={char.id}
                       onClick={() => !isDisabled && handleRosterClick(char)}
                       className={`
-                        relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 overflow-hidden cursor-pointer transition-all
+                        relative flex-shrink-0 w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 overflow-hidden cursor-pointer transition-all
                         border-2
-                        ${isP1 ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)] scale-110 z-10' : ''}
-                        ${isP2 ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-110 z-10' : ''}
+                        ${isP1 ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)] scale-105 z-10' : ''}
+                        ${isP2 ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.5)] scale-105 z-10' : ''}
                         ${!isP1 && !isP2 ? 'border-stone-600/60 hover:border-stone-400' : ''}
-                        ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110'}
+                        ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:scale-105'}
                       `}
                     >
                       {char.characterImage ? (
                         <img src={char.characterImage} alt={char.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-stone-800 flex items-center justify-center">
-                          <span className="text-2xl">{races[char.race]?.icon || '❓'}</span>
+                          <span className="text-3xl">{races[char.race]?.icon || '❓'}</span>
                         </div>
                       )}
-                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-0.5">
-                        <div className="text-white text-[8px] md:text-[9px] font-bold truncate text-center">{char.name}</div>
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5">
+                        <div className="text-white text-[10px] md:text-xs font-bold truncate text-center">{char.name}</div>
                       </div>
-                      {isP1 && <div className="absolute top-0 left-0 bg-blue-600 text-white text-[8px] font-black px-1">P1</div>}
-                      {isP2 && <div className="absolute top-0 right-0 bg-purple-600 text-white text-[8px] font-black px-1">P2</div>}
+                      {isP1 && <div className="absolute top-0.5 left-0.5 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5">P1</div>}
+                      {isP2 && <div className="absolute top-0.5 right-0.5 bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5">P2</div>}
                     </div>
                   );
                 })}
