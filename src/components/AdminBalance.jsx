@@ -5,8 +5,8 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { classConstants, raceConstants, weaponConstants, subclassConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { simulerMatch } from '../utils/tournamentCombat';
-import { weapons, isWaveActive, RARITY } from '../data/weapons';
-import { getAvailablePassives, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { weapons, RARITY } from '../data/weapons';
+import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { SUBCLASSES_BY_CLASS, getSubclassesForClass } from '../data/subclasses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
@@ -205,8 +205,8 @@ function AdminBalance({ embedded = false }) {
     [classDraft]
   );
 
-  const availableWeapons = useMemo(() => Object.values(weapons).filter((w) => isWaveActive(w.vague) && w.rarete === RARITY.LEGENDAIRE), []);
-  const availablePassives = useMemo(() => getAvailablePassives(), []);
+  const availableWeapons = useMemo(() => Object.values(weapons).filter((w) => w.rarete === RARITY.LEGENDAIRE), []);
+  const availablePassives = useMemo(() => [...MAGE_TOWER_PASSIVES], []);
   const allSubclassIds = useMemo(() => Object.values(SUBCLASSES_BY_CLASS).flat().map((s) => s.id), []);
 
   useEffect(() => {
