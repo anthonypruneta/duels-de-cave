@@ -792,10 +792,6 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
 function processPlayerAction(att, def, log, isP1, turn) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
-  // #region agent log
-  let _dbgSection = 'init';
-  try {
-  // #endregion
   const playerColor = isP1 ? '[P1]' : '[P2]';
   const attackerPassiveList = getPassiveDetailsList(att);
   const defenderPassiveList = getPassiveDetailsList(def);
@@ -839,9 +835,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   // La copie de capacité du Mindflayer est déclenchée après avoir reçu une capacité (dans applyDamage).
   let capacityStolen = false;
 
-  // #region agent log
-  _dbgSection = 'turnEffects';
-  // #endregion
   const turnEffects = onTurnStart(att.weaponState, att, turn);
   // Zweihander: le bonus de dégâts s'applique au premier dégât du tour puis est consommé
   let weaponDamageBonusAvailable = turnEffects.damageMultiplier !== undefined && turnEffects.damageMultiplier !== 1;
@@ -895,9 +888,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
   if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
 
-  // #region agent log
-  _dbgSection = 'class:' + att.class;
-  // #endregion
   if (att.class === 'Demoniste' && !capacityStolen) {
     if (shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
       // Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (pas d'attaque ce tour)
@@ -1193,9 +1183,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   // ===== ALCHIMISTE : Cycle de flasques =====
-  // #region agent log
-  _dbgSection = 'alchimiste_check';
-  // #endregion
   const isAlchimiste = !capacityStolen && att.class === 'Alchimiste';
   const alchVerdictSkip = isAlchimiste && shouldSkipVerdictDemonFamiliar(att.weaponState, turn);
   if (isAlchimiste && !alchVerdictSkip) {
@@ -1209,9 +1196,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const acidDefRed = alchC.acidDefReduction ?? classConstants.alchimiste.acidDefReduction;
     const acidRescRed = alchC.acidRescReduction ?? classConstants.alchimiste.acidRescReduction;
 
-    // #region agent log
-    _dbgSection = 'alch_phase' + phase;
-    // #endregion
     if (phase === 0) {
       // Flasque de feu : dégâts vs ResC
       const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
@@ -1386,9 +1370,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.alchPhase = (att.alchPhase + 1) % cycleLen;
   }
 
-  // #region agent log
-  _dbgSection = 'post_alch_voleur';
-  // #endregion
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerCapacityCooldown(att, def, 'rog') && !capacityStolen) {
     skillUsed = true;
     consumeAuraCapacityCapMultiplier();
@@ -1414,9 +1395,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   // ===== CAPACITÉS SPÉCIALES DES BOSS =====
-  // #region agent log
-  _dbgSection = 'boss_check';
-  // #endregion
   if (att.isBoss && att.ability) {
     att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
 
@@ -1506,9 +1484,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
-  // #region agent log
-  _dbgSection = 'mage_war_archer_check';
-  // #endregion
   const isMage = !capacityStolen && att.class === 'Mage' && att.cd.mag === getMindflayerCapacityCooldown(att, def, 'mag');
   const isWar = !capacityStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerCapacityCooldown(att, def, 'war');
   const isArcher = !capacityStolen && att.class === 'Archer' && att.cd.arc === getMindflayerCapacityCooldown(att, def, 'arc');
@@ -1543,10 +1518,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (skillUsed && !att._entraveFirstCapUsed) {
     att._entraveFirstCapUsed = true;
   }
-
-  // #region agent log
-  _dbgSection = 'attack_loop';
-  // #endregion
 
   const baseHits = (isAlchimiste && !alchVerdictSkip) ? 0 : isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
@@ -1706,9 +1677,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
     }
 
-    // #region agent log
-    _dbgSection = 'crit_calc_i' + i;
-    // #endregion
     if (isCrit) {
       const critDamage = Math.round(raw * getCritMultiplier(att, def));
       raw = modifyCritDamage(att.weaponState, critDamage);
@@ -1826,14 +1794,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   flushPendingCombatLogs(att, log);
-  // #region agent log
-  } catch (_dbgErr) {
-    const _dbgMsg = `[section=${_dbgSection}] att=${att?.race}/${att?.class}/${att?.subclass?.id} def=${def?.race}/${def?.class}/${def?.subclass?.id} w=${att?.weaponState?.weaponId}/${def?.weaponState?.weaponId} turn=${turn}: ${_dbgErr?.message}`;
-    const _dbgErr2 = new Error(_dbgMsg);
-    _dbgErr2.stack = _dbgErr?.stack;
-    throw _dbgErr2;
-  }
-  // #endregion
 }
 
 // ============================================================================
