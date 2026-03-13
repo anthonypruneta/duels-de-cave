@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants, raceConstants, weaponConstants, subclassConstants } from '../data/combatMechanics';
+import { classConstants, raceConstants, weaponConstants, subclassConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
 import { getAvailablePassives, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
-import { SUBCLASSES_BY_CLASS } from '../data/subclasses';
+import { SUBCLASSES_BY_CLASS, getSubclassesForClass } from '../data/subclasses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
+import { getStatPointValue } from '../utils/statPoints';
 
-import { deepClone, applyNumericOverrides, makeCharacter } from './balance/balanceUtils';
+import { deepClone, applyNumericOverrides } from './balance/balanceUtils';
 import BalanceSimulation from './balance/BalanceSimulation';
 import BalanceRaces from './balance/BalanceRaces';
 import BalanceClasses from './balance/BalanceClasses';
@@ -20,6 +22,116 @@ import BalanceWeapons from './balance/BalanceWeapons';
 import BalancePassives from './balance/BalancePassives';
 import BalanceDuel from './balance/BalanceDuel';
 import BalanceSave from './balance/BalanceSave';
+
+// ============================================================================
+// Fonctions de génération de personnages (module-level, pas d'import croisé)
+// ============================================================================
+
+const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const STAT_KEYS = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
+
+const genStats = () => {
+  const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
+  let rem = 35;
+  const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
+  if (Math.random() < 0.3) {
+    const k = pool[Math.floor(Math.random() * pool.length)];
+    const spikeAmount = 5 + Math.floor(Math.random() * 6);
+    const actual = Math.min(spikeAmount, 35 - s[k]);
+    s[k] += actual;
+    rem -= actual;
+  }
+  let guard = 1000;
+  while (rem > 0 && guard-- > 0) {
+    const entries = [['hp',2],['auto',2],['def',2],['cap',2],['rescap',2],['spd',2]];
+    const tot = entries.reduce((a,[,w]) => a + w, 0);
+    let r = Math.random() * tot;
+    let k = 'hp';
+    for (const [key, w] of entries) {
+      r -= w;
+      if (r <= 0) { k = key; break; }
+    }
+    if (k === 'hp') {
+      const hpGain = getStatPointValue('hp');
+      if (s.hp + hpGain <= 200) { s.hp += hpGain; rem--; }
+    } else {
+      const statGain = getStatPointValue(k);
+      if (s[k] + statGain <= 35) { s[k] += statGain; rem--; }
+    }
+  }
+  return s;
+};
+
+const genLevelBoosts = (level) => {
+  const boosts = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
+  const points = Math.max(0, level - 1);
+  for (let i = 0; i < points; i++) {
+    const stat = randomItem(STAT_KEYS);
+    boosts[stat] += getStatPointValue(stat);
+  }
+  return boosts;
+};
+
+const getPassiveLevelForCharacterLevel = (level) => {
+  if (level >= 100) return 3;
+  if (level >= 50) return 2;
+  return 1;
+};
+
+const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
+  const raceName = randomItem(Object.keys(races));
+  const className = randomItem(Object.keys(classes));
+  const subclassesForClass = getSubclassesForClass(className);
+  const subclass = subclassesForClass.length > 0 ? randomItem(subclassesForClass) : null;
+  const weaponId = availableWeaponIds.length > 0 ? randomItem(availableWeaponIds) : null;
+  const passiveId = availablePassiveIds.length > 0 ? randomItem(availablePassiveIds) : null;
+  const raw = genStats();
+  const raceBonus = getRaceBonus(raceName);
+  const classBonus = getClassBonus(className);
+  const levelBoosts = genLevelBoosts(level);
+  const base = applyAwakeningToBase({
+    hp: raw.hp + raceBonus.hp + classBonus.hp,
+    auto: raw.auto + raceBonus.auto + classBonus.auto,
+    def: raw.def + raceBonus.def + classBonus.def,
+    cap: raw.cap + raceBonus.cap + classBonus.cap,
+    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
+    spd: raw.spd + raceBonus.spd + classBonus.spd
+  }, getAwakeningEffect(raceName, level));
+  return {
+    id, userId: id, name: id,
+    race: raceName, class: className,
+    subclass: subclass ? { id: subclass.id, name: subclass.name } : null,
+    base, level,
+    bonuses: { race: raceBonus, class: classBonus },
+    forestBoosts: levelBoosts,
+    mageTowerPassive: passiveId ? { id: passiveId, level: getPassiveLevelForCharacterLevel(level) } : null,
+    equippedWeaponId: weaponId
+  };
+};
+
+const makeCustomCharacter = (id, raceName, className, level, weaponId, passiveId, passiveLevel) => {
+  const raw = genStats();
+  const raceBonus = getRaceBonus(raceName);
+  const classBonus = getClassBonus(className);
+  const levelBoosts = genLevelBoosts(level);
+  const base = applyAwakeningToBase({
+    hp: raw.hp + raceBonus.hp + classBonus.hp,
+    auto: raw.auto + raceBonus.auto + classBonus.auto,
+    def: raw.def + raceBonus.def + classBonus.def,
+    cap: raw.cap + raceBonus.cap + classBonus.cap,
+    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
+    spd: raw.spd + raceBonus.spd + classBonus.spd
+  }, getAwakeningEffect(raceName, level));
+  return {
+    id, userId: id,
+    name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
+    race: raceName, class: className, base, level,
+    bonuses: { race: raceBonus, class: classBonus },
+    forestBoosts: levelBoosts,
+    mageTowerPassive: passiveId ? { id: passiveId, level: Math.max(1, Math.min(3, Number(passiveLevel) || 1)) } : null,
+    equippedWeaponId: weaponId || null
+  };
+};
 
 const TABS = [
   { id: 'simulation', label: '📊 Simulation', icon: '📊' },
@@ -369,7 +481,7 @@ function AdminBalance({ embedded = false }) {
         );
       case 'duel':
         return (
-          <BalanceDuel withTemporaryDraftOverrides={withTemporaryDraftOverrides} />
+          <BalanceDuel withTemporaryDraftOverrides={withTemporaryDraftOverrides} makeCustomCharacter={makeCustomCharacter} />
         );
       case 'save':
         return (

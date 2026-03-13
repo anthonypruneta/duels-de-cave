@@ -7,7 +7,6 @@ import { simulerMatch, preparerCombattant } from '../../utils/tournamentCombat';
 import { createForestBossCombatant, FOREST_LEVELS } from '../../data/forestDungeons';
 import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../../data/mageTowerDungeons';
 import { createBossCombatant } from '../../data/bosses';
-import { makeCustomCharacter } from './balanceUtils';
 
 const BOSS_OPTIONS = [
   { id: 'pvp', label: '⚔️ PvP (Joueur vs Joueur)' },
@@ -84,7 +83,7 @@ const PlayerConfig = ({ label, color, player, setPlayer, raceNames, classNames, 
   </div>
 );
 
-export default function BalanceDuel({ withTemporaryDraftOverrides }) {
+export default function BalanceDuel({ withTemporaryDraftOverrides, makeCustomCharacter }) {
   const raceNames = useMemo(() => Object.keys(races), []);
   const classNames = useMemo(() => Object.keys(classes), []);
   const availableWeapons = useMemo(() => Object.values(weapons).filter((w) => isWaveActive(w.vague) && w.rarete === RARITY.LEGENDAIRE), []);
