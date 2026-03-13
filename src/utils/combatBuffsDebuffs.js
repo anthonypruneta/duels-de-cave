@@ -235,6 +235,49 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
           : `Dragonkin éveillé : +${Math.round(aw.damageStackBonus * 100)}% dégâts infligés par dégât reçu (cumulable).`,
       });
     }
+
+    // Écho de Guerre : stacks d'Auto
+    if ((combatStatus._echoStacks ?? 0) > 0) {
+      const n = combatStatus._echoStacks;
+      list.push({
+        id: 'echo_guerre',
+        icon: '⚔️',
+        label: `Écho de Guerre (${n} stack${n > 1 ? 's' : ''})`,
+        description: `Écho de Guerre : votre Auto augmente à chaque attaque (${n} stack(s)).`,
+      });
+    }
+
+    // Sceptre du Roi-Sorcier : stacks de CAP
+    if (combatStatus.weaponState?.counters?.sceptreCapStacks > 0) {
+      const n = combatStatus.weaponState.counters.sceptreCapStacks;
+      list.push({
+        id: 'sceptre_stacks',
+        icon: '🏆',
+        label: `Sceptre (+${n * 4}% CAP)`,
+        description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de 4% (${n} stack(s)).`,
+      });
+    }
+
+    // Reflet Maudit (sur l'adversaire) : réduction de crit
+    if ((combatStatus._refletMauditCritMalus ?? 0) > 0) {
+      const pct = Math.round(combatStatus._refletMauditCritMalus * 100);
+      list.push({
+        id: 'reflet_maudit_crit',
+        icon: '🪞',
+        label: `Crit -${pct}%`,
+        description: `Reflet Maudit : votre chance de critique a été réduite de ${pct}% (permanent).`,
+      });
+    }
+
+    // Entrave Arcanique : capacité retardée
+    if (combatStatus._entraveCdDelay > 0 && !combatStatus._entraveDelayConsumed) {
+      list.push({
+        id: 'entrave_arcanique',
+        icon: '⛓️',
+        label: 'Première capacité retardée',
+        description: 'Entrave Arcanique : votre première capacité est retardée de 1 tour.',
+      });
+    }
   }
 
   return list;

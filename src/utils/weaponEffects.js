@@ -49,6 +49,9 @@ export function initWeaponCombatState(combatant, weaponId) {
     anathemeApplied: false,  // Debuff Fléau d'Anathème appliqué
     verdictCapacitiesUsed: 0, // Nombre de capacités boostées par l'Arbalète du Verdict
     labrysBleedActive: false, // Saignement Labrys actif sur la cible
+    executeTriggered: false,  // Faux de Thanatos: explosion exécution déjà déclenchée
+    sceptreCapStacks: 0,      // Sceptre du Roi-Sorcier: stacks de CAP
+    penduleCdUsed: 0,         // Pendule de Chronos: nombre de capacités ayant bénéficié du -1 CD
   };
 
   return {
@@ -117,6 +120,11 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
         const hasOffensiveHeal = canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassiveOrList);
         modifiedStats._yggdrasilRegen = !hasOffensiveHeal;
         modifiedStats._yggdrasilHealDamage = hasOffensiveHeal;
+        break;
+      }
+
+      case 'pendule_legendaire': {
+        modifiedStats._penduleCDR = true;
         break;
       }
     }
@@ -204,6 +212,8 @@ export function onAttack(weaponState, attacker, defender, damage) {
     atkDebuff: 0,
     anathemeDebuff: false,
     applyLabrysBleed: false,
+    fauxBonusDamage: 0,
+    fauxExecuteDamage: 0,
     log: []
   };
 
@@ -251,6 +261,22 @@ export function onAttack(weaponState, attacker, defender, damage) {
       }
       break;
     }
+
+    case 'faux_legendaire': {
+      const missingHp = Math.max(0, defender.maxHP - defender.currentHP);
+      const bonusDmg = Math.max(1, Math.round(missingHp * weaponConstants.fauxThanatos.missingHpDamagePercent));
+      effects.fauxBonusDamage = bonusDmg;
+      effects.log.push(`☠️ Faux de Thanatos: Moisson Mortelle inflige ${bonusDmg} dégâts bruts (5% PV manquants)`);
+
+      const hpAfterAttack = defender.currentHP - damage - bonusDmg;
+      if (hpAfterAttack <= defender.maxHP * weaponConstants.fauxThanatos.executeThreshold && !weaponState.counters.executeTriggered) {
+        weaponState.counters.executeTriggered = true;
+        const executeDmg = Math.max(1, Math.round(defender.maxHP * weaponConstants.fauxThanatos.executePercent));
+        effects.fauxExecuteDamage = executeDmg;
+        effects.log.push(`💀 Faux de Thanatos: Exécution ! ${defender.nom || defender.name || 'Ennemi'} subit ${executeDmg} dégâts bruts (8% PV max) !`);
+      }
+      break;
+    }
   }
 
   return effects;
@@ -269,6 +295,7 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
     secondCastDamage: 0,
     secondCastHeal: 0,
     riposteTwice: false,
+    sceptreCapBuff: 0,
     log: []
   };
 
@@ -301,6 +328,17 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
     case 'arbalete_legendaire': {
       // Arbalète du Verdict: les 2 premières capacités infligent +100% dégâts/soins
       // (Le comptage est géré dans getVerdictCapacityBonus, le bonus est appliqué dans le combat)
+      break;
+    }
+
+    case 'sceptre_legendaire': {
+      const maxStacks = weaponConstants.sceptreRoiSorcier.maxCapStacks;
+      if (weaponState.counters.sceptreCapStacks < maxStacks) {
+        weaponState.counters.sceptreCapStacks++;
+        const stackPct = weaponConstants.sceptreRoiSorcier.capStackPercent;
+        effects.sceptreCapBuff = stackPct;
+        effects.log.push(`🏆 Sceptre du Roi-Sorcier: +${Math.round(stackPct * 100)}% CAP (stack ${weaponState.counters.sceptreCapStacks}/${maxStacks})`);
+      }
       break;
     }
   }
@@ -585,4 +623,42 @@ export function applyForgeUpgrade(stats, forgeUpgrade) {
   }
 
   return modified;
+}
+
+// ============================================================================
+// PENDULE DE CHRONOS — Réduction de cooldown
+// ============================================================================
+
+/**
+ * Retourne la réduction de CD du Pendule de Chronos.
+ * -1 CD sur les 2 premières capacités. Non cumulable avec Mindflayer éveillé.
+ * Appeler AVANT de lancer la capacité. Le compteur est incrémenté automatiquement.
+ */
+export function getPenduleCooldownReduction(weaponState) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'pendule_legendaire') {
+    return 0;
+  }
+  const used = weaponState.counters?.penduleCdUsed ?? 0;
+  if (used >= weaponConstants.penduleChronos.cdBonusCount) {
+    return 0;
+  }
+  return -weaponConstants.penduleChronos.cdReduction;
+}
+
+/**
+ * Consomme une charge de CDR du Pendule (à appeler quand la capacité est effectivement lancée).
+ */
+export function consumePenduleCdCharge(weaponState) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'pendule_legendaire') return;
+  weaponState.counters.penduleCdUsed = (weaponState.counters.penduleCdUsed || 0) + 1;
+}
+
+/**
+ * Retourne le bonus de dégâts/soins des capacités du Pendule de Chronos (+5%).
+ */
+export function getPenduleSpellBonus(weaponState) {
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'pendule_legendaire') {
+    return 0;
+  }
+  return weaponConstants.penduleChronos.spellBonus;
 }

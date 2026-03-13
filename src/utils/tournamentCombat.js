@@ -10,7 +10,7 @@ import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onCapacityCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty, shouldSkipVerdictDemonFamiliar,
-  applyForgeUpgrade
+  applyForgeUpgrade, getPenduleCooldownReduction, consumePenduleCdCharge, getPenduleSpellBonus
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -40,6 +40,14 @@ function getAntiHealFactor(opponent) {
 function getBriseurAutoBonus(att) {
   if (att.class !== 'Briseur de Sort') return 0;
   return Math.round(att.base.cap * classConstants.briseurSort.autoCapBonus);
+}
+
+function applySceptreCapBuff(att, spellEffects, log, playerColor) {
+  if (spellEffects.sceptreCapBuff > 0) {
+    const bonus = Math.max(1, Math.round(att.base.cap * spellEffects.sceptreCapBuff));
+    att.base = { ...att.base, cap: att.base.cap + bonus };
+    log.push(`${playerColor} 🏆 Sceptre du Roi-Sorcier: CAP de ${att.name} augmente de ${bonus} (+${Math.round(spellEffects.sceptreCapBuff * 100)}%)`);
+  }
 }
 
 function getPassiveDetails(passive) {
@@ -182,6 +190,19 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
     const shieldValue = Math.max(1, Math.round(attacker.base.def * startPct));
     attacker.shield = (attacker.shield || 0) + shieldValue;
     log.push(`${label} 🏰 Rempart initial: ${attacker.name} gagne un bouclier de ${shieldValue} PV (${Math.round(startPct * 100)}% DEF).`);
+  }
+
+  // Entrave Arcanique : retarde la première capacité de l'adversaire de 1 tour
+  const attackerPassivesForEntrave = [attacker.mageTowerPassive, attacker.mageTowerExtensionPassive].filter(Boolean);
+  for (const p of attackerPassivesForEntrave) {
+    const passiveDetails = getPassiveDetails(p);
+    if (passiveDetails?.id === 'entrave_arcanique') {
+      defender._entraveCdDelay = passiveDetails.levelData.enemyCdDelay || 1;
+      defender._entraveFirstCapUsed = false;
+      const entraveBonus = passiveDetails.levelData.damageBonus || 0;
+      if (entraveBonus > 0) attacker._entraveDamageBonus = entraveBonus;
+      log.push(`${label} ⛓️ Entrave Arcanique: la première capacité de ${defender.name} est retardée de ${defender._entraveCdDelay} tour(s) !`);
+    }
   }
 
   defender.spectralMarked = false;
@@ -340,10 +361,17 @@ function getMindflayerCapacityCooldown(caster, _target, capacityId) {
     adjustedCooldown += verdictPenalty;
   }
 
-  if ((caster.race === 'Mindflayer' || caster.awakening?.mindflayerOwnCooldownReductionTurns != null) && adjustedCooldown > 1 && !caster.mindflayerFirstCDUsed) {
+  // Pendule de Chronos et Mindflayer éveillé : -1 CD, non cumulables
+  let cdReduction = 0;
+  const penduleReduction = getPenduleCooldownReduction(caster.weaponState);
+  if (penduleReduction < 0) cdReduction = Math.max(cdReduction, Math.abs(penduleReduction));
+  if ((caster.race === 'Mindflayer' || caster.awakening?.mindflayerOwnCooldownReductionTurns != null) && !caster.mindflayerFirstCDUsed) {
     const casterAwakening = caster.awakening || {};
     const reducedTurns = casterAwakening.mindflayerOwnCooldownReductionTurns ?? raceConstants.mindflayer.ownCooldownReductionTurns;
-    if (reducedTurns > 0) adjustedCooldown = Math.max(1, adjustedCooldown - reducedTurns);
+    if (reducedTurns > 0) cdReduction = Math.max(cdReduction, reducedTurns);
+  }
+  if (cdReduction > 0 && adjustedCooldown > 1) {
+    adjustedCooldown = Math.max(1, adjustedCooldown - cdReduction);
   }
 
   return adjustedCooldown;
@@ -573,6 +601,15 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   }
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
+  // Entrave Arcanique : bonus de dégâts tant que l'ennemi n'a pas lancé sa première capacité
+  if (att._entraveDamageBonus > 0 && !def._entraveFirstCapUsed) {
+    adjusted = Math.round(adjusted * (1 + att._entraveDamageBonus));
+  }
+  // Pendule de Chronos : +5% dégâts et soins sur les capacités
+  if (isCapacityDamage) {
+    const penduleBonus = getPenduleSpellBonus(att.weaponState);
+    if (penduleBonus > 0) adjusted = Math.round(adjusted * (1 + penduleBonus));
+  }
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
   if (defUnicorn) adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
   const atkOnction = getPassiveById(atkList, 'onction_eternite');
@@ -661,6 +698,25 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
       def.turtlekinFirstHitUsed = false;
       def.turtlekinResetAt50Used = true;
       log.push(`${playerColor} 🐢 Éveil Turtlekin: la carapace de ${def.name} se régénère !`);
+    }
+
+    // Reflet Maudit : renvoi de dégâts bruts sur crit + réduction crit adverse
+    if (isCrit && adjusted > 0 && def.currentHP > 0) {
+      const refletPassive = defList.find((p) => p?.id === 'reflet_maudit');
+      if (refletPassive) {
+        const reflectDmg = Math.max(1, Math.round(adjusted * (refletPassive.levelData?.reflectPercent ?? 0)));
+        att.currentHP -= reflectDmg;
+        tryTriggerOnctionLastStand(att, log, playerColor);
+        log.push(`${playerColor} 🪞 Reflet Maudit: ${att.name} subit ${reflectDmg} dégâts bruts en retour du crit !`);
+        if (refletPassive.levelData?.critReduction && !att._refletMauditApplied) {
+          att._refletMauditCritMalus = (att._refletMauditCritMalus || 0) + refletPassive.levelData.critReduction;
+          att._refletMauditApplied = true;
+          log.push(`${playerColor} 🪞 Reflet Maudit: ${att.name} perd ${Math.round(refletPassive.levelData.critReduction * 100)}% de crit permanent !`);
+        }
+        if (att.currentHP <= 0 && hasMortVivantRevive(att)) {
+          reviveUndead(att, def, log, playerColor);
+        }
+      }
     }
 
     if (isCapacityDamage) {
@@ -764,6 +820,18 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.cd[k] = (att.cd[k] % effectiveCd) + 1;
   }
 
+  // Entrave Arcanique : retarder la première capacité de 1 tour
+  if (att._entraveCdDelay > 0 && !att._entraveDelayConsumed) {
+    for (const k of Object.keys(cooldowns)) {
+      const effectiveCd = getMindflayerCapacityCooldown(att, def, k);
+      if (att.cd[k] === effectiveCd) {
+        att.cd[k] = Math.max(1, att.cd[k] - 1);
+        att._entraveDelayConsumed = true;
+        break;
+      }
+    }
+  }
+
   // La copie de capacité du Mindflayer est déclenchée après avoir reçu une capacité (dans applyDamage).
   let capacityStolen = false;
 
@@ -844,6 +912,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const inflicted = applyDamage(att, def, raw, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
     log.push(`${playerColor} 💠 Le familier de ${att.name} attaque ${def.name} et inflige ${inflicted} points de dégâts`);
     const demonSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'demoniste');
+    applySceptreCapBuff(att, demonSpellEffects, log, playerColor);
     if (demonSpellEffects.doubleCast && demonSpellEffects.secondCastDamage > 0) {
       const inflictedCodex = applyDamage(att, def, demonSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
       log.push(`${playerColor} 📜 Codex Archon : Le familier de ${att.name} attaque ${def.name} et inflige ${inflictedCodex} points de dégâts`);
@@ -895,6 +964,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, dmg, healAmount, turn);
       }
       const masoSpellEffects = onCapacityCast(att.weaponState, att, def, dmg, 'maso', { healAmount });
+      applySceptreCapBuff(att, masoSpellEffects, log, playerColor);
       log.push(`${playerColor} 🩸 ${att.name} renvoie les dégâts accumulés: inflige ${inflicted} points de dégâts et récupère ${healAmount} points de vie`);
       if (masoSpellEffects.doubleCast && (masoSpellEffects.secondCastDamage > 0 || masoSpellEffects.secondCastHeal > 0)) {
         const inflicted2 = masoSpellEffects.secondCastDamage > 0
@@ -967,6 +1037,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 3% (stackable).`);
     }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
+    applySceptreCapBuff(att, paladinSpellEffects, log, playerColor);
     if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
       att.riposteTwice = true;
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
@@ -998,6 +1069,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
       baseHeal = Math.max(1, Math.round(baseHeal * verdictBonusHeal.healMultiplier));
       verdictBonusHeal.log.forEach((l) => log.push(`${playerColor} ${l}`));
     }
+    const penduleBonusHeal = getPenduleSpellBonus(att.weaponState);
+    if (penduleBonusHeal > 0) baseHeal = Math.max(1, Math.round(baseHeal * (1 + penduleBonusHeal)));
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
@@ -1018,6 +1091,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
     }
     const healSpellEffects = onCapacityCast(att.weaponState, att, def, heal, 'heal');
+    applySceptreCapBuff(att, healSpellEffects, log, playerColor);
     if (healSpellEffects.doubleCast && healSpellEffects.secondCastHeal > 0) {
       att.currentHP = Math.min(att.maxHP, att.currentHP + healSpellEffects.secondCastHeal);
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance sa capacité de soin puissante et récupère ${healSpellEffects.secondCastHeal} points de vie`);
@@ -1064,6 +1138,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     def.succubeWeakenNextAttack = true;
     log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. La prochaine attaque de ${def.name} est affaiblie.`);
     const succSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'succ');
+    applySceptreCapBuff(att, succSpellEffects, log, playerColor);
     if (succSpellEffects.doubleCast && succSpellEffects.secondCastDamage > 0) {
       const inflictedCodex = applyDamage(att, def, succSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} fouette ${def.name} et inflige ${inflictedCodex} points de dégâts`);
@@ -1091,6 +1166,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
     log.push(`${playerColor} 🏰 ${att.name} percute ${def.name} et inflige ${inflicted} dégâts avec la Charge du Rempart${isCrit ? ' CRITIQUE !' : ''}.`);
     const bastSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'bast');
+    applySceptreCapBuff(att, bastSpellEffects, log, playerColor);
     if (bastSpellEffects.doubleCast && bastSpellEffects.secondCastDamage > 0) {
       const inflictedCodex = applyDamage(att, def, bastSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} percute ${def.name} et inflige ${inflictedCodex} points de dégâts avec la Charge du Rempart`);
@@ -1139,9 +1215,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
       if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
       if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de feu et inflige ${inflictedCodex} dégâts`);
@@ -1161,6 +1240,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
         baseHeal = Math.max(1, Math.round(baseHeal * verdictBonus.healMultiplier));
         verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
+      const penduleBonusAlchHeal = getPenduleSpellBonus(att.weaponState);
+      if (penduleBonusAlchHeal > 0) baseHeal = Math.max(1, Math.round(baseHeal * (1 + penduleBonusAlchHeal)));
       const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
       const heal = healCritResult.amount;
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -1173,6 +1254,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       // Codex Archon (double soin)
       const spellEffects = onCapacityCast(att.weaponState, att, def, heal, 'alch_heal');
+      applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastHeal > 0) {
         att.currentHP = Math.min(att.maxHP, att.currentHP + spellEffects.secondCastHeal);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} boit une seconde flasque de vie et récupère ${spellEffects.secondCastHeal} PV`);
@@ -1218,9 +1300,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
       if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
       if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque d'acide et inflige ${inflictedCodex} dégâts`);
@@ -1260,9 +1345,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
       if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
       if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de métal et inflige ${inflictedCodex} dégâts`);
@@ -1412,6 +1500,16 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  // Pendule de Chronos : consommer la charge de CDR quand une capacité est effectivement lancée
+  if (skillUsed) {
+    consumePenduleCdCharge(att.weaponState);
+  }
+
+  // Entrave Arcanique : marquer que la première capacité a été utilisée (pour stopper le bonus de dégâts)
+  if (skillUsed && !att._entraveFirstCapUsed) {
+    att._entraveFirstCapUsed = true;
+  }
+
   let mult = 1.0;
   if (att.succubeWeakenNextAttack) {
     mult *= (1 - classConstants.succube.nextAttackReduction);
@@ -1433,7 +1531,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
     const subclassCritBonus = (att.subclass?.id === 'chasseur_fantome' || att.subclass?.id === 'ame_tentatrice') ? 0.10 : 0;
-    const critChance = calcCritChance(att, def) + subclassCritBonus;
+    const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
     const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
     if (isCrit) wasCrit = true;
     let raw = 0;
@@ -1465,6 +1563,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
         verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'mage');
+      applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} utilise sa capacité magique et inflige ${inflictedCodex} points de dégâts`);
@@ -1500,6 +1599,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (i === 0) {
         log.push(`${playerColor} 🗡️ ${att.name} exécute une frappe pénétrante`);
         const warSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'war');
+        applySceptreCapBuff(att, warSpellEffects, log, playerColor);
         if (warSpellEffects.doubleCast && warSpellEffects.secondCastDamage > 0) {
           const inflictedCodex = applyDamage(att, def, warSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} exécute une frappe pénétrante et inflige ${inflictedCodex} points de dégâts`);
@@ -1545,6 +1645,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
       if (i === 1) {
         const arcSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'arc');
+        applySceptreCapBuff(att, arcSpellEffects, log, playerColor);
         if (arcSpellEffects.doubleCast && arcSpellEffects.secondCastDamage > 0) {
           const inflictedCodex = applyDamage(att, def, arcSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
           log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance un tir renforcé et inflige ${inflictedCodex} points de dégâts`);
@@ -1624,7 +1725,25 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
       if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
       if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
       if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+    }
+
+    // Écho de Guerre : +X% Auto par attaque (stackable)
+    if (!isMage && !isWar && !isArcher && inflicted > 0) {
+      const echoPassive = getPassiveById(attackerPassiveList, 'echo_guerre');
+      if (echoPassive) {
+        att._echoStacks = (att._echoStacks || 0);
+        const maxStacks = echoPassive.levelData?.maxStacks ?? 5;
+        if (att._echoStacks < maxStacks) {
+          att._echoStacks++;
+          const stackPct = echoPassive.levelData?.autoStackPercent ?? 0.02;
+          const bonus = Math.max(1, Math.round(att.base.auto * stackPct));
+          att.base = { ...att.base, auto: att.base.auto + bonus };
+          log.push(`${playerColor} ⚔️ Écho de Guerre: Auto de ${att.name} +${bonus} (stack ${att._echoStacks}/${maxStacks})`);
+        }
+      }
     }
 
     // Log du tir / attaque bonus avant le test de mort : si le second tir est létal, on doit quand même afficher ses dégâts

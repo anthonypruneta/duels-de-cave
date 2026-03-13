@@ -236,6 +236,76 @@ export const MAGE_TOWER_PASSIVES = [
         healReduction: 0.30
       }
     }
+  },
+  // =========================================================================
+  // Vague 3 — Nouveaux passifs
+  // =========================================================================
+  {
+    id: 'echo_guerre',
+    name: 'Écho de Guerre',
+    icon: '⚔️',
+    vague: 3,
+    levels: {
+      1: {
+        description: 'Chaque attaque augmente votre Auto de 2% (max 5 stacks = +10%).',
+        autoStackPercent: 0.02,
+        maxStacks: 5
+      },
+      2: {
+        description: 'Chaque attaque augmente votre Auto de 3% (max 5 stacks = +15%).',
+        autoStackPercent: 0.03,
+        maxStacks: 5
+      },
+      3: {
+        description: 'Chaque attaque augmente votre Auto de 4% (max 6 stacks = +24%).',
+        autoStackPercent: 0.04,
+        maxStacks: 6
+      }
+    }
+  },
+  {
+    id: 'reflet_maudit',
+    name: 'Reflet Maudit',
+    icon: '🪞',
+    vague: 3,
+    levels: {
+      1: {
+        description: 'Quand l\'ennemi crit, il subit 20% des dégâts critiques en retour (bruts).',
+        reflectPercent: 0.20
+      },
+      2: {
+        description: 'Quand l\'ennemi crit, il subit 30% des dégâts critiques en retour (bruts). L\'ennemi perd 5% de crit permanent.',
+        reflectPercent: 0.30,
+        critReduction: 0.05
+      },
+      3: {
+        description: 'Quand l\'ennemi crit, il subit 40% des dégâts critiques en retour (bruts). L\'ennemi perd 10% de crit permanent.',
+        reflectPercent: 0.40,
+        critReduction: 0.10
+      }
+    }
+  },
+  {
+    id: 'entrave_arcanique',
+    name: 'Entrave Arcanique',
+    icon: '⛓️',
+    vague: 3,
+    levels: {
+      1: {
+        description: 'La première capacité ennemie est retardée de 1 tour.',
+        enemyCdDelay: 1
+      },
+      2: {
+        description: 'La première capacité ennemie est retardée de 1 tour. +5% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
+        enemyCdDelay: 1,
+        damageBonus: 0.05
+      },
+      3: {
+        description: 'La première capacité ennemie est retardée de 1 tour. +10% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
+        enemyCdDelay: 1,
+        damageBonus: 0.10
+      }
+    }
   }
 ];
 
@@ -263,15 +333,13 @@ export const rollMageTowerPassive = (level) => {
 
 export const rollMageTowerPassivePair = (level) => {
   const available = getAvailablePassives();
-  const idx1 = Math.floor(Math.random() * available.length);
-  let idx2 = Math.floor(Math.random() * available.length);
-  let attempts = 0;
-  while (idx2 === idx1 && attempts < 10) {
-    idx2 = Math.floor(Math.random() * available.length);
-    attempts++;
+  const count = Math.min(3, available.length);
+  const picked = [];
+  while (picked.length < count) {
+    const idx = Math.floor(Math.random() * available.length);
+    if (!picked.some(p => p.idx === idx)) {
+      picked.push({ idx, id: available[idx].id });
+    }
   }
-  return [
-    { id: available[idx1].id, level },
-    { id: available[idx2].id, level }
-  ];
+  return picked.map(p => ({ id: p.id, level }));
 };

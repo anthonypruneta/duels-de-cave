@@ -206,7 +206,7 @@ const Dungeon = () => {
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting, victory, defeat, loot
   const [currentLevel, setCurrentLevel] = useState(1);
   const [highestLevelBeaten, setHighestLevelBeaten] = useState(0);
-  const [lootWeapons, setLootWeapons] = useState([null, null]);
+  const [lootWeapons, setLootWeapons] = useState([null, null, null]);
   const [error, setError] = useState(null);
   const [instantMessage, setInstantMessage] = useState(null);
 
@@ -1096,7 +1096,7 @@ const Dungeon = () => {
       setDungeonSummary(summaryResult.data);
     }
 
-    setLootWeapons([null, null]);
+    setLootWeapons([null, null, null]);
 
     setGameState('lobby');
   };
@@ -1321,11 +1321,10 @@ const Dungeon = () => {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-5 mb-8 max-w-4xl mx-auto">
-            <WeaponCard weapon={lootWeapons[0]} onSelect={handleLootDecision} />
-            {lootWeapons[1] && (
-              <WeaponCard weapon={lootWeapons[1]} onSelect={handleLootDecision} />
-            )}
+          <div className="flex flex-col md:flex-row gap-5 mb-8 max-w-6xl mx-auto">
+            {lootWeapons.filter(Boolean).map((weapon, idx) => (
+              <WeaponCard key={weapon.id || idx} weapon={weapon} onSelect={handleLootDecision} />
+            ))}
           </div>
 
           <div className="text-center mb-8">

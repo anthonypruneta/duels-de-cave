@@ -306,18 +306,21 @@ export const generateLoot = (levelNumber) => {
 
 export const generateLootPair = (levelNumber) => {
   const level = getDungeonLevelByNumber(levelNumber);
-  if (!level) return [null, null];
+  if (!level) return [null, null, null];
 
-  const weapon1 = getRandomWeaponByRarity(level.dropRarity);
-  let weapon2 = getRandomWeaponByRarity(level.dropRarity);
-  let attempts = 0;
-  while (weapon2.id === weapon1.id && attempts < 10) {
-    weapon2 = getRandomWeaponByRarity(level.dropRarity);
-    attempts++;
+  const picked = [];
+  for (let i = 0; i < 3; i++) {
+    let weapon = getRandomWeaponByRarity(level.dropRarity);
+    let attempts = 0;
+    while (picked.some(w => w.id === weapon.id) && attempts < 10) {
+      weapon = getRandomWeaponByRarity(level.dropRarity);
+      attempts++;
+    }
+    picked.push(weapon);
   }
 
-  console.log(`🎁 Loot paire: ${weapon1.nom} / ${weapon2.nom}`);
-  return [weapon1, weapon2];
+  console.log(`🎁 Loot triplet: ${picked.map(w => w.nom).join(' / ')}`);
+  return picked;
 };
 
 // ============================================================================
@@ -327,8 +330,8 @@ export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel 
   try {
     console.log('🏆 Fin de run:', { userId, highestLevelBeaten, defeatedOnLevel });
 
-    // Générer le loot basé sur le dernier niveau réussi (paire de 2 armes)
-    const lootWeapons = highestLevelBeaten > 0 ? generateLootPair(highestLevelBeaten) : [null, null];
+    // Générer le loot basé sur le dernier niveau réussi (triplet de 3 armes)
+    const lootWeapons = highestLevelBeaten > 0 ? generateLootPair(highestLevelBeaten) : [null, null, null];
     const lootWeapon = lootWeapons[0];
 
     // Mettre à jour les stats

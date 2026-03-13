@@ -63,6 +63,9 @@ export const WEAPON_FAMILIES = {
   FLEAU: 'fleau',
   ARBALETE: 'arbalete',
   HACHE: 'hache',
+  FAUX: 'faux',
+  SCEPTRE: 'sceptre',
+  PENDULE: 'pendule',
 };
 
 // ============================================================================
@@ -73,6 +76,7 @@ export const WEAPON_FAMILIES = {
 const WAVE_ACTIVATION_DATES = {
   1: null, // Toujours actif
   2: new Date('2026-02-21T22:00:00+01:00'), // Samedi 21 février 2026, 22h Paris
+  3: new Date('2026-03-14T22:00:00+01:00'), // Samedi 14 mars 2026, 22h Paris
 };
 
 /**
@@ -736,6 +740,192 @@ export const weapons = {
     description: 'La hache double du dieu de la guerre, qui inflige des blessures inguérissables.',
     vague: 2,
   },
+
+  // =========================================================================
+  // L. FAUX (Vague 3 — execute / finisseur)
+  // =========================================================================
+  faux_commune: {
+    id: 'faux_commune',
+    nom: 'Faux Rouillée',
+    famille: WEAPON_FAMILIES.FAUX,
+    rarete: RARITY.COMMUNE,
+    icon: '💀',
+    imageFile: 'faux1.png',
+    stats: {
+      auto: 2,
+      cap: 1,
+    },
+    effet: null,
+    description: 'Une faux de moissonneur reconvertie pour le combat.',
+    vague: 3,
+  },
+
+  faux_rare: {
+    id: 'faux_rare',
+    nom: 'Faux de l\'Ombre',
+    famille: WEAPON_FAMILIES.FAUX,
+    rarete: RARITY.RARE,
+    icon: '💀',
+    imageFile: 'faux2.png',
+    stats: {
+      auto: 4,
+      cap: 2,
+    },
+    effet: null,
+    description: 'Une faux imprégnée de ténèbres, tranchante comme la nuit.',
+    vague: 3,
+  },
+
+  faux_legendaire: {
+    id: 'faux_legendaire',
+    nom: 'Faux de Thanatos',
+    famille: WEAPON_FAMILIES.FAUX,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '☠️',
+    imageFile: 'faux3.png',
+    stats: {
+      auto: 4,
+      cap: 2,
+    },
+    effet: {
+      nom: 'Moisson Mortelle',
+      description: 'Vos attaques infligent des dégâts bruts bonus égaux à 5% des PV manquants de l\'ennemi.\nQuand l\'ennemi passe sous 20% PV : inflige 8% de ses PV max en dégâts bruts (1 fois).',
+      trigger: {
+        type: TRIGGER_TYPES.PASSIVE,
+      },
+      values: {
+        missingHpDamagePercent: 0.05,
+        executeThreshold: 0.20,
+        executePercent: 0.08,
+      },
+    },
+    description: 'La faux du dieu de la mort, qui moissonne les âmes affaiblies.',
+    vague: 3,
+  },
+
+  // =========================================================================
+  // M. SCEPTRES (Vague 3 — scaling CAP cumulatif)
+  // =========================================================================
+  sceptre_commun: {
+    id: 'sceptre_commun',
+    nom: 'Sceptre de Cuivre',
+    famille: WEAPON_FAMILIES.SCEPTRE,
+    rarete: RARITY.COMMUNE,
+    icon: '👑',
+    imageFile: 'sceptre1.png',
+    stats: {
+      cap: 2,
+      rescap: 1,
+    },
+    effet: null,
+    description: 'Un sceptre de cuivre orné de symboles arcaniques rudimentaires.',
+    vague: 3,
+  },
+
+  sceptre_rare: {
+    id: 'sceptre_rare',
+    nom: 'Sceptre de Jade',
+    famille: WEAPON_FAMILIES.SCEPTRE,
+    rarete: RARITY.RARE,
+    icon: '👑',
+    imageFile: 'sceptre2.png',
+    stats: {
+      cap: 4,
+      rescap: 2,
+    },
+    effet: null,
+    description: 'Un sceptre taillé dans le jade, pulsant d\'énergie arcanique.',
+    vague: 3,
+  },
+
+  sceptre_legendaire: {
+    id: 'sceptre_legendaire',
+    nom: 'Sceptre du Roi-Sorcier',
+    famille: WEAPON_FAMILIES.SCEPTRE,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '🏆',
+    imageFile: 'sceptre3.png',
+    stats: {
+      cap: 5,
+      rescap: 3,
+    },
+    effet: {
+      nom: 'Couronne Siphonnante',
+      description: 'Chaque capacité lancée augmente votre CAP de 4% (max 5 stacks = +20%).\nS\'applique aussi aux soins basés sur la CAP.',
+      trigger: {
+        type: TRIGGER_TYPES.EVERY_N_SPELLS,
+        everyN: 1,
+      },
+      values: {
+        capStackPercent: 0.04,
+        maxCapStacks: 5,
+      },
+    },
+    description: 'Le sceptre du Roi-Sorcier, dont le pouvoir croît à chaque incantation.',
+    vague: 3,
+  },
+
+  // =========================================================================
+  // N. PENDULES (Vague 3 — réduction de cooldown)
+  // =========================================================================
+  pendule_commun: {
+    id: 'pendule_commun',
+    nom: 'Pendule de Bronze',
+    famille: WEAPON_FAMILIES.PENDULE,
+    rarete: RARITY.COMMUNE,
+    icon: '⏳',
+    imageFile: 'pendule1.png',
+    stats: {
+      cap: 1,
+      spd: 1,
+    },
+    effet: null,
+    description: 'Un pendule de bronze qui oscille au rythme du temps.',
+    vague: 3,
+  },
+
+  pendule_rare: {
+    id: 'pendule_rare',
+    nom: 'Pendule d\'Argent',
+    famille: WEAPON_FAMILIES.PENDULE,
+    rarete: RARITY.RARE,
+    icon: '⏳',
+    imageFile: 'pendule2.png',
+    stats: {
+      cap: 2,
+      spd: 3,
+    },
+    effet: null,
+    description: 'Un pendule d\'argent poli qui semble ralentir le temps autour de lui.',
+    vague: 3,
+  },
+
+  pendule_legendaire: {
+    id: 'pendule_legendaire',
+    nom: 'Pendule de Chronos',
+    famille: WEAPON_FAMILIES.PENDULE,
+    rarete: RARITY.LEGENDAIRE,
+    icon: '⌛',
+    imageFile: 'pendule3.png',
+    stats: {
+      cap: 3,
+      spd: 4,
+    },
+    effet: {
+      nom: 'Décret Temporel',
+      description: 'Vos 2 premières capacités ont -1 tour de CD. Vos capacités infligent +5% dégâts et soins.\nNon cumulable avec d\'autres réductions de CD.',
+      trigger: {
+        type: TRIGGER_TYPES.PASSIVE,
+      },
+      values: {
+        cdReduction: 1,
+        cdBonusCount: 2,
+        spellBonus: 0.05,
+      },
+    },
+    description: 'Le pendule du Titan du Temps, qui comprime la durée des incantations.',
+    vague: 3,
+  },
 };
 
 // ============================================================================
@@ -799,6 +989,9 @@ export function getWeaponFamilyInfo() {
     [WEAPON_FAMILIES.FLEAU]: { nom: 'Fléaux', icon: '⛓️' },
     [WEAPON_FAMILIES.ARBALETE]: { nom: 'Arbalètes', icon: '🏹' },
     [WEAPON_FAMILIES.HACHE]: { nom: 'Haches', icon: '🪓' },
+    [WEAPON_FAMILIES.FAUX]: { nom: 'Faux', icon: '💀' },
+    [WEAPON_FAMILIES.SCEPTRE]: { nom: 'Sceptres', icon: '👑' },
+    [WEAPON_FAMILIES.PENDULE]: { nom: 'Pendules', icon: '⏳' },
   };
 }
 

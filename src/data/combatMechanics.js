@@ -364,6 +364,26 @@ export const weaponConstants = {
     bleedDecayPercent: 0.01,     // Réduit de 1% par auto
     rawDamage: true,             // Dégâts bruts (ignorent DEF/ResC)
   },
+
+  // Faux de Thanatos (Faux légendaire) — Vague 3
+  fauxThanatos: {
+    missingHpDamagePercent: 0.05, // 5% PV manquants de l'ennemi en dégâts bruts
+    executeThreshold: 0.20,       // Seuil 20% PV
+    executePercent: 0.08,         // 8% PV max en dégâts bruts (1 seule fois)
+  },
+
+  // Sceptre du Roi-Sorcier (Sceptre légendaire) — Vague 3
+  sceptreRoiSorcier: {
+    capStackPercent: 0.04,        // +4% CAP par capacité lancée
+    maxCapStacks: 5,              // Max 5 stacks (+20%)
+  },
+
+  // Pendule de Chronos (Pendule légendaire) — Vague 3
+  penduleChronos: {
+    cdReduction: 1,               // -1 tour de CD
+    cdBonusCount: 2,              // Sur les 2 premières capacités seulement
+    spellBonus: 0.05,             // +5% dégâts/soins de toutes les capacités
+  },
 };
 
 // ============================================================================

@@ -163,7 +163,10 @@ export async function creerTournoi(docId = 'current') {
         subclass: p.subclass || null,
         name: p.name,
         class: p.class,
-        ownerPseudo: p.ownerPseudo || null
+        ownerPseudo: p.ownerPseudo || null,
+        equippedBorder: p.equippedBorder || null,
+        equippedTitle: p.equippedTitle || null,
+        gender: p.gender || null,
       };
     }
 
@@ -375,6 +378,9 @@ export async function lancerTournoi(docId = 'current') {
         forestBoosts: p.forestBoosts || null,
         forgeUpgrade: p.forgeUpgrade || null,
         subclass: p.subclass || null,
+        equippedBorder: p.equippedBorder || null,
+        equippedTitle: p.equippedTitle || null,
+        gender: p.gender || null,
       };
     }
 
@@ -937,7 +943,10 @@ export async function simulerTournoiTest() {
         subclass: p.subclass || null,
         name: p.name,
         class: p.class,
-        ownerPseudo: p.ownerPseudo || null
+        ownerPseudo: p.ownerPseudo || null,
+        equippedBorder: p.equippedBorder || null,
+        equippedTitle: p.equippedTitle || null,
+        gender: p.gender || null,
       };
     }
 

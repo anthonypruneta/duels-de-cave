@@ -1296,7 +1296,7 @@ const MageTower = () => {
             <p className="text-amber-300 font-bold text-sm tracking-wide">Choisissez un passif</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-8 max-w-2xl mx-auto">
+          <div className="flex flex-col sm:flex-row gap-4 mb-8 max-w-4xl mx-auto">
             {details.map((detail, i) => detail && (
               <PassiveCard key={i} passive={droppedPassives[i]} detail={detail} onSelect={handlePassiveDecision} />
             ))}
