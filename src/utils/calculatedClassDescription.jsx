@@ -234,11 +234,11 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const ignoreTotalPct = Math.round((c.ignoreBase ?? 0) * 100 + (c.ignorePerCap ?? 0) * cap * 100);
       return (
         <>
-          Ignore{' '}
+          Frappe la résistance la plus faible. Ignore{' '}
           <Tooltip content={`Base ${(c.ignoreBase ?? 0) * 100}% + ${(c.ignorePerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{ignoreTotalPct}%</span>
           </Tooltip>
-          {' '}résistance. Bouclier{' '}
+          {' '}de la résistance ennemie. Bouclier de{' '}
           <Tooltip content={`${(c.shieldAutoPercent ?? 0) * 100}% × Auto (${auto}) + ${(c.shieldCapPercent ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldAuto}+{shieldCap}</span>
           </Tooltip>
@@ -277,13 +277,14 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
     case 'sniper': {
       const hit2Auto = Math.round((c.hit2AutoMultiplier ?? 0) * auto);
       const hit2Cap = Math.round((c.hit2CapMultiplier ?? 0) * cap);
+      const hit2Total = hit2Auto + hit2Cap;
       return (
         <>
-          2 attaques: 1 tir normal +{' '}
-          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}%×Auto (${auto}) + ${(c.hit2CapMultiplier ?? 0) * 100}%×Cap (${cap}) vs ResC`}>
-            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          Deux tirs : 100% Auto puis{' '}
+          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}% × Auto (${auto}) = ${hit2Auto} + ${(c.hit2CapMultiplier ?? 0) * 100}% × Cap (${cap}) = ${hit2Cap}`}>
+            <span className="text-green-400">{hit2Total}</span>
           </Tooltip>
-          .
+          {' '}(vs RésCap).
         </>
       );
     }
@@ -291,13 +292,15 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const ghostPct = Math.round((c.ghostHunterCapBonus ?? 0) * 100);
       const hit2Auto = Math.round((c.hit2AutoMultiplier ?? 0) * auto);
       const hit2Cap = Math.round((c.hit2CapMultiplier ?? 0) * cap);
+      const hit2Total = hit2Auto + hit2Cap;
       return (
         <>
-          Après crit: +<span className="text-green-400">{ghostPct}%</span> CAP. 2 tirs: 100% Auto +{' '}
-          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}%×Auto (${auto}) + ${(c.hit2CapMultiplier ?? 0) * 100}%×Cap (${cap})`}>
-            <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
+          Après un crit : +<span className="text-green-400">{ghostPct}%</span> CAP.
+          {' '}Deux tirs : 100% Auto puis{' '}
+          <Tooltip content={`${(c.hit2AutoMultiplier ?? 0) * 100}% × Auto (${auto}) = ${hit2Auto} + ${(c.hit2CapMultiplier ?? 0) * 100}% × Cap (${cap}) = ${hit2Cap}`}>
+            <span className="text-green-400">{hit2Total}</span>
           </Tooltip>
-          .
+          {' '}(vs RésCap).
         </>
       );
     }
@@ -373,11 +376,13 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const antiHealPct = Math.round((c.antiHealReduction ?? 0) * 100);
       return (
         <>
-          Après capacité subie: bouclier{' '}
+          Après capacité subie : bouclier{' '}
           <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
           </Tooltip>
-          . Sort -{nextSpellPct}%. Soins adverses -{antiHealPct}%. Auto ={' '}
+          , réduit les dégâts du prochain sort de <span className="text-green-400">{nextSpellPct}%</span>.
+          {' '}Réduit les soins adverses de <span className="text-green-400">{antiHealPct}%</span>.
+          {' '}Auto ={' '}
           <Tooltip content={`Auto (${auto}) + ${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap}) = ${autoBonusVal}`}>
             <span className="text-green-400">{autoTotal}</span>
           </Tooltip>
@@ -394,11 +399,13 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const autoTotal = auto + autoBonusVal;
       return (
         <>
-          Après capacité subie: bouclier{' '}
+          Après capacité subie : bouclier{' '}
           <Tooltip content={`${shieldDmgPct}% dégâts + ${(c.shieldFromCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
           </Tooltip>
-          , DEF +<span className="text-green-400">{defStackPct}%</span> (cumulable). Soins adverses -{antiHealPct}%. Auto ={' '}
+          , augmente votre DEF de <span className="text-green-400">{defStackPct}%</span> (cumulable).
+          {' '}Réduit les soins adverses de <span className="text-green-400">{antiHealPct}%</span>.
+          {' '}Auto ={' '}
           <Tooltip content={`Auto (${auto}) + ${(c.autoCapBonus ?? 0) * 100}% × Cap (${cap}) = ${autoBonusVal}`}>
             <span className="text-green-400">{autoTotal}</span>
           </Tooltip>
@@ -417,7 +424,8 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). Attaque adverse -{nextPct}%. Auto ennemi -{' '}
+          {' '}(vs RésCap). La prochaine attaque adverse inflige{' '}
+          <span className="text-red-400">-{nextPct}%</span> dégâts et réduit l'Auto ennemi de{' '}
           <span className="text-green-400">{autoRedPct}%</span> (cumulable).
         </>
       );
@@ -432,7 +440,8 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${(c.capScale ?? 0) * 100}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). Attaque adverse -{nextPct}%.{' '}
+          {' '}(vs RésCap). La prochaine attaque adverse inflige{' '}
+          <span className="text-red-400">-{nextPct}%</span> dégâts.{' '}
           <Tooltip content="Si le dernier sort n'était pas critique, le prochain est garanti crit. +10% crit sur les autos.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Crit alterné</span>
           </Tooltip>.
@@ -529,10 +538,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Base ${returnBasePct}% + ${(c.returnPerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{returnTotalPct}%</span>
           </Tooltip>
-          {' '}dégâts accumulés + <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap. Soigne{' '}
-          <span className="text-green-400">{healPct}%</span> dégâts accumulés. DEF{' '}
-          <span className="text-red-400">-{defReductionPct}%</span>, Auto{' '}
-          <span className="text-green-400">+{autoIncreasePct}%</span>.
+          {' '}dégâts accumulés + <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap.
+          {' '}Soigne <span className="text-green-400">{healPct}%</span> des dégâts accumulés.
+          {' '}Réduit votre DEF de <span className="text-red-400">{defReductionPct}%</span> mais augmente votre Auto de{' '}
+          <span className="text-green-400">{autoIncreasePct}%</span> pour le reste du combat.
         </>
       );
     }
@@ -548,7 +557,9 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Base ${returnBasePct}% + ${(c.returnPerCap ?? 0) * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{returnTotalPct}%</span>
           </Tooltip>
-          {' '}+ <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap. Soigne {healPct}%. DEF+ResC +<span className="text-green-400">{stackPct}%</span> par Purge.
+          {' '}dégâts accumulés + <span className="text-green-400">{(c.returnPerCap ?? 0) * 100}%</span> Cap.
+          {' '}Soigne <span className="text-green-400">{healPct}%</span> des dégâts accumulés.
+          {' '}Chaque Purge augmente votre DEF et ResC de <span className="text-green-400">{stackPct}%</span>.
         </>
       );
     }
