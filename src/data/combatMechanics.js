@@ -227,14 +227,22 @@ export const calcCritChance = (attacker, defender = null) => {
 };
 
 export const getCritMultiplier = (attacker, defender = null) => {
+  // #region agent log
+  try {
+  // #endregion
   const bonus = attacker?.awakening?.critDamageBonus ?? 0;
   const speedDuelBonus = getSpeedDuelBonuses(attacker, defender).critDamage;
-  // Bonus arme (ex. Lævateinn) additionné aux autres, pas multiplié séparément
   const weaponCritBonus =
     attacker?.weaponState?.isLegendary && attacker.weaponState.weaponId === 'dague_legendaire'
       ? weaponConstants.laevateinn.critDamageBonus
       : 0;
   return generalConstants.critMultiplier * (1 + bonus + speedDuelBonus + weaponCritBonus);
+  // #region agent log
+  } catch (_e) {
+    fetch('http://127.0.0.1:7253/ingest/feda6f8e-d7b8-4900-a324-05ca8c3e090e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cb5eab'},body:JSON.stringify({sessionId:'cb5eab',location:'combatMechanics.js:getCritMultiplier',message:'crash in getCritMultiplier',data:{weaponConstantsType:typeof weaponConstants,weaponConstantsKeys:weaponConstants?Object.keys(weaponConstants):null,laevateinnExists:!!weaponConstants?.laevateinn,error:_e?.message},timestamp:Date.now()})}).catch(()=>{});
+    throw _e;
+  }
+  // #endregion
 };
 
 // Bonus de stats par race

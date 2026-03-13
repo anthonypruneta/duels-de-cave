@@ -792,6 +792,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
 function processPlayerAction(att, def, log, isP1, turn) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
+  // #region agent log
+  let _dbgSection = 'init';
+  try {
+  // #endregion
   const playerColor = isP1 ? '[P1]' : '[P2]';
   const attackerPassiveList = getPassiveDetailsList(att);
   const defenderPassiveList = getPassiveDetailsList(def);
@@ -835,6 +839,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
   // La copie de capacité du Mindflayer est déclenchée après avoir reçu une capacité (dans applyDamage).
   let capacityStolen = false;
 
+  // #region agent log
+  _dbgSection = 'turnEffects';
+  // #endregion
   const turnEffects = onTurnStart(att.weaponState, att, turn);
   // Zweihander: le bonus de dégâts s'applique au premier dégât du tour puis est consommé
   let weaponDamageBonusAvailable = turnEffects.damageMultiplier !== undefined && turnEffects.damageMultiplier !== 1;
@@ -879,6 +886,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  // #region agent log
+  _dbgSection = 'class:' + att.class;
+  // #endregion
   if (att.class === 'Demoniste' && !capacityStolen) {
     if (shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
       // Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (pas d'attaque ce tour)
@@ -1174,6 +1184,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   // ===== ALCHIMISTE : Cycle de flasques =====
+  // #region agent log
+  _dbgSection = 'alchimiste_check';
+  // #endregion
   const isAlchimiste = !capacityStolen && att.class === 'Alchimiste';
   const alchVerdictSkip = isAlchimiste && shouldSkipVerdictDemonFamiliar(att.weaponState, turn);
   if (isAlchimiste && !alchVerdictSkip) {
@@ -1475,6 +1488,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  // #region agent log
+  _dbgSection = 'mage_war_archer_check';
+  // #endregion
   const isMage = !capacityStolen && att.class === 'Mage' && att.cd.mag === getMindflayerCapacityCooldown(att, def, 'mag');
   const isWar = !capacityStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerCapacityCooldown(att, def, 'war');
   const isArcher = !capacityStolen && att.class === 'Archer' && att.cd.arc === getMindflayerCapacityCooldown(att, def, 'arc');
@@ -1510,6 +1526,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att._entraveFirstCapUsed = true;
   }
 
+  // #region agent log
+  _dbgSection = 'attack_loop';
+  // #endregion
   let mult = 1.0;
   if (att.succubeWeakenNextAttack) {
     mult *= (1 - classConstants.succube.nextAttackReduction);
@@ -1677,6 +1696,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
     }
 
+    // #region agent log
+    _dbgSection = 'crit_calc_i' + i;
+    // #endregion
     if (isCrit) {
       const critDamage = Math.round(raw * getCritMultiplier(att, def));
       raw = modifyCritDamage(att.weaponState, critDamage);
@@ -1794,6 +1816,12 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   flushPendingCombatLogs(att, log);
+  // #region agent log
+  } catch (_dbgErr) {
+    fetch('http://127.0.0.1:7253/ingest/feda6f8e-d7b8-4900-a324-05ca8c3e090e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cb5eab'},body:JSON.stringify({sessionId:'cb5eab',location:'tournamentCombat.js:processPlayerAction',message:'crash in processPlayerAction',data:{section:_dbgSection,attClass:att?.class,attRace:att?.race,attSubclass:att?.subclass?.id,attWeapon:att?.weaponState?.weaponId,defClass:def?.class,defRace:def?.race,defSubclass:def?.subclass?.id,defWeapon:def?.weaponState?.weaponId,turn,error:_dbgErr?.message,stack:_dbgErr?.stack?.split?.('\n')?.slice?.(0,5)},timestamp:Date.now()})}).catch(()=>{});
+    throw _dbgErr;
+  }
+  // #endregion
 }
 
 // ============================================================================
