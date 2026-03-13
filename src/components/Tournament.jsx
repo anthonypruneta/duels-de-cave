@@ -808,7 +808,7 @@ const Tournament = () => {
       r.sort((a, b) => tournoi.matches[a].matchInRound - tournoi.matches[b].matchInRound);
     }
 
-    const SLOT_H = 88;
+    const SLOT_H = 120;
 
     const renderBracketSection = (rounds, label, icon, labelColor, accentBorder) => {
       const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
