@@ -312,8 +312,17 @@ function AdminBalance({ embedded = false }) {
     const availablePassiveIds = availablePassives.map((p) => p.id);
 
     for (let i = 0; i < count; i++) {
-      const p1 = makeCharacter(`L${level}-A-${i}`, level, availableWeaponIds, availablePassiveIds);
-      const p2 = makeCharacter(`L${level}-B-${i}`, level, availableWeaponIds, availablePassiveIds);
+      let p1, p2;
+      try {
+        p1 = makeCharacter(`L${level}-A-${i}`, level, availableWeaponIds, availablePassiveIds);
+      } catch (e) {
+        throw new Error(`[makeCharacter P1] i=${i}: ${e.message}`);
+      }
+      try {
+        p2 = makeCharacter(`L${level}-B-${i}`, level, availableWeaponIds, availablePassiveIds);
+      } catch (e) {
+        throw new Error(`[makeCharacter P2] i=${i}: ${e.message}`);
+      }
 
       raceAppearances[p1.race] += 1;
       raceAppearances[p2.race] += 1;
@@ -326,7 +335,12 @@ function AdminBalance({ embedded = false }) {
       if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] = (passiveAppearances[p1.mageTowerPassive.id] || 0) + 1;
       if (p2.mageTowerPassive?.id) passiveAppearances[p2.mageTowerPassive.id] = (passiveAppearances[p2.mageTowerPassive.id] || 0) + 1;
 
-      const match = simulerMatch(p1, p2);
+      let match;
+      try {
+        match = simulerMatch(p1, p2);
+      } catch (e) {
+        throw new Error(`[simulerMatch] i=${i} ${p1.race}/${p1.class}${p1.subclass ? '/' + p1.subclass.id : ''} vs ${p2.race}/${p2.class}${p2.subclass ? '/' + p2.subclass.id : ''} armes=${p1.equippedWeaponId}/${p2.equippedWeaponId}: ${e.message}`);
+      }
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
       classWins[winner.class] += 1;
