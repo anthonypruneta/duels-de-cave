@@ -886,6 +886,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  let mult = 1.0;
+  if (att.succubeWeakenNextAttack) {
+    mult *= (1 - classConstants.succube.nextAttackReduction);
+    att.succubeWeakenNextAttack = false;
+    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
+  }
+  const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
+  if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
+
   // #region agent log
   _dbgSection = 'class:' + att.class;
   // #endregion
@@ -1538,14 +1547,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   // #region agent log
   _dbgSection = 'attack_loop';
   // #endregion
-  let mult = 1.0;
-  if (att.succubeWeakenNextAttack) {
-    mult *= (1 - classConstants.succube.nextAttackReduction);
-    att.succubeWeakenNextAttack = false;
-    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
-  }
-  const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
-  if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
 
   const baseHits = (isAlchimiste && !alchVerdictSkip) ? 0 : isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
