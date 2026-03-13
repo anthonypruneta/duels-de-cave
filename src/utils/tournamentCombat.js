@@ -1200,6 +1200,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const acidDefRed = alchC.acidDefReduction ?? classConstants.alchimiste.acidDefReduction;
     const acidRescRed = alchC.acidRescReduction ?? classConstants.alchimiste.acidRescReduction;
 
+    // #region agent log
+    _dbgSection = 'alch_phase' + phase;
+    // #endregion
     if (phase === 0) {
       // Flasque de feu : dégâts vs ResC
       const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
@@ -1374,6 +1377,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att.alchPhase = (att.alchPhase + 1) % cycleLen;
   }
 
+  // #region agent log
+  _dbgSection = 'post_alch_voleur';
+  // #endregion
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerCapacityCooldown(att, def, 'rog') && !capacityStolen) {
     skillUsed = true;
     consumeAuraCapacityCapMultiplier();
@@ -1399,6 +1405,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   // ===== CAPACITÉS SPÉCIALES DES BOSS =====
+  // #region agent log
+  _dbgSection = 'boss_check';
+  // #endregion
   if (att.isBoss && att.ability) {
     att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
 
@@ -1818,8 +1827,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
   flushPendingCombatLogs(att, log);
   // #region agent log
   } catch (_dbgErr) {
-    fetch('http://127.0.0.1:7253/ingest/feda6f8e-d7b8-4900-a324-05ca8c3e090e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cb5eab'},body:JSON.stringify({sessionId:'cb5eab',location:'tournamentCombat.js:processPlayerAction',message:'crash in processPlayerAction',data:{section:_dbgSection,attClass:att?.class,attRace:att?.race,attSubclass:att?.subclass?.id,attWeapon:att?.weaponState?.weaponId,defClass:def?.class,defRace:def?.race,defSubclass:def?.subclass?.id,defWeapon:def?.weaponState?.weaponId,turn,error:_dbgErr?.message,stack:_dbgErr?.stack?.split?.('\n')?.slice?.(0,5)},timestamp:Date.now()})}).catch(()=>{});
-    throw _dbgErr;
+    const _dbgMsg = `[section=${_dbgSection}] att=${att?.race}/${att?.class}/${att?.subclass?.id} def=${def?.race}/${def?.class}/${def?.subclass?.id} w=${att?.weaponState?.weaponId}/${def?.weaponState?.weaponId} turn=${turn}: ${_dbgErr?.message}`;
+    const _dbgErr2 = new Error(_dbgMsg);
+    _dbgErr2.stack = _dbgErr?.stack;
+    throw _dbgErr2;
   }
   // #endregion
 }
