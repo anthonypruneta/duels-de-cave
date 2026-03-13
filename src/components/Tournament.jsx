@@ -814,7 +814,7 @@ const Tournament = () => {
       const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
       if (roundKeys.length === 0) return null;
 
-      const firstRoundCount = rounds[roundKeys[0]].length;
+      const maxMatchCount = Math.max(...roundKeys.map(k => rounds[k].length));
 
       return (
         <div>
@@ -824,7 +824,7 @@ const Tournament = () => {
           <div className="flex items-start overflow-x-auto pb-3">
             {roundKeys.map((round, rIdx) => {
               const matchIds = rounds[round];
-              const slotH = (SLOT_H * firstRoundCount) / matchIds.length;
+              const slotH = (SLOT_H * maxMatchCount) / matchIds.length;
               const isLast = rIdx === roundKeys.length - 1;
               const nextRoundCount = !isLast ? (rounds[roundKeys[rIdx + 1]]?.length || 0) : 0;
               const isPairing = !isLast && nextRoundCount < matchIds.length;
