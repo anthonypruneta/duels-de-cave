@@ -77,6 +77,14 @@ const MirrorMode = () => {
   const logContainerRef = useRef(null);
 
   useEffect(() => {
+    const el = document.getElementById('mirror-music');
+    if (el && el.paused) el.play().catch(() => {});
+    return () => {
+      if (el) { el.pause(); el.currentTime = 0; }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!currentUser) return;
     (async () => {
       try {
@@ -250,6 +258,9 @@ const MirrorMode = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Header />
+        <audio id="mirror-music" loop>
+          <source src="/assets/music/Mirror.mp3" type="audio/mpeg" />
+        </audio>
         <div className="text-stone-400 text-2xl animate-pulse">Chargement du Miroir...</div>
       </div>
     );
@@ -259,6 +270,9 @@ const MirrorMode = () => {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-4">
         <Header />
+        <audio id="mirror-music" loop>
+          <source src="/assets/music/Mirror.mp3" type="audio/mpeg" />
+        </audio>
         <div className="text-red-400 text-xl">{error}</div>
         <button onClick={() => { setError(null); setGameState('lobby'); }} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500">
           Retour
@@ -272,6 +286,9 @@ const MirrorMode = () => {
     return (
       <div className="min-h-screen p-4">
         <Header />
+        <audio id="mirror-music" loop>
+          <source src="/assets/music/Mirror.mp3" type="audio/mpeg" />
+        </audio>
         <div className="max-w-[1800px] mx-auto pt-20">
           <div className="text-center mb-6">
             <div className="bg-stone-950 border-2 border-stone-500 rounded-xl px-6 py-3 shadow-xl inline-block">
@@ -320,6 +337,9 @@ const MirrorMode = () => {
   return (
     <div className="min-h-screen p-4">
       <Header />
+      <audio id="mirror-music" loop>
+        <source src="/assets/music/Mirror.mp3" type="audio/mpeg" />
+      </audio>
       <div className="max-w-[1800px] mx-auto pt-20">
         {/* Bandeaux de résultat */}
         {combatResult?.isWin && !isSimulating && (
