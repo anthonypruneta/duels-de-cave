@@ -687,7 +687,7 @@ const Tournament = () => {
     const isAnimatingCurrentMatch = matchId === matchEnCours && !winner;
     const showWinner = isTermine && !isAnimatingCurrentMatch;
 
-    if (isBye || !hasAnyParticipant) return null;
+    if (isBye || !hasAnyParticipant) return <div className={isGrandFinale ? 'w-[250px]' : 'w-[210px]'} />;
 
     const p1Won = showWinner && match.winnerId === match.p1;
     const p2Won = showWinner && match.winnerId === match.p2;
@@ -787,17 +787,18 @@ const Tournament = () => {
     };
 
     for (const [id, match] of Object.entries(tournoi.matches)) {
-      if (!shouldDisplayMatch(match)) continue;
+      if (!match) continue;
       if (match.bracket === 'winners') {
         if (!winnersRounds[match.round]) winnersRounds[match.round] = [];
         winnersRounds[match.round].push(id);
       } else if (match.bracket === 'losers') {
+        if (!shouldDisplayMatch(match)) continue;
         if (!losersRounds[match.round]) losersRounds[match.round] = [];
         losersRounds[match.round].push(id);
       } else if (match.bracket === 'grand_final') {
-        hasGF = true;
+        if (shouldDisplayMatch(match)) hasGF = true;
       } else if (match.bracket === 'grand_final_reset') {
-        hasGFR = true;
+        if (shouldDisplayMatch(match)) hasGFR = true;
       }
     }
 
@@ -810,11 +811,14 @@ const Tournament = () => {
 
     const SLOT_H = 120;
 
-    const renderBracketSection = (rounds, label, icon, labelColor, accentBorder) => {
+    const renderBracketSection = (rounds, label, icon, labelColor, accentBorder, usePow2 = false) => {
       const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
       if (roundKeys.length === 0) return null;
 
-      const maxMatchCount = Math.max(...roundKeys.map(k => rounds[k].length));
+      const isMatchVisible = (matchId) => {
+        const m = tournoi.matches[matchId];
+        return m && shouldDisplayMatch(m);
+      };
 
       return (
         <div>
@@ -824,27 +828,36 @@ const Tournament = () => {
           <div className="flex items-start overflow-x-auto pb-3">
             {roundKeys.map((round, rIdx) => {
               const matchIds = rounds[round];
-              const slotH = (SLOT_H * maxMatchCount) / matchIds.length;
+              const slotH = usePow2 ? SLOT_H * Math.pow(2, rIdx) : SLOT_H;
               const isLast = rIdx === roundKeys.length - 1;
-              const nextRoundCount = !isLast ? (rounds[roundKeys[rIdx + 1]]?.length || 0) : 0;
-              const isPairing = !isLast && nextRoundCount < matchIds.length;
+              const isPairing = usePow2 && !isLast && matchIds.length >= 2;
 
               return (
                 <React.Fragment key={round}>
                   <div className="flex flex-col flex-shrink-0">
-                    {matchIds.map(id => (
-                      <div key={id} className="flex items-center" style={{ height: slotH }}>
-                        {rIdx > 0 && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 20 }} />}
-                        {renderBracketMatch(id)}
-                        {isPairing && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 16 }} />}
-                      </div>
-                    ))}
+                    {matchIds.map(id => {
+                      const visible = isMatchVisible(id);
+                      return (
+                        <div key={id} className="flex items-center" style={{ height: slotH }}>
+                          {rIdx > 0 && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 20 }} />}
+                          {renderBracketMatch(id)}
+                          {isPairing && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 16 }} />}
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {isPairing && matchIds.length >= 2 && (
+                  {isPairing && (
                     <div className="flex flex-col flex-shrink-0" style={{ width: 20 }}>
                       {matchIds.map((id, mIdx) => {
                         const isTop = mIdx % 2 === 0;
+                        const pairId = matchIds[isTop ? mIdx + 1 : mIdx - 1];
+                        const eitherVisible = isMatchVisible(id) || (pairId && isMatchVisible(pairId));
+
+                        if (!eitherVisible) {
+                          return <div key={`c-${id}`} style={{ height: slotH }} />;
+                        }
+
                         return (
                           <div key={`c-${id}`} className="flex flex-col" style={{ height: slotH }}>
                             {isTop ? (
@@ -877,10 +890,10 @@ const Tournament = () => {
 
     return (
       <div className="space-y-8">
-        {renderBracketSection(winnersRounds, 'Winners Bracket', '🏆', 'text-amber-400', 'border-amber-600/50')}
+        {renderBracketSection(winnersRounds, 'Winners Bracket', '🏆', 'text-amber-400', 'border-amber-600/50', true)}
 
         {Object.keys(losersRounds).length > 0 &&
-          renderBracketSection(losersRounds, 'Losers Bracket', '💀', 'text-red-400', 'border-red-700/50')}
+          renderBracketSection(losersRounds, 'Losers Bracket', '💀', 'text-red-400', 'border-red-700/50', false)}
 
         {hasGF && (
           <div>
