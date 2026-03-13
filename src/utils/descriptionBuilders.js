@@ -21,7 +21,8 @@ export const RACE_TO_CONSTANT_KEY = {
   'Sylvari': 'sylvari',
   'Sirène': 'sirene',
   'Gnome': 'gnome',
-  'Mindflayer': 'mindflayer'
+  'Mindflayer': 'mindflayer',
+  'Turtlekin': 'turtlekin'
 };
 
 export const CLASS_TO_CONSTANT_KEY = {
@@ -35,7 +36,8 @@ export const CLASS_TO_CONSTANT_KEY = {
   'Masochiste': 'masochiste',
   'Briseur de Sort': 'briseurSort',
   'Succube': 'succube',
-  'Bastion': 'bastion'
+  'Bastion': 'bastion',
+  'Alchimiste': 'alchimiste'
 };
 
 // ============================================================================
@@ -56,6 +58,7 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Sirène': return `+${c.cap || 0} CAP, subit une capacité: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
+    case 'Turtlekin': return `Le premier coup reçu ne peut dépasser ${pct(c.firstHitCapPercent, 0)} de vos PV max`;
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -97,6 +100,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
+    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques (vs ResC) :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : Auto + ${(c.lifeCapScale || 0) * 100}% CAP\n- Acide : réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
     default: return classes[className]?.description || '';
   }
 };
@@ -256,6 +260,14 @@ export const buildClassDescriptionParts = (className, constants = null) => {
         text('% DEF. Inflige auto + '), slot(['capScale'], 'percent'),
         text('% CAP + '), slot(['defScale'], 'percent'), text('% DEF.')
       ];
+    case 'Alchimiste':
+      return [
+        text('Cycle de '), slot(['cycleLength'], 'raw'), text(' flasques (vs ResC) :\n- Feu : Auto + '),
+        slot(['fireCapScale'], 'percent'), text('% CAP\n- Vie : Auto + '),
+        slot(['lifeCapScale'], 'percent'), text('% CAP\n- Acide : réduit DEF '),
+        slot(['acidDefReduction'], 'percent'), text('% / ResC '),
+        slot(['acidRescReduction'], 'percent'), text('%')
+      ];
     default:
       return [{ type: 'text', value: buildClassDescription(className, c) }];
   }
@@ -311,6 +323,11 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
       return [
         text("Copie et relance la première capacité reçue et ajoute "), slot(['stealSpellCapDamageScale'], 'percent'),
         text(' de votre CAP aux dégâts')
+      ];
+    case 'Turtlekin':
+      return [
+        text('Le premier coup reçu ne peut dépasser '), slot(['firstHitCapPercent'], 'percent'),
+        text(' de vos PV max')
       ];
     default:
       return [{ type: 'text', value: buildRaceBonusDescription(raceName, c) }];

@@ -1,410 +1,36 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { classConstants, raceConstants, weaponConstants, subclassConstants, getRaceBonus, getClassBonus } from '../data/combatMechanics';
-import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
-import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
-import { getStatPointValue } from '../utils/statPoints';
-import { createForestBossCombatant, FOREST_LEVELS } from '../data/forestDungeons';
-import { createMageTowerBossCombatant, MAGE_TOWER_LEVELS } from '../data/mageTowerDungeons';
-import { createBossCombatant } from '../data/bosses';
-import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode, BALANCE_CONFIG_VERSION, getLastLoadedStoredVersion } from '../services/balanceConfigService';
-import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, buildClassDescriptionParts, buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
+import { classConstants, raceConstants, weaponConstants, subclassConstants } from '../data/combatMechanics';
+import { simulerMatch } from '../utils/tournamentCombat';
 import { weapons, isWaveActive, RARITY } from '../data/weapons';
-import { getAvailablePassives, getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
-import { SUBCLASSES_BY_CLASS, getSubclassesForClass, getSubclassById } from '../data/subclasses';
+import { getAvailablePassives, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
+import { SUBCLASSES_BY_CLASS } from '../data/subclasses';
+import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
+import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
 
-const deepClone = (value) => JSON.parse(JSON.stringify(value));
+import { deepClone, applyNumericOverrides, makeCharacter } from './balance/balanceUtils';
+import BalanceSimulation from './balance/BalanceSimulation';
+import BalanceRaces from './balance/BalanceRaces';
+import BalanceClasses from './balance/BalanceClasses';
+import BalanceSubclasses from './balance/BalanceSubclasses';
+import BalanceWeapons from './balance/BalanceWeapons';
+import BalancePassives from './balance/BalancePassives';
+import BalanceDuel from './balance/BalanceDuel';
+import BalanceSave from './balance/BalanceSave';
 
-const applyNumericOverrides = (target, source) => {
-  Object.entries(source).forEach(([key, val]) => {
-    if (!(key in target)) return;
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
-      applyNumericOverrides(target[key], val);
-      return;
-    }
-
-    const parsed = Number(val);
-    if (!Number.isNaN(parsed)) target[key] = parsed;
-  });
-};
-
-const updateNestedValue = (obj, path, value) => {
-  if (!path.length) return obj;
-  const [head, ...rest] = path;
-  return {
-    ...obj,
-    [head]: rest.length ? updateNestedValue(obj[head] || {}, rest, value) : value
-  };
-};
-
-const getNested = (obj, path) => {
-  let cur = obj;
-  for (const k of path) cur = cur?.[k];
-  return cur;
-};
-
-const BALANCE_KEY_LABELS_FR = {
-  healDamagePercent: 'Dégâts depuis soins',
-  regenPercent: 'Régénération',
-  healCritMultiplier: 'Multiplicateur critique soin',
-  defToAtkPercent: 'DEF convertie en Auto',
-  rescapToAtkPercent: 'RESC convertie en Auto',
-  damageBonus: 'Bonus dégâts',
-  n: 'Fréquence (tours/attaques)',
-  shieldPercent: 'Bouclier',
-  damageTakenBonus: 'Dégâts subis bonus',
-  defReduction: 'Réduction DEF',
-  healPercent: 'Soins',
-  lightningPercent: 'Dégâts éclair',
-  outgoing: 'Dégâts infligés',
-  incoming: 'Dégâts reçus',
-  critReduction: 'Réduction dégâts critiques',
-  critThreshold: 'Seuil critique garanti',
-  spellCapBonus: 'Bonus CAP de la capacité',
-  turns: 'Durée (tours)',
-  hpCostPercent: 'Coût HP',
-  autoDamageBonus: 'Bonus dégâts auto',
-  shieldExplosionPercent: 'Explosion bouclier',
-  healReduction: 'Réduction des soins',
-  initialBleedPercent: 'Saignement initial',
-  bleedDecayPercent: 'Décroissance saignement',
-  stunDuration: 'Durée étourdissement',
-  critChanceBonus: 'Chance critique bonus',
-  critDamageBonus: 'Dégâts critiques bonus',
-  outgoingDamageMultiplier: 'Multiplicateur dégâts infligés (ex. 0.8 = -20%)',
-  maxStacks: 'Stacks max',
-  chance: 'Chance'
-};
-
-const prettifyKey = (key) => BALANCE_KEY_LABELS_FR[key] || key
-  .replace(/([a-z])([A-Z])/g, '$1 $2')
-  .replace(/_/g, ' ')
-  .replace(/^./, (c) => c.toUpperCase());
-
-const inferSlotFormat = (key, value) => {
-  if (typeof value !== 'number') return 'raw';
-  if (Math.abs(value) <= 1 && /(percent|bonus|reduction|multiplier|chance|threshold|scale|outgoing|incoming|regen|damage|heal|crit|ignore|reflect|shield|cost)/i.test(key)) {
-    return 'percent';
-  }
-  return 'raw';
-};
-
-const flattenNumericEntries = (obj, basePath = []) => {
-  const entries = [];
-  Object.entries(obj || {}).forEach(([key, val]) => {
-    if (key === 'description') return;
-    const path = [...basePath, key];
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      entries.push(...flattenNumericEntries(val, path));
-      return;
-    }
-    if (typeof val === 'number') {
-      entries.push({ key, path, format: inferSlotFormat(key, val) });
-    }
-  });
-  return entries;
-};
-
-const buildPartsFromEntries = (entries) => entries.flatMap((entry, index) => {
-  const head = index === 0 ? '' : ' · ';
-  return [
-    { type: 'text', value: `${head}${prettifyKey(entry.key)}: ` },
-    { type: 'slot', path: entry.path, format: entry.format }
-  ];
-});
-
-/** Génère une description à partir des valeurs numériques (pour mise à jour auto armes / passifs) */
-const buildAutoDescription = (values) => {
-  const entries = flattenNumericEntries(values || {}, []);
-  if (entries.length === 0) return '';
-  return entries.map((e) => {
-    const v = getNested(values, e.path);
-    const num = Number(v);
-    if (Number.isNaN(num)) return '';
-    const pct100 = num * 100;
-    const useDecimals = e.format === 'percent1dec' || (e.format === 'percent' && pct100 % 1 !== 0);
-    const display = e.format === 'percent' || e.format === 'percent1dec'
-      ? `${pct100.toFixed(useDecimals ? 1 : 0)}%`
-      : String(num);
-    return `${prettifyKey(e.key)}: ${display}`;
-  }).filter(Boolean).join(' · ');
-};
-
-/** Description d'effet pour le Codex Archon : phrase fixe avec le % mis à jour */
-const buildCodexEffetDescription = (values) => {
-  const pct = values?.secondCastDamage != null
-    ? (Number(values.secondCastDamage) * 100).toFixed((Number(values.secondCastDamage) * 100) % 1 === 0 ? 0 : 1)
-    : '70';
-  return `Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait ${pct}% de dégâts.`;
-};
-
-/** Templates de description d'effet (français) avec placeholders {{clé}} — seuls les nombres sont mis à jour */
-const WEAPON_EFFET_DESCRIPTION_TEMPLATES = {
-  baton_legendaire: 'Les soins du personnage peuvent critiquer et infligent aussi {{healDamagePercent}} % de leur valeur en dégâts. S\'il ne possède aucun soin, il régénère {{regenPercent}} % de ses PV max par tour.',
-  bouclier_legendaire: 'Ajoute {{defToAtkPercent}}% de la DEF et {{rescapToAtkPercent}}% de la RESC à l\'Auto.',
-  epee_legendaire: 'Tous les {{n}} tours, frappe en premier et inflige +{{damageBonus}}% de dégâts.',
-  dague_legendaire: 'Tous les {{n}} tours, critique garanti. Tous les critiques infligent +{{critDamageBonus}}% de dégâts.',
-  marteau_legendaire: 'Toutes les {{n}} attaques, étourdit l\'ennemi pendant {{stunDuration}} tour.',
-  lance_legendaire: 'Au premier coup du combat, applique -{{atkReductionPercent}}% Auto permanent à l\'ennemi (non cumulable).',
-  arc_legendaire: 'Tous les {{n}} tours, effectue une attaque supplémentaire à {{bonusAttackDamage}}% de dégâts.',
-  tome_legendaire: null, // géré par buildCodexEffetDescription
-  fleau_legendaire: 'Après votre première attaque, la cible perd {{defReductionPercent}}% DEF et {{rescapReductionPercent}}% ResC pour le reste du combat.',
-  arbalete_legendaire: 'Vos {{spellBonusCount}} premières capacités infligent +{{spellDamageBonus}}% dégâts et soins mais ont +{{cooldownPenalty}} CD.',
-  hache_legendaire: 'Votre attaque applique un saignement brut : la cible perd {{initialBleedPercent}}% HP max à chacun de ses tours d\'action. Réduit de {{bleedDecayPercent}}% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
-};
-
-/** Formate une valeur pour affichage dans une description (pourcent 0–1 → entier %, sinon entier) */
-const formatValueForDescription = (key, value) => {
-  const v = Number(value);
-  if (Number.isNaN(v)) return String(value ?? '');
-  if (Math.abs(v) <= 1 && /(percent|bonus|reduction|damage|heal|scale)/i.test(key)) {
-    const pct = v * 100;
-    return pct % 1 === 0 ? String(Math.round(pct)) : pct.toFixed(1).replace('.', ',');
-  }
-  return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
-};
-
-/** Construit la description d'effet d'une arme à partir du template + valeurs actuelles (texte inchangé, chiffres mis à jour) */
-const buildWeaponEffetDescriptionFromTemplate = (weaponId, effet) => {
-  if (!effet) return '';
-  if (weaponId === 'tome_legendaire' && effet.values) return buildCodexEffetDescription(effet.values);
-  const template = WEAPON_EFFET_DESCRIPTION_TEMPLATES[weaponId];
-  if (!template) return effet.description || '';
-  const values = effet.values || {};
-  const trigger = effet.trigger || {};
-  const replacements = { ...values, n: trigger.n };
-  let out = template;
-  Object.entries(replacements).forEach(([key, val]) => {
-    if (val === undefined || val === null) return;
-    const str = typeof val === 'number' ? formatValueForDescription(key, val) : String(val);
-    out = out.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), str);
-  });
-  return out;
-};
-
-/** Affiche un nombre avec virgule comme séparateur décimal (français) */
-const formatNumberFr = (val, format) => {
-  const v = Number(val);
-  if (Number.isNaN(v)) return '';
-  switch (format) {
-    case 'percent': return (v * 100) % 1 === 0 ? String(Math.round(v * 100)) : (v * 100).toFixed(1).replace('.', ',');
-    case 'percent1dec': return (v * 100).toFixed(1).replace('.', ',');
-    case 'percentMinus1': return ((v - 1) * 100) % 1 === 0 ? String(Math.round((v - 1) * 100)) : ((v - 1) * 100).toFixed(1).replace('.', ',');
-    case 'percentReduction': return ((1 - v) * 100) % 1 === 0 ? String(Math.round((1 - v) * 100)) : ((1 - v) * 100).toFixed(1).replace('.', ',');
-    default: return Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
-  }
-};
-
-/** Affiche une description avec les valeurs entre [crochets] éditables inline */
-const DescriptionWithEditableSlots = ({ parts, draft, onSlotChange, className = '', slotInputClass = '' }) => {
-  const [editingValues, setEditingValues] = useState({});
-
-  const slotDisplayValue = (rawVal, format) => formatNumberFr(rawVal, format);
-  const parseSlotValue = (input, format) => {
-    // Accepter virgule et point. Pour les %, la saisie est toujours en "pourcentage affiché" (2 = 2%, 0,5 = 0,5%)
-    const normalized = String(input).replace(/,/g, '.');
-    const num = Number(normalized);
-    if (Number.isNaN(num)) return undefined;
-    switch (format) {
-      case 'percent':
-      case 'percent1dec': return num / 100;
-      case 'percentMinus1': return 1 + (num / 100);
-      case 'percentReduction': return 1 - (num / 100);
-      default: return num;
-    }
-  };
-  return (
-    <div className={`text-xs whitespace-pre-line ${className}`}>
-      {parts.map((part, idx) => {
-        if (part.type === 'text') {
-          return <span key={idx}>{part.value}</span>;
-        }
-        if (part.type === 'slot') {
-          const slotKey = part.path.join('.');
-          const rawVal = getNested(draft, part.path);
-          const displayVal = editingValues[slotKey] ?? slotDisplayValue(rawVal, part.format);
-          return (
-            <span key={idx} className="inline-flex items-center">
-              [
-              <input
-                type="text"
-                value={displayVal}
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  setEditingValues((prev) => ({ ...prev, [slotKey]: inputValue }));
-
-                  const parsed = parseSlotValue(inputValue, part.format);
-                  if (parsed !== undefined) onSlotChange(part.path, parsed);
-                }}
-                onBlur={() => {
-                  const currentVal = editingValues[slotKey];
-                  const parsed = parseSlotValue(currentVal, part.format);
-
-                  if (parsed !== undefined) onSlotChange(part.path, parsed);
-
-                  setEditingValues((prev) => {
-                    const next = { ...prev };
-                    delete next[slotKey];
-                    return next;
-                  });
-                }}
-                onKeyDown={(e) => {
-                  // Permettre les chiffres, point, virgule, backspace, delete, flèches, tab
-                  const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ',', '-'];
-                  if (!allowed.includes(e.key) && (e.key < '0' || e.key > '9')) {
-                    e.preventDefault();
-                  }
-                }}
-                className={`w-14 text-center mx-0.5 px-1 py-0.5 bg-stone-800 border border-amber-600/70 text-amber-200 rounded ${slotInputClass}`}
-              />
-              ]
-            </span>
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-};
-
-const NumberTreeEditor = ({ value, onChange, path = [] }) => {
-  const [editingValues, setEditingValues] = useState({});
-
-  return (
-    <div className="space-y-2">
-      {Object.entries(value || {}).map(([key, val]) => {
-        const keyPath = [...path, key];
-        const fullPath = keyPath.join('.');
-        
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-          return (
-            <div key={fullPath} className="border border-stone-700 p-2 bg-stone-950/50">
-              <div className="text-xs text-amber-300 font-semibold mb-2">{key}</div>
-              <NumberTreeEditor value={val} onChange={onChange} path={keyPath} />
-            </div>
-          );
-        }
-
-        // Ne pas afficher d'input pour les chaînes purement textuelles (ex: descriptions)
-        const isNumericOrEmpty = typeof val === 'number' || (typeof val === 'string' && (val === '' || !Number.isNaN(Number(val))));
-        if (!isNumericOrEmpty) return null;
-
-        // Utiliser la valeur en cours d'édition si elle existe, sinon la valeur du state (affichage avec virgule si décimal)
-        const displayValue = editingValues[fullPath] !== undefined 
-          ? editingValues[fullPath] 
-          : (typeof val === 'number' ? (Number.isInteger(val) ? String(val) : String(val).replace('.', ',')) : (val === '' ? '' : String(val).replace('.', ',')));
-
-        return (
-          <label key={fullPath} className="flex items-center justify-between gap-3 text-xs">
-            <span className="text-stone-300">{key}</span>
-            <input
-              type="text"
-              value={displayValue}
-              onChange={(e) => {
-                const inputValue = e.target.value;
-                
-                // Permettre uniquement les caractères numériques, virgule, point et moins
-                const filtered = inputValue.replace(/[^\d.,-]/g, '');
-                
-                // Stocker la valeur filtrée pendant l'édition
-                setEditingValues(prev => ({ ...prev, [fullPath]: filtered }));
-                
-                // Accepter virgule et point comme séparateur décimal
-                const normalized = filtered.replace(/,/g, '.');
-                
-                // Ne propager que si c'est un nombre valide ou une valeur en cours de saisie
-                if (normalized === '' || normalized === '-' || normalized.endsWith('.') || filtered.endsWith(',')) {
-                  return;
-                }
-                
-                const num = Number(normalized);
-                if (!Number.isNaN(num)) onChange(keyPath, num);
-              }}
-              onBlur={() => {
-                // Quand on quitte le champ, nettoyer la valeur d'édition
-                const currentVal = editingValues[fullPath] !== undefined ? editingValues[fullPath] : displayValue;
-                
-                setEditingValues(prev => {
-                  const newState = { ...prev };
-                  delete newState[fullPath];
-                  return newState;
-                });
-                
-                // Forcer la propagation de la valeur finale (nombre pour cohérence)
-                const normalized = String(currentVal).replace(/,/g, '.');
-                const num = Number(normalized);
-                if (normalized !== '' && !Number.isNaN(num)) onChange(keyPath, num);
-              }}
-              className="w-28 px-2 py-1 bg-stone-900 border border-stone-600 text-white"
-            />
-          </label>
-        );
-      })}
-    </div>
-  );
-};
-
-const genStats = () => {
-  const s = { hp: 120, auto: 15, def: 15, cap: 15, rescap: 15, spd: 15 };
-  let rem = 35;
-
-  // Spike optionnel (30% chance)
-  const pool = ['auto', 'def', 'cap', 'rescap', 'spd'];
-  if (Math.random() < 0.3) {
-    const k = pool[Math.floor(Math.random() * pool.length)];
-    const spikeAmount = 5 + Math.floor(Math.random() * 6);
-    const actual = Math.min(spikeAmount, 35 - s[k]);
-    s[k] += actual;
-    rem -= actual;
-  }
-
-  // Distribution équilibrée des points restants
-  let guard = 1000;
-  while (rem > 0 && guard-- > 0) {
-    const entries = [['hp',2],['auto',2],['def',2],['cap',2],['rescap',2],['spd',2]];
-    const tot = entries.reduce((a,[,w]) => a + w, 0);
-    let r = Math.random() * tot;
-    let k = 'hp';
-    for (const [key, w] of entries) {
-      r -= w;
-      if (r <= 0) { k = key; break; }
-    }
-    if (k === 'hp') {
-      const hpGain = getStatPointValue('hp');
-      if (s.hp + hpGain <= 200) { s.hp += hpGain; rem--; }
-    } else {
-      const statGain = getStatPointValue(k);
-      if (s[k] + statGain <= 35) { s[k] += statGain; rem--; }
-    }
-  }
-
-  return s;
-};
-
-const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-const STAT_KEYS = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
-
-const genLevelBoosts = (level) => {
-  const boosts = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
-  const points = Math.max(0, level - 1);
-  for (let i = 0; i < points; i++) {
-    const stat = randomItem(STAT_KEYS);
-    boosts[stat] += getStatPointValue(stat);
-  }
-  return boosts;
-};
-
-const getPassiveLevelForCharacterLevel = (level) => {
-  if (level >= 100) return 3;
-  if (level >= 50) return 2;
-  return 1;
-};
-
+const TABS = [
+  { id: 'simulation', label: '📊 Simulation', icon: '📊' },
+  { id: 'races', label: '🧬 Races', icon: '🧬' },
+  { id: 'classes', label: '⚔️ Classes', icon: '⚔️' },
+  { id: 'subclasses', label: '🔀 Sous-classes', icon: '🔀' },
+  { id: 'weapons', label: '🗡️ Armes', icon: '🗡️' },
+  { id: 'passives', label: '🔮 Passifs', icon: '🔮' },
+  { id: 'duel', label: '🤺 Duel 1v1', icon: '🤺' },
+  { id: 'save', label: '💾 Sauvegarde', icon: '💾' },
+];
 
 const buildRaceTextDraft = (raceBonusDraft, raceAwakeningDraft) => {
   const data = {};
@@ -428,67 +54,23 @@ const buildClassTextDraft = (classDraft) => {
   return data;
 };
 
-const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
-  const raceName = randomItem(Object.keys(races));
-  const className = randomItem(Object.keys(classes));
-  const subclassesForClass = getSubclassesForClass(className);
-  const subclass = subclassesForClass.length > 0 ? randomItem(subclassesForClass) : null;
-  const weaponId = availableWeaponIds.length > 0 ? randomItem(availableWeaponIds) : null;
-  const passiveId = availablePassiveIds.length > 0 ? randomItem(availablePassiveIds) : null;
-  const raw = genStats();
-  const raceBonus = getRaceBonus(raceName);
-  const classBonus = getClassBonus(className);
-  const levelBoosts = genLevelBoosts(level);
-
-  const base = applyAwakeningToBase({
-    hp: raw.hp + raceBonus.hp + classBonus.hp,
-    auto: raw.auto + raceBonus.auto + classBonus.auto,
-    def: raw.def + raceBonus.def + classBonus.def,
-    cap: raw.cap + raceBonus.cap + classBonus.cap,
-    rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
-    spd: raw.spd + raceBonus.spd + classBonus.spd
-  }, getAwakeningEffect(raceName, level));
-
-  return {
-    id,
-    userId: id,
-    name: id,
-    race: raceName,
-    class: className,
-    subclass: subclass ? { id: subclass.id, name: subclass.name } : null,
-    base,
-    level,
-    bonuses: { race: raceBonus, class: classBonus },
-    forestBoosts: levelBoosts,
-    mageTowerPassive: passiveId ? { id: passiveId, level: getPassiveLevelForCharacterLevel(level) } : null,
-    equippedWeaponId: weaponId
-  };
-};
-
 function AdminBalance({ embedded = false }) {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('simulation');
+
+  // Simulation
   const [duels, setDuels] = useState(500);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
-  const [raceTab, setRaceTab] = useState('bonus');
+  const [simError, setSimError] = useState('');
+
+  // Sauvegarde
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
-  // Duel 1v1
-  const raceNames = useMemo(() => Object.keys(races), []);
-  const classNames = useMemo(() => Object.keys(classes), []);
-  const availableWeapons = useMemo(() => Object.values(weapons).filter((weapon) => isWaveActive(weapon.vague) && weapon.rarete === RARITY.LEGENDAIRE), []);
-  const availablePassives = useMemo(() => getAvailablePassives(), []);
-  const defaultWeaponId = availableWeapons[0]?.id || '';
-  const defaultPassiveId = availablePassives[0]?.id || '';
-
-  const [duelP1, setDuelP1] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
-  const [duelP2, setDuelP2] = useState({ race: raceNames[0], class: classNames[0], level: 1, weaponId: defaultWeaponId, passiveId: defaultPassiveId, passiveLevel: 1 });
-  const [duelOpponent, setDuelOpponent] = useState('pvp');
-  const [duelResult, setDuelResult] = useState(null);
-
+  // Drafts d'édition
   const [raceBonusDraft, setRaceBonusDraft] = useState(() => deepClone(raceConstants));
   const [raceAwakeningDraft, setRaceAwakeningDraft] = useState(() => {
     const draft = {};
@@ -502,7 +84,6 @@ function AdminBalance({ embedded = false }) {
   const [weaponDraft, setWeaponDraft] = useState(() => deepClone(weapons));
   const [passiveDraft, setPassiveDraft] = useState(() => deepClone(MAGE_TOWER_PASSIVES));
 
-  // Textes dérivés des drafts : se mettent à jour automatiquement quand tu modifies une valeur
   const raceTextDraft = useMemo(
     () => buildRaceTextDraft(raceBonusDraft, raceAwakeningDraft),
     [raceBonusDraft, raceAwakeningDraft]
@@ -512,10 +93,10 @@ function AdminBalance({ embedded = false }) {
     [classDraft]
   );
 
-  const raceCards = useMemo(() => Object.entries(races), []);
-  const classCards = useMemo(() => Object.entries(classes), []);
+  const availableWeapons = useMemo(() => Object.values(weapons).filter((w) => isWaveActive(w.vague) && w.rarete === RARITY.LEGENDAIRE), []);
+  const availablePassives = useMemo(() => getAvailablePassives(), []);
+  const allSubclassIds = useMemo(() => Object.values(SUBCLASSES_BY_CLASS).flat().map((s) => s.id), []);
 
-  // Charger la config depuis Firebase au démarrage
   useEffect(() => {
     const loadSavedConfig = async () => {
       const result = await loadPersistedBalanceConfig();
@@ -526,7 +107,7 @@ function AdminBalance({ embedded = false }) {
       setSubclassDraft(deepClone(subclassConstants));
       setWeaponDraft(deepClone(weapons));
       setPassiveDraft(deepClone(MAGE_TOWER_PASSIVES));
-      
+
       const loadedAwakeningDraft = {};
       Object.entries(races).forEach(([name, info]) => {
         loadedAwakeningDraft[name] = deepClone(info?.awakening?.effect || {});
@@ -537,7 +118,11 @@ function AdminBalance({ embedded = false }) {
     loadSavedConfig();
   }, []);
 
-  const applyDraftToLiveData = () => {
+  // ============================================================================
+  // Application temporaire des overrides de draft pour simulation/duel
+  // ============================================================================
+
+  const applyDraftToLiveData = useCallback(() => {
     applyNumericOverrides(raceConstants, raceBonusDraft);
     applyNumericOverrides(classConstants, classDraft);
     applyNumericOverrides(subclassConstants, subclassDraft);
@@ -547,68 +132,14 @@ function AdminBalance({ embedded = false }) {
       if (!MAGE_TOWER_PASSIVES[index]) return;
       applyNumericOverrides(MAGE_TOWER_PASSIVES[index], passive);
     });
-
     Object.entries(raceAwakeningDraft).forEach(([raceName, effectDraft]) => {
       const currentEffect = races?.[raceName]?.awakening?.effect;
       if (!currentEffect || !effectDraft) return;
       applyNumericOverrides(currentEffect, effectDraft);
     });
-  };
+  }, [raceBonusDraft, classDraft, subclassDraft, weaponDraft, passiveDraft, raceAwakeningDraft]);
 
-  // Sauvegarder dans Firebase et appliquer immédiatement
-  const handleApplyChanges = async () => {
-    setSaving(true);
-    setSaveMessage('');
-
-    try {
-      const config = {
-        raceConstants: deepClone(raceBonusDraft),
-        classConstants: deepClone(classDraft),
-        subclassConstants: deepClone(subclassDraft),
-        weaponConstants: deepClone(weaponDraft),
-        mageTowerPassives: deepClone(passiveDraft),
-        raceAwakenings: deepClone(raceAwakeningDraft),
-        raceTexts: deepClone(raceTextDraft),
-        classTexts: deepClone(classTextDraft)
-      };
-
-      const saveResult = await savePersistedBalanceConfig({
-        config,
-        updatedBy: 'admin'
-      });
-
-      if (!saveResult.success) {
-        setSaveMessage(`❌ ${saveResult.error}`);
-        return;
-      }
-
-      applyBalanceConfig(config);
-      setSaveMessage('✅ Modifications sauvegardées et appliquées à tout le jeu !');
-    } catch (error) {
-      setSaveMessage(`❌ Erreur: ${error.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleForceSyncFromCode = async () => {
-    setSyncMessage('');
-    setSyncing(true);
-    try {
-      const result = await forceSyncFromCode('admin-forced');
-      if (result.success) {
-        setSyncMessage('✅ Fichier Storage mis à jour avec les valeurs du code. Rechargez la page ou vérifiez le fichier.');
-      } else {
-        setSyncMessage(`❌ ${result.error}`);
-      }
-    } catch (error) {
-      setSyncMessage(`❌ Erreur: ${error.message}`);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const withTemporaryDraftOverrides = (callback) => {
+  const withTemporaryDraftOverrides = useCallback((callback) => {
     const previousRaceConstants = deepClone(raceConstants);
     const previousClassConstants = deepClone(classConstants);
     const previousSubclassConstants = deepClone(subclassConstants);
@@ -647,27 +178,26 @@ function AdminBalance({ embedded = false }) {
         races[name].awakening.effect = effect;
       });
     }
-  };
+  }, [applyDraftToLiveData]);
 
-  const allSubclassIds = useMemo(
-    () => Object.values(SUBCLASSES_BY_CLASS).flat().map((s) => s.id),
-    []
-  );
+  // ============================================================================
+  // Simulation de masse (avec fix crash + spinner)
+  // ============================================================================
 
-  const simulateForLevel = (level, count) => {
+  const simulateForLevel = useCallback((level, count) => {
     const raceWins = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classWins = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
     const subclassWins = Object.fromEntries(allSubclassIds.map((id) => [id, 0]));
-    const weaponWins = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
-    const passiveWins = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
+    const weaponWins = Object.fromEntries(availableWeapons.map((w) => [w.id, 0]));
+    const passiveWins = Object.fromEntries(availablePassives.map((p) => [p.id, 0]));
     const raceAppearances = Object.fromEntries(Object.keys(races).map((name) => [name, 0]));
     const classAppearances = Object.fromEntries(Object.keys(classes).map((name) => [name, 0]));
     const subclassAppearances = Object.fromEntries(allSubclassIds.map((id) => [id, 0]));
-    const weaponAppearances = Object.fromEntries(availableWeapons.map((weapon) => [weapon.id, 0]));
-    const passiveAppearances = Object.fromEntries(availablePassives.map((passive) => [passive.id, 0]));
+    const weaponAppearances = Object.fromEntries(availableWeapons.map((w) => [w.id, 0]));
+    const passiveAppearances = Object.fromEntries(availablePassives.map((p) => [p.id, 0]));
 
-    const availableWeaponIds = availableWeapons.map((weapon) => weapon.id);
-    const availablePassiveIds = availablePassives.map((passive) => passive.id);
+    const availableWeaponIds = availableWeapons.map((w) => w.id);
+    const availablePassiveIds = availablePassives.map((p) => p.id);
 
     for (let i = 0; i < count; i++) {
       const p1 = makeCharacter(`L${level}-A-${i}`, level, availableWeaponIds, availablePassiveIds);
@@ -677,70 +207,54 @@ function AdminBalance({ embedded = false }) {
       raceAppearances[p2.race] += 1;
       classAppearances[p1.class] += 1;
       classAppearances[p2.class] += 1;
-      if (p1.subclass?.id) subclassAppearances[p1.subclass.id] += 1;
-      if (p2.subclass?.id) subclassAppearances[p2.subclass.id] += 1;
-      if (p1.equippedWeaponId) weaponAppearances[p1.equippedWeaponId] += 1;
-      if (p2.equippedWeaponId) weaponAppearances[p2.equippedWeaponId] += 1;
-      if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] += 1;
-      if (p2.mageTowerPassive?.id) passiveAppearances[p2.mageTowerPassive.id] += 1;
+      if (p1.subclass?.id) subclassAppearances[p1.subclass.id] = (subclassAppearances[p1.subclass.id] || 0) + 1;
+      if (p2.subclass?.id) subclassAppearances[p2.subclass.id] = (subclassAppearances[p2.subclass.id] || 0) + 1;
+      if (p1.equippedWeaponId) weaponAppearances[p1.equippedWeaponId] = (weaponAppearances[p1.equippedWeaponId] || 0) + 1;
+      if (p2.equippedWeaponId) weaponAppearances[p2.equippedWeaponId] = (weaponAppearances[p2.equippedWeaponId] || 0) + 1;
+      if (p1.mageTowerPassive?.id) passiveAppearances[p1.mageTowerPassive.id] = (passiveAppearances[p1.mageTowerPassive.id] || 0) + 1;
+      if (p2.mageTowerPassive?.id) passiveAppearances[p2.mageTowerPassive.id] = (passiveAppearances[p2.mageTowerPassive.id] || 0) + 1;
 
       const match = simulerMatch(p1, p2);
       const winner = match.winnerId === p1.userId ? p1 : p2;
       raceWins[winner.race] += 1;
       classWins[winner.class] += 1;
-      if (winner.subclass?.id) subclassWins[winner.subclass.id] += 1;
-      if (winner.equippedWeaponId) weaponWins[winner.equippedWeaponId] += 1;
-      if (winner.mageTowerPassive?.id) passiveWins[winner.mageTowerPassive.id] += 1;
+      if (winner.subclass?.id) subclassWins[winner.subclass.id] = (subclassWins[winner.subclass.id] || 0) + 1;
+      if (winner.equippedWeaponId) weaponWins[winner.equippedWeaponId] = (weaponWins[winner.equippedWeaponId] || 0) + 1;
+      if (winner.mageTowerPassive?.id) passiveWins[winner.mageTowerPassive.id] = (passiveWins[winner.mageTowerPassive.id] || 0) + 1;
     }
 
-    const sortedRaces = Object.entries(raceWins)
-      .map(([race, wins]) => {
-        const appearances = raceAppearances[race] || 0;
-        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
-        return { race, wins, appearances, rate: rate.toFixed(1) };
-      })
-      .sort((a, b) => Number(b.rate) - Number(a.rate));
+    const sortByRate = (entries, appearances) =>
+      Object.entries(entries)
+        .map(([key, wins]) => {
+          const app = appearances[key] || 0;
+          const rate = app > 0 ? (wins / app) * 100 : 0;
+          return { key, wins, appearances: app, rate: rate.toFixed(1) };
+        })
+        .sort((a, b) => Number(b.rate) - Number(a.rate));
 
-    const sortedClasses = Object.entries(classWins)
-      .map(([clazz, wins]) => {
-        const appearances = classAppearances[clazz] || 0;
-        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
-        return { clazz, wins, appearances, rate: rate.toFixed(1) };
-      })
-      .sort((a, b) => Number(b.rate) - Number(a.rate));
-
-    const sortedSubclasses = allSubclassIds
-      .map((subclassId) => {
-        const wins = subclassWins[subclassId] || 0;
-        const appearances = subclassAppearances[subclassId] || 0;
-        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
-        return { subclassId, wins, appearances, rate: rate.toFixed(1) };
-      })
-      .sort((a, b) => Number(b.rate) - Number(a.rate));
-
-    const sortedWeapons = Object.entries(weaponWins)
-      .map(([weaponId, wins]) => {
-        const appearances = weaponAppearances[weaponId] || 0;
-        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
-        return { weaponId, wins, appearances, rate: rate.toFixed(1) };
-      })
-      .sort((a, b) => Number(b.rate) - Number(a.rate));
-
-    const sortedPassives = Object.entries(passiveWins)
-      .map(([passiveId, wins]) => {
-        const appearances = passiveAppearances[passiveId] || 0;
-        const rate = appearances > 0 ? (wins / appearances) * 100 : 0;
-        return { passiveId, wins, appearances, rate: rate.toFixed(1) };
-      })
-      .sort((a, b) => Number(b.rate) - Number(a.rate));
-
-    return { sortedRaces, sortedClasses, sortedSubclasses, sortedWeapons, sortedPassives };
-  };
+    return {
+      sortedRaces: sortByRate(raceWins, raceAppearances).map(r => ({ race: r.key, ...r })),
+      sortedClasses: sortByRate(classWins, classAppearances).map(r => ({ clazz: r.key, ...r })),
+      sortedSubclasses: allSubclassIds
+        .map((id) => {
+          const wins = subclassWins[id] || 0;
+          const app = subclassAppearances[id] || 0;
+          const rate = app > 0 ? (wins / app) * 100 : 0;
+          return { subclassId: id, wins, appearances: app, rate: rate.toFixed(1) };
+        })
+        .sort((a, b) => Number(b.rate) - Number(a.rate)),
+      sortedWeapons: sortByRate(weaponWins, weaponAppearances).map(r => ({ weaponId: r.key, ...r })),
+      sortedPassives: sortByRate(passiveWins, passiveAppearances).map(r => ({ passiveId: r.key, ...r })),
+    };
+  }, [allSubclassIds, availableWeapons, availablePassives]);
 
   const handleRun = async () => {
     const duelCount = Math.max(10, Number(duels) || 10);
     setRunning(true);
-    setSaveMessage('');
+    setSimError('');
+
+    // Laisser le temps au navigateur de peindre le state "en cours"
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     try {
       withTemporaryDraftOverrides(() => {
@@ -749,578 +263,175 @@ function AdminBalance({ embedded = false }) {
         const level400 = simulateForLevel(400, duelCount);
         setResults({ duelCount, level1, level100, level400 });
       });
+    } catch (err) {
+      console.error('Erreur simulation:', err);
+      setSimError(`${err.message}\n\nStack: ${err.stack?.split('\n').slice(0, 5).join('\n') || 'N/A'}`);
     } finally {
       setRunning(false);
     }
   };
 
-  // La page est maintenant en lecture seule - les valeurs viennent directement du code
-  // Pour modifier l'équilibrage, éditez les fichiers:
-  // - /src/data/combatMechanics.js (classConstants, raceConstants)
-  // - /src/data/races.js (awakening effects)
+  // ============================================================================
+  // Sauvegarde
+  // ============================================================================
 
-  const makeCustomCharacter = (id, raceName, className, level, weaponId, passiveId, passiveLevel) => {
-    const raw = genStats();
-    const raceBonus = getRaceBonus(raceName);
-    const classBonus = getClassBonus(className);
-    const levelBoosts = genLevelBoosts(level);
-    const base = applyAwakeningToBase({
-      hp: raw.hp + raceBonus.hp + classBonus.hp,
-      auto: raw.auto + raceBonus.auto + classBonus.auto,
-      def: raw.def + raceBonus.def + classBonus.def,
-      cap: raw.cap + raceBonus.cap + classBonus.cap,
-      rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
-      spd: raw.spd + raceBonus.spd + classBonus.spd
-    }, getAwakeningEffect(raceName, level));
-    return {
-      id, userId: id,
-      name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
-      race: raceName, class: className, base, level,
-      bonuses: { race: raceBonus, class: classBonus },
-      forestBoosts: levelBoosts,
-      mageTowerPassive: passiveId ? { id: passiveId, level: Math.max(1, Math.min(3, Number(passiveLevel) || 1)) } : null,
-      equippedWeaponId: weaponId || null
-    };
-  };
-
-  const BOSS_OPTIONS = [
-    { id: 'pvp', label: '⚔️ PvP (Joueur vs Joueur)' },
-    { id: 'licorne', label: '🦄 Licorne (Forêt)', icon: '🦄' },
-    { id: 'dragon', label: '🐲 Dragon (Donjon)', icon: '🐲' },
-    { id: 'lich', label: '🧟 Liche (Tour de Mage)', icon: '🧟' }
-  ];
-
-  const createBossForDuel = (bossId) => {
-    if (bossId === 'licorne') {
-      const bossData = FOREST_LEVELS.find(l => l.boss.id === 'licorne')?.boss;
-      if (!bossData) return null;
-      const boss = createForestBossCombatant(bossData);
-      boss.shield = 0;
-      boss.shieldExploded = false;
-      return boss;
-    }
-    if (bossId === 'lich') {
-      const bossData = MAGE_TOWER_LEVELS.find(l => l.boss.id === 'lich')?.boss;
-      if (!bossData) return null;
-      const boss = createMageTowerBossCombatant(bossData);
-      boss.shield = Math.max(1, Math.round(boss.maxHP * 0.2));
-      return boss;
-    }
-    if (bossId === 'dragon') {
-      return createBossCombatant('dragon');
-    }
-    return null;
-  };
-
-  const handleDuel = () => {
-    withTemporaryDraftOverrides(() => {
-      const p1 = makeCustomCharacter('P1', duelP1.race, duelP1.class, duelP1.level, duelP1.weaponId, duelP1.passiveId, duelP1.passiveLevel);
-      const p1Final = preparerCombattant(p1);
-      const p1Display = { ...p1, base: p1Final.base };
-
-      if (duelOpponent === 'pvp') {
-        const p2 = makeCustomCharacter('P2', duelP2.race, duelP2.class, duelP2.level, duelP2.weaponId, duelP2.passiveId, duelP2.passiveLevel);
-        const p2Final = preparerCombattant(p2);
-        const result = simulerMatch(p1, p2);
-        setDuelResult({ ...result, p1: p1Display, p2: { ...p2, base: p2Final.base } });
-      } else {
-        const boss = createBossForDuel(duelOpponent);
-        if (!boss) return;
-        const result = simulerMatch(p1, boss);
-        setDuelResult({ ...result, p1: p1Display, p2: boss, isBoss: true });
+  const handleApplyChanges = async () => {
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      const config = {
+        raceConstants: deepClone(raceBonusDraft),
+        classConstants: deepClone(classDraft),
+        subclassConstants: deepClone(subclassDraft),
+        weaponConstants: deepClone(weaponDraft),
+        mageTowerPassives: deepClone(passiveDraft),
+        raceAwakenings: deepClone(raceAwakeningDraft),
+        raceTexts: deepClone(raceTextDraft),
+        classTexts: deepClone(classTextDraft)
+      };
+      const saveResult = await savePersistedBalanceConfig({ config, updatedBy: 'admin' });
+      if (!saveResult.success) {
+        setSaveMessage(`❌ ${saveResult.error}`);
+        return;
       }
-    });
+      applyBalanceConfig(config);
+      setSaveMessage('✅ Modifications sauvegardées et appliquées à tout le jeu !');
+    } catch (error) {
+      setSaveMessage(`❌ Erreur: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleForceSyncFromCode = async () => {
+    setSyncMessage('');
+    setSyncing(true);
+    try {
+      const result = await forceSyncFromCode('admin-forced');
+      if (result.success) {
+        setSyncMessage('✅ Fichier Storage mis à jour avec les valeurs du code.');
+      } else {
+        setSyncMessage(`❌ ${result.error}`);
+      }
+    } catch (error) {
+      setSyncMessage(`❌ Erreur: ${error.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // ============================================================================
+  // Rendu
+  // ============================================================================
+
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'simulation':
+        return (
+          <BalanceSimulation
+            duels={duels} setDuels={setDuels}
+            running={running} results={results}
+            errorMessage={simError} onRun={handleRun}
+          />
+        );
+      case 'races':
+        return (
+          <BalanceRaces
+            raceBonusDraft={raceBonusDraft} setRaceBonusDraft={setRaceBonusDraft}
+            raceAwakeningDraft={raceAwakeningDraft} setRaceAwakeningDraft={setRaceAwakeningDraft}
+          />
+        );
+      case 'classes':
+        return (
+          <BalanceClasses
+            classDraft={classDraft} setClassDraft={setClassDraft}
+            classTextDraft={classTextDraft}
+          />
+        );
+      case 'subclasses':
+        return (
+          <BalanceSubclasses
+            subclassDraft={subclassDraft} setSubclassDraft={setSubclassDraft}
+          />
+        );
+      case 'weapons':
+        return (
+          <BalanceWeapons
+            availableWeapons={availableWeapons}
+            weaponDraft={weaponDraft} setWeaponDraft={setWeaponDraft}
+          />
+        );
+      case 'passives':
+        return (
+          <BalancePassives
+            passiveDraft={passiveDraft} setPassiveDraft={setPassiveDraft}
+          />
+        );
+      case 'duel':
+        return (
+          <BalanceDuel withTemporaryDraftOverrides={withTemporaryDraftOverrides} />
+        );
+      case 'save':
+        return (
+          <BalanceSave
+            saving={saving} saveMessage={saveMessage}
+            syncing={syncing} syncMessage={syncMessage}
+            onApplyChanges={handleApplyChanges}
+            onForceSyncFromCode={handleForceSyncFromCode}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   const content = (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-amber-300">⚖️ Équilibrage (Admin)</h1>
+      {/* En-tête */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-amber-300">⚖️ Équilibrage</h1>
         {!embedded && (
-          <button onClick={() => navigate('/admin')} className="bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded">← Retour admin</button>
+          <button onClick={() => navigate('/admin')} className="bg-stone-700 hover:bg-stone-600 text-white px-4 py-2 rounded transition-colors">← Retour admin</button>
         )}
       </div>
 
-        <div className="bg-stone-900/70 border border-amber-600 p-4 mb-6">
-          <label className="text-stone-300 text-sm block mb-2">Nombre de duels par niveau (1, 100 et 400)</label>
-          <div className="flex gap-3 flex-wrap">
-            <input type="number" min="10" value={duels} onChange={(e) => setDuels(e.target.value)} className="px-3 py-2 bg-stone-800 border border-stone-600 text-white w-40" />
-            <button onClick={handleRun} disabled={running} className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-4 py-2 font-bold">
-              {running ? '⏳ Simulation...' : '▶️ Lancer simulation niv 1 + niv 100 + niv 400'}
-            </button>
+      {/* Barre d'onglets */}
+      <div className="flex flex-wrap gap-1 mb-6 bg-stone-900/50 p-1 rounded-lg border border-stone-700">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-2 text-xs font-bold rounded transition-colors whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-stone-400 hover:text-white hover:bg-stone-700/50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenu de l'onglet actif */}
+      <div className="min-h-[60vh]">
+        {renderTab()}
+      </div>
+
+      {/* Barre de sauvegarde rapide sticky (sauf sur l'onglet save) */}
+      {activeTab !== 'save' && (
+        <div className="sticky bottom-0 mt-6 bg-stone-900/95 backdrop-blur border-t border-amber-600/30 p-3 -mx-6 px-6 flex items-center justify-between gap-4">
+          <div className="text-xs text-stone-400">
+            {saveMessage && <span className="text-green-300">{saveMessage}</span>}
           </div>
-        </div>
-
-        <div className="grid lg:grid-cols-2 2xl:grid-cols-4 gap-6 mb-8">
-          <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Races</h2>
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setRaceTab('bonus')}
-                className={`px-3 py-2 rounded text-sm font-bold ${raceTab === 'bonus' ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-300'}`}
-              >
-                Bonus racial
-              </button>
-              <button
-                onClick={() => setRaceTab('awakening')}
-                className={`px-3 py-2 rounded text-sm font-bold ${raceTab === 'awakening' ? 'bg-emerald-600 text-white' : 'bg-stone-800 text-stone-300'}`}
-              >
-                Éveil racial
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
-              {raceCards.map(([name, info]) => {
-                const constantKey = RACE_TO_CONSTANT_KEY[name];
-                const bonusValues = constantKey ? raceBonusDraft[constantKey] : null;
-                const awakeningValues = raceAwakeningDraft[name];
-                return (
-                  <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-2">{info.icon} {name}</div>
-                    {raceTab === 'bonus' ? (
-                      <>
-                        <div className="text-amber-300/90 text-[11px] mb-1">Bonus</div>
-                        {constantKey && bonusValues ? (
-                          <DescriptionWithEditableSlots
-                            parts={buildRaceBonusDescriptionParts(name, raceBonusDraft[constantKey])}
-                            draft={raceBonusDraft}
-                            onSlotChange={(path, value) => setRaceBonusDraft((prev) => updateNestedValue(prev, path, value))}
-                            className="text-stone-300"
-                          />
-                        ) : (
-                          <div className="text-xs text-stone-500">Aucune valeur numérique mappée pour ce bonus.</div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-emerald-300/90 text-[11px] mb-1">Awakening</div>
-                        <DescriptionWithEditableSlots
-                          parts={buildRaceAwakeningDescriptionParts(name, raceAwakeningDraft[name])}
-                          draft={raceAwakeningDraft}
-                          onSlotChange={(path, value) => setRaceAwakeningDraft((prev) => updateNestedValue(prev, path, value))}
-                          className="text-emerald-200/90"
-                        />
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Classes (valeurs modifiables entre [crochets])</h2>
-            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
-              {classCards.map(([name, info]) => {
-                const constantKey = CLASS_TO_CONSTANT_KEY[name];
-                if (!constantKey || !classDraft[constantKey]) return null;
-                return (
-                  <div key={name} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-1">{info.icon} {name}</div>
-                    <div className="text-xs text-amber-300 mb-2">{classTextDraft[name]?.ability || info.ability}</div>
-                    <DescriptionWithEditableSlots
-                      parts={buildClassDescriptionParts(name, classDraft[constantKey])}
-                      draft={classDraft}
-                      onSlotChange={(path, value) => setClassDraft((prev) => updateNestedValue(prev, path, value))}
-                      className="text-stone-300"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Sous-classes (ratios CAP / capacités)</h2>
-            <p className="text-stone-400 text-sm mb-3">Valeurs réelles des ratios liés à la CAP (overridables comme pour les classes).</p>
-            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
-              {Object.entries(subclassDraft).map(([subclassId, draft]) => {
-                const info = getSubclassById(subclassId);
-                if (!draft || typeof draft !== 'object') return null;
-                if (Object.keys(draft).length === 0) return null;
-                return (
-                  <div key={subclassId} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-1">{info?.name ?? subclassId}</div>
-                    <div className="text-xs text-stone-400 mb-2">{info?.className ?? ''}</div>
-                    <NumberTreeEditor
-                      value={draft}
-                      onChange={(path, value) => {
-                        setSubclassDraft((prev) => updateNestedValue(prev, path, value));
-                      }}
-                      path={[subclassId]}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Armes légendaires (up/nerf)</h2>
-            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
-              {availableWeapons.map((weapon) => {
-                const draft = weaponDraft[weapon.id];
-                if (!draft) return null;
-                const statsParts = buildPartsFromEntries(flattenNumericEntries(draft.stats || {}, [weapon.id, 'stats']));
-                const effectParts = buildPartsFromEntries(flattenNumericEntries(draft.effet?.values || {}, [weapon.id, 'effet', 'values']));
-                return (
-                  <div key={weapon.id} className="bg-stone-950/70 border border-stone-700 p-3">
-                    <div className="font-bold text-white mb-2">{weapon.icon} {weapon.nom}</div>
-                    <div className="text-xs text-stone-400 mb-2">{draft.description}</div>
-                    {statsParts.length > 0 && (
-                      <DescriptionWithEditableSlots
-                        parts={statsParts}
-                        draft={weaponDraft}
-                        onSlotChange={(path, value) => {
-                          setWeaponDraft((prev) => ({
-                            ...prev,
-                            [weapon.id]: updateNestedValue(prev[weapon.id] || {}, path.slice(1), value)
-                          }));
-                        }}
-                        className="text-stone-300 mb-2"
-                      />
-                    )}
-                    {draft.effet && effectParts.length > 0 && (
-                      <>
-                        <DescriptionWithEditableSlots
-                          parts={effectParts}
-                          draft={weaponDraft}
-                          onSlotChange={(path, value) => {
-                            setWeaponDraft((prev) => {
-                              const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path.slice(1), value);
-                              const desc = buildWeaponEffetDescriptionFromTemplate(weapon.id, updatedWeapon.effet);
-                              const withDesc = desc ? updateNestedValue(updatedWeapon, ['effet', 'description'], desc) : updatedWeapon;
-                              return { ...prev, [weapon.id]: withDesc };
-                            });
-                          }}
-                          className="text-amber-200/90 mb-2"
-                        />
-                        <div className="text-xs text-amber-300/80">Description: {draft.effet.description}</div>
-                      </>
-                    )}
-                    <NumberTreeEditor
-                      value={draft}
-                      onChange={(path, value) => {
-                        setWeaponDraft((prev) => {
-                          const updatedWeapon = updateNestedValue(prev[weapon.id] || {}, path, value);
-                          const desc = updatedWeapon.effet ? buildWeaponEffetDescriptionFromTemplate(weapon.id, updatedWeapon.effet) : '';
-                          const withDesc = desc ? updateNestedValue(updatedWeapon, ['effet', 'description'], desc) : updatedWeapon;
-                          return { ...prev, [weapon.id]: withDesc };
-                        });
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="bg-stone-900/70 border border-stone-600 p-4">
-            <h2 className="text-xl text-amber-300 font-bold mb-3">Passifs tour de mage (up/nerf)</h2>
-            <div className="space-y-3 max-h-[70vh] overflow-auto pr-2">
-              {passiveDraft.map((passive, idx) => (
-                <div key={passive.id} className="bg-stone-950/70 border border-stone-700 p-3">
-                  <div className="font-bold text-white mb-2">{passive.icon} {passive.name}</div>
-                  <div className="space-y-2 mb-3">
-                    {Object.entries(passive.levels || {}).map(([level, levelData]) => (
-                      <div key={`${passive.id}-${level}`} className="text-xs text-stone-300">
-                        <div className="mb-1">Niveau {level}</div>
-                        <DescriptionWithEditableSlots
-                          parts={buildPartsFromEntries(flattenNumericEntries(levelData || {}, [idx, 'levels', level]))}
-                          draft={passiveDraft}
-                          onSlotChange={(path, value) => {
-                            setPassiveDraft((prev) => prev.map((item, itemIdx) => {
-                              if (itemIdx !== idx) return item;
-                              const updated = updateNestedValue(item, path.slice(1), value);
-                              const newLevelData = updated.levels?.[level];
-                              const desc = buildAutoDescription(newLevelData || {});
-                              return updateNestedValue(updated, ['levels', level, 'description'], desc);
-                            }));
-                          }}
-                          className="text-stone-300"
-                        />
-                        <div className="text-[11px] text-stone-500 mt-1">Description: {levelData?.description}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <NumberTreeEditor
-                    value={passive}
-                    onChange={(path, value) => {
-                      setPassiveDraft((prev) => prev.map((item, itemIdx) => {
-                        if (itemIdx !== idx) return item;
-                        const updated = updateNestedValue(item, path, value);
-                        const [, level] = path;
-                        if (!level) return updated;
-                        return updateNestedValue(updated, ['levels', level, 'description'], buildAutoDescription(updated.levels?.[level] || {}));
-                      }));
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-stone-900/70 border border-amber-500 rounded-lg p-4 mb-8">
           <button
             onClick={handleApplyChanges}
             disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white py-3 rounded font-bold"
+            className="bg-green-600 hover:bg-green-500 disabled:bg-stone-700 text-white px-6 py-2 rounded font-bold text-sm transition-colors whitespace-nowrap"
           >
-            {saving ? '⏳ Sauvegarde...' : '✅ Sauvegarder et appliquer à tout le jeu'}
+            {saving ? '⏳ ...' : '💾 Sauvegarder'}
           </button>
-          {saveMessage && <p className="text-sm text-green-300 mt-3">{saveMessage}</p>}
-          <div className="mt-4 pt-4 border-t border-stone-600">
-            <p className="text-xs text-stone-400 mb-2">
-              Version config : <strong className="text-amber-200">code v{BALANCE_CONFIG_VERSION}</strong>
-              {getLastLoadedStoredVersion() != null && (
-                <> · fichier Storage (au chargement) : <strong className="text-amber-200">v{getLastLoadedStoredVersion()}</strong></>
-              )}
-            </p>
-            <p className="text-xs text-stone-400 mb-2">Si le fichier balance.json ne se met pas à jour au chargement (toujours ancienne date) :</p>
-            <button
-              type="button"
-              onClick={handleForceSyncFromCode}
-              disabled={syncing}
-              className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 text-white py-2 rounded text-sm font-medium"
-            >
-              {syncing ? '⏳ Synchro...' : '🔄 Forcer synchro code → Storage'}
-            </button>
-            {syncMessage && <p className="text-sm text-amber-200 mt-2">{syncMessage}</p>}
-          </div>
         </div>
-
-        {/* Duel 1v1 */}
-        <div className="bg-stone-900/70 border border-purple-500 rounded-lg p-4 mb-8">
-          <h2 className="text-xl text-purple-300 font-bold mb-4">⚔️ Duel 1v1</h2>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {BOSS_OPTIONS.map(({ id, label }) => (
-              <button key={id} onClick={() => { setDuelOpponent(id); setDuelResult(null); }}
-                className={`px-3 py-1 text-xs font-bold rounded border ${duelOpponent === id
-                  ? 'bg-purple-600 border-purple-400 text-white'
-                  : 'bg-stone-800 border-stone-600 text-stone-400 hover:border-stone-400'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className={`grid ${duelOpponent === 'pvp' ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-4 mb-4`}>
-            <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
-              <div className="font-bold text-blue-300">{duelOpponent === 'pvp' ? 'Joueur 1' : 'Joueur'}</div>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Race
-                <select value={duelP1.race} onChange={(e) => setDuelP1((p) => ({ ...p, race: e.target.value }))}
-                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                  {raceNames.map((r) => <option key={r} value={r}>{races[r]?.icon} {r}</option>)}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Classe
-                <select value={duelP1.class} onChange={(e) => setDuelP1((p) => ({ ...p, class: e.target.value }))}
-                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                  {classNames.map((c) => <option key={c} value={c}>{classes[c]?.icon} {c}</option>)}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Niveau
-                <input type="number" min="1" max="200" value={duelP1.level}
-                  onChange={(e) => setDuelP1((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
-                  className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
-              </label>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Arme
-                <select value={duelP1.weaponId} onChange={(e) => setDuelP1((p) => ({ ...p, weaponId: e.target.value }))}
-                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                  {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Passif Tour de Mage
-                <select value={duelP1.passiveId} onChange={(e) => setDuelP1((p) => ({ ...p, passiveId: e.target.value }))}
-                  className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                  {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs text-stone-300">
-                Niveau passif
-                <input type="number" min="1" max="3" value={duelP1.passiveLevel}
-                  onChange={(e) => setDuelP1((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
-                  className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
-              </label>
-            </div>
-            {duelOpponent === 'pvp' && (
-              <div className="bg-stone-950/70 border border-stone-700 p-3 space-y-2">
-                <div className="font-bold text-red-300">Joueur 2</div>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Race
-                  <select value={duelP2.race} onChange={(e) => setDuelP2((p) => ({ ...p, race: e.target.value }))}
-                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                    {raceNames.map((r) => <option key={r} value={r}>{races[r]?.icon} {r}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Classe
-                  <select value={duelP2.class} onChange={(e) => setDuelP2((p) => ({ ...p, class: e.target.value }))}
-                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                    {classNames.map((c) => <option key={c} value={c}>{classes[c]?.icon} {c}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Niveau
-                  <input type="number" min="1" max="200" value={duelP2.level}
-                    onChange={(e) => setDuelP2((p) => ({ ...p, level: Math.max(1, Number(e.target.value) || 1) }))}
-                    className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Arme
-                  <select value={duelP2.weaponId} onChange={(e) => setDuelP2((p) => ({ ...p, weaponId: e.target.value }))}
-                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                    {availableWeapons.map((weapon) => <option key={weapon.id} value={weapon.id}>{weapon.icon} {weapon.nom}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Passif Tour de Mage
-                  <select value={duelP2.passiveId} onChange={(e) => setDuelP2((p) => ({ ...p, passiveId: e.target.value }))}
-                    className="flex-1 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs">
-                    {availablePassives.map((passive) => <option key={passive.id} value={passive.id}>{passive.icon} {passive.name}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-300">
-                  Niveau passif
-                  <input type="number" min="1" max="3" value={duelP2.passiveLevel}
-                    onChange={(e) => setDuelP2((p) => ({ ...p, passiveLevel: Math.max(1, Math.min(3, Number(e.target.value) || 1)) }))}
-                    className="w-20 px-2 py-1 bg-stone-900 border border-stone-600 text-white text-xs" />
-                </label>
-              </div>
-            )}
-          </div>
-          <button onClick={handleDuel} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-2 rounded font-bold mb-4">
-            {duelOpponent === 'pvp' ? '⚔️ Lancer le duel' : `⚔️ Combattre le boss`}
-          </button>
-
-          {duelResult && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between bg-stone-950/70 border border-stone-600 p-3">
-                <div className="text-sm">
-                  <span className="text-blue-300 font-bold">{duelResult.p1.name}</span>
-                  <span className="text-stone-500 text-xs ml-2">niv.{duelResult.p1.level} — HP:{duelResult.p1.base.hp} Auto:{duelResult.p1.base.auto} DEF:{duelResult.p1.base.def} CAP:{duelResult.p1.base.cap} RES:{duelResult.p1.base.rescap} SPD:{duelResult.p1.base.spd}</span>
-                  <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p1.equippedWeaponId]?.icon} {weapons[duelResult.p1.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p1.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p1.mageTowerPassive?.level || 0})</span>
-                </div>
-                <span className="text-stone-500 font-bold">VS</span>
-                <div className="text-sm text-right">
-                  <span className="text-red-300 font-bold">{duelResult.p2.name}</span>
-                  <span className="text-stone-500 text-xs ml-2">{duelResult.p2.level ? `niv.${duelResult.p2.level} — ` : ''}HP:{duelResult.p2.base.hp} Auto:{duelResult.p2.base.auto} DEF:{duelResult.p2.base.def} CAP:{duelResult.p2.base.cap} RES:{duelResult.p2.base.rescap} SPD:{duelResult.p2.base.spd}</span>
-                  {!duelResult.isBoss && (
-                    <span className="text-stone-400 text-xs block">Arme: {weapons[duelResult.p2.equippedWeaponId]?.icon} {weapons[duelResult.p2.equippedWeaponId]?.nom || 'Aucune'} · Passif: {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.icon} {getMageTowerPassiveById(duelResult.p2.mageTowerPassive?.id)?.name || 'Aucun'} (Niv.{duelResult.p2.mageTowerPassive?.level || 0})</span>
-                  )}
-                </div>
-              </div>
-              <div className="text-center text-lg font-bold text-amber-300">
-                🏆 {duelResult.winnerNom} gagne !
-              </div>
-              <div className="bg-stone-950 border border-stone-700 p-3 max-h-[50vh] overflow-auto font-mono text-xs space-y-0.5">
-                {duelResult.combatLog.map((line, i) => {
-                  const isP1 = line.startsWith('[P1]');
-                  const isP2 = line.startsWith('[P2]');
-                  const isTurn = line.startsWith('---');
-                  const isVictory = line.startsWith('🏆') || line.startsWith('⚔️');
-                  const cleanLine = line.replace(/^\[P[12]\]\s*/, '');
-                  return (
-                    <div key={i} className={
-                      isTurn ? 'text-stone-500 font-bold mt-2 border-t border-stone-800 pt-1' :
-                      isVictory ? 'text-amber-300 font-bold' :
-                      isP1 ? 'text-blue-300' :
-                      isP2 ? 'text-red-300' :
-                      'text-stone-400'
-                    }>
-                      {isP1 && <span className="text-blue-500 mr-1">[P1]</span>}
-                      {isP2 && <span className="text-red-500 mr-1">[P2]</span>}
-                      {(isP1 || isP2) ? cleanLine : line}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {results && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            {[
-              { key: 'level1', title: 'Résultats Niveau 1' },
-              { key: 'level100', title: 'Résultats Niveau 100' },
-              { key: 'level400', title: 'Résultats Niveau 400' }
-            ].map(({ key, title }) => (
-              <div key={key} className="bg-stone-900/70 border border-amber-600 p-4">
-                <h3 className="text-lg text-amber-300 font-bold mb-3">{title} ({results.duelCount} duels)</h3>
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="font-semibold text-stone-200 mb-2">Races</div>
-                    <div className="space-y-1">
-                      {results[key].sortedRaces.map((row) => (
-                        <div key={`${key}-race-${row.race}`} className="flex justify-between text-stone-300">
-                          <span>{races[row.race]?.icon} {row.race}</span>
-                          <span>{row.rate}% WR</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-stone-200 mb-2">Classes</div>
-                    <div className="space-y-1">
-                      {results[key].sortedClasses.map((row) => (
-                        <div key={`${key}-class-${row.clazz}`} className="flex justify-between text-stone-300">
-                          <span>{classes[row.clazz]?.icon} {row.clazz}</span>
-                          <span>{row.rate}% WR</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-stone-200 mb-2">Sous-classes</div>
-                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
-                      {results[key].sortedSubclasses.map((row) => {
-                        const sub = getSubclassById(row.subclassId);
-                        return (
-                          <div key={`${key}-subclass-${row.subclassId}`} className="flex justify-between text-stone-300">
-                            <span title={sub?.className}>{sub?.name ?? row.subclassId}</span>
-                            <span>{row.rate}% WR</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-stone-200 mb-2">Armes</div>
-                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
-                      {results[key].sortedWeapons.map((row) => (
-                        <div key={`${key}-weapon-${row.weaponId}`} className="flex justify-between text-stone-300">
-                          <span>{weapons[row.weaponId]?.icon} {weapons[row.weaponId]?.nom}</span>
-                          <span>{row.rate}% WR</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-stone-200 mb-2">Passifs Tour de Mage</div>
-                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
-                      {results[key].sortedPassives.map((row) => {
-                        const passive = getMageTowerPassiveById(row.passiveId);
-                        return (
-                          <div key={`${key}-passive-${row.passiveId}`} className="flex justify-between text-stone-300">
-                            <span>{passive?.icon} {passive?.name}</span>
-                            <span>{row.rate}% WR</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      )}
     </>
   );
 
