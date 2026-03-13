@@ -1364,7 +1364,7 @@ const CharacterCreation = () => {
                         <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">{section.label}</span>
                         <span className="text-[9px] text-stone-600 italic">{section.desc}</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {borders.map(border => {
                           const unlocked = existingCharacter.unlockedBorders?.includes(border.id) || border.id === 'default';
                           const currentBorderId = resolveBorderId(existingCharacter.equippedBorder);
