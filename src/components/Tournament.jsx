@@ -836,12 +836,13 @@ const Tournament = () => {
                       <div key={id} className="flex items-center" style={{ height: slotH }}>
                         {rIdx > 0 && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 20 }} />}
                         {renderBracketMatch(id)}
+                        {isPairing && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 16 }} />}
                       </div>
                     ))}
                   </div>
 
                   {isPairing && matchIds.length >= 2 && (
-                    <div className="flex flex-col flex-shrink-0" style={{ width: 36 }}>
+                    <div className="flex flex-col flex-shrink-0" style={{ width: 20 }}>
                       {matchIds.map((id, mIdx) => {
                         const isTop = mIdx % 2 === 0;
                         return (
@@ -864,13 +865,7 @@ const Tournament = () => {
                   )}
 
                   {!isLast && !isPairing && (
-                    <div className="flex flex-col flex-shrink-0" style={{ width: 36 }}>
-                      {matchIds.map(id => (
-                        <div key={`c-${id}`} className="flex items-center" style={{ height: slotH }}>
-                          <div className={`w-full border-t-2 ${accentBorder}`} />
-                        </div>
-                      ))}
-                    </div>
+                    <div className="flex-shrink-0" style={{ width: 12 }} />
                   )}
                 </React.Fragment>
               );
@@ -882,10 +877,10 @@ const Tournament = () => {
 
     return (
       <div className="space-y-8">
-        {renderBracketSection(winnersRounds, 'Winners Bracket', '🏆', 'text-amber-400', 'border-amber-700/30')}
+        {renderBracketSection(winnersRounds, 'Winners Bracket', '🏆', 'text-amber-400', 'border-amber-600/50')}
 
         {Object.keys(losersRounds).length > 0 &&
-          renderBracketSection(losersRounds, 'Losers Bracket', '💀', 'text-red-400', 'border-red-800/30')}
+          renderBracketSection(losersRounds, 'Losers Bracket', '💀', 'text-red-400', 'border-red-700/50')}
 
         {hasGF && (
           <div>
