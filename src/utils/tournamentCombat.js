@@ -533,7 +533,7 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
         const alchC = classConstants.alchimiste;
         return dmgCap(Math.round(target.base.auto + target.base.cap * alchC.fireCapScale), caster.base.rescap) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBoost, true, true, turn);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
       log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
