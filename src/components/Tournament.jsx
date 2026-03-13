@@ -815,6 +815,8 @@ const Tournament = () => {
       const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
       if (roundKeys.length === 0) return null;
 
+      const maxMatchCount = Math.max(...roundKeys.map(k => rounds[k].length));
+
       const isMatchVisible = (matchId) => {
         const m = tournoi.matches[matchId];
         return m && shouldDisplayMatch(m);
@@ -828,9 +830,12 @@ const Tournament = () => {
           <div className="flex items-start overflow-x-auto pb-3">
             {roundKeys.map((round, rIdx) => {
               const matchIds = rounds[round];
-              const slotH = usePow2 ? SLOT_H * Math.pow(2, rIdx) : SLOT_H;
+              const slotH = usePow2
+                ? SLOT_H * Math.pow(2, rIdx)
+                : (SLOT_H * maxMatchCount) / matchIds.length;
               const isLast = rIdx === roundKeys.length - 1;
-              const isPairing = usePow2 && !isLast && matchIds.length >= 2;
+              const nextRoundCount = !isLast ? (rounds[roundKeys[rIdx + 1]]?.length || 0) : 0;
+              const isPairing = !isLast && matchIds.length >= 2 && nextRoundCount < matchIds.length;
 
               return (
                 <React.Fragment key={round}>
