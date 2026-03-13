@@ -830,12 +830,12 @@ const Tournament = () => {
           <div className="flex items-start overflow-x-auto pb-3">
             {roundKeys.map((round, rIdx) => {
               const matchIds = rounds[round];
-              const slotH = usePow2
-                ? SLOT_H * Math.pow(2, rIdx)
-                : (SLOT_H * maxMatchCount) / matchIds.length;
               const isLast = rIdx === roundKeys.length - 1;
               const nextRoundCount = !isLast ? (rounds[roundKeys[rIdx + 1]]?.length || 0) : 0;
               const isPairing = !isLast && matchIds.length >= 2 && nextRoundCount < matchIds.length;
+              const slotH = usePow2
+                ? SLOT_H * Math.pow(2, rIdx)
+                : (SLOT_H * maxMatchCount) / Math.max(matchIds.length, nextRoundCount || 1);
 
               return (
                 <React.Fragment key={round}>
@@ -844,9 +844,9 @@ const Tournament = () => {
                       const visible = isMatchVisible(id);
                       return (
                         <div key={id} className="flex items-center" style={{ height: slotH }}>
-                          {rIdx > 0 && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 20 }} />}
+                          {rIdx > 0 && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 24 }} />}
                           {renderBracketMatch(id)}
-                          {isPairing && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: 16 }} />}
+                          {!isLast && visible && <div className={`flex-shrink-0 border-t-2 ${accentBorder}`} style={{ width: isPairing ? 16 : 24 }} />}
                         </div>
                       );
                     })}
@@ -880,10 +880,6 @@ const Tournament = () => {
                         );
                       })}
                     </div>
-                  )}
-
-                  {!isLast && !isPairing && (
-                    <div className="flex-shrink-0" style={{ width: 12 }} />
                   )}
                 </React.Fragment>
               );
