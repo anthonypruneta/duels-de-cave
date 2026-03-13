@@ -13,7 +13,8 @@ export const cooldowns = {
   dem: 1,   // Demoniste - Familier (chaque tour)
   maso: 4,  // Masochiste - Renvoi dégâts
   succ: 4,  // Succube - Coup de fouet
-  bast: 4   // Bastion - Charge du rempart
+  bast: 4,  // Bastion - Charge du rempart
+  alch: 1   // Alchimiste - Cycle de flasques (chaque tour)
 };
 
 // Constantes des classes (valeurs réelles utilisées dans le combat)
@@ -72,6 +73,14 @@ export const classConstants = {
     startShieldFromDef: 0.30,    // Début combat: bouclier = 30% DEF
     capScale: 0.50,              // Inflige +50% CAP
     defScale: 0.50               // Inflige +50% DEF
+  },
+  alchimiste: {
+    cycleLength: 3,              // 3 phases : feu, vie, acide
+    fireCapScale: 0.10,          // Flasque de feu : Auto + 10% CAP
+    lifeCapScale: 0.10,          // Flasque de vie : Auto + 10% CAP (soin)
+    acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
+    acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
+    metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
   }
 };
 
@@ -79,7 +88,8 @@ export const classConstants = {
 const CLASS_NAME_TO_KEY = {
   'Guerrier': 'guerrier', 'Voleur': 'voleur', 'Paladin': 'paladin', 'Healer': 'healer',
   'Archer': 'archer', 'Mage': 'mage', 'Demoniste': 'demoniste', 'Masochiste': 'masochiste',
-  'Briseur de Sort': 'briseurSort', 'Succube': 'succube', 'Bastion': 'bastion'
+  'Briseur de Sort': 'briseurSort', 'Succube': 'succube', 'Bastion': 'bastion',
+  'Alchimiste': 'alchimiste'
 };
 
 /**
@@ -109,7 +119,9 @@ export const subclassConstants = {
   flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.16 }, // -20% DEF, +16% Auto
   ecorche_fer: { defRescapStack: 0.07 },               // +7% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
-  roublard: {}                                         // Vol stat (pas de ratio)
+  roublard: {},                                        // Vol stat (pas de ratio)
+  maitre_alchimiste: { fireCapScale: 0.20, lifeCapScale: 0.20, acidDefReduction: 0.20, acidRescReduction: 0.20 },
+  alchimiste_metal: { cycleLength: 4 }                 // 4 phases (ajout flasque de métal)
 };
 
 /**
@@ -146,6 +158,9 @@ export const raceConstants = {
     stealSpellCapDamageScale: 0.05,      // Copie de la première capacité reçue: +5% CAP aux dégâts
     ownCooldownReductionTurns: 0,
     noCooldownSpellBonus: 0              // Bonus dégâts capacité sans CD: uniquement à l'éveil
+  },
+  turtlekin: {
+    firstHitCapPercent: 0.10             // Premier coup reçu capé à 10% PV max
   }
 };
 
@@ -389,4 +404,4 @@ export const bossConstants = {
 // ============================================================================
 // CLASSES QUI PEUVENT SE SOIGNER (pour Branche d'Yggdrasil)
 // ============================================================================
-export const healingClasses = ['Healer', 'Masochiste'];
+export const healingClasses = ['Healer', 'Masochiste', 'Alchimiste'];

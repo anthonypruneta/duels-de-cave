@@ -13,7 +13,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * (combatMechanics, races, classes, weapons, mageTowerPassives).
  * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
  */
-export const BALANCE_CONFIG_VERSION = 28;
+export const BALANCE_CONFIG_VERSION = 29;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -26,7 +26,8 @@ const CLASS_TO_CD_KEY = {
   'Demoniste': 'dem',
   'Masochiste': 'maso',
   'Succube': 'succ',
-  'Bastion': 'bast'
+  'Bastion': 'bast',
+  'Alchimiste': 'alch'
 };
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));

@@ -286,7 +286,7 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
         const ratio = weaponConstants.codexArchon.secondCastDamage;
         if (capacityType === 'paladin') {
           effects.riposteTwice = true;
-        } else if (capacityType === 'heal') {
+        } else if (capacityType === 'heal' || capacityType === 'alch_heal') {
           effects.secondCastHeal = Math.round(damage * ratio);
         } else if (capacityType === 'maso') {
           effects.secondCastDamage = Math.round(damage * ratio);

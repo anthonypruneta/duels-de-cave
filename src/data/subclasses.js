@@ -51,6 +51,10 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'luxum', name: 'Luxum', bonus: '+10% CAP', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Soigne 25% des PV manquants + 40% Cap. À chaque lancement : gain d\'un bouclier égal à 10% de votre CAP. Convertit l\'overheal en bouclier.' },
     { id: 'latum', name: 'Latum', bonus: '+10% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 20% des PV manquants en dégâts à l\'ennemi (réduits par la ResC), puis soigne 25% des PV manquants + 40% Cap.' },
   ],
+  'Alchimiste': [
+    { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle de 3 flasques (vs ResC) :\n- Feu : Auto + 20% CAP\n- Vie : régénère Auto + 20% CAP\n- Acide : Auto et réduit DEF/ResC de 20%' },
+    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle de 4 flasques (vs ResC) :\n- Feu : Auto + 10% CAP\n- Vie : régénère Auto + 10% CAP\n- Acide : Auto et réduit DEF/ResC de 10%\n- Métal : Auto et stun 1 tour' },
+  ],
 };
 
 /**
@@ -78,6 +82,8 @@ export const SUBCLASS_STAT_BONUSES = {
   latum: { auto: 0.10 },
   flagellant_sanglant: { cap: 0.10 },
   ecorche_fer: { hp: 0.10 },
+  maitre_alchimiste: { cap: 0.10 },
+  alchimiste_metal: { auto: 0.10 },
 };
 
 /**

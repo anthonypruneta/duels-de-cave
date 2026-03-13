@@ -12,5 +12,6 @@ export const classes = {
   'Masochiste': { ability: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 9% des dégâts accumulés + 0,5% de votre Cap. Se soigne de 15% des dégâts accumulés.', icon: '🩸' },
   'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi une capacité, gagne un bouclier égal à 40% des dégâts reçus + 25% de votre CAP. Réduit les soins adverses de 20%. Auto + 10% CAP.', icon: '🧱' },
   'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 35% CAP. La prochaine attaque adverse inflige -50% dégâts.', icon: '💋' },
-  'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +8% DEF. Inflige auto + 50% CAP + 50% DEF.', icon: '🏰' }
+  'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +8% DEF. Inflige auto + 50% CAP + 50% DEF.', icon: '🏰' },
+  'Alchimiste': { ability: 'Cycle de flasques (Passif)', description: 'Pas d\'auto classique. Cycle de 3 flasques (vs ResC) :\n- Feu : inflige Auto + 10% CAP\n- Vie : régénère Auto + 10% CAP\n- Acide : inflige Auto et réduit DEF/ResC de 10%', icon: '🧪' }
 };

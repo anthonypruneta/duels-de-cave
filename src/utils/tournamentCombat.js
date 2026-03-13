@@ -139,6 +139,7 @@ function mergeAwakeningEffects(effects = []) {
     if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
 
     if (effect.reviveOnce) acc.reviveOnce = true;
+    if (effect.turtlekinResetAt50) acc.turtlekinResetAt50 = true;
     if (typeof effect.damageBonus === 'number') acc.damageBonus = effect.damageBonus;
 
     return acc;
@@ -238,7 +239,7 @@ export function preparerCombattant(char) {
     baseWithBoosts,
     currentHP: startHP,
     maxHP: baseFinal.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,
@@ -260,6 +261,9 @@ export function preparerCombattant(char) {
     boneGuardActive: false,
     _labrysBleedPercent: 0,
     onctionLastStandUsed: false,
+    turtlekinFirstHitUsed: false,
+    turtlekinResetAt50Used: false,
+    alchPhase: 0,
     weaponState,
     awakening: buildAwakeningState(awakeningEffect)
   };
@@ -496,6 +500,15 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
       }
       break;
     }
+    case 'Alchimiste': {
+      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+        const alchC = classConstants.alchimiste;
+        return dmgCap(Math.round(target.base.auto + target.base.cap * alchC.fireCapScale), caster.base.rescap) + capBonus;
+      })();
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBoost, true, true, turn);
+      log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !`);
+      break;
+    }
     default: {
       const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : Math.max(1, Math.round(target.base.cap * capScale));
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
@@ -600,6 +613,15 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
     return 0;
   }
+  // Turtlekin : cap le premier coup reçu à 10% PV max
+  if ((def.race === 'Turtlekin' || def.awakening?.turtlekinResetAt50) && !def.turtlekinFirstHitUsed && adjusted > 0) {
+    const maxDmg = Math.max(1, Math.round(def.maxHP * raceConstants.turtlekin.firstHitCapPercent));
+    if (adjusted > maxDmg) {
+      log.push(`${playerColor} 🐢 Carapace de ${def.name} absorbe le choc ! Dégâts réduits de ${adjusted} à ${maxDmg}.`);
+      adjusted = maxDmg;
+    }
+    def.turtlekinFirstHitUsed = true;
+  }
   if (def.shield > 0 && adjusted > 0) {
     const absorbed = Math.min(def.shield, adjusted);
     def.shield -= absorbed;
@@ -633,6 +655,13 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     tryTriggerOnctionLastStand(def, log, playerColor);
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+
+    // Turtlekin éveillé : réinitialise le passif quand il atteint 50% PV pour la première fois
+    if (def.awakening?.turtlekinResetAt50 && def.turtlekinFirstHitUsed && !def.turtlekinResetAt50Used && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.5) {
+      def.turtlekinFirstHitUsed = false;
+      def.turtlekinResetAt50Used = true;
+      log.push(`${playerColor} 🐢 Éveil Turtlekin: la carapace de ${def.name} se régénère !`);
+    }
 
     if (isCapacityDamage) {
       grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor);
@@ -1068,6 +1097,182 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  // ===== ALCHIMISTE : Cycle de flasques =====
+  const isAlchimiste = !capacityStolen && att.class === 'Alchimiste';
+  const alchVerdictSkip = isAlchimiste && shouldSkipVerdictDemonFamiliar(att.weaponState, turn);
+  if (isAlchimiste && !alchVerdictSkip) {
+    skillUsed = true;
+    const alchC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+    const cycleLen = alchC.cycleLength ?? classConstants.alchimiste.cycleLength;
+    const phase = att.alchPhase % cycleLen;
+    const spellCapMult = consumeAuraCapacityCapMultiplier();
+    const fireCapScale = alchC.fireCapScale ?? classConstants.alchimiste.fireCapScale;
+    const lifeCapScale = alchC.lifeCapScale ?? classConstants.alchimiste.lifeCapScale;
+    const acidDefRed = alchC.acidDefReduction ?? classConstants.alchimiste.acidDefReduction;
+    const acidRescRed = alchC.acidRescReduction ?? classConstants.alchimiste.acidRescReduction;
+
+    if (phase === 0) {
+      // Flasque de feu : dégâts vs ResC
+      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round((att.base.auto + att.base.cap * spellCapMult * fireCapScale) * mult), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const verdictBonus = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonus.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonus.damageMultiplier);
+        verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
+      // Sirène stacks
+      if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
+        const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+        raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 🧪🔥 ${att.name} lance une flasque de feu sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}`);
+      // onAttack pour les armes (Option B : flasques offensives déclenchent les hooks)
+      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      // Codex Archon
+      const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
+        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de feu et inflige ${inflictedCodex} dégâts`);
+      }
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+
+    } else if (phase === 1) {
+      // Flasque de vie : soin
+      let baseHeal = Math.max(1, Math.round((att.base.auto + att.base.cap * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
+      // Sirène stacks (boost soins)
+      if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
+        const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+        baseHeal = Math.max(1, Math.round(baseHeal * (1 + stackBonus * att.sireneStacks)));
+      }
+      const verdictBonus = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonus.healMultiplier !== 1) {
+        baseHeal = Math.max(1, Math.round(baseHeal * verdictBonus.healMultiplier));
+        verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
+      const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
+      const heal = healCritResult.amount;
+      att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
+      log.push(`${playerColor} 🧪💚 ${att.name} boit une flasque de vie et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}`);
+      const healEffects = onHeal(att.weaponState, att, heal, def);
+      if (healEffects.bonusDamage > 0) {
+        const bonusDmg = dmgCap(healEffects.bonusDamage, def.base.rescap);
+        applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        log.push(`${playerColor} ${healEffects.log.join(' ')}`);
+      }
+      // Codex Archon (double soin)
+      const spellEffects = onCapacityCast(att.weaponState, att, def, heal, 'alch_heal');
+      if (spellEffects.doubleCast && spellEffects.secondCastHeal > 0) {
+        att.currentHP = Math.min(att.maxHP, att.currentHP + spellEffects.secondCastHeal);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} boit une seconde flasque de vie et récupère ${spellEffects.secondCastHeal} PV`);
+      }
+      // Mindflayer copie
+      if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
+        triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, null, heal, turn);
+      }
+
+    } else if (phase === 2) {
+      // Flasque d'acide : dégâts + réduction DEF/ResC
+      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const verdictBonus = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonus.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonus.damageMultiplier);
+        verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
+      // Sirène stacks
+      if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
+        const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+        raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      // Réduction DEF/ResC
+      const defBefore = def.base.def;
+      const rescBefore = def.base.rescap;
+      def.base = {
+        ...def.base,
+        def: Math.max(1, Math.round(def.base.def * (1 - acidDefRed))),
+        rescap: Math.max(1, Math.round(def.base.rescap * (1 - acidRescRed)))
+      };
+      log.push(`${playerColor} 🧪🟢 ${att.name} lance une flasque d'acide sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. DEF -${Math.round(acidDefRed * 100)}% (${defBefore}→${def.base.def}), ResC -${Math.round(acidRescRed * 100)}% (${rescBefore}→${def.base.rescap}).`);
+      // onAttack pour les armes
+      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      // Codex Archon
+      const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
+        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque d'acide et inflige ${inflictedCodex} dégâts`);
+      }
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+
+    } else if (phase === 3) {
+      // Flasque de métal (sous-classe Alchimiste de Métal uniquement)
+      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const verdictBonus = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonus.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonus.damageMultiplier);
+        verdictBonus.log.forEach(l => log.push(`${playerColor} ${l}`));
+      }
+      // Sirène stacks
+      if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
+        const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+        raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      const stunDur = alchC.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
+      if (def.currentHP > 0) {
+        def.stunned = true;
+        def.stunnedTurns = stunDur;
+      }
+      log.push(`${playerColor} 🧪⚙️ ${att.name} lance une flasque de métal sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. ${def.name} est étourdi ${stunDur} tour !`);
+      // onAttack pour les armes
+      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      // Codex Archon
+      const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
+      if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
+        const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de métal et inflige ${inflictedCodex} dégâts`);
+      }
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+    }
+
+    att.alchPhase = (att.alchPhase + 1) % cycleLen;
+  }
+
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerCapacityCooldown(att, def, 'rog') && !capacityStolen) {
     skillUsed = true;
     consumeAuraCapacityCapMultiplier();
@@ -1216,7 +1421,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
   if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
 
-  const baseHits = isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
+  const baseHits = (isAlchimiste && !alchVerdictSkip) ? 0 : isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
   let total = 0;
   let wasCrit = false;

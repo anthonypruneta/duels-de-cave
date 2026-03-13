@@ -99,6 +99,7 @@ export function mergeAwakeningEffects(effects = []) {
     if (typeof effect.revivePercent === 'number') acc.revivePercent = Math.max(acc.revivePercent ?? 0, effect.revivePercent);
     if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
     if (effect.reviveOnce) acc.reviveOnce = true;
+    if (effect.turtlekinResetAt50) acc.turtlekinResetAt50 = true;
     if (typeof effect.damageBonus === 'number') acc.damageBonus = effect.damageBonus;
     return acc;
   }, {});

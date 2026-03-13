@@ -168,5 +168,16 @@ export const races = {
         mindflayerNoCooldownSpellBonus: 1.00
       }
     }
+  },
+  'Turtlekin': {
+    bonus: 'Le premier coup reçu ne peut dépasser 10% de vos PV max',
+    icon: '🐢',
+    awakening: {
+      levelRequired: 100,
+      description: 'Le premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      effect: {
+        turtlekinResetAt50: true
+      }
+    }
   }
 };

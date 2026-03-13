@@ -190,6 +190,15 @@ export const TITLES = {
     category: 'racial',
     race: 'Mindflayer',
   },
+  title_turtlekin: {
+    id: 'title_turtlekin',
+    male: 'Forteresse Vivante',
+    female: 'Forteresse Vivante',
+    description: 'Gagner un combat où la carapace a réduit un coup de plus de 30% de vos PV max',
+    icon: '🐢',
+    category: 'racial',
+    race: 'Turtlekin',
+  },
 
   // ======================== NOUVEAUX TITRES ========================
 
@@ -526,7 +535,7 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
     });
     if (deathStep) {
       const hasAbilityKill = deathStep.logs?.some(l =>
-        l.includes(playerPrefix) && (l.includes('capacité') || l.includes('sort') || l.includes('Explosion') || l.includes('Souffle') || l.includes('tir') || l.includes('Tir') || l.includes('riposte') || l.includes('purge') || l.includes('fouet') || l.includes('Charge'))
+        l.includes(playerPrefix) && (l.includes('capacité') || l.includes('sort') || l.includes('Explosion') || l.includes('Souffle') || l.includes('tir') || l.includes('Tir') || l.includes('riposte') || l.includes('purge') || l.includes('fouet') || l.includes('Charge') || l.includes('flasque'))
       );
       if (hasAbilityKill) detected.push('executeur');
     }
@@ -739,6 +748,26 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
       s.logs?.some(l => l.includes(playerPrefix) && (l.includes('copie') || l.includes('Copie')))
     );
     if (copiedSpell) detected.push('title_mindflayer');
+  }
+
+  // --- title_turtlekin : la carapace a réduit un coup de plus de 30% PV max ---
+  if (isWinner && playerRace === 'Turtlekin') {
+    const shellPrefix = playerIsP1 ? '[P2]' : '[P1]';
+    for (const step of steps) {
+      for (const log of (step.logs || [])) {
+        if (log.includes(shellPrefix) && log.includes('Carapace') && log.includes('absorbe le choc')) {
+          const match = log.match(/réduits de (\d+) à (\d+)/);
+          if (match) {
+            const reduction = parseInt(match[1], 10) - parseInt(match[2], 10);
+            if (reduction >= playerMaxHP * 0.3) {
+              detected.push('title_turtlekin');
+              break;
+            }
+          }
+        }
+      }
+      if (detected.includes('title_turtlekin')) break;
+    }
   }
 
   return detected;
