@@ -814,6 +814,8 @@ const Tournament = () => {
       const roundKeys = Object.keys(rounds).map(Number).sort((a, b) => a - b);
       if (roundKeys.length === 0) return null;
 
+      const firstRoundCount = rounds[roundKeys[0]].length;
+
       return (
         <div>
           <h3 className={`text-sm font-bold ${labelColor} uppercase tracking-widest mb-4 flex items-center gap-2`}>
@@ -821,9 +823,11 @@ const Tournament = () => {
           </h3>
           <div className="flex items-start overflow-x-auto pb-3">
             {roundKeys.map((round, rIdx) => {
-              const slotH = SLOT_H * Math.pow(2, rIdx);
               const matchIds = rounds[round];
+              const slotH = (SLOT_H * firstRoundCount) / matchIds.length;
               const isLast = rIdx === roundKeys.length - 1;
+              const nextRoundCount = !isLast ? (rounds[roundKeys[rIdx + 1]]?.length || 0) : 0;
+              const isPairing = !isLast && nextRoundCount < matchIds.length;
 
               return (
                 <React.Fragment key={round}>
@@ -836,7 +840,7 @@ const Tournament = () => {
                     ))}
                   </div>
 
-                  {!isLast && matchIds.length >= 2 && (
+                  {isPairing && matchIds.length >= 2 && (
                     <div className="flex flex-col flex-shrink-0" style={{ width: 36 }}>
                       {matchIds.map((id, mIdx) => {
                         const isTop = mIdx % 2 === 0;
@@ -859,7 +863,7 @@ const Tournament = () => {
                     </div>
                   )}
 
-                  {!isLast && matchIds.length === 1 && (
+                  {!isLast && !isPairing && (
                     <div className="flex flex-col flex-shrink-0" style={{ width: 36 }}>
                       {matchIds.map(id => (
                         <div key={`c-${id}`} className="flex items-center" style={{ height: slotH }}>
