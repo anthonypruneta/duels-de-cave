@@ -199,13 +199,13 @@ export const weapons = {
     },
     effet: {
       nom: 'Protection Divine',
-      description: 'Ajoute 10% de la DEF et 10% de la RESC à l\'Auto.',
+      description: 'Ajoute 7% de la DEF et 7% de la RESC à l\'Auto.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        defToAtkPercent: 0.1,    // 10% DEF → Auto
-        rescapToAtkPercent: 0.1, // 10% RESC → Auto
+        defToAtkPercent: 0.07,   // 7% DEF → Auto
+        rescapToAtkPercent: 0.07, // 7% RESC → Auto
       },
     },
     description: 'Le bouclier légendaire de la déesse de la guerre.',
@@ -373,10 +373,10 @@ export const weapons = {
     },
     effet: {
       nom: 'Tonnerre Divin',
-      description: 'Toutes les 5 attaques, étourdit l\'ennemi pendant 1 tour.',
+      description: 'Toutes les 6 attaques, étourdit l\'ennemi pendant 1 tour.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_ATTACKS,
-        n: 5,
+        n: 6,
       },
       values: {
         stunDuration: 1,          // 1 tour de stun
@@ -431,12 +431,12 @@ export const weapons = {
     },
     effet: {
       nom: 'Serment d\'Odin',
-      description: 'Au premier coup du combat, applique -10% Auto permanent à l\'ennemi (non cumulable).',
+      description: 'Au premier coup du combat, applique -8% Auto permanent à l\'ennemi (non cumulable).',
       trigger: {
         type: TRIGGER_TYPES.FIRST_HIT,
       },
       values: {
-        atkReductionPercent: 0.1, // -10% Auto ennemi
+        atkReductionPercent: 0.08, // -8% Auto ennemi
         stackable: false,         // Non cumulable
       },
     },
@@ -546,14 +546,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Arcane Majeure',
-      description: 'Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait 70% de dégâts.',
+      description: 'Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait 80% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
         everyN: 2,                // Se déclenche toutes les 2 capacités
       },
       values: {
         doubleCast: true,
-        secondCastDamage: 0.7,    // 70% des dégâts/soins
+        secondCastDamage: 0.8,    // 80% des dégâts/soins
       },
     },
     description: 'Le livre ultime des arcanes, rédigé par les Archons primordiaux.',
@@ -789,14 +789,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Moisson Mortelle',
-      description: 'Vos attaques infligent des dégâts bruts bonus égaux à 5% des PV manquants de l\'ennemi.\nQuand l\'ennemi passe sous 20% PV : inflige 8% de ses PV max en dégâts bruts (1 fois).',
+      description: 'Vos attaques infligent des dégâts bruts bonus égaux à 3% des PV manquants de l\'ennemi.\nQuand l\'ennemi passe sous 20% PV : inflige 5% de ses PV max en dégâts bruts (1 fois).',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        missingHpDamagePercent: 0.05,
+        missingHpDamagePercent: 0.03,
         executeThreshold: 0.20,
-        executePercent: 0.08,
+        executePercent: 0.05,
       },
     },
     description: 'La faux du dieu de la mort, qui moissonne les âmes affaiblies.',
@@ -851,14 +851,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Couronne Siphonnante',
-      description: 'Chaque capacité lancée augmente votre CAP de 4% (max 5 stacks = +20%).\nS\'applique aussi aux soins basés sur la CAP.',
+      description: 'Chaque capacité lancée augmente votre CAP de 6% (max 6 stacks = +36%).\nS\'applique aussi aux soins basés sur la CAP.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
         everyN: 1,
       },
       values: {
-        capStackPercent: 0.04,
-        maxCapStacks: 5,
+        capStackPercent: 0.06,
+        maxCapStacks: 6,
       },
     },
     description: 'Le sceptre du Roi-Sorcier, dont le pouvoir croît à chaque incantation.',
