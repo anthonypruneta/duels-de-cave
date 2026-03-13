@@ -1067,54 +1067,8 @@ const CharacterCreation = () => {
         {PseudoModal}
         <div className="max-w-[1400px] mx-auto pt-20">
           <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
-            {/* Character Card (image + name) */}
-            <div className="relative flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
-              <div className="shadow-2xl">
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-                  {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
-                </div>
-                <div className={`relative overflow-hidden bg-stone-900 rounded-lg ${
-                  (() => {
-                    const bid = resolveBorderId(existingCharacter.equippedBorder);
-                    return bid !== 'default' ? (getBorderGlowClass(bid) || '') : 'border border-stone-600';
-                  })()
-                }`}>
-                  {(() => {
-                    const bid = resolveBorderId(existingCharacter.equippedBorder);
-                    return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
-                  })()}
-                  <InteractiveCharacterCard>
-                    <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
-                      {existingCharacter.characterImage ? (
-                        <img
-                          src={existingCharacter.characterImage}
-                          alt={existingCharacter.name}
-                          className="w-full h-auto object-contain"
-                        />
-                      ) : (
-                        <div className="h-96 w-full flex items-center justify-center">
-                          <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
-                        </div>
-                      )}
-                      <div
-                        className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
-                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
-                      >
-                        <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
-                        {existingCharacter.equippedTitle && (
-                          <div className="character-card-name text-sm leading-tight mt-0.5">
-                            {getDisplayTitle(existingCharacter.equippedTitle, existingCharacter.gender)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </InteractiveCharacterCard>
-                </div>
-              </div>
-            </div>
-
             {/* Info Panel (stats, weapon, passive, etc.) */}
-            <div className="w-full lg:w-[320px] lg:flex-shrink-0">
+            <div className="order-2 lg:order-1 w-full lg:w-[320px] lg:flex-shrink-0">
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl overflow-visible shadow-lg">
                 <div className="p-4 space-y-3 overflow-visible">
                   <div className="flex justify-between text-sm text-white font-bold">
@@ -1281,9 +1235,55 @@ const CharacterCreation = () => {
               </div>
             </div>
 
+            {/* Character Card (image + name) */}
+            <div className="order-1 lg:order-2 relative flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
+              <div className="shadow-2xl">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+                  {existingCharacter.race} • {existingCharacter.class} • Niveau {existingCharacter.level ?? 1}
+                </div>
+                <div className={`relative overflow-hidden bg-stone-900 rounded-lg ${
+                  (() => {
+                    const bid = resolveBorderId(existingCharacter.equippedBorder);
+                    return bid !== 'default' ? (getBorderGlowClass(bid) || '') : 'border border-stone-600';
+                  })()
+                }`}>
+                  {(() => {
+                    const bid = resolveBorderId(existingCharacter.equippedBorder);
+                    return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
+                  })()}
+                  <InteractiveCharacterCard>
+                    <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
+                      {existingCharacter.characterImage ? (
+                        <img
+                          src={existingCharacter.characterImage}
+                          alt={existingCharacter.name}
+                          className="w-full h-auto object-contain"
+                        />
+                      ) : (
+                        <div className="h-96 w-full flex items-center justify-center">
+                          <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
+                        </div>
+                      )}
+                      <div
+                        className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
+                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
+                      >
+                        <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
+                        {existingCharacter.equippedTitle && (
+                          <div className="character-card-name text-sm leading-tight mt-0.5">
+                            {getDisplayTitle(existingCharacter.equippedTitle, existingCharacter.gender)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </InteractiveCharacterCard>
+                </div>
+              </div>
+            </div>
+
             {/* Recap Panel */}
             {recapData && (
-              <div className="w-full lg:w-[240px] lg:flex-shrink-0">
+              <div className="order-3 w-full lg:w-[240px] lg:flex-shrink-0">
                 <RecapPanel data={recapData} />
               </div>
             )}

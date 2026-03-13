@@ -535,7 +535,7 @@ export default function Taverne() {
                   Fermer
                 </button>
               </div>
-              <CharacterCardContent character={selectedCharacter} />
+              <CharacterCardContent character={selectedCharacter} detailsPlacement="left" />
               <div className="mt-4 p-3 border border-stone-600 bg-stone-800/80 rounded-lg">
                 <h4 className="text-amber-400 font-bold text-sm mb-2">📊 Progression cette semaine</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-300">
