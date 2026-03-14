@@ -10,6 +10,7 @@
 import { doc, getDoc, setDoc, getDocs, collection, query, where, Timestamp, increment } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { detectTitlesFromCombat, getFormattedTitle } from '../data/titles';
+import { saveAccountTitles } from './characterService';
 
 /**
  * Vérifie si de nouveaux titres ont été obtenus après un combat et les enregistre.
@@ -42,6 +43,7 @@ export async function checkAndAwardTitles(userId, steps, result, playerChar, con
       earnedTitles: updatedEarned,
       updatedAt: Timestamp.now(),
     }, { merge: true });
+    saveAccountTitles(userId, updatedEarned, data.equippedTitle);
 
     return newTitles;
   } catch (err) {
@@ -161,6 +163,7 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
       earnedTitles: updatedEarned,
       updatedAt: Timestamp.now(),
     }, { merge: true });
+    saveAccountTitles(userId, updatedEarned, charData.equippedTitle);
 
     return newTitles;
   } catch (err) {
@@ -207,6 +210,7 @@ export async function equipTitle(userId, titleId) {
       equippedTitle: titleId || null,
       updatedAt: Timestamp.now(),
     }, { merge: true });
+    saveAccountTitles(userId, undefined, titleId);
   } catch (err) {
     console.error('Erreur lors de l\'équipement du titre:', err);
   }

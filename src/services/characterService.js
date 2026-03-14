@@ -77,15 +77,21 @@ export const saveCharacter = async (userId, characterData) => {
         }
       }
       const persistedCosmetics = {};
+      const accountTitles = await getAccountTitles(userId);
       if (existingSnap.exists()) {
         const prev = existingSnap.data();
-        if (prev.earnedTitles?.length) persistedCosmetics.earnedTitles = prev.earnedTitles;
-        if (prev.equippedTitle)        persistedCosmetics.equippedTitle = prev.equippedTitle;
+        const charTitles = prev.earnedTitles || [];
+        const merged = [...new Set([...charTitles, ...accountTitles.earnedTitles])];
+        if (merged.length) persistedCosmetics.earnedTitles = merged;
+        persistedCosmetics.equippedTitle = prev.equippedTitle || accountTitles.equippedTitle || null;
         const accountBorders = (prev.unlockedBorders || []).filter(id => ACCOUNT_BORDER_IDS.has(id));
         if (accountBorders.length) persistedCosmetics.unlockedBorders = accountBorders;
         if (prev.equippedBorder && ACCOUNT_BORDER_IDS.has(prev.equippedBorder)) {
           persistedCosmetics.equippedBorder = prev.equippedBorder;
         }
+      } else if (accountTitles.earnedTitles.length) {
+        persistedCosmetics.earnedTitles = accountTitles.earnedTitles;
+        persistedCosmetics.equippedTitle = accountTitles.equippedTitle;
       }
 
       const data = {
@@ -96,6 +102,9 @@ export const saveCharacter = async (userId, characterData) => {
         updatedAt: Timestamp.now()
       };
       await setDoc(characterRef, data);
+      if (data.earnedTitles?.length) {
+        await saveAccountTitles(userId, data.earnedTitles, data.equippedTitle);
+      }
       return data;
     });
     return { success: true, data: result };
@@ -259,6 +268,13 @@ export const deleteCharacter = async (userId) => {
   try {
     await retryOperation(async () => {
       const characterRef = doc(db, 'characters', userId);
+      const snap = await getDoc(characterRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.earnedTitles?.length) {
+          await saveAccountTitles(userId, data.earnedTitles, data.equippedTitle);
+        }
+      }
       await deleteDoc(characterRef);
     });
     console.log('Personnage supprimé:', userId);
@@ -547,6 +563,39 @@ export const toggleCharacterDisabled = async (userId, disabled) => {
   }
 };
 
+
+// Sauvegarder les titres au niveau du compte (userPreferences)
+export const saveAccountTitles = async (userId, earnedTitles, equippedTitle) => {
+  try {
+    await retryOperation(async () => {
+      const prefsRef = doc(db, 'userPreferences', userId);
+      const update = { updatedAt: Timestamp.now() };
+      if (earnedTitles) update.earnedTitles = earnedTitles;
+      if (equippedTitle !== undefined) update.equippedTitle = equippedTitle || null;
+      await setDoc(prefsRef, update, { merge: true });
+    });
+  } catch (error) {
+    console.error('Erreur sauvegarde titres compte:', error);
+  }
+};
+
+// Récupérer les titres sauvegardés au niveau du compte
+export const getAccountTitles = async (userId) => {
+  try {
+    await waitForFirestore();
+    const prefsRef = doc(db, 'userPreferences', userId);
+    const snap = await getDoc(prefsRef);
+    if (!snap.exists()) return { earnedTitles: [], equippedTitle: null };
+    const data = snap.data();
+    return {
+      earnedTitles: data.earnedTitles || [],
+      equippedTitle: data.equippedTitle || null,
+    };
+  } catch (error) {
+    console.error('Erreur lecture titres compte:', error);
+    return { earnedTitles: [], equippedTitle: null };
+  }
+};
 
 // Récupérer le pseudo enregistré sur le compte (Firestore)
 export const getOwnerPseudoFromAccount = async (userId) => {
