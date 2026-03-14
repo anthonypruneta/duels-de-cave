@@ -86,10 +86,10 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort:\n- explosion 6% PV max\n- résurrection 17% PV max',
+      description: 'Première mort:\n- explosion 6% PV max\n- résurrection 15% PV max',
       effect: {
         explosionPercent: 0.06,
-        revivePercent: 0.17,
+        revivePercent: 0.15,
         reviveOnce: true
       }
     }
@@ -170,16 +170,16 @@ export const races = {
     }
   },
   'Turtlekin': {
-    bonus: '+5 DEF, +5 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
+    bonus: '+8 DEF, +8 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
     icon: '🐢',
     awakening: {
       levelRequired: 100,
-      description: '+10% DEF, +10% ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      description: '+15% DEF, +15% ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
       effect: {
         turtlekinResetAt50: true,
         statMultipliers: {
-          def: 1.10,
-          rescap: 1.10
+          def: 1.15,
+          rescap: 1.15
         }
       }
     }

@@ -54,15 +54,15 @@ export const classConstants = {
     stackPerAuto: 0.008    // +0,8% de Cap par auto (cumulable)
   },
   masochiste: {
-    returnBase: 0.07,      // 7% des dégâts accumulés
+    returnBase: 0.06,      // 6% des dégâts accumulés
     returnPerCap: 0.005,   // +0.5% par point de Cap
-    healPercent: 0.12      // Heal 12% des dégâts accumulés
+    healPercent: 0.10      // Heal 10% des dégâts accumulés
   },
   briseurSort: {
-    shieldFromSpellDamage: 0.40,  // 40% des dégâts reçus en bouclier
-    shieldFromCap: 0.25,          // +25% de CAP
+    shieldFromSpellDamage: 0.50,  // 50% des dégâts reçus en bouclier
+    shieldFromCap: 0.30,          // +30% de CAP
     antiHealReduction: 0.20,      // Réduit soins adverses de 20%
-    autoCapBonus: 0.10            // Auto + 10% CAP
+    autoCapBonus: 0.15            // Auto + 15% CAP
   },
   succube: {
     capScale: 0.45,              // +45% CAP
@@ -100,24 +100,24 @@ const CLASS_NAME_TO_KEY = {
 export const subclassConstants = {
   maitre_armes: { capScale: 0.10 },                    // Auto + 10% CAP (ignore def/resC)
   duracier: { shieldAutoPercent: 0.25, shieldCapPercent: 0.008 }, // Bouclier 15% Auto + 0,5% CAP
-  croise_lumineux: { nextAttackReduction: 0.20 },      // -20% dégâts prochaine attaque
-  juge_implacable: { defReductionStack: 0.02 },        // -3% DEF ennemi (stackable)
+  croise_lumineux: { nextAttackReduction: 0.30 },      // -20% dégâts prochaine attaque
+  juge_implacable: { defReductionStack: 0.015 },        // -3% DEF ennemi (stackable)
   sniper: { hit2AutoMultiplier: 1.40 },                // 2e tir 150% Auto
-  chasseur_fantome: { ghostHunterCapBonus: 0.30 },     // +20% CAP après crit
+  chasseur_fantome: { ghostHunterCapBonus: 0.40 },     // +20% CAP après crit
   arcaniste_instable: { damageTakenStack: 0.06 },     // +5% dégâts subis (stackable)
   sorcier_neant: {},                                  // Brûlure (pas de ratio CAP overridable ici)
   maitre_invocateur: { capBase: 0.50, ignoreResist: 0.50, stackPerAuto: 0.008 },  // 50% Cap, 50% ignore, +1% Cap/auto
-  pacte_sombre: { capBase: 0.45, ignoreResist: 0.45, stackPerAuto: 0.008, capStealPercent: 0.05 }, // 45% + vol 3% CAP
-  stratege_arcanique: { nextSpellReduction: 0.30 },    // -30% dégâts prochain sort
+  pacte_sombre: { capBase: 0.50, ignoreResist: 0.45, stackPerAuto: 0.008, capStealPercent: 0.06 }, // 45% + vol 3% CAP
+  stratege_arcanique: { nextSpellReduction: 0.40 },    // -30% dégâts prochain sort
   mentaliste: { defBonusStack: 0.08 },                 // +8% DEF (stackable)
   dompteuse_chair: { autoReductionStack: 0.09 },       // -6% Auto ennemi (stackable)
   ame_tentatrice: {},                                  // Crit alterné (pas de ratio)
-  rempart_fer: { startShieldFromDef: 0.50 },          // Bouclier 50% DEF
+  rempart_fer: { startShieldFromDef: 0.45 },          // Bouclier 50% DEF
   mur_implacable: { startShieldFromDef: 0.40 },        // 30% DEF (priorité au tour capacité)
-  luxum: { capShieldPercent: 0.15 },                   // Bouclier 10% CAP au soin
-  latum: { missingHpDamagePercent: 0.20 },             // 20% PV manquants en dégâts
+  luxum: { capShieldPercent: 0.25 },                   // Bouclier 10% CAP au soin
+  latum: { missingHpDamagePercent: 0.15 },             // 20% PV manquants en dégâts
   flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.12 }, // -20% DEF, +16% Auto
-  ecorche_fer: { defRescapStack: 0.05 },               // +7% DEF et ResC par Purge
+  ecorche_fer: { defRescapStack: 0.03 },               // +7% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
   maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 0.30, acidDefReduction: 0.25, acidRescReduction: 0.25 },
@@ -161,8 +161,8 @@ export const raceConstants = {
   },
   turtlekin: {
     firstHitCapPercent: 0.10,            // Premier coup reçu capé à 10% PV max
-    def: 5,
-    rescap: 5
+    def: 8,
+    rescap: 8
   }
 };
 
@@ -308,14 +308,14 @@ export const weaponConstants = {
 
   // Égide d'Athéna (Bouclier légendaire)
   egide: {
-    defToAtkPercent: 0.07,    // 7% DEF → Auto
-    rescapToAtkPercent: 0.07, // 7% RESC → Auto
+    defToAtkPercent: 0.06,    // 6% DEF → Auto
+    rescapToAtkPercent: 0.06, // 6% RESC → Auto
   },
 
   // Zweihänder (Épée légendaire)
   zweihander: {
     triggerEveryNTurns: 4,
-    damageBonus: 0.3,          // +30% dégâts
+    damageBonus: 0.25,         // +25% dégâts
     priorityOverride: true,
   },
 
@@ -347,7 +347,7 @@ export const weaponConstants = {
   // Codex Archon (Tome légendaire)
   codexArchon: {
     doubleCastEveryN: 2,       // Se déclenche toutes les 2 capacités (2e, 4e, 6e…)
-    secondCastDamage: 0.8,      // 80% des dégâts/soins
+    secondCastDamage: 0.9,      // 90% des dégâts/soins
   },
 
   // Fléau d'Anathème (Fléau légendaire) — Vague 2
@@ -365,7 +365,7 @@ export const weaponConstants = {
 
   // Labrys d'Arès (Hache légendaire) — Vague 2
   labrysAres: {
-    initialBleedPercent: 0.03,   // 3% HP max par auto de la cible
+    initialBleedPercent: 0.025,  // 2.5% HP max par auto de la cible
     bleedDecayPercent: 0.01,     // Réduit de 1% par auto
     rawDamage: true,             // Dégâts bruts (ignorent DEF/ResC)
   },
@@ -379,8 +379,8 @@ export const weaponConstants = {
 
   // Sceptre du Roi-Sorcier (Sceptre légendaire) — Vague 3
   sceptreRoiSorcier: {
-    capStackPercent: 0.06,        // +6% CAP par capacité lancée
-    maxCapStacks: 6,              // Max 6 stacks (+36%)
+    capStackPercent: 0.08,        // +8% CAP par capacité lancée
+    maxCapStacks: 7,              // Max 7 stacks (+56%)
   },
 
   // Pendule de Chronos (Pendule légendaire) — Vague 3

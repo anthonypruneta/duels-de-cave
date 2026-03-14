@@ -199,13 +199,13 @@ export const weapons = {
     },
     effet: {
       nom: 'Protection Divine',
-      description: 'Ajoute 7% de la DEF et 7% de la RESC à l\'Auto.',
+      description: 'Ajoute 6% de la DEF et 6% de la RESC à l\'Auto.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        defToAtkPercent: 0.07,   // 7% DEF → Auto
-        rescapToAtkPercent: 0.07, // 7% RESC → Auto
+        defToAtkPercent: 0.06,   // 6% DEF → Auto
+        rescapToAtkPercent: 0.06, // 6% RESC → Auto
       },
     },
     description: 'Le bouclier légendaire de la déesse de la guerre.',
@@ -255,13 +255,13 @@ export const weapons = {
     },
     effet: {
       nom: 'Frappe Dévastatrice',
-      description: 'Tous les 4 tours, frappe en premier et inflige +30% de dégâts.',
+      description: 'Tous les 4 tours, frappe en premier et inflige +25% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_TURNS,
         n: 4,
       },
       values: {
-        damageBonus: 0.3,         // +30% dégâts
+        damageBonus: 0.25,        // +25% dégâts
         priorityOverride: true,   // Frappe en premier
       },
     },
@@ -546,14 +546,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Arcane Majeure',
-      description: 'Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait 80% de dégâts.',
+      description: 'Chaque capacité sur deux (2e, 4e, 6e…) se lance deux fois et fait 90% de dégâts.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
         everyN: 2,                // Se déclenche toutes les 2 capacités
       },
       values: {
         doubleCast: true,
-        secondCastDamage: 0.8,    // 80% des dégâts/soins
+        secondCastDamage: 0.9,    // 90% des dégâts/soins
       },
     },
     description: 'Le livre ultime des arcanes, rédigé par les Archons primordiaux.',
@@ -727,12 +727,12 @@ export const weapons = {
     },
     effet: {
       nom: 'Saignement d\'Arès',
-      description: 'Votre attaque applique un saignement brut : la cible perd 3% HP max à chacun de ses tours d\'action. Réduit de 1% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
+      description: 'Votre attaque applique un saignement brut : la cible perd 2.5% HP max à chacun de ses tours d\'action. Réduit de 1% par tour (2.5→1.5→0.5→0). Réapplicable à 0%. Dégâts bruts.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        initialBleedPercent: 0.03,
+        initialBleedPercent: 0.025,
         bleedDecayPercent: 0.01,
         rawDamage: true,
       },
@@ -851,14 +851,14 @@ export const weapons = {
     },
     effet: {
       nom: 'Couronne Siphonnante',
-      description: 'Chaque capacité lancée augmente votre CAP de 6% (max 6 stacks = +36%).\nS\'applique aussi aux soins basés sur la CAP.',
+      description: 'Chaque capacité lancée augmente votre CAP de 8% (max 7 stacks = +56%).\nS\'applique aussi aux soins basés sur la CAP.',
       trigger: {
         type: TRIGGER_TYPES.EVERY_N_SPELLS,
         everyN: 1,
       },
       values: {
-        capStackPercent: 0.06,
-        maxCapStacks: 6,
+        capStackPercent: 0.08,
+        maxCapStacks: 7,
       },
     },
     description: 'Le sceptre du Roi-Sorcier, dont le pouvoir croît à chaque incantation.',
