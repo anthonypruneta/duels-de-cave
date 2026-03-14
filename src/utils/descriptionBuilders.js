@@ -78,7 +78,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
-    case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
+    case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
     default: return races[raceName]?.awakening?.description || '';
   }
 };
@@ -403,7 +403,9 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
     case 'Turtlekin':
       return [
         text('+'), slot(['statMultipliers', 'def'], 'percentMinus1'), text(' DEF, +'),
-        slot(['statMultipliers', 'rescap'], 'percentMinus1'), text(' ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.')
+        slot(['statMultipliers', 'rescap'], 'percentMinus1'), text(' ResC\nLe premier coup reçu ne peut dépasser '),
+        { type: 'slot', path: ['_bonus', 'turtlekin', 'firstHitCapPercent'], format: 'percent' },
+        text(' de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.')
       ];
     default:
       return [{ type: 'text', value: buildRaceAwakeningDescription(raceName, e) }];

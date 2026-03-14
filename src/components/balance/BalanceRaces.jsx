@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { races } from '../../data/races';
 import { DescriptionWithEditableSlots } from './BalanceEditors';
 import { buildRaceBonusDescriptionParts, buildRaceAwakeningDescriptionParts, RACE_TO_CONSTANT_KEY } from '../../utils/descriptionBuilders';
@@ -7,6 +7,19 @@ import { updateNestedValue } from './balanceUtils';
 export default function BalanceRaces({ raceBonusDraft, setRaceBonusDraft, raceAwakeningDraft, setRaceAwakeningDraft }) {
   const [raceTab, setRaceTab] = useState('bonus');
   const raceCards = Object.entries(races);
+
+  const awakeningCombinedDraft = useMemo(() => ({
+    ...raceAwakeningDraft,
+    _bonus: raceBonusDraft,
+  }), [raceAwakeningDraft, raceBonusDraft]);
+
+  const handleAwakeningSlotChange = useCallback((path, value) => {
+    if (path[0] === '_bonus') {
+      setRaceBonusDraft((prev) => updateNestedValue(prev, path.slice(1), value));
+    } else {
+      setRaceAwakeningDraft((prev) => updateNestedValue(prev, path, value));
+    }
+  }, [setRaceBonusDraft, setRaceAwakeningDraft]);
 
   return (
     <div>
@@ -52,8 +65,8 @@ export default function BalanceRaces({ raceBonusDraft, setRaceBonusDraft, raceAw
                   <div className="text-emerald-300/90 text-[11px] mb-1 font-semibold">Awakening</div>
                   <DescriptionWithEditableSlots
                     parts={buildRaceAwakeningDescriptionParts(name, raceAwakeningDraft[name])}
-                    draft={raceAwakeningDraft}
-                    onSlotChange={(path, value) => setRaceAwakeningDraft((prev) => updateNestedValue(prev, path, value))}
+                    draft={awakeningCombinedDraft}
+                    onSlotChange={handleAwakeningSlotChange}
                     className="text-emerald-200/90"
                   />
                 </>
