@@ -15,17 +15,22 @@ import {
 } from '../services/taverneService';
 
 const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
+
+function stripAccents(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 const chibiByNombreNormalise = Object.fromEntries(
   Object.entries(chibiImageModules).map(([path, url]) => {
     const nomFichier = path.replace(/^.*\//, '').replace(/\.png$/i, '');
-    const normalise = nomFichier.trim().toLowerCase().replace(/\s+/g, '-').replace(/-+/g, '-');
+    const normalise = stripAccents(nomFichier.trim().toLowerCase()).replace(/\s+/g, '-').replace(/-+/g, '-');
     return [normalise, url];
   })
 );
 
 function normaliserNomPourChibi(nom) {
   if (!nom || typeof nom !== 'string') return '';
-  return nom.trim().toLowerCase().replace(/\s+/g, '-').replace(/-+/g, '-');
+  return stripAccents(nom.trim().toLowerCase()).replace(/\s+/g, '-').replace(/-+/g, '-');
 }
 
 function getTaverneCharacterImage(character) {
