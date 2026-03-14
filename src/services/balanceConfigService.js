@@ -251,6 +251,9 @@ export const syncWeaponConstantsToCombat = (configWeaponConstants) => {
     { weaponId: 'fleau_legendaire', key: 'fleauAnatheme', build: (w) => ({ ...get(w, 'effet', 'values') }) },
     { weaponId: 'arbalete_legendaire', key: 'arbaleteVerdict', build: (w) => ({ ...get(w, 'effet', 'values') }) },
     { weaponId: 'hache_legendaire', key: 'labrysAres', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'faux_legendaire', key: 'fauxThanatos', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'sceptre_legendaire', key: 'sceptreRoiSorcier', build: (w) => ({ ...get(w, 'effet', 'values') }) },
+    { weaponId: 'pendule_legendaire', key: 'penduleChronos', build: (w) => ({ ...get(w, 'effet', 'values') }) },
   ];
 
   mappings.forEach(({ weaponId, key, build }) => {
