@@ -1381,11 +1381,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
       const stat = stats[Math.floor(Math.random() * stats.length)];
-      const stolen = Math.max(0, Math.round(def.base[stat] * 0.08));
+      const stolen = Math.max(0, Math.round(def.base[stat] * 0.06));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
         att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
-        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 8% ${stat} (${stolen}) à ${def.name}.`);
+        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 6% ${stat} (${stolen}) à ${def.name}.`);
       }
     }
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
@@ -1530,7 +1530,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
-    const subclassCritBonus = (att.subclass?.id === 'chasseur_fantome' || att.subclass?.id === 'ame_tentatrice') ? 0.10 : 0;
+    const subclassCritBonus = att.subclass?.id === 'ame_tentatrice' ? 0.15 : (att.subclass?.id === 'chasseur_fantome' ? 0.10 : 0);
     const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
     const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
     if (isCrit) wasCrit = true;

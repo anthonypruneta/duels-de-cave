@@ -68,12 +68,12 @@ export const MAGE_TOWER_PASSIVES = [
         healPercent: 0.03
       },
       2: {
-        description: 'Chaque attaque soigne 5% des dégâts infligés.',
-        healPercent: 0.05
+        description: 'Chaque attaque soigne 7% des dégâts infligés.',
+        healPercent: 0.07
       },
       3: {
-        description: 'Chaque attaque soigne 8% des dégâts infligés.',
-        healPercent: 0.08
+        description: 'Chaque attaque soigne 10% des dégâts infligés.',
+        healPercent: 0.10
       }
     }
   },
@@ -152,15 +152,15 @@ export const MAGE_TOWER_PASSIVES = [
         turns: 2
       },
       2: {
-        description: 'Tours 1–2 : +10% dégâts. Première capacité du combat : +10% CAP.',
-        damageBonus: 0.1,
-        spellCapBonus: 0.1,
+        description: 'Tours 1–2 : +13% dégâts. Première capacité du combat : +13% CAP.',
+        damageBonus: 0.13,
+        spellCapBonus: 0.13,
         turns: 2
       },
       3: {
-        description: 'Tours 1–2 : +20% dégâts. Première capacité du combat : +20% CAP.',
-        damageBonus: 0.2,
-        spellCapBonus: 0.2,
+        description: 'Tours 1–2 : +25% dégâts. Première capacité du combat : +25% CAP.',
+        damageBonus: 0.25,
+        spellCapBonus: 0.25,
         turns: 2
       }
     }
@@ -180,14 +180,14 @@ export const MAGE_TOWER_PASSIVES = [
         autoDamageBonus: 0.20
       },
       2: {
-        description: '-2% HP max par auto, +30% dégâts autos.',
+        description: '-2% HP max par auto, +38% dégâts autos.',
         hpCostPercent: 0.02,
-        autoDamageBonus: 0.30
+        autoDamageBonus: 0.38
       },
       3: {
-        description: '-3% HP max par auto, +40% dégâts autos.',
+        description: '-3% HP max par auto, +50% dégâts autos.',
         hpCostPercent: 0.03,
-        autoDamageBonus: 0.40
+        autoDamageBonus: 0.50
       }
     }
   },
@@ -198,19 +198,19 @@ export const MAGE_TOWER_PASSIVES = [
     vague: 2,
     levels: {
       1: {
-        description: 'Régénère 1% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -20% dégâts infligés.',
-        regenPercent: 0.01,
-        outgoingDamageMultiplier: 0.80
+        description: 'Régénère 0.8% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -30% dégâts infligés.',
+        regenPercent: 0.008,
+        outgoingDamageMultiplier: 0.70
       },
       2: {
-        description: 'Régénère 2% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -15% dégâts infligés.',
-        regenPercent: 0.02,
-        outgoingDamageMultiplier: 0.85
+        description: 'Régénère 1.5% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -25% dégâts infligés.',
+        regenPercent: 0.015,
+        outgoingDamageMultiplier: 0.75
       },
       3: {
-        description: 'Régénère 3% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -10% dégâts infligés.',
-        regenPercent: 0.03,
-        outgoingDamageMultiplier: 0.90
+        description: 'Régénère 2% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -20% dégâts infligés.',
+        regenPercent: 0.02,
+        outgoingDamageMultiplier: 0.80
       }
     }
   },
@@ -296,14 +296,14 @@ export const MAGE_TOWER_PASSIVES = [
         enemyCdDelay: 1
       },
       2: {
-        description: 'La première capacité ennemie est retardée de 1 tour. +5% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
+        description: 'La première capacité ennemie est retardée de 1 tour. +8% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
         enemyCdDelay: 1,
-        damageBonus: 0.05
+        damageBonus: 0.08
       },
       3: {
-        description: 'La première capacité ennemie est retardée de 1 tour. +10% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
+        description: 'La première capacité ennemie est retardée de 1 tour. +15% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
         enemyCdDelay: 1,
-        damageBonus: 0.10
+        damageBonus: 0.15
       }
     }
   }
