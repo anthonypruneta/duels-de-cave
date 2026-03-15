@@ -158,6 +158,7 @@ export function resolveBorderId(value) {
  * @param {Object} character - Données du personnage
  * @param {Object} [extras] - Données supplémentaires (progression labyrinthe, etc.)
  * @param {number} [extras.labyrinthHighestFloor] - Meilleur étage du labyrinthe cette semaine
+ * @param {string[]} [extras.accountTitles] - Titres liés au compte (persistés entre les semaines)
  * @returns {string[]} IDs des bordures débloquées
  */
 export function checkBorderUnlocks(character, extras = {}) {
@@ -197,7 +198,14 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('nature');
   }
 
-  const titleCount = (character.earnedTitles || []).length;
+  // Pour les bordures liées au compte (titane, cosmique, transcendance),
+  // utiliser les titres du compte s'ils sont fournis, sinon ceux du personnage
+  const accountTitles = extras.accountTitles || [];
+  const charTitles = character.earnedTitles || [];
+  // Fusionner les titres du compte et du personnage pour avoir le total réel
+  const allTitles = [...new Set([...accountTitles, ...charTitles])];
+  const titleCount = allTitles.length;
+  
   if (titleCount >= 10) {
     unlocked.push('titane');
   }
@@ -214,6 +222,7 @@ export function checkBorderUnlocks(character, extras = {}) {
 
 /**
  * Met à jour les bordures débloquées en Firestore si nécessaire.
+ * Les bordures de type 'account' sont également sauvegardées dans userPreferences.
  */
 export async function syncUnlockedBorders(userId, character, extras = {}) {
   if (extras.tournamentWins === undefined) {
@@ -240,6 +249,20 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     extras = { ...extras, tournamentWins: wins };
   }
 
+  // Récupérer les titres du compte pour les bordures liées au compte
+  if (extras.accountTitles === undefined) {
+    try {
+      const prefsSnap = await getDoc(doc(db, 'userPreferences', userId));
+      if (prefsSnap.exists()) {
+        extras = { ...extras, accountTitles: prefsSnap.data().earnedTitles || [] };
+      } else {
+        extras = { ...extras, accountTitles: [] };
+      }
+    } catch (_) {
+      extras = { ...extras, accountTitles: [] };
+    }
+  }
+
   const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 
@@ -247,14 +270,34 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   if (!hasNew) return currentUnlocked;
 
   const merged = [...new Set([...currentUnlocked, ...newUnlocked])];
+  
+  // Sauvegarder dans le personnage
   try {
     await setDoc(doc(db, 'characters', userId), {
       unlockedBorders: merged,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {
-    console.error('Erreur sync bordures:', err);
+    console.error('Erreur sync bordures personnage:', err);
   }
+  
+  // Sauvegarder les bordures de type 'account' dans userPreferences pour persistance
+  const accountBordersUnlocked = merged.filter(id => ACCOUNT_BORDER_IDS.has(id));
+  if (accountBordersUnlocked.length > 0) {
+    try {
+      const prefsRef = doc(db, 'userPreferences', userId);
+      const prefsSnap = await getDoc(prefsRef);
+      const existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      const mergedAccountBorders = [...new Set([...existingAccountBorders, ...accountBordersUnlocked])];
+      await setDoc(prefsRef, {
+        unlockedAccountBorders: mergedAccountBorders,
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+    } catch (err) {
+      console.error('Erreur sync bordures compte:', err);
+    }
+  }
+  
   return merged;
 }
 

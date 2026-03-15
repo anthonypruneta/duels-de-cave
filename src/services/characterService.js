@@ -78,20 +78,32 @@ export const saveCharacter = async (userId, characterData) => {
       }
       const persistedCosmetics = {};
       const accountTitles = await getAccountTitles(userId);
+      const accountBordersFromPrefs = await getAccountBorders(userId);
+      
       if (existingSnap.exists()) {
         const prev = existingSnap.data();
         const charTitles = prev.earnedTitles || [];
         const merged = [...new Set([...charTitles, ...accountTitles.earnedTitles])];
         if (merged.length) persistedCosmetics.earnedTitles = merged;
         persistedCosmetics.equippedTitle = prev.equippedTitle || accountTitles.equippedTitle || null;
-        const accountBorders = (prev.unlockedBorders || []).filter(id => ACCOUNT_BORDER_IDS.has(id));
-        if (accountBorders.length) persistedCosmetics.unlockedBorders = accountBorders;
+        
+        // Fusionner les bordures de compte du personnage précédent ET de userPreferences
+        const prevAccountBorders = (prev.unlockedBorders || []).filter(id => ACCOUNT_BORDER_IDS.has(id));
+        const allAccountBorders = [...new Set([...prevAccountBorders, ...accountBordersFromPrefs])];
+        if (allAccountBorders.length) persistedCosmetics.unlockedBorders = allAccountBorders;
+        
         if (prev.equippedBorder && ACCOUNT_BORDER_IDS.has(prev.equippedBorder)) {
           persistedCosmetics.equippedBorder = prev.equippedBorder;
         }
-      } else if (accountTitles.earnedTitles.length) {
-        persistedCosmetics.earnedTitles = accountTitles.earnedTitles;
-        persistedCosmetics.equippedTitle = accountTitles.equippedTitle;
+      } else {
+        // Nouveau compte sans personnage précédent: récupérer depuis userPreferences
+        if (accountTitles.earnedTitles.length) {
+          persistedCosmetics.earnedTitles = accountTitles.earnedTitles;
+          persistedCosmetics.equippedTitle = accountTitles.equippedTitle;
+        }
+        if (accountBordersFromPrefs.length) {
+          persistedCosmetics.unlockedBorders = accountBordersFromPrefs;
+        }
       }
 
       const data = {
@@ -594,6 +606,20 @@ export const getAccountTitles = async (userId) => {
   } catch (error) {
     console.error('Erreur lecture titres compte:', error);
     return { earnedTitles: [], equippedTitle: null };
+  }
+};
+
+// Récupérer les bordures de compte sauvegardées dans userPreferences
+export const getAccountBorders = async (userId) => {
+  try {
+    await waitForFirestore();
+    const prefsRef = doc(db, 'userPreferences', userId);
+    const snap = await getDoc(prefsRef);
+    if (!snap.exists()) return [];
+    return snap.data().unlockedAccountBorders || [];
+  } catch (error) {
+    console.error('Erreur lecture bordures compte:', error);
+    return [];
   }
 };
 
