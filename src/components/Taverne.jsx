@@ -553,7 +553,7 @@ export default function Taverne() {
                   <div className="flex justify-between">
                     <span>🌲 La Forêt enchantée</span>
                     <span className="text-amber-200 font-semibold">
-                      {selectedCharacter?.forestBoosts ? '✓' : '—'}
+                      {selectedCharacter?.forestBoosts && Object.values(selectedCharacter.forestBoosts || {}).some((v) => Number(v) > 0) ? '✓' : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between">
