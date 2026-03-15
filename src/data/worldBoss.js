@@ -9,7 +9,7 @@ export const WORLD_BOSS = {
   nom: 'Cataclysme',
   description: 'Une entité destructrice menace le monde entier. Tous les combattants doivent unir leurs forces.',
   baseStats: {
-    hp: 45000,
+    hp: 60000,
     auto: 75,
     cap: 70,
     def: 60,
