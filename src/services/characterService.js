@@ -19,6 +19,8 @@ import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import { getEmptyStatBoosts } from '../utils/statPoints';
 
+const ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG = 'titlesMigratedFromArchived';
+
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
   // Attendre que Firestore soit prêt avant la première tentative
@@ -597,11 +599,53 @@ export const getAccountTitles = async (userId) => {
     await waitForFirestore();
     const prefsRef = doc(db, 'userPreferences', userId);
     const snap = await getDoc(prefsRef);
-    if (!snap.exists()) return { earnedTitles: [], equippedTitle: null };
-    const data = snap.data();
+    const data = snap.exists() ? snap.data() : {};
+    const prefTitles = data.earnedTitles || [];
+    const prefEquippedTitle = data.equippedTitle || null;
+
+    if (data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG]) {
+      return { earnedTitles: prefTitles, equippedTitle: prefEquippedTitle };
+    }
+
+    const archivedQuery = query(
+      collection(db, 'archivedCharacters'),
+      where('userId', '==', userId)
+    );
+    const archivedSnap = await getDocs(archivedQuery);
+
+    const archivedTitles = [];
+    let archivedEquippedTitle = null;
+
+    archivedSnap.forEach((docSnap) => {
+      const archivedData = docSnap.data();
+      if (Array.isArray(archivedData.earnedTitles)) {
+        archivedTitles.push(...archivedData.earnedTitles);
+      }
+      if (!archivedEquippedTitle && archivedData.equippedTitle) {
+        archivedEquippedTitle = archivedData.equippedTitle;
+      }
+    });
+
+    const mergedTitles = [...new Set([...prefTitles, ...archivedTitles])];
+    const nextEquippedTitle = prefEquippedTitle || archivedEquippedTitle || null;
+    const mustSyncPrefs =
+      !snap.exists() ||
+      !data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG] ||
+      mergedTitles.length !== prefTitles.length ||
+      nextEquippedTitle !== prefEquippedTitle;
+
+    if (mustSyncPrefs) {
+      await setDoc(prefsRef, {
+        earnedTitles: mergedTitles,
+        equippedTitle: nextEquippedTitle,
+        [ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG]: true,
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+    }
+
     return {
-      earnedTitles: data.earnedTitles || [],
-      equippedTitle: data.equippedTitle || null,
+      earnedTitles: mergedTitles,
+      equippedTitle: nextEquippedTitle,
     };
   } catch (error) {
     console.error('Erreur lecture titres compte:', error);
