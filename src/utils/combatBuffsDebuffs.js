@@ -253,8 +253,8 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
       list.push({
         id: 'sceptre_stacks',
         icon: '🏆',
-        label: `Sceptre (+${n * 4}% CAP)`,
-        description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de 4% (${n} stack(s)).`,
+        label: `Sceptre (+${n * 8}% CAP)`,
+        description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de 8% (${n} stack(s)).`,
       });
     }
 
