@@ -186,7 +186,7 @@ const RecapPanel = ({ data }) => {
       {/* Tournoi */}
       {data.tournamentRank && data.tournamentRank.rank != null && (
         <div className="flex items-center justify-between text-xs">
-          <span className="text-stone-400">🏆 Tournoi</span>
+          <span className="text-stone-400">🏆 Tournoi précédent</span>
           <span className={`font-bold ${data.tournamentRank.rank === 1 ? 'text-amber-300' : 'text-white'}`}>
             {data.tournamentRank.rank === 1 ? 'Champion !' : `${data.tournamentRank.rank}e / ${data.tournamentRank.total}`}
           </span>
