@@ -643,6 +643,24 @@ export const getAccountTitles = async (userId) => {
       }, { merge: true });
     }
 
+    // Assurer la cohérence avec le personnage actif afin que les stats globales
+    // basées sur la collection `characters` reflètent aussi les titres migrés.
+    const charRef = doc(db, 'characters', userId);
+    const charSnap = await getDoc(charRef);
+    if (charSnap.exists()) {
+      const charData = charSnap.data() || {};
+      const charTitles = charData.earnedTitles || [];
+      const mergedCharTitles = [...new Set([...charTitles, ...mergedTitles])];
+
+      if (mergedCharTitles.length !== charTitles.length || (!charData.equippedTitle && nextEquippedTitle)) {
+        await setDoc(charRef, {
+          earnedTitles: mergedCharTitles,
+          equippedTitle: charData.equippedTitle || nextEquippedTitle || null,
+          updatedAt: Timestamp.now(),
+        }, { merge: true });
+      }
+    }
+
     return {
       earnedTitles: mergedTitles,
       equippedTitle: nextEquippedTitle,
