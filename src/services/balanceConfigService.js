@@ -9,9 +9,13 @@ import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
 
 /**
- * À incrémenter à chaque modification des données d'équilibrage dans le code
- * (combatMechanics, races, classes, weapons, mageTowerPassives).
- * Si cette version est supérieure à celle du fichier Storage, le code est appliqué et poussé vers Storage.
+ * Source de vérité : le fichier balance dans Firebase Storage (gameConfig/balance.json).
+ * Quand tu modifies la page équilibrage et que tu sauvegardes, cette config est envoyée en Storage.
+ * À chaque chargement de l'app, on charge ce fichier et on l'applique (applyBalanceConfig) :
+ * weaponConstants, raceConstants, classConstants, etc. sont mis à jour → le code de combat suit la config sauvegardée.
+ *
+ * BALANCE_CONFIG_VERSION : à incrémenter quand tu modifies les données d'équilibrage dans le code.
+ * Si version code > version Storage, le code est appliqué et poussé vers Storage (écrase le fichier).
  */
 export const BALANCE_CONFIG_VERSION = 32;
 

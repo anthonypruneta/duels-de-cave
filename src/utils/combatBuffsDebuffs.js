@@ -8,7 +8,7 @@
  * @param {Object} combatStatus - État de combat courant du personnage (stunned, bleed_stacks, spectralMarked, dodge, reflect, sorcierNeantBurn)
  * @returns {Array<{ id: string, icon: string, label: string, description: string }>}
  */
-import { classConstants } from '../data/combatMechanics';
+import { classConstants, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 
 function getPassiveDetails(p) {
@@ -247,14 +247,16 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
       });
     }
 
-    // Sceptre du Roi-Sorcier : stacks de CAP
+    // Sceptre du Roi-Sorcier : stacks de CAP (valeur depuis équilibrage : 0.08 ou 10 pour 10%)
     if (combatStatus.weaponState?.counters?.sceptreCapStacks > 0) {
       const n = combatStatus.weaponState.counters.sceptreCapStacks;
+      const pctRaw = weaponConstants?.sceptreRoiSorcier?.capStackPercent ?? 0.08;
+      const pctDisplay = pctRaw > 1 ? pctRaw : Math.round(pctRaw * 100);
       list.push({
         id: 'sceptre_stacks',
         icon: '🏆',
-        label: `Sceptre (+${n * 8}% CAP)`,
-        description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de 8% (${n} stack(s)).`,
+        label: `Sceptre (+${n * pctDisplay}% CAP)`,
+        description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de ${pctDisplay}% (${n} stack(s)).`,
       });
     }
 
