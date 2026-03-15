@@ -45,14 +45,18 @@ function getBriseurAutoBonus(att) {
 /**
  * CAP effective pour les capacités (dégâts/soins) si le combattant a le Sceptre du Roi-Sorcier.
  * Bonus additif: +8% par stack (max 7 = +56%). La base est figée au premier usage de capacité.
- * À utiliser AVANT le calcul des dégâts/soins pour que le sort actuel bénéficie des stacks déjà présents.
+ * Le sort EN COURS bénéficie du stack qu'on va gagner en le lançant (premier sort = +8%, 2e = +16%, etc.).
  */
 function getEffectiveCapForSceptre(att) {
-  if (!att?.weaponState?.isLegendary || att.weaponState.weaponId !== 'sceptre_legendaire') return att?.base?.cap ?? 0;
+  const ws = att?.weaponState;
+  if (!ws?.isLegendary || ws?.weaponId !== 'sceptre_legendaire') return att?.base?.cap ?? 0;
   if (att._sceptreBaseCap == null) att._sceptreBaseCap = att.base.cap;
-  const n = att.weaponState.counters?.sceptreCapStacks ?? 0;
-  const pct = weaponConstants.sceptreRoiSorcier.capStackPercent ?? 0.08;
-  return Math.max(1, Math.round(att._sceptreBaseCap * (1 + pct * n)));
+  const maxStacks = weaponConstants.sceptreRoiSorcier?.maxCapStacks ?? 7;
+  const currentStacks = ws?.counters?.sceptreCapStacks ?? 0;
+  // Le sort actuel compte comme "déjà stacké" : premier sort +8%, 2e +16%, ... (cap à maxStacks)
+  const effectiveStacks = Math.min(maxStacks, currentStacks + 1);
+  const pct = weaponConstants.sceptreRoiSorcier?.capStackPercent ?? 0.08;
+  return Math.max(1, Math.round(att._sceptreBaseCap * (1 + pct * effectiveStacks)));
 }
 
 function applySceptreCapBuff(att, spellEffects, log, playerColor) {
