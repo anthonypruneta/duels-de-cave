@@ -19,7 +19,6 @@ import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import { getEmptyStatBoosts } from '../utils/statPoints';
 
-const ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG = 'titlesMigratedFromArchived';
 
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
@@ -615,63 +614,33 @@ export const getAccountTitles = async (userId) => {
     const prefTitles = data.earnedTitles || [];
     const prefEquippedTitle = data.equippedTitle || null;
 
-    const archivedQuery = query(
-      collection(db, 'archivedCharacters'),
-      where('userId', '==', userId)
-    );
-    const archivedSnap = await getDocs(archivedQuery);
-
-    const archivedTitles = [];
+    // Important: toujours tenter de lire les anciens personnages,
+    // mais ne jamais bloquer le chargement si la query échoue.
+    let archivedTitles = [];
     let archivedEquippedTitle = null;
+    try {
+      const archivedQuery = query(
+        collection(db, 'archivedCharacters'),
+        where('userId', '==', userId)
+      );
+      const archivedSnap = await getDocs(archivedQuery);
 
-    archivedSnap.forEach((docSnap) => {
-      const archivedData = docSnap.data();
-      if (Array.isArray(archivedData.earnedTitles)) {
-        archivedTitles.push(...archivedData.earnedTitles);
-      }
-      if (!archivedEquippedTitle && archivedData.equippedTitle) {
-        archivedEquippedTitle = archivedData.equippedTitle;
-      }
-    });
-
-    const mergedTitles = [...new Set([...prefTitles, ...archivedTitles])];
-    const nextEquippedTitle = prefEquippedTitle || archivedEquippedTitle || null;
-    const mustSyncPrefs =
-      !snap.exists() ||
-      mergedTitles.length !== prefTitles.length ||
-      nextEquippedTitle !== prefEquippedTitle ||
-      !data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG];
-
-    if (mustSyncPrefs) {
-      await setDoc(prefsRef, {
-        earnedTitles: mergedTitles,
-        equippedTitle: nextEquippedTitle,
-        [ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG]: true,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
-    }
-
-    // Assurer la cohérence avec le personnage actif afin que les stats globales
-    // basées sur la collection `characters` reflètent aussi les titres migrés.
-    const charRef = doc(db, 'characters', userId);
-    const charSnap = await getDoc(charRef);
-    if (charSnap.exists()) {
-      const charData = charSnap.data() || {};
-      const charTitles = charData.earnedTitles || [];
-      const mergedCharTitles = [...new Set([...charTitles, ...mergedTitles])];
-
-      if (mergedCharTitles.length !== charTitles.length || (!charData.equippedTitle && nextEquippedTitle)) {
-        await setDoc(charRef, {
-          earnedTitles: mergedCharTitles,
-          equippedTitle: charData.equippedTitle || nextEquippedTitle || null,
-          updatedAt: Timestamp.now(),
-        }, { merge: true });
-      }
+      archivedSnap.forEach((docSnap) => {
+        const archivedData = docSnap.data();
+        if (Array.isArray(archivedData.earnedTitles)) {
+          archivedTitles.push(...archivedData.earnedTitles);
+        }
+        if (!archivedEquippedTitle && archivedData.equippedTitle) {
+          archivedEquippedTitle = archivedData.equippedTitle;
+        }
+      });
+    } catch (archivedError) {
+      console.warn('Lecture archivedCharacters impossible, fallback userPreferences:', archivedError?.message || archivedError);
     }
 
     return {
-      earnedTitles: mergedTitles,
-      equippedTitle: nextEquippedTitle,
+      earnedTitles: [...new Set([...prefTitles, ...archivedTitles])],
+      equippedTitle: prefEquippedTitle || archivedEquippedTitle || null,
     };
   } catch (error) {
     console.error('Erreur lecture titres compte:', error);
