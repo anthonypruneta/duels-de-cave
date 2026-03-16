@@ -1753,7 +1753,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
 
     // Écho de Guerre : +X% Auto par attaque (stackable)
-    if (!isMage && !isWar && !isArcher && inflicted > 0) {
+    // - Autos classiques : proc sur chaque attaque non-Mage/non-Guerrier
+    // - Archer : proc sur le premier tir de Double tir uniquement
+    if (!isMage && !isWar && inflicted > 0 && (!isArcher || i === 0)) {
       const echoPassive = getPassiveById(attackerPassiveList, 'echo_guerre');
       if (echoPassive) {
         att._echoStacks = (att._echoStacks || 0);
