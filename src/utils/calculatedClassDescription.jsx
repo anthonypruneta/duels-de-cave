@@ -14,7 +14,7 @@ function safe(stats, key, fallback = 0) {
   return typeof v === 'number' && !Number.isNaN(v) ? v : fallback;
 }
 
-export function getCalculatedClassDescription(className, cap, auto) {
+export function getCalculatedClassDescription(className, cap, auto, def = 0) {
   const Tooltip = SharedTooltip;
   switch (className) {
     case 'Guerrier': {
@@ -179,14 +179,23 @@ export function getCalculatedClassDescription(className, cap, auto) {
 
     case 'Bastion': {
       const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
-      const defBonusPct = Math.round(defPercentBonus * 100);
-      const shieldPct = Math.round(startShieldFromDef * 100);
+      const shieldValue = Math.round((startShieldFromDef ?? 0) * def);
+      const defBonusValue = Math.round((defPercentBonus ?? 0) * def);
+      const defTotal = Math.max(1, Math.round(def + defBonusValue));
       const capDmg = Math.round(capScale * cap);
       const defDmg = Math.round(defScale * def);
       const total = auto + capDmg + defDmg;
       return (
         <>
-          Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Inflige{' '}
+          Bouclier initial{' '}
+          <Tooltip content={`${(startShieldFromDef ?? 0) * 100}% × DEF (${def}) = ${shieldValue}`}>
+            <span className="text-green-400">{shieldValue}</span>
+          </Tooltip>
+          {' '}| DEF après passif{' '}
+          <Tooltip content={`DEF (${def}) + ${(defPercentBonus ?? 0) * 100}% × DEF (${def}) = +${defBonusValue}`}>
+            <span className="text-green-400">{defTotal}</span>
+          </Tooltip>
+          {' '}| Inflige{' '}
           <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg} + ${defScale * 100}% × DEF (${def}) = ${defDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
