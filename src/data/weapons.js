@@ -877,7 +877,7 @@ export const weapons = {
     imageFile: 'pendule1.png',
     stats: {
       cap: 1,
-      spd: 1,
+      def: 1,
     },
     effet: null,
     description: 'Un pendule de bronze qui oscille au rythme du temps.',
@@ -893,7 +893,7 @@ export const weapons = {
     imageFile: 'pendule2.png',
     stats: {
       cap: 2,
-      spd: 3,
+      def: 3,
     },
     effet: null,
     description: 'Un pendule d\'argent poli qui semble ralentir le temps autour de lui.',
@@ -909,7 +909,7 @@ export const weapons = {
     imageFile: 'pendule3.png',
     stats: {
       cap: 3,
-      spd: 4,
+      def: 4,
     },
     effet: {
       nom: 'Décret Temporel',
