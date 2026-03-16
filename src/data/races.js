@@ -43,11 +43,11 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: '- Sous 50% PV: +22% dégâts\n- Les 4 premières attaques subies infligent 50% dégâts',
+      description: '- Sous 50% PV: +18% dégâts\n- Les 3 premières attaques subies infligent 60% dégâts',
       effect: {
-        damageBonus: 1.22,
-        incomingHitMultiplier: 0.50,
-        incomingHitCount: 4
+        damageBonus: 1.18,
+        incomingHitMultiplier: 0.60,
+        incomingHitCount: 3
       }
     }
   },
@@ -86,10 +86,10 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort:\n- explosion 9% PV max\n- résurrection 20% PV max',
+      description: 'Première mort:\n- explosion 6% PV max\n- résurrection 15% PV max',
       effect: {
-        explosionPercent: 0.09,
-        revivePercent: 0.20,
+        explosionPercent: 0.06,
+        revivePercent: 0.15,
         reviveOnce: true
       }
     }
@@ -99,10 +99,10 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1.3% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (1.1% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.013
+        bleedPercentPerStack: 0.011
       }
     }
   },
@@ -111,10 +111,10 @@ export const races = {
     icon: '🌿',
     awakening: {
       levelRequired: 100,
-      description: 'Regen 4% PV max/tour\n- +10% dégâts si PV > 50%',
+      description: 'Regen 3.5% PV max/tour\n- +7% dégâts si PV > 50%',
       effect: {
-        regenPercent: 0.04,
-        highHpDamageBonus: 0.10,
+        regenPercent: 0.035,
+        highHpDamageBonus: 0.07,
         highHpThreshold: 0.50
       }
     }
@@ -170,13 +170,17 @@ export const races = {
     }
   },
   'Turtlekin': {
-    bonus: 'Le premier coup reçu ne peut dépasser 10% de vos PV max',
+    bonus: '+8 DEF, +8 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
     icon: '🐢',
     awakening: {
       levelRequired: 100,
-      description: 'Le premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      description: '+15% DEF, +15% ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
       effect: {
-        turtlekinResetAt50: true
+        turtlekinResetAt50: true,
+        statMultipliers: {
+          def: 1.15,
+          rescap: 1.15
+        }
       }
     }
   }

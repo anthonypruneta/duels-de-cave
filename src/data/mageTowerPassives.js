@@ -34,8 +34,8 @@ export const MAGE_TOWER_PASSIVES = [
         shieldPercent: 0.15
       },
       3: {
-        description: 'Au début du combat, gagne un bouclier de 25% des PV max.',
-        shieldPercent: 0.25
+        description: 'Au début du combat, gagne un bouclier de 22% des PV max.',
+        shieldPercent: 0.22
       }
     }
   },
@@ -68,12 +68,12 @@ export const MAGE_TOWER_PASSIVES = [
         healPercent: 0.03
       },
       2: {
-        description: 'Chaque attaque soigne 5% des dégâts infligés.',
-        healPercent: 0.05
+        description: 'Chaque attaque soigne 7% des dégâts infligés.',
+        healPercent: 0.07
       },
       3: {
-        description: 'Chaque attaque soigne 8% des dégâts infligés.',
-        healPercent: 0.08
+        description: 'Chaque attaque soigne 10% des dégâts infligés.',
+        healPercent: 0.10
       }
     }
   },
@@ -152,15 +152,15 @@ export const MAGE_TOWER_PASSIVES = [
         turns: 2
       },
       2: {
-        description: 'Tours 1–2 : +10% dégâts. Première capacité du combat : +10% CAP.',
-        damageBonus: 0.1,
-        spellCapBonus: 0.1,
+        description: 'Tours 1–2 : +15% dégâts. Première capacité du combat : +15% CAP.',
+        damageBonus: 0.15,
+        spellCapBonus: 0.15,
         turns: 2
       },
       3: {
-        description: 'Tours 1–2 : +20% dégâts. Première capacité du combat : +20% CAP.',
-        damageBonus: 0.2,
-        spellCapBonus: 0.2,
+        description: 'Tours 1–2 : +30% dégâts. Première capacité du combat : +30% CAP.',
+        damageBonus: 0.30,
+        spellCapBonus: 0.30,
         turns: 2
       }
     }
@@ -180,14 +180,14 @@ export const MAGE_TOWER_PASSIVES = [
         autoDamageBonus: 0.20
       },
       2: {
-        description: '-2% HP max par auto, +30% dégâts autos.',
+        description: '-2% HP max par auto, +38% dégâts autos.',
         hpCostPercent: 0.02,
-        autoDamageBonus: 0.30
+        autoDamageBonus: 0.38
       },
       3: {
-        description: '-3% HP max par auto, +40% dégâts autos.',
+        description: '-3% HP max par auto, +50% dégâts autos.',
         hpCostPercent: 0.03,
-        autoDamageBonus: 0.40
+        autoDamageBonus: 0.50
       }
     }
   },
@@ -198,19 +198,19 @@ export const MAGE_TOWER_PASSIVES = [
     vague: 2,
     levels: {
       1: {
-        description: 'Régénère 1% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -20% dégâts infligés.',
-        regenPercent: 0.01,
-        outgoingDamageMultiplier: 0.80
+        description: 'Régénère 0.5% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -40% dégâts infligés.',
+        regenPercent: 0.005,
+        outgoingDamageMultiplier: 0.60
       },
       2: {
-        description: 'Régénère 2% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -15% dégâts infligés.',
-        regenPercent: 0.02,
-        outgoingDamageMultiplier: 0.85
+        description: 'Régénère 1% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -35% dégâts infligés.',
+        regenPercent: 0.01,
+        outgoingDamageMultiplier: 0.65
       },
       3: {
-        description: 'Régénère 3% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -10% dégâts infligés.',
-        regenPercent: 0.03,
-        outgoingDamageMultiplier: 0.90
+        description: 'Régénère 1.5% HP max par tour. Vous survivez à 1 HP (1 fois par combat). Après avoir survécu: -30% dégâts infligés.',
+        regenPercent: 0.015,
+        outgoingDamageMultiplier: 0.70
       }
     }
   },
@@ -257,9 +257,9 @@ export const MAGE_TOWER_PASSIVES = [
         maxStacks: 5
       },
       3: {
-        description: 'Chaque attaque augmente votre Auto de 4% (max 6 stacks = +24%).',
-        autoStackPercent: 0.04,
-        maxStacks: 6
+        description: 'Chaque attaque augmente votre Auto de 3.5% (max 5 stacks = +17.5%).',
+        autoStackPercent: 0.035,
+        maxStacks: 5
       }
     }
   },
@@ -274,14 +274,14 @@ export const MAGE_TOWER_PASSIVES = [
         reflectPercent: 0.20
       },
       2: {
-        description: 'Quand l\'ennemi crit, il subit 30% des dégâts critiques en retour (bruts). L\'ennemi perd 5% de crit permanent.',
-        reflectPercent: 0.30,
-        critReduction: 0.05
+        description: 'Quand l\'ennemi crit, il subit 35% des dégâts critiques en retour (bruts). L\'ennemi perd 7% de crit permanent.',
+        reflectPercent: 0.35,
+        critReduction: 0.07
       },
       3: {
-        description: 'Quand l\'ennemi crit, il subit 40% des dégâts critiques en retour (bruts). L\'ennemi perd 10% de crit permanent.',
-        reflectPercent: 0.40,
-        critReduction: 0.10
+        description: 'Quand l\'ennemi crit, il subit 50% des dégâts critiques en retour (bruts). L\'ennemi perd 12% de crit permanent.',
+        reflectPercent: 0.50,
+        critReduction: 0.12
       }
     }
   },
@@ -296,14 +296,14 @@ export const MAGE_TOWER_PASSIVES = [
         enemyCdDelay: 1
       },
       2: {
-        description: 'La première capacité ennemie est retardée de 1 tour. +5% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
-        enemyCdDelay: 1,
-        damageBonus: 0.05
-      },
-      3: {
         description: 'La première capacité ennemie est retardée de 1 tour. +10% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
         enemyCdDelay: 1,
         damageBonus: 0.10
+      },
+      3: {
+        description: 'La première capacité ennemie est retardée de 1 tour. +18% dégâts tant que l\'ennemi n\'a pas lancé sa première capacité.',
+        enemyCdDelay: 1,
+        damageBonus: 0.18
       }
     }
   }

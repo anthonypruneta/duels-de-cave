@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters, getAccountTitles, saveAccountTitles } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
@@ -186,7 +186,7 @@ const RecapPanel = ({ data }) => {
       {/* Tournoi */}
       {data.tournamentRank && data.tournamentRank.rank != null && (
         <div className="flex items-center justify-between text-xs">
-          <span className="text-stone-400">🏆 Tournoi</span>
+          <span className="text-stone-400">🏆 Tournoi précédent</span>
           <span className={`font-bold ${data.tournamentRank.rank === 1 ? 'text-amber-300' : 'text-white'}`}>
             {data.tournamentRank.rank === 1 ? 'Champion !' : `${data.tournamentRank.rank}e / ${data.tournamentRank.total}`}
           </span>
@@ -550,6 +550,19 @@ const CharacterCreation = () => {
           }
         }
         const charData = { ...normalized, level, forgeUpgrade: forgeUpgradeData };
+        getAccountTitles(currentUser.uid).then(accountTitles => {
+          if (!accountTitles.earnedTitles.length) return;
+          const charTitles = charData.earnedTitles || [];
+          const merged = [...new Set([...charTitles, ...accountTitles.earnedTitles])];
+          if (merged.length > charTitles.length) {
+            setExistingCharacter(prev => ({
+              ...prev,
+              earnedTitles: merged,
+              equippedTitle: prev.equippedTitle || accountTitles.equippedTitle || null,
+            }));
+            saveAccountTitles(currentUser.uid, merged, charData.equippedTitle || accountTitles.equippedTitle);
+          }
+        }).catch(() => {});
         setExistingCharacter(charData);
         Promise.all([
           getUserLabyrinthProgress(currentUser.uid),

@@ -335,9 +335,11 @@ export function onCapacityCast(weaponState, caster, target, damage, capacityType
       const maxStacks = weaponConstants.sceptreRoiSorcier.maxCapStacks;
       if (weaponState.counters.sceptreCapStacks < maxStacks) {
         weaponState.counters.sceptreCapStacks++;
-        const stackPct = weaponConstants.sceptreRoiSorcier.capStackPercent;
+        const raw = weaponConstants.sceptreRoiSorcier.capStackPercent;
+        const stackPct = raw > 1 ? raw / 100 : raw;
         effects.sceptreCapBuff = stackPct;
-        effects.log.push(`🏆 Sceptre du Roi-Sorcier: +${Math.round(stackPct * 100)}% CAP (stack ${weaponState.counters.sceptreCapStacks}/${maxStacks})`);
+        const pctDisplay = raw > 1 ? raw : Math.round(stackPct * 100);
+        effects.log.push(`🏆 Sceptre du Roi-Sorcier: +${pctDisplay}% CAP (stack ${weaponState.counters.sceptreCapStacks}/${maxStacks})`);
       }
       break;
     }

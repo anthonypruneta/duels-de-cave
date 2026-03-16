@@ -189,7 +189,9 @@ function Application() {
             path="/boss-rush"
             element={
               <ProtectedRoute>
-                <BossRush />
+                <ModeAvailabilityRoute>
+                  <BossRush />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />
@@ -197,7 +199,9 @@ function Application() {
             path="/mirror"
             element={
               <ProtectedRoute>
-                <MirrorMode />
+                <ModeAvailabilityRoute>
+                  <MirrorMode />
+                </ModeAvailabilityRoute>
               </ProtectedRoute>
             }
           />

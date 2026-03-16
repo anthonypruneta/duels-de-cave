@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCharacter } from '../services/characterService';
+import { getUserCharacter, saveAccountTitles } from '../services/characterService';
 import { grantRunsToPlayer, getPlayerDungeonSummary } from '../services/dungeonService';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
@@ -216,10 +216,12 @@ const BossRush = () => {
                 const charSnap = await getDoc(doc(db, 'characters', currentUser.uid));
                 const earned = charSnap.data()?.earnedTitles || [];
                 if (!earned.includes('boss_rush_parfait')) {
+                  const updatedEarned = [...earned, 'boss_rush_parfait'];
                   await setDoc(doc(db, 'characters', currentUser.uid), {
-                    earnedTitles: [...earned, 'boss_rush_parfait'],
+                    earnedTitles: updatedEarned,
                     updatedAt: Timestamp.now(),
                   }, { merge: true });
+                  saveAccountTitles(currentUser.uid, updatedEarned, charSnap.data()?.equippedTitle);
                   setNewTitles(prev => [...prev, 'boss_rush_parfait']);
                 }
               } catch (_) { /* silencieux */ }

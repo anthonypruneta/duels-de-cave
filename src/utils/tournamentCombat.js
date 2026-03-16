@@ -42,11 +42,32 @@ function getBriseurAutoBonus(att) {
   return Math.round(att.base.cap * classConstants.briseurSort.autoCapBonus);
 }
 
+/**
+ * CAP effective pour les capacités (dégâts/soins) si le combattant a le Sceptre du Roi-Sorcier.
+ * Bonus additif: +8% par stack (max 7 = +56%). La base est figée au premier usage de capacité.
+ * Le sort EN COURS bénéficie du stack qu'on va gagner en le lançant (premier sort = +8%, 2e = +16%, etc.).
+ */
+function getEffectiveCapForSceptre(att) {
+  const ws = att?.weaponState;
+  if (!ws?.isLegendary || ws?.weaponId !== 'sceptre_legendaire') return att?.base?.cap ?? 0;
+  if (att._sceptreBaseCap == null) att._sceptreBaseCap = att.base.cap;
+  const maxStacks = weaponConstants.sceptreRoiSorcier?.maxCapStacks ?? 7;
+  const currentStacks = ws?.counters?.sceptreCapStacks ?? 0;
+  // Le sort actuel compte comme "déjà stacké" : premier sort +8%, 2e +16%, ... (cap à maxStacks)
+  const effectiveStacks = Math.min(maxStacks, currentStacks + 1);
+  // Accepter 0.08 (code) ou 10 (page équilibrage en %) : si > 1 on considère que c'est en %
+  const pctRaw = weaponConstants.sceptreRoiSorcier?.capStackPercent ?? 0.08;
+  const pct = pctRaw > 1 ? pctRaw / 100 : pctRaw;
+  return Math.max(1, Math.round(att._sceptreBaseCap * (1 + pct * effectiveStacks)));
+}
+
 function applySceptreCapBuff(att, spellEffects, log, playerColor) {
   if (spellEffects.sceptreCapBuff > 0) {
-    const bonus = Math.max(1, Math.round(att.base.cap * spellEffects.sceptreCapBuff));
-    att.base = { ...att.base, cap: att.base.cap + bonus };
-    log.push(`${playerColor} 🏆 Sceptre du Roi-Sorcier: CAP de ${att.name} augmente de ${bonus} (+${Math.round(spellEffects.sceptreCapBuff * 100)}%)`);
+    const n = att.weaponState?.counters?.sceptreCapStacks ?? 0;
+    const maxStacks = weaponConstants.sceptreRoiSorcier?.maxCapStacks ?? 7;
+    const pctRaw = spellEffects.sceptreCapBuff;
+    const pctDisplay = pctRaw > 1 ? pctRaw : Math.round(pctRaw * 100);
+    log.push(`${playerColor} 🏆 Sceptre du Roi-Sorcier: +${pctDisplay}% CAP (stack ${n}/${maxStacks})`);
   }
 }
 
@@ -533,7 +554,7 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
         const alchC = classConstants.alchimiste;
         return dmgCap(Math.round(target.base.auto + target.base.cap * alchC.fireCapScale), caster.base.rescap) + capBonus;
       })();
-      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBoost, true, true, turn);
+      const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
       log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !`);
       break;
     }
@@ -554,7 +575,7 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
     log.push(`${playerColor} 🧜 ${def.name} gagne un stack Sirène (${def.sireneStacks}/${maxStacks}).`);
   }
   if (def.class === 'Briseur de Sort') {
-    const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + def.base.cap * classConstants.briseurSort.shieldFromCap));
+    const shield = Math.max(1, Math.round(adjusted * classConstants.briseurSort.shieldFromSpellDamage + getEffectiveCapForSceptre(def) * classConstants.briseurSort.shieldFromCap));
     def.shield = (def.shield || 0) + shield;
     log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
     if (def.subclass?.id === 'stratege_arcanique') {
@@ -738,7 +759,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
       att._pendingCombatLogs.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
       // Égide du Briseur de Sort : les dégâts de riposte comptent comme une capacité reçue
       if (back > 0 && att.class === 'Briseur de Sort') {
-        const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+        const shield = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + getEffectiveCapForSceptre(att) * classConstants.briseurSort.shieldFromCap));
         att.shield = (att.shield || 0) + shield;
         att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield}).`);
       }
@@ -747,7 +768,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         tryTriggerOnctionLastStand(att, log, playerColor);
         att._pendingCombatLogs.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
         if (att.class === 'Briseur de Sort') {
-          const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
+          const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + getEffectiveCapForSceptre(att) * classConstants.briseurSort.shieldFromCap));
           att.shield = (att.shield || 0) + shield2;
           att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield2}).`);
         }
@@ -879,6 +900,15 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
   }
 
+  let mult = 1.0;
+  if (att.succubeWeakenNextAttack) {
+    mult *= (1 - classConstants.succube.nextAttackReduction);
+    att.succubeWeakenNextAttack = false;
+    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
+  }
+  const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
+  if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
+
   if (att.class === 'Demoniste' && !capacityStolen) {
     if (shouldSkipVerdictDemonFamiliar(att.weaponState, turn)) {
       // Arbalète du Verdict : 1ère attaque tour 2, 2e tour 4 (pas d'attaque ce tour)
@@ -890,7 +920,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const stackPerAuto = demonC.stackPerAuto ?? classConstants.demoniste.stackPerAuto;
     const isPacteSombre = att.subclass?.id === 'pacte_sombre';
     const stackBonus = stackPerAuto * (att.familiarStacks || 0);
-    const hit = Math.max(1, Math.round((capBase + stackBonus) * att.base.cap));
+    const hit = Math.max(1, Math.round((capBase + stackBonus) * getEffectiveCapForSceptre(att)));
     let raw = dmgCap(hit, def.base.rescap * (1 - ignoreResist));
     if (isPacteSombre) {
       const capSteal = (demonC.capStealPercent ?? 0.03);
@@ -925,7 +955,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.cd.maso === getMindflayerCapacityCooldown(att, def, 'maso') && att.maso_taken > 0) {
       skillUsed = true;
       const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
-      const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * att.base.cap)));
+      const dmg = Math.max(1, Math.round(att.maso_taken * (returnBase + returnPerCap * getEffectiveCapForSceptre(att))));
       let healAmount = Math.max(1, Math.round(att.maso_taken * healPercent * getAntiHealFactor(def)));
       const verdictBonusMaso = getVerdictCapacityBonus(att.weaponState);
       if (verdictBonusMaso.damageMultiplier !== 1 || verdictBonusMaso.healMultiplier !== 1) {
@@ -1017,7 +1047,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     const spellCapMult = consumeAuraCapacityCapMultiplier();
-    const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
+    const reflectValue = reflectBase + reflectPerCap * getEffectiveCapForSceptre(att) * spellCapMult;
     att.reflect = reflectValue;
     const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
     if (verdictBonusPal.damageMultiplier !== 1) {
@@ -1062,7 +1092,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
-    let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * att.base.cap * spellCapMultiplier) * (1 + sireneBoost)));
+    let baseHeal = Math.max(1, Math.round((missingHpPercent * miss + capScale * getEffectiveCapForSceptre(att) * spellCapMultiplier) * (1 + sireneBoost)));
     baseHeal = Math.max(1, Math.round(baseHeal * getAntiHealFactor(def)));
     const verdictBonusHeal = getVerdictCapacityBonus(att.weaponState);
     if (verdictBonusHeal.healMultiplier !== 1) {
@@ -1076,7 +1106,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.subclass?.id === 'luxum') {
       const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
       const capShieldPct = healerC.capShieldPercent ?? 0.10;
-      const capShield = Math.max(1, Math.round(att.base.cap * capShieldPct));
+      const capShield = Math.max(1, Math.round(getEffectiveCapForSceptre(att) * capShieldPct));
       att.shield = (att.shield || 0) + capShield;
       const overflow = Math.max(0, (att.currentHP + heal) - att.maxHP);
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -1121,7 +1151,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
       def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
       log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
     }
-    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
+    let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'succ', log, playerColor);
     if (isCrit) {
@@ -1150,7 +1180,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const spellCapMultBast = consumeAuraCapacityCapMultiplier();
     const isCrit = Math.random() < calcCritChance(att, def);
-    let raw = dmgCap(Math.round(att.base.auto + att.base.cap * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
+    let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'bast', log, playerColor);
     if (isCrit) {
@@ -1190,7 +1220,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (phase === 0) {
       // Flasque de feu : dégâts vs ResC
       const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
-      let raw = dmgCap(Math.round((att.base.auto + att.base.cap * spellCapMult * fireCapScale) * mult), def.base.rescap);
+      let raw = dmgCap(Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * fireCapScale) * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1229,7 +1259,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     } else if (phase === 1) {
       // Flasque de vie : soin
-      let baseHeal = Math.max(1, Math.round((att.base.auto + att.base.cap * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
+      let baseHeal = Math.max(1, Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
       // Sirène stacks (boost soins)
       if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
@@ -1372,11 +1402,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
       const stat = stats[Math.floor(Math.random() * stats.length)];
-      const stolen = Math.max(0, Math.round(def.base[stat] * 0.08));
+      const stolen = Math.max(0, Math.round(def.base[stat] * 0.06));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
         att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
-        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 8% ${stat} (${stolen}) à ${def.name}.`);
+        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 6% ${stat} (${stolen}) à ${def.name}.`);
       }
     }
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
@@ -1510,15 +1540,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
     att._entraveFirstCapUsed = true;
   }
 
-  let mult = 1.0;
-  if (att.succubeWeakenNextAttack) {
-    mult *= (1 - classConstants.succube.nextAttackReduction);
-    att.succubeWeakenNextAttack = false;
-    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
-  }
-  const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
-  if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
-
   const baseHits = (isAlchimiste && !alchVerdictSkip) ? 0 : isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
   let total = 0;
@@ -1530,7 +1551,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
-    const subclassCritBonus = (att.subclass?.id === 'chasseur_fantome' || att.subclass?.id === 'ame_tentatrice') ? 0.10 : 0;
+    const subclassCritBonus = att.subclass?.id === 'ame_tentatrice' ? 0.15 : (att.subclass?.id === 'chasseur_fantome' ? 0.10 : 0);
     const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
     const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
     if (isCrit) wasCrit = true;
@@ -1541,7 +1562,8 @@ function processPlayerAction(att, def, log, isP1, turn) {
     if (isMage) {
       const { capBase, capPerCap } = classConstants.mage;
       const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
-      const scaledCap = att.base.cap * spellCapMultiplier;
+      const effectiveCap = getEffectiveCapForSceptre(att);
+      const scaledCap = effectiveCap * spellCapMultiplier;
       const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
       raw = dmgCap(atkSpell, def.base.rescap);
       if (att.subclass?.id === 'arcaniste_instable' && i === 0) {
@@ -1574,11 +1596,11 @@ function processPlayerAction(att, def, log, isP1, turn) {
         const guerrierC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const capScale = guerrierC.capScale ?? 0.10;
         const spellCapMultWar = consumeAuraCapacityCapMultiplier();
-        raw = Math.max(1, Math.round((att.base.auto + att.base.cap * capScale) * spellCapMultWar * attackMultiplier));
+        raw = Math.max(1, Math.round((att.base.auto + getEffectiveCapForSceptre(att) * capScale) * spellCapMultWar * attackMultiplier));
       } else {
         const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
         const spellCapMultWar = consumeAuraCapacityCapMultiplier();
-        const ignore = ignoreBase + ignorePerCap * att.base.cap * spellCapMultWar;
+        const ignore = ignoreBase + ignorePerCap * getEffectiveCapForSceptre(att) * spellCapMultWar;
         const effectiveAuto = Math.round((att.base.auto + autoBonus) * attackMultiplier);
         // Frappe la résistance la plus FAIBLE entre Déf et ResC
         if (def.base.def <= def.base.rescap) {
@@ -1608,7 +1630,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
           const guerrierC = getSubclassCapacityConstants(att.class, att.subclass?.id);
           const shieldAuto = guerrierC.shieldAutoPercent ?? 0.15;
           const shieldCap = guerrierC.shieldCapPercent ?? 0.005;
-          const duracierShield = Math.max(1, Math.round(att.base.auto * shieldAuto + att.base.cap * shieldCap));
+          const duracierShield = Math.max(1, Math.round(att.base.auto * shieldAuto + getEffectiveCapForSceptre(att) * shieldCap));
           att.shield = (att.shield || 0) + duracierShield;
           log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto + 0,5% CAP).`);
         }
@@ -1622,10 +1644,10 @@ function processPlayerAction(att, def, log, isP1, turn) {
         const { hit2CapMultiplier } = classConstants.archer;
         const spellCapMultArc = consumeAuraCapacityCapMultiplier();
         const physPart = dmgPhys(Math.round(att.base.auto * hit2AutoMult * attackMultiplier), def.base.def);
-        const capPart = dmgCap(Math.round(att.base.cap * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
+        const capPart = dmgCap(Math.round(getEffectiveCapForSceptre(att) * spellCapMultArc * hit2CapMultiplier * attackMultiplier), def.base.rescap);
         raw = physPart + capPart;
         if (att.subclass?.id === 'chasseur_fantome' && att.ghostHunterNextDamageCapBonus) {
-          raw += Math.max(0, Math.round(att.base.cap * att.ghostHunterNextDamageCapBonus));
+          raw += Math.max(0, Math.round(getEffectiveCapForSceptre(att) * att.ghostHunterNextDamageCapBonus));
           log.push(`${playerColor} 👻 Chasseur Fantôme: +20% CAP aux dégâts après le crit.`);
           att.ghostHunterNextDamageCapBonus = undefined;
         }

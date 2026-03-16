@@ -133,6 +133,9 @@ const WEAPON_EFFET_DESCRIPTION_TEMPLATES = {
   fleau_legendaire: 'Après votre première attaque, la cible perd {{defReductionPercent}}% DEF et {{rescapReductionPercent}}% ResC pour le reste du combat.',
   arbalete_legendaire: 'Vos {{spellBonusCount}} premières capacités infligent +{{spellDamageBonus}}% dégâts et soins mais ont +{{cooldownPenalty}} CD.',
   hache_legendaire: 'Votre attaque applique un saignement brut : la cible perd {{initialBleedPercent}}% HP max à chacun de ses tours d\'action. Réduit de {{bleedDecayPercent}}% par tour (3→2→1→0). Réapplicable à 0%. Dégâts bruts.',
+  faux_legendaire: 'Vos attaques infligent des dégâts bruts bonus égaux à {{missingHpDamagePercent}}% des PV manquants de l\'ennemi.\nQuand l\'ennemi passe sous {{executeThreshold}}% PV : inflige {{executePercent}}% de ses PV max en dégâts bruts (1 fois).',
+  sceptre_legendaire: 'Chaque capacité lancée augmente votre CAP de {{capStackPercent}}% (max {{maxCapStacks}} stacks).\nS\'applique aussi aux soins basés sur la CAP.',
+  pendule_legendaire: 'Vos {{cdBonusCount}} premières capacités ont -{{cdReduction}} tour de CD. Vos capacités infligent +{{spellBonus}}% dégâts et soins.\nNon cumulable avec d\'autres réductions de CD.',
 };
 
 const formatValueForDescription = (key, value) => {
