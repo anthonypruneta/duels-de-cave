@@ -19,6 +19,7 @@ import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import { getEmptyStatBoosts } from '../utils/statPoints';
 
+
 // Helper pour retry automatique en cas d'erreur réseau
 const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
   // Attendre que Firestore soit prêt avant la première tentative
@@ -581,9 +582,21 @@ export const saveAccountTitles = async (userId, earnedTitles, equippedTitle) => 
   try {
     await retryOperation(async () => {
       const prefsRef = doc(db, 'userPreferences', userId);
+      const existingSnap = await getDoc(prefsRef);
+      const existingData = existingSnap.exists() ? existingSnap.data() : {};
+
       const update = { updatedAt: Timestamp.now() };
-      if (earnedTitles) update.earnedTitles = earnedTitles;
-      if (equippedTitle !== undefined) update.equippedTitle = equippedTitle || null;
+
+      if (Array.isArray(earnedTitles)) {
+        // Important: on fusionne pour ne jamais écraser des titres déjà acquis.
+        const existingTitles = existingData.earnedTitles || [];
+        update.earnedTitles = [...new Set([...existingTitles, ...earnedTitles])];
+      }
+
+      if (equippedTitle !== undefined) {
+        update.equippedTitle = equippedTitle || null;
+      }
+
       await setDoc(prefsRef, update, { merge: true });
     });
   } catch (error) {
@@ -597,11 +610,37 @@ export const getAccountTitles = async (userId) => {
     await waitForFirestore();
     const prefsRef = doc(db, 'userPreferences', userId);
     const snap = await getDoc(prefsRef);
-    if (!snap.exists()) return { earnedTitles: [], equippedTitle: null };
-    const data = snap.data();
+    const data = snap.exists() ? snap.data() : {};
+    const prefTitles = data.earnedTitles || [];
+    const prefEquippedTitle = data.equippedTitle || null;
+
+    // Important: toujours tenter de lire les anciens personnages,
+    // mais ne jamais bloquer le chargement si la query échoue.
+    let archivedTitles = [];
+    let archivedEquippedTitle = null;
+    try {
+      const archivedQuery = query(
+        collection(db, 'archivedCharacters'),
+        where('userId', '==', userId)
+      );
+      const archivedSnap = await getDocs(archivedQuery);
+
+      archivedSnap.forEach((docSnap) => {
+        const archivedData = docSnap.data();
+        if (Array.isArray(archivedData.earnedTitles)) {
+          archivedTitles.push(...archivedData.earnedTitles);
+        }
+        if (!archivedEquippedTitle && archivedData.equippedTitle) {
+          archivedEquippedTitle = archivedData.equippedTitle;
+        }
+      });
+    } catch (archivedError) {
+      console.warn('Lecture archivedCharacters impossible, fallback userPreferences:', archivedError?.message || archivedError);
+    }
+
     return {
-      earnedTitles: data.earnedTitles || [],
-      equippedTitle: data.equippedTitle || null,
+      earnedTitles: [...new Set([...prefTitles, ...archivedTitles])],
+      equippedTitle: prefEquippedTitle || archivedEquippedTitle || null,
     };
   } catch (error) {
     console.error('Erreur lecture titres compte:', error);
