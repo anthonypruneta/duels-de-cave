@@ -188,7 +188,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const total = auto + capDmg + defDmg;
       return (
         <>
-          DEF +{Math.round(p * 100)}% (+{defBonusValue} Déf){' '}
+          Passif: DEF +{Math.round(p * 100)}% (+{defBonusValue} Déf){' '}
           <br />
           Bouclier initial{' '}
           <Tooltip content={`${(startShieldFromDef ?? 0) * 100}% × DEF (${def}) = ${shieldValue}`}>
