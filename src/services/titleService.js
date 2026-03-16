@@ -226,7 +226,7 @@ export function getDisplayTitle(titleId, gender) {
 
 /**
  * Calcule les statistiques d'obtention de tous les titres et bordures
- * en parcourant tous les personnages actifs.
+ * en parcourant les personnages actifs, puis en fusionnant avec userPreferences.
  *
  * @returns {{ total: number, titleCounts: Object, borderCounts: Object }}
  */
@@ -234,17 +234,41 @@ export async function getObtentionStats() {
   try {
     await waitForFirestore();
     const snapshot = await getDocs(collection(db, 'characters'));
-    const allChars = snapshot.docs.map(d => d.data()).filter(c => !c.disabled);
+    const allChars = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .filter(char => !char.disabled);
     const total = allChars.length;
 
     const titleCounts = {};
     const borderCounts = {};
 
+    const accountPrefsByUserId = new Map(
+      await Promise.all(allChars.map(async (char) => {
+        const userId = char.userId || char.id;
+        if (!userId) return [null, null];
+        const prefsSnap = await getDoc(doc(db, 'userPreferences', userId));
+        return [userId, prefsSnap.exists() ? prefsSnap.data() : null];
+      }))
+    );
+
     for (const char of allChars) {
-      for (const tid of (char.earnedTitles || [])) {
+      const userId = char.userId || char.id;
+      const accountPrefs = accountPrefsByUserId.get(userId) || {};
+
+      const mergedTitles = [...new Set([
+        ...(char.earnedTitles || []),
+        ...(accountPrefs.earnedTitles || []),
+      ])];
+
+      const mergedBorders = [...new Set([
+        ...(char.unlockedBorders || []),
+        ...(accountPrefs.unlockedAccountBorders || []),
+      ])];
+
+      for (const tid of mergedTitles) {
         titleCounts[tid] = (titleCounts[tid] || 0) + 1;
       }
-      for (const bid of (char.unlockedBorders || [])) {
+      for (const bid of mergedBorders) {
         borderCounts[bid] = (borderCounts[bid] || 0) + 1;
       }
     }
