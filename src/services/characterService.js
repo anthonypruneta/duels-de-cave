@@ -583,9 +583,21 @@ export const saveAccountTitles = async (userId, earnedTitles, equippedTitle) => 
   try {
     await retryOperation(async () => {
       const prefsRef = doc(db, 'userPreferences', userId);
+      const existingSnap = await getDoc(prefsRef);
+      const existingData = existingSnap.exists() ? existingSnap.data() : {};
+
       const update = { updatedAt: Timestamp.now() };
-      if (earnedTitles) update.earnedTitles = earnedTitles;
-      if (equippedTitle !== undefined) update.equippedTitle = equippedTitle || null;
+
+      if (Array.isArray(earnedTitles)) {
+        // Important: on fusionne pour ne jamais écraser des titres déjà acquis.
+        const existingTitles = existingData.earnedTitles || [];
+        update.earnedTitles = [...new Set([...existingTitles, ...earnedTitles])];
+      }
+
+      if (equippedTitle !== undefined) {
+        update.equippedTitle = equippedTitle || null;
+      }
+
       await setDoc(prefsRef, update, { merge: true });
     });
   } catch (error) {
