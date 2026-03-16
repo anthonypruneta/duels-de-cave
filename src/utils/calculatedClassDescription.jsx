@@ -24,8 +24,10 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const ignoreTotalPct = ignoreBasePct + ignoreBonusPct;
       return (
         <>
-          +{autoBonus} Auto | Frappe résistance faible & ignore{' '}
-          <Tooltip content={`Base: ${ignoreBasePct}% | Bonus (Cap ${cap}): +${ignoreBonusPct}%`}>
+          +{autoBonus} Auto
+          <br />
+          Frappe résistance faible & ignore{' '}
+          <Tooltip content={`Base: ${ignoreBasePct}%\nBonus (Cap ${cap}): +${ignoreBonusPct}%`}>
             <span className="text-green-400">{ignoreTotalPct}%</span>
           </Tooltip>
         </>
@@ -37,9 +39,12 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const critBonusPct = Math.round(critPerCap * cap * 100);
       return (
         <>
-          +{spdBonus} VIT | Esquive 1 coup
+          +{spdBonus} VIT
+          <br />
+          Esquive 1 coup
+          <br />
           <Tooltip content={`Bonus (Cap ${cap}): +${critBonusPct}%`}>
-            <span className="text-green-400"> | +{critBonusPct}% crit</span>
+            <span className="text-green-400">+{critBonusPct}% crit</span>
           </Tooltip>
         </>
       );
@@ -53,7 +58,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       return (
         <>
           Renvoie{' '}
-          <Tooltip content={`Base: ${reflectBasePct}% | Bonus (Cap ${cap}): +${reflectBonusPct}%`}>
+          <Tooltip content={`Base: ${reflectBasePct}%\nBonus (Cap ${cap}): +${reflectBonusPct}%`}>
             <span className="text-green-400">{reflectTotalPct}%</span>
           </Tooltip>
           {' '}des dégâts reçus
@@ -114,7 +119,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       return (
         <>
           Chaque tour:{' '}
-          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap}) | +${stackBonusPctDisplay}% Cap par auto (cumulable) | Ignore ${ignoreResPct}% ResC`}>
+          <Tooltip content={`${(familierPct * 100).toFixed(1)}% de Cap (${cap})\n+${stackBonusPctDisplay}% Cap par auto (cumulable)\nIgnore ${ignoreResPct}% ResC`}>
             <span className="text-green-400">{familierDmgTotal}</span>
           </Tooltip>
           {' '}dégâts (ignore {ignoreResPct}% ResC)
@@ -131,7 +136,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       return (
         <>
           Renvoie{' '}
-          <Tooltip content={`Base: ${returnBasePct}% | Bonus (Cap ${cap}): +${returnBonusPct}%`}>
+          <Tooltip content={`Base: ${returnBasePct}%\nBonus (Cap ${cap}): +${returnBonusPct}%`}>
             <span className="text-green-400">{returnTotalPct}%</span>
           </Tooltip>
           {' '}des dégâts accumulés & heal {healPct}%
@@ -148,15 +153,17 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const antiHealPct = Math.round(antiHealReduction * 100);
       return (
         <>
-          Bouclier après capacité:{' '}
-          <Tooltip content={`${shieldDmgPct}% dégâts reçus + ${shieldFromCap * 100}% × Cap (${cap})`}>
+          Bouclier après capacité{' '}
+          <Tooltip content={`${shieldDmgPct}% dégâts reçus\n${shieldFromCap * 100}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% dmg + {shieldCapValue}</span>
           </Tooltip>
-          {' '}| Auto ={' '}
+          <br />
+          Auto ={' '}
           <Tooltip content={`Auto (${auto}) + ${autoCapBonus * 100}% × Cap (${cap}) = ${autoBonusValue}`}>
             <span className="text-green-400">{autoTotal}</span>
           </Tooltip>
-          {' '}| -{antiHealPct}% soins adverses
+          <br />
+          Réduit les soins adverses de <span className="text-green-400">{antiHealPct}%</span>
         </>
       );
     }
@@ -172,7 +179,9 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
           <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap) | Attaque adverse -{reductionPct}%
+          {' '}(vs RésCap)
+          <br />
+          Attaque adverse -{reductionPct}%
         </>
       );
     }
@@ -204,6 +213,35 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
           <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg} + ${defScale * 100}% × DEF (${def}) = ${defDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
+        </>
+      );
+    }
+
+    case 'Alchimiste': {
+      const { cycleLength, fireCapScale, lifeCapScale, acidDefReduction, acidRescReduction } = classConstants.alchimiste;
+      const fireBonus = Math.round(fireCapScale * cap);
+      const fireTotal = auto + fireBonus;
+      const lifeBonus = Math.round(lifeCapScale * cap);
+      const lifeTotal = auto + lifeBonus;
+      const defRedPct = Math.round((acidDefReduction ?? 0) * 100);
+      const resRedPct = Math.round((acidRescReduction ?? 0) * 100);
+      return (
+        <>
+          Cycle de {cycleLength} flasques :
+          <br />
+          Feu :{' '}
+          <Tooltip content={`Auto (${auto}) + ${fireCapScale * 100}% × Cap (${cap}) = ${fireBonus}`}>
+            <span className="text-green-400">{fireTotal}</span>
+          </Tooltip>
+          {' '}dégâts (vs RésCap)
+          <br />
+          Vie :{' '}
+          <Tooltip content={`Auto (${auto}) + ${lifeCapScale * 100}% × Cap (${cap}) = ${lifeBonus}`}>
+            <span className="text-green-400">{lifeTotal}</span>
+          </Tooltip>
+          {' '}soins (vs RésCap)
+          <br />
+          Acide : réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
       );
     }
