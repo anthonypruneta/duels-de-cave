@@ -832,6 +832,8 @@ const MageTower = () => {
           }
           if (att.awakening?.bleedPercentPerStack) {
             def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
+          } else {
+            def.bleedPercentPerStack = raceConstants.lycan.bleedPercentPerStack;
           }
         }
       }

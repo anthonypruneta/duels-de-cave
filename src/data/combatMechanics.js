@@ -144,7 +144,7 @@ export const raceConstants = {
   nain: { hp: 10, def: 4 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
-  lycan: { bleedPerHit: 1, bleedDivisor: 5 },
+  lycan: { bleedPerHit: 1, bleedDivisor: 5, bleedPercentPerStack: 0.005 }, // 0.5% PV max par stack par tour (base)
   sylvari: { regenPercent: 0.02 },
   sirene: { cap: 10, stackBonus: 0.10, maxStacks: 3 },  // +10 CAP base
   gnome: { 

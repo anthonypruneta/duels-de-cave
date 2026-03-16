@@ -95,7 +95,7 @@ export const races = {
     }
   },
   'Lycan': {
-    bonus: 'Attaque applique +1 stack de saignement (dégâts = ceil(stacks/5) par tour)',
+    bonus: 'Chaque attaque applique +1 stack de saignement (0,5% PV max par stack au début de son tour)',
     icon: '🐺',
     awakening: {
       levelRequired: 100,

@@ -1691,6 +1691,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
           def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
         }
         if (att.awakening?.bleedPercentPerStack) def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
+        else if (att.race === 'Lycan') def.bleedPercentPerStack = raceConstants.lycan.bleedPercentPerStack;
       }
     }
 

@@ -53,7 +53,9 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Nain': return `+${c.hp || 0} PV & +${c.def || 0} Déf`;
     case 'Dragonkin': return `+${c.hp || 0} PV & +${c.rescap || 0} ResC`;
     case 'Mort-vivant': return `Revient à ${pct(c.revivePercent, 0)} PV (1x)`;
-    case 'Lycan': return `Attaque applique +${c.bleedPerHit || 0} stack de saignement (dégâts = ceil(stacks/${c.bleedDivisor || 1}) par tour)`;
+    case 'Lycan': return c.bleedPercentPerStack != null
+    ? `Attaque applique +${c.bleedPerHit || 0} stack de saignement (${pct1(c.bleedPercentPerStack)} PV max par stack au début de son tour)`
+    : `Attaque applique +${c.bleedPerHit || 0} stack de saignement (dégâts = ceil(stacks/${c.bleedDivisor || 1}) par tour)`;
     case 'Sylvari': return `Regen ${pct(c.regenPercent, 1)} PV max/tour`;
     case 'Sirène': return `+${c.cap || 0} CAP, subit une capacité: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
@@ -303,8 +305,8 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
     case 'Lycan':
       return [
         text('Attaque applique +'), slot(['bleedPerHit'], 'raw'),
-        text(' stack de saignement (dégâts = ceil(stacks/'), slot(['bleedDivisor'], 'raw'),
-        text(') par tour)')
+        text(' stack de saignement ('), slot(['bleedPercentPerStack'], 'percent1dec'),
+        text(' PV max par stack au début de son tour)')
       ];
     case 'Sylvari':
       return [text('Regen '), slot(['regenPercent'], 'percent1dec'), text(' PV max/tour')];
