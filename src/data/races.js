@@ -2,7 +2,7 @@
 
 export const races = {
   'Humain': {
-    bonus: '- +10 PV\n- +1 toutes stats',
+    bonus: '+10 PV\n+1 toutes stats',
     icon: '👥',
     awakening: {
       levelRequired: 100,
@@ -43,7 +43,7 @@ export const races = {
     icon: '🪓',
     awakening: {
       levelRequired: 100,
-      description: '- Sous 50% PV: +18% dégâts\n- Les 3 premières attaques subies infligent 60% dégâts',
+      description: 'Sous 50% PV: +18% dégâts\nLes 3 premières attaques subies infligent 60% dégâts',
       effect: {
         damageBonus: 1.18,
         incomingHitMultiplier: 0.60,
@@ -56,7 +56,7 @@ export const races = {
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+10% PV max, +4% Déf, subit -10% de dégâts',
+      description: '+10% PV max\n+4% Déf\nSubit -10% de dégâts',
       effect: {
         statMultipliers: {
           hp: 1.10,
@@ -67,11 +67,11 @@ export const races = {
     }
   },
   'Dragonkin': {
-    bonus: '- +15 PV\n- +15 ResC',
+    bonus: '+15 PV\n+15 ResC',
     icon: '🐲',
     awakening: {
       levelRequired: 100,
-      description: '- +10% PV max\n- +15% ResC\n- +2% dégâts infligés par dégât reçu',
+      description: '+10% PV max\n+15% ResC\n+2% dégâts infligés par dégât reçu',
       effect: {
         statMultipliers: {
           hp: 1.10,
@@ -86,7 +86,7 @@ export const races = {
     icon: '☠️',
     awakening: {
       levelRequired: 100,
-      description: 'Première mort:\n- explosion 6% PV max\n- résurrection 15% PV max',
+      description: 'Première mort: explosion 6% PV max\nRésurrection 15% PV max',
       effect: {
         explosionPercent: 0.06,
         revivePercent: 0.15,
@@ -111,7 +111,7 @@ export const races = {
     icon: '🌿',
     awakening: {
       levelRequired: 100,
-      description: 'Regen 3.5% PV max/tour\n- +7% dégâts si PV > 50%',
+      description: 'Regen 3.5% PV max/tour\n+7% dégâts si PV > 50%',
       effect: {
         regenPercent: 0.035,
         highHpDamageBonus: 0.07,
@@ -120,11 +120,11 @@ export const races = {
     }
   },
   'Gnome': {
-    bonus: '- +5 VIT\n- +5 CAP\n- VIT > cible: +20% crit, +10% dégâts crit\n- VIT < cible: +20% esquive, +20% CAP\n- égalité: +5% crit/dégâts crit/esquive/CAP',
+    bonus: '+5 VIT\n+5 CAP\nVIT > cible: +20% crit, +10% dégâts crit\nVIT < cible: +20% esquive, +20% CAP\nÉgalité: +5% crit/dégâts crit/esquive/CAP',
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n- +10% CAP\n- VIT > cible: +30% crit, +20% dégâts crit\n- VIT < cible: +30% esquive, +30% CAP\n- égalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n+10% CAP\nVIT > cible: +30% crit, +20% dégâts crit\nVIT < cible: +30% esquive, +30% CAP\nÉgalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
         speedDuelCritHigh: 0.30,
         speedDuelCritDmgHigh: 0.20,   // 20% (était 30%)
@@ -142,11 +142,11 @@ export const races = {
     }
   },
   'Sirène': {
-    bonus: '+10 CAP\n- subit une capacité: +10% dégâts/soins de vos compétences (max 3 stacks)',
+    bonus: '+10 CAP\nSubit une capacité: +10% dégâts/soins de vos compétences (max 3 stacks)',
     icon: '🧜',
     awakening: {
       levelRequired: 100,
-      description: '+40 CAP, stacks à +40% dégâts/soins de vos compétences (max 4)',
+      description: '+40 CAP\nStacks à +40% dégâts/soins de vos compétences (max 4)',
       effect: {
         statBonuses: {
           cap: 40
@@ -170,7 +170,7 @@ export const races = {
     }
   },
   'Turtlekin': {
-    bonus: '+8 DEF, +8 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
+    bonus: '+8 DEF\n+8 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
     icon: '🐢',
     awakening: {
       levelRequired: 100,

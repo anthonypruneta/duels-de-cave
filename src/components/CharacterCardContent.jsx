@@ -7,7 +7,7 @@
 import React from 'react';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
-import { getRaceBonusText } from '../utils/descriptionBuilders';
+import { getRaceBonusText, splitDescriptionLines } from '../utils/descriptionBuilders';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import { formatUpgradePct, extractForgeUpgrade } from '../data/forgeDungeon';
 import { useCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay';
@@ -274,8 +274,10 @@ export default function CharacterCardContent({
             <div className="font-semibold text-amber-200">
               Éveil racial actif (Niv {awakeningInfo.levelRequired}+)
             </div>
-            <div className="text-stone-400 text-[11px]">
-              {awakeningInfo.description}
+            <div className="text-stone-400 text-[11px] space-y-0.5">
+              {splitDescriptionLines(awakeningInfo.description).map((line, idx) => (
+                <div key={idx}>{line}</div>
+              ))}
             </div>
           </div>
         </div>
@@ -287,8 +289,10 @@ export default function CharacterCardContent({
             <div className="font-semibold text-amber-200">
               Éveil racial actif — {character.additionalAwakeningRaces[0]} (Niv {races[character.additionalAwakeningRaces[0]].awakening.levelRequired}+)
             </div>
-            <div className="text-stone-400 text-[11px]">
-              {races[character.additionalAwakeningRaces[0]].awakening.description}
+            <div className="text-stone-400 text-[11px] space-y-0.5">
+              {splitDescriptionLines(races[character.additionalAwakeningRaces[0]].awakening.description).map((line, idx) => (
+                <div key={idx}>{line}</div>
+              ))}
             </div>
           </div>
         </div>
@@ -296,7 +300,11 @@ export default function CharacterCardContent({
       {!isAwakeningActive && character?.race && races[character.race] && (
         <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
           <span className="text-lg">{races[character.race].icon}</span>
-          <span className="text-stone-300">{getRaceBonusText(character.race)}</span>
+          <div className="text-stone-300 space-y-0.5">
+            {splitDescriptionLines(getRaceBonusText(character.race)).map((line, idx) => (
+              <div key={idx}>{line}</div>
+            ))}
+          </div>
         </div>
       )}
       {character?.class && classes[character.class] && (

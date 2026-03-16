@@ -9,6 +9,19 @@ import { getAwakeningEffect } from './awakening';
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
 
+/** Découpe une description en lignes (un effet par ligne). Gère \n, " - ", ", ", " & ". */
+export const splitDescriptionLines = (text) => {
+  if (!text) return [];
+  return text
+    .split('\n')
+    .flatMap((chunk) => chunk.split(' - '))
+    .flatMap((chunk) => chunk.split(', '))
+    .flatMap((chunk) => chunk.split(' & '))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (line.startsWith('-') ? line.replace(/^-\s*/, '') : line));
+};
+
 // Mapping nom affiché → clé dans raceConstants/classConstants
 export const RACE_TO_CONSTANT_KEY = {
   'Humain': 'humain',
@@ -71,13 +84,13 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
   switch (raceName) {
     case 'Humain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} à toutes les stats`;
     case 'Elfe': return `+${pct((e?.statMultipliers?.auto || 1) - 1, 0)} Auto, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} Cap, +${e?.statBonuses?.spd || 0} VIT, +${pct(e?.critChanceBonus, 0)} crit, +${pct(e?.critDamageBonus, 0)} dégâts crit`;
-    case 'Orc': return `- Sous 50% PV: +${pct((e?.damageBonus || 1) - 1, 0)} dégâts\n- Les ${e?.incomingHitCount || 0} premières attaques subies infligent ${(Number(e?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
-    case 'Nain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((e?.statMultipliers?.def || 1) - 1, 0)} Déf, subit -${pct(1 - (e?.damageTakenMultiplier ?? 1), 0)}% de dégâts`;
-    case 'Dragonkin': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC, +${pct(e?.damageStackBonus, 0)} dégâts infligés par dégât reçu`;
+    case 'Orc': return `Sous 50% PV: +${pct((e?.damageBonus || 1) - 1, 0)} dégâts\nLes ${e?.incomingHitCount || 0} premières attaques subies infligent ${(Number(e?.incomingHitMultiplier || 1) * 100).toFixed(0)}% dégâts`;
+    case 'Nain': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max\n+${pct((e?.statMultipliers?.def || 1) - 1, 0)} Déf\nSubit -${pct(1 - (e?.damageTakenMultiplier ?? 1), 0)}% de dégâts`;
+    case 'Dragonkin': return `+${pct((e?.statMultipliers?.hp || 1) - 1, 0)} PV max\n+${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\n+${pct(e?.damageStackBonus, 0)} dégâts infligés par dégât reçu`;
     case 'Mort-vivant': return `Première mort: explosion ${pct(e?.explosionPercent, 0)} PV max + résurrection ${pct(e?.revivePercent, 0)} PV max`;
     case 'Lycan': return `Chaque auto: +${e?.bleedStacksPerHit || 0} stack de saignement (${pct(e?.bleedPercentPerStack, 1)} PV max par tour)`;
-    case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour, +${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
-    case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP, stacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
+    case 'Sylvari': return `Regen ${pct(e?.regenPercent, 1)} PV max/tour\n+${pct(e?.highHpDamageBonus, 0)} dégâts si PV > ${(Number(e?.highHpThreshold || 0) * 100).toFixed(0)}%`;
+    case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP\nStacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
@@ -359,13 +372,13 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
       ];
     case 'Nain':
       return [
-        text('+'), slot(['statMultipliers', 'hp'], 'percentMinus1'), text(' PV max, +'),
-        slot(['statMultipliers', 'def'], 'percentMinus1'), text(' Déf, subit -'), slot(['damageTakenMultiplier'], 'percentReduction'), text('% de dégâts')
+        text('+'), slot(['statMultipliers', 'hp'], 'percentMinus1'), text(' PV max\n+'),
+        slot(['statMultipliers', 'def'], 'percentMinus1'), text(' Déf\nSubit -'), slot(['damageTakenMultiplier'], 'percentReduction'), text('% de dégâts')
       ];
     case 'Dragonkin':
       return [
-        text('+'), slot(['statMultipliers', 'hp'], 'percentMinus1'), text(' PV max, +'),
-        slot(['statMultipliers', 'rescap'], 'percentMinus1'), text(' ResC, +'), slot(['damageStackBonus'], 'percent'),
+        text('+'), slot(['statMultipliers', 'hp'], 'percentMinus1'), text(' PV max\n+'),
+        slot(['statMultipliers', 'rescap'], 'percentMinus1'), text(' ResC\n+'), slot(['damageStackBonus'], 'percent'),
         text(' dégâts infligés par dégât reçu')
       ];
     case 'Mort-vivant':
@@ -381,12 +394,12 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
     case 'Sylvari':
       return [
         text('Regen '), slot(['regenPercent'], 'percent1dec'),
-        text(' PV max/tour, +'), slot(['highHpDamageBonus'], 'percent'),
+        text(' PV max/tour\n+'), slot(['highHpDamageBonus'], 'percent'),
         text(' dégâts si PV > '), slot(['highHpThreshold'], 'percent'), text('%')
       ];
     case 'Sirène':
       return [
-        text('+'), slot(['statBonuses', 'cap'], 'raw'), text(' CAP, stacks à +'), slot(['sireneStackBonus'], 'percent'),
+        text('+'), slot(['statBonuses', 'cap'], 'raw'), text(' CAP\nStacks à +'), slot(['sireneStackBonus'], 'percent'),
         text(' dégâts/soins de vos compétences (max '), slot(['sireneMaxStacks'], 'raw'), text(')')
       ];
     case 'Gnome':
