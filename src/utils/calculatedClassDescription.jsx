@@ -182,14 +182,14 @@ export function getCalculatedClassDescription(className, cap, auto) {
       const defBonusPct = Math.round(defPercentBonus * 100);
       const shieldPct = Math.round(startShieldFromDef * 100);
       const capDmg = Math.round(capScale * cap);
-      const totalBase = auto + capDmg;
+      const defDmg = Math.round(defScale * def);
+      const total = auto + capDmg + defDmg;
       return (
         <>
           Bouclier initial {shieldPct}% DEF | +{defBonusPct}% DEF | Inflige{' '}
-          <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg}, + ${defScale * 100}% × DEF`}>
-            <span className="text-green-400">{totalBase}</span>
+          <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg} + ${defScale * 100}% × DEF (${def}) = ${defDmg}`}>
+            <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}+ {Math.round(defScale * 100)}% DEF
         </>
       );
     }
