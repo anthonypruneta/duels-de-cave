@@ -181,14 +181,18 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
       const shieldValue = Math.round((startShieldFromDef ?? 0) * def);
       const p = defPercentBonus ?? 0;
-      const baseDef = p > 0 ? def / (1 + p) : def;
-      const defBonusValue = Math.max(0, Math.round(def - baseDef));
+      const defBeforePassive = p > 0 ? Math.round(def / (1 + p)) : def;
+      const defBonusValue = Math.max(0, def - defBeforePassive);
       const capDmg = Math.round(capScale * cap);
       const defDmg = Math.round(defScale * def);
       const total = auto + capDmg + defDmg;
       return (
         <>
-          Passif: DEF +{Math.round(p * 100)}% (+{defBonusValue} Déf){' '}
+          Passif: DEF{' '}
+          <Tooltip content={p > 0 ? `${Math.round(p * 100)}% × DEF (${defBeforePassive}) = +${defBonusValue}` : ''}>
+            <span className="text-green-400">+{defBonusValue}</span>
+          </Tooltip>
+          {' '}
           <br />
           Bouclier initial{' '}
           <Tooltip content={`${(startShieldFromDef ?? 0) * 100}% × DEF (${def}) = ${shieldValue}`}>

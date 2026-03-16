@@ -8,7 +8,7 @@
  * @returns {Object} finalStats, tooltipContent, getStatLineProps, etc.
  */
 
-import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
+import { getRaceBonus, getClassBonus, classConstants } from '../data/combatMechanics';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, mergeAwakeningEffects, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -68,12 +68,18 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const skipWeaponFlat = hasForgeUpgrade && forgeUpgrade;
   const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
   const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, character.class, character.race, character.mageTowerPassive, skipWeaponFlat) : baseStats;
+  const bastionDefBonus = character.class === 'Bastion' && classConstants.bastion?.defPercentBonus
+    ? Math.round((baseWithPassive.def ?? 0) * classConstants.bastion.defPercentBonus)
+    : 0;
+  const baseWithClassPassive = bastionDefBonus > 0
+    ? { ...baseWithPassive, def: Math.max(1, (baseWithPassive.def ?? 0) + bastionDefBonus) }
+    : baseWithPassive;
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
   const effectiveLevel = character.level ?? 1;
   const mainAwakeningEffect = getAwakeningEffect(character.race, effectiveLevel);
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
-  const finalStatsBeforeForge = applyAwakeningToBase(baseWithPassive, awakeningEffect);
+  const finalStatsBeforeForge = applyAwakeningToBase(baseWithClassPassive, awakeningEffect);
   const finalStats = hasForgeUpgrade && forgeUpgrade
     ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
     : finalStatsBeforeForge;
@@ -86,13 +92,15 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     const forestBonus = forestBoosts[k] || 0;
     const weaponBonus = weaponStatValue(k);
     const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
-    const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus;
+    const bastionBonus = k === 'def' ? bastionDefBonus : 0;
+    const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus + bastionBonus;
     return (finalStatsBeforeForge[k] ?? 0) - subtotalWithoutRace;
   };
 
   const tooltipContent = (k) => {
     const parts = [`Base: ${baseWithoutBonus(k)}`];
     if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
+    if (k === 'def' && bastionDefBonus > 0) parts.push(`Classe: +8% DEF (+${bastionDefBonus})`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
     if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
     if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
@@ -101,7 +109,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+` : ''}${raceDisplayBonus}`);
     if (hasForgeUpgrade && forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
-      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
+      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
       if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
     }
@@ -111,13 +119,14 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const getStatLineProps = (statKey, label, valueClassName = '') => {
     const displayValue = finalStats[statKey] ?? 0;
     const raceDisplayBonus = getRaceDisplayBonus(statKey);
-    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
+    const bastionDelta = statKey === 'def' ? bastionDefBonus : 0;
+    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
     const forgeDeltaForStat = (hasForgeUpgrade && forgeUpgrade) ? (() => {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
     })() : 0;
-    const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || forgeDeltaForStat !== 0;
-    const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + forgeDeltaForStat;
+    const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || bastionDelta > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || forgeDeltaForStat !== 0;
+    const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + forgeDeltaForStat;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
     return {
       displayValue,
