@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { classConstants, getSubclassCapacityConstants } from '../data/combatMechanics';
+import { classConstants, getSubclassCapacityConstants, dmgCap } from '../data/combatMechanics';
 import { getClassDescriptionText, buildSubclassDescription } from './descriptionBuilders';
 import SharedTooltip from '../components/SharedTooltip';
 
@@ -14,7 +14,7 @@ function safe(stats, key, fallback = 0) {
   return typeof v === 'number' && !Number.isNaN(v) ? v : fallback;
 }
 
-export function getCalculatedClassDescription(className, cap, auto, def = 0) {
+export function getCalculatedClassDescription(className, cap, auto, def = 0, rescap = 0) {
   const Tooltip = SharedTooltip;
   switch (className) {
     case 'Guerrier': {
@@ -223,6 +223,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round(lifeCapScale * cap);
       const lifeTotal = auto + lifeBonus;
+      const acidDmg = dmgCap(auto, rescap);
       const defRedPct = Math.round((acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((acidRescReduction ?? 0) * 100);
       return (
@@ -241,7 +242,11 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
           </Tooltip>
           {' '}soins (vs RésCap)
           <br />
-          Acide : réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          Acide : inflige{' '}
+          <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${acidDmg}`}>
+            <span className="text-green-400">{acidDmg}</span>
+          </Tooltip>
+          {' '}dégâts (vs ResC), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
       );
     }
