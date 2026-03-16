@@ -112,8 +112,12 @@ export const subclassConstants = {
   mentaliste: { defBonusStack: 0.08 },                 // +8% DEF (stackable)
   dompteuse_chair: { autoReductionStack: 0.09 },       // -6% Auto ennemi (stackable)
   ame_tentatrice: {},                                  // Crit alterné (pas de ratio)
-  rempart_fer: { startShieldFromDef: 0.45 },          // Bouclier 50% DEF
-  mur_implacable: { startShieldFromDef: 0.40 },        // 30% DEF (priorité au tour capacité)
+  rempart_fer: { startShieldFromDef: 0.55 },           // Bouclier 55% DEF
+  mur_implacable: {
+    startShieldFromDef: 0.35,                          // Bouclier 35% DEF
+    capScale: 0.55,                                    // Charge du Rempart: +55% CAP
+    defScale: 0.55                                     // Charge du Rempart: +55% DEF
+  },
   luxum: { capShieldPercent: 0.25 },                   // Bouclier 10% CAP au soin
   latum: { missingHpDamagePercent: 0.15 },             // 20% PV manquants en dégâts
   flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.12 }, // -20% DEF, +16% Auto
