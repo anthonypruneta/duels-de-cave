@@ -180,22 +180,23 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0) {
     case 'Bastion': {
       const { defPercentBonus, startShieldFromDef, capScale, defScale } = classConstants.bastion;
       const shieldValue = Math.round((startShieldFromDef ?? 0) * def);
-      const defBonusValue = Math.round((defPercentBonus ?? 0) * def);
-      const defTotal = Math.max(1, Math.round(def + defBonusValue));
+      const p = defPercentBonus ?? 0;
+      const baseDef = p > 0 ? def / (1 + p) : def;
+      const defBonusValue = Math.max(0, Math.round(def - baseDef));
       const capDmg = Math.round(capScale * cap);
       const defDmg = Math.round(defScale * def);
       const total = auto + capDmg + defDmg;
       return (
         <>
+          DEF +{Math.round(p * 100)}% (+{defBonusValue} Déf){' '}
+          <br />
           Bouclier initial{' '}
           <Tooltip content={`${(startShieldFromDef ?? 0) * 100}% × DEF (${def}) = ${shieldValue}`}>
             <span className="text-green-400">{shieldValue}</span>
           </Tooltip>
-          {' '}| DEF après passif{' '}
-          <Tooltip content={`DEF (${def}) + ${(defPercentBonus ?? 0) * 100}% × DEF (${def}) = +${defBonusValue}`}>
-            <span className="text-green-400">{defTotal}</span>
-          </Tooltip>
-          {' '}| Inflige{' '}
+          {' '}
+          <br />
+          Inflige{' '}
           <Tooltip content={`Auto (${auto}) + ${capScale * 100}% × Cap (${cap}) = ${capDmg} + ${defScale * 100}% × DEF (${def}) = ${defDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
