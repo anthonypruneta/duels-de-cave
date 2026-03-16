@@ -1533,6 +1533,17 @@ function processPlayerAction(att, def, log, isP1, turn) {
   // Pendule de Chronos : consommer la charge de CDR quand une capacité est effectivement lancée
   if (skillUsed) {
     consumePenduleCdCharge(att.weaponState);
+    // Remettre le CD de la capacité utilisée à 0 pour que le cycle (cd % effectiveCd)+1 reparte correctement.
+    // Sinon, après la 2e utilisation avec Pendule, effectiveCd passe de 3 à 4 et (3%4)+1=4 rend la cap dispo au tour suivant.
+    if (att.class === 'Paladin') att.cd.pal = 0;
+    else if (att.class === 'Healer') att.cd.heal = 0;
+    else if (att.class === 'Succube') att.cd.succ = 0;
+    else if (att.class === 'Bastion') att.cd.bast = 0;
+    else if (att.class === 'Voleur') att.cd.rog = 0;
+    else if (att.class === 'Masochiste') att.cd.maso = 0;
+    else if (att.class === 'Mage') att.cd.mag = 0;
+    else if (att.class === 'Guerrier') att.cd.war = 0;
+    else if (att.class === 'Archer') att.cd.arc = 0;
   }
 
   // Entrave Arcanique : marquer que la première capacité a été utilisée (pour stopper le bonus de dégâts)
