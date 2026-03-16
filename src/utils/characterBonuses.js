@@ -4,7 +4,6 @@ export const getClassBonus = (clazz) => {
   const b = { ...emptyBonus };
   if (clazz === 'Voleur') b.spd = 5;
   if (clazz === 'Guerrier') b.auto = 5;
-  if (clazz === 'Bastion') b.def = 3;
   return b;
 };
 
