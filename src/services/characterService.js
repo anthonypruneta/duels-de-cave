@@ -615,10 +615,6 @@ export const getAccountTitles = async (userId) => {
     const prefTitles = data.earnedTitles || [];
     const prefEquippedTitle = data.equippedTitle || null;
 
-    if (data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG]) {
-      return { earnedTitles: prefTitles, equippedTitle: prefEquippedTitle };
-    }
-
     const archivedQuery = query(
       collection(db, 'archivedCharacters'),
       where('userId', '==', userId)
@@ -642,9 +638,9 @@ export const getAccountTitles = async (userId) => {
     const nextEquippedTitle = prefEquippedTitle || archivedEquippedTitle || null;
     const mustSyncPrefs =
       !snap.exists() ||
-      !data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG] ||
       mergedTitles.length !== prefTitles.length ||
-      nextEquippedTitle !== prefEquippedTitle;
+      nextEquippedTitle !== prefEquippedTitle ||
+      !data[ACCOUNT_TITLES_ARCHIVED_MIGRATION_FLAG];
 
     if (mustSyncPrefs) {
       await setDoc(prefsRef, {
