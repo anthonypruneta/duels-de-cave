@@ -68,10 +68,36 @@ const YGGDRASIL_HEAL_PASSIVES = new Set(['essence_drain', 'onction_eternite']);
 
 /** mageTowerPassiveOrList: un passif { id } ou une liste de passifs (principal + extension). */
 function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassiveOrList) {
-  if (combatantClass === 'Healer' || combatantClass === 'Masochiste') return true;
+  if (combatantClass === 'Healer' || combatantClass === 'Masochiste' || combatantClass === 'Alchimiste') return true;
   if (combatantRace === 'Sylvari') return true;
   if (Array.isArray(mageTowerPassiveOrList)) return mageTowerPassiveOrList.some((p) => YGGDRASIL_HEAL_PASSIVES.has(p?.id));
   return YGGDRASIL_HEAL_PASSIVES.has(mageTowerPassiveOrList?.id);
+}
+
+/**
+ * Variante très ciblée de onAttack, utilisée quand on veut faire progresser / déclencher Mjöllnir
+ * sans déclencher les autres effets "après attaque" (Gungnir, Anathème, Labrys, Thanatos...).
+ *
+ * Typiquement: Alchimiste (phase de flasque de vie) — doit pouvoir proc Mjöllnir.
+ */
+export function onMjollnirAttackLikeAction(weaponState, attacker, defender) {
+  const effects = {
+    stunTarget: false,
+    stunDuration: 0,
+    log: []
+  };
+
+  if (!weaponState?.isLegendary || weaponState.weaponId !== 'marteau_legendaire') return effects;
+
+  weaponState.counters.attackCount++;
+
+  if (weaponState.counters.attackCount % weaponConstants.mjollnir.triggerEveryNAttacks === 0) {
+    effects.stunTarget = true;
+    effects.stunDuration = weaponConstants.mjollnir.stunDuration;
+    effects.log.push(`⚡ Mjöllnir: Tonnerre Divin - ${defender?.nom || defender?.name || 'Ennemi'} étourdi !`);
+  }
+
+  return effects;
 }
 
 // ============================================================================
