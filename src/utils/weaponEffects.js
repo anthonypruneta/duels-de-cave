@@ -75,32 +75,6 @@ function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassi
 }
 
 /**
- * Variante très ciblée de onAttack, utilisée quand on veut faire progresser / déclencher Mjöllnir
- * sans déclencher les autres effets "après attaque" (Gungnir, Anathème, Labrys, Thanatos...).
- *
- * Typiquement: Alchimiste (phase de flasque de vie) — doit pouvoir proc Mjöllnir.
- */
-export function onMjollnirAttackLikeAction(weaponState, attacker, defender) {
-  const effects = {
-    stunTarget: false,
-    stunDuration: 0,
-    log: []
-  };
-
-  if (!weaponState?.isLegendary || weaponState.weaponId !== 'marteau_legendaire') return effects;
-
-  weaponState.counters.attackCount++;
-
-  if (weaponState.counters.attackCount % weaponConstants.mjollnir.triggerEveryNAttacks === 0) {
-    effects.stunTarget = true;
-    effects.stunDuration = weaponConstants.mjollnir.stunDuration;
-    effects.log.push(`⚡ Mjöllnir: Tonnerre Divin - ${defender?.nom || defender?.name || 'Ennemi'} étourdi !`);
-  }
-
-  return effects;
-}
-
-// ============================================================================
 // MODIFICATION DES STATS DE BASE (Passifs permanents)
 // ============================================================================
 /**

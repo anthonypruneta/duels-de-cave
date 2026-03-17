@@ -10,7 +10,7 @@ import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onCapacityCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty, shouldSkipVerdictDemonFamiliar,
-  applyForgeUpgrade, getPenduleCooldownReduction, consumePenduleCdCharge, getPenduleSpellBonus, onMjollnirAttackLikeAction
+  applyForgeUpgrade, getPenduleCooldownReduction, consumePenduleCdCharge, getPenduleSpellBonus
 } from './weaponEffects.js';
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
@@ -1282,11 +1282,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
         applyDamage(att, def, bonusDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} ${healEffects.log.join(' ')}`);
       }
-
-      // Mjöllnir doit pouvoir proc même sur la phase de soin de l'Alchimiste (sans déclencher les autres effets onAttack).
-      const mjollnirEffects = onMjollnirAttackLikeAction(att.weaponState, att, def);
-      if (mjollnirEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-      if (mjollnirEffects.log.length > 0) log.push(`${playerColor} ${mjollnirEffects.log.join(' ')}`);
 
       // Codex Archon (double soin)
       const spellEffects = onCapacityCast(att.weaponState, att, def, heal, 'alch_heal');
