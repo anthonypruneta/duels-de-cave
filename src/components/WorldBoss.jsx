@@ -440,9 +440,17 @@ const WorldBoss = () => {
         <div className="overflow-visible">
           <div className="h-auto relative bg-stone-900 flex items-center justify-center">
             {activeBossImage ? (
-              <img src={activeBossImage} alt={activeBossName} className="w-full h-auto object-contain" style={{ minHeight: '400px' }} />
+              <img
+                src={activeBossImage}
+                alt={activeBossName}
+                className="w-full h-auto object-contain"
+                style={{ minHeight: 'clamp(260px, 30dvh, 400px)' }}
+              />
             ) : (
-              <div className="w-full flex items-center justify-center bg-stone-800" style={{ minHeight: '400px' }}>
+              <div
+                className="w-full flex items-center justify-center bg-stone-800"
+                style={{ minHeight: 'clamp(260px, 30dvh, 400px)' }}
+              >
                 <span className="text-8xl">☄️</span>
               </div>
             )}
@@ -839,7 +847,10 @@ const WorldBoss = () => {
                   </div>
                 )}
 
-                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px] overflow-hidden">
+              <div
+                className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+                style={{ height: 'clamp(260px, 55dvh, 600px)' }}
+              >
                   <div className="bg-stone-900/60 p-3 border-b border-red-900/40">
                     <h2 className="text-lg md:text-2xl font-bold text-red-400 text-center">☄️ Combat en direct</h2>
                   </div>

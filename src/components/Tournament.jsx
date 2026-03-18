@@ -1000,7 +1000,10 @@ const Tournament = () => {
           )}
 
           {/* Zone de chat messenger */}
-          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col h-[480px] md:h-[600px]">
+          <div
+            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden"
+            style={{ height: 'clamp(260px, 55dvh, 600px)' }}
+          >
             <div className="p-3 border-b border-stone-700/60">
               <h2 className="text-sm font-bold text-stone-300 text-center uppercase tracking-wider">
                 ⚔️ {replayMatchId ? 'Replay' : 'Combat en direct'}
