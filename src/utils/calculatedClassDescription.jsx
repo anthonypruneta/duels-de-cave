@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { classConstants, getSubclassCapacityConstants, dmgCap } from '../data/combatMechanics';
+import { getSubclassStatBonuses } from '../data/subclasses';
 import { getClassDescriptionText, buildSubclassDescription } from './descriptionBuilders';
 import SharedTooltip from '../components/SharedTooltip';
 
@@ -271,6 +272,24 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
   const Tooltip = SharedTooltip;
   const c = getSubclassCapacityConstants(className, subclassId);
 
+  /** Passif Bastion +8% DEF (même affichage que la classe de base), en retirant le % DEF Collège si besoin */
+  const bastionSubclassPassiveBlock = (scId) => {
+    const p = classConstants.bastion.defPercentBonus ?? 0;
+    const subDefPct = getSubclassStatBonuses(scId)?.def ?? 0;
+    const defAfterBastion = subDefPct > 0 ? Math.round(def / (1 + subDefPct)) : def;
+    const defBeforePassive = p > 0 ? Math.round(defAfterBastion / (1 + p)) : defAfterBastion;
+    const defBonusValue = Math.max(0, defAfterBastion - defBeforePassive);
+    return (
+      <>
+        Passif: DEF{' '}
+        <Tooltip content={p > 0 ? `${Math.round(p * 100)}% × DEF (${defBeforePassive}) = +${defBonusValue}` : ''}>
+          <span className="text-green-400">+{defBonusValue}</span>
+        </Tooltip>
+        <br />
+      </>
+    );
+  };
+
   switch (subclassId) {
     case 'maitre_armes': {
       const capDmg = Math.round((c.capScale ?? 0) * cap);
@@ -512,6 +531,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const total = auto + capDmg + defDmg;
       return (
         <>
+          {bastionSubclassPassiveBlock('rempart_fer')}
           Bouclier initial{' '}
           <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
             <span className="text-green-400">{shieldVal}</span>
@@ -531,6 +551,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const total = auto + capDmg + defDmg;
       return (
         <>
+          {bastionSubclassPassiveBlock('mur_implacable')}
           Bouclier initial{' '}
           <Tooltip content={`${(c.startShieldFromDef ?? 0) * 100}% × DEF (${def})`}>
             <span className="text-green-400">{shieldVal}</span>

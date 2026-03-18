@@ -165,9 +165,9 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'ame_tentatrice':
       return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts. Cette capacité crit une fois sur deux (si le précédent n'a pas crit, le prochain crit obligatoire).`;
     case 'rempart_fer':
-      return `Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
+      return `Passif classe Bastion : +${pct0(classConstants.bastion.defPercentBonus)} DEF. Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
     case 'mur_implacable':
-      return `Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Vous attaquez en premier le tour de la capacité. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
+      return `Passif classe Bastion : +${pct0(classConstants.bastion.defPercentBonus)} DEF. Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Vous attaquez en premier le tour de la capacité. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
     case 'flagellant_sanglant':
       return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Réduit votre DEF de ${pct0(1 - (c.defMultiplier ?? 1))} mais augmente votre Auto de ${pct0((c.autoMultiplier ?? 1) - 1)} pour le reste du combat.`;
     case 'ecorche_fer':
