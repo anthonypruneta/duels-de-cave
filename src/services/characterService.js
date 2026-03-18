@@ -464,6 +464,23 @@ export const updateCharacterEquippedWeapon = async (userId, weaponId) => {
   }
 };
 
+// Mettre à jour la bordure PNG (overlay UI) équipée
+export const updateCharacterEquippedRealBorder = async (userId, realBorderId) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await setDoc(characterRef, {
+        equippedRealBorder: realBorderId || null,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la bordure (PNG) équipée:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Sauvegarder un roll en attente (lock race/classe/stats)
 export const savePendingRoll = async (userId, rollData) => {
   try {

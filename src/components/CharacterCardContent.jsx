@@ -359,6 +359,7 @@ export default function CharacterCardContent({
     cardClassName,
     infoSide,
     borderId: borderIdOverride || character?.equippedBorder || null,
+    realBorderId: character?.equippedRealBorder || null,
     borderOnImageOnly,
     imageClassName,
     imageOverlayContent,

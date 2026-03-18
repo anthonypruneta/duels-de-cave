@@ -24,7 +24,6 @@ import {
   resetWeeklyInfiniteLabyrinthEnemyPool
 } from '../services/infiniteLabyrinthService';
 import Header from './Header';
-import borderImage from '../assets/backgrounds/border.png';
 import { races as racesData } from '../data/races';
 import { classes as classesData } from '../data/classes';
 import WorldBossAdmin from './WorldBossAdmin';
@@ -40,10 +39,7 @@ const Admin = () => {
 
   // États pour l'upload d'image
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [processedImage, setProcessedImage] = useState(null);
-  const [processingImage, setProcessingImage] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
-  const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const labyrinthAudioRef = useRef(null);
   const labyrinthReplayTokenRef = useRef(null);
@@ -350,85 +346,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     const reader = new FileReader();
     reader.onload = (e) => {
       setUploadedImage(e.target.result);
-      setProcessedImage(null);
     };
     reader.readAsDataURL(file);
   };
 
-  // Fonction pour superposer la bordure sur l'image
-  const processImageWithBorder = () => {
-    if (!uploadedImage) return;
-
-    setProcessingImage(true);
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    // Charger l'image uploadée
-    const userImg = new Image();
-    userImg.onload = () => {
-      // Charger l'image de bordure
-      const border = new Image();
-      border.onload = () => {
-        // Limiter la taille max pour éviter les images trop lourdes
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 900;
-
-        // Calculer le ratio pour respecter les proportions de la bordure
-        const borderRatio = border.width / border.height;
-        let targetWidth = Math.min(border.width, MAX_WIDTH);
-        let targetHeight = targetWidth / borderRatio;
-
-        if (targetHeight > MAX_HEIGHT) {
-          targetHeight = MAX_HEIGHT;
-          targetWidth = targetHeight * borderRatio;
-        }
-
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-
-        // Calculer les dimensions pour que l'image remplisse le canvas
-        const scale = Math.max(targetWidth / userImg.width, targetHeight / userImg.height);
-        const scaledWidth = userImg.width * scale;
-        const scaledHeight = userImg.height * scale;
-        const offsetX = (targetWidth - scaledWidth) / 2;
-        const offsetY = (targetHeight - scaledHeight) / 2;
-
-        // Dessiner l'image uploadée (en arrière-plan, redimensionnée pour couvrir)
-        ctx.drawImage(userImg, offsetX, offsetY, scaledWidth, scaledHeight);
-
-        // Superposer la bordure par-dessus
-        ctx.drawImage(border, 0, 0, targetWidth, targetHeight);
-
-        // Convertir en JPEG avec compression (qualité 0.85)
-        const resultDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        setProcessedImage(resultDataUrl);
-        setProcessingImage(false);
-      };
-      border.src = borderImage;
-    };
-    userImg.src = uploadedImage;
-  };
-
-  // Fonction pour télécharger l'image résultante
-  const downloadProcessedImage = () => {
-    if (!processedImage || !selectedCharacter) return;
-
-    const link = document.createElement('a');
-    link.download = `${selectedCharacter.name}-with-border.png`;
-    link.href = processedImage;
-    link.click();
-  };
-
   // Fonction pour sauvegarder l'image dans Firebase Storage
   const saveImageToCharacter = async () => {
-    if (!processedImage || !selectedCharacter) return;
+    if (!uploadedImage || !selectedCharacter) return;
 
     setSavingImage(true);
     const isArchived = selectedCharacter._source === 'archived';
     const result = isArchived
-      ? await updateArchivedCharacterImage(selectedCharacter.id, processedImage)
-      : await updateCharacterImage(selectedCharacter.id, processedImage);
+      ? await updateArchivedCharacterImage(selectedCharacter.id, uploadedImage)
+      : await updateCharacterImage(selectedCharacter.id, uploadedImage);
 
     if (result.success) {
       // Recharger les données depuis Firestore pour avoir l'URL correcte
@@ -447,7 +377,6 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
   // Réinitialiser l'upload
   const resetUpload = () => {
     setUploadedImage(null);
-    setProcessedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -1499,9 +1428,6 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
         {adminMainTab === 'personnage' && (
           <>
-        {/* Canvas caché pour le traitement */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-
         {/* Migrations (PV 4→6) */}
         <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl p-4 mb-6">
           <h2 className="text-lg font-bold text-amber-400 mb-2">🔄 Migrations données</h2>
@@ -1815,7 +1741,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               <p className="text-amber-400 font-bold mb-3">🖼️ Image du personnage:</p>
 
               {/* Image actuelle */}
-              {selectedCharacter.characterImage && !processedImage && (
+              {selectedCharacter.characterImage && (
                 <div className="mb-4 text-center">
                   <img
                     src={selectedCharacter.characterImage}
@@ -1836,7 +1762,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 id="character-image-upload"
               />
 
-              {!uploadedImage && !processedImage && (
+              {!uploadedImage && (
                 <label
                   htmlFor="character-image-upload"
                   className="block w-full p-6 border-2 border-dashed border-amber-500/50 rounded-lg cursor-pointer hover:border-amber-400 hover:bg-stone-700/30 transition text-center"
@@ -1847,8 +1773,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                 </label>
               )}
 
-              {/* Image uploadée (avant traitement) */}
-              {uploadedImage && !processedImage && (
+              {/* Image uploadée */}
+              {uploadedImage && (
                 <div className="space-y-3">
                   <div className="text-center">
                     <img
@@ -1856,36 +1782,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       alt="Image uploadée"
                       className="max-h-48 mx-auto rounded-lg"
                     />
-                    <p className="text-gray-400 text-sm mt-2">Image originale</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={processImageWithBorder}
-                      disabled={processingImage}
-                      className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-600 text-white py-2 rounded font-bold transition"
-                    >
-                      {processingImage ? '⏳ Traitement...' : '✨ Appliquer la bordure'}
-                    </button>
-                    <button
-                      onClick={resetUpload}
-                      className="bg-stone-600 hover:bg-stone-500 text-white px-4 py-2 rounded transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Image traitée (après bordure) */}
-              {processedImage && (
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <img
-                      src={processedImage}
-                      alt="Image avec bordure"
-                      className="max-h-64 mx-auto rounded-lg shadow-lg"
-                    />
-                    <p className="text-green-400 text-sm mt-2">Aperçu avec bordure</p>
+                    <p className="text-gray-400 text-sm mt-2">Aperçu (upload sans bordure)</p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1894,13 +1791,6 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       className="flex-1 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white py-2 rounded font-bold transition"
                     >
                       {savingImage ? '⏳ Sauvegarde...' : '💾 Sauvegarder'}
-                    </button>
-                    <button
-                      onClick={downloadProcessedImage}
-                      className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition"
-                      title="Télécharger"
-                    >
-                      📥
                     </button>
                     <button
                       onClick={resetUpload}

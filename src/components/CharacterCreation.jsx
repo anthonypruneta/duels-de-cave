@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters, getAccountTitles, saveAccountTitles } from '../services/characterService';
+import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters, getAccountTitles, saveAccountTitles, updateCharacterEquippedRealBorder } from '../services/characterService';
 import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
@@ -32,6 +32,37 @@ import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveB
 import CardBorderCanvas from './CardBorderCanvas';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
+const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
+
+const getRealBorderImageSrc = (borderIdOrFile) => {
+  const raw = String(borderIdOrFile || '').trim();
+  if (!raw) return null;
+  const wantsPng = raw.toLowerCase().endsWith('.png');
+  const fileName = wantsPng ? raw : `${raw}.png`;
+  const base = fileName.replace(/\.png$/i, '');
+  if (!base || /^BG$/i.test(base) || /Old$/i.test(base)) return null;
+  const key = `../assets/backgrounds/${fileName}`;
+  return realBorderPngModules[key] || null;
+};
+
+const getRealBorderCandidates = () => {
+  const entries = Object.keys(realBorderPngModules)
+    .map((k) => {
+      const file = k.split('/').pop() || '';
+      return { key: k, file };
+    })
+    .filter(({ file }) => file.toLowerCase().endsWith('.png'))
+    .map(({ key, file }) => {
+      const base = file.replace(/\.png$/i, '');
+      return { key, file, base };
+    })
+    .filter(({ base }) => !/^BG$/i.test(base))
+    .filter(({ base }) => !/Old$/i.test(base));
+
+  // Tri stable: base case-insensitive
+  entries.sort((a, b) => a.base.toLowerCase().localeCompare(b.base.toLowerCase(), 'fr'));
+  return entries;
+};
 
 const getWeaponImage = (imageFile) => {
   if (!imageFile) return null;
@@ -1288,9 +1319,21 @@ const CharacterCreation = () => {
                           <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
                         </div>
                       )}
+                      {(() => {
+                        const src = getRealBorderImageSrc(existingCharacter.equippedRealBorder);
+                        if (!src) return null;
+                        return (
+                          <img
+                            src={src}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                            style={{ zIndex: 3 }}
+                          />
+                        );
+                      })()}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
-                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
+                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000', zIndex: 4 }}
                       >
                         <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
                         {existingCharacter.equippedTitle && (
@@ -1375,7 +1418,7 @@ const CharacterCreation = () => {
 
               {/* Section Bordures */}
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
-                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">🖼️ Bordures</h3>
+                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">✨ Effets</h3>
                 {[
                   { label: 'Personnage', desc: 'Liées à la progression du personnage', filter: b => b.type !== 'account' },
                   { label: 'Compte', desc: 'Conservées de semaine en semaine', filter: b => b.type === 'account' },
@@ -1440,6 +1483,66 @@ const CharacterCreation = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Vraies bordures (PNG overlay) */}
+          {existingCharacter && (
+            <div className="max-w-[1400px] mx-auto mt-4 px-2">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
+                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-2">🧷 Bordures</h3>
+                <p className="text-[11px] text-stone-500 mb-3">
+                  Bordure visuelle autour de ta carte (sans re-upload d'image). Les fichiers <strong className="text-stone-400">*Old</strong> et <strong className="text-stone-400">BG</strong> sont ignorés.
+                </p>
+
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await updateCharacterEquippedRealBorder(currentUser.uid, null);
+                      setExistingCharacter(prev => (prev ? { ...prev, equippedRealBorder: null } : prev));
+                    }}
+                    className={`rounded-lg p-2 text-[10px] transition-colors border ${
+                      !existingCharacter.equippedRealBorder
+                        ? 'bg-amber-900/40 border-amber-500 text-amber-200'
+                        : 'bg-stone-800 border-stone-600 text-stone-300 hover:border-amber-600'
+                    }`}
+                    title="Aucune bordure"
+                  >
+                    <div className="text-lg mb-1">✕</div>
+                    <div className="font-semibold">Aucune</div>
+                  </button>
+
+                  {getRealBorderCandidates().map(({ key, base, file }) => {
+                    const src = realBorderPngModules[key];
+                    const isEquipped = (existingCharacter.equippedRealBorder || '').toLowerCase() === base.toLowerCase()
+                      || (existingCharacter.equippedRealBorder || '').toLowerCase() === file.toLowerCase();
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={async () => {
+                          await updateCharacterEquippedRealBorder(currentUser.uid, base);
+                          setExistingCharacter(prev => (prev ? { ...prev, equippedRealBorder: base } : prev));
+                        }}
+                        className={`relative overflow-hidden rounded-lg p-2 text-[10px] transition-colors border ${
+                          isEquipped
+                            ? 'bg-amber-900/40 border-amber-500 text-amber-200'
+                            : 'bg-stone-800 border-stone-600 text-stone-300 hover:border-amber-600'
+                        }`}
+                        title={base}
+                      >
+                        <div className="w-full aspect-[2/3] bg-stone-900/60 border border-stone-700 rounded mb-1 relative overflow-hidden">
+                          <img src={src} alt={base} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+                        </div>
+                        <div className="font-semibold truncate">{base}</div>
+                        {isEquipped && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

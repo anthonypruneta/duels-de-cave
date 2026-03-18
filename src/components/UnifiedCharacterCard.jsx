@@ -4,6 +4,32 @@ import { resolveBorderId, getBorderGlowClass } from '../data/borders';
 
 const BAR_ANIMATION_MS = 500;
 
+const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
+
+function normalizePngName(name) {
+  return String(name || '').trim();
+}
+
+function isOldAsset(baseName) {
+  return /Old$/i.test(baseName);
+}
+
+function getRealBorderImageSrc(borderIdOrFile) {
+  const raw = normalizePngName(borderIdOrFile);
+  if (!raw) return null;
+
+  const wantsPng = raw.toLowerCase().endsWith('.png');
+  const fileName = wantsPng ? raw : `${raw}.png`;
+  const base = fileName.replace(/\.png$/i, '');
+
+  // Exclusions: BG = arrière-plan, *Old = ignorés
+  if (/^BG$/i.test(base)) return null;
+  if (isOldAsset(base)) return null;
+
+  const key = `../assets/backgrounds/${fileName}`;
+  return realBorderPngModules[key] || null;
+}
+
 function easeOutCubic(t) {
   return 1 - (1 - t) ** 3;
 }
@@ -48,6 +74,8 @@ const UnifiedCharacterCard = ({
   hideInfoOnLg = false,
   /** ID de bordure cosmétique (ex: 'lava', 'ice') — accepte aussi les anciennes classes CSS */
   borderId = null,
+  /** Bordure PNG (overlay UI) — ex: 'or' ou 'or.png' (assets/backgrounds, hors BG/*Old) */
+  realBorderId = null,
   /** Contenu overlay sur l'image (ex: brume du miroir) */
   imageOverlayContent = null,
   /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
@@ -102,6 +130,8 @@ const UnifiedCharacterCard = ({
   const wrapperGlow = borderOnImageOnly ? '' : glowCls;
   const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
 
+  const realBorderSrc = getRealBorderImageSrc(realBorderId);
+
   const imageSection = (
     <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
       {borderOnImageOnly && canvasOverlay}
@@ -110,8 +140,16 @@ const UnifiedCharacterCard = ({
       ) : (
         <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
       )}
+      {realBorderSrc && (
+        <img
+          src={realBorderSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+          style={{ zIndex: 3 }}
+        />
+      )}
       {imageOverlayContent}
-      <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}>
+      <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`} style={{ zIndex: 4 }}>
         <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
         {title && (
           <div className="character-card-name text-sm leading-tight mt-0.5" style={nameStyle}>{title}</div>
