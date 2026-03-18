@@ -45,8 +45,20 @@ function drawOmbre2(ctx, w, h) {
   const seed = hashStr(`ombre2:${w}x${h}`);
 
   // 1) Base sombre autour (cadre externe)
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillStyle = 'rgba(0,0,0,0.46)';
   ctx.fillRect(0, 0, w, h);
+
+  // Profondeur: vignette sombre (noir profond) + teinte violette très légère
+  {
+    const r = Math.max(w, h) * 0.92;
+    const vg = ctx.createRadialGradient(w / 2, h / 2, r * 0.12, w / 2, h / 2, r);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(0.55, 'rgba(2,0,8,0.10)');
+    vg.addColorStop(0.78, 'rgba(0,0,0,0.38)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.78)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+  }
 
   // 2) Fumée opaque (blobs) concentrée sur les bords + coins
   const smokePad = inset * 1.55;
@@ -76,12 +88,13 @@ function drawOmbre2(ctx, w, h) {
 
     // Booster les coins
     const cornerBoost = (x < smokePad * 1.2 || x > w - smokePad * 1.2 || y < smokePad * 1.2 || y > h - smokePad * 1.2) ? 1.25 : 1;
-    const rad = (6 + r4 * 26) * cornerBoost * (minDim / 340);
-    const alpha = (0.10 + r3 * 0.22) * cornerBoost; // opaque
+    const rad = (7 + r4 * 30) * cornerBoost * (minDim / 340);
+    const alpha = (0.14 + r3 * 0.26) * cornerBoost; // plus opaque
 
     const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-    g.addColorStop(0, `rgba(30, 0, 55, ${alpha})`);
-    g.addColorStop(0.4, `rgba(75, 15, 120, ${alpha * 0.55})`);
+    g.addColorStop(0, `rgba(10, 0, 24, ${Math.min(0.92, alpha)})`);
+    g.addColorStop(0.35, `rgba(42, 0, 85, ${alpha * 0.72})`);
+    g.addColorStop(0.7, `rgba(115, 35, 175, ${alpha * 0.38})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -90,10 +103,10 @@ function drawOmbre2(ctx, w, h) {
   }
 
   // 3) Glow doux (sous-couche) — plus présent que la V1 mais pas "néon"
-  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.10)');
-  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.24)', 'rgba(76, 29, 149, 0.11)');
-  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.18)', 'rgba(88, 28, 135, 0.09)');
-  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.18)', 'rgba(88, 28, 135, 0.09)');
+  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.26)', 'rgba(88, 28, 135, 0.12)');
+  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.28)', 'rgba(76, 29, 149, 0.13)');
+  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.11)');
+  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.11)');
 
   // Helpers pour traits/ornements
   const strokeFrame = (off, width, strokeStyle, glow = null) => {
@@ -112,15 +125,49 @@ function drawOmbre2(ctx, w, h) {
   };
 
   // 4) Traits francs (double cadre) comme sur ta référence
-  // Outer dark line
-  strokeFrame(inset2, Math.max(1.5, minDim / 220), 'rgba(5, 0, 12, 0.85)');
+  // Outer dark line (plus noir, plus contrasté)
+  strokeFrame(inset2, Math.max(1.7, minDim / 210), 'rgba(0, 0, 0, 0.92)');
   // Inner violet line with subtle glow
   const violet = ctx.createLinearGradient(inset, inset, w - inset, h - inset);
   violet.addColorStop(0, 'rgba(221, 214, 254, 0.95)');
   violet.addColorStop(0.35, 'rgba(196, 181, 253, 0.80)');
   violet.addColorStop(0.7, 'rgba(167, 139, 250, 0.65)');
   violet.addColorStop(1, 'rgba(233, 213, 255, 0.90)');
-  strokeFrame(inset, Math.max(1.2, minDim / 260), violet, { color: 'rgba(168, 85, 247, 0.45)', blur: Math.max(4, minDim * 0.02) });
+  strokeFrame(inset, Math.max(1.3, minDim / 250), violet, { color: 'rgba(168, 85, 247, 0.62)', blur: Math.max(6, minDim * 0.028) });
+
+  // 4b) Ombre interne (donne l'effet "creusé")
+  {
+    const innerOff = inset + Math.max(10, minDim * 0.05);
+    const blur = Math.max(10, minDim * 0.055);
+
+    // Haut
+    let g = ctx.createLinearGradient(0, innerOff, 0, innerOff + blur);
+    g.addColorStop(0, 'rgba(0,0,0,0.55)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(innerOff, innerOff, w - innerOff * 2, blur);
+
+    // Bas
+    g = ctx.createLinearGradient(0, h - innerOff, 0, h - innerOff - blur);
+    g.addColorStop(0, 'rgba(0,0,0,0.62)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(innerOff, h - innerOff - blur, w - innerOff * 2, blur);
+
+    // Gauche
+    g = ctx.createLinearGradient(innerOff, 0, innerOff + blur, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0.58)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(innerOff, innerOff, blur, h - innerOff * 2);
+
+    // Droite
+    g = ctx.createLinearGradient(w - innerOff, 0, w - innerOff - blur, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0.58)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(w - innerOff - blur, innerOff, blur, h - innerOff * 2);
+  }
 
   // 5) Ornements simples (coins + diamant haut/bas) — “ça a de la gueule” sans PNG
   const cornerSize = Math.max(18, minDim * 0.14);
@@ -136,7 +183,7 @@ function drawOmbre2(ctx, w, h) {
     ctx.lineJoin = 'round';
 
     // base dark stroke (shadow)
-    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.78)';
     ctx.lineWidth = Math.max(2.4, minDim * 0.010);
     ctx.beginPath();
     ctx.moveTo(0, cornerSize * 0.15);
@@ -145,9 +192,9 @@ function drawOmbre2(ctx, w, h) {
     ctx.stroke();
 
     // violet highlight stroke
-    ctx.shadowColor = 'rgba(168, 85, 247, 0.55)';
+    ctx.shadowColor = 'rgba(168, 85, 247, 0.75)';
     ctx.shadowBlur = Math.max(6, minDim * 0.028);
-    ctx.strokeStyle = 'rgba(216, 180, 254, 0.70)';
+    ctx.strokeStyle = 'rgba(216, 180, 254, 0.78)';
     ctx.lineWidth = Math.max(1.2, minDim * 0.005);
     ctx.beginPath();
     ctx.moveTo(cornerSize * 0.02, cornerSize * 0.22);
@@ -169,7 +216,7 @@ function drawOmbre2(ctx, w, h) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(Math.PI / 4);
-    ctx.shadowColor = 'rgba(168, 85, 247, 0.65)';
+    ctx.shadowColor = 'rgba(168, 85, 247, 0.85)';
     ctx.shadowBlur = Math.max(6, minDim * 0.03);
     ctx.fillStyle = 'rgba(196, 181, 253, 0.70)';
     ctx.fillRect(-s / 2, -s / 2, s, s);
