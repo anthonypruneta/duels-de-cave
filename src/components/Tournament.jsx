@@ -21,6 +21,7 @@ import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { classConstants } from '../data/combatMechanics';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
+import CombatLayout from './CombatLayout';
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
@@ -969,10 +970,95 @@ const Tournament = () => {
     const p1Data = tournoi.participants[match.p1];
     const p2Data = tournoi.participants[match.p2];
 
+    const renderLogContent = () => {
+      if (combatLog.length === 0 && !isAnimating) {
+        return (
+          <p className="text-stone-600 italic text-center py-8 text-sm">
+            En attente du combat...
+          </p>
+        );
+      }
+      return (
+        <>
+          {combatLog.map((log, idx) => {
+            const isP1 = log.startsWith('[P1]');
+            const isP2 = log.startsWith('[P2]');
+            const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+            if (!isP1 && !isP2) {
+              if (log.includes('🏆')) {
+                return (
+                  <div key={idx} className="flex justify-center my-3">
+                    <div className="bg-amber-500/10 border border-amber-500/50 text-amber-200 px-5 py-2 font-bold text-sm rounded-lg">
+                      {cleanLog}
+                    </div>
+                  </div>
+                );
+              }
+              if (log.includes('---')) {
+                return (
+                  <div key={idx} className="flex justify-center my-2">
+                    <div className="bg-stone-800/80 text-stone-400 px-4 py-1 text-xs font-bold rounded-md border border-stone-700/50">
+                      {cleanLog}
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div key={idx} className="flex justify-center">
+                  <div className="text-stone-500 text-xs italic">{cleanLog}</div>
+                </div>
+              );
+            }
+
+            if (isP1) {
+              return (
+                <div key={idx} className="flex justify-start">
+                  <div className="max-w-[85%]">
+                    <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-blue-500/70">
+                      <div className="text-xs">{formatLogMessage(cleanLog)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={idx} className="flex justify-end">
+                <div className="max-w-[85%]">
+                  <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-purple-500/70">
+                    <div className="text-xs">{formatLogMessage(cleanLog)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={logEndRef} />
+        </>
+      );
+    };
+
     return (
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-        {/* Carte joueur 1 */}
-        <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+      <CombatLayout
+        p1Entity={{
+          name: p1Data?.nom ?? p1Data?.name,
+          currentHP: p1HP,
+          maxHP: p1MaxHP,
+          shield: p1Shield,
+          base: p1CombatBase ?? p1Data?.base ?? {},
+          image: p1Data?.characterImage
+        }}
+        p2Entity={{
+          name: p2Data?.nom ?? p2Data?.name,
+          currentHP: p2HP,
+          maxHP: p2MaxHP,
+          shield: p2Shield,
+          base: p2CombatBase ?? p2Data?.base ?? {},
+          image: p2Data?.characterImage
+        }}
+        p1CombatBase={p1CombatBase}
+        p2CombatBase={p2CombatBase}
+        p1Card={
           <CharacterCardContent
             character={p1Data}
             showHpBar
@@ -986,95 +1072,8 @@ const Tournament = () => {
             combatStatus={p1CombatStatus}
             detailsPlacement="left"
           />
-        </div>
-
-        {/* Zone centrale - Combat log */}
-        <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-          {/* Message de victoire */}
-          {winner && (
-            <div className="flex justify-center mb-3">
-              <div className="bg-amber-500/10 border border-amber-500/60 text-amber-200 px-6 py-2.5 font-bold text-lg rounded-lg animate-pulse">
-                🏆 {winner} remporte le combat !
-              </div>
-            </div>
-          )}
-
-          {/* Zone de chat messenger */}
-          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col h-[480px] md:h-[600px]">
-            <div className="p-3 border-b border-stone-700/60">
-              <h2 className="text-sm font-bold text-stone-300 text-center uppercase tracking-wider">
-                ⚔️ {replayMatchId ? 'Replay' : 'Combat en direct'}
-              </h2>
-            </div>
-            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2.5 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent">
-              {combatLog.length === 0 && !isAnimating ? (
-                <p className="text-stone-600 italic text-center py-8 text-sm">
-                  En attente du combat...
-                </p>
-              ) : (
-                <>
-                  {combatLog.map((log, idx) => {
-                    const isP1 = log.startsWith('[P1]');
-                    const isP2 = log.startsWith('[P2]');
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                    if (!isP1 && !isP2) {
-                      if (log.includes('🏆')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-3">
-                            <div className="bg-amber-500/10 border border-amber-500/50 text-amber-200 px-5 py-2 font-bold text-sm rounded-lg">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (log.includes('---')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-2">
-                            <div className="bg-stone-800/80 text-stone-400 px-4 py-1 text-xs font-bold rounded-md border border-stone-700/50">
-                              {cleanLog}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={idx} className="flex justify-center">
-                          <div className="text-stone-500 text-xs italic">{cleanLog}</div>
-                        </div>
-                      );
-                    }
-
-                    if (isP1) {
-                      return (
-                        <div key={idx} className="flex justify-start">
-                          <div className="max-w-[80%]">
-                            <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-blue-500/70">
-                              <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={idx} className="flex justify-end">
-                        <div className="max-w-[80%]">
-                          <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-purple-500/70">
-                            <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={logEndRef} />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Carte joueur 2 */}
-        <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+        }
+        p2Card={
           <CharacterCardContent
             character={p2Data}
             showHpBar
@@ -1088,8 +1087,20 @@ const Tournament = () => {
             combatStatus={p2CombatStatus}
             detailsPlacement="right"
           />
-        </div>
-      </div>
+        }
+        logRef={logContainerRef}
+        logTitle={`⚔️ ${replayMatchId ? 'Replay' : 'Combat en direct'}`}
+        logTitleClass="text-sm font-bold text-stone-300 text-center uppercase tracking-wider"
+        logHeaderBg="bg-stone-950/85"
+        renderLog={renderLogContent}
+        aboveLog={winner && (
+          <div className="flex justify-center mb-3">
+            <div className="bg-amber-500/10 border border-amber-500/60 text-amber-200 px-6 py-2.5 font-bold text-base md:text-lg rounded-lg animate-pulse">
+              🏆 {winner} remporte le combat !
+            </div>
+          </div>
+        )}
+      />
     );
   };
 
