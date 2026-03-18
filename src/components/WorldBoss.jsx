@@ -27,6 +27,7 @@ import {
 import { getRaceBonusText, getClassDescriptionText } from '../utils/descriptionBuilders';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import CharacterCardContent from './CharacterCardContent';
+import CombatLayout from './CombatLayout';
 import testImage1 from '../assets/characters/test.png';
 
 // Images du boss cataclysme (piochées par semaine, nom du fichier = nom du boss)
@@ -716,217 +717,190 @@ const WorldBoss = () => {
 
   // === PAGE PRINCIPALE ===
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="min-h-screen p-2 sm:p-4 md:p-6">
       <Header />
-
       <audio ref={bossAudioRef} loop>
         <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
       </audio>
 
       <div className="max-w-[1800px] mx-auto pt-20">
         {/* Titre */}
-        <div className="flex justify-center mb-4">
-          <div className="bg-red-950/80 border border-red-800/80 rounded-lg px-6 py-2 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-            <h1 className="text-3xl md:text-4xl font-black text-red-400 tracking-wide">
+        <div className="flex justify-center mb-3">
+          <div className="bg-red-950/80 border border-red-800/80 rounded-lg px-4 py-2 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
+            <h1 className="text-2xl md:text-4xl font-black text-red-400 tracking-wide">
               ☄️ {activeBossName}
             </h1>
           </div>
         </div>
 
         {/* Barre de vie globale */}
-        <div className="max-w-3xl mx-auto mb-6">
+        <div className="max-w-3xl mx-auto mb-4">
           <div className="bg-stone-950/85 border border-red-900/60 rounded-xl p-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-red-400 font-bold text-sm tracking-wider uppercase">PV du Boss</span>
-              <span className="text-stone-300 font-mono text-sm">
+              <span className="text-red-400 font-bold text-xs tracking-wider uppercase">PV du Boss</span>
+              <span className="text-stone-300 font-mono text-xs">
                 {eventData.hpRemaining.toLocaleString('fr-FR')} / {eventData.hpMax.toLocaleString('fr-FR')}
               </span>
             </div>
-            <div className="relative w-full bg-stone-800 h-7 overflow-hidden rounded-md border border-red-900/40">
-              <div
-                className={`h-full ${globalHpBarColor} transition-all duration-700`}
-                style={{ width: `${globalHpPercent}%` }}
-              />
+            <div className="relative w-full bg-stone-800 h-6 overflow-hidden rounded-md border border-red-900/40">
+              <div className={`h-full ${globalHpBarColor} transition-all duration-700`} style={{ width: `${globalHpPercent}%` }} />
               {[25, 50, 75].map(tick => (
                 <div key={tick} className="absolute top-0 bottom-0 w-px bg-stone-600/50" style={{ left: `${tick}%` }} />
               ))}
             </div>
-            <div className="flex justify-between mt-1.5 text-xs text-stone-500">
+            <div className="flex justify-between mt-1 text-xs text-stone-500">
               <span>{globalHpPercent.toFixed(1)}%</span>
-              <span>⏰ Fin : {countdown}</span>
+              <span>⏰ {countdown}</span>
               <span>{eventData.totalAttempts || 0} tentatives</span>
             </div>
           </div>
         </div>
 
-        {/* LAYOUT */}
-        {phase === 'pre' ? (
-          <div className="flex flex-col items-center gap-6">
-            {/* Joueur | Action | Boss */}
-            <div className="flex flex-col md:flex-row gap-4 items-start justify-center w-full">
-              <div className="w-full md:w-[340px] lg:w-auto md:flex-shrink-0 order-1">
-                <CharacterCardContent character={{ ...character, currentHP: character.base?.hp ?? 0, maxHP: character.base?.hp ?? 0, shield: 0 }} showHpBar={true} imageOverride={character.characterImage || testImage1} detailsPlacement="left" />
-              </div>
-
-              <div className="w-full md:w-[350px] flex flex-col items-center justify-center gap-5 py-10 order-2">
-                <div className="text-6xl">⚔️</div>
-                {attemptInfo && (
-                  <p className={`text-sm font-semibold ${attemptInfo.canAttempt ? 'text-amber-400' : 'text-red-400'}`}>
-                    {attemptInfo.canAttempt
-                      ? `${attemptInfo.attemptsLeft} / 2 tentative${attemptInfo.attemptsLeft > 1 ? 's' : ''} restante${attemptInfo.attemptsLeft > 1 ? 's' : ''} aujourd'hui`
-                      : 'Plus de tentatives aujourd\'hui'}
-                  </p>
-                )}
-                <button
-                  onClick={handleFight}
-                  disabled={attemptInfo && !attemptInfo.canAttempt}
-                  className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white px-10 py-3 font-bold text-lg rounded-lg shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all"
-                >
-                  ☄️ Affronter {activeBossName}
-                </button>
-                <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
-                {attemptError && (
-                  <p className="text-red-400 text-sm text-center bg-red-900/30 border border-red-700 rounded-lg px-4 py-2">{attemptError}</p>
-                )}
-              </div>
-
-              <div className="w-full md:w-[440px] md:flex-shrink-0 order-3">
-                <BossCard />
-              </div>
-
-              <div className="w-full lg:w-[280px] md:flex-shrink-0 order-4">
-                <LeaderboardPanel />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {/* Joueur | Logs | Boss */}
-            <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-              <div className="order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
-                {playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} combatStatus={playerCombatStatus} detailsPlacement="left" />}
-              </div>
-
-              <div className="order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
-                <div className="flex justify-center gap-3 md:gap-4 mb-4">
-                  <button
-                    onClick={handleFight}
-                    disabled={isSimulating}
-                    className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg transition-all shadow-lg border-2 border-red-500"
-                  >
-                    {isSimulating ? '⚔️ En cours...' : '▶️ Relancer'}
-                  </button>
-                  <button
-                    onClick={() => { setPhase('pre'); setCombatLog([]); setWinner(null); setCombatResult(null); setPlayerState(null); setBossState(null); setPlayerCombatBase(null); setBossCombatBase(null); setPlayerCombatModifiers(null); setPlayerCombatStatus(null); }}
-                    className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg transition-all shadow-lg border border-stone-500"
-                  >
-                    ← Retour
-                  </button>
+        {/* ─── PRÉ-COMBAT ─── */}
+        {phase === 'pre' && (
+          <>
+            {/* MOBILE */}
+            <div className="lg:hidden flex flex-col gap-3">
+              {/* Boss image compacte */}
+              <div className="flex gap-3">
+                <div className="flex-1 bg-stone-900 rounded-xl overflow-hidden border border-red-900/40">
+                  {activeBossImage
+                    ? <img src={activeBossImage} alt={activeBossName} className="w-full h-44 object-contain" />
+                    : <div className="w-full h-44 flex items-center justify-center bg-stone-800"><span className="text-7xl">☄️</span></div>
+                  }
+                  <div className="p-2 grid grid-cols-2 gap-1 text-xs text-red-300">
+                    <span>Auto: {eventData?.bossStats?.auto || WORLD_BOSS.baseStats.auto}</span>
+                    <span>Déf: {eventData?.bossStats?.def || WORLD_BOSS.baseStats.def}</span>
+                    <span>Cap: {eventData?.bossStats?.cap || WORLD_BOSS.baseStats.cap}</span>
+                    <span>ResC: {eventData?.bossStats?.rescap || WORLD_BOSS.baseStats.rescap}</span>
+                  </div>
+                  <div className="px-2 pb-2 text-[10px] text-red-400 border-t border-red-900/40 pt-1">
+                    ☠️ Tour 10 : EXTINCTION — Mort instantanée
+                  </div>
                 </div>
-
-                {combatResult && !isSimulating && (
-                  <div className="flex justify-center mb-4">
-                    <div className={`px-8 py-3 font-bold text-xl shadow-2xl rounded-lg border-2 ${
-                      combatResult.reachedExtinction ? 'bg-red-900 text-red-300 border-red-600' :
-                      !combatResult.playerDied ? 'bg-green-900 text-green-300 border-green-600' :
-                      'bg-orange-900 text-orange-300 border-orange-600'
-                    }`}>
-                      {combatResult.reachedExtinction && '☠️ EXTINCTION'}
-                      {!combatResult.reachedExtinction && combatResult.playerDied && '💀 Défaite'}
-                      {!combatResult.reachedExtinction && !combatResult.playerDied && '🎉 Victoire !'}
-                      {' — '}{combatResult.damageDealt.toLocaleString('fr-FR')} dégâts
+                {/* Mini-aperçu joueur */}
+                {character && (
+                  <div className="w-28 flex-shrink-0 bg-stone-900/90 border border-blue-500/40 rounded-xl overflow-hidden">
+                    {character.characterImage && <img src={character.characterImage} alt={character.name} className="w-full h-24 object-contain bg-stone-800" />}
+                    <div className="p-1.5 text-center">
+                      <div className="text-[10px] font-bold text-blue-300 truncate">{character.name}</div>
+                      <div className="text-[9px] text-stone-400 mt-0.5">
+                        {[['Auto', character.base?.auto], ['DEF', character.base?.def]].map(([l, v]) => v != null ? <span key={l} className="mr-1">{l}:{v}</span> : null)}
+                      </div>
                     </div>
                   </div>
                 )}
+              </div>
+              {/* Bouton combat */}
+              <div className="text-center space-y-2">
+                {attemptInfo && (
+                  <p className={`text-sm font-semibold ${attemptInfo.canAttempt ? 'text-amber-400' : 'text-red-400'}`}>
+                    {attemptInfo.canAttempt
+                      ? `${attemptInfo.attemptsLeft} / 2 tentative${attemptInfo.attemptsLeft > 1 ? 's' : ''} restante${attemptInfo.attemptsLeft > 1 ? 's' : ''}`
+                      : 'Plus de tentatives aujourd\'hui'}
+                  </p>
+                )}
+                <button onClick={handleFight} disabled={attemptInfo && !attemptInfo.canAttempt}
+                  className="w-full bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white py-3 font-bold text-base rounded-lg shadow-2xl border-2 border-red-500 transition-all">
+                  ☄️ Affronter {activeBossName}
+                </button>
+                <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
+                {attemptError && <p className="text-red-400 text-sm bg-red-900/30 border border-red-700 rounded-lg px-3 py-2">{attemptError}</p>}
+              </div>
+              {/* Leaderboard compact */}
+              <LeaderboardPanel />
+            </div>
 
-                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px] overflow-hidden">
-                  <div className="bg-stone-900/60 p-3 border-b border-red-900/40">
-                    <h2 className="text-lg md:text-2xl font-bold text-red-400 text-center">☄️ Combat en direct</h2>
-                  </div>
-                  <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
-                    {combatLog.length === 0 ? (
-                      <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Le combat va commencer...</p>
-                    ) : (
-                      <>
-                        {combatLog.map((log, idx) => {
-                          const isP1 = log.startsWith('[P1]');
-                          const isP2 = log.startsWith('[P2]');
-                          const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                          if (!isP1 && !isP2) {
-                            if (log.includes('EXTINCTION')) {
-                              return (
-                                <div key={idx} className="flex justify-center my-4">
-                                  <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg rounded-lg border-2 border-red-600 animate-pulse">
-                                    {formatLogMessage(cleanLog, false)}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            if (log.includes('🏆') || log.includes('🎉')) {
-                              return (
-                                <div key={idx} className="flex justify-center my-4">
-                                  <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg rounded-lg border border-stone-400">
-                                    {formatLogMessage(cleanLog, false)}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            if (log.includes('---')) {
-                              return (
-                                <div key={idx} className="flex justify-center my-3">
-                                  <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold rounded border border-stone-500">
-                                    {cleanLog}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return (
-                              <div key={idx} className="flex justify-center">
-                                <div className="text-stone-400 text-sm italic">{formatLogMessage(cleanLog, false)}</div>
-                              </div>
-                            );
-                          }
-
-                          if (isP1) {
-                            return (
-                              <div key={idx} className="flex justify-start">
-                                <div className="max-w-[80%]">
-                                  <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
-                                    <div className="text-xs md:text-sm">{formatLogMessage(cleanLog, true)}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          if (isP2) {
-                            return (
-                              <div key={idx} className="flex justify-end">
-                                <div className="max-w-[80%]">
-                                  <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-red-500">
-                                    <div className="text-xs md:text-sm">{formatLogMessage(cleanLog, false)}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-                        })}
-                        <div ref={logEndRef} />
-                      </>
-                    )}
-                  </div>
+            {/* DESKTOP */}
+            <div className="hidden lg:flex flex-col items-center gap-6">
+              <div className="flex flex-row gap-4 items-start justify-center w-full">
+                <div className="w-[340px] flex-shrink-0">
+                  <CharacterCardContent character={{ ...character, currentHP: character.base?.hp ?? 0, maxHP: character.base?.hp ?? 0, shield: 0 }} showHpBar={true} imageOverride={character.characterImage || testImage1} detailsPlacement="left" />
                 </div>
-              </div>
-
-              <div className="order-3 w-full md:w-[440px] md:flex-shrink-0">
-                <BossCard />
-              </div>
-
-              <div className="order-4 w-full lg:w-[280px] md:flex-shrink-0">
-                <LeaderboardPanel />
+                <div className="w-[350px] flex flex-col items-center justify-center gap-5 py-10">
+                  <div className="text-6xl">⚔️</div>
+                  {attemptInfo && (
+                    <p className={`text-sm font-semibold ${attemptInfo.canAttempt ? 'text-amber-400' : 'text-red-400'}`}>
+                      {attemptInfo.canAttempt
+                        ? `${attemptInfo.attemptsLeft} / 2 tentative${attemptInfo.attemptsLeft > 1 ? 's' : ''} restante${attemptInfo.attemptsLeft > 1 ? 's' : ''} aujourd'hui`
+                        : 'Plus de tentatives aujourd\'hui'}
+                    </p>
+                  )}
+                  <button onClick={handleFight} disabled={attemptInfo && !attemptInfo.canAttempt}
+                    className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 disabled:border-stone-500 text-white px-10 py-3 font-bold text-lg rounded-lg shadow-2xl border-2 border-red-500 hover:border-red-300 transition-all">
+                    ☄️ Affronter {activeBossName}
+                  </button>
+                  <p className="text-stone-500 text-xs">2 tentatives par jour (non cumulables)</p>
+                  {attemptError && <p className="text-red-400 text-sm text-center bg-red-900/30 border border-red-700 rounded-lg px-4 py-2">{attemptError}</p>}
+                </div>
+                <div className="w-[440px] flex-shrink-0"><BossCard /></div>
+                <div className="w-[280px] flex-shrink-0"><LeaderboardPanel /></div>
               </div>
             </div>
+          </>
+        )}
+
+        {/* ─── COMBAT ─── */}
+        {phase === 'combat' && (
+          <div className="flex flex-col gap-4">
+            {/* Boutons */}
+            <div className="flex justify-center gap-2 md:gap-4">
+              <button onClick={handleFight} disabled={isSimulating}
+                className="bg-red-700 hover:bg-red-600 disabled:bg-stone-600 disabled:text-stone-400 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg transition-all shadow-lg border-2 border-red-500">
+                {isSimulating ? '⚔️ En cours...' : '▶️ Relancer'}
+              </button>
+              <button onClick={() => { setPhase('pre'); setCombatLog([]); setWinner(null); setCombatResult(null); setPlayerState(null); setBossState(null); setPlayerCombatBase(null); setBossCombatBase(null); setPlayerCombatModifiers(null); setPlayerCombatStatus(null); }}
+                className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base rounded-lg transition-all shadow-lg border border-stone-500">
+                ← Retour
+              </button>
+            </div>
+
+            {combatResult && !isSimulating && (
+              <div className="flex justify-center">
+                <div className={`px-6 py-2 font-bold text-base md:text-xl shadow-2xl rounded-lg border-2 ${
+                  combatResult.reachedExtinction ? 'bg-red-900 text-red-300 border-red-600' :
+                  !combatResult.playerDied ? 'bg-green-900 text-green-300 border-green-600' :
+                  'bg-orange-900 text-orange-300 border-orange-600'
+                }`}>
+                  {combatResult.reachedExtinction && '☠️ EXTINCTION'}
+                  {!combatResult.reachedExtinction && combatResult.playerDied && '💀 Défaite'}
+                  {!combatResult.reachedExtinction && !combatResult.playerDied && '🎉 Victoire !'}
+                  {' — '}{combatResult.damageDealt.toLocaleString('fr-FR')} dégâts
+                </div>
+              </div>
+            )}
+
+            <CombatLayout
+              p1Entity={{ name: playerState?.name || character?.name, currentHP: playerState?.currentHP, maxHP: playerState?.maxHP, shield: playerState?.shield ?? 0, base: playerCombatBase ?? character?.base ?? {}, image: character?.characterImage }}
+              p2Entity={{ name: activeBossName, currentHP: bossState?.currentHP, maxHP: bossState?.maxHP, base: bossCombatBase ?? eventData?.bossStats ?? WORLD_BOSS.baseStats, image: activeBossImage }}
+              p1Card={playerState && <CharacterCardContent character={playerState} showHpBar currentHP={playerState.currentHP} maxHP={playerState.maxHP} shield={playerState.shield} imageOverride={playerState.characterImage || testImage1} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} combatStatus={playerCombatStatus} detailsPlacement="left" />}
+              p2Card={<BossCard />}
+              logRef={logContainerRef}
+              logTitle="☄️ Combat en direct"
+              logTitleClass="text-xl font-bold text-red-400 text-center"
+              logHeaderBg="bg-stone-900/60"
+              renderLog={() => combatLog.length === 0 ? (
+                <p className="text-stone-500 italic text-center py-6 text-xs">Le combat va commencer...</p>
+              ) : (
+                <>
+                  {combatLog.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                    if (!isP1 && !isP2) {
+                      if (log.includes('EXTINCTION')) return <div key={idx} className="flex justify-center my-3"><div className="bg-red-900 text-red-200 px-4 py-2 font-bold text-sm shadow-lg rounded-lg border-2 border-red-600 animate-pulse">{formatLogMessage(cleanLog, false)}</div></div>;
+                      if (log.includes('🏆') || log.includes('🎉')) return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-100 text-stone-900 px-4 py-2 font-bold text-sm shadow-lg rounded-lg border border-stone-400">{formatLogMessage(cleanLog, false)}</div></div>;
+                      if (log.includes('---')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-700 text-stone-200 px-3 py-1 text-xs font-bold rounded border border-stone-500">{cleanLog}</div></div>;
+                      return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-xs italic">{formatLogMessage(cleanLog, false)}</div></div>;
+                    }
+                    if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-l-4 border-blue-500"><div className="text-xs">{formatLogMessage(cleanLog, true)}</div></div></div></div>;
+                    if (isP2) return <div key={idx} className="flex justify-end"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-r-4 border-red-500"><div className="text-xs">{formatLogMessage(cleanLog, false)}</div></div></div></div>;
+                  })}
+                  <div ref={logEndRef} />
+                </>
+              )}
+              belowLog={<div className="mt-3"><LeaderboardPanel /></div>}
+            />
           </div>
         )}
       </div>

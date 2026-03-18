@@ -1,35 +1,50 @@
 # Duels de Cave - PRD
 
 ## Problème Original
-Les titres débloqués étaient liés aux personnages qui sont reset chaque week-end, causant la perte des bordures de compte (titane, cosmique, transcendance) qui dépendent du nombre de titres.
+Application de combat RPG avec problème d'affichage mobile - les layouts multi-colonnes étaient coupées sur petits écrans.
 
 ## Architecture
 - Frontend: React + Vite + Tailwind
-- Backend: Firebase/Firestore
+- Backend: Firebase/Firestore  
 - Déploiement: Push GitHub → Prod direct
 
-## Implémentation (Janvier 2026)
+## Implémentation (Mars 2026)
+
+### Refactor Mobile UI Complet
+- Création du composant partagé `CombatLayout.jsx` pour standardiser l'affichage combat
+- Application aux 9 zones de combat : InfiniteLabyrinth, Dungeon, BossRush, MageTower, SubclassDungeon, ExtensionDungeon, ForgeDungeon, MirrorMode, Training
+- Adaptation du header responsive (2 lignes sur mobile)
+- Adaptation du lobby Mirror Mode pour mobile
+- Adaptation du Cataclysme (World Boss) pour mobile
+
+### Fichiers modifiés
+- `/app/src/components/CombatLayout.jsx` : Composant partagé responsive
+- `/app/src/components/WorldBoss.jsx` : Layout mobile pour pré-combat et combat
+- `/app/src/components/Header.jsx` : Navigation responsive
+- `/app/src/components/MirrorMode.jsx` : Lobby + combat mobile
+- `/app/src/components/ForestDungeon.jsx` : Boutons radio + layout inline mobile
+- Tous les composants de combat : IntègrentCombatLayout
+
+## Implémentation Précédente (Janvier 2026)
 
 ### Persistance des titres et bordures de compte
 - Titres sauvegardés dans `userPreferences.earnedTitles`
 - Bordures de compte sauvegardées dans `userPreferences.unlockedAccountBorders`
-- Restauration automatique lors de la création d'un nouveau personnage
 
-### Fichiers modifiés
-- `/app/src/data/borders.js` : checkBorderUnlocks, syncUnlockedBorders
-- `/app/src/services/characterService.js` : saveCharacter, getAccountBorders
+## Travail Complété - Mars 2026
+- [x] Boutons radio pour récompenses Forêt
+- [x] Interface combat mobile responsive (9 zones)
+- [x] Images personnages/boss sur mobile
+- [x] Header responsive 2 lignes
+- [x] Lobby Mirror Mode mobile
+- [x] Cataclysme (World Boss) mobile - pré-combat + combat via CombatLayout
 
-## Bordures de type "account"
-- champion (1 tournoi gagné)
-- titane (10 titres)
-- cosmique (20 titres)
-- transcendance (tous les titres)
-
-## Backlog
+## Backlog (P2)
+- [ ] Refactoriser ForestDungeon.jsx pour utiliser CombatLayout (amélioration maintenabilité)
 - [ ] Notification visuelle à la récupération des bordures après reset
 - [ ] Migration des données existantes pour les joueurs ayant déjà des titres
 
-## P0/P1/P2
-- P0: ✅ Persistance titres/bordures - DONE
-- P1: Tests en production
-- P2: Amélioration UX notifications
+## Notes Techniques
+- Breakpoint mobile : `lg:hidden` (< 1024px)
+- Breakpoint desktop : `hidden lg:flex` (>= 1024px)
+- MiniCard dans CombatLayout supporte images avec HP bar superposée
