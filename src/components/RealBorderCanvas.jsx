@@ -89,25 +89,92 @@ function fbm2D(x, y, seed) {
 
 function buildWavyInnerContour(w, h, baseThickness, seed) {
   // Construit un contour intérieur ondulé (liste de points) en parcourant le périmètre.
+  // Version "coins arrondis" pour éviter les artefacts dans les angles.
   const pts = [];
-  const perim = 2 * (w + h);
-  const step = Math.max(6, Math.round(Math.min(w, h) * 0.02)); // échantillonnage stable
-  const count = Math.max(160, Math.floor(perim / step));
+  const minDim = Math.min(w, h);
+  const cornerR = Math.max(14, Math.round(minDim * 0.12));
+
+  // Périmètre d'un rectangle arrondi : 2*(w-2r)+2*(h-2r)+2πr
+  const perim = 2 * (w - 2 * cornerR) + 2 * (h - 2 * cornerR) + 2 * Math.PI * cornerR;
+  const step = Math.max(6, Math.round(minDim * 0.018)); // échantillonnage stable
+  const count = Math.max(200, Math.floor(perim / step));
 
   for (let i = 0; i <= count; i++) {
     const t = i / count;
     const s = t * perim;
 
-    // Coordonnée (x,y) sur le bord externe + normale intérieure (nx,ny)
+    // Coordonnée (x,y) sur le bord externe (rectangle arrondi) + normale intérieure (nx,ny)
     let x = 0, y = 0, nx = 0, ny = 0;
-    if (s < w) { // top: (s,0)
-      x = s; y = 0; nx = 0; ny = 1;
-    } else if (s < w + h) { // right: (w, s-w)
-      x = w; y = s - w; nx = -1; ny = 0;
-    } else if (s < 2 * w + h) { // bottom: (2w+h - s, h)
-      x = (2 * w + h) - s; y = h; nx = 0; ny = -1;
-    } else { // left: (0, 2w+2h - s)
-      x = 0; y = (2 * w + 2 * h) - s; nx = 1; ny = 0;
+
+    const topLen = (w - 2 * cornerR);
+    const rightLen = (h - 2 * cornerR);
+    const arcLen = (Math.PI / 2) * cornerR;
+    const seg1 = topLen;
+    const seg2 = seg1 + arcLen;
+    const seg3 = seg2 + rightLen;
+    const seg4 = seg3 + arcLen;
+    const seg5 = seg4 + topLen;
+    const seg6 = seg5 + arcLen;
+    const seg7 = seg6 + rightLen;
+    // seg8 = seg7 + arcLen = perim
+
+    if (s < seg1) {
+      // Top edge (left->right)
+      x = cornerR + s;
+      y = 0;
+      nx = 0; ny = 1;
+    } else if (s < seg2) {
+      // Top-right corner arc: angle -90° -> 0°
+      const a = -Math.PI / 2 + ((s - seg1) / arcLen) * (Math.PI / 2);
+      const cx = w - cornerR;
+      const cy = cornerR;
+      x = cx + Math.cos(a) * cornerR;
+      y = cy + Math.sin(a) * cornerR;
+      // inward normal roughly points to center: opposite of radial outward
+      nx = -Math.cos(a);
+      ny = -Math.sin(a);
+    } else if (s < seg3) {
+      // Right edge (top->bottom)
+      x = w;
+      y = cornerR + (s - seg2);
+      nx = -1; ny = 0;
+    } else if (s < seg4) {
+      // Bottom-right arc: angle 0° -> 90°
+      const a = 0 + ((s - seg3) / arcLen) * (Math.PI / 2);
+      const cx = w - cornerR;
+      const cy = h - cornerR;
+      x = cx + Math.cos(a) * cornerR;
+      y = cy + Math.sin(a) * cornerR;
+      nx = -Math.cos(a);
+      ny = -Math.sin(a);
+    } else if (s < seg5) {
+      // Bottom edge (right->left)
+      x = (w - cornerR) - (s - seg4);
+      y = h;
+      nx = 0; ny = -1;
+    } else if (s < seg6) {
+      // Bottom-left arc: angle 90° -> 180°
+      const a = Math.PI / 2 + ((s - seg5) / arcLen) * (Math.PI / 2);
+      const cx = cornerR;
+      const cy = h - cornerR;
+      x = cx + Math.cos(a) * cornerR;
+      y = cy + Math.sin(a) * cornerR;
+      nx = -Math.cos(a);
+      ny = -Math.sin(a);
+    } else if (s < seg7) {
+      // Left edge (bottom->top)
+      x = 0;
+      y = (h - cornerR) - (s - seg6);
+      nx = 1; ny = 0;
+    } else {
+      // Top-left arc: angle 180° -> 270°
+      const a = Math.PI + ((s - seg7) / arcLen) * (Math.PI / 2);
+      const cx = cornerR;
+      const cy = cornerR;
+      x = cx + Math.cos(a) * cornerR;
+      y = cy + Math.sin(a) * cornerR;
+      nx = -Math.cos(a);
+      ny = -Math.sin(a);
     }
 
     // Bruit le long du périmètre + bruit 2D pour "ronger" de manière organique
@@ -122,10 +189,7 @@ function buildWavyInnerContour(w, h, baseThickness, seed) {
     const wave = (jag - 0.5) * 2; // -1..1
     const local = baseThickness * (0.70 + 0.70 * (0.5 + 0.5 * wave));
 
-    pts.push({
-      x: x + nx * local,
-      y: y + ny * local,
-    });
+    pts.push({ x: x + nx * local, y: y + ny * local });
   }
   return pts;
 }
