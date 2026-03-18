@@ -18,12 +18,36 @@ import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampio
 import { envoyerAnnonceDiscord } from './discordService';
 import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteLabyrinthEnemyPool } from './infiniteLabyrinthService';
 import { checkAndAwardTitles, trackTournamentFirstRoundResult, checkCrossWeekTitles } from './titleService';
+import { MAX_LEVEL } from '../data/featureFlags';
+
+/** Document Firestore du tournoi « des anciens » (archivedCharacters, niveau ≤ 400) */
+export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
+const TOURNAMENT_META_QUALIFIER = 'legacyQualifierNextSaturday';
+const LEGACY_RETIRED_COLLECTION = 'legacyRetiredArchives';
+
+async function getLegacyRetiredArchiveIdSet() {
+  try {
+    const snap = await getDocs(collection(db, LEGACY_RETIRED_COLLECTION));
+    return new Set(snap.docs.map((d) => d.id));
+  } catch (e) {
+    console.warn('getLegacyRetiredArchiveIdSet:', e?.message);
+    return new Set();
+  }
+}
+
+function isDiscordAnnouncableDoc(docId) {
+  return docId === 'current' || docId === LEGACY_TOURNAMENT_DOC_ID;
+}
+
+function discordLegacyPrefix(docId) {
+  return docId === LEGACY_TOURNAMENT_DOC_ID ? '📜 Tournoi des anciens — ' : '';
+}
 
 // ============================================================================
 // ANNONCES DISCORD DU TOURNOI (fire-and-forget, ne bloque jamais le tournoi)
 // ============================================================================
 
-function annoncerTirageDiscord(matches, matchOrder, participants, nbParticipants) {
+function annoncerTirageDiscord(matches, matchOrder, participants, nbParticipants, docId = 'current') {
   const premierTour = matchOrder
     .map(id => matches[id])
     .filter(m => m && m.bracket === 'winners' && m.round === 0 && m.p1 && m.p2 && m.p1 !== 'BYE' && m.p2 !== 'BYE')
@@ -35,39 +59,48 @@ function annoncerTirageDiscord(matches, matchOrder, participants, nbParticipants
 
   const intro = annonceDebutTournoi(nbParticipants);
   const message = `${intro}\n\n📋 **VOICI LES PREMIERS AFFRONTEMENTS :**\n\n${premierTour.join('\n')}`;
+  const pfx = discordLegacyPrefix(docId);
 
-  return envoyerAnnonceDiscord({ titre: '🏆 TIRAGE AU SORT DU TOURNOI', message, mentionEveryone: true });
+  return envoyerAnnonceDiscord({ titre: `${pfx}🏆 TIRAGE AU SORT DU TOURNOI`, message, mentionEveryone: true });
 }
 
-function annoncerDebutMatchDiscord(match, participants) {
+function annoncerDebutMatchDiscord(match, participants, docId = 'current') {
   const p1 = participants[match.p1];
   const p2 = participants[match.p2];
   if (!p1 || !p2) return Promise.resolve();
 
   const annonce = annonceDebutMatch(p1.nom, p2.nom, match.bracket, match.roundLabel);
   const isFinale = match.bracket === 'grand_final' || match.bracket === 'grand_final_reset';
+  const pfx = discordLegacyPrefix(docId);
 
   return envoyerAnnonceDiscord({
-    titre: isFinale ? '⚔️ GRANDE FINALE' : `🥊 ${match.roundLabel || 'Combat'}`,
+    titre: `${pfx}${isFinale ? '⚔️ GRANDE FINALE' : `🥊 ${match.roundLabel || 'Combat'}`}`,
     message: annonce,
     mentionEveryone: isFinale
   });
 }
 
-export function annoncerFinMatchDiscord(combatLogData) {
+export function annoncerFinMatchDiscord(combatLogData, docId = 'current') {
+  const pfx = discordLegacyPrefix(docId);
   return envoyerAnnonceDiscord({
-    titre: `🏁 Victoire de ${combatLogData.winnerNom}`,
+    titre: `${pfx}🏁 Victoire de ${combatLogData.winnerNom}`,
     message: combatLogData.annonceFin
   });
 }
 
-function annoncerChampionDiscord(champion) {
+function annoncerChampionDiscord(champion, docId = 'current') {
   const annonce = annonceChampion(champion.nom);
+  const pfx = discordLegacyPrefix(docId);
   return envoyerAnnonceDiscord({
-    titre: '👑 CHAMPION DU TOURNOI',
+    titre: `${pfx}👑 CHAMPION DU TOURNOI`,
     message: annonce,
     mentionEveryone: true
   });
+}
+
+async function supprimerCombatLogsTournoi(tournamentDocId) {
+  const logsSnapshot = await getDocs(collection(db, 'tournaments', tournamentDocId, 'combatLogs'));
+  await Promise.all(logsSnapshot.docs.map((d) => deleteDoc(d.ref)));
 }
 
 // ============================================================================
@@ -125,58 +158,106 @@ function buildParticipantEntries(participants) {
   });
 }
 
-// ============================================================================
-// CRÉER UN TOURNOI
-// ============================================================================
+function buildParticipantsMapForTournoi(participants) {
+  const participantsMap = {};
+  for (const p of participants) {
+    participantsMap[p.participantId] = {
+      userId: p.participantId,
+      ownerUserId: p.ownerUserId,
+      nom: p.name,
+      race: p.race,
+      classe: p.class,
+      characterImage: p.characterImage || null,
+      base: p.base,
+      bonuses: p.bonuses,
+      level: p.level ?? 1,
+      equippedWeaponId: p.equippedWeaponId || null,
+      equippedWeaponData: p.equippedWeaponData || null,
+      mageTowerPassive: p.mageTowerPassive || null,
+      mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
+      forestBoosts: p.forestBoosts || null,
+      forgeUpgrade: p.forgeUpgrade || null,
+      subclass: p.subclass || null,
+      name: p.name,
+      class: p.class,
+      ownerPseudo: p.ownerPseudo || null,
+      equippedBorder: p.equippedBorder || null,
+      equippedTitle: p.equippedTitle || null,
+      gender: p.gender || null,
+    };
+  }
+  return participantsMap;
+}
 
-export async function creerTournoi(docId = 'current') {
+async function chargerParticipantsArchives(retiredIdsOverride = null) {
+  const retiredIds = retiredIdsOverride ?? (await getLegacyRetiredArchiveIdSet());
+  const snapshot = await getDocs(collection(db, 'archivedCharacters'));
+  const rows = snapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((char) => !retiredIds.has(char.id));
+  return Promise.all(
+    rows
+      .filter((char) => (char.level ?? 1) <= MAX_LEVEL)
+      .map(async (char) => {
+        const level = char.level ?? 1;
+        const weaponId = char.equippedWeaponId || null;
+        const weaponData =
+          char.equippedWeaponData || (weaponId ? getWeaponById(weaponId) : null);
+        const normalized = normalizeCharacterBonuses({
+          ...char,
+          level,
+          equippedWeaponData: weaponData,
+          equippedWeaponId: weaponId,
+        });
+        return {
+          ...normalized,
+          archiveDocId: char.id,
+          userId: char.userId || null,
+          name: char.name,
+          class: char.class,
+        };
+      })
+  );
+}
+
+/**
+ * Tournoi secondaire : persos archivés, niveau ≤ 400.
+ * Le gagnant est enregistré pour le prochain tournoi du samedi (voir creerTournoi current).
+ */
+export async function creerTournoiLegacy() {
   try {
-    const rawParticipants = await chargerParticipants();
-    const participants = buildParticipantEntries(rawParticipants);
+    await supprimerCombatLogsTournoi(LEGACY_TOURNAMENT_DOC_ID);
+    const retiredIds = await getLegacyRetiredArchiveIdSet();
+    const retiredCount = retiredIds.size;
+    const raw = await chargerParticipantsArchives(retiredIds);
+    const participants = raw
+      .filter((p) => p.userId && p.archiveDocId)
+      .map((p) => ({
+        ...p,
+        participantId: `arch_${p.archiveDocId}`,
+        ownerUserId: p.userId,
+      }));
     if (participants.length < 2) {
-      return { success: false, error: 'Il faut au moins 2 personnages pour créer un tournoi' };
-    }
-
-    // Générer le bracket
-    const participantIds = participants.map(p => p.participantId);
-    const { matches, matchOrder } = genererBracket(participantIds);
-
-    // Stocker les données de participants pour la simulation
-    const participantsMap = {};
-    for (const p of participants) {
-      participantsMap[p.participantId] = {
-        userId: p.participantId,
-        ownerUserId: p.ownerUserId,
-        nom: p.name,
-        race: p.race,
-        classe: p.class,
-        characterImage: p.characterImage || null,
-        base: p.base,
-        bonuses: p.bonuses,
-        level: p.level ?? 1,
-        equippedWeaponId: p.equippedWeaponId || null,
-        equippedWeaponData: p.equippedWeaponData || null,
-        mageTowerPassive: p.mageTowerPassive || null,
-        mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
-        forestBoosts: p.forestBoosts || null,
-        forgeUpgrade: p.forgeUpgrade || null,
-        subclass: p.subclass || null,
-        name: p.name,
-        class: p.class,
-        ownerPseudo: p.ownerPseudo || null,
-        equippedBorder: p.equippedBorder || null,
-        equippedTitle: p.equippedTitle || null,
-        gender: p.gender || null,
+      return {
+        success: false,
+        error:
+          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, jamais gagnants du tournoi des anciens). Éligibles : ${participants.length}. À la retraite (hors pool) : ${retiredCount}.`,
       };
     }
 
+    const participantIds = participants.map((p) => p.participantId);
+    const { matches, matchOrder } = genererBracket(participantIds);
+    const participantsMap = buildParticipantsMapForTournoi(participants);
+
     const tournoi = {
       statut: 'preparation',
+      tournamentType: 'legacy_archives',
       createdAt: serverTimestamp(),
       participants: participantsMap,
-      participantsList: participants.map(p => ({
+      participantsList: participants.map((p) => ({
         userId: p.ownerUserId,
         participantId: p.participantId,
+        archiveFirestoreId: p.archiveDocId,
         nom: p.name,
         race: p.race,
         classe: p.class,
@@ -190,11 +271,128 @@ export async function creerTournoi(docId = 'current') {
       annonceIntro: annonceDebutTournoi(participants.length),
     };
 
+    await setDoc(doc(db, 'tournaments', LEGACY_TOURNAMENT_DOC_ID), tournoi);
+    annoncerTirageDiscord(
+      matches,
+      matchOrder,
+      participantsMap,
+      participants.length,
+      LEGACY_TOURNAMENT_DOC_ID
+    ).catch(() => {});
+
+    return {
+      success: true,
+      nbParticipants: participants.length,
+      retiredExclusionsCount: retiredCount,
+    };
+  } catch (error) {
+    console.error('Erreur création tournoi legacy:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/** Nettoie le doc tournoi legacy (après fin d’événement). N’archive pas les persos. */
+export async function nettoyerTournoiLegacy() {
+  return supprimerTournoiTermine(LEGACY_TOURNAMENT_DOC_ID);
+}
+
+export async function getLegacyQualifierSnapshot() {
+  try {
+    const snap = await getDoc(doc(db, 'tournamentMeta', TOURNAMENT_META_QUALIFIER));
+    if (!snap.exists()) return { success: true, data: null };
+    return { success: true, data: { id: snap.id, ...snap.data() } };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ============================================================================
+// CRÉER UN TOURNOI
+// ============================================================================
+
+export async function creerTournoi(docId = 'current') {
+  try {
+    if (docId === LEGACY_TOURNAMENT_DOC_ID) {
+      return {
+        success: false,
+        error: 'Utilisez creerTournoiLegacy() pour le tournoi des anciens.',
+      };
+    }
+    const rawParticipants = await chargerParticipants();
+    let participants = buildParticipantEntries(rawParticipants);
+
+    const qualifierRef = doc(db, 'tournamentMeta', TOURNAMENT_META_QUALIFIER);
+    let qualifierConsumed = false;
+    if (docId === 'current') {
+      const qualSnap = await getDoc(qualifierRef);
+      if (qualSnap.exists()) {
+        const q = qualSnap.data();
+        const legPid = `leg_${q.archiveFirestoreId}`;
+        const cs = q.combatSnapshot || {};
+        const merged = normalizeCharacterBonuses({
+          ...cs,
+          level: cs.level ?? 1,
+          equippedWeaponData: cs.equippedWeaponData || null,
+          equippedWeaponId: cs.equippedWeaponId || null,
+        });
+        participants.push({
+          ...merged,
+          participantId: legPid,
+          ownerUserId: q.ownerUserId,
+          name: merged.name || q.display?.nom || cs.nom,
+          class: merged.class || q.display?.classe,
+          race: merged.race || q.display?.race,
+          characterImage: merged.characterImage ?? q.display?.characterImage ?? null,
+          ownerPseudo: merged.ownerPseudo ?? q.display?.ownerPseudo ?? null,
+        });
+        qualifierConsumed = true;
+      }
+    }
+
+    if (participants.length < 2) {
+      return { success: false, error: 'Il faut au moins 2 personnages pour créer un tournoi' };
+    }
+
+    const participantIds = participants.map((p) => p.participantId);
+    const { matches, matchOrder } = genererBracket(participantIds);
+    const participantsMap = buildParticipantsMapForTournoi(participants);
+
+    const listRows = participants.map((p) => {
+      const row = {
+        userId: p.ownerUserId,
+        participantId: p.participantId,
+        nom: p.name,
+        race: p.race,
+        classe: p.class,
+        characterImage: p.characterImage || null,
+        ownerPseudo: p.ownerPseudo || null,
+      };
+      if (p.archiveDocId) row.archiveFirestoreId = p.archiveDocId;
+      return row;
+    });
+
+    const tournoi = {
+      statut: 'preparation',
+      createdAt: serverTimestamp(),
+      participants: participantsMap,
+      participantsList: listRows,
+      matches,
+      matchOrder,
+      matchActuel: -1,
+      champion: null,
+      annonceIntro: annonceDebutTournoi(participants.length),
+    };
+
     await setDoc(doc(db, 'tournaments', docId), tournoi);
 
-    // Annonce Discord du tirage (uniquement pour le vrai tournoi)
-    if (docId === 'current') {
-      annoncerTirageDiscord(matches, matchOrder, participantsMap, participants.length).catch(() => {});
+    if (qualifierConsumed) {
+      await deleteDoc(qualifierRef).catch(() => {});
+    }
+
+    if (isDiscordAnnouncableDoc(docId)) {
+      annoncerTirageDiscord(matches, matchOrder, participantsMap, participants.length, docId).catch(
+        () => {}
+      );
     }
 
     return { success: true, nbParticipants: participants.length };
@@ -355,33 +553,38 @@ export async function lancerTournoi(docId = 'current') {
 
     const { matches, matchOrder } = tournoi;
 
-    // Recharger les personnages avec stats/niveau/arme à jour (XP entre 18h et 19h)
-    const freshParticipants = await chargerParticipants();
-    const freshParticipantsById = new Map(
-      freshParticipants.map((p) => [String(p.userId || p.id), p])
-    );
-    const participants = { ...tournoi.participants };
-    for (const [id, participantData] of Object.entries(participants)) {
-      const sourceId = String(participantData.ownerUserId || id);
-      const p = freshParticipantsById.get(sourceId);
-      if (!p) continue;
+    const skipParticipantRefresh =
+      docId === LEGACY_TOURNAMENT_DOC_ID || tournoi.tournamentType === 'legacy_archives';
 
-      participants[id] = {
-        ...participantData,
-        base: p.base,
-        bonuses: p.bonuses,
-        level: p.level ?? 1,
-        equippedWeaponId: p.equippedWeaponId || null,
-        equippedWeaponData: p.equippedWeaponData || null,
-        mageTowerPassive: p.mageTowerPassive || null,
-        mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
-        forestBoosts: p.forestBoosts || null,
-        forgeUpgrade: p.forgeUpgrade || null,
-        subclass: p.subclass || null,
-        equippedBorder: p.equippedBorder || null,
-        equippedTitle: p.equippedTitle || null,
-        gender: p.gender || null,
-      };
+    let participants = { ...tournoi.participants };
+    if (!skipParticipantRefresh) {
+      const freshParticipants = await chargerParticipants();
+      const freshParticipantsById = new Map(
+        freshParticipants.map((p) => [String(p.userId || p.id), p])
+      );
+      for (const [id, participantData] of Object.entries(participants)) {
+        if (String(id).startsWith('leg_')) continue;
+        const sourceId = String(participantData.ownerUserId || id);
+        const p = freshParticipantsById.get(sourceId);
+        if (!p) continue;
+
+        participants[id] = {
+          ...participantData,
+          base: p.base,
+          bonuses: p.bonuses,
+          level: p.level ?? 1,
+          equippedWeaponId: p.equippedWeaponId || null,
+          equippedWeaponData: p.equippedWeaponData || null,
+          mageTowerPassive: p.mageTowerPassive || null,
+          mageTowerExtensionPassive: p.mageTowerExtensionPassive || null,
+          forestBoosts: p.forestBoosts || null,
+          forgeUpgrade: p.forgeUpgrade || null,
+          subclass: p.subclass || null,
+          equippedBorder: p.equippedBorder || null,
+          equippedTitle: p.equippedTitle || null,
+          gender: p.gender || null,
+        };
+      }
     }
 
     const prochainMatch = trouverProchainMatchJouable(matches, matchOrder, 0);
@@ -397,9 +600,8 @@ export async function lancerTournoi(docId = 'current') {
     // Tracking des titres de tournoi (fire-and-forget)
     trackTournamentTitles(result, participants, docId);
 
-    // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
-    if (docId === 'current') {
-      annoncerDebutMatchDiscord(matches[firstMatchId], participants).catch(() => {});
+    if (isDiscordAnnouncableDoc(docId)) {
+      annoncerDebutMatchDiscord(matches[firstMatchId], participants, docId).catch(() => {});
     }
 
     // Mettre à jour le tournoi avec les participants rafraîchis
@@ -488,12 +690,39 @@ export async function avancerMatch(docId = 'current') {
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
 
-      // Annonce Discord du champion
-      if (docId === 'current' && champion) {
-        annoncerChampionDiscord(champion).catch(() => {});
+      if (docId === LEGACY_TOURNAMENT_DOC_ID && champion && championId) {
+        const row = participantsList.find(
+          (p) => p.participantId === championId || p.userId === championId
+        );
+        const archId = row?.archiveFirestoreId;
+        const combatSnap = participants[championId];
+        if (archId && combatSnap && row?.userId) {
+          await setDoc(doc(db, 'tournamentMeta', TOURNAMENT_META_QUALIFIER), {
+            archiveFirestoreId: archId,
+            ownerUserId: row.userId,
+            combatSnapshot: stripUndefinedDeep({ ...combatSnap }),
+            display: stripUndefinedDeep({
+              nom: champion.nom,
+              race: champion.race,
+              classe: champion.classe,
+              characterImage: champion.characterImage || null,
+              ownerPseudo: champion.ownerPseudo || null,
+            }),
+            qualifiedAt: serverTimestamp(),
+          });
+          await setDoc(doc(db, LEGACY_RETIRED_COLLECTION, archId), {
+            retiredAt: serverTimestamp(),
+            nom: champion.nom,
+            ownerUserId: row.userId,
+            source: 'tournoi_legacy',
+          });
+        }
       }
 
-      // Régénérer le labyrinthe quand le tournoi est terminé
+      if (isDiscordAnnouncableDoc(docId) && champion) {
+        annoncerChampionDiscord(champion, docId).catch(() => {});
+      }
+
       if (docId === 'current') {
         resetWeeklyInfiniteLabyrinthEnemyPool().catch(() => {});
       }
@@ -507,9 +736,8 @@ export async function avancerMatch(docId = 'current') {
     // Tracking des titres de tournoi (fire-and-forget)
     trackTournamentTitles(result, participants, docId);
 
-    // Annonce Discord du début du match (le vainqueur est annoncé après l'animation côté client)
-    if (docId === 'current') {
-      annoncerDebutMatchDiscord(matches[nextMatchId], participants).catch(() => {});
+    if (isDiscordAnnouncableDoc(docId)) {
+      annoncerDebutMatchDiscord(matches[nextMatchId], participants, docId).catch(() => {});
     }
 
     // Préparer la mise à jour

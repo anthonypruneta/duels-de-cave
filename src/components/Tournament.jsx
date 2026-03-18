@@ -6,7 +6,8 @@ import CharacterCardContent from './CharacterCardContent';
 import {
   onTournoiUpdate, getCombatLog, getCombatLogArchive, getTournamentArchive,
   creerTournoi, lancerTournoi,
-  avancerMatch, terminerTournoi, annoncerFinMatchDiscord, supprimerTournoiTermine
+  avancerMatch, terminerTournoi, annoncerFinMatchDiscord, supprimerTournoiTermine,
+  LEGACY_TOURNAMENT_DOC_ID
 } from '../services/tournamentService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -166,7 +167,8 @@ const Tournament = () => {
   const { archiveId } = useParams();
   const isHistoryMode = Boolean(archiveId);
   const isSimulation = !isHistoryMode && searchParams.get('mode') === 'simulation';
-  const docId = isSimulation ? 'simulation' : 'current';
+  const isLegacyMode = !isHistoryMode && searchParams.get('mode') === 'legacy';
+  const docId = isSimulation ? 'simulation' : isLegacyMode ? LEGACY_TOURNAMENT_DOC_ID : 'current';
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
   // Tournoi state
@@ -275,7 +277,7 @@ const Tournament = () => {
 
   // Auto-nettoyage : supprimer le tournoi terminé quand on passe à la semaine suivante (lundi)
   useEffect(() => {
-    if (isHistoryMode || isSimulation || !tournoi || loading) return;
+    if (isHistoryMode || isSimulation || isLegacyMode || !tournoi || loading) return;
     if (tournoi.statut !== 'termine') return;
     const now = getParisNow();
     const day = now.getDay(); // 0=dimanche, 6=samedi
@@ -285,9 +287,9 @@ const Tournament = () => {
     }
   }, [tournoi, loading, isSimulation, docId]);
 
-  // Auto-création à 18h — pas en simulation ni archive
+  // Auto-création à 18h — pas en simulation, legacy ni archive
   useEffect(() => {
-    if (isHistoryMode || isSimulation) return;
+    if (isHistoryMode || isSimulation || isLegacyMode) return;
     if (autoCreatedRef.current || tournoi || loading) return;
     if (phase === 'annonce' || phase === 'combat') {
       autoCreatedRef.current = true;
@@ -300,11 +302,11 @@ const Tournament = () => {
         }
       })();
     }
-  }, [phase, tournoi, loading, isSimulation, docId]);
+  }, [phase, tournoi, loading, isSimulation, isLegacyMode, docId]);
 
-  // Auto-lancement à 19h — pas en simulation ni archive
+  // Auto-lancement à 19h — pas en simulation, legacy ni archive
   useEffect(() => {
-    if (isHistoryMode || isSimulation) return;
+    if (isHistoryMode || isSimulation || isLegacyMode) return;
     if (autoLaunchedRef.current || !tournoi || loading) return;
     if (phase === 'combat' && tournoi.statut === 'preparation') {
       autoLaunchedRef.current = true;
@@ -317,7 +319,7 @@ const Tournament = () => {
         }
       })();
     }
-  }, [phase, tournoi, loading, isSimulation, docId]);
+  }, [phase, tournoi, loading, isSimulation, isLegacyMode, docId]);
 
   // Auto-scroll du combat log (scroll le conteneur uniquement, pas la page)
   useEffect(() => {
@@ -545,8 +547,13 @@ const Tournament = () => {
 
     // Annoncer le vainqueur sur Discord après l'animation (admin + vrai tournoi uniquement)
     // Ne pas annoncer si c'est un replay
-    if (isAdmin && !isSimulation && !isReplay) {
-      annoncerFinMatchDiscord(logData).catch(() => {});
+    if (
+      isAdmin &&
+      !isSimulation &&
+      !isReplay &&
+      (docId === 'current' || docId === LEGACY_TOURNAMENT_DOC_ID)
+    ) {
+      annoncerFinMatchDiscord(logData, docId).catch(() => {});
     }
 
     // Arrêter musique combat, jouer victoire
@@ -614,7 +621,7 @@ const Tournament = () => {
   };
 
   const handleTerminerTournoi = async () => {
-    if (isSimulation) {
+    if (isSimulation || isLegacyMode) {
       setActionLoading(true);
       await terminerTournoi(docId);
       setActionLoading(false);
@@ -1160,6 +1167,17 @@ const Tournament = () => {
                 ← Retour à l'admin
               </button>
             </>
+          ) : isLegacyMode ? (
+            <>
+              <h1 className="text-3xl font-bold text-amber-400 mb-6">📜 Tournoi des anciens</h1>
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-8">
+                <p className="text-stone-300 text-lg">Aucun tournoi des anciens en cours</p>
+                <p className="text-stone-500 mt-2 text-sm">Créez-le depuis le panel admin (persos archivés, niveau ≤ 400)</p>
+              </div>
+              <button onClick={() => navigate('/admin')} className="mt-6 bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600">
+                ← Retour à l'admin
+              </button>
+            </>
           ) : (
             <>
               <h1 className="text-3xl font-bold text-amber-400 mb-6">🏟️ Tournoi du Samedi</h1>
@@ -1205,10 +1223,15 @@ const Tournament = () => {
         <div className="max-w-5xl mx-auto pt-20">
           <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-amber-400">
-              {isSimulation ? '🎲 Simulation — Les duels sont prêts !' : '🏟️ Les duels sont annoncés !'}
+              {isSimulation
+                ? '🎲 Simulation — Les duels sont prêts !'
+                : isLegacyMode
+                  ? '📜 Tournoi des anciens — Les duels sont prêts !'
+                  : '🏟️ Les duels sont annoncés !'}
             </h1>
             <p className="text-stone-400 mt-2 text-sm">
-              {tournoi.participantsList?.length || 0} combattants{isSimulation ? '' : ' • Début à 19h'}
+              {tournoi.participantsList?.length || 0} combattants
+              {isSimulation || isLegacyMode ? '' : ' • Début à 19h'}
             </p>
           </div>
 
@@ -1234,7 +1257,11 @@ const Tournament = () => {
 
           {isAdmin && !isHistoryMode && (
             <div className="text-center bg-stone-950/85 border border-red-800/50 rounded-xl p-6">
-              <p className="text-stone-500 text-xs mb-4">Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.</p>
+              <p className="text-stone-500 text-xs mb-4">
+                {isLegacyMode
+                  ? 'Lancez le premier combat quand vous êtes prêt.'
+                  : 'Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.'}
+              </p>
               <button
                 onClick={async () => {
                   setActionLoading(true);
@@ -1282,12 +1309,12 @@ const Tournament = () => {
             </p>
           )}
           <h1 className="text-2xl md:text-3xl font-bold text-amber-400">
-            {isHistoryMode ? '📼' : isSimulation ? '🎲' : '🏟️'}{' '}
+            {isHistoryMode ? '📼' : isSimulation ? '🎲' : isLegacyMode ? '📜' : '🏟️'}{' '}
             {isHistoryMode
               ? 'Tournoi (archives)'
               : isTournoiTermine
-                ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
-                : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
+                ? (isSimulation ? 'Simulation Terminée' : isLegacyMode ? 'Tournoi des anciens terminé' : 'Tournoi Terminé')
+                : (isSimulation ? 'Simulation en direct' : isLegacyMode ? 'Tournoi des anciens en direct' : 'Tournoi en direct')}
           </h1>
           {matchProgress && <p className="text-stone-500 text-sm mt-1">{matchProgress}</p>}
         </div>
@@ -1311,10 +1338,23 @@ const Tournament = () => {
             <h2 className="text-2xl font-bold text-amber-300">{tournoi.champion.nom}</h2>
             <p className="text-stone-400 text-sm mt-1">{tournoi.champion.race} • {tournoi.champion.classe}</p>
             <p className="text-amber-400 font-bold text-sm mt-2 uppercase tracking-widest">
-              {isHistoryMode ? 'Champion (édition archivée)' : isSimulation ? 'Champion de la simulation' : 'Champion du tournoi'}
+              {isHistoryMode
+                ? 'Champion (édition archivée)'
+                : isSimulation
+                  ? 'Champion de la simulation'
+                  : isLegacyMode
+                    ? 'Qualifié pour le tournoi du samedi'
+                    : 'Champion du tournoi'}
             </p>
-            {!isSimulation && !isHistoryMode && (
+            {!isSimulation && !isHistoryMode && !isLegacyMode && (
               <p className="text-stone-500 text-xs mt-1">Récompense : 3 rolls pour le prochain personnage</p>
+            )}
+            {isLegacyMode && (
+              <p className="text-stone-500 text-xs mt-1">
+                Ce personnage archivé est désormais à la retraite côté tournoi des anciens (ne pourra plus y participer).
+                Inscription au prochain tournoi principal à sa création. S&apos;il gagne le samedi, les 3 rolls vont au
+                propriétaire.
+              </p>
             )}
           </div>
         )}
@@ -1362,14 +1402,14 @@ const Tournament = () => {
             <button
               onClick={handleTerminerTournoi}
               disabled={actionLoading}
-              className={`${isSimulation ? 'bg-stone-700 hover:bg-stone-600' : 'bg-red-700 hover:bg-red-600'} disabled:bg-stone-700 text-white px-6 py-2.5 font-bold text-sm rounded-lg transition`}
+              className={`${isSimulation || isLegacyMode ? 'bg-stone-700 hover:bg-stone-600' : 'bg-red-700 hover:bg-red-600'} disabled:bg-stone-700 text-white px-6 py-2.5 font-bold text-sm rounded-lg transition`}
             >
-              {actionLoading ? '⏳...' : isSimulation ? '← Quitter la simulation' : '🏁 Archiver & Terminer'}
+              {actionLoading ? '⏳...' : isSimulation || isLegacyMode ? '← Quitter (sans archiver les persos)' : '🏁 Archiver & Terminer'}
             </button>
           </div>
         )}
 
-        {isSimulation && !isTournoiTermine && (
+        {(isSimulation || isLegacyMode) && !isTournoiTermine && (
           <div className="mt-4 text-center">
             <button
               onClick={async () => {
@@ -1383,7 +1423,7 @@ const Tournament = () => {
               disabled={actionLoading}
               className="bg-stone-800 hover:bg-stone-700 disabled:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600"
             >
-              {actionLoading ? '⏳...' : '← Quitter la simulation'}
+              {actionLoading ? '⏳...' : isLegacyMode ? '← Abandonner le tournoi des anciens' : '← Quitter la simulation'}
             </button>
           </div>
         )}
@@ -1392,10 +1432,14 @@ const Tournament = () => {
         <div className="mt-5 text-center">
           <button
             type="button"
-            onClick={() => navigate(isHistoryMode ? '/hall-of-fame' : isSimulation ? '/admin' : '/')}
+            onClick={() =>
+              navigate(
+                isHistoryMode ? '/hall-of-fame' : isSimulation || isLegacyMode ? '/admin' : '/'
+              )
+            }
             className="bg-stone-800 hover:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600"
           >
-            {isHistoryMode ? '← Hall of Fame' : isSimulation ? '← Admin' : '← Retour'}
+            {isHistoryMode ? '← Hall of Fame' : isSimulation || isLegacyMode ? '← Admin' : '← Retour'}
           </button>
         </div>
       </div>

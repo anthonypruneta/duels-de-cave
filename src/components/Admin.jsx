@@ -4,7 +4,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateHpStat4To6, clampCharacterLevelInDb, clampAllCharactersLevelInDb, reduceCharacterForestStats, reduceAllCharactersForestStats } from '../services/characterService';
 import { grantDungeonRunsToAllPlayers, resetDungeonRuns } from '../services/dungeonService';
 import { envoyerAnnonceDiscord } from '../services/discordService';
-import { creerTournoi, lancerTournoi, getAllArchivedCharacters, resetAllRerollGains } from '../services/tournamentService';
+import {
+  creerTournoi,
+  lancerTournoi,
+  getAllArchivedCharacters,
+  resetAllRerollGains,
+  creerTournoiLegacy,
+  getLegacyQualifierSnapshot,
+  nettoyerTournoiLegacy,
+  LEGACY_TOURNAMENT_DOC_ID
+} from '../services/tournamentService';
 import {
   ensureWeeklyInfiniteLabyrinth,
   generateWeeklyInfiniteLabyrinth,
@@ -56,6 +65,8 @@ const Admin = () => {
 
   // État pour la simulation de tournoi
   const [simulationLoading, setSimulationLoading] = useState(false);
+  const [legacyTournamentLoading, setLegacyTournamentLoading] = useState(false);
+  const [legacyQualifier, setLegacyQualifier] = useState(null);
 
   // État pour les rerolls disponibles
   const [rerollsData, setRerollsData] = useState([]);
@@ -516,6 +527,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       return;
     }
     setTirageLoading(false);
+    refreshLegacyQualifier();
     navigate('/tournament');
   };
 
@@ -536,6 +548,70 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
     setSimulationLoading(false);
     navigate('/tournament?mode=simulation');
+  };
+
+  const refreshLegacyQualifier = async () => {
+    const r = await getLegacyQualifierSnapshot();
+    setLegacyQualifier(r.success && r.data ? r.data : null);
+  };
+
+  useEffect(() => {
+    if (adminMainTab === 'annonce') refreshLegacyQualifier();
+  }, [adminMainTab]);
+
+  const handleCreerTournoiLegacy = async () => {
+    if (
+      !window.confirm(
+        'Créer le tournoi des anciens (archivés, niveau ≤ 400) ? Un tournoi legacy en cours sera écrasé.'
+      )
+    ) {
+      return;
+    }
+    setLegacyTournamentLoading(true);
+    const createResult = await creerTournoiLegacy();
+    if (!createResult.success) {
+      alert('❌ ' + createResult.error);
+      setLegacyTournamentLoading(false);
+      return;
+    }
+    const excl =
+      typeof createResult.retiredExclusionsCount === 'number'
+        ? ` • ${createResult.retiredExclusionsCount} fiche(s) à la retraite (ex-tchampions legacy)`
+        : '';
+    alert(`✅ ${createResult.nbParticipants} combattants${excl} — ouvrez la page legacy puis lancez le 1er combat.`);
+    setLegacyTournamentLoading(false);
+  };
+
+  const handleDemarrerTournoiLegacy = async () => {
+    if (
+      !window.confirm(
+        'Créer + lancer le tournoi des anciens et ouvrir la page en direct ? (écrase un legacy en cours)'
+      )
+    ) {
+      return;
+    }
+    setLegacyTournamentLoading(true);
+    const createResult = await creerTournoiLegacy();
+    if (!createResult.success) {
+      alert('❌ ' + createResult.error);
+      setLegacyTournamentLoading(false);
+      return;
+    }
+    const launchResult = await lancerTournoi(LEGACY_TOURNAMENT_DOC_ID);
+    if (!launchResult.success) {
+      alert('❌ Lancement: ' + launchResult.error);
+      setLegacyTournamentLoading(false);
+      return;
+    }
+    setLegacyTournamentLoading(false);
+    navigate('/tournament?mode=legacy');
+  };
+
+  const handleNettoyerTournoiLegacy = async () => {
+    if (!window.confirm('Supprimer le document tournoi des anciens (combatLogs inclus) ?')) return;
+    const r = await nettoyerTournoiLegacy();
+    if (r.success) alert('✅ Nettoyé');
+    else alert('❌ ' + (r.error || 'Erreur'));
   };
 
   const loadRerollsData = async () => {
@@ -1336,7 +1412,68 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           >
             {simulationLoading ? '⏳ Préparation...' : '🎲 Lancer une simulation en direct'}
           </button>
+        </div>
 
+        <div className="bg-stone-900/70 border-2 border-violet-500 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-violet-300 mb-2">📜 Tournoi des anciens</h2>
+          <p className="text-stone-400 text-sm mb-3">
+            Tous les personnages <strong>archivés</strong> de niveau ≤ 400, sauf ceux déjà{' '}
+            <strong>champions d&apos;un tournoi des anciens</strong> (retraite définitive — hors pool). Le gagnant
+            est inscrit au <strong>prochain</strong> tournoi du samedi (création du tournoi principal). Discord comme
+            le samedi. N&apos;archive pas les persos actifs.
+          </p>
+          {legacyQualifier?.display?.nom && (
+            <div className="mb-4 p-3 rounded-lg bg-violet-950/40 border border-violet-600/40 text-sm">
+              <span className="text-violet-200 font-bold">Qualifié pour le samedi :</span>{' '}
+              <span className="text-white">{legacyQualifier.display.nom}</span>
+              <span className="text-stone-500">
+                {' '}
+                ({legacyQualifier.display.classe || '?'} • archivé #{legacyQualifier.archiveFirestoreId})
+              </span>
+              <p className="text-stone-500 text-xs mt-1">
+                Consommé automatiquement à la prochaine création du tournoi principal.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleCreerTournoiLegacy}
+              disabled={legacyTournamentLoading}
+              className="w-full bg-violet-700 hover:bg-violet-600 disabled:bg-stone-700 text-white py-2.5 rounded-lg font-bold transition text-sm"
+            >
+              {legacyTournamentLoading ? '⏳...' : '📋 Créer uniquement le tirage (legacy)'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDemarrerTournoiLegacy}
+              disabled={legacyTournamentLoading}
+              className="w-full bg-violet-600 hover:bg-violet-500 disabled:bg-stone-700 text-white py-3 rounded-lg font-bold transition"
+            >
+              {legacyTournamentLoading ? '⏳...' : '⚔️ Créer + lancer + ouvrir en direct'}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/tournament?mode=legacy')}
+              className="w-full bg-stone-700 hover:bg-stone-600 text-stone-200 py-2 rounded-lg font-semibold transition text-sm"
+            >
+              Ouvrir la page tournoi des anciens
+            </button>
+            <button
+              type="button"
+              onClick={handleNettoyerTournoiLegacy}
+              className="w-full bg-stone-800 hover:bg-stone-700 text-stone-400 py-2 rounded-lg text-xs transition border border-stone-600"
+            >
+              Nettoyer le doc legacy (après l&apos;événement)
+            </button>
+            <button
+              type="button"
+              onClick={() => refreshLegacyQualifier()}
+              className="text-stone-500 text-xs hover:text-stone-400"
+            >
+              Rafraîchir l&apos;état du qualifié samedi
+            </button>
+          </div>
         </div>
 
           </>
