@@ -9,6 +9,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
+import { MiniCard } from './CombatLayout';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -297,12 +298,36 @@ const MirrorMode = () => {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+          {/* ═══ MOBILE LOBBY (< 1024px) ═══ */}
+          <div className="lg:hidden flex flex-col gap-3">
+            <div className="flex gap-2">
+              <MiniCard entity={{ name: character?.name, currentHP: character?.base?.hp, maxHP: character?.base?.hp, shield: 0, base: character?.base ?? {}, image: character?.characterImage }} side="left" />
+              <MiniCard entity={{ name: mirrorCloneForDisplay?.name ?? 'Clone', currentHP: mirrorCloneForDisplay?.base?.hp, maxHP: mirrorCloneForDisplay?.base?.hp, shield: 0, base: mirrorCloneForDisplay?.base ?? {} }} side="right" />
+            </div>
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl p-4 text-center">
+              <div className="text-4xl mb-2">⚔️</div>
+              <h3 className="text-base font-bold text-stone-300 mb-1">Duel contre votre Doppelgänger</h3>
+              <p className="text-stone-500 text-xs mb-3">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
+              {alreadyDone ? (
+                <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-2">
+                  <p className="text-stone-400 text-xs">🪞 Miroir déjà affronté aujourd'hui.</p>
+                </div>
+              ) : (
+                <button onClick={startMirrorFight} className="bg-gradient-to-r from-stone-600 to-stone-800 hover:from-stone-500 hover:to-stone-700 text-white px-6 py-3 rounded-lg font-bold text-base shadow-lg border-2 border-stone-400">
+                  🪞 Affronter mon Miroir
+                </button>
+              )}
+              <p className="text-stone-500 text-[10px] mt-2">Récompense : +2 essais</p>
+            </div>
+          </div>
+
+          {/* ═══ DESKTOP LOBBY (1024px+) ═══ */}
+          <div className="hidden lg:flex flex-row gap-4 items-start justify-center text-sm">
+            <div className="w-auto flex-shrink-0">
               {character && <CharacterCardContent character={character} detailsPlacement="left" />}
             </div>
 
-            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col items-center justify-center">
+            <div className="flex-1 min-w-[400px] flex flex-col items-center justify-center">
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl p-8 text-center w-full max-w-[500px]">
                 <div className="text-6xl mb-4">⚔️</div>
                 <h3 className="text-xl font-bold text-stone-300 mb-2">Duel contre votre Doppelgänger</h3>
@@ -324,7 +349,7 @@ const MirrorMode = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="w-auto flex-shrink-0">
               <CloneCard detailsPlacement="right" />
             </div>
           </div>
@@ -357,10 +382,61 @@ const MirrorMode = () => {
           </div>
         )}
 
-        {/* Layout principal: Joueur | Chat | Clone */}
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+        {/* ═══ MOBILE COMBAT (< 1024px) ═══ */}
+        <div className="lg:hidden flex flex-col gap-2">
+          <div className="flex gap-2">
+            <MiniCard entity={{ name: character?.name, currentHP: playerHP, maxHP: playerMaxHP, shield: playerShield ?? 0, base: playerCombatBase ?? character?.base ?? {}, image: character?.characterImage }} side="left" />
+            <MiniCard entity={{ name: mirrorCloneForDisplay?.name ?? 'Clone', currentHP: cloneHP, maxHP: cloneMaxHP, shield: cloneShield ?? 0, base: cloneCombatBase ?? mirrorCloneForDisplay?.base ?? {} }} side="right" />
+          </div>
+          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col" style={{ height: 'calc(100dvh - 280px)', minHeight: '260px', maxHeight: '420px' }}>
+            <div className="bg-stone-900/90 px-3 py-2 border-b border-stone-500/50 rounded-t-xl">
+              <h2 className="text-sm font-bold text-stone-300 text-center">🪞 Combat Miroir</h2>
+            </div>
+            <div ref={logContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+              {combatLog.length === 0 ? (
+                <p className="text-stone-500 italic text-center py-4">Le combat va commencer...</p>
+              ) : (
+                <>
+                  {combatLog.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                    if (!isP1 && !isP2) {
+                      if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-100 text-stone-900 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                      if (log.includes('💀')) return <div key={idx} className="flex justify-center my-2"><div className="bg-red-900 text-red-200 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                      if (log.includes('---')) return <div key={idx} className="flex justify-center my-1"><div className="bg-stone-700 text-stone-200 px-2 py-0.5 text-[10px] font-bold rounded">{cleanLog}</div></div>;
+                      return <div key={idx} className="text-center text-stone-400 text-[10px] italic">{cleanLog}</div>;
+                    }
+                    if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-l-2 border-blue-500 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                    return <div key={idx} className="flex justify-end"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-r-2 border-stone-400 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                  })}
+                  <div ref={logEndRef} />
+                </>
+              )}
+            </div>
+          </div>
+          {/* Résultat mobile */}
+          {gameState === 'victory' && !isSimulating && (
+            <div className="text-center bg-green-950 border-2 border-green-600 rounded-xl p-3">
+              <div className="text-2xl">🏆</div>
+              <div className="text-base font-bold text-green-400">Victoire !</div>
+              {rewardGiven && <div className="text-green-300 text-xs">🎁 +2 essais</div>}
+              <button onClick={() => navigate('/')} className="mt-2 bg-stone-700 text-white px-4 py-1 rounded text-sm">Retour</button>
+            </div>
+          )}
+          {gameState === 'defeat' && !isSimulating && (
+            <div className="text-center bg-red-950 border-2 border-red-600 rounded-xl p-3">
+              <div className="text-2xl">💀</div>
+              <div className="text-base font-bold text-red-400">Défaite...</div>
+              <button onClick={() => setGameState('lobby')} className="mt-2 bg-stone-700 text-white px-4 py-1 rounded text-sm">Retour</button>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ DESKTOP COMBAT (1024px+) ═══ */}
+        <div className="hidden lg:flex flex-row gap-4 items-start justify-center text-sm">
           {/* Carte joueur - Gauche */}
-          <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+          <div className="w-auto flex-shrink-0">
             {character && (
               <CharacterCardContent
                 character={character}
@@ -378,14 +454,14 @@ const MirrorMode = () => {
           </div>
 
           {/* Zone centrale - Chat */}
-          <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
-            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+          <div className="flex-1 min-w-[400px] flex flex-col">
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[600px]">
               <div className="bg-stone-900/90 p-3 border-b border-stone-500/50 rounded-t-xl">
-                <h2 className="text-lg md:text-xl font-bold text-stone-300 text-center">🪞 Combat Miroir</h2>
+                <h2 className="text-xl font-bold text-stone-300 text-center">🪞 Combat Miroir</h2>
               </div>
               <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
                 {combatLog.length === 0 ? (
-                  <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Le combat va commencer...</p>
+                  <p className="text-stone-500 italic text-center py-8 text-sm">Le combat va commencer...</p>
                 ) : (
                   <>
                     {combatLog.map((log, idx) => {
@@ -432,8 +508,8 @@ const MirrorMode = () => {
                         return (
                           <div key={idx} className="flex justify-start">
                             <div className="max-w-[80%]">
-                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
-                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                              <div className="bg-stone-700/80 text-stone-200 px-4 py-2 rounded-lg shadow-lg border-l-4 border-blue-500">
+                                <div className="text-sm">{formatLogMessage(cleanLog)}</div>
                               </div>
                             </div>
                           </div>
@@ -444,8 +520,8 @@ const MirrorMode = () => {
                         return (
                           <div key={idx} className="flex justify-end">
                             <div className="max-w-[80%]">
-                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-stone-400">
-                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                              <div className="bg-stone-700/80 text-stone-200 px-4 py-2 rounded-lg shadow-lg border-r-4 border-stone-400">
+                                <div className="text-sm">{formatLogMessage(cleanLog)}</div>
                               </div>
                             </div>
                           </div>
@@ -495,7 +571,7 @@ const MirrorMode = () => {
           </div>
 
           {/* Carte clone - Droite */}
-          <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+          <div className="w-auto flex-shrink-0">
             <CloneCard showHp detailsPlacement="right" />
           </div>
         </div>
