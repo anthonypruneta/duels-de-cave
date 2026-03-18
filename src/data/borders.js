@@ -46,6 +46,14 @@ export const BORDERS = {
     type: 'character',
     condition: 'Vaincre son Doppelganger (Miroir)',
   },
+  shadow2: {
+    id: 'shadow2',
+    nom: 'Ombre II',
+    icon: '🌘',
+    cssClass: 'border-shadow-dark border-shadow-glow',
+    type: 'character',
+    condition: 'Vaincre son Doppelganger (Miroir)',
+  },
   gold: {
     id: 'gold',
     nom: 'Or',
@@ -176,6 +184,7 @@ export function checkBorderUnlocks(character, extras = {}) {
 
   if (character.mirrorDefeated || (character.earnedTitles || []).includes('miroir_parfait')) {
     unlocked.push('shadow');
+    unlocked.push('shadow2');
   }
 
   if (character.mageTowerExtensionPassive) {
