@@ -37,197 +37,144 @@ function drawSoftEdgeGlow(ctx, w, h, edge, colorA, colorB) {
   else ctx.fillRect(w - thickness, 0, thickness, h);
 }
 
+function smoothstep(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function hash2D(ix, iy, seed) {
+  // Hash déterministe -> [0..1)
+  let h = (ix * 374761393) ^ (iy * 668265263) ^ seed;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = Math.imul(h, 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+function valueNoise2D(x, y, seed) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = x0 + 1;
+  const y1 = y0 + 1;
+  const sx = smoothstep(x - x0);
+  const sy = smoothstep(y - y0);
+
+  const n00 = hash2D(x0, y0, seed);
+  const n10 = hash2D(x1, y0, seed);
+  const n01 = hash2D(x0, y1, seed);
+  const n11 = hash2D(x1, y1, seed);
+
+  const ix0 = lerp(n00, n10, sx);
+  const ix1 = lerp(n01, n11, sx);
+  return lerp(ix0, ix1, sy);
+}
+
+function fbm2D(x, y, seed) {
+  // Fractal brownian motion (4 octaves)
+  let amp = 1;
+  let freq = 1;
+  let sum = 0;
+  let norm = 0;
+  for (let i = 0; i < 4; i++) {
+    sum += amp * valueNoise2D(x * freq, y * freq, seed + i * 1013);
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return sum / norm; // 0..1
+}
+
+function buildWavyInnerContour(w, h, baseThickness, seed) {
+  // Construit un contour intérieur ondulé (liste de points) en parcourant le périmètre.
+  const pts = [];
+  const perim = 2 * (w + h);
+  const step = Math.max(6, Math.round(Math.min(w, h) * 0.02)); // échantillonnage stable
+  const count = Math.max(160, Math.floor(perim / step));
+
+  for (let i = 0; i <= count; i++) {
+    const t = i / count;
+    const s = t * perim;
+
+    // Coordonnée (x,y) sur le bord externe + normale intérieure (nx,ny)
+    let x = 0, y = 0, nx = 0, ny = 0;
+    if (s < w) { // top: (s,0)
+      x = s; y = 0; nx = 0; ny = 1;
+    } else if (s < w + h) { // right: (w, s-w)
+      x = w; y = s - w; nx = -1; ny = 0;
+    } else if (s < 2 * w + h) { // bottom: (2w+h - s, h)
+      x = (2 * w + h) - s; y = h; nx = 0; ny = -1;
+    } else { // left: (0, 2w+2h - s)
+      x = 0; y = (2 * w + 2 * h) - s; nx = 1; ny = 0;
+    }
+
+    // Bruit le long du périmètre + bruit 2D pour "ronger" de manière organique
+    const along = t * 6; // fréquence le long des bords
+    const n1 = fbm2D(along, 0.7, seed);
+    const n2 = fbm2D(x / 110, y / 110, seed + 777);
+    const jag = (n1 * 0.65 + n2 * 0.35); // 0..1
+
+    // Épaisseur locale: base + variations (vagues)
+    const wave = (jag - 0.5) * 2; // -1..1
+    const local = baseThickness * (0.78 + 0.48 * (0.5 + 0.5 * wave));
+
+    pts.push({
+      x: x + nx * local,
+      y: y + ny * local,
+    });
+  }
+  return pts;
+}
+
 function drawOmbre2(ctx, w, h) {
-  // Objectif : "traits francs" + cadre travaillé + fumée opaque.
+  // Bordure "vagues d'ombre" : bande qui ronge l'intérieur, noir -> violet.
   const minDim = Math.min(w, h);
-  const inset = Math.max(8, Math.round(minDim * 0.045));
-  const inset2 = inset + Math.max(3, Math.round(minDim * 0.012));
   const seed = hashStr(`ombre2:${w}x${h}`);
+  const baseThickness = Math.max(20, Math.round(minDim * 0.12));
 
-  // 1) Base sombre autour (cadre externe)
-  ctx.fillStyle = 'rgba(0,0,0,0.46)';
-  ctx.fillRect(0, 0, w, h);
+  // Contour intérieur ondulé
+  const inner = buildWavyInnerContour(w, h, baseThickness, seed);
 
-  // Profondeur: vignette sombre (noir profond) + teinte violette très légère
-  {
-    const r = Math.max(w, h) * 0.92;
-    const vg = ctx.createRadialGradient(w / 2, h / 2, r * 0.12, w / 2, h / 2, r);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(0.55, 'rgba(2,0,8,0.10)');
-    vg.addColorStop(0.78, 'rgba(0,0,0,0.38)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.78)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
-  }
+  // Dessiner la bande entre le bord externe et le contour ondulé (even-odd)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h); // extérieur
+  ctx.moveTo(inner[0].x, inner[0].y);
+  for (let i = 1; i < inner.length; i++) ctx.lineTo(inner[i].x, inner[i].y);
+  ctx.closePath();
 
-  // 2) Fumée opaque (blobs) concentrée sur les bords + coins
-  const smokePad = inset * 1.55;
-  const blobCount = Math.max(140, Math.floor((w + h) * 0.55));
-  for (let i = 0; i < blobCount; i++) {
-    const r1 = rand(seed + i * 13);
-    const r2 = rand(seed + i * 13 + 1);
-    const r3 = rand(seed + i * 13 + 2);
-    const r4 = rand(seed + i * 13 + 3);
+  // Dégradé: noir profond en bord externe -> violet à l'intérieur
+  const grad = ctx.createRadialGradient(w / 2, h / 2, Math.max(w, h) * 0.15, w / 2, h / 2, Math.max(w, h) * 0.85);
+  grad.addColorStop(0, 'rgba(0,0,0,0)'); // centre transparent
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.08)');
+  grad.addColorStop(0.72, 'rgba(15,0,35,0.35)');
+  grad.addColorStop(0.84, 'rgba(60,15,110,0.55)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.92)');
 
-    const side = Math.floor(r1 * 4);
-    let x = 0;
-    let y = 0;
-    if (side === 0) { // top
-      x = r2 * w;
-      y = r3 * smokePad;
-    } else if (side === 1) { // bottom
-      x = r2 * w;
-      y = h - r3 * smokePad;
-    } else if (side === 2) { // left
-      x = r3 * smokePad;
-      y = r2 * h;
-    } else { // right
-      x = w - r3 * smokePad;
-      y = r2 * h;
-    }
+  ctx.fillStyle = grad;
+  ctx.fill('evenodd');
+  ctx.restore();
 
-    // Booster les coins
-    const cornerBoost = (x < smokePad * 1.2 || x > w - smokePad * 1.2 || y < smokePad * 1.2 || y > h - smokePad * 1.2) ? 1.25 : 1;
-    const rad = (7 + r4 * 30) * cornerBoost * (minDim / 340);
-    const alpha = (0.14 + r3 * 0.26) * cornerBoost; // plus opaque
+  // Renforcer l'impression de "ronge" : un halo violet concentré près du contour intérieur
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.beginPath();
+  ctx.moveTo(inner[0].x, inner[0].y);
+  for (let i = 1; i < inner.length; i++) ctx.lineTo(inner[i].x, inner[i].y);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.22)';
+  ctx.lineWidth = Math.max(10, minDim * 0.04);
+  ctx.shadowColor = 'rgba(168, 85, 247, 0.35)';
+  ctx.shadowBlur = Math.max(12, minDim * 0.06);
+  ctx.stroke();
+  ctx.restore();
 
-    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-    g.addColorStop(0, `rgba(10, 0, 24, ${Math.min(0.92, alpha)})`);
-    g.addColorStop(0.35, `rgba(42, 0, 85, ${alpha * 0.72})`);
-    g.addColorStop(0.7, `rgba(115, 35, 175, ${alpha * 0.38})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, rad, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // 3) Glow doux (sous-couche) — plus présent que la V1 mais pas "néon"
-  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.26)', 'rgba(88, 28, 135, 0.12)');
-  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.28)', 'rgba(76, 29, 149, 0.13)');
-  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.11)');
-  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.11)');
-
-  // Helpers pour traits/ornements
-  const strokeFrame = (off, width, strokeStyle, glow = null) => {
-    ctx.save();
-    if (glow) {
-      ctx.shadowColor = glow.color;
-      ctx.shadowBlur = glow.blur;
-    } else {
-      ctx.shadowBlur = 0;
-    }
-    ctx.strokeStyle = strokeStyle;
-    ctx.lineWidth = width;
-    ctx.lineJoin = 'round';
-    ctx.strokeRect(off + 0.5, off + 0.5, w - (off * 2) - 1, h - (off * 2) - 1);
-    ctx.restore();
-  };
-
-  // 4) Traits francs (double cadre) comme sur ta référence
-  // Outer dark line (plus noir, plus contrasté)
-  strokeFrame(inset2, Math.max(1.7, minDim / 210), 'rgba(0, 0, 0, 0.92)');
-  // Inner violet line with subtle glow
-  const violet = ctx.createLinearGradient(inset, inset, w - inset, h - inset);
-  violet.addColorStop(0, 'rgba(221, 214, 254, 0.95)');
-  violet.addColorStop(0.35, 'rgba(196, 181, 253, 0.80)');
-  violet.addColorStop(0.7, 'rgba(167, 139, 250, 0.65)');
-  violet.addColorStop(1, 'rgba(233, 213, 255, 0.90)');
-  strokeFrame(inset, Math.max(1.3, minDim / 250), violet, { color: 'rgba(168, 85, 247, 0.62)', blur: Math.max(6, minDim * 0.028) });
-
-  // 4b) Ombre interne (donne l'effet "creusé")
-  {
-    const innerOff = inset + Math.max(10, minDim * 0.05);
-    const blur = Math.max(10, minDim * 0.055);
-
-    // Haut
-    let g = ctx.createLinearGradient(0, innerOff, 0, innerOff + blur);
-    g.addColorStop(0, 'rgba(0,0,0,0.55)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(innerOff, innerOff, w - innerOff * 2, blur);
-
-    // Bas
-    g = ctx.createLinearGradient(0, h - innerOff, 0, h - innerOff - blur);
-    g.addColorStop(0, 'rgba(0,0,0,0.62)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(innerOff, h - innerOff - blur, w - innerOff * 2, blur);
-
-    // Gauche
-    g = ctx.createLinearGradient(innerOff, 0, innerOff + blur, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0.58)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(innerOff, innerOff, blur, h - innerOff * 2);
-
-    // Droite
-    g = ctx.createLinearGradient(w - innerOff, 0, w - innerOff - blur, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0.58)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(w - innerOff - blur, innerOff, blur, h - innerOff * 2);
-  }
-
-  // 5) Ornements simples (coins + diamant haut/bas) — “ça a de la gueule” sans PNG
-  const cornerSize = Math.max(18, minDim * 0.14);
-  const curl = (sx, sy, flipX, flipY) => {
-    const x = sx;
-    const y = sy;
-    const fx = flipX ? -1 : 1;
-    const fy = flipY ? -1 : 1;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(fx, fy);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // base dark stroke (shadow)
-    ctx.strokeStyle = 'rgba(0,0,0,0.78)';
-    ctx.lineWidth = Math.max(2.4, minDim * 0.010);
-    ctx.beginPath();
-    ctx.moveTo(0, cornerSize * 0.15);
-    ctx.bezierCurveTo(cornerSize * 0.25, cornerSize * 0.05, cornerSize * 0.55, cornerSize * 0.15, cornerSize * 0.62, cornerSize * 0.34);
-    ctx.bezierCurveTo(cornerSize * 0.72, cornerSize * 0.62, cornerSize * 0.35, cornerSize * 0.70, cornerSize * 0.22, cornerSize * 0.88);
-    ctx.stroke();
-
-    // violet highlight stroke
-    ctx.shadowColor = 'rgba(168, 85, 247, 0.75)';
-    ctx.shadowBlur = Math.max(6, minDim * 0.028);
-    ctx.strokeStyle = 'rgba(216, 180, 254, 0.78)';
-    ctx.lineWidth = Math.max(1.2, minDim * 0.005);
-    ctx.beginPath();
-    ctx.moveTo(cornerSize * 0.02, cornerSize * 0.22);
-    ctx.bezierCurveTo(cornerSize * 0.32, cornerSize * 0.10, cornerSize * 0.58, cornerSize * 0.22, cornerSize * 0.58, cornerSize * 0.40);
-    ctx.bezierCurveTo(cornerSize * 0.58, cornerSize * 0.60, cornerSize * 0.30, cornerSize * 0.70, cornerSize * 0.20, cornerSize * 0.86);
-    ctx.stroke();
-
-    ctx.restore();
-  };
-
-  const off = inset * 0.55;
-  curl(off, off, false, false);
-  curl(w - off, off, true, false);
-  curl(off, h - off, false, true);
-  curl(w - off, h - off, true, true);
-
-  const diamond = (cx, cy) => {
-    const s = Math.max(10, minDim * 0.045);
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(Math.PI / 4);
-    ctx.shadowColor = 'rgba(168, 85, 247, 0.85)';
-    ctx.shadowBlur = Math.max(6, minDim * 0.03);
-    ctx.fillStyle = 'rgba(196, 181, 253, 0.70)';
-    ctx.fillRect(-s / 2, -s / 2, s, s);
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth = Math.max(1, minDim * 0.004);
-    ctx.strokeRect(-s / 2, -s / 2, s, s);
-    ctx.restore();
-  };
-
-  diamond(w / 2, inset);
-  diamond(w / 2, h - inset);
+  // Un trait sombre fin sur le bord extérieur pour "cadrer"
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.lineWidth = Math.max(1.5, minDim * 0.006);
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 }
 
 function drawBorder(ctx, borderId, w, h) {
