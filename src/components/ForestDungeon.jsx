@@ -1712,50 +1712,79 @@ const ForestDungeon = () => {
             {/* Mini-cartes joueur / boss */}
             <div className="flex gap-2">
               {/* Joueur */}
-              <div className="flex-1 min-w-0 bg-stone-900/90 border border-blue-500/40 rounded-xl p-2.5">
-                <div className="text-xs font-bold text-blue-300 truncate mb-1">{player?.name || '—'}</div>
-                <div className="text-[10px] text-stone-400 mb-1">
-                  PV {Math.max(0, Math.round(player?.currentHP ?? 0))} / {player?.maxHP ?? 0}
-                </div>
-                <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
-                  <div
-                    className={`h-full transition-all duration-300 ${getMiniHpClass(player?.currentHP ?? 0, player?.maxHP ?? 1)}`}
-                    style={{ width: `${player && player.maxHP > 0 ? Math.max(0, Math.min(100, (player.currentHP / player.maxHP) * 100)) : 100}%` }}
-                  />
-                </div>
-                {(player?.shield ?? 0) > 0 && (
-                  <div className="bg-stone-800 h-1.5 rounded overflow-hidden mb-1 border border-blue-800">
-                    <div className="h-full bg-blue-500 transition-all duration-300"
-                      style={{ width: `${Math.min(100, ((player.shield) / player.maxHP) * 100)}%` }} />
+              {/* Joueur */}
+              <div className="flex-1 min-w-0 bg-stone-900/90 border border-blue-500/40 rounded-xl overflow-hidden">
+                {player?.characterImage && (
+                  <div className="relative w-full h-20 overflow-hidden bg-stone-800">
+                    <img src={player.characterImage} alt={player.name} className="w-full h-full object-contain object-center" />
+                    <div className="absolute bottom-0 left-0 right-0 px-1.5 pb-1">
+                      <div className="bg-stone-800/80 h-2 rounded overflow-hidden">
+                        <div className={`h-full transition-all duration-300 ${getMiniHpClass(player?.currentHP ?? 0, player?.maxHP ?? 1)}`}
+                          style={{ width: `${player && player.maxHP > 0 ? Math.max(0, Math.min(100, (player.currentHP / player.maxHP) * 100)) : 100}%` }} />
+                      </div>
+                      {(player?.shield ?? 0) > 0 && (
+                        <div className="bg-stone-800/80 h-1 rounded overflow-hidden mt-0.5 border border-blue-800/60">
+                          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${Math.min(100, ((player.shield) / player.maxHP) * 100)}%` }} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400 mt-1">
-                  {[['Auto', (playerCombatBase ?? player?.base)?.auto], ['DEF', (playerCombatBase ?? player?.base)?.def], ['CAP', (playerCombatBase ?? player?.base)?.cap], ['VIT', (playerCombatBase ?? player?.base)?.spd]].map(([lbl, val]) =>
-                    val != null ? <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span> : null
+                <div className="p-2">
+                  <div className="text-xs font-bold text-blue-300 truncate mb-1">{player?.name || '—'}</div>
+                  <div className="text-[10px] text-stone-400 mb-1">PV {Math.max(0, Math.round(player?.currentHP ?? 0))} / {player?.maxHP ?? 0}</div>
+                  {!player?.characterImage && (
+                    <>
+                      <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
+                        <div className={`h-full transition-all duration-300 ${getMiniHpClass(player?.currentHP ?? 0, player?.maxHP ?? 1)}`}
+                          style={{ width: `${player && player.maxHP > 0 ? Math.max(0, Math.min(100, (player.currentHP / player.maxHP) * 100)) : 100}%` }} />
+                      </div>
+                      {(player?.shield ?? 0) > 0 && (
+                        <div className="bg-stone-800 h-1.5 rounded overflow-hidden mb-1 border border-blue-800">
+                          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${Math.min(100, ((player.shield) / player.maxHP) * 100)}%` }} />
+                        </div>
+                      )}
+                    </>
                   )}
+                  <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400">
+                    {[['Auto', (playerCombatBase ?? player?.base)?.auto], ['DEF', (playerCombatBase ?? player?.base)?.def], ['CAP', (playerCombatBase ?? player?.base)?.cap], ['VIT', (playerCombatBase ?? player?.base)?.spd]].map(([lbl, val]) =>
+                      val != null ? <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span> : null
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Boss */}
-              <div className="flex-1 min-w-0 bg-stone-900/90 border border-purple-500/40 rounded-xl p-2.5">
-                <div className="text-xs font-bold text-purple-300 truncate mb-1">{boss?.name || '—'}</div>
-                <div className="text-[10px] text-stone-400 mb-1">
-                  PV {Math.max(0, Math.round(boss?.currentHP ?? 0))} / {boss?.maxHP ?? 0}
-                </div>
-                <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
-                  <div
-                    className={`h-full transition-all duration-300 ${getMiniHpClass(boss?.currentHP ?? 0, boss?.maxHP ?? 1)}`}
-                    style={{ width: `${boss && boss.maxHP > 0 ? Math.max(0, Math.min(100, (boss.currentHP / boss.maxHP) * 100)) : 100}%` }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400 mt-1">
-                  {[['Auto', (bossCombatBase ?? boss?.base)?.auto], ['DEF', (bossCombatBase ?? boss?.base)?.def], ['CAP', (bossCombatBase ?? boss?.base)?.cap], ['VIT', (bossCombatBase ?? boss?.base)?.spd]].map(([lbl, val]) =>
-                    val != null ? <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span> : null
+              <div className="flex-1 min-w-0 bg-stone-900/90 border border-purple-500/40 rounded-xl overflow-hidden">
+                {getBossImage(boss?.imageFile) && (
+                  <div className="relative w-full h-20 overflow-hidden bg-stone-800">
+                    <img src={getBossImage(boss.imageFile)} alt={boss.name} className="w-full h-full object-contain object-center" />
+                    <div className="absolute bottom-0 left-0 right-0 px-1.5 pb-1">
+                      <div className="bg-stone-800/80 h-2 rounded overflow-hidden">
+                        <div className={`h-full transition-all duration-300 ${getMiniHpClass(boss?.currentHP ?? 0, boss?.maxHP ?? 1)}`}
+                          style={{ width: `${boss && boss.maxHP > 0 ? Math.max(0, Math.min(100, (boss.currentHP / boss.maxHP) * 100)) : 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="p-2">
+                  <div className="text-xs font-bold text-purple-300 truncate mb-1">{boss?.name || '—'}</div>
+                  <div className="text-[10px] text-stone-400 mb-1">PV {Math.max(0, Math.round(boss?.currentHP ?? 0))} / {boss?.maxHP ?? 0}</div>
+                  {!getBossImage(boss?.imageFile) && (
+                    <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
+                      <div className={`h-full transition-all duration-300 ${getMiniHpClass(boss?.currentHP ?? 0, boss?.maxHP ?? 1)}`}
+                        style={{ width: `${boss && boss.maxHP > 0 ? Math.max(0, Math.min(100, (boss.currentHP / boss.maxHP) * 100)) : 100}%` }} />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400">
+                    {[['Auto', (bossCombatBase ?? boss?.base)?.auto], ['DEF', (bossCombatBase ?? boss?.base)?.def], ['CAP', (bossCombatBase ?? boss?.base)?.cap], ['VIT', (bossCombatBase ?? boss?.base)?.spd]].map(([lbl, val]) =>
+                      val != null ? <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span> : null
+                    )}
+                  </div>
+                  {boss?.ability && (
+                    <div className="mt-1 text-[10px] text-amber-300 truncate">⚡ {boss.ability.name}</div>
                   )}
                 </div>
-                {boss?.ability && (
-                  <div className="mt-1 text-[10px] text-amber-300 truncate">⚡ {boss.ability.name}</div>
-                )}
               </div>
             </div>
 

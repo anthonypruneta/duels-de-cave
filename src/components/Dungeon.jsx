@@ -1402,10 +1402,9 @@ const Dungeon = () => {
             </button>
           </div>
 
-          {/* Layout principal: Joueur | Chat | Boss */}
           <CombatLayout
-            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {} }}
-            p2Entity={{ name: boss?.name, currentHP: boss?.currentHP, maxHP: boss?.maxHP, shield: boss?.shield ?? 0, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability }}
+            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }}
+            p2Entity={{ name: boss?.name, currentHP: boss?.currentHP, maxHP: boss?.maxHP, shield: boss?.shield ?? 0, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability, image: getBossImage(boss?.imageFile) }}
             p1Card={<CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />}
             p2Card={<BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
             logRef={logContainerRef}

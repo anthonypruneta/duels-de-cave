@@ -629,7 +629,7 @@ const Training = () => {
 
           {/* Layout: Joueur | Centre | Mannequin */}
           <CombatLayout
-            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {} }}
+            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }}
             p2Entity={{ name: dummy?.name || 'Mannequin', currentHP: dummy?.currentHP, maxHP: dummy?.maxHP ?? dummy?.base?.hp, base: dummyCombatBase ?? dummy?.base ?? {} }}
             p1Card={<CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} detailsPlacement="left" />}
             p2Card={<DummyCard combatBaseOverride={dummyCombatBase} />}

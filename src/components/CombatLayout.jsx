@@ -38,34 +38,69 @@ const MiniCard = ({ entity, combatBase, side }) => {
   const shieldPct = maxHP > 0 ? Math.min(100, (shield / maxHP) * 100) : 0;
   const borderColor = side === 'left' ? 'border-blue-500/40' : 'border-purple-500/40';
   const nameColor = side === 'left' ? 'text-blue-300' : 'text-purple-300';
+  const image = entity.image ?? null;
 
   return (
-    <div className={`flex-1 min-w-0 bg-stone-900/90 border ${borderColor} rounded-xl p-2.5`}>
-      <div className={`text-xs font-bold ${nameColor} truncate mb-1`}>{entity.name || '—'}</div>
-      <div className="text-[10px] text-stone-400 mb-1">
-        PV {Math.round(currentHP)} / {maxHP}
-      </div>
-      <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
-        <div
-          className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
-          style={{ width: `${hpPct}%` }}
-        />
-      </div>
-      {shieldPct > 0 && (
-        <div className="bg-stone-800 h-1.5 rounded overflow-hidden mb-1 border border-blue-800">
-          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
+    <div className={`flex-1 min-w-0 bg-stone-900/90 border ${borderColor} rounded-xl overflow-hidden`}>
+      {/* Image + barre HP superposée */}
+      {image && (
+        <div className="relative w-full h-20 overflow-hidden bg-stone-800">
+          <img
+            src={image}
+            alt={entity.name}
+            className="w-full h-full object-contain object-center"
+          />
+          {/* HP bar en overlay */}
+          <div className="absolute bottom-0 left-0 right-0 px-1.5 pb-1">
+            <div className="bg-stone-800/80 h-2 rounded overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
+                style={{ width: `${hpPct}%` }}
+              />
+            </div>
+            {shieldPct > 0 && (
+              <div className="bg-stone-800/80 h-1 rounded overflow-hidden mt-0.5 border border-blue-800/60">
+                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400 mt-1">
-        {[['Auto', base.auto], ['DEF', base.def], ['CAP', base.cap], ['VIT', base.spd]].map(([lbl, val]) =>
-          val != null ? (
-            <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span>
-          ) : null
+
+      <div className="p-2">
+        <div className={`text-xs font-bold ${nameColor} truncate mb-1`}>{entity.name || '—'}</div>
+        <div className="text-[10px] text-stone-400 mb-1">
+          PV {Math.round(currentHP)} / {maxHP}
+        </div>
+
+        {/* HP bar sans image */}
+        {!image && (
+          <>
+            <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
+              <div
+                className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
+                style={{ width: `${hpPct}%` }}
+              />
+            </div>
+            {shieldPct > 0 && (
+              <div className="bg-stone-800 h-1.5 rounded overflow-hidden mb-1 border border-blue-800">
+                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400">
+          {[['Auto', base.auto], ['DEF', base.def], ['CAP', base.cap], ['VIT', base.spd]].map(([lbl, val]) =>
+            val != null ? (
+              <span key={lbl}>{lbl}: <span className="text-white font-semibold">{val}</span></span>
+            ) : null
+          )}
+        </div>
+        {entity.ability && (
+          <div className="mt-1 text-[10px] text-amber-300 truncate">⚡ {entity.ability.name}</div>
         )}
       </div>
-      {entity.ability && (
-        <div className="mt-1 text-[10px] text-amber-300 truncate">⚡ {entity.ability.name}</div>
-      )}
     </div>
   );
 };

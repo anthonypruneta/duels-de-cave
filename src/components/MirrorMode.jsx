@@ -360,8 +360,8 @@ const MirrorMode = () => {
 
         {/* Layout principal: Joueur | Chat | Clone */}
         <CombatLayout
-          p1Entity={{ name: character?.name, currentHP: playerHP, maxHP: playerMaxHP, shield: playerShield ?? 0, base: playerCombatBase ?? character?.base ?? {} }}
-          p2Entity={{ name: mirrorCloneForDisplay?.name || `${character?.name} (Miroir)`, currentHP: mirrorCloneForDisplay?.currentHP, maxHP: mirrorCloneForDisplay?.maxHP ?? mirrorCloneForDisplay?.base?.hp, base: mirrorCloneForDisplay?.base ?? {} }}
+          p1Entity={{ name: character?.name, currentHP: playerHP, maxHP: playerMaxHP, shield: playerShield ?? 0, base: playerCombatBase ?? character?.base ?? {}, image: character?.characterImage }}
+          p2Entity={{ name: mirrorCloneForDisplay?.name || `${character?.name} (Miroir)`, currentHP: mirrorCloneForDisplay?.currentHP, maxHP: mirrorCloneForDisplay?.maxHP ?? mirrorCloneForDisplay?.base?.hp, base: mirrorCloneForDisplay?.base ?? {}, image: mirrorCloneForDisplay?.characterImage }}
           p1Card={character && <CharacterCardContent character={character} showHpBar currentHP={playerHP} maxHP={playerMaxHP} shield={playerShield} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={mirrorCloneForDisplay} combatStatus={playerCombatStatus} detailsPlacement="left" />}
           p2Card={<CloneCard showHp detailsPlacement="right" />}
           logRef={logContainerRef}
