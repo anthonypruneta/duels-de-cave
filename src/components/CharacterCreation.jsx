@@ -25,7 +25,7 @@ import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAw
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
-import { getSubclassStatBonuses } from '../data/subclasses';
+import { useCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay';
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } from '../services/titleService';
 import { TITLES, getFormattedTitle } from '../data/titles';
@@ -1028,116 +1028,25 @@ const CharacterCreation = () => {
 
   // Afficher le personnage existant
   if (existingCharacter) {
-    const raceB = getRaceBonus(existingCharacter.race);
-    const classB = getClassBonus(existingCharacter.class);
-    const totalBonus = (k) => (raceB[k] || 0) + (classB[k] || 0);
-    const forestBoosts = { ...getEmptyStatBoosts(), ...(existingCharacter.forestBoosts || {}) };
-    const baseStatsRaw = applyStatBoosts(existingCharacter.base, forestBoosts);
-    const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, existingCharacter.race, existingCharacter.level ?? 1);
-    const weapon = equippedWeapon;
-    const mageTowerPassive = existingCharacter.mageTowerPassive || null;
-    const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
-    const passiveLevel = mageTowerPassive ? getMageTowerPassiveLevel(mageTowerPassive.id, mageTowerPassive.level) : null;
-    const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
-    const awakeningInfo = races[existingCharacter.race]?.awakening || null;
-    const isAwakeningActive = awakeningInfo && (existingCharacter.level ?? 1) >= awakeningInfo.levelRequired;
-    const forgeUpgrade = existingCharacter.forgeUpgrade;
-    const forgeLabel = (statKey) => FORGE_STAT_LABELS[statKey] || statKey.toUpperCase();
-    const hasForgeUpgrade = isForgeActive() && hasAnyForgeUpgrade(forgeUpgrade);
-    const skipWeaponFlat = isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade);
-    const weaponStatValue = (k) => (skipWeaponFlat ? 0 : (weapon?.stats?.[k] ?? 0));
-    const rawBase = existingCharacter.base;
-    const baseWithPassive = weapon ? applyPassiveWeaponStats(baseStats, weapon.id, existingCharacter.class, existingCharacter.race, existingCharacter.mageTowerPassive, skipWeaponFlat) : baseStats;
-    const bastionDefBonus = existingCharacter.class === 'Bastion' && classConstants.bastion?.defPercentBonus
-      ? Math.round((baseWithPassive.def ?? 0) * classConstants.bastion.defPercentBonus)
-      : 0;
-    const baseWithClassPassive = bastionDefBonus > 0
-      ? { ...baseWithPassive, def: Math.max(1, (baseWithPassive.def ?? 0) + bastionDefBonus) }
-      : baseWithPassive;
-    const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
-    const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
-    const finalStatsBeforeForge = applyAwakeningToBase(baseWithClassPassive, awakeningEffect);
-    const finalStatsBeforeSubclass = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
-      ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
-      : finalStatsBeforeForge;
+    const statsDisplay = useCharacterStatsDisplay(existingCharacter, equippedWeapon);
+    const {
+      finalStats,
+      getStatLineProps,
+      hasForgeUpgrade,
+      forgeUpgrade,
+      forgeLabel,
+      passiveDetails,
+      fusedPassiveDisplay,
+      awakeningInfo,
+      isAwakeningActive,
+      weapon,
+    } = statsDisplay;
 
-    // Bonus permanent de stats des sous-classes (Collège Kunugigaoka) : affichage page d'accueil
-    const subclassBonuses = getSubclassStatBonuses(existingCharacter.subclass?.id);
-    const finalStats = subclassBonuses && typeof existingCharacter.subclass?.id === 'string'
-      ? Object.entries(subclassBonuses).reduce((acc, [stat, pct]) => {
-        if (acc[stat] != null && pct) {
-          acc[stat] = Math.max(1, Math.round(acc[stat] * (1 + pct)));
-        }
-        return acc;
-      }, { ...finalStatsBeforeSubclass })
-      : finalStatsBeforeSubclass;
-
-    const subclassDelta = (k) => (finalStats[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
-
-    const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
-    const getRaceDisplayBonus = (k) => {
-      if (!isAwakeningActive) return raceB[k] || 0;
-
-      const classBonus = classB[k] || 0;
-      const forestBonus = forestBoosts[k] || 0;
-      const weaponBonus = weaponStatValue(k);
-      const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
-      const bastionBonus = k === 'def' ? bastionDefBonus : 0;
-      const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus + bastionBonus;
-      // Utiliser les stats avant forge pour ne pas mettre le bonus Forge dans "Race"
-      return (finalStatsBeforeForge[k] ?? 0) - subtotalWithoutRace;
-    };
-
-    const tooltipContent = (k) => {
-      const parts = [`Base: ${baseWithoutBonus(k)}`];
-      if (classB[k] > 0) parts.push(`Classe: +${classB[k]}`);
-      if (k === 'def' && bastionDefBonus > 0) parts.push(`Classe: +8% DEF (+${bastionDefBonus})`);
-      if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
-      if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
-      if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
-
-      const raceDisplayBonus = getRaceDisplayBonus(k);
-      if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+${raceDisplayBonus}` : raceDisplayBonus}`);
-      if (isForgeActive() && forgeUpgrade) {
-        const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
-        const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
-        const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
-        if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
-      }
-      const subDelta = subclassDelta(k);
-      if (subDelta !== 0) {
-        const pct = subclassBonuses?.[k] ?? 0;
-        const pctText = pct ? ` (${Math.round(pct * 100)}%)` : '';
-        parts.push(`Sous-classe${pctText}: +${subDelta}`);
-      }
-      return parts.join(' | ');
-    };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
-      const displayValue = finalStats[statKey] ?? 0;
-      const raceDisplayBonus = getRaceDisplayBonus(statKey);
-      const bastionDelta = statKey === 'def' ? bastionDefBonus : 0;
-      const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
-      const forgeDeltaForStat = (isForgeActive() && forgeUpgrade) ? (() => { const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade); return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]); })() : 0;
-      const subclassDeltaForStat = subclassDelta(statKey);
-      const hasBonus = raceDisplayBonus !== 0
-        || classB[statKey] > 0
-        || bastionDelta > 0
-        || forestBoosts[statKey] > 0
-        || weaponStatValue(statKey) !== 0
-        || (statKey === 'auto' && passiveAutoBonus !== 0)
-        || forgeDeltaForStat !== 0
-        || subclassDeltaForStat !== 0;
-      const totalDelta = raceDisplayBonus
-        + (classB[statKey] || 0)
-        + bastionDelta
-        + (forestBoosts[statKey] || 0)
-        + weaponStatValue(statKey)
-        + (statKey === 'auto' ? passiveAutoBonus : 0)
-        + forgeDeltaForStat
-        + subclassDeltaForStat;
-      const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
+      const props = getStatLineProps(statKey, label, valueClassName);
+      const { displayValue, hasBonus, labelClass, tooltipContent: tip } = props;
       return hasBonus ? (
-        <Tooltip content={tooltipContent(statKey)}>
+        <Tooltip content={tip}>
           <div className={valueClassName}>
             {label} : <span className={`font-bold ${labelClass}`}>{displayValue}</span>
           </div>
@@ -1223,7 +1132,7 @@ const CharacterCreation = () => {
                       </div>
                     )}
                     {(() => {
-                      const fused = getFusedPassiveDisplayData(existingCharacter);
+                      const fused = fusedPassiveDisplay;
                       if (fused) {
                         return (
                           <div className="extension-territory-border extension-territory-glow overflow-visible">
