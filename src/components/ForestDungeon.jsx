@@ -36,7 +36,7 @@ import {
   getForestLevelByNumber,
   createForestBossCombatant
 } from '../data/forestDungeons';
-import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels } from '../utils/statPoints';
+import { applyStatBoosts, applyStatPoints, getEmptyStatBoosts, getStatLabels, getStatPointValue } from '../utils/statPoints';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
@@ -204,6 +204,7 @@ const ForestDungeon = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
+  const [instantRewardChoices, setInstantRewardChoices] = useState({ 1: null, 2: null, 3: null }); // niveau -> 0|1|null
   const [error, setError] = useState(null);
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const [canInstantFinish, setCanInstantFinish] = useState(false);
@@ -943,6 +944,18 @@ const ForestDungeon = () => {
     return { updatedBoosts, gainsByStat };
   };
 
+  /** Génère des gains "gainsByStat" pour N rolls (sans dépendre des boosts actuels). */
+  const rollStatGains = (rolls) => {
+    const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
+    const gainsByStat = {};
+    for (let i = 0; i < rolls; i++) {
+      const stat = statsPool[Math.floor(Math.random() * statsPool.length)];
+      const value = getStatPointValue(stat);
+      gainsByStat[stat] = (gainsByStat[stat] || 0) + value;
+    }
+    return gainsByStat;
+  };
+
   /** Un seul point de stats (un roll). */
   const rollOneStatPoint = (baseBoosts = character.forestBoosts) => {
     const statsPool = ['hp', 'auto', 'def', 'rescap', 'spd', 'cap'];
@@ -1041,44 +1054,38 @@ const ForestDungeon = () => {
     await markDungeonCompleted(currentUser.uid, 'forest');
     setCanInstantFinish(true);
 
-    const fullLevelGain = getAllForestLevels().reduce((acc, l) => acc + l.rewardRolls, 0);
+    const levels = getAllForestLevels();
+    const fullLevelGain = levels.reduce((acc, l) => acc + l.rewardRolls, 0);
     const allowedLevelGain = Math.min(fullLevelGain, MAX_LEVEL - currentLevelChar);
 
-    let option1, option2;
-    if (allowedLevelGain <= 0) {
-      const noGain = { updatedBoosts: { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) }, gainsByStat: {} };
-      option1 = option2 = noGain;
-    } else if (allowedLevelGain < fullLevelGain) {
-      option1 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
-      option2 = rollNStatPoints(character?.forestBoosts, allowedLevelGain);
-    } else {
-      const generateFullRunReward = () => {
-        let boosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
-        const totalGains = {};
-        for (const levelData of getAllForestLevels()) {
-          const result = rollForestRewards(levelData, boosts);
-          boosts = result.updatedBoosts;
-          Object.entries(result.gainsByStat).forEach(([stat, value]) => {
-            totalGains[stat] = (totalGains[stat] || 0) + value;
-          });
-        }
-        return { updatedBoosts: boosts, gainsByStat: totalGains };
-      };
-      option1 = generateFullRunReward();
-      option2 = generateFullRunReward();
-    }
+    let remainingRolls = Math.max(0, allowedLevelGain);
+    const instantLevels = levels.map((levelData) => {
+      const rollsForLevel = Math.max(0, Math.min(levelData.rewardRolls, remainingRolls));
+      remainingRolls -= rollsForLevel;
 
+      return {
+        id: levelData.id,
+        niveau: levelData.niveau,
+        nom: levelData.nom,
+        difficulte: levelData.difficulte,
+        icon: levelData.boss?.icon,
+        rolls: rollsForLevel,
+        options: [
+          { gainsByStat: rollsForLevel > 0 ? rollStatGains(rollsForLevel) : {} },
+          { gainsByStat: rollsForLevel > 0 ? rollStatGains(rollsForLevel) : {} }
+        ]
+      };
+    });
+
+    setInstantRewardChoices({ 1: null, 2: null, 3: null });
     setRewardSummary({
-      options: [
-        { updatedBoosts: option1.updatedBoosts, gainsByStat: option1.gainsByStat },
-        { updatedBoosts: option2.updatedBoosts, gainsByStat: option2.gainsByStat }
-      ],
-      levelGain: allowedLevelGain <= 0 ? 0 : Math.min(allowedLevelGain, fullLevelGain),
+      instantLevels,
+      levelGain: allowedLevelGain,
       allowedLevelGain,
       hasNextLevel: false,
-      nextLevel: getAllForestLevels().length + 1
+      nextLevel: levels.length + 1
     });
-      setGameState('reward');
+    setGameState('reward');
     } finally {
       setIsStartingRun(false);
     }
@@ -1210,6 +1217,52 @@ const ForestDungeon = () => {
       setRewardSummary(null);
       setGameState('victory');
     }
+  };
+
+  const handleInstantRewardChoiceToggle = (niveau, optionIndex) => {
+    setInstantRewardChoices((prev) => {
+      const current = prev?.[niveau] ?? null;
+      const nextValue = current === optionIndex ? null : optionIndex; // checkbox: re-cliquer = désélection
+      return { ...prev, [niveau]: nextValue };
+    });
+  };
+
+  const handleValidateInstantRewards = async () => {
+    if (!rewardSummary?.instantLevels?.length) return;
+    const baseBoosts = { ...getEmptyStatBoosts(), ...(character?.forestBoosts || {}) };
+
+    const missingRequired = rewardSummary.instantLevels
+      .filter((l) => (l.rolls ?? 0) > 0)
+      .some((l) => instantRewardChoices?.[l.niveau] == null);
+    if (missingRequired) return;
+
+    const totalGains = {};
+    for (const levelData of rewardSummary.instantLevels) {
+      const selectedIdx = instantRewardChoices?.[levelData.niveau];
+      if (selectedIdx == null) continue;
+      const gains = levelData.options?.[selectedIdx]?.gainsByStat || {};
+      Object.entries(gains).forEach(([stat, value]) => {
+        totalGains[stat] = (totalGains[stat] || 0) + value;
+      });
+    }
+
+    let updatedBoosts = { ...baseBoosts };
+    Object.entries(totalGains).forEach(([stat, delta]) => {
+      if (updatedBoosts[stat] == null) updatedBoosts[stat] = 0;
+      updatedBoosts[stat] += delta;
+    });
+
+    const levelGain = rewardSummary.levelGain ?? 0;
+    const updatedCharacter = {
+      ...character,
+      level: clampLevel((character.level ?? 1) + levelGain),
+      forestBoosts: updatedBoosts
+    };
+    setCharacter(updatedCharacter);
+    await updateCharacterForestBoosts(currentUser.uid, updatedBoosts, updatedCharacter.level);
+
+    setRewardSummary(null);
+    setGameState('victory');
   };
 
   const handleBackToLobby = async () => {
@@ -1374,6 +1427,122 @@ const ForestDungeon = () => {
         </div>
       </button>
     );
+
+    if (rewardSummary.instantLevels?.length) {
+      const instantLevels = rewardSummary.instantLevels;
+      const hasMissingSelection = instantLevels
+        .filter((l) => (l.rolls ?? 0) > 0)
+        .some((l) => instantRewardChoices?.[l.niveau] == null);
+
+      const levelTotals = (niveau, optionIndex) => {
+        const levelData = instantLevels.find((l) => l.niveau === niveau);
+        if (!levelData) return {};
+        return levelData.options?.[optionIndex]?.gainsByStat || {};
+      };
+
+      const Check = ({ checked, disabled }) => (
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded border ${
+          disabled
+            ? 'border-stone-700 bg-stone-900/40'
+            : checked
+              ? 'border-emerald-400 bg-emerald-700'
+              : 'border-stone-500 bg-stone-900/60'
+        }`}>
+          {checked ? <span className="text-white text-sm leading-none">✓</span> : null}
+        </span>
+      );
+
+      return (
+        <div className="min-h-screen p-6 flex items-center justify-center">
+          <Header />
+          <audio id="forest-music" loop>
+            <source src="/assets/music/forest.mp3" type="audio/mpeg" />
+          </audio>
+          <div className="max-w-2xl w-full text-center flex flex-col items-center gap-6">
+            <CharacterCardContent character={character} detailsPlacement="right" />
+
+            <div className="inline-block bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-2 shadow-lg">
+              <p className="text-amber-300 font-bold text-sm tracking-wide">Fin instantanée — Choix par niveau</p>
+            </div>
+
+            <div className="w-full bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg text-left">
+              <div className="text-xs text-stone-400 mb-3">
+                Cochez une option par niveau (les niveaux avec 0 gain sont désactivés).
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {instantLevels.map((lvl) => {
+                  const disabledLevel = (lvl.rolls ?? 0) <= 0;
+                  const selected = instantRewardChoices?.[lvl.niveau];
+                  return (
+                    <div key={lvl.id} className="border border-stone-700/80 rounded-lg p-3 bg-stone-900/30">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{lvl.icon || '🌲'}</span>
+                          <div>
+                            <div className="text-stone-100 font-bold">Niveau {lvl.niveau} — {lvl.nom}</div>
+                            <div className="text-xs text-stone-400">{lvl.difficulte} • {lvl.rolls} roll{lvl.rolls > 1 ? 's' : ''}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[0, 1].map((optIdx) => {
+                          const checked = selected === optIdx;
+                          const gains = levelTotals(lvl.niveau, optIdx);
+                          return (
+                            <button
+                              key={optIdx}
+                              type="button"
+                              disabled={disabledLevel}
+                              onClick={() => handleInstantRewardChoiceToggle(lvl.niveau, optIdx)}
+                              className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                                disabledLevel
+                                  ? 'border-stone-800 bg-stone-900/20 text-stone-600 cursor-not-allowed'
+                                  : checked
+                                    ? 'border-emerald-500 bg-emerald-900/20'
+                                    : 'border-stone-700 bg-stone-950/40 hover:border-amber-500 hover:bg-stone-800/50'
+                              }`}
+                            >
+                              <Check checked={checked} disabled={disabledLevel} />
+                              <div className="flex-1">
+                                <div className="text-amber-200 text-xs font-semibold mb-1">Choix {optIdx + 1}</div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                  {['hp', 'spd', 'auto', 'def', 'cap', 'rescap'].filter(s => gains[s]).map(stat => (
+                                    <span key={stat} className="text-green-400 font-semibold text-xs">
+                                      {labels[stat] || stat} +{gains[stat]}
+                                    </span>
+                                  ))}
+                                  {Object.keys(gains).length === 0 && (
+                                    <span className="text-stone-500 text-xs italic">Aucun gain</span>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              onClick={handleValidateInstantRewards}
+              disabled={hasMissingSelection}
+              className={`px-8 py-3 rounded-lg font-bold border transition ${
+                hasMissingSelection
+                  ? 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
+                  : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500'
+              }`}
+            >
+              Valider les choix
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
