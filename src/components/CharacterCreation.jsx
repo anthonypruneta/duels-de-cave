@@ -25,12 +25,12 @@ import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAw
 import { isForgeActive } from '../data/featureFlags';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { formatUpgradePct, extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
+import { getSubclassStatBonuses } from '../data/subclasses';
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } from '../services/titleService';
 import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveBorderId, getBorderGlowClass } from '../data/borders';
 import CardBorderCanvas from './CardBorderCanvas';
-import RealBorderCanvas from './RealBorderCanvas';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -38,7 +38,6 @@ const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { e
 const getRealBorderImageSrc = (borderIdOrFile) => {
   const raw = String(borderIdOrFile || '').trim();
   if (!raw) return null;
-  if (raw === 'ombre2' || raw === 'arcane' || raw === 'braise' || raw === 'givre' || raw === 'ronces') return null;
   const wantsPng = raw.toLowerCase().endsWith('.png');
   const fileName = wantsPng ? raw : `${raw}.png`;
   const base = fileName.replace(/\.png$/i, '');
@@ -66,12 +65,7 @@ const getRealBorderCandidates = () => {
   return entries;
 };
 
-const REAL_BORDER_CANVAS_OPTIONS = [
-  { id: 'arcane', nom: 'Arcane' },
-  { id: 'braise', nom: 'Braise' },
-  { id: 'givre', nom: 'Givre' },
-  { id: 'ronces', nom: 'Ronces' },
-];
+const REAL_BORDER_CANVAS_OPTIONS = [];
 
 const getWeaponImage = (imageFile) => {
   if (!imageFile) return null;
@@ -1063,9 +1057,22 @@ const CharacterCreation = () => {
     const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
     const awakeningEffect = getAwakeningEffect(existingCharacter.race, existingCharacter.level ?? 1);
     const finalStatsBeforeForge = applyAwakeningToBase(baseWithClassPassive, awakeningEffect);
-    const finalStats = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
+    const finalStatsBeforeSubclass = (isForgeActive() && forgeUpgrade && hasAnyForgeUpgrade(forgeUpgrade))
       ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
       : finalStatsBeforeForge;
+
+    // Bonus permanent de stats des sous-classes (Collège Kunugigaoka) : affichage page d'accueil
+    const subclassBonuses = getSubclassStatBonuses(existingCharacter.subclass?.id);
+    const finalStats = subclassBonuses && typeof existingCharacter.subclass?.id === 'string'
+      ? Object.entries(subclassBonuses).reduce((acc, [stat, pct]) => {
+        if (acc[stat] != null && pct) {
+          acc[stat] = Math.max(1, Math.round(acc[stat] * (1 + pct)));
+        }
+        return acc;
+      }, { ...finalStatsBeforeSubclass })
+      : finalStatsBeforeSubclass;
+
+    const subclassDelta = (k) => (finalStats[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
 
     const baseWithoutBonus = (k) => rawBase[k] - totalBonus(k);
     const getRaceDisplayBonus = (k) => {
@@ -1097,6 +1104,12 @@ const CharacterCreation = () => {
         const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
         if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
       }
+      const subDelta = subclassDelta(k);
+      if (subDelta !== 0) {
+        const pct = subclassBonuses?.[k] ?? 0;
+        const pctText = pct ? ` (${Math.round(pct * 100)}%)` : '';
+        parts.push(`Sous-classe${pctText}: +${subDelta}`);
+      }
       return parts.join(' | ');
     };
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
@@ -1105,8 +1118,23 @@ const CharacterCreation = () => {
       const bastionDelta = statKey === 'def' ? bastionDefBonus : 0;
       const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
       const forgeDeltaForStat = (isForgeActive() && forgeUpgrade) ? (() => { const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade); return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]); })() : 0;
-      const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || bastionDelta > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || forgeDeltaForStat !== 0;
-      const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + forgeDeltaForStat;
+      const subclassDeltaForStat = subclassDelta(statKey);
+      const hasBonus = raceDisplayBonus !== 0
+        || classB[statKey] > 0
+        || bastionDelta > 0
+        || forestBoosts[statKey] > 0
+        || weaponStatValue(statKey) !== 0
+        || (statKey === 'auto' && passiveAutoBonus !== 0)
+        || forgeDeltaForStat !== 0
+        || subclassDeltaForStat !== 0;
+      const totalDelta = raceDisplayBonus
+        + (classB[statKey] || 0)
+        + bastionDelta
+        + (forestBoosts[statKey] || 0)
+        + weaponStatValue(statKey)
+        + (statKey === 'auto' ? passiveAutoBonus : 0)
+        + forgeDeltaForStat
+        + subclassDeltaForStat;
       const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
       return hasBonus ? (
         <Tooltip content={tooltipContent(statKey)}>
@@ -1340,9 +1368,6 @@ const CharacterCreation = () => {
                           />
                         );
                       })()}
-                      {['ombre2', 'arcane', 'braise', 'givre', 'ronces'].includes(existingCharacter.equippedRealBorder) && (
-                        <RealBorderCanvas borderId={existingCharacter.equippedRealBorder} style={{ zIndex: 3 }} />
-                      )}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
                         style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000', zIndex: 4 }}
@@ -1521,32 +1546,6 @@ const CharacterCreation = () => {
                       <div className="text-lg mb-1">✕</div>
                       <div className="font-semibold">Aucune</div>
                     </button>
-
-                    {REAL_BORDER_CANVAS_OPTIONS.map((opt) => {
-                      const isEquipped = (existingCharacter.equippedRealBorder || '').toLowerCase() === opt.id.toLowerCase();
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={async () => {
-                            await updateCharacterEquippedRealBorder(currentUser.uid, opt.id);
-                            setExistingCharacter(prev => (prev ? { ...prev, equippedRealBorder: opt.id } : prev));
-                          }}
-                          className={`relative overflow-hidden rounded-lg p-2 text-[10px] transition-colors border ${
-                            isEquipped
-                              ? 'bg-amber-900/40 border-amber-500 text-amber-200'
-                              : 'bg-stone-800 border-stone-600 text-stone-300 hover:border-amber-600'
-                          }`}
-                          title={opt.nom}
-                        >
-                          <div className="w-full aspect-[2/3] bg-stone-900/60 border border-stone-700 rounded mb-1 relative overflow-hidden">
-                            <RealBorderCanvas borderId={opt.id} />
-                          </div>
-                          <div className="font-semibold truncate">{opt.nom}</div>
-                          {isEquipped && <div className="text-amber-400 text-[9px]">ACTIF</div>}
-                        </button>
-                      );
-                    })}
 
                     {getRealBorderCandidates().map(({ key, base, file }) => {
                       const src = realBorderPngModules[key];
