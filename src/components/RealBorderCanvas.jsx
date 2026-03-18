@@ -286,6 +286,7 @@ function drawArcane(ctx, w, h) {
   const minDim = Math.min(w, h);
   const t = Math.max(10, Math.round(minDim * 0.055)); // fin
   const pad = Math.max(6, Math.round(t * 0.55));
+  const seed = hashStr(`arcane:${w}x${h}`);
 
   // Cadre dégradé violet/indigo + double trait
   const g = ctx.createLinearGradient(0, 0, w, h);
@@ -323,12 +324,66 @@ function drawArcane(ctx, w, h) {
     ctx.arc(c.x, c.y, orbR, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Signature Arcane: runes (petits losanges/traits) le long des côtés
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = 'rgba(216, 180, 254, 0.35)';
+  ctx.lineWidth = Math.max(1, minDim * 0.0035);
+  const runeEvery = Math.max(22, Math.round(minDim * 0.09));
+  const innerX0 = pad + 6;
+  const innerX1 = w - pad - 6;
+  const innerY0 = pad + 6;
+  const innerY1 = h - pad - 6;
+  const drawRune = (cx, cy, s) => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - s);
+    ctx.lineTo(cx + s, cy);
+    ctx.lineTo(cx, cy + s);
+    ctx.lineTo(cx - s, cy);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 1.4, cy);
+    ctx.lineTo(cx - s * 0.7, cy);
+    ctx.moveTo(cx + s * 0.7, cy);
+    ctx.lineTo(cx + s * 1.4, cy);
+    ctx.stroke();
+  };
+  for (let x = innerX0; x <= innerX1; x += runeEvery) {
+    const j = (rand(seed + Math.floor(x) * 17) - 0.5) * 2;
+    drawRune(x, innerY0, Math.max(3, minDim * 0.012 + j));
+    drawRune(x, innerY1, Math.max(3, minDim * 0.012 - j));
+  }
+  for (let y = innerY0; y <= innerY1; y += runeEvery) {
+    const j = (rand(seed + 999 + Math.floor(y) * 19) - 0.5) * 2;
+    drawRune(innerX0, y, Math.max(3, minDim * 0.010 + j));
+    drawRune(innerX1, y, Math.max(3, minDim * 0.010 - j));
+  }
+  ctx.restore();
+
+  // Sigil au centre haut/bas (petit diamant)
+  const sig = Math.max(6, minDim * 0.018);
+  const drawSigil = (cx, cy) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
+    ctx.fillRect(-sig / 2, -sig / 2, sig, sig);
+    ctx.strokeStyle = 'rgba(216, 180, 254, 0.35)';
+    ctx.lineWidth = Math.max(1, minDim * 0.003);
+    ctx.strokeRect(-sig / 2, -sig / 2, sig, sig);
+    ctx.restore();
+  };
+  drawSigil(w / 2, pad + 3);
+  drawSigil(w / 2, h - pad - 3);
 }
 
 function drawBraise(ctx, w, h) {
   const minDim = Math.min(w, h);
   const t = Math.max(10, Math.round(minDim * 0.055));
   const pad = Math.max(6, Math.round(t * 0.55));
+  const seed = hashStr(`braise:${w}x${h}`);
 
   // Trait chaud (braise) + glow orange/rouge subtil
   const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -349,8 +404,32 @@ function drawBraise(ctx, w, h) {
   ctx.lineWidth = Math.max(1, minDim * 0.004);
   ctx.strokeRect(pad - 1.5, pad - 1.5, w - (pad - 1) * 2 - 1, h - (pad - 1) * 2 - 1);
 
-  // Étincelles très légères près des bords (sans manger l'image)
-  const seed = hashStr(`braise:${w}x${h}`);
+  // Signature Braise: micro-fissures "charbon" le long du cadre + points incandescents
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = Math.max(1, minDim * 0.0032);
+  const crackCount = Math.max(18, Math.floor((w + h) * 0.06));
+  const band = pad + t * 0.55;
+  for (let i = 0; i < crackCount; i++) {
+    const r1 = rand(seed + 2000 + i * 41);
+    const r2 = rand(seed + 2000 + i * 41 + 1);
+    const r3 = rand(seed + 2000 + i * 41 + 2);
+    const side = Math.floor(r1 * 4);
+    const seg = 8 + r3 * 18;
+    let x = 0, y = 0, dx = 0, dy = 0;
+    if (side === 0) { x = r2 * w; y = band * r3; dx = (rand(seed + i) - 0.5) * 6; dy = seg; }
+    else if (side === 1) { x = r2 * w; y = h - band * r3; dx = (rand(seed + i + 3) - 0.5) * 6; dy = -seg; }
+    else if (side === 2) { x = band * r3; y = r2 * h; dx = seg; dy = (rand(seed + i + 7) - 0.5) * 6; }
+    else { x = w - band * r3; y = r2 * h; dx = -seg; dy = (rand(seed + i + 11) - 0.5) * 6; }
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + dx, y + dy);
+    ctx.lineTo(x + dx * 1.25, y + dy * 0.7);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Étincelles près des bords (sans manger l'image)
   const count = Math.max(18, Math.floor((w + h) * 0.06));
   for (let i = 0; i < count; i++) {
     const r1 = rand(seed + i * 31);
@@ -370,12 +449,34 @@ function drawBraise(ctx, w, h) {
     ctx.arc(x, y, rad, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Points incandescents (glow) à quelques endroits
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const hotCount = Math.max(8, Math.floor((w + h) * 0.02));
+  for (let i = 0; i < hotCount; i++) {
+    const r1 = rand(seed + 8000 + i * 53);
+    const r2 = rand(seed + 8000 + i * 53 + 1);
+    const x = lerp(pad, w - pad, r1);
+    const y = (r2 < 0.5) ? (pad + (r2 * 2) * (t * 0.55)) : (h - pad - ((r2 - 0.5) * 2) * (t * 0.55));
+    const rr = Math.max(8, minDim * 0.03);
+    const hg = ctx.createRadialGradient(x, y, 0, x, y, rr);
+    hg.addColorStop(0, 'rgba(251, 191, 36, 0.20)');
+    hg.addColorStop(0.5, 'rgba(249, 115, 22, 0.10)');
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawGivre(ctx, w, h) {
   const minDim = Math.min(w, h);
   const t = Math.max(10, Math.round(minDim * 0.055));
   const pad = Math.max(6, Math.round(t * 0.55));
+  const seed = hashStr(`givre:${w}x${h}`);
 
   // Cadre froid (cyan/bleu) + léger givre en coins
   const g = ctx.createLinearGradient(0, 0, w, 0);
@@ -414,12 +515,43 @@ function drawGivre(ctx, w, h) {
     ctx.arc(c.x, c.y, cornerR, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Signature Givre: petits cristaux (triangles) qui pointent vers l'intérieur, surtout en haut/bas
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.22)';
+  ctx.strokeStyle = 'rgba(103, 232, 249, 0.22)';
+  ctx.lineWidth = Math.max(1, minDim * 0.003);
+  const crystalCount = Math.max(18, Math.floor((w + h) * 0.06));
+  const band = pad + t * 0.55;
+  for (let i = 0; i < crystalCount; i++) {
+    const r1 = rand(seed + i * 37);
+    const r2 = rand(seed + i * 37 + 1);
+    const r3 = rand(seed + i * 37 + 2);
+    const side = Math.floor(r1 * 4);
+    const size = Math.max(5, minDim * (0.010 + r3 * 0.012));
+    let x = 0, y = 0;
+    if (side === 0) { x = lerp(pad, w - pad, r2); y = pad + r3 * band; }
+    else if (side === 1) { x = lerp(pad, w - pad, r2); y = h - pad - r3 * band; }
+    else if (side === 2) { x = pad + r3 * band; y = lerp(pad, h - pad, r2); }
+    else { x = w - pad - r3 * band; y = lerp(pad, h - pad, r2); }
+    ctx.beginPath();
+    if (side === 0) { ctx.moveTo(x, y); ctx.lineTo(x - size * 0.6, y + size); ctx.lineTo(x + size * 0.6, y + size); }
+    else if (side === 1) { ctx.moveTo(x, y); ctx.lineTo(x - size * 0.6, y - size); ctx.lineTo(x + size * 0.6, y - size); }
+    else if (side === 2) { ctx.moveTo(x, y); ctx.lineTo(x + size, y - size * 0.6); ctx.lineTo(x + size, y + size * 0.6); }
+    else { ctx.moveTo(x, y); ctx.lineTo(x - size, y - size * 0.6); ctx.lineTo(x - size, y + size * 0.6); }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawRonces(ctx, w, h) {
   const minDim = Math.min(w, h);
   const t = Math.max(10, Math.round(minDim * 0.055));
   const pad = Math.max(6, Math.round(t * 0.55));
+  const seed = hashStr(`ronces:${w}x${h}`);
 
   // Cadre vert sombre + épines très fines (ronces)
   const g = ctx.createLinearGradient(0, 0, w, h);
@@ -439,8 +571,7 @@ function drawRonces(ctx, w, h) {
   ctx.lineWidth = Math.max(1, minDim * 0.0038);
   ctx.strokeRect(pad + 2.5, pad + 2.5, w - (pad + 2) * 2 - 1, h - (pad + 2) * 2 - 1);
 
-  // Petites épines vers l'intérieur (très courtes)
-  const seed = hashStr(`ronces:${w}x${h}`);
+  // Signature Ronces: petites lianes sinueuses + épines courtes
   const spikes = Math.max(20, Math.floor((w + h) * 0.07));
   const spikeLen = Math.max(4, minDim * 0.015);
   ctx.save();
@@ -470,6 +601,47 @@ function drawRonces(ctx, w, h) {
     }
   }
   ctx.restore();
+
+  // Lianes discrètes (sinuosités) dans les coins, sans manger l'image
+  const vineR = Math.max(24, minDim * 0.12);
+  const vineCorners = [
+    { x: pad + 2, y: pad + 2, fx: 1, fy: 1 },
+    { x: w - pad - 2, y: pad + 2, fx: -1, fy: 1 },
+    { x: pad + 2, y: h - pad - 2, fx: 1, fy: -1 },
+    { x: w - pad - 2, y: h - pad - 2, fx: -1, fy: -1 },
+  ];
+  for (let ci = 0; ci < vineCorners.length; ci++) {
+    const c = vineCorners[ci];
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.scale(c.fx, c.fy);
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.30)';
+    ctx.lineWidth = Math.max(1.2, minDim * 0.004);
+    ctx.shadowColor = 'rgba(16, 185, 129, 0.18)';
+    ctx.shadowBlur = Math.max(6, minDim * 0.02);
+    ctx.beginPath();
+    ctx.moveTo(0, vineR * 0.15);
+    ctx.bezierCurveTo(vineR * 0.25, vineR * 0.05, vineR * 0.55, vineR * 0.18, vineR * 0.62, vineR * 0.35);
+    ctx.bezierCurveTo(vineR * 0.72, vineR * 0.58, vineR * 0.38, vineR * 0.68, vineR * 0.22, vineR * 0.85);
+    ctx.stroke();
+    // Petites feuilles (ellipses)
+    const leafCount = 3;
+    for (let i = 0; i < leafCount; i++) {
+      const r1 = rand(seed + 6000 + ci * 101 + i * 13);
+      const px = vineR * (0.18 + r1 * 0.55);
+      const py = vineR * (0.18 + rand(seed + 6000 + ci * 101 + i * 13 + 1) * 0.55);
+      const s = Math.max(3, minDim * 0.01);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate((rand(seed + 6000 + ci * 101 + i * 13 + 2) - 0.5) * 1.2);
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 0.9, s * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
 }
 
 export default function RealBorderCanvas({ borderId, className = '', style = {} }) {
