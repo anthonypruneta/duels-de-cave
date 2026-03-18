@@ -1300,7 +1300,7 @@ const Tournament = () => {
         <source src="/assets/music/victory.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto pt-16">
+      <div className="max-w-[1800px] mx-auto pt-20">
         {/* Header */}
         <div className="text-center mb-5">
           {isHistoryMode && (

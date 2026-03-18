@@ -551,7 +551,7 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-5xl mx-auto pt-16 text-center">
+        <div className="max-w-5xl mx-auto pt-20 text-center">
           {/* Carte du personnage */}
           <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="left" />
@@ -644,7 +644,7 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-16 text-center">
+        <div className="max-w-2xl mx-auto pt-20 text-center">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
             <div className="text-7xl mb-6">{gameState === 'victory' ? '🔨' : '💀'}</div>
             <h2 className={`text-3xl font-bold mb-4 ${gameState === 'victory' ? 'text-orange-400' : 'text-red-400'}`}>
@@ -670,7 +670,7 @@ const ForgeDungeon = () => {
         <audio id="forge-music" loop>
           <source src="/assets/music/forge.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-16">
+        <div className="max-w-[1800px] mx-auto pt-20">
           {/* Boutons centrés en haut */}
           <div className="flex justify-center gap-3 md:gap-4 mb-6">
             {combatResult === null && (
@@ -779,7 +779,7 @@ const ForgeDungeon = () => {
       <audio id="forge-music" loop>
         <source src="/assets/music/forge.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-5xl mx-auto pt-16">
+      <div className="max-w-5xl mx-auto pt-20">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-orange-600/80 rounded-lg px-8 py-3 shadow-lg">

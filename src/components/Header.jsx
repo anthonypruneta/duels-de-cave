@@ -135,89 +135,70 @@ function Header() {
   return (
     <>
       <div className="absolute top-0 left-0 right-0 z-[200]">
-        <div className="bg-stone-950/90 border-b border-stone-700/60 px-3 py-1.5 flex items-center gap-1.5">
-          {/* Nav scrollable */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-1 min-w-0">
-            {currentUser && (
-              <>
-                <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mr-1 flex-shrink-0">Menu</span>
-                {navLinks.map(link => (
-                  <button
-                    key={link.path}
-                    onClick={() => navigate(link.path)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
-                      location.pathname === link.path
-                        ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
-                        : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
-                    }`}
-                  >
-                    {link.label}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-          {/* Bouton son + actions (hors overflow) */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {currentUser && (
-              <div ref={volumeRef} className="relative"
-                onMouseEnter={() => setShowVolumeSlider(true)}
-                onMouseLeave={() => setShowVolumeSlider(false)}
-              >
+        <div className="bg-stone-950/95 border-b border-stone-700/60 px-2 py-2">
+          {currentUser && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest flex-shrink-0 mr-0.5">Menu</span>
+              {navLinks.map(link => (
                 <button
-                  onClick={handleToggleMute}
-                  className="px-2 py-1 rounded text-xs font-medium transition border bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white"
+                  key={link.path}
+                  onClick={() => navigate(link.path)}
+                  className={`px-2.5 py-1.5 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
+                    location.pathname === link.path
+                      ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
+                      : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
+                  }`}
                 >
-                  {isMuted || volume === 0 ? '🔇 Son' : '🔊 Son'}
+                  {link.label}
                 </button>
-                {showVolumeSlider && (
-                  <div className="absolute top-full right-0 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="w-full accent-amber-500"
-                      />
-                      <span className="text-xs text-stone-200 w-8 text-right">
-                        {Math.round((isMuted ? 0 : volume) * 100)}%
-                      </span>
+              ))}
+              {/* Actions : suivent les liens et sont poussées à droite sur la dernière ligne */}
+              <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                <div ref={volumeRef} className="relative"
+                  onMouseEnter={() => setShowVolumeSlider(true)}
+                  onMouseLeave={() => setShowVolumeSlider(false)}
+                >
+                  <button
+                    onClick={handleToggleMute}
+                    className="px-2.5 py-1.5 rounded text-xs font-medium transition border bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white"
+                  >
+                    {isMuted || volume === 0 ? '🔇' : '🔊'}
+                  </button>
+                  {showVolumeSlider && (
+                    <div className="absolute top-full right-0 bg-stone-900 border border-stone-600 rounded-lg p-3 w-48 shadow-xl z-50">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range" min="0" max="1" step="0.05"
+                          value={isMuted ? 0 : volume}
+                          onChange={handleVolumeChange}
+                          className="w-full accent-amber-500"
+                        />
+                        <span className="text-xs text-stone-200 w-8 text-right">
+                          {Math.round((isMuted ? 0 : volume) * 100)}%
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {showInstallBtn && (
-              <button
-                onClick={handleInstall}
-                title="Installer l'application"
-                className="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded border border-amber-400 transition text-xs font-bold animate-pulse"
-              >
-                📲
-              </button>
-            )}
-            {currentUser && (
-              <>
-                {isAdmin && (
-                  <button
-                    onClick={() => navigate('/admin')}
-                    className="bg-amber-700 hover:bg-amber-600 text-white px-2 py-1 rounded border border-amber-500 transition text-xs font-bold"
-                  >
-                    🛠️ Admin
+                  )}
+                </div>
+                {showInstallBtn && (
+                  <button onClick={handleInstall} title="Installer l'application"
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1.5 rounded border border-amber-400 transition text-xs font-bold animate-pulse">
+                    📲
                   </button>
                 )}
-                <button
-                  onClick={handleLogout}
-                  className="bg-stone-700 hover:bg-stone-600 text-amber-300 px-2 py-1 rounded border border-amber-600/50 transition text-xs"
-                >
-                  Déconnexion
+                {isAdmin && (
+                  <button onClick={() => navigate('/admin')}
+                    className="bg-amber-700 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded border border-amber-500 transition text-xs font-bold">
+                    🛠️
+                  </button>
+                )}
+                <button onClick={handleLogout}
+                  className="bg-stone-700 hover:bg-stone-600 text-amber-300 px-2.5 py-1.5 rounded border border-amber-600/50 transition text-xs">
+                  ×
                 </button>
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

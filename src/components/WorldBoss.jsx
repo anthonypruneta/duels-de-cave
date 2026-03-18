@@ -723,7 +723,7 @@ const WorldBoss = () => {
         <source src="/assets/music/cataclysm.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto pt-16">
+      <div className="max-w-[1800px] mx-auto pt-20">
         {/* Titre */}
         <div className="flex justify-center mb-4">
           <div className="bg-red-950/80 border border-red-800/80 rounded-lg px-6 py-2 shadow-[0_0_20px_rgba(239,68,68,0.3)]">

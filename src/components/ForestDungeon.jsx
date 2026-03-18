@@ -1670,7 +1670,7 @@ const ForestDungeon = () => {
         <audio id="forest-music" loop>
           <source src="/assets/music/forest.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-14 md:pt-20">
+        <div className="max-w-[1800px] mx-auto pt-20 md:pt-20">
 
           {/* Boutons */}
           <div className="flex justify-center gap-2 md:gap-4 mb-3 md:mb-4">
@@ -1833,7 +1833,7 @@ const ForestDungeon = () => {
       <audio id="forest-music" loop>
         <source src="/assets/music/forest.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-16">
+      <div className="max-w-4xl mx-auto pt-20">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">

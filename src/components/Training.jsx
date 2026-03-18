@@ -620,7 +620,7 @@ const Training = () => {
         <audio id="training-music" loop>
           <source src="/assets/music/training.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-16">
+        <div className="max-w-[1800px] mx-auto pt-20">
           <div className="flex justify-center mb-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-3xl font-bold text-stone-200">🎯 Entraînement 🎯</h1>

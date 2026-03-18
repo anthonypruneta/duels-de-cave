@@ -1290,7 +1290,7 @@ const MageTower = () => {
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-5xl mx-auto pt-16 text-center">
+        <div className="max-w-5xl mx-auto pt-20 text-center">
           <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="right" />
           </div>
@@ -1427,7 +1427,7 @@ const MageTower = () => {
       <audio id="tower-music" loop>
         <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-16">
+      <div className="max-w-4xl mx-auto pt-20">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">

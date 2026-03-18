@@ -500,7 +500,7 @@ const Combat = () => {
             <div className="text-stone-400 text-xl">Il faut au moins 2 personnages pour combattre</div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col pt-14">
+          <div className="flex-1 flex flex-col pt-20">
             {/* Zone principale — les 2 combattants côte à côte */}
             <div className="flex-1 flex items-stretch min-h-0 relative">
               {/* P1 — gauche */}
@@ -633,7 +633,7 @@ const Combat = () => {
         <source src="/assets/music/victory.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto pt-16">
+      <div className="max-w-[1800px] mx-auto pt-20">
         <div className="flex justify-center mb-8">
           <div className="bg-stone-800 border border-stone-600 px-8 py-3">
             <h1 className="text-3xl font-bold text-stone-200">⚔️ Combat ⚔️</h1>
