@@ -580,7 +580,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         : '';
     const dedupe =
       typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0
-        ? ` • ${createResult.dedupeDroppedCount} doublon(s) retiré(s) (même joueur + même nom de perso)`
+        ? ` • ${createResult.dedupeDroppedCount} doublon(s) retiré(s) (même compte + même nom)`
         : '';
     alert(`✅ ${createResult.nbParticipants} combattants${excl}${dedupe} — ouvrez la page legacy puis lancez le 1er combat.`);
     setLegacyTournamentLoading(false);
@@ -609,7 +609,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     }
     if (typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0) {
       alert(
-        `ℹ️ ${createResult.dedupeDroppedCount} archive(s) en doublon (même compte + même nom) ignorée(s) — gardée : la plus récente.`
+        `ℹ️ ${createResult.dedupeDroppedCount} archive(s) ignorée(s) (même compte + même nom → la plus récente).`
       );
     }
     setLegacyTournamentLoading(false);
@@ -1426,9 +1426,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-violet-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-violet-300 mb-2">📜 Tournoi des anciens</h2>
           <p className="text-stone-400 text-sm mb-3">
-            Tous les personnages <strong>archivés</strong> de niveau ≤ 400, sauf{' '}
-            <strong>ex-champions du tournoi des anciens</strong> (retraite).{' '}
-            <strong>Un seul perso par compte + nom</strong> par édition (doublons → archive la plus récente). Le gagnant
+            <strong>Fiches archivées</strong> éligibles (niveau ≤ 400), hors ex-champions legacy. Plusieurs persos par compte OK ; même nom + même compte = une entrée (la plus récente). Le gagnant
             est inscrit au <strong>prochain</strong> tournoi du samedi (création du tournoi principal). Discord comme
             le samedi. N&apos;archive pas les persos actifs.
           </p>

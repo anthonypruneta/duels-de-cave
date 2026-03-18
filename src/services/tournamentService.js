@@ -192,13 +192,19 @@ function buildParticipantsMapForTournoi(participants) {
 async function chargerParticipantsArchives(retiredIdsOverride = null) {
   const retiredIds = retiredIdsOverride ?? (await getLegacyRetiredArchiveIdSet());
   const snapshot = await getDocs(collection(db, 'archivedCharacters'));
+  /** id doc Firestore — ne jamais utiliser data().id (souvent userId), sinon tous les arch_xxx collent */
   const rows = snapshot.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((char) => !retiredIds.has(char.id));
+    .map((d) => {
+      const data = d.data();
+      const firestoreDocId = d.id;
+      return { ...data, id: firestoreDocId, _firestoreArchiveId: firestoreDocId };
+    })
+    .filter((char) => !retiredIds.has(char._firestoreArchiveId));
   return Promise.all(
     rows
       .filter((char) => (char.level ?? 1) <= MAX_LEVEL)
       .map(async (char) => {
+        const archiveDocId = char._firestoreArchiveId;
         const level = char.level ?? 1;
         const weaponId = char.equippedWeaponId || null;
         const weaponData =
@@ -211,7 +217,7 @@ async function chargerParticipantsArchives(retiredIdsOverride = null) {
         });
         return {
           ...normalized,
-          archiveDocId: char.id,
+          archiveDocId,
           userId: char.userId || null,
           name: char.name,
           class: char.class,
@@ -229,8 +235,8 @@ function archivedAtToMillis(ts) {
 }
 
 /**
- * Une seule entrée par (propriétaire + nom de personnage + tournoi legacy).
- * En cas de plusieurs archives identiques sur ces critères, on garde la plus récente (archivedAt).
+ * Même joueur + même nom de perso : une seule entrée (archive la plus récente).
+ * Plusieurs persos différents par compte restent tous inscrits.
  */
 function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
   const norm = (n) => String(n || '').trim().toLowerCase();
@@ -240,7 +246,11 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
     const key = `${p.userId}|${norm(p.name)}|${tournamentDocId}`;
     const cur = best.get(key);
     const ms = archivedAtToMillis(p.archivedAt);
-    if (!cur || ms > archivedAtToMillis(cur.archivedAt) || (ms === archivedAtToMillis(cur.archivedAt) && p.archiveDocId > cur.archiveDocId)) {
+    if (
+      !cur ||
+      ms > archivedAtToMillis(cur.archivedAt) ||
+      (ms === archivedAtToMillis(cur.archivedAt) && String(p.archiveDocId) > String(cur.archiveDocId))
+    ) {
       best.set(key, p);
     }
   }
@@ -269,7 +279,7 @@ export async function creerTournoiLegacy() {
       return {
         success: false,
         error:
-          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, jamais gagnants du tournoi des anciens, sans doublon même joueur + même nom). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
+          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, retraités exclus). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
       };
     }
 
@@ -1163,7 +1173,7 @@ export async function getArchivedCharacters(userId) {
     const snapshot = await getDocs(
       query(collection(db, 'archivedCharacters'), where('userId', '==', userId))
     );
-    const characters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const characters = snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
     return { success: true, data: characters };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1173,7 +1183,7 @@ export async function getArchivedCharacters(userId) {
 export async function getAllArchivedCharacters() {
   try {
     const snapshot = await getDocs(collection(db, 'archivedCharacters'));
-    const characters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const characters = snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
     return { success: true, data: characters };
   } catch (error) {
     return { success: false, error: error.message };
