@@ -470,7 +470,9 @@ function simulerUnMatch(matches, participants, matchId) {
   if (!p1Data || !p2Data) return null;
 
   const result = simulerMatch(p1Data, p2Data);
-  resoudreMatch(matches, matchId, result.winnerId, result.loserId);
+  const winnerId = result.winnerSlot === 1 ? match.p1 : match.p2;
+  const loserId = result.winnerSlot === 1 ? match.p2 : match.p1;
+  resoudreMatch(matches, matchId, winnerId, loserId);
 
   const annonceDebut = annonceDebutMatch(p1Data.nom, p2Data.nom, match.bracket, match.roundLabel);
   const annonceFin = annonceFinMatch(result.winnerNom, result.loserNom);
@@ -488,8 +490,8 @@ function simulerUnMatch(matches, participants, matchId) {
       winnerNom: result.winnerNom,
       loserNom: result.loserNom,
     },
-    winnerId: result.winnerId,
-    loserId: result.loserId,
+    winnerId,
+    loserId,
     matchBracket: match.bracket,
     matchRound: match.round,
     p1Data,
@@ -1305,7 +1307,9 @@ export async function simulerTournoiTest() {
       }
 
       const result = simulerMatch(p1Data, p2Data);
-      resoudreMatch(matches, matchId, result.winnerId, result.loserId);
+      const wId = result.winnerSlot === 1 ? match.p1 : match.p2;
+      const lId = result.winnerSlot === 1 ? match.p2 : match.p1;
+      resoudreMatch(matches, matchId, wId, lId);
 
       resultatsMatchs.push({
         matchId,

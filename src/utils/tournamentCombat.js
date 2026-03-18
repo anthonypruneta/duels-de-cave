@@ -2045,6 +2045,8 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
     steps,
     p1MaxHP: p1.maxHP,
     p2MaxHP: p2.maxHP,
+    /** 1 = char1 a gagné, 2 = char2 — fiable pour le bracket (ids tournoi ≠ userId Firestore) */
+    winnerSlot: winnerIsP1 ? 1 : 2,
     winnerId: winner.userId || winner.id,
     winnerNom: winner.name,
     loserId: loser.userId || loser.id,
