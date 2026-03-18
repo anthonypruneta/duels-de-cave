@@ -620,6 +620,11 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     log.push(`${playerColor} ✨ Croisé lumineux : l'attaque de ${att.name} inflige -${Math.round(att.paladinNextAttackReduction * 100)}% de dégâts.`);
     att.paladinNextAttackReduction = undefined;
   }
+  if (att.succubeWeakenNextAttack) {
+    adjusted = Math.max(1, Math.round(adjusted * (1 - classConstants.succube.nextAttackReduction)));
+    att.succubeWeakenNextAttack = false;
+    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
+  }
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
   // Entrave Arcanique : bonus de dégâts tant que l'ennemi n'a pas lancé sa première capacité
@@ -901,11 +906,6 @@ function processPlayerAction(att, def, log, isP1, turn) {
   }
 
   let mult = 1.0;
-  if (att.succubeWeakenNextAttack) {
-    mult *= (1 - classConstants.succube.nextAttackReduction);
-    att.succubeWeakenNextAttack = false;
-    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
-  }
   const hasOrcLowHpBonus = (att.race === 'Orc' || att.awakening?.damageBonus != null) && att.currentHP < raceConstants.orc.lowHpThreshold * att.maxHP;
   if (hasOrcLowHpBonus) mult = att.awakening?.damageBonus ?? raceConstants.orc.damageBonus;
 
