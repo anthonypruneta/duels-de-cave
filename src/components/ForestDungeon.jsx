@@ -1441,14 +1441,14 @@ const ForestDungeon = () => {
       };
 
       const Check = ({ checked, disabled }) => (
-        <span className={`inline-flex h-5 w-5 items-center justify-center rounded border ${
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 ${
           disabled
             ? 'border-stone-700 bg-stone-900/40'
             : checked
-              ? 'border-emerald-400 bg-emerald-700'
+              ? 'border-emerald-400 bg-stone-900/60'
               : 'border-stone-500 bg-stone-900/60'
         }`}>
-          {checked ? <span className="text-white text-sm leading-none">✓</span> : null}
+          {checked ? <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 block" /> : null}
         </span>
       );
 
