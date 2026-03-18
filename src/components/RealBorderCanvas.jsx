@@ -131,43 +131,34 @@ function buildWavyInnerContour(w, h, baseThickness, seed) {
 }
 
 function drawOmbre2(ctx, w, h) {
-  // Bordure "vagues d'ombre" : bande qui ronge l'intérieur, noir pur -> violet.
+  // Bordure "vagues d'ombre" : tout le tour, noir -> violet, opacité qui tombe vers le centre.
   const minDim = Math.min(w, h);
   const seed = hashStr(`ombre2:${w}x${h}`);
-  const baseThickness = Math.max(22, Math.round(minDim * 0.135));
+  const baseThickness = Math.max(24, Math.round(minDim * 0.15));
 
-  // Contour intérieur ondulé
+  // Contour intérieur ondulé (la "morsure")
   const inner = buildWavyInnerContour(w, h, baseThickness, seed);
 
-  // Bande entre le bord externe et le contour ondulé (even-odd) = "mask"
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, w, h); // extérieur
-  ctx.moveTo(inner[0].x, inner[0].y);
-  for (let i = 1; i < inner.length; i++) ctx.lineTo(inner[i].x, inner[i].y);
-  ctx.closePath();
+  const buildBandPath = () => {
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h); // extérieur (bord)
+    ctx.moveTo(inner[0].x, inner[0].y);
+    for (let i = 1; i < inner.length; i++) ctx.lineTo(inner[i].x, inner[i].y);
+    ctx.closePath();
+  };
 
-  // 1) Remplissage noir pur côté bord (base solide)
-  ctx.fillStyle = 'rgba(0,0,0,0.92)';
-  ctx.fill('evenodd');
-
-  // 2) Dégradé noir -> violet en partant du contour intérieur
-  // On clippe à la bande puis on empile des strokes (plus violet au bord intérieur, plus noir vers l'extérieur).
-  ctx.clip('evenodd');
-
-  const drawInnerStroke = (width, color, shadow = null, comp = null) => {
+  const strokeInner = (width, style) => {
     ctx.save();
-    if (comp) ctx.globalCompositeOperation = comp;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    if (shadow) {
-      ctx.shadowColor = shadow.color;
-      ctx.shadowBlur = shadow.blur;
+    ctx.lineWidth = width;
+    if (style.shadowColor) {
+      ctx.shadowColor = style.shadowColor;
+      ctx.shadowBlur = style.shadowBlur || 0;
     } else {
       ctx.shadowBlur = 0;
     }
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
+    ctx.strokeStyle = style.strokeStyle;
     ctx.beginPath();
     ctx.moveTo(inner[0].x, inner[0].y);
     for (let i = 1; i < inner.length; i++) ctx.lineTo(inner[i].x, inner[i].y);
@@ -176,63 +167,46 @@ function drawOmbre2(ctx, w, h) {
     ctx.restore();
   };
 
-  // Violet "franc" au plus près de la morsure (comme ta capture)
-  drawInnerStroke(
-    Math.max(14, baseThickness * 0.62),
-    'rgba(120, 45, 170, 0.62)',
-    { color: 'rgba(160, 70, 255, 0.35)', blur: Math.max(10, minDim * 0.045) },
-    'source-over'
+  // 1) On clippe la bande (extérieur - intérieur) pour garantir que ça fait tout le tour.
+  ctx.save();
+  buildBandPath();
+  ctx.clip('evenodd');
+
+  // 2) Base noir profond (plein) sur toute la bande
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+  ctx.fillRect(0, 0, w, h);
+
+  // 3) Violet près de la morsure (teinte + glow), sans colorer le bord externe
+  ctx.globalCompositeOperation = 'lighter';
+  strokeInner(
+    Math.max(10, baseThickness * 0.55),
+    {
+      strokeStyle: 'rgba(110, 40, 180, 0.55)',
+      shadowColor: 'rgba(160, 70, 255, 0.45)',
+      shadowBlur: Math.max(10, minDim * 0.06),
+    }
   );
-  drawInnerStroke(
-    Math.max(10, baseThickness * 0.42),
-    'rgba(168, 85, 247, 0.72)',
-    { color: 'rgba(168, 85, 247, 0.55)', blur: Math.max(10, minDim * 0.05) },
-    'lighter'
-  );
-  // Transition sombre vers l'extérieur (redonne le noir profond)
-  drawInnerStroke(
-    Math.max(18, baseThickness * 0.95),
-    'rgba(0, 0, 0, 0.35)',
-    { color: 'rgba(0, 0, 0, 0.55)', blur: Math.max(8, minDim * 0.04) },
-    'multiply'
+  strokeInner(
+    Math.max(4, baseThickness * 0.18),
+    {
+      strokeStyle: 'rgba(196, 181, 253, 0.35)',
+      shadowColor: 'rgba(168, 85, 247, 0.55)',
+      shadowBlur: Math.max(6, minDim * 0.04),
+    }
   );
 
-  // Liseré net au niveau de la morsure (trait clair violet)
-  drawInnerStroke(
-    Math.max(2.2, minDim * 0.01),
-    'rgba(216, 180, 254, 0.55)',
-    { color: 'rgba(168, 85, 247, 0.65)', blur: Math.max(6, minDim * 0.03) },
-    'lighter'
-  );
-
-  // Micro-brume opaque "crade" qui suit les vagues (petits blobs sur le contour)
-  const blobN = Math.max(90, Math.floor((w + h) * 0.20));
-  for (let i = 0; i < blobN; i++) {
-    const r1 = rand(seed + 9000 + i * 17);
-    const r2 = rand(seed + 9000 + i * 17 + 1);
-    const idx = Math.floor(r1 * (inner.length - 1));
-    const p = inner[idx];
-    const jitter = (r2 - 0.5) * baseThickness * 0.35;
-    const rad = (4 + rand(seed + 9000 + i * 17 + 2) * 16) * (minDim / 340);
-    const a = 0.10 + rand(seed + 9000 + i * 17 + 3) * 0.22;
-    const gx = p.x + jitter;
-    const gy = p.y + jitter;
-    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, rad);
-    g.addColorStop(0, `rgba(35, 0, 70, ${a})`);
-    g.addColorStop(0.35, `rgba(110, 40, 180, ${a * 0.55})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(gx, gy, rad, 0, Math.PI * 2);
-    ctx.fill();
+  // 4) Fondu vers le centre: on "efface" progressivement au niveau de la morsure
+  // Plus on se rapproche du contour intérieur, plus ça devient transparent.
+  ctx.globalCompositeOperation = 'destination-out';
+  const fadeSteps = 7;
+  for (let k = 0; k < fadeSteps; k++) {
+    const t = k / (fadeSteps - 1); // 0..1
+    const width = baseThickness * (0.30 + t * 1.10);
+    const alpha = 0.45 * (1 - t) ** 1.6; // fort près de la morsure, faible vers l'extérieur
+    strokeInner(width, { strokeStyle: `rgba(0,0,0,${alpha})` });
   }
 
   ctx.restore();
-
-  // Un trait sombre fin sur le bord extérieur pour "cadrer"
-  ctx.strokeStyle = 'rgba(0,0,0,0.95)';
-  ctx.lineWidth = Math.max(1.5, minDim * 0.006);
-  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
 }
 
 function drawBorder(ctx, borderId, w, h) {
