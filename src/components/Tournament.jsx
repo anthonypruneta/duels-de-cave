@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import {
-  onTournoiUpdate, getCombatLog, creerTournoi, lancerTournoi,
+  onTournoiUpdate, getCombatLog, getCombatLogArchive, getTournamentArchive,
+  creerTournoi, lancerTournoi,
   avancerMatch, terminerTournoi, annoncerFinMatchDiscord, supprimerTournoiTermine
 } from '../services/tournamentService';
 import { races } from '../data/races';
@@ -162,7 +163,9 @@ const Tournament = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isSimulation = searchParams.get('mode') === 'simulation';
+  const { archiveId } = useParams();
+  const isHistoryMode = Boolean(archiveId);
+  const isSimulation = !isHistoryMode && searchParams.get('mode') === 'simulation';
   const docId = isSimulation ? 'simulation' : 'current';
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
@@ -218,8 +221,9 @@ const Tournament = () => {
   // LISTENERS ET TIMERS
   // ============================================================================
 
-  // Listener tournoi en temps réel
+  // Listener tournoi en temps réel (pas en mode archive)
   useEffect(() => {
+    if (isHistoryMode) return undefined;
     const unsubscribe = onTournoiUpdate((data) => {
       setTournoi(data);
       setLoading(false);
@@ -229,7 +233,28 @@ const Tournament = () => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [docId]);
+  }, [docId, isHistoryMode]);
+
+  // Chargement d’un tournoi archivé (arbre + replay)
+  useEffect(() => {
+    if (!isHistoryMode || !archiveId) return undefined;
+    let cancelled = false;
+    setLoading(true);
+    setListenerError(null);
+    (async () => {
+      const res = await getTournamentArchive(archiveId);
+      if (cancelled) return;
+      if (res.success) {
+        setTournoi(res.data);
+        setListenerError(null);
+      } else {
+        setTournoi(null);
+        setListenerError(res.error || 'Archive introuvable');
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [archiveId, isHistoryMode]);
 
   // Timer countdown + phase
   useEffect(() => {
@@ -250,7 +275,7 @@ const Tournament = () => {
 
   // Auto-nettoyage : supprimer le tournoi terminé quand on passe à la semaine suivante (lundi)
   useEffect(() => {
-    if (isSimulation || !tournoi || loading) return;
+    if (isHistoryMode || isSimulation || !tournoi || loading) return;
     if (tournoi.statut !== 'termine') return;
     const now = getParisNow();
     const day = now.getDay(); // 0=dimanche, 6=samedi
@@ -260,9 +285,9 @@ const Tournament = () => {
     }
   }, [tournoi, loading, isSimulation, docId]);
 
-  // Auto-création à 18h — pas en simulation
+  // Auto-création à 18h — pas en simulation ni archive
   useEffect(() => {
-    if (isSimulation) return;
+    if (isHistoryMode || isSimulation) return;
     if (autoCreatedRef.current || tournoi || loading) return;
     if (phase === 'annonce' || phase === 'combat') {
       autoCreatedRef.current = true;
@@ -277,9 +302,9 @@ const Tournament = () => {
     }
   }, [phase, tournoi, loading, isSimulation, docId]);
 
-  // Auto-lancement à 19h — pas en simulation
+  // Auto-lancement à 19h — pas en simulation ni archive
   useEffect(() => {
-    if (isSimulation) return;
+    if (isHistoryMode || isSimulation) return;
     if (autoLaunchedRef.current || !tournoi || loading) return;
     if (phase === 'combat' && tournoi.statut === 'preparation') {
       autoLaunchedRef.current = true;
@@ -370,14 +395,15 @@ const Tournament = () => {
     let result = null;
     for (let attempt = 0; attempt < 4; attempt++) {
       if (token.cancelled) { stopAnimation(); return; }
-      result = await getCombatLog(matchId, docId);
+      result = isHistoryMode
+        ? await getCombatLogArchive(matchId, archiveId)
+        : await getCombatLog(matchId, docId);
       if (result.success) break;
       if (attempt < 3) await delay(800 * (attempt + 1));
     }
-    if (!result?.success || token.cancelled) {
+      if (!result?.success || token.cancelled) {
       stopAnimation();
-      // Même en cas d'échec, planifier l'auto-avancement pour ne pas bloquer la simulation
-      if (isAdmin && !isReplay) {
+      if (isAdmin && !isReplay && !isHistoryMode) {
         autoAdvanceRef.current = setTimeout(async () => {
           autoAdvanceRef.current = null;
           await avancerMatch(docId);
@@ -530,8 +556,8 @@ const Tournament = () => {
       victoryMusic.play().catch(e => console.log('Autoplay bloqué:', e));
     }
 
-    // Cooldown + auto-avancer (admin seulement, pas en replay)
-    if (isAdmin && !isReplay) {
+    // Cooldown + auto-avancer (admin seulement, pas en replay ni archive)
+    if (isAdmin && !isReplay && !isHistoryMode) {
       setShowBracket(true);
       const COOLDOWN_SECONDS = 60;
       setCooldownRemaining(COOLDOWN_SECONDS);
@@ -1073,7 +1099,7 @@ const Tournament = () => {
     );
   }
 
-  if (listenerError) {
+  if (listenerError && !isHistoryMode) {
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -1097,6 +1123,28 @@ const Tournament = () => {
   // PAS DE TOURNOI → COUNTDOWN
   // ============================================================================
   if (!tournoi) {
+    if (isHistoryMode) {
+      return (
+        <div className="min-h-screen p-6">
+          <Header />
+          <div className="max-w-2xl mx-auto pt-20 text-center">
+            <div className="bg-stone-950/85 border border-amber-800/40 rounded-xl p-8">
+              <p className="text-amber-400 text-lg font-bold">Archive non disponible</p>
+              <p className="text-stone-500 mt-2 text-sm">
+                {listenerError || 'Cette édition n’a pas d’arbre enregistré (tournoi antérieur à l’archivage) ou l’identifiant est invalide.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/hall-of-fame')}
+              className="mt-6 bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600"
+            >
+              ← Hall of Fame
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -1184,7 +1232,7 @@ const Tournament = () => {
             </div>
           </div>
 
-          {isAdmin && (
+          {isAdmin && !isHistoryMode && (
             <div className="text-center bg-stone-950/85 border border-red-800/50 rounded-xl p-6">
               <p className="text-stone-500 text-xs mb-4">Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.</p>
               <button
@@ -1228,10 +1276,18 @@ const Tournament = () => {
       <div className="max-w-[1800px] mx-auto pt-16">
         {/* Header */}
         <div className="text-center mb-5">
+          {isHistoryMode && (
+            <p className="text-stone-400 text-sm mb-2 uppercase tracking-widest">
+              Replay archivé — lecture seule
+            </p>
+          )}
           <h1 className="text-2xl md:text-3xl font-bold text-amber-400">
-            {isSimulation ? '🎲' : '🏟️'} {isTournoiTermine
-              ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
-              : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
+            {isHistoryMode ? '📼' : isSimulation ? '🎲' : '🏟️'}{' '}
+            {isHistoryMode
+              ? 'Tournoi (archives)'
+              : isTournoiTermine
+                ? (isSimulation ? 'Simulation Terminée' : 'Tournoi Terminé')
+                : (isSimulation ? 'Simulation en direct' : 'Tournoi en direct')}
           </h1>
           {matchProgress && <p className="text-stone-500 text-sm mt-1">{matchProgress}</p>}
         </div>
@@ -1254,8 +1310,12 @@ const Tournament = () => {
             )}
             <h2 className="text-2xl font-bold text-amber-300">{tournoi.champion.nom}</h2>
             <p className="text-stone-400 text-sm mt-1">{tournoi.champion.race} • {tournoi.champion.classe}</p>
-            <p className="text-amber-400 font-bold text-sm mt-2 uppercase tracking-widest">{isSimulation ? 'Champion de la simulation' : 'Champion du tournoi'}</p>
-            {!isSimulation && <p className="text-stone-500 text-xs mt-1">Récompense : 3 rolls pour le prochain personnage</p>}
+            <p className="text-amber-400 font-bold text-sm mt-2 uppercase tracking-widest">
+              {isHistoryMode ? 'Champion (édition archivée)' : isSimulation ? 'Champion de la simulation' : 'Champion du tournoi'}
+            </p>
+            {!isSimulation && !isHistoryMode && (
+              <p className="text-stone-500 text-xs mt-1">Récompense : 3 rolls pour le prochain personnage</p>
+            )}
           </div>
         )}
 
@@ -1285,7 +1345,7 @@ const Tournament = () => {
         </div>
 
         {/* Admin Controls */}
-        {isAdmin && !isTournoiTermine && (
+        {isAdmin && !isHistoryMode && !isTournoiTermine && (
           <div className="mt-5 bg-stone-950/85 border border-red-800/40 rounded-xl p-4 flex flex-wrap gap-3 justify-center">
             <button
               onClick={handleMatchSuivant}
@@ -1297,7 +1357,7 @@ const Tournament = () => {
           </div>
         )}
 
-        {isAdmin && isTournoiTermine && (
+        {isAdmin && !isHistoryMode && isTournoiTermine && (
           <div className="mt-5 bg-stone-950/85 border border-red-800/40 rounded-xl p-4 flex flex-wrap gap-3 justify-center">
             <button
               onClick={handleTerminerTournoi}
@@ -1330,8 +1390,12 @@ const Tournament = () => {
 
         {/* Navigation */}
         <div className="mt-5 text-center">
-          <button onClick={() => navigate(isSimulation ? '/admin' : '/')} className="bg-stone-800 hover:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600">
-            ← Retour
+          <button
+            type="button"
+            onClick={() => navigate(isHistoryMode ? '/hall-of-fame' : isSimulation ? '/admin' : '/')}
+            className="bg-stone-800 hover:bg-stone-700 text-stone-200 px-5 py-2 text-sm rounded-lg transition border border-stone-600"
+          >
+            {isHistoryMode ? '← Hall of Fame' : isSimulation ? '← Admin' : '← Retour'}
           </button>
         </div>
       </div>

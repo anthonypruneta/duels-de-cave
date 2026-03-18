@@ -153,6 +153,7 @@ const HallOfFame = () => {
             date: entry.date,
             ownerPseudo: entry.champion?.ownerPseudo || char.ownerPseudo,
             character: char,
+            tournamentArchiveId: entry.tournamentArchiveId || null,
           };
         });
 
@@ -206,6 +207,17 @@ const HallOfFame = () => {
                     <span> • {champ.date.toDate?.().toLocaleDateString('fr-FR') || ''}</span>
                   )}
                 </div>
+                {champ.tournamentArchiveId && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/tournament/history/${encodeURIComponent(champ.tournamentArchiveId)}`)
+                    }
+                    className="mt-3 bg-amber-700/80 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-lg border border-amber-500/50 transition"
+                  >
+                    Arbre &amp; replay
+                  </button>
+                )}
               </div>
             ))}
           </div>

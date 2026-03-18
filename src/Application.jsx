@@ -97,6 +97,14 @@ function Application() {
             }
           />
           <Route
+            path="/tournament/history/:archiveId"
+            element={
+              <ProtectedRoute>
+                <Tournament />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/tournament"
             element={
               <ProtectedRoute>

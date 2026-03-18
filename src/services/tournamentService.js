@@ -557,6 +557,80 @@ export async function getCombatLog(matchId, docId = 'current') {
   }
 }
 
+/** Valeurs undefined interdites dans Firestore (préserve Timestamp, etc.) */
+function stripUndefinedDeep(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'object') return value;
+  if (typeof value.toMillis === 'function' && typeof value.seconds === 'number') return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefinedDeep(v)).filter((v) => v !== undefined);
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined) continue;
+    const next = stripUndefinedDeep(v);
+    if (next !== undefined) out[k] = next;
+  }
+  return out;
+}
+
+/**
+ * Copie l’état final du tournoi + tous les combatLogs vers tournamentArchives/{hallOfFameEntryId}
+ */
+export async function archiverTournoiComplet(sourceDocId, hallOfFameEntryId, tournoiData) {
+  try {
+    const archiveRef = doc(db, 'tournamentArchives', hallOfFameEntryId);
+    await setDoc(archiveRef, {
+      statut: 'termine',
+      hallOfFameEntryId,
+      sourceTournamentId: sourceDocId,
+      matches: stripUndefinedDeep(tournoiData.matches || {}),
+      matchOrder: tournoiData.matchOrder || [],
+      participants: stripUndefinedDeep(tournoiData.participants || {}),
+      participantsList: stripUndefinedDeep(tournoiData.participantsList || []),
+      champion: stripUndefinedDeep(tournoiData.champion),
+      matchActuel: tournoiData.matchActuel,
+      createdAt: tournoiData.createdAt || null,
+      annonceIntro: tournoiData.annonceIntro ?? null,
+      archivedSnapshotAt: serverTimestamp(),
+    }, { merge: true });
+
+    const logsSnap = await getDocs(collection(db, 'tournaments', sourceDocId, 'combatLogs'));
+    for (const logDoc of logsSnap.docs) {
+      const data = stripUndefinedDeep(logDoc.data());
+      await setDoc(
+        doc(db, 'tournamentArchives', hallOfFameEntryId, 'combatLogs', logDoc.id),
+        data
+      );
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur archivage tournoi complet:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getTournamentArchive(archiveId) {
+  try {
+    const snap = await getDoc(doc(db, 'tournamentArchives', archiveId));
+    if (!snap.exists()) return { success: false, error: 'Archive introuvable' };
+    return { success: true, data: snap.data() };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getCombatLogArchive(matchId, archiveId) {
+  try {
+    const logDoc = await getDoc(doc(db, 'tournamentArchives', archiveId, 'combatLogs', matchId));
+    if (!logDoc.exists()) return { success: false, error: 'Combat log non trouvé' };
+    return { success: true, data: logDoc.data() };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================================================
 // NETTOYAGE TOURNOI TERMINÉ
 // ============================================================================
@@ -678,14 +752,21 @@ export async function terminerTournoi(docId = 'current') {
     if (!tournoi.champion) return { success: false, error: 'Pas de champion désigné' };
     if (tournoi.archivedAt) return { success: true, alreadyArchived: true };
 
-    // 1. Ajouter au Hall of Fame
     const hallOfFameEntryId = buildHallOfFameEntryId(tournoi);
+
+    const archResult = await archiverTournoiComplet(docId, hallOfFameEntryId, tournoi);
+    if (!archResult.success) {
+      return { success: false, error: archResult.error || 'Échec archivage arbre / combats' };
+    }
+
+    // 1. Ajouter au Hall of Fame
     await setDoc(doc(db, 'hallOfFame', hallOfFameEntryId), {
       champion: tournoi.champion,
       nbParticipants: tournoi.participantsList.length,
       nbMatchs: tournoi.matchOrder.length,
       sourceTournamentId: docId,
       sourceTournamentCreatedAt: tournoi.createdAt || null,
+      tournamentArchiveId: hallOfFameEntryId,
       date: serverTimestamp()
     }, { merge: true });
 
