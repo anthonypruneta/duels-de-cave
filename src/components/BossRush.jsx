@@ -10,6 +10,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
+import CombatLayout from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { syncUnlockedBorders } from '../data/borders';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
@@ -446,199 +447,69 @@ const BossRush = () => {
         )}
 
         {/* Layout principal: Joueur | Chat | Boss */}
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-          {/* Carte joueur - Gauche */}
-          <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
-            {character && (
-              <CharacterCardContent
-                character={character}
-                showHpBar
-                currentHP={playerHP}
-                maxHP={playerMaxHP}
-                shield={playerShield}
-                combatBaseOverride={playerCombatBase}
-                combatModifiers={playerCombatModifiers}
-                opponent={boss}
-                combatStatus={playerCombatStatus}
-                detailsPlacement="left"
-              />
-            )}
-            {carriedHP !== null && gameState === 'transition' && (
-              <div className="text-center mt-2 text-amber-300 text-sm font-bold">
-                PV restants: {carriedHP}/{playerMaxHP}
-              </div>
-            )}
-          </div>
-
-          {/* Zone centrale - Chat */}
-          <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col">
-            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
-              <div className="bg-stone-900/90 p-3 border-b border-red-600/50 rounded-t-xl">
-                <h2 className="text-lg md:text-xl font-bold text-red-300 text-center">💀 Boss Rush — {currentBoss?.nom}</h2>
-              </div>
-              <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
-                {combatLog.length === 0 ? (
-                  <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Le combat va commencer...</p>
-                ) : (
-                  <>
-                    {combatLog.map((log, idx) => {
-                      const isP1 = log.startsWith('[P1]');
-                      const isP2 = log.startsWith('[P2]');
-                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-
-                      if (!isP1 && !isP2) {
-                        if (log.includes('🏆')) {
-                          return (
-                            <div key={idx} className="flex justify-center my-4">
-                              <div className="bg-stone-100 text-stone-900 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-stone-400">
-                                {cleanLog}
-                              </div>
-                            </div>
-                          );
-                        }
-                        if (log.includes('💀')) {
-                          return (
-                            <div key={idx} className="flex justify-center my-4">
-                              <div className="bg-red-900/80 text-red-200 px-6 py-3 rounded-lg font-bold text-lg shadow-lg border border-red-600">
-                                {cleanLog}
-                              </div>
-                            </div>
-                          );
-                        }
-                        if (log.includes('---') || log.includes('⚔️')) {
-                          return (
-                            <div key={idx} className="flex justify-center my-3">
-                              <div className="bg-stone-700/80 text-stone-200 px-4 py-1 rounded-lg text-sm font-bold border border-stone-500">
-                                {cleanLog}
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div key={idx} className="flex justify-center">
-                            <div className="text-stone-400 text-sm italic">{cleanLog}</div>
-                          </div>
-                        );
-                      }
-
-                      if (isP1) {
-                        return (
-                          <div key={idx} className="flex justify-start">
-                            <div className="max-w-[80%]">
-                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-l-4 border-blue-500">
-                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (isP2) {
-                        return (
-                          <div key={idx} className="flex justify-end">
-                            <div className="max-w-[80%]">
-                              <div className="bg-stone-700/80 text-stone-200 px-3 py-2 md:px-4 rounded-lg shadow-lg border-r-4 border-red-500">
-                                <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    })}
-                    <div ref={logEndRef} />
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Boutons de transition */}
+        <CombatLayout
+          p1Entity={{ name: character?.name, currentHP: playerHP, maxHP: playerMaxHP, shield: playerShield ?? 0, base: playerCombatBase ?? character?.base ?? {} }}
+          p2Entity={{ name: boss?.name ?? currentBoss?.nom, currentHP: boss?.currentHP, maxHP: boss?.maxHP ?? boss?.base?.hp ?? currentBoss?.stats?.hp, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability ?? currentBoss?.ability }}
+          p1Card={character && <CharacterCardContent character={character} showHpBar currentHP={playerHP} maxHP={playerMaxHP} shield={playerShield} combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />}
+          p2Card={boss ? <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} /> : currentBoss ? (
+            <UnifiedCharacterCard header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`} name={currentBoss.nom} image={getBossImage(currentBoss.imageFile, currentBoss.imageSource)} fallback={<span className="text-7xl">{currentBoss.icon}</span>} topStats={<><span>HP: {currentBoss.stats.hp}</span><span>VIT: {currentBoss.stats.spd}</span></>} mainStats={<><div>Auto: {currentBoss.stats.auto}</div><div>Déf: {currentBoss.stats.def}</div><div>Cap: {currentBoss.stats.cap}</div><div>ResC: {currentBoss.stats.rescap}</div></>} details={currentBoss.ability ? (<div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600"><span className="text-lg">⚡</span><div className="flex-1"><div className="text-red-300 font-semibold mb-1">{currentBoss.ability.name || currentBoss.ability.nom}</div><div className="text-stone-400 text-[10px]">{currentBoss.ability.description}</div></div></div>) : null} cardClassName="border-2 border-red-600/50" />
+          ) : null}
+          logRef={logContainerRef}
+          logTitle={`💀 Boss Rush — ${currentBoss?.nom ?? ''}`}
+          logTitleClass="text-base font-bold text-red-300 text-center"
+          logHeaderBg="bg-stone-900/90"
+          p1MobileExtra={carriedHP !== null && gameState === 'transition' ? <div className="text-center text-amber-300 text-xs font-bold">PV restants: {carriedHP}/{playerMaxHP}</div> : null}
+          renderLog={() => combatLog.length === 0 ? (
+            <p className="text-stone-500 italic text-center py-6 text-xs">Le combat va commencer...</p>
+          ) : (
+            <>
+              {combatLog.map((log, idx) => {
+                const isP1 = log.startsWith('[P1]');
+                const isP2 = log.startsWith('[P2]');
+                const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                if (!isP1 && !isP2) {
+                  if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-100 text-stone-900 px-4 py-2 rounded-lg font-bold text-sm shadow-lg border border-stone-400">{cleanLog}</div></div>;
+                  if (log.includes('💀')) return <div key={idx} className="flex justify-center my-3"><div className="bg-red-900/80 text-red-200 px-4 py-2 rounded-lg font-bold text-sm shadow-lg border border-red-600">{cleanLog}</div></div>;
+                  if (log.includes('---') || log.includes('⚔️')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-700/80 text-stone-200 px-3 py-1 rounded-lg text-xs font-bold border border-stone-500">{cleanLog}</div></div>;
+                  return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-xs italic">{cleanLog}</div></div>;
+                }
+                if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%]"><div className="bg-stone-700/80 text-stone-200 px-2 py-1.5 rounded-lg shadow-lg border-l-4 border-blue-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
+                if (isP2) return <div key={idx} className="flex justify-end"><div className="max-w-[85%]"><div className="bg-stone-700/80 text-stone-200 px-2 py-1.5 rounded-lg shadow-lg border-r-4 border-red-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
+              })}
+              <div ref={logEndRef} />
+            </>
+          )}
+          belowLog={<>
             {gameState === 'transition' && !isSimulating && combatResult?.isWin && (
               <div className="text-center mt-4">
-                <div className="text-green-400 font-bold mb-2">
-                  ✅ {currentBoss.nom} vaincu ! Prochain boss: {bosses[currentBossIndex + 1]?.nom}
-                </div>
-                <button
-                  onClick={proceedToNextBoss}
-                  className="bg-gradient-to-r from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-amber-400 transition-all"
-                >
-                  ⚔️ Boss suivant ({currentBossIndex + 2}/{BOSS_RUSH_COUNT})
-                </button>
+                <div className="text-green-400 font-bold mb-2 text-sm">✅ {currentBoss.nom} vaincu ! Prochain boss: {bosses[currentBossIndex + 1]?.nom}</div>
+                <button onClick={proceedToNextBoss} className="bg-gradient-to-r from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white px-6 py-2 rounded-lg font-bold shadow-lg border-2 border-amber-400 transition-all">⚔️ Boss suivant ({currentBossIndex + 2}/{BOSS_RUSH_COUNT})</button>
               </div>
             )}
-
             {gameState === 'victory' && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-gradient-to-r from-amber-900 to-yellow-900 border-2 border-amber-500 rounded-xl p-6">
+                <div className="bg-gradient-to-r from-amber-900 to-yellow-900 border-2 border-amber-500 rounded-xl p-4">
                   <div className="text-4xl mb-2">🏆</div>
-                  <div className="text-2xl font-bold text-amber-400">Boss Rush Complété !</div>
-                  <p className="text-amber-200 mt-2">Vous avez vaincu les 6 boss d'affilée !</p>
-                  {rewardGiven && (
-                    <div className="mt-3 text-green-300 font-bold">🎁 +10 essais de donjon obtenus !</div>
-                  )}
-                  {newTitles.length > 0 && (
-                    <div className="mt-2 text-purple-300 font-bold">🏅 Nouveau titre débloqué !</div>
-                  )}
+                  <div className="text-xl font-bold text-amber-400">Boss Rush Complété !</div>
+                  <p className="text-amber-200 mt-1 text-sm">Vous avez vaincu les 6 boss d'affilée !</p>
+                  {rewardGiven && <div className="mt-2 text-green-300 font-bold text-sm">🎁 +10 essais de donjon obtenus !</div>}
+                  {newTitles.length > 0 && <div className="mt-1 text-purple-300 font-bold text-sm">🏅 Nouveau titre débloqué !</div>}
                 </div>
-                <button
-                  onClick={() => setGameState('lobby')}
-                  className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500"
-                >
-                  Retour au lobby
-                </button>
+                <button onClick={() => setGameState('lobby')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg font-bold border border-stone-500">Retour au lobby</button>
               </div>
             )}
-
             {gameState === 'defeat' && (
               <div className="text-center mt-4 space-y-3">
-                <div className="bg-red-950 border-2 border-red-600 rounded-xl p-6">
+                <div className="bg-red-950 border-2 border-red-600 rounded-xl p-4">
                   <div className="text-4xl mb-2">💀</div>
-                  <div className="text-2xl font-bold text-red-400">Défaite...</div>
-                  <p className="text-red-200 mt-2">
-                    Tombé face à {currentBoss.nom} ({currentBossIndex + 1}/{BOSS_RUSH_COUNT})
-                  </p>
+                  <div className="text-xl font-bold text-red-400">Défaite...</div>
+                  <p className="text-red-200 mt-1 text-sm">Tombé face à {currentBoss.nom} ({currentBossIndex + 1}/{BOSS_RUSH_COUNT})</p>
                 </div>
-                <button
-                  onClick={startBossRush}
-                  className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-8 py-3 rounded-lg font-bold text-lg shadow-lg border-2 border-red-500 transition-all"
-                >
-                  🔄 Recommencer
-                </button>
+                <button onClick={startBossRush} className="bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-6 py-2 rounded-lg font-bold shadow-lg border-2 border-red-500 transition-all">🔄 Recommencer</button>
               </div>
             )}
-          </div>
-
-          {/* Carte boss - Droite */}
-          <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
-            {boss && <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
-            {!boss && currentBoss && (
-              <UnifiedCharacterCard
-                header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
-                name={currentBoss.nom}
-                image={getBossImage(currentBoss.imageFile, currentBoss.imageSource)}
-                fallback={<span className="text-7xl">{currentBoss.icon}</span>}
-                topStats={<><span>HP: {currentBoss.stats.hp}</span><span>VIT: {currentBoss.stats.spd}</span></>}
-                mainStats={
-                  <>
-                    <div>Auto: {currentBoss.stats.auto}</div>
-                    <div>Déf: {currentBoss.stats.def}</div>
-                    <div>Cap: {currentBoss.stats.cap}</div>
-                    <div>ResC: {currentBoss.stats.rescap}</div>
-                  </>
-                }
-                details={currentBoss.ability ? (
-                  <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
-                    <span className="text-lg">⚡</span>
-                    <div className="flex-1">
-                      <div className="text-red-300 font-semibold mb-1">{currentBoss.ability.name || currentBoss.ability.nom}</div>
-                      <div className="text-stone-400 text-[10px]">{currentBoss.ability.description}</div>
-                    </div>
-                  </div>
-                ) : null}
-                cardClassName="border-2 border-red-600/50"
-              />
-            )}
-          </div>
-        </div>
+          </>}
+        />
       </div>
     </div>
   );
