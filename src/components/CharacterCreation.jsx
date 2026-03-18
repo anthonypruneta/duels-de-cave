@@ -38,7 +38,7 @@ const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { e
 const getRealBorderImageSrc = (borderIdOrFile) => {
   const raw = String(borderIdOrFile || '').trim();
   if (!raw) return null;
-  if (raw === 'ombre2') return null;
+  if (raw === 'ombre2' || raw === 'arcane' || raw === 'braise' || raw === 'givre' || raw === 'ronces') return null;
   const wantsPng = raw.toLowerCase().endsWith('.png');
   const fileName = wantsPng ? raw : `${raw}.png`;
   const base = fileName.replace(/\.png$/i, '');
@@ -67,7 +67,10 @@ const getRealBorderCandidates = () => {
 };
 
 const REAL_BORDER_CANVAS_OPTIONS = [
-  { id: 'ombre2', nom: 'Ombre II' },
+  { id: 'arcane', nom: 'Arcane' },
+  { id: 'braise', nom: 'Braise' },
+  { id: 'givre', nom: 'Givre' },
+  { id: 'ronces', nom: 'Ronces' },
 ];
 
 const getWeaponImage = (imageFile) => {
@@ -1337,8 +1340,8 @@ const CharacterCreation = () => {
                           />
                         );
                       })()}
-                      {existingCharacter.equippedRealBorder === 'ombre2' && (
-                        <RealBorderCanvas borderId="ombre2" style={{ zIndex: 3 }} />
+                      {['ombre2', 'arcane', 'braise', 'givre', 'ronces'].includes(existingCharacter.equippedRealBorder) && (
+                        <RealBorderCanvas borderId={existingCharacter.equippedRealBorder} style={{ zIndex: 3 }} />
                       )}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}

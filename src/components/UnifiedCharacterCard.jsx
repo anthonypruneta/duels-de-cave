@@ -6,6 +6,7 @@ import { resolveBorderId, getBorderGlowClass } from '../data/borders';
 const BAR_ANIMATION_MS = 500;
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
+const CANVAS_REAL_BORDERS = new Set(['ombre2', 'arcane', 'braise', 'givre', 'ronces']);
 
 function normalizePngName(name) {
   return String(name || '').trim();
@@ -18,7 +19,7 @@ function isOldAsset(baseName) {
 function getRealBorderImageSrc(borderIdOrFile) {
   const raw = normalizePngName(borderIdOrFile);
   if (!raw) return null;
-  if (raw === 'ombre2') return null;
+  if (CANVAS_REAL_BORDERS.has(raw)) return null;
 
   const wantsPng = raw.toLowerCase().endsWith('.png');
   const fileName = wantsPng ? raw : `${raw}.png`;
@@ -133,7 +134,7 @@ const UnifiedCharacterCard = ({
   const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
 
   const realBorderSrc = getRealBorderImageSrc(realBorderId);
-  const hasCanvasRealBorder = realBorderId === 'ombre2';
+  const hasCanvasRealBorder = CANVAS_REAL_BORDERS.has(realBorderId);
 
   const imageSection = (
     <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
@@ -143,7 +144,7 @@ const UnifiedCharacterCard = ({
       ) : (
         <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
       )}
-      {hasCanvasRealBorder && <RealBorderCanvas borderId="ombre2" style={{ zIndex: 3 }} />}
+      {hasCanvasRealBorder && <RealBorderCanvas borderId={realBorderId} style={{ zIndex: 3 }} />}
       {realBorderSrc && (
         <img
           src={realBorderSrc}
