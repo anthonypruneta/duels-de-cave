@@ -51,7 +51,8 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   // En PvP / Tournoi / Entraînement, character.base = stats de combat ; _storedBase = base fiche perso pour tooltip et recalcul
   const rawBase = character._storedBase ?? character.base;
   const baseStatsRaw = applyStatBoosts(rawBase, forestBoosts);
-  const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, character.race, character.level ?? 1);
+  const effectiveLevel = character.awakeningForced ? 999 : (character.level ?? 1);
+  const baseStats = removeBaseRaceFlatBonusesIfAwakened(baseStatsRaw, character.race, effectiveLevel);
   const weapon = weaponOverride ?? character.equippedWeaponData ?? null;
   const mageTowerPassive = character.mageTowerPassive || null;
   const passiveBase = mageTowerPassive ? getMageTowerPassiveById(mageTowerPassive.id) : null;
@@ -59,7 +60,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const passiveDetails = passiveBase && passiveLevel ? { ...passiveBase, level: mageTowerPassive.level, levelData: passiveLevel } : null;
   const fusedPassiveDisplay = getFusedPassiveDisplayData(character);
   const awakeningInfo = character.race ? (races[character.race]?.awakening ?? null) : null;
-  const isAwakeningActive = awakeningInfo && (character.level ?? 1) >= awakeningInfo.levelRequired;
+  const isAwakeningActive = awakeningInfo && effectiveLevel >= awakeningInfo.levelRequired;
   const forgeUpgrade = character.forgeUpgrade;
   const forgeLabel = (statKey) => FORGE_STAT_LABELS[statKey] || statKey.toUpperCase();
   // Boss / NPC avec forge (ex. labyrinthe étage 100) : afficher et appliquer même si isForgeActive() est false
@@ -75,7 +76,6 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     ? { ...baseWithPassive, def: Math.max(1, (baseWithPassive.def ?? 0) + bastionDefBonus) }
     : baseWithPassive;
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
-  const effectiveLevel = character.level ?? 1;
   const mainAwakeningEffect = getAwakeningEffect(character.race, effectiveLevel);
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
