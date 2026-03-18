@@ -284,31 +284,77 @@ const MirrorMode = () => {
 
   // LOBBY
   if (gameState === 'lobby') {
+    const p1Img = character?.characterImage;
+    const p2Img = mirrorCloneForDisplay?.characterImage;
     return (
-      <div className="min-h-screen p-4">
+      <div className="min-h-screen p-2 sm:p-4">
         <Header />
         <audio id="mirror-music" loop>
           <source src="/assets/music/Mirror.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-[1800px] mx-auto pt-20">
-          <div className="text-center mb-6">
-            <div className="bg-stone-950 border-2 border-stone-500 rounded-xl px-6 py-3 shadow-xl inline-block">
-              <h2 className="text-3xl font-bold text-stone-300">🪞 Mode Miroir</h2>
-              <p className="text-stone-400 text-sm mt-1">Affrontez votre clone aux stats inversées. 1 fois par jour.</p>
+          <div className="text-center mb-4">
+            <div className="bg-stone-950 border-2 border-stone-500 rounded-xl px-4 py-2 shadow-xl inline-block">
+              <h2 className="text-xl sm:text-3xl font-bold text-stone-300">🪞 Mode Miroir</h2>
+              <p className="text-stone-400 text-xs sm:text-sm mt-1">Affrontez votre clone aux stats inversées. 1 fois par jour.</p>
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+          {/* ── MOBILE (< lg) ── */}
+          <div className="lg:hidden flex flex-col gap-3 items-center">
+            {/* Mini aperçu joueur vs clone */}
+            {character && (
+              <div className="flex gap-3 w-full max-w-sm">
+                <div className="flex-1 bg-stone-900/90 border border-blue-500/40 rounded-xl overflow-hidden">
+                  {p1Img && <img src={p1Img} alt={character.name} className="w-full h-24 object-contain bg-stone-800" />}
+                  <div className="p-2 text-center">
+                    <div className="text-xs font-bold text-blue-300 truncate">{character.name}</div>
+                    <div className="text-[10px] text-stone-400">Vous</div>
+                  </div>
+                </div>
+                <div className="flex items-center text-stone-400 font-bold text-lg">VS</div>
+                <div className="flex-1 bg-stone-900/90 border border-stone-500/40 rounded-xl overflow-hidden">
+                  {p2Img && <img src={p2Img} alt={mirrorCloneForDisplay?.name} className="w-full h-24 object-contain bg-stone-800 scale-x-[-1]" />}
+                  <div className="p-2 text-center">
+                    <div className="text-xs font-bold text-stone-300 truncate">{mirrorCloneForDisplay?.name}</div>
+                    <div className="text-[10px] text-stone-400">Clone miroir</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fight block */}
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl p-5 text-center w-full max-w-sm">
+              <div className="text-4xl mb-3">⚔️</div>
+              <h3 className="text-base font-bold text-stone-300 mb-1">Duel contre votre Doppelgänger</h3>
+              <p className="text-stone-500 text-xs mb-4">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
+              {alreadyDone ? (
+                <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-3">
+                  <p className="text-stone-400 text-sm">🪞 Miroir déjà affronté aujourd'hui.<br />Revenez demain !</p>
+                </div>
+              ) : (
+                <button
+                  onClick={startMirrorFight}
+                  className="w-full bg-gradient-to-r from-stone-600 to-stone-800 hover:from-stone-500 hover:to-stone-700 text-white px-6 py-3 rounded-lg font-bold text-base shadow-lg border-2 border-stone-400 transition-all"
+                >
+                  🪞 Affronter mon Miroir
+                </button>
+              )}
+              <p className="text-stone-500 text-xs mt-3">Récompense : +2 essais de donjon</p>
+            </div>
+          </div>
+
+          {/* ── DESKTOP (lg+) : 3 colonnes ── */}
+          <div className="hidden lg:flex flex-row gap-4 items-stretch justify-center text-sm">
+            <div className="w-[340px] flex-shrink-0">
               {character && <CharacterCardContent character={character} detailsPlacement="left" />}
             </div>
 
-            <div className="order-2 md:order-2 w-full md:flex-1 md:min-w-[400px] flex flex-col items-center justify-center">
+            <div className="flex-1 min-w-[400px] flex flex-col items-center justify-center">
               <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl p-8 text-center w-full max-w-[500px]">
                 <div className="text-6xl mb-4">⚔️</div>
                 <h3 className="text-xl font-bold text-stone-300 mb-2">Duel contre votre Doppelgänger</h3>
                 <p className="text-stone-500 text-sm mb-6">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
-
                 {alreadyDone ? (
                   <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4">
                     <p className="text-stone-400">🪞 Miroir déjà affronté aujourd'hui. Revenez demain !</p>
@@ -325,7 +371,7 @@ const MirrorMode = () => {
               </div>
             </div>
 
-            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+            <div className="w-[340px] flex-shrink-0">
               <CloneCard detailsPlacement="right" />
             </div>
           </div>
