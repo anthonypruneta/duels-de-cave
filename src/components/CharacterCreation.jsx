@@ -30,6 +30,7 @@ import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } 
 import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveBorderId, getBorderGlowClass } from '../data/borders';
 import CardBorderCanvas from './CardBorderCanvas';
+import RealBorderCanvas from './RealBorderCanvas';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -37,6 +38,7 @@ const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { e
 const getRealBorderImageSrc = (borderIdOrFile) => {
   const raw = String(borderIdOrFile || '').trim();
   if (!raw) return null;
+  if (raw === 'ombre2') return null;
   const wantsPng = raw.toLowerCase().endsWith('.png');
   const fileName = wantsPng ? raw : `${raw}.png`;
   const base = fileName.replace(/\.png$/i, '');
@@ -63,6 +65,10 @@ const getRealBorderCandidates = () => {
   entries.sort((a, b) => a.base.toLowerCase().localeCompare(b.base.toLowerCase(), 'fr'));
   return entries;
 };
+
+const REAL_BORDER_CANVAS_OPTIONS = [
+  { id: 'ombre2', nom: 'Ombre II' },
+];
 
 const getWeaponImage = (imageFile) => {
   if (!imageFile) return null;
@@ -1331,6 +1337,9 @@ const CharacterCreation = () => {
                           />
                         );
                       })()}
+                      {existingCharacter.equippedRealBorder === 'ombre2' && (
+                        <RealBorderCanvas borderId="ombre2" style={{ zIndex: 3 }} />
+                      )}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
                         style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000', zIndex: 4 }}
@@ -1509,6 +1518,32 @@ const CharacterCreation = () => {
                       <div className="text-lg mb-1">✕</div>
                       <div className="font-semibold">Aucune</div>
                     </button>
+
+                    {REAL_BORDER_CANVAS_OPTIONS.map((opt) => {
+                      const isEquipped = (existingCharacter.equippedRealBorder || '').toLowerCase() === opt.id.toLowerCase();
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={async () => {
+                            await updateCharacterEquippedRealBorder(currentUser.uid, opt.id);
+                            setExistingCharacter(prev => (prev ? { ...prev, equippedRealBorder: opt.id } : prev));
+                          }}
+                          className={`relative overflow-hidden rounded-lg p-2 text-[10px] transition-colors border ${
+                            isEquipped
+                              ? 'bg-amber-900/40 border-amber-500 text-amber-200'
+                              : 'bg-stone-800 border-stone-600 text-stone-300 hover:border-amber-600'
+                          }`}
+                          title={opt.nom}
+                        >
+                          <div className="w-full aspect-[2/3] bg-stone-900/60 border border-stone-700 rounded mb-1 relative overflow-hidden">
+                            <RealBorderCanvas borderId={opt.id} />
+                          </div>
+                          <div className="font-semibold truncate">{opt.nom}</div>
+                          {isEquipped && <div className="text-amber-400 text-[9px]">ACTIF</div>}
+                        </button>
+                      );
+                    })}
 
                     {getRealBorderCandidates().map(({ key, base, file }) => {
                       const src = realBorderPngModules[key];

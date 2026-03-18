@@ -17,6 +17,7 @@ import { extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForg
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import { races } from '../data/races';
+import { getSubclassStatBonuses } from '../data/subclasses';
 
 export function useCharacterStatsDisplay(character, weaponOverride = null) {
   if (!character?.base) {
@@ -80,9 +81,23 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
   const finalStatsBeforeForge = applyAwakeningToBase(baseWithClassPassive, awakeningEffect);
-  const finalStats = hasForgeUpgrade && forgeUpgrade
+  const finalStatsBeforeSubclass = hasForgeUpgrade && forgeUpgrade
     ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
     : finalStatsBeforeForge;
+
+  // Bonus permanent de stats des sous-classes (Collège Kunugigaoka) : appliqué partout (fiche perso + carte),
+  // pas uniquement au démarrage d'un combat.
+  const subclassBonuses = getSubclassStatBonuses(character.subclass?.id);
+  const finalStats = subclassBonuses && typeof character.subclass?.id === 'string'
+    ? Object.entries(subclassBonuses).reduce((acc, [stat, pct]) => {
+      if (acc[stat] != null && pct) {
+        acc[stat] = Math.max(1, Math.round(acc[stat] * (1 + pct)));
+      }
+      return acc;
+    }, { ...finalStatsBeforeSubclass })
+    : finalStatsBeforeSubclass;
+
+  const subclassDelta = (k) => (finalStats[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
 
   const baseWithoutBonus = (k) => (rawBase[k] ?? 0) - totalBonus(k);
 
@@ -113,6 +128,12 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
       if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
     }
+    const subDelta = subclassDelta(k);
+    if (subDelta !== 0) {
+      const pct = subclassBonuses?.[k] ?? 0;
+      const pctText = pct ? ` (${Math.round(pct * 100)}%)` : '';
+      parts.push(`Sous-classe${pctText}: +${subDelta}`);
+    }
     return parts.join(' | ');
   };
 
@@ -125,8 +146,23 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
     })() : 0;
-    const hasBonus = raceDisplayBonus !== 0 || classB[statKey] > 0 || bastionDelta > 0 || forestBoosts[statKey] > 0 || weaponStatValue(statKey) !== 0 || (statKey === 'auto' && passiveAutoBonus !== 0) || forgeDeltaForStat !== 0;
-    const totalDelta = raceDisplayBonus + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + forgeDeltaForStat;
+    const subclassDeltaForStat = subclassDelta(statKey);
+    const hasBonus = raceDisplayBonus !== 0
+      || classB[statKey] > 0
+      || bastionDelta > 0
+      || forestBoosts[statKey] > 0
+      || weaponStatValue(statKey) !== 0
+      || (statKey === 'auto' && passiveAutoBonus !== 0)
+      || forgeDeltaForStat !== 0
+      || subclassDeltaForStat !== 0;
+    const totalDelta = raceDisplayBonus
+      + (classB[statKey] || 0)
+      + bastionDelta
+      + (forestBoosts[statKey] || 0)
+      + weaponStatValue(statKey)
+      + (statKey === 'auto' ? passiveAutoBonus : 0)
+      + forgeDeltaForStat
+      + subclassDeltaForStat;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
     return {
       displayValue,

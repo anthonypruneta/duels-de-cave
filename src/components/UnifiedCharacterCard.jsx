@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CardBorderCanvas from './CardBorderCanvas';
+import RealBorderCanvas from './RealBorderCanvas';
 import { resolveBorderId, getBorderGlowClass } from '../data/borders';
 
 const BAR_ANIMATION_MS = 500;
@@ -17,6 +18,7 @@ function isOldAsset(baseName) {
 function getRealBorderImageSrc(borderIdOrFile) {
   const raw = normalizePngName(borderIdOrFile);
   if (!raw) return null;
+  if (raw === 'ombre2') return null;
 
   const wantsPng = raw.toLowerCase().endsWith('.png');
   const fileName = wantsPng ? raw : `${raw}.png`;
@@ -131,6 +133,7 @@ const UnifiedCharacterCard = ({
   const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
 
   const realBorderSrc = getRealBorderImageSrc(realBorderId);
+  const hasCanvasRealBorder = realBorderId === 'ombre2';
 
   const imageSection = (
     <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
@@ -140,6 +143,7 @@ const UnifiedCharacterCard = ({
       ) : (
         <div className="w-full h-48 flex items-center justify-center">{fallback}</div>
       )}
+      {hasCanvasRealBorder && <RealBorderCanvas borderId="ombre2" style={{ zIndex: 3 }} />}
       {realBorderSrc && (
         <img
           src={realBorderSrc}

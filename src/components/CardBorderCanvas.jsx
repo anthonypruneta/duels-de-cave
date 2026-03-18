@@ -480,94 +480,6 @@ function drawShadow(ctx, state, w, h) {
   }
 }
 
-// ─── Ombre II : bordure statique propre (vignette + glow doux + texture) ─────
-
-function initShadow2(w, h) {
-  const specks = [];
-  const count = Math.max(18, Math.floor((w * h) / 6500));
-  for (let i = 0; i < count; i++) {
-    specks.push({
-      x: rand(0, w),
-      y: rand(0, h),
-      r: rand(0.6, 1.8),
-      a: rand(0.03, 0.09),
-      hue: rand(265, 292),
-    });
-  }
-  return { specks };
-}
-
-function updateShadow2() {
-  // statique
-}
-
-function drawSoftEdgeGlow(ctx, w, h, edge, colorA, colorB) {
-  // edge: 'top' | 'bottom' | 'left' | 'right'
-  const thickness = Math.max(10, Math.min(w, h) * 0.09);
-  let g;
-  if (edge === 'top') g = ctx.createLinearGradient(0, 0, 0, thickness);
-  else if (edge === 'bottom') g = ctx.createLinearGradient(0, h, 0, h - thickness);
-  else if (edge === 'left') g = ctx.createLinearGradient(0, 0, thickness, 0);
-  else g = ctx.createLinearGradient(w, 0, w - thickness, 0);
-
-  g.addColorStop(0, colorA);
-  g.addColorStop(0.55, colorB);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  if (edge === 'top') ctx.fillRect(0, 0, w, thickness);
-  else if (edge === 'bottom') ctx.fillRect(0, h - thickness, w, thickness);
-  else if (edge === 'left') ctx.fillRect(0, 0, thickness, h);
-  else ctx.fillRect(w - thickness, 0, thickness, h);
-}
-
-function drawShadow2(ctx, state, w, h) {
-  // Vignette (assombrit vers les bords)
-  const vr = Math.max(w, h) * 0.78;
-  const v = ctx.createRadialGradient(w / 2, h / 2, vr * 0.15, w / 2, h / 2, vr);
-  v.addColorStop(0, 'rgba(0,0,0,0)');
-  v.addColorStop(0.55, 'rgba(10,0,20,0.10)');
-  v.addColorStop(0.85, 'rgba(10,0,20,0.24)');
-  v.addColorStop(1, 'rgba(0,0,0,0.35)');
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, w, h);
-
-  // Glow doux sur les bords (violet profond → transparent)
-  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.12)', 'rgba(88, 28, 135, 0.07)');
-  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.14)', 'rgba(76, 29, 149, 0.08)');
-  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.11)', 'rgba(88, 28, 135, 0.06)');
-  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.11)', 'rgba(88, 28, 135, 0.06)');
-
-  // Renfort de glow dans les coins (plus “ciné”)
-  const cornerR = Math.min(w, h) * 0.42;
-  const corners = [
-    { x: 0, y: 0 },
-    { x: w, y: 0 },
-    { x: 0, y: h },
-    { x: w, y: h },
-  ];
-  for (const c of corners) {
-    const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, cornerR);
-    g.addColorStop(0, 'rgba(217, 70, 239, 0.10)');
-    g.addColorStop(0.35, 'rgba(139, 92, 246, 0.07)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  // Texture très légère (specks), stable
-  for (const s of state.specks) {
-    ctx.fillStyle = hsl(s.hue, 70, 70, s.a);
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Liseré intérieur ultra fin (donne du “cadre” sans être agressif)
-  ctx.strokeStyle = 'rgba(216, 180, 254, 0.12)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-}
-
 // ─── Or : scintillements dorés + sweep de brillance ──────────────────────────
 
 function initGold(w, h) {
@@ -1457,7 +1369,6 @@ const EFFECTS = {
   lava:           { init: initLava, update: updateLava, draw: drawLava },
   ice:            { init: initIce, update: updateIce, draw: drawIce },
   shadow:         { init: initShadow, update: updateShadow, draw: drawShadow },
-  shadow2:        { init: initShadow2, update: updateShadow2, draw: drawShadow2 },
   gold:           { init: initGold, update: updateGold, draw: drawGold },
   territory:      { init: initTerritory, update: updateTerritory, draw: drawTerritory },
   blood:          { init: initBlood, update: updateBlood, draw: drawBlood },
