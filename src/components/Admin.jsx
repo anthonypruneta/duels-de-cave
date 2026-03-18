@@ -578,7 +578,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       typeof createResult.retiredExclusionsCount === 'number'
         ? ` • ${createResult.retiredExclusionsCount} fiche(s) à la retraite (ex-tchampions legacy)`
         : '';
-    alert(`✅ ${createResult.nbParticipants} combattants${excl} — ouvrez la page legacy puis lancez le 1er combat.`);
+    const dedupe =
+      typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0
+        ? ` • ${createResult.dedupeDroppedCount} doublon(s) retiré(s) (même joueur + même nom de perso)`
+        : '';
+    alert(`✅ ${createResult.nbParticipants} combattants${excl}${dedupe} — ouvrez la page legacy puis lancez le 1er combat.`);
     setLegacyTournamentLoading(false);
   };
 
@@ -602,6 +606,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       alert('❌ Lancement: ' + launchResult.error);
       setLegacyTournamentLoading(false);
       return;
+    }
+    if (typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0) {
+      alert(
+        `ℹ️ ${createResult.dedupeDroppedCount} archive(s) en doublon (même compte + même nom) ignorée(s) — gardée : la plus récente.`
+      );
     }
     setLegacyTournamentLoading(false);
     navigate('/tournament?mode=legacy');
@@ -1417,8 +1426,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-violet-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-violet-300 mb-2">📜 Tournoi des anciens</h2>
           <p className="text-stone-400 text-sm mb-3">
-            Tous les personnages <strong>archivés</strong> de niveau ≤ 400, sauf ceux déjà{' '}
-            <strong>champions d&apos;un tournoi des anciens</strong> (retraite définitive — hors pool). Le gagnant
+            Tous les personnages <strong>archivés</strong> de niveau ≤ 400, sauf{' '}
+            <strong>ex-champions du tournoi des anciens</strong> (retraite).{' '}
+            <strong>Un seul perso par compte + nom</strong> par édition (doublons → archive la plus récente). Le gagnant
             est inscrit au <strong>prochain</strong> tournoi du samedi (création du tournoi principal). Discord comme
             le samedi. N&apos;archive pas les persos actifs.
           </p>

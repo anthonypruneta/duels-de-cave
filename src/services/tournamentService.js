@@ -215,9 +215,36 @@ async function chargerParticipantsArchives(retiredIdsOverride = null) {
           userId: char.userId || null,
           name: char.name,
           class: char.class,
+          archivedAt: char.archivedAt ?? null,
         };
       })
   );
+}
+
+function archivedAtToMillis(ts) {
+  if (!ts) return 0;
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+  return 0;
+}
+
+/**
+ * Une seule entrée par (propriétaire + nom de personnage + tournoi legacy).
+ * En cas de plusieurs archives identiques sur ces critères, on garde la plus récente (archivedAt).
+ */
+function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
+  const norm = (n) => String(n || '').trim().toLowerCase();
+  const best = new Map();
+  for (const p of rows) {
+    if (!p.userId || !p.archiveDocId) continue;
+    const key = `${p.userId}|${norm(p.name)}|${tournamentDocId}`;
+    const cur = best.get(key);
+    const ms = archivedAtToMillis(p.archivedAt);
+    if (!cur || ms > archivedAtToMillis(cur.archivedAt) || (ms === archivedAtToMillis(cur.archivedAt) && p.archiveDocId > cur.archiveDocId)) {
+      best.set(key, p);
+    }
+  }
+  return Array.from(best.values());
 }
 
 /**
@@ -230,18 +257,19 @@ export async function creerTournoiLegacy() {
     const retiredIds = await getLegacyRetiredArchiveIdSet();
     const retiredCount = retiredIds.size;
     const raw = await chargerParticipantsArchives(retiredIds);
-    const participants = raw
-      .filter((p) => p.userId && p.archiveDocId)
-      .map((p) => ({
-        ...p,
-        participantId: `arch_${p.archiveDocId}`,
-        ownerUserId: p.userId,
-      }));
+    const rawEligible = raw.filter((p) => p.userId && p.archiveDocId);
+    const deduped = dedupeLegacyParticipantsByOwnerAndName(rawEligible, LEGACY_TOURNAMENT_DOC_ID);
+    const dedupeDropped = rawEligible.length - deduped.length;
+    const participants = deduped.map((p) => ({
+      ...p,
+      participantId: `arch_${p.archiveDocId}`,
+      ownerUserId: p.userId,
+    }));
     if (participants.length < 2) {
       return {
         success: false,
         error:
-          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, jamais gagnants du tournoi des anciens). Éligibles : ${participants.length}. À la retraite (hors pool) : ${retiredCount}.`,
+          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, jamais gagnants du tournoi des anciens, sans doublon même joueur + même nom). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
       };
     }
 
@@ -284,6 +312,7 @@ export async function creerTournoiLegacy() {
       success: true,
       nbParticipants: participants.length,
       retiredExclusionsCount: retiredCount,
+      dedupeDroppedCount: dedupeDropped,
     };
   } catch (error) {
     console.error('Erreur création tournoi legacy:', error);
