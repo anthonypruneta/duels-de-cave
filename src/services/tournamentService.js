@@ -362,7 +362,8 @@ export async function creerTournoi(docId = 'current') {
 
     const qualifierRef = doc(db, 'tournamentMeta', TOURNAMENT_META_QUALIFIER);
     let qualifierConsumed = false;
-    if (docId === 'current') {
+    // Inclure le qualifié legacy dans le tournoi du samedi ET dans la simulation
+    if (docId === 'current' || docId === 'simulation') {
       const qualSnap = await getDoc(qualifierRef);
       if (qualSnap.exists()) {
         const q = qualSnap.data();
@@ -384,7 +385,10 @@ export async function creerTournoi(docId = 'current') {
           characterImage: merged.characterImage ?? q.display?.characterImage ?? null,
           ownerPseudo: merged.ownerPseudo ?? q.display?.ownerPseudo ?? null,
         });
-        qualifierConsumed = true;
+        // Ne consommer le qualifié que pour le tournoi réel, pas la simulation
+        if (docId === 'current') {
+          qualifierConsumed = true;
+        }
       }
     }
 
