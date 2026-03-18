@@ -61,7 +61,7 @@ import {
 } from '../utils/weaponEffects';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import CombatLayout from './CombatLayout';
+import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -1290,7 +1290,7 @@ const MageTower = () => {
         <audio id="tower-music" loop>
           <source src="/assets/music/tower.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-5xl mx-auto pt-20 text-center">
+        <div className="max-w-5xl mx-auto pt-16 text-center">
           <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="right" />
           </div>
@@ -1386,36 +1386,144 @@ const MageTower = () => {
             </div>
           )}
 
-          {/* Layout principal: Joueur | Chat | Boss (même que Donjon) */}
-          <CombatLayout
-            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }}
-            p2Entity={{ name: boss?.name, currentHP: boss?.currentHP, maxHP: boss?.maxHP, shield: boss?.shield ?? 0, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability, image: getBossImage(boss?.imageFile) }}
-            p1Card={<CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />}
-            p2Card={<BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
-            logRef={logContainerRef}
-            logTitle="⚔️ Combat en direct"
-            renderLog={() => combatLog.length === 0 ? (
-              <p className="text-stone-500 italic text-center py-6 text-xs">Cliquez sur "Lancer le combat" pour commencer...</p>
-            ) : (
-              <>
-                {combatLog.map((log, idx) => {
-                  const isP1 = log.startsWith('[P1]');
-                  const isP2 = log.startsWith('[P2]');
-                  const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                  if (!isP1 && !isP2) {
-                    if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-100 text-stone-900 px-4 py-2 font-bold text-sm shadow-lg border border-stone-400">{cleanLog}</div></div>;
-                    if (log.includes('💀')) return <div key={idx} className="flex justify-center my-3"><div className="bg-red-900 text-red-200 px-4 py-2 font-bold text-sm shadow-lg border border-red-600">{cleanLog}</div></div>;
-                    if (log.includes('💚')) return <div key={idx} className="flex justify-center my-2"><div className="bg-green-900/50 text-green-300 px-3 py-1 text-xs font-bold border border-green-600">{cleanLog}</div></div>;
-                    if (log.includes('---') || log.includes('⚔️')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-700 text-stone-200 px-3 py-1 text-xs font-bold border border-stone-500">{cleanLog}</div></div>;
-                    return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-xs italic">{cleanLog}</div></div>;
-                  }
-                  if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-l-4 border-blue-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                  if (isP2) return <div key={idx} className="flex justify-end"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-r-4 border-purple-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                })}
-                <div ref={logEndRef} />
-              </>
-            )}
-          />
+          {/* ═══ MOBILE (< 1024px) : Mini-cartes + journal compact ═══ */}
+          <div className="lg:hidden flex flex-col gap-2">
+            <div className="flex gap-2">
+              <MiniCard entity={{ name: player?.name, currentHP: playerHP, maxHP: playerMaxHP, shield: playerShield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }} side="left" />
+              <MiniCard entity={{ name: boss?.name, currentHP: bossHP, maxHP: bossMaxHP, shield: bossShield ?? 0, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability, image: boss?.characterImage }} side="right" />
+            </div>
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col" style={{ height: 'calc(100dvh - 280px)', minHeight: '260px', maxHeight: '420px' }}>
+              <div className="bg-stone-900 px-3 py-2 border-b border-stone-700 rounded-t-xl">
+                <h2 className="text-sm font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+              </div>
+              <div ref={logContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+                {combatLog.length === 0 ? (
+                  <p className="text-stone-500 italic text-center py-4">Cliquez sur "Lancer le combat"...</p>
+                ) : (
+                  <>
+                    {combatLog.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                      if (!isP1 && !isP2) {
+                        if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-100 text-stone-900 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                        if (log.includes('💀')) return <div key={idx} className="flex justify-center my-2"><div className="bg-red-900 text-red-200 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                        if (log.includes('💚')) return <div key={idx} className="flex justify-center my-1"><div className="bg-green-900/50 text-green-300 px-2 py-0.5 text-[10px] font-bold">{cleanLog}</div></div>;
+                        if (log.includes('---')) return <div key={idx} className="flex justify-center my-1"><div className="bg-stone-700 text-stone-200 px-2 py-0.5 text-[10px] font-bold rounded">{cleanLog}</div></div>;
+                        return <div key={idx} className="text-center text-stone-400 text-[10px] italic">{cleanLog}</div>;
+                      }
+                      if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-l-2 border-blue-500 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                      return <div key={idx} className="flex justify-end"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-r-2 border-purple-500 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                    })}
+                    <div ref={logEndRef} />
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ DESKTOP (1024px+) : Layout original avec detailsPlacement ═══ */}
+          <div className="hidden lg:flex flex-row gap-4 items-start justify-center text-sm">
+            <div className="w-auto flex-shrink-0">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
+            </div>
+
+            <div className="flex-1 min-w-[400px] flex flex-col">
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[600px]">
+                <div className="bg-stone-900 p-3 border-b border-stone-700 rounded-t-xl">
+                  <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                </div>
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                  {combatLog.length === 0 ? (
+                    <p className="text-stone-500 italic text-center py-8 text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
+                  ) : (
+                    <>
+                      {combatLog.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        if (!isP1 && !isP2) {
+                          if (log.includes('🏆')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('💀')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('💚')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('---') || log.includes('⚔️')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-400 text-sm italic">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500">
+                                  <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isP2) {
+                          return (
+                            <div key={idx} className="flex justify-end">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500">
+                                  <div className="text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })}
+                      <div ref={logEndRef} />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="w-auto flex-shrink-0">
+              <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1427,7 +1535,7 @@ const MageTower = () => {
       <audio id="tower-music" loop>
         <source src="/assets/music/tower.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
+      <div className="max-w-4xl mx-auto pt-16">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">

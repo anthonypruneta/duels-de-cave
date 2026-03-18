@@ -1,35 +1,54 @@
 # Duels de Cave - PRD
 
 ## Problème Original
-Les titres débloqués étaient liés aux personnages qui sont reset chaque week-end, causant la perte des bordures de compte (titane, cosmique, transcendance) qui dépendent du nombre de titres.
+Application de combat RPG avec problème d'affichage mobile - les layouts multi-colonnes étaient coupées sur petits écrans.
 
 ## Architecture
 - Frontend: React + Vite + Tailwind
-- Backend: Firebase/Firestore
+- Backend: Firebase/Firestore  
 - Déploiement: Push GitHub → Prod direct
 
-## Implémentation (Janvier 2026)
+## Implémentation (Mars 2026)
 
-### Persistance des titres et bordures de compte
-- Titres sauvegardés dans `userPreferences.earnedTitles`
-- Bordures de compte sauvegardées dans `userPreferences.unlockedAccountBorders`
-- Restauration automatique lors de la création d'un nouveau personnage
+### Refactor Mobile UI Complet - HYBRIDE
+Tous les composants de combat ont maintenant un layout hybride :
+- **Mobile (< 1024px / lg:hidden)** : Mini-cartes compactes côte à côte + journal compact
+- **Desktop (1024px+ / hidden lg:flex)** : Layout original avec `detailsPlacement` et panneaux latéraux
 
-### Fichiers modifiés
-- `/app/src/data/borders.js` : checkBorderUnlocks, syncUnlockedBorders
-- `/app/src/services/characterService.js` : saveCharacter, getAccountBorders
+### Composants modifiés avec layout hybride
+1. `/app/src/components/BossRush.jsx`
+2. `/app/src/components/Dungeon.jsx`
+3. `/app/src/components/ExtensionDungeon.jsx`
+4. `/app/src/components/ForgeDungeon.jsx`
+5. `/app/src/components/MageTower.jsx`
+6. `/app/src/components/SubclassDungeon.jsx`
+7. `/app/src/components/Training.jsx`
+8. `/app/src/components/MirrorMode.jsx` (lobby + combat)
+9. `/app/src/components/InfiniteLabyrinth.jsx`
+10. `/app/src/components/Tournament.jsx` (utilise CombatLayout)
+11. `/app/src/components/WorldBoss.jsx` (utilise CombatLayout)
 
-## Bordures de type "account"
-- champion (1 tournoi gagné)
-- titane (10 titres)
-- cosmique (20 titres)
-- transcendance (tous les titres)
+### Composant partagé
+- `/app/src/components/CombatLayout.jsx` : Exporte `MiniCard` pour réutilisation
 
-## Backlog
+### Autres modifications
+- Header responsive (2 lignes sur mobile)
+- Boutons radio pour récompenses Forêt
+- Qualifié Legacy inclus dans simulation de tournoi
+
+## Travail Complété - Mars 2026
+- [x] Layout hybride mobile/desktop pour tous les composants de combat
+- [x] Mini-cartes avec images et barres HP sur mobile
+- [x] Journal de combat compact sur mobile
+- [x] Desktop préservé avec detailsPlacement
+- [x] Tournoi : qualifié legacy dans simulation
+
+## Backlog (P2)
 - [ ] Notification visuelle à la récupération des bordures après reset
 - [ ] Migration des données existantes pour les joueurs ayant déjà des titres
 
-## P0/P1/P2
-- P0: ✅ Persistance titres/bordures - DONE
-- P1: Tests en production
-- P2: Amélioration UX notifications
+## Notes Techniques
+- Breakpoint mobile : `lg:hidden` (< 1024px)
+- Breakpoint desktop : `hidden lg:flex` (>= 1024px)
+- MiniCard exporté depuis CombatLayout pour réutilisation
+- Les composants avec `detailsPlacement` ne peuvent PAS utiliser CombatLayout directement car celui-ci fixe une largeur de 340px incompatible avec les panneaux latéraux de 280px

@@ -28,7 +28,7 @@ const getMiniHpClass = (current, max) => {
   return pct > 0.5 ? 'bg-green-500' : pct > 0.25 ? 'bg-yellow-500' : 'bg-red-500';
 };
 
-const MiniCard = ({ entity, combatBase, side }) => {
+export const MiniCard = ({ entity, combatBase, side }) => {
   if (!entity) return <div className="flex-1" />;
   const base = combatBase ?? entity.base ?? {};
   const maxHP = entity.maxHP ?? entity.base?.hp ?? 1;
