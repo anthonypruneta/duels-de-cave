@@ -9,7 +9,8 @@ import {
   launchLabyrinthCombat,
   resolveLabyrinthFloorImagePath,
   BOSS_TOP_FLOORS_EXTRA_HP,
-  BOSS_TOP_FLOORS
+  BOSS_TOP_FLOORS,
+  LABYRINTH_FLOOR_COUNT
 } from '../services/infiniteLabyrinthService';
 import { getUserCharacter } from '../services/characterService';
 import { getEquippedWeapon } from '../services/dungeonService';
@@ -415,7 +416,13 @@ const InfiniteLabyrinth = () => {
       while (!token.cancelled) {
         const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
         if (result.success && result.result?.steps) {
-          checkAndAwardTitles(currentUser.uid, result.result.steps, result.result, playerCharacter, { mode: 'labyrinthe', floor: currentFloor });
+          checkAndAwardTitles(
+            currentUser.uid,
+            result.result.steps,
+            result.result,
+            playerCharacter,
+            { mode: 'labyrinthe', floor: result.floor?.floorNumber ?? (result.progress?.currentFloor || 1) }
+          );
         }
         if (!result.success) {
           setError(result.error || 'Combat impossible.');
@@ -429,7 +436,8 @@ const InfiniteLabyrinth = () => {
         if (token.cancelled) break;
 
         if (!result.didWin) break;
-        if ((result.progress?.currentFloor || 1) > 100) break;
+        // Stop après avoir clear le dernier étage (120).
+        if ((result.floor?.floorNumber || 1) >= LABYRINTH_FLOOR_COUNT) break;
       }
     } finally {
       autoRunTokenRef.current = null;

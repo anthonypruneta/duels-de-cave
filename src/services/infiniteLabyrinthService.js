@@ -10,6 +10,7 @@ import { getEquippedWeapon } from './dungeonService';
 import { announceFirstLabyrinthFloorClear } from './milestoneAnnouncementService';
 
 const FLOOR_COUNT = 120;
+export const LABYRINTH_FLOOR_COUNT = FLOOR_COUNT;
 const BOSS_FLOOR_STEP = 10;
 const BOSS_FLOOR_COUNT = FLOOR_COUNT / BOSS_FLOOR_STEP;
 
