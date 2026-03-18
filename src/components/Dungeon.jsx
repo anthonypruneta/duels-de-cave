@@ -65,7 +65,6 @@ import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBa
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CharacterCardContent from './CharacterCardContent';
-import CombatLayout from './CombatLayout';
 import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
@@ -1312,7 +1311,7 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-5xl mx-auto pt-20">
+        <div className="max-w-5xl mx-auto pt-16">
           {/* Carte du personnage */}
           <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="right" />
@@ -1354,7 +1353,7 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-20">
+        <div className="max-w-[1800px] mx-auto pt-14">
           {/* Indicateur de progression */}
           <div className="flex justify-center items-center gap-4 mb-4">
             {levels.map((level, idx) => (
@@ -1402,35 +1401,115 @@ const Dungeon = () => {
             </button>
           </div>
 
-          <CombatLayout
-            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }}
-            p2Entity={{ name: boss?.name, currentHP: boss?.currentHP, maxHP: boss?.maxHP, shield: boss?.shield ?? 0, base: bossCombatBase ?? boss?.base ?? {}, ability: boss?.ability, image: getBossImage(boss?.imageFile) }}
-            p1Card={<CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />}
-            p2Card={<BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
-            logRef={logContainerRef}
-            logTitle="⚔️ Combat en direct"
-            renderLog={() => combatLog.length === 0 ? (
-              <p className="text-stone-500 italic text-center py-6 text-xs">Cliquez sur "Lancer le combat" pour commencer...</p>
-            ) : (
-              <>
-                {combatLog.map((log, idx) => {
-                  const isP1 = log.startsWith('[P1]');
-                  const isP2 = log.startsWith('[P2]');
-                  const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                  if (!isP1 && !isP2) {
-                    if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-100 text-stone-900 px-4 py-2 font-bold text-sm shadow-lg border border-stone-400">{cleanLog}</div></div>;
-                    if (log.includes('💀')) return <div key={idx} className="flex justify-center my-3"><div className="bg-red-900 text-red-200 px-4 py-2 font-bold text-sm shadow-lg border border-red-600">{cleanLog}</div></div>;
-                    if (log.includes('💚')) return <div key={idx} className="flex justify-center my-2"><div className="bg-green-900/50 text-green-300 px-3 py-1 text-xs font-bold border border-green-600">{cleanLog}</div></div>;
-                    if (log.includes('---') || log.includes('⚔️')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-700 text-stone-200 px-3 py-1 text-xs font-bold border border-stone-500">{cleanLog}</div></div>;
-                    return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-xs italic">{cleanLog}</div></div>;
-                  }
-                  if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-l-4 border-blue-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                  if (isP2) return <div key={idx} className="flex justify-end"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-r-4 border-purple-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                })}
-                <div ref={logEndRef} />
-              </>
-            )}
-          />
+          {/* Layout principal: Joueur | Chat | Boss */}
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+            {/* Carte joueur - Gauche */}
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={boss} combatStatus={playerCombatStatus} detailsPlacement="left" />
+            </div>
+
+            {/* Zone centrale - Chat */}
+            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
+              {/* Zone de chat */}
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900 p-3 border-b border-stone-700 rounded-t-xl">
+                  <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                </div>
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                  {combatLog.length === 0 ? (
+                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
+                  ) : (
+                    <>
+                      {combatLog.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        // Messages système
+                        if (!isP1 && !isP2) {
+                          if (log.includes('🏆')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('💀')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('💚')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('---') || log.includes('⚔️')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-400 text-sm italic">
+                                {cleanLog}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Messages du Joueur (gauche, bordure bleue)
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Messages du Boss (droite, bordure violette)
+                        if (isP2) {
+                          return (
+                            <div key={idx} className="flex justify-end">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-purple-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })}
+                      <div ref={logEndRef} />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Carte boss - Droite */}
+            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1447,7 +1526,7 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-20 text-center">
+        <div className="max-w-2xl mx-auto pt-16 text-center">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
             <div className="text-8xl mb-6">{gameState === 'victory' ? '🏆' : '💀'}</div>
             <h2 className={`text-4xl font-bold mb-4 ${gameState === 'victory' ? 'text-amber-400' : 'text-red-400'}`}>
@@ -1474,7 +1553,7 @@ const Dungeon = () => {
       <audio id="dungeon-music" loop>
         <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-4xl mx-auto pt-20">
+      <div className="max-w-4xl mx-auto pt-16">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-8 py-3 shadow-lg">

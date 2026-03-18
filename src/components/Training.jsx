@@ -33,7 +33,6 @@ import { getExtensionPassiveOptions } from '../data/extensionDungeon';
 import { getSubclassesForClass, getSubclassById } from '../data/subclasses';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import CombatLayout from './CombatLayout';
 import { simulerMatch, preparerCombattant } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 
@@ -620,7 +619,7 @@ const Training = () => {
         <audio id="training-music" loop>
           <source src="/assets/music/training.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-20">
+        <div className="max-w-[1800px] mx-auto pt-16">
           <div className="flex justify-center mb-4">
             <div className="bg-stone-800 border border-stone-600 px-8 py-3">
               <h1 className="text-3xl font-bold text-stone-200">🎯 Entraînement 🎯</h1>
@@ -628,42 +627,129 @@ const Training = () => {
           </div>
 
           {/* Layout: Joueur | Centre | Mannequin */}
-          <CombatLayout
-            p1Entity={{ name: player?.name, currentHP: player?.currentHP, maxHP: player?.maxHP, shield: player?.shield ?? 0, base: playerCombatBase ?? player?.base ?? {}, image: player?.characterImage }}
-            p2Entity={{ name: dummy?.name || 'Mannequin', currentHP: dummy?.currentHP, maxHP: dummy?.maxHP ?? dummy?.base?.hp, base: dummyCombatBase ?? dummy?.base ?? {} }}
-            p1Card={<CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} detailsPlacement="left" />}
-            p2Card={<DummyCard combatBaseOverride={dummyCombatBase} />}
-            logRef={logContainerRef}
-            logTitle="🎯 Entraînement en direct"
-            logContainerClass="border-2 border-stone-600 bg-stone-800"
-            aboveLog={<>
-              <div className="flex justify-center gap-2 md:gap-4 mb-3">
-                {combatResult === null && <button onClick={simulateCombat} disabled={isSimulating} className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm flex items-center gap-2 transition-all shadow-lg border-2 border-stone-400">▶️ Lancer l'entraînement</button>}
-                {combatResult === 'done' && <button onClick={handleStart} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm flex items-center gap-2 transition-all shadow-lg border-2 border-amber-500">🔄 Recommencer</button>}
-                <button onClick={handleBack} className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm flex items-center gap-2 transition-all shadow-lg border border-stone-500">← Retour</button>
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+            {/* Carte joueur */}
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
+              <CharacterCardContent character={player} showHpBar combatBaseOverride={playerCombatBase} combatModifiers={playerCombatModifiers} opponent={dummy} combatStatus={playerCombatStatus} detailsPlacement="left" />
+            </div>
+
+            {/* Zone centrale */}
+            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
+              {/* Boutons */}
+              <div className="flex justify-center gap-3 md:gap-4 mb-4">
+                {combatResult === null && (
+                  <button
+                    onClick={simulateCombat}
+                    disabled={isSimulating}
+                    className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-stone-400"
+                  >
+                    ▶️ Lancer l'entraînement
+                  </button>
+                )}
+                {combatResult === 'done' && (
+                  <button
+                    onClick={handleStart}
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-amber-500"
+                  >
+                    🔄 Recommencer
+                  </button>
+                )}
+                <button
+                  onClick={handleBack}
+                  className="bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 md:px-8 md:py-3 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition-all shadow-lg border border-stone-500"
+                >
+                  ← Retour
+                </button>
               </div>
+
+              {/* DPS Panel */}
               <DpsPanel />
-            </>}
-            renderLog={() => combatLog.length === 0 ? (
-              <p className="text-stone-500 italic text-center py-6 text-xs">Cliquez sur "Lancer l'entraînement" pour commencer...</p>
-            ) : (
-              <>
-                {combatLog.map((log, idx) => {
-                  const isP1 = log.startsWith('[P1]');
-                  const isP2 = log.startsWith('[P2]');
-                  const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
-                  if (!isP1 && !isP2) {
-                    if (log.includes('📊')) return <div key={idx} className="flex justify-center my-3"><div className="bg-amber-950 text-amber-200 px-4 py-2 font-bold text-sm shadow-lg border border-amber-600">{cleanLog}</div></div>;
-                    if (log.includes('🏆') || log.includes('💀')) return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-100 text-stone-900 px-4 py-2 font-bold text-sm shadow-lg border border-stone-400">{cleanLog}</div></div>;
-                    if (log.includes('---') || log.includes('🎯') || log.includes('⚔️')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-700 text-stone-200 px-3 py-1 text-xs font-bold border border-stone-500">{cleanLog}</div></div>;
-                    return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-xs italic">{cleanLog}</div></div>;
-                  }
-                  if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-l-4 border-blue-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                  if (isP2) return <div key={idx} className="flex justify-end"><div className="max-w-[85%]"><div className="bg-stone-700 text-stone-200 px-2 py-1.5 shadow-lg border-r-4 border-orange-500"><div className="text-xs">{formatLogMessage(cleanLog)}</div></div></div></div>;
-                })}
-              </>
-            )}
-          />
+
+              {/* Zone de chat */}
+              <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[480px] md:h-[600px]">
+                <div className="bg-stone-900 p-3 border-b border-stone-600">
+                  <h2 className="text-lg md:text-2xl font-bold text-stone-200 text-center">🎯 Entraînement en direct</h2>
+                </div>
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                  {combatLog.length === 0 ? (
+                    <p className="text-stone-500 italic text-center py-6 md:py-8 text-xs md:text-sm">Cliquez sur "Lancer l'entraînement" pour commencer...</p>
+                  ) : (
+                    <>
+                      {combatLog.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        if (!isP1 && !isP2) {
+                          if (log.includes('📊')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-amber-950 text-amber-200 px-6 py-3 font-bold text-lg shadow-lg border border-amber-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('🏆') || log.includes('💀')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-4">
+                                <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('---') || log.includes('🎯') || log.includes('⚔️')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-400 text-sm italic">{cleanLog}</div>
+                            </div>
+                          );
+                        }
+
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-l-4 border-blue-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isP2) {
+                          return (
+                            <div key={idx} className="flex justify-end">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700 text-stone-200 px-3 py-2 md:px-4 shadow-lg border-r-4 border-orange-500">
+                                  <div className="text-xs md:text-sm">{formatLogMessage(cleanLog)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Carte mannequin */}
+            <div className="order-3 md:order-3 w-full md:w-[340px] md:flex-shrink-0">
+              <DummyCard combatBaseOverride={dummyCombatBase} />
+            </div>
+          </div>
         </div>
       </div>
     );
