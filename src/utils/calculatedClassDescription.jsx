@@ -269,6 +269,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
   const cap = safe(stats, 'cap');
   const auto = safe(stats, 'auto');
   const def = safe(stats, 'def');
+  const rescap = safe(stats, 'rescap');
   const Tooltip = SharedTooltip;
   const c = getSubclassCapacityConstants(className, subclassId);
 
@@ -665,6 +666,58 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content="Vole 8% d'une stat aléatoire de l'ennemi (Auto/Déf/Cap/ResC/Vit) à chaque esquive.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Vol de stat</span>
           </Tooltip>.
+        </>
+      );
+    }
+
+    case 'maitre_alchimiste':
+    case 'alchimiste_metal': {
+      const cycleLen = c.cycleLength ?? 3;
+      const fireBonus = Math.round((c.fireCapScale ?? 0) * cap);
+      const fireTotal = auto + fireBonus;
+      const lifeBonus = Math.round((c.lifeCapScale ?? 0) * cap);
+      const lifeTotal = auto + lifeBonus;
+      const acidDmg = dmgCap(auto, rescap);
+      const defRedPct = Math.round((c.acidDefReduction ?? 0) * 100);
+      const resRedPct = Math.round((c.acidRescReduction ?? 0) * 100);
+
+      const hasMetal = cycleLen >= 4;
+      const stunDur = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
+      const metalDmg = dmgCap(auto, rescap);
+
+      return (
+        <>
+          Cycle complet (1 flasque par tour, en boucle) :
+          <br />
+          <span className="text-stone-300">Feu → Vie → Acide{hasMetal ? ' → Métal' : ''} → …</span>
+          <br />
+          Feu :{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.fireCapScale ?? 0) * 100}% × Cap (${cap}) = ${fireBonus}`}>
+            <span className="text-green-400">{fireTotal}</span>
+          </Tooltip>
+          {' '}dégâts (vs ResC)
+          <br />
+          Vie :{' '}
+          <Tooltip content={`Auto (${auto}) + ${(c.lifeCapScale ?? 0) * 100}% × Cap (${cap}) = ${lifeBonus}`}>
+            <span className="text-green-400">{lifeTotal}</span>
+          </Tooltip>
+          {' '}soins
+          <br />
+          Acide : inflige{' '}
+          <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${acidDmg}`}>
+            <span className="text-green-400">{acidDmg}</span>
+          </Tooltip>
+          {' '}dégâts (vs ResC), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          {hasMetal ? (
+            <>
+              <br />
+              Métal : inflige{' '}
+              <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${metalDmg}`}>
+                <span className="text-green-400">{metalDmg}</span>
+              </Tooltip>
+              {' '}dégâts (vs ResC) et étourdit <span className="text-green-400">{stunDur}</span> tour
+            </>
+          ) : null}
         </>
       );
     }

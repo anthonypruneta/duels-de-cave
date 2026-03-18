@@ -180,6 +180,15 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       return `Soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap. À chaque lancement : gain d'un bouclier égal à ${pct0(c.capShieldPercent)} de votre CAP. Convertit l'overheal en bouclier.`;
     case 'latum':
       return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi (réduits par la ResC), puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
+
+    case 'maitre_alchimiste': {
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère Auto + ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
+    }
+
+    case 'alchimiste_metal': {
+      const stun = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère Auto + ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs ResC) et étourdit ${stun} tour`;
+    }
     default:
       return '';
   }
