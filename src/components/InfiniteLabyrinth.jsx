@@ -201,6 +201,10 @@ const InfiniteLabyrinth = () => {
     if (!shownEnemyFloor) return null;
     let awakeningRaces = shownEnemyFloor?.bossKit?.awakeningRaces || [];
     const floorNum = Number(shownEnemyFloor.floorNumber);
+    if (floorNum === 90 && shownEnemyFloor?.type === 'boss' && awakeningRaces.length < 1) {
+      const pool = Object.keys(races).filter((name) => races[name]?.awakening);
+      awakeningRaces = pool.length ? [pool[0]] : [];
+    }
     if (BOSS_TOP_FLOORS.includes(floorNum) && shownEnemyFloor?.type === 'boss' && awakeningRaces.length < 2) {
       const pool = Object.keys(races).filter((name) => races[name]?.awakening);
       const first = awakeningRaces[0];

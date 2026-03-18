@@ -461,6 +461,10 @@ async function getPreparedUserCharacter(userId) {
 function buildFloorEnemy(floor) {
   let awakeningRaces = floor.bossKit?.awakeningRaces || [];
   const floorNum = Number(floor.floorNumber);
+  // Boss 90 : rattrapage 1 éveil si ancienne config (règle: un éveil actif à l'étage 90)
+  if (floorNum === 90 && floor.type === 'boss' && awakeningRaces.length < 1) {
+    awakeningRaces = [AWAKENING_RACE_POOL[0]];
+  }
   // Boss 100/110/120 : rattrapage 2 éveils si ancienne config
   if (BOSS_TOP_FLOORS.includes(floorNum) && floor.type === 'boss' && awakeningRaces.length < 2) {
     const first = awakeningRaces[0];
