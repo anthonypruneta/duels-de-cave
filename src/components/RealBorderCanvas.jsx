@@ -38,71 +38,149 @@ function drawSoftEdgeGlow(ctx, w, h, edge, colorA, colorB) {
 }
 
 function drawOmbre2(ctx, w, h) {
-  // Bordure statique "premium" : glow doux + coins + specks près des bords.
-  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.16)', 'rgba(88, 28, 135, 0.08)');
-  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.18)', 'rgba(76, 29, 149, 0.09)');
-  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.14)', 'rgba(88, 28, 135, 0.07)');
-  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.14)', 'rgba(88, 28, 135, 0.07)');
-
-  const cornerR = Math.min(w, h) * 0.46;
-  const corners = [
-    { x: 0, y: 0 },
-    { x: w, y: 0 },
-    { x: 0, y: h },
-    { x: w, y: h },
-  ];
-  for (const c of corners) {
-    const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, cornerR);
-    g.addColorStop(0, 'rgba(217, 70, 239, 0.14)');
-    g.addColorStop(0.35, 'rgba(139, 92, 246, 0.09)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  // Specks déterministes, concentrés vers les bords
+  // Objectif : "traits francs" + cadre travaillé + fumée opaque.
+  const minDim = Math.min(w, h);
+  const inset = Math.max(8, Math.round(minDim * 0.045));
+  const inset2 = inset + Math.max(3, Math.round(minDim * 0.012));
   const seed = hashStr(`ombre2:${w}x${h}`);
-  const count = Math.max(26, Math.floor((w * h) / 5200));
-  for (let i = 0; i < count; i++) {
-    const r1 = rand(seed + i * 11);
-    const r2 = rand(seed + i * 11 + 1);
-    const r3 = rand(seed + i * 11 + 2);
 
-    // Choisir un bord (0..3)
+  // 1) Base sombre autour (cadre externe)
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(0, 0, w, h);
+
+  // 2) Fumée opaque (blobs) concentrée sur les bords + coins
+  const smokePad = inset * 1.55;
+  const blobCount = Math.max(140, Math.floor((w + h) * 0.55));
+  for (let i = 0; i < blobCount; i++) {
+    const r1 = rand(seed + i * 13);
+    const r2 = rand(seed + i * 13 + 1);
+    const r3 = rand(seed + i * 13 + 2);
+    const r4 = rand(seed + i * 13 + 3);
+
     const side = Math.floor(r1 * 4);
-    const pad = Math.min(w, h) * 0.12;
     let x = 0;
     let y = 0;
     if (side === 0) { // top
       x = r2 * w;
-      y = r3 * pad;
+      y = r3 * smokePad;
     } else if (side === 1) { // bottom
       x = r2 * w;
-      y = h - r3 * pad;
+      y = h - r3 * smokePad;
     } else if (side === 2) { // left
-      x = r3 * pad;
+      x = r3 * smokePad;
       y = r2 * h;
     } else { // right
-      x = w - r3 * pad;
+      x = w - r3 * smokePad;
       y = r2 * h;
     }
 
-    const rad = 0.6 + rand(seed + i * 11 + 3) * 1.6;
-    const alpha = 0.03 + rand(seed + i * 11 + 4) * 0.09;
-    const hue = 265 + rand(seed + i * 11 + 5) * 30;
+    // Booster les coins
+    const cornerBoost = (x < smokePad * 1.2 || x > w - smokePad * 1.2 || y < smokePad * 1.2 || y > h - smokePad * 1.2) ? 1.25 : 1;
+    const rad = (6 + r4 * 26) * cornerBoost * (minDim / 340);
+    const alpha = (0.10 + r3 * 0.22) * cornerBoost; // opaque
 
-    ctx.fillStyle = `hsla(${hue},70%,72%,${alpha})`;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(30, 0, 55, ${alpha})`);
+    g.addColorStop(0.4, `rgba(75, 15, 120, ${alpha * 0.55})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, rad, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Double liseré subtil (extérieur + intérieur)
-  ctx.strokeStyle = 'rgba(216, 180, 254, 0.10)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-  ctx.strokeStyle = 'rgba(15, 0, 30, 0.22)';
-  ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
+  // 3) Glow doux (sous-couche) — plus présent que la V1 mais pas "néon"
+  drawSoftEdgeGlow(ctx, w, h, 'top', 'rgba(168, 85, 247, 0.22)', 'rgba(88, 28, 135, 0.10)');
+  drawSoftEdgeGlow(ctx, w, h, 'bottom', 'rgba(139, 92, 246, 0.24)', 'rgba(76, 29, 149, 0.11)');
+  drawSoftEdgeGlow(ctx, w, h, 'left', 'rgba(168, 85, 247, 0.18)', 'rgba(88, 28, 135, 0.09)');
+  drawSoftEdgeGlow(ctx, w, h, 'right', 'rgba(168, 85, 247, 0.18)', 'rgba(88, 28, 135, 0.09)');
+
+  // Helpers pour traits/ornements
+  const strokeFrame = (off, width, strokeStyle, glow = null) => {
+    ctx.save();
+    if (glow) {
+      ctx.shadowColor = glow.color;
+      ctx.shadowBlur = glow.blur;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = width;
+    ctx.lineJoin = 'round';
+    ctx.strokeRect(off + 0.5, off + 0.5, w - (off * 2) - 1, h - (off * 2) - 1);
+    ctx.restore();
+  };
+
+  // 4) Traits francs (double cadre) comme sur ta référence
+  // Outer dark line
+  strokeFrame(inset2, Math.max(1.5, minDim / 220), 'rgba(5, 0, 12, 0.85)');
+  // Inner violet line with subtle glow
+  const violet = ctx.createLinearGradient(inset, inset, w - inset, h - inset);
+  violet.addColorStop(0, 'rgba(221, 214, 254, 0.95)');
+  violet.addColorStop(0.35, 'rgba(196, 181, 253, 0.80)');
+  violet.addColorStop(0.7, 'rgba(167, 139, 250, 0.65)');
+  violet.addColorStop(1, 'rgba(233, 213, 255, 0.90)');
+  strokeFrame(inset, Math.max(1.2, minDim / 260), violet, { color: 'rgba(168, 85, 247, 0.45)', blur: Math.max(4, minDim * 0.02) });
+
+  // 5) Ornements simples (coins + diamant haut/bas) — “ça a de la gueule” sans PNG
+  const cornerSize = Math.max(18, minDim * 0.14);
+  const curl = (sx, sy, flipX, flipY) => {
+    const x = sx;
+    const y = sy;
+    const fx = flipX ? -1 : 1;
+    const fy = flipY ? -1 : 1;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(fx, fy);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // base dark stroke (shadow)
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+    ctx.lineWidth = Math.max(2.4, minDim * 0.010);
+    ctx.beginPath();
+    ctx.moveTo(0, cornerSize * 0.15);
+    ctx.bezierCurveTo(cornerSize * 0.25, cornerSize * 0.05, cornerSize * 0.55, cornerSize * 0.15, cornerSize * 0.62, cornerSize * 0.34);
+    ctx.bezierCurveTo(cornerSize * 0.72, cornerSize * 0.62, cornerSize * 0.35, cornerSize * 0.70, cornerSize * 0.22, cornerSize * 0.88);
+    ctx.stroke();
+
+    // violet highlight stroke
+    ctx.shadowColor = 'rgba(168, 85, 247, 0.55)';
+    ctx.shadowBlur = Math.max(6, minDim * 0.028);
+    ctx.strokeStyle = 'rgba(216, 180, 254, 0.70)';
+    ctx.lineWidth = Math.max(1.2, minDim * 0.005);
+    ctx.beginPath();
+    ctx.moveTo(cornerSize * 0.02, cornerSize * 0.22);
+    ctx.bezierCurveTo(cornerSize * 0.32, cornerSize * 0.10, cornerSize * 0.58, cornerSize * 0.22, cornerSize * 0.58, cornerSize * 0.40);
+    ctx.bezierCurveTo(cornerSize * 0.58, cornerSize * 0.60, cornerSize * 0.30, cornerSize * 0.70, cornerSize * 0.20, cornerSize * 0.86);
+    ctx.stroke();
+
+    ctx.restore();
+  };
+
+  const off = inset * 0.55;
+  curl(off, off, false, false);
+  curl(w - off, off, true, false);
+  curl(off, h - off, false, true);
+  curl(w - off, h - off, true, true);
+
+  const diamond = (cx, cy) => {
+    const s = Math.max(10, minDim * 0.045);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.PI / 4);
+    ctx.shadowColor = 'rgba(168, 85, 247, 0.65)';
+    ctx.shadowBlur = Math.max(6, minDim * 0.03);
+    ctx.fillStyle = 'rgba(196, 181, 253, 0.70)';
+    ctx.fillRect(-s / 2, -s / 2, s, s);
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = Math.max(1, minDim * 0.004);
+    ctx.strokeRect(-s / 2, -s / 2, s, s);
+    ctx.restore();
+  };
+
+  diamond(w / 2, inset);
+  diamond(w / 2, h - inset);
 }
 
 function drawBorder(ctx, borderId, w, h) {
