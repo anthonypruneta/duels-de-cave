@@ -144,6 +144,36 @@ const getWeaponTooltipContent = (weapon, hideFlatStats = false) => {
   );
 };
 
+const CollapsiblePanel = ({ title, subtitle, isOpen, onToggle, children }) => {
+  return (
+    <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-stone-900/30 transition-colors"
+        aria-expanded={isOpen}
+      >
+        <div className="min-w-0">
+          <div className="text-sm font-bold text-amber-400 uppercase tracking-widest truncate">{title}</div>
+          {subtitle ? (
+            <div className="text-[11px] text-stone-500 mt-1 leading-snug">
+              {subtitle}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-[11px] font-semibold text-stone-400">{isOpen ? 'Masquer' : 'Afficher'}</span>
+          <span className="text-stone-300 text-lg leading-none">{isOpen ? '▴' : '▾'}</span>
+        </div>
+      </button>
+
+      <div className={`${isOpen ? 'block' : 'hidden'} px-4 pb-4`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 
 const RecapPanel = ({ data }) => {
   if (!data) return null;
@@ -349,6 +379,9 @@ const CharacterCreation = () => {
   const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
   const [obtentionStats, setObtentionStats] = useState(null);
   const [recapData, setRecapData] = useState(null);
+  const [isTitlesOpen, setIsTitlesOpen] = useState(true);
+  const [isEffectsOpen, setIsEffectsOpen] = useState(true);
+  const [isBordersOpen, setIsBordersOpen] = useState(true);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const weaponFamilies = getWeaponFamilyInfo();
@@ -1306,8 +1339,11 @@ const CharacterCreation = () => {
           {existingCharacter && (
             <div className="max-w-[1400px] mx-auto mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 px-2">
               {/* Section Titres */}
-              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
-                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">🏅 Titres</h3>
+              <CollapsiblePanel
+                title="🏅 Titres"
+                isOpen={isTitlesOpen}
+                onToggle={() => setIsTitlesOpen(v => !v)}
+              >
                 {(existingCharacter.earnedTitles?.length > 0) ? (
                   <div className="space-y-1.5">
                     {existingCharacter.equippedTitle && (
@@ -1360,12 +1396,15 @@ const CharacterCreation = () => {
                 ) : (
                   <p className="text-xs text-stone-500">Aucun titre obtenu. Combattez pour en débloquer !</p>
                 )}
-              </div>
+              </CollapsiblePanel>
 
               {/* Section Effets + Bordures (même colonne) */}
               <div className="space-y-4">
-                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-3">✨ Effets</h3>
+                <CollapsiblePanel
+                  title="✨ Effets"
+                  isOpen={isEffectsOpen}
+                  onToggle={() => setIsEffectsOpen(v => !v)}
+                >
                   {[
                     { label: 'Personnage', desc: 'Liées à la progression du personnage', filter: b => b.type !== 'account' },
                     { label: 'Compte', desc: 'Conservées de semaine en semaine', filter: b => b.type === 'account' },
@@ -1430,14 +1469,19 @@ const CharacterCreation = () => {
                       </div>
                     );
                   })}
-                </div>
+                </CollapsiblePanel>
 
-                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 shadow-lg">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-2">🧷 Bordures</h3>
-                  <p className="text-[11px] text-stone-500 mb-3">
-                    Bordure visuelle autour de ta carte (sans re-upload d&apos;image). Les fichiers <strong className="text-stone-400">*Old</strong> et <strong className="text-stone-400">BG</strong> sont ignorés.
-                  </p>
-
+                <CollapsiblePanel
+                  title="🧷 Bordures"
+                  subtitle={
+                    <span>
+                      Bordure visuelle autour de ta carte (sans re-upload d&apos;image). Les fichiers{' '}
+                      <strong className="text-stone-400">*Old</strong> et <strong className="text-stone-400">BG</strong> sont ignorés.
+                    </span>
+                  }
+                  isOpen={isBordersOpen}
+                  onToggle={() => setIsBordersOpen(v => !v)}
+                >
                   <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                     <button
                       type="button"
@@ -1485,7 +1529,7 @@ const CharacterCreation = () => {
                       );
                     })}
                   </div>
-                </div>
+                </CollapsiblePanel>
               </div>
             </div>
           )}
