@@ -1558,65 +1558,79 @@ function drawWaterSun(ctx, state, w, h) {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h * 0.6);
 
-  // Rayons du soleil (éventail doux proche d'une vieille image film)
-  const rayCount = 11;
-  const baseLen = Math.max(w, h) * 0.78;
+  // Rayons du soleil (flare) : gros glow radial collé à l'angle + quelques streaks vers l'intérieur.
+  // Objectif : garder la zone la plus lumineuse au maximum dans le coin haut-gauche.
+  const baseLen = Math.max(w, h);
+  const sunX = w * 0.03;
+  const sunY = h * 0.03;
+
   ctx.save();
-
-  const sunX = w * 0.07;
-  const sunY = h * 0.07;
-  ctx.translate(sunX, sunY);
-
   ctx.globalCompositeOperation = 'screen';
-  const fanStart = -0.28;
-  const fanEnd = 1.12;
 
-  // Masque (clipping) de l'éventail
+  // Glow principal
+  const flareR = baseLen * 0.60;
+  const core = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, flareR);
+  core.addColorStop(0, 'rgba(255, 252, 220, 0.78)');
+  core.addColorStop(0.08, 'rgba(251, 191, 36, 0.42)');
+  core.addColorStop(0.28, 'rgba(234, 179, 8, 0.18)');
+  core.addColorStop(0.65, 'rgba(251, 191, 36, 0.07)');
+  core.addColorStop(1, 'rgba(251, 191, 36, 0)');
+  ctx.fillStyle = core;
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.arc(0, 0, baseLen, fanStart, fanEnd);
-  ctx.closePath();
-  ctx.clip();
+  ctx.arc(sunX, sunY, flareR, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Glow large
-  const fanGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, baseLen);
-  fanGlow.addColorStop(0, 'rgba(251, 191, 36, 0.22)');
-  fanGlow.addColorStop(0.45, 'rgba(234, 179, 8, 0.14)');
-  fanGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
-  ctx.fillStyle = fanGlow;
-  ctx.fillRect(-baseLen, -baseLen, baseLen * 2, baseLen * 2);
+  // Halo doux (plus large)
+  const haloR = baseLen * 0.92;
+  const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, haloR);
+  halo.addColorStop(0, 'rgba(251, 191, 36, 0.20)');
+  halo.addColorStop(0.40, 'rgba(234, 179, 8, 0.06)');
+  halo.addColorStop(1, 'rgba(251, 191, 36, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, haloR, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Rayons “épais” cassés (segments) pour retrouver un rendu plus “texture”
+  // Streaks (segments) dans le quadrant "droit + bas"
+  const rayCount = 10;
+  const rayLenBase = baseLen * 0.82;
+  ctx.translate(sunX, sunY);
+  ctx.globalAlpha = 1;
+
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
-    const angle = lerp(fanStart, fanEnd, t) + Math.sin(state.waterPhase * 0.7 + i) * 0.05;
-    ctx.save();
-    ctx.rotate(angle);
+    const theta = lerp(0.05, Math.PI * 0.95, t) + Math.sin(state.waterPhase * 0.55 + i) * 0.035;
 
-    const sw = lerp(18, 6, t) * (0.9 + 0.18 * Math.sin(state.waterPhase + i)) * 0.85;
-    const len = baseLen * lerp(0.55, 0.98, Math.sin(state.waterPhase * 0.3 + i) * 0.5 + 0.5) * 0.95;
+    const rayLen = rayLenBase * (0.75 + 0.25 * Math.sin(state.waterPhase * 0.30 + i) * 0.5 + 0.5);
+    const x2 = Math.cos(theta) * rayLen;
+    const y2 = Math.sin(theta) * rayLen;
 
-    const g = ctx.createLinearGradient(0, 0, 0, len);
-    g.addColorStop(0, 'rgba(251, 191, 36, 0)');
-    g.addColorStop(0.22, 'rgba(251, 191, 36, 0.30)');
-    g.addColorStop(0.6, 'rgba(234, 179, 8, 0.55)');
-    g.addColorStop(1, 'rgba(251, 191, 36, 0)');
-    ctx.fillStyle = g;
+    const rayW = lerp(22, 7, t);
+    const streak = ctx.createLinearGradient(0, 0, x2, y2);
+    streak.addColorStop(0, 'rgba(251, 191, 36, 0)');
+    streak.addColorStop(0.18, 'rgba(251, 191, 36, 0.48)');
+    streak.addColorStop(0.56, 'rgba(234, 179, 8, 0.28)');
+    streak.addColorStop(1, 'rgba(251, 191, 36, 0)');
 
-    const segCount = 7;
-    for (let s = 0; s < segCount; s++) {
-      const gap = Math.sin(state.waterPhase * 1.6 + i * 1.7 + s * 2.1) * 0.5 + 0.5;
-      if (gap < 0.18) continue;
+    ctx.strokeStyle = streak;
+    ctx.lineWidth = Math.max(1.5, rayW * 0.12);
+    ctx.lineCap = 'round';
 
-      const segT = s / segCount;
-      const segLen = len / segCount * (0.55 + 0.45 * gap);
-      const y0 = segT * len;
+    const segs = 9;
+    for (let s = 0; s < segs; s++) {
+      const segT0 = s / segs;
+      const segT1 = (s + 1) / segs;
+      const p = (segT0 + segT1) * 0.5;
 
-      ctx.globalAlpha = 0.45 + 0.55 * gap;
-      ctx.fillRect(-sw / 2, y0, sw, segLen);
+      const gap = Math.sin(state.waterPhase * 1.15 + i * 1.7 + s * 2.25);
+      if (gap > 0.38) continue;
+
+      ctx.globalAlpha = 0.35 + 0.65 * (1 - p);
+      ctx.beginPath();
+      ctx.moveTo(x2 * segT0, y2 * segT0);
+      ctx.lineTo(x2 * segT1, y2 * segT1);
+      ctx.stroke();
     }
-
-    ctx.restore();
   }
 
   ctx.globalAlpha = 1;
