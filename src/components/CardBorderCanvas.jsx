@@ -1439,10 +1439,10 @@ function drawAncient(ctx, state, w, h) {
 
 function spawnWaterBubble(w, h) {
   // On aligne les bulles avec la nouvelle surface pour éviter les “trous”
-  const surfaceY = h * 0.80;
+  const surfaceY = h * 0.90;
   return {
     x: rand(0, w),
-    y: rand(surfaceY - h * 0.045, h * 0.98),
+    y: rand(surfaceY - h * 0.05, h * 0.99),
     vy: rand(-0.15, -0.9),
     vx: rand(-0.08, 0.08),
     r: rand(1.2, 3.2),
@@ -1470,20 +1470,20 @@ function updateWaterSun(state, w, h, dt) {
     b.y += b.vy * s - Math.sin(b.phase) * 0.15 * s;
     b.x += b.vx * s + Math.cos(b.phase * 0.7) * 0.03 * s;
     // Respawn quand la bulle sort trop haut (sinon elles “flottent” dans la zone air)
-    if (b.y < h * 0.74 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
+    if (b.y < h * 0.86 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
   }
 
   state.waveCooldown -= s;
   if (state.waveCooldown <= 0 && !state.wave) {
     state.wave = {
       t: 0,
-      // Vague plus lente + plus “tsunami” (front qui traverse moins vite)
-      duration: randInt(70, 110),
-      amp: rand(18, 30),
+      // Vague "tsunami" : on relève fortement la zone derrière le front
+      duration: randInt(110, 170),
+      amp: rand(45, 90),
       phase: rand(0, Math.PI * 2),
-      speed: rand(0.45, 0.75),
+      speed: rand(0.18, 0.35),
     };
-    state.waveCooldown = rand(360, 720);
+    state.waveCooldown = rand(520, 1050);
   }
 
   if (state.wave) {
@@ -1529,15 +1529,16 @@ function drawWaterSun(ctx, state, w, h) {
   ctx.restore();
 
   // Eau trop haute actuellement => on baisse la surface (moins d'eau visible)
-  const surfaceY = h * 0.80;
+  const surfaceY = h * 0.90;
   const waveProgress = state.wave ? Math.min(1, state.wave.t / state.wave.duration) : 0;
+  const wavePulse = state.wave ? Math.sin(waveProgress * Math.PI) : 0; // pic au milieu
   // Front qui va de droite -> gauche
   const waveFrontX = state.wave
     ? lerp(w * 1.05, -w * 0.05, waveProgress)
     : 0;
-  // Largeur du front : plus grand pour que la vague ait plus d'impact visuel
-  const waveSigma = Math.max(22, w * 0.085);
-  const waveFreq = Math.max(0.03, 0.05 * (w / 280));
+  // Largeur du front (tsunami large)
+  const waveSigma = Math.max(28, w * 0.11);
+  const waveFreq = Math.max(0.02, 0.04 * (w / 280));
 
   // Fond eau
   const waterBg = ctx.createLinearGradient(0, surfaceY, 0, h);
@@ -1561,16 +1562,27 @@ function drawWaterSun(ctx, state, w, h) {
     for (let x = 0; x <= w; x += step) {
       const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx);
       const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
-      // “Mini tsunami” occasionnel: un front localisé qui traverse droite -> gauche
-      // (enveloppe gaussienne + oscillation autour du front)
-      let waveEvent = 0;
+
+      // "Vrai" tsunami : la zone derrière le front est relevée fortement.
+      // (on relève donc la surface : y diminue car l'axe Y descend)
+      let raise = 0;
+      let micro = 0;
       if (state.wave) {
-        const dx = x - waveFrontX;
-        const env = Math.exp(-(dx * dx) / (2 * waveSigma * waveSigma));
-        const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 4.0);
-        waveEvent = ripple * env;
+        const dx = x - waveFrontX; // dx < 0 = derrière le front
+        const frontW = waveSigma * (0.85 + layerIdx * 0.08);
+        const behind = 1 / (1 + Math.exp(dx / frontW)); // transition douce front -> zone touchée
+        const sharp = Math.exp(-(dx * dx) / (2 * frontW * frontW)); // texture près du front
+
+        const crestHeight = state.wave.amp * (0.55 + layerIdx * 0.10);
+        const env = wavePulse * (0.70 + 0.30 * waveFade);
+
+        raise = crestHeight * env * behind;
+
+        const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 6.0);
+        micro = sharp * ripple * crestHeight * 0.06;
       }
-      const y = surfaceY + wave + wave2 + waveEvent * (state.wave ? waveFade * amp : 0) * 0.18;
+
+      const y = surfaceY + wave + wave2 - raise + micro;
       ctx.lineTo(x, y);
     }
     ctx.lineTo(w, h);
@@ -1586,9 +1598,26 @@ function drawWaterSun(ctx, state, w, h) {
     ctx.beginPath();
     let started = false;
     for (let x = 0; x <= w; x += step) {
-      const y = surfaceY
-        + Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx)
-        + Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
+      const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx);
+      const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
+
+      let raise = 0;
+      let micro = 0;
+      if (state.wave) {
+        const dx = x - waveFrontX;
+        const frontW = waveSigma * (0.85 + layerIdx * 0.08);
+        const behind = 1 / (1 + Math.exp(dx / frontW));
+        const sharp = Math.exp(-(dx * dx) / (2 * frontW * frontW));
+
+        const crestHeight = state.wave.amp * (0.55 + layerIdx * 0.10);
+        const env = wavePulse * (0.70 + 0.30 * waveFade);
+        raise = crestHeight * env * behind;
+
+        const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 6.0);
+        micro = sharp * ripple * crestHeight * 0.06;
+      }
+
+      const y = surfaceY + wave + wave2 - raise + micro;
       if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
     }
     ctx.stroke();
