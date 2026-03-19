@@ -361,15 +361,28 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 
-  const hasNew = newUnlocked.some(id => !currentUnlocked.includes(id));
-  if (!hasNew) return currentUnlocked;
+  // Anti-régression : si "ancient" a été débloqué à tort dans le passé,
+  // on le retire si la condition n'est plus valide.
+  let adjustedCurrentUnlocked = currentUnlocked;
+  if (!newUnlocked.includes('ancient') && currentUnlocked.includes('ancient')) {
+    adjustedCurrentUnlocked = currentUnlocked.filter(id => id !== 'ancient');
+  }
 
-  const merged = [...new Set([...currentUnlocked, ...newUnlocked])];
+  const merged = [...new Set([...adjustedCurrentUnlocked, ...newUnlocked])];
+  const hasChanges = (
+    merged.length !== currentUnlocked.length ||
+    merged.some(id => !currentUnlocked.includes(id)) ||
+    currentUnlocked.some(id => id === 'ancient' && !merged.includes('ancient'))
+  );
+  if (!hasChanges) return currentUnlocked;
   
   // Sauvegarder dans le personnage
   try {
     await setDoc(doc(db, 'characters', userId), {
       unlockedBorders: merged,
+      // Si l'effet "ancient" n'est plus débloqué mais qu'il était équipé,
+      // on le déséquipe pour éviter un affichage incorrect.
+      equippedBorder: (!merged.includes('ancient') && character?.equippedBorder === 'ancient') ? null : character?.equippedBorder,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {
@@ -382,7 +395,11 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     try {
       const prefsRef = doc(db, 'userPreferences', userId);
       const prefsSnap = await getDoc(prefsRef);
-      const existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      let existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      // Si "ancient" n'est plus débloqué, on le retire aussi des prefs.
+      if (!merged.includes('ancient') && existingAccountBorders.includes('ancient')) {
+        existingAccountBorders = existingAccountBorders.filter(id => id !== 'ancient');
+      }
       const mergedAccountBorders = [...new Set([...existingAccountBorders, ...accountBordersUnlocked])];
       await setDoc(prefsRef, {
         unlockedAccountBorders: mergedAccountBorders,
