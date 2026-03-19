@@ -17,6 +17,10 @@ function Header() {
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
+  // Mobile: menu repliable pour éviter les soucis d'affichage/recouvrement.
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   // --- Son global ---
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem('game-volume');
@@ -32,6 +36,20 @@ function Header() {
   useEffect(() => {
     localStorage.setItem('game-muted', String(isMuted));
   }, [isMuted]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = () => {
+      const mobileNow = mq.matches;
+      setIsMobile(mobileNow);
+      // si on repasse sur desktop, on force l'ouverture (comportement actuel).
+      if (!mobileNow) setIsMenuOpen(false);
+    };
+    sync();
+    mq.addEventListener?.('change', sync);
+    return () => mq.removeEventListener?.('change', sync);
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -138,11 +156,30 @@ function Header() {
         <div className="bg-stone-950/95 border-b border-stone-700/60 px-2 py-2">
           {currentUser && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest flex-shrink-0 mr-0.5">Menu</span>
-              {navLinks.map(link => (
+              {/* Mobile: bouton plié/déplié */}
+              {isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(v => !v)}
+                  className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest flex-shrink-0 mr-0.5 px-1.5 py-1 rounded border border-stone-700/60 bg-stone-900/30 hover:bg-stone-900/50 transition"
+                  aria-expanded={isMenuOpen}
+                >
+                  Menu {isMenuOpen ? '▴' : '▾'}
+                </button>
+              ) : (
+                <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest flex-shrink-0 mr-0.5">
+                  Menu
+                </span>
+              )}
+
+              {/* Desktop: tout affiché. Mobile: affichage conditionnel */}
+              {(!isMobile || isMenuOpen) && navLinks.map(link => (
                 <button
                   key={link.path}
-                  onClick={() => navigate(link.path)}
+                  onClick={() => {
+                    navigate(link.path);
+                    if (isMobile) setIsMenuOpen(false);
+                  }}
                   className={`px-2.5 py-1.5 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
                     location.pathname === link.path
                       ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
