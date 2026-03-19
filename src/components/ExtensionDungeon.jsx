@@ -106,6 +106,7 @@ const ExtensionDungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const hasAutoStartedRef = useRef(false);
+  const combatStartLockRef = useRef(false);
   const [rolledExtensionPassive, setRolledExtensionPassive] = useState(null);
   const [previousExtensionPassive, setPreviousExtensionPassive] = useState(null);
   const [extensionChoice, setExtensionChoice] = useState(null);
@@ -232,7 +233,9 @@ const ExtensionDungeon = () => {
   };
 
   const simulateCombat = async () => {
-    if (!player || !boss || !character || isSimulating) return;
+    if (!player || !boss || !character) return;
+    if (combatStartLockRef.current) return;
+    combatStartLockRef.current = true;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -286,6 +289,7 @@ const ExtensionDungeon = () => {
       setGameState('defeat');
     }
     setIsSimulating(false);
+    combatStartLockRef.current = false;
   };
 
   const handleAcceptNewPassive = async () => {

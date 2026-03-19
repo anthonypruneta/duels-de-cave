@@ -56,6 +56,7 @@ const SubclassDungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const hasAutoStartedRef = useRef(false);
+  const combatStartLockRef = useRef(false);
   const ensureSubclassMusic = () => {
     const el = document.getElementById('subclass-dungeon-music');
     if (el) {
@@ -161,7 +162,9 @@ const SubclassDungeon = () => {
   };
 
   const simulateCombat = async () => {
-    if (!player || !boss || !character || isSimulating) return;
+    if (!player || !boss || !character) return;
+    if (combatStartLockRef.current) return;
+    combatStartLockRef.current = true;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -200,6 +203,7 @@ const SubclassDungeon = () => {
       setGameState('defeat');
     }
     setIsSimulating(false);
+    combatStartLockRef.current = false;
   };
 
   const handleChooseSubclass = async (sub) => {

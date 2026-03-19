@@ -213,6 +213,7 @@ const ForestDungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const lastAutoStartLevelRef = useRef(null);
+  const combatStartLockRef = useRef(false);
 
   const ensureForestMusic = () => {
     const forestMusic = document.getElementById('forest-music');
@@ -1114,7 +1115,9 @@ const ForestDungeon = () => {
 
   // On passe le personnage BRUT (character) à simulerMatch pour éviter double préparation (forêt/arme appliquées 2x)
   const simulateCombat = async () => {
-    if (!player || !boss || !character || isSimulating) return;
+    if (!player || !boss || !character) return;
+    if (combatStartLockRef.current) return;
+    combatStartLockRef.current = true;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -1196,6 +1199,7 @@ const ForestDungeon = () => {
     }
 
     setIsSimulating(false);
+    combatStartLockRef.current = false;
   };
 
   const handleForestChoice = (optionIndex) => {

@@ -150,6 +150,7 @@ const ForgeDungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const hasAutoStartedRef = useRef(false);
+  const combatStartLockRef = useRef(false);
   const [currentUpgrade, setCurrentUpgrade] = useState(null);
   const [previousUpgrade, setPreviousUpgrade] = useState(null);
   const [newUpgradeRoll, setNewUpgradeRoll] = useState(null);
@@ -305,7 +306,9 @@ const ForgeDungeon = () => {
   };
 
   const simulateCombat = async () => {
-    if (!player || !boss || !character || isSimulating) return;
+    if (!player || !boss || !character) return;
+    if (combatStartLockRef.current) return;
+    combatStartLockRef.current = true;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -364,6 +367,7 @@ const ForgeDungeon = () => {
     }
 
     setIsSimulating(false);
+    combatStartLockRef.current = false;
   };
 
   const handleAcceptNewRoll = async () => {

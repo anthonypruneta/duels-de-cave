@@ -225,6 +225,7 @@ const Dungeon = () => {
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const lastAutoStartLevelRef = useRef(null);
+  const combatStartLockRef = useRef(false);
   const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
     if (dungeonMusic && dungeonMusic.paused) {
@@ -1012,7 +1013,9 @@ const Dungeon = () => {
   // Lancer le combat (timing identique à Combat.jsx)
   // On passe le personnage BRUT (character) à simulerMatch pour éviter double préparation (forêt/arme appliquées 2x)
   const simulateCombat = async () => {
-    if (!player || !boss || !character || isSimulating) return;
+    if (!player || !boss || !character) return;
+    if (combatStartLockRef.current) return;
+    combatStartLockRef.current = true;
     setIsSimulating(true);
     setCombatResult(null);
     setPlayerCombatBase(null);
@@ -1106,6 +1109,7 @@ const Dungeon = () => {
     }
 
     setIsSimulating(false);
+    combatStartLockRef.current = false;
   };
 
   // Gérer le choix du loot (le joueur choisit une des 2 armes)
