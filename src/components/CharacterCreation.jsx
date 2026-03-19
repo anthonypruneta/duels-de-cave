@@ -1286,12 +1286,14 @@ const CharacterCreation = () => {
                     return bid !== 'default' ? (getBorderGlowClass(bid) || '') : 'border border-stone-600';
                   })()
                 }`}>
-                  {(() => {
-                    const bid = resolveBorderId(existingCharacter.equippedBorder);
-                    return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
-                  })()}
                   <InteractiveCharacterCard>
-                    <div className="relative bg-stone-900 flex items-center justify-center min-h-[280px]">
+                    <div
+                      className="relative bg-stone-900 flex items-center justify-center min-h-[280px]"
+                      style={(() => {
+                        const bid = resolveBorderId(existingCharacter.equippedBorder);
+                        return bid === 'ancient' ? { filter: 'grayscale(1) contrast(1.42) brightness(0.96) saturate(0.15)' } : undefined;
+                      })()}
+                    >
                       {existingCharacter.characterImage ? (
                         <img
                           src={existingCharacter.characterImage}
@@ -1311,9 +1313,13 @@ const CharacterCreation = () => {
                             src={src}
                             alt=""
                             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                            style={{ zIndex: 3 }}
+                            style={{ zIndex: 2 }}
                           />
                         );
+                      })()}
+                      {(() => {
+                        const bid = resolveBorderId(existingCharacter.equippedBorder);
+                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
                       })()}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
