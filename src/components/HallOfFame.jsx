@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getHallOfFame } from '../services/tournamentService';
+import { getHallOfFame, LEGACY_TOURNAMENT_DOC_ID } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
 import { db } from '../firebase/config';
 import { collection, doc, getDocs, getDoc, query, where } from 'firebase/firestore';
@@ -189,27 +189,46 @@ const HallOfFame = () => {
 
         const enriched = [];
         for (const row of rows) {
-          let char = null;
+          const targetUserId = row.ownerUserId || null;
+          const targetNom = (row.nom || row.name || '').trim();
+          if (!targetUserId || !targetNom) continue;
 
-          // 1) Tenter l'accès direct par id (souvent le même que archivedCharacters)
-          const directSnap = await getDoc(doc(db, 'archivedCharacters', row.id));
-          if (directSnap.exists()) {
-            char = directSnap.data() || {};
-          } else if (row.ownerUserId) {
-            // 2) Fallback : retrouver la fiche champion via ownerUserId
-            // (utile si les ids ne correspondent pas exactement)
-            const qSnap = await getDocs(
-              query(
-                collection(db, 'archivedCharacters'),
-                where('userId', '==', row.ownerUserId),
-                where('tournamentChampion', '==', true),
-              )
-            );
-            const candidates = qSnap.docs.map((d) => d.data());
-            const best = trouverMeilleureArchive(candidates, extraireTimestampMillis(row.retiredAt));
-            char = best || (candidates[0] || null);
+          // On récupère toutes les fiches archivées du compte,
+          // puis on choisit celle qui correspond au nom du champion legacy.
+          const qSnap = await getDocs(
+            query(
+              collection(db, 'archivedCharacters'),
+              where('userId', '==', targetUserId),
+            )
+          );
+          const candidates = qSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          if (!candidates.length) continue;
+
+          const norm = (s) => String(s || '').trim().toLowerCase();
+          const targetNorm = norm(targetNom);
+
+          // 1) Exact match name/nom
+          let match = candidates.find((c) => {
+            const n = norm(c.name ?? c.nom);
+            return n === targetNorm;
+          });
+
+          // 2) Si pas trouvé, on essaie match par tournamentChampion (si présent)
+          if (!match) {
+            const champ = candidates.find((c) => c.tournamentChampion === true);
+            if (champ && norm(champ.name ?? champ.nom) === targetNorm) match = champ;
           }
 
+          // 3) Sinon, prendre l'archive la plus proche de retiredAt
+          if (!match) {
+            const best = trouverMeilleureArchive(
+              candidates,
+              extraireTimestampMillis(row.retiredAt)
+            );
+            match = best || candidates[0];
+          }
+
+          const char = match || null;
           if (!char) continue;
           if (!char.name && char.nom) char.name = char.nom;
 
