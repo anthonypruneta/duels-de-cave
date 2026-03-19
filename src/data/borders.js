@@ -8,6 +8,7 @@
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { TITLES } from './titles';
+import { isForgeRollHighPerfection } from './forgeDungeon';
 
 /**
  * type: 'character' = lié à la progression hebdomadaire du personnage (reset chaque semaine)
@@ -445,6 +446,41 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
         }
       }
     } catch (_) { /* ignore */ }
+
+    // Rétro-compat: anciens persos archivés / perso actuel.
+    // Si les compteurs n'étaient pas encore persistés, on infère un minimum.
+    if (perfectOrnnWeaponCount < 1 || gojoPassiveLevel3Count < 1) {
+      try {
+        const archSnap = await getDocs(query(
+          collection(db, 'archivedCharacters'),
+          where('userId', '==', userId)
+        ));
+
+        let hasPerfectOrnn = false;
+        let hasGojoLv3 = false;
+
+        archSnap.forEach((docSnap) => {
+          const row = docSnap.data() || {};
+          if (!hasPerfectOrnn && row.forgeUpgrade && isForgeRollHighPerfection(row.forgeUpgrade, 0.9)) {
+            hasPerfectOrnn = true;
+          }
+          if (!hasGojoLv3 && Number(row?.mageTowerExtensionPassive?.level ?? 0) >= 3) {
+            hasGojoLv3 = true;
+          }
+        });
+
+        if (!hasPerfectOrnn && character?.forgeUpgrade && isForgeRollHighPerfection(character.forgeUpgrade, 0.9)) {
+          hasPerfectOrnn = true;
+        }
+        if (!hasGojoLv3 && Number(character?.mageTowerExtensionPassive?.level ?? 0) >= 3) {
+          hasGojoLv3 = true;
+        }
+
+        if (hasPerfectOrnn) perfectOrnnWeaponCount = Math.max(perfectOrnnWeaponCount, 1);
+        if (hasGojoLv3) gojoPassiveLevel3Count = Math.max(gojoPassiveLevel3Count, 1);
+      } catch (_) { /* ignore */ }
+    }
+
     extras = { ...extras, perfectOrnnWeaponCount, gojoPassiveLevel3Count };
   }
 
