@@ -29,6 +29,12 @@ import { classes as classesData } from '../data/classes';
 import WorldBossAdmin from './WorldBossAdmin';
 import AdminBalance from './AdminBalance';
 import AdminCombatHD2D from './AdminCombatHD2D';
+import CharacterCardContent from './CharacterCardContent';
+import { BORDERS } from '../data/borders';
+import { TITLES } from '../data/titles';
+import { getDisplayTitle } from '../services/titleService';
+
+const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
 const Admin = () => {
   const [characters, setCharacters] = useState([]);
@@ -91,6 +97,10 @@ const Admin = () => {
 
   const [adminMainTab, setAdminMainTab] = useState('annonce');
   const [characterStatusTab, setCharacterStatusTab] = useState('actifs');
+  const [skinPreviewCharacterId, setSkinPreviewCharacterId] = useState('');
+  const [skinPreviewBorderId, setSkinPreviewBorderId] = useState('');
+  const [skinPreviewRealBorderId, setSkinPreviewRealBorderId] = useState('');
+  const [skinPreviewTitleId, setSkinPreviewTitleId] = useState('');
 
   const [labyrinthWeekId, setLabyrinthWeekId] = useState(getCurrentWeekId());
   const [labyrinthData, setLabyrinthData] = useState(null);
@@ -118,6 +128,18 @@ const Admin = () => {
 
   const races = Object.fromEntries(Object.entries(racesData).map(([k, v]) => [k, v.icon]));
   const classes = Object.fromEntries(Object.entries(classesData).map(([k, v]) => [k, v.icon]));
+  const realBorderCandidates = Object.keys(realBorderPngModules)
+    .map((k) => {
+      const file = k.split('/').pop() || '';
+      const base = file.replace(/\.png$/i, '');
+      return { file, base };
+    })
+    .filter(({ file, base }) =>
+      file.toLowerCase().endsWith('.png') &&
+      !/^BG$/i.test(base) &&
+      !/Old$/i.test(base)
+    )
+    .sort((a, b) => a.base.localeCompare(b.base, 'fr'));
 
   // Fonction pour charger/recharger les personnages
   const loadCharacters = async () => {
@@ -182,6 +204,17 @@ const Admin = () => {
       setSelectedLabUserId(characters[0].id);
     }
   }, [characters, currentUser?.uid, selectedLabUserId]);
+
+  useEffect(() => {
+    if (skinPreviewCharacterId) return;
+    if (currentUser?.uid && characters.some((c) => c.id === currentUser.uid)) {
+      setSkinPreviewCharacterId(currentUser.uid);
+      return;
+    }
+    if (characters.length > 0) {
+      setSkinPreviewCharacterId(characters[0].id);
+    }
+  }, [characters, currentUser?.uid, skinPreviewCharacterId]);
 
   useEffect(() => {
     if (!selectedLabUserId) return;
@@ -1002,6 +1035,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             { key: 'tournois', label: '🏆 Tournois' },
             { key: 'equilibrage', label: '⚖️ Équilibrage' },
             { key: 'combat-hd2d', label: '⚔️ Combat HD-2D' },
+            { key: 'skins', label: '🎨 Skins' },
             { key: 'personnage', label: '👤 Personnage' }
           ].map((tab) => (
             <button
@@ -1439,6 +1473,123 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {adminMainTab === 'combat-hd2d' && (
           <AdminCombatHD2D characters={characters} />
         )}
+
+        {adminMainTab === 'skins' && (() => {
+          const previewCharacter = characters.find((c) => c.id === skinPreviewCharacterId) || null;
+          const previewCharacterPatched = previewCharacter ? {
+            ...previewCharacter,
+            equippedBorder: skinPreviewBorderId || null,
+            equippedRealBorder: skinPreviewRealBorderId || null,
+            equippedTitle: skinPreviewTitleId || null,
+          } : null;
+
+          return (
+            <div className="bg-stone-900/70 border-2 border-cyan-500 rounded-xl p-6 mb-8">
+              <h2 className="text-2xl font-bold text-cyan-300 mb-2">🎨 Testeur de skins</h2>
+              <p className="text-stone-400 text-sm mb-6">
+                Prévisualise librement toutes les bordures, effets et titres sans condition de déblocage.
+              </p>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-stone-400 text-sm block mb-1">Personnage de test</label>
+                    <select
+                      value={skinPreviewCharacterId}
+                      onChange={(e) => setSkinPreviewCharacterId(e.target.value)}
+                      className="w-full bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white"
+                    >
+                      <option value="">Sélectionner un personnage</option>
+                      {characters.map((char) => (
+                        <option key={char.id} value={char.id}>
+                          {char.name} • {char.race} {char.class}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-stone-400 text-sm block mb-1">Effet (bordure animée)</label>
+                    <select
+                      value={skinPreviewBorderId}
+                      onChange={(e) => setSkinPreviewBorderId(e.target.value)}
+                      className="w-full bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white"
+                    >
+                      <option value="">Aucun</option>
+                      {Object.values(BORDERS).map((border) => (
+                        <option key={border.id} value={border.id === 'default' ? '' : border.id}>
+                          {border.icon} {border.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-stone-400 text-sm block mb-1">Bordure visuelle (PNG)</label>
+                    <select
+                      value={skinPreviewRealBorderId}
+                      onChange={(e) => setSkinPreviewRealBorderId(e.target.value)}
+                      className="w-full bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white"
+                    >
+                      <option value="">Aucune</option>
+                      {realBorderCandidates.map(({ base, file }) => (
+                        <option key={base} value={base}>
+                          {base} ({file})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-stone-400 text-sm block mb-1">Titre</label>
+                    <select
+                      value={skinPreviewTitleId}
+                      onChange={(e) => setSkinPreviewTitleId(e.target.value)}
+                      className="w-full bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white"
+                    >
+                      <option value="">Aucun</option>
+                      {Object.values(TITLES).map((title) => (
+                        <option key={title.id} value={title.id}>
+                          {title.icon} {previewCharacter ? getDisplayTitle(title.id, previewCharacter.gender) : title.male}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSkinPreviewBorderId('');
+                      setSkinPreviewRealBorderId('');
+                      setSkinPreviewTitleId('');
+                    }}
+                    className="w-full bg-stone-700 hover:bg-stone-600 text-white py-2 rounded-lg font-bold transition"
+                  >
+                    Réinitialiser la prévisualisation
+                  </button>
+                </div>
+
+                <div className="bg-stone-950/70 border border-stone-700 rounded-lg p-4">
+                  {previewCharacterPatched ? (
+                    <>
+                      <p className="text-stone-400 text-xs mb-3">
+                        Aperçu: {previewCharacterPatched.name}
+                        {skinPreviewTitleId && ` • ${getDisplayTitle(skinPreviewTitleId, previewCharacterPatched.gender)}`}
+                      </p>
+                      <CharacterCardContent
+                        character={previewCharacterPatched}
+                        detailsPlacement="left"
+                        borderOnImageOnly
+                      />
+                    </>
+                  ) : (
+                    <p className="text-stone-500 text-sm">Sélectionne un personnage pour afficher l'aperçu.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {adminMainTab === 'personnage' && (
           <>
