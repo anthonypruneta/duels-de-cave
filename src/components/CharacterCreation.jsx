@@ -967,9 +967,9 @@ const CharacterCreation = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim() || formData.name.trim().length < 3) newErrors.name = 'Nom requis (3-20 car.)';
+    if (!formData.name.trim() || formData.name.trim().length < 3) newErrors.name = 'Nom requis (3-40 car.)';
     if (!formData.gender) newErrors.gender = 'Sélectionnez un sexe';
-    if (!formData.keyword.trim() || formData.keyword.trim().length < 3) newErrors.keyword = 'Mot-clé requis (3-50 car.)';
+    if (!formData.keyword.trim() || formData.keyword.trim().length < 3) newErrors.keyword = 'Mot-clé requis (3-100 car.)';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1838,10 +1838,10 @@ const CharacterCreation = () => {
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Ex: Thorgar, Aria..."
               className={`w-full bg-stone-900 border-2 ${errors.name ? 'border-red-500' : 'border-amber-600'} rounded-lg px-4 py-4 text-white text-lg focus:outline-none focus:border-amber-400`}
-              maxLength={20}
+              maxLength={40}
             />
             {errors.name && <p className="text-red-400 text-sm mt-2">⚠️ {errors.name}</p>}
-            <p className="text-gray-500 text-xs mt-2">{formData.name.length}/20 caractères</p>
+            <p className="text-gray-500 text-xs mt-2">{formData.name.length}/40 caractères</p>
           </div>
 
           {/* Sexe */}
@@ -1887,10 +1887,10 @@ const CharacterCreation = () => {
               onChange={(e) => handleInputChange('keyword', e.target.value)}
               placeholder="Ex: dragon, ombre, feu..."
               className={`w-full bg-stone-900 border-2 ${errors.keyword ? 'border-red-500' : 'border-amber-600'} rounded-lg px-4 py-4 text-white text-lg focus:outline-none focus:border-amber-400`}
-              maxLength={50}
+              maxLength={100}
             />
             {errors.keyword && <p className="text-red-400 text-sm mt-2">⚠️ {errors.keyword}</p>}
-            <p className="text-gray-500 text-xs mt-2">{formData.keyword.length}/50 caractères</p>
+            <p className="text-gray-500 text-xs mt-2">{formData.keyword.length}/100 caractères</p>
           </div>
 
           {errors.submit && (

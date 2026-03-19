@@ -64,7 +64,7 @@ Chaque document est identifié par `userId`:
 
 ```javascript
 {
-  name: string,              // Nom (3-20 caractères)
+  name: string,              // Nom (3-40 caractères)
   gender: 'male' | 'female',
   keyword: string,           // Mot-clé pour génération Midjourney
   race: string,              // Une des 8 races
