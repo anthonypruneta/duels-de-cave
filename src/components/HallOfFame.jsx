@@ -4,6 +4,8 @@ import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { getHallOfFame } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
+import { db } from '../firebase/config';
+import { collection, doc, getDocs, getDoc, query, where } from 'firebase/firestore';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
 
@@ -179,9 +181,6 @@ const HallOfFame = () => {
     (async () => {
       setLoadingAncientsFallback(true);
       try {
-        const { db } = await import('../firebase/config');
-        const { collection, getDocs, doc, getDoc } = await import('firebase/firestore');
-
         const snap = await getDocs(collection(db, 'legacyRetiredArchives'));
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -190,10 +189,28 @@ const HallOfFame = () => {
 
         const enriched = [];
         for (const row of rows) {
-          // legacyRetiredArchives/<archiveDocId> ; archivedCharacters/<archiveDocId>
-          const charSnap = await getDoc(doc(db, 'archivedCharacters', row.id));
-          if (!charSnap.exists()) continue;
-          const char = charSnap.data() || {};
+          let char = null;
+
+          // 1) Tenter l'accès direct par id (souvent le même que archivedCharacters)
+          const directSnap = await getDoc(doc(db, 'archivedCharacters', row.id));
+          if (directSnap.exists()) {
+            char = directSnap.data() || {};
+          } else if (row.ownerUserId) {
+            // 2) Fallback : retrouver la fiche champion via ownerUserId
+            // (utile si les ids ne correspondent pas exactement)
+            const qSnap = await getDocs(
+              query(
+                collection(db, 'archivedCharacters'),
+                where('userId', '==', row.ownerUserId),
+                where('tournamentChampion', '==', true),
+              )
+            );
+            const candidates = qSnap.docs.map((d) => d.data());
+            const best = trouverMeilleureArchive(candidates, extraireTimestampMillis(row.retiredAt));
+            char = best || (candidates[0] || null);
+          }
+
+          if (!char) continue;
           if (!char.name && char.nom) char.name = char.nom;
 
           enriched.push({
