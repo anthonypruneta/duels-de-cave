@@ -1477,16 +1477,6 @@ function drawAncient(ctx, state, w, h) {
     ctx.stroke();
   }
 
-  // Cadre “écran” (bordure épaisse).
-  const frame = Math.max(6, Math.floor(Math.min(w, h) * 0.06));
-  ctx.globalAlpha = 0.70;
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(230, 230, 230, 0.18)';
-  ctx.strokeRect(frame, frame, w - frame * 2, h - frame * 2);
-  ctx.globalAlpha = 0.95;
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.strokeRect(frame + 1, frame + 1, w - (frame + 1) * 2, h - (frame + 1) * 2);
-
   ctx.restore();
 }
 
