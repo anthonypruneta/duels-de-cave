@@ -231,6 +231,10 @@ const HallOfFame = () => {
           const char = match || null;
           if (!char) continue;
           if (!char.name && char.nom) char.name = char.nom;
+          // archivedCharacters fournit parfois seulement equippedWeaponId sans equippedWeaponData
+          if (char.equippedWeaponId && !char.equippedWeaponData) {
+            char.equippedWeaponData = getWeaponById(char.equippedWeaponId);
+          }
 
           enriched.push({
             id: row.id,
