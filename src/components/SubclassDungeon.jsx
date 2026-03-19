@@ -273,6 +273,13 @@ const SubclassDungeon = () => {
 
   // Écran de combat
   if (gameState === 'fighting' && player && boss) {
+    const playerHP = player?.currentHP ?? player?.maxHP ?? playerCombatBase?.hp ?? player?.base?.hp ?? 1;
+    const playerMaxHP = player?.maxHP ?? playerCombatBase?.hp ?? player?.base?.hp ?? 1;
+    const playerShield = player?.shield ?? 0;
+    const bossHP = boss?.currentHP ?? boss?.maxHP ?? bossCombatBase?.hp ?? boss?.base?.hp ?? 1;
+    const bossMaxHP = boss?.maxHP ?? bossCombatBase?.hp ?? boss?.base?.hp ?? 1;
+    const bossShield = boss?.shield ?? 0;
+
     return (
       <div className="min-h-screen p-6">
         <Header />
