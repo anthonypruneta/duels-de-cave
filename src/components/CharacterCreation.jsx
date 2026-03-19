@@ -680,8 +680,8 @@ const CharacterCreation = () => {
             : 0;
           const dungeonCompletions = summaryResult.success ? (summaryResult.data?.dungeonCompletions || {}) : {};
           const rewardData = rewardSnap?.exists?.() ? (rewardSnap.data() || {}) : {};
-          const tournamentWins = Number.isFinite(rewardData.tournamentWins) ? rewardData.tournamentWins : 0;
-          const cataclysmeWins = Number.isFinite(rewardData.cataclysmeWins) ? rewardData.cataclysmeWins : 0;
+          const tournamentWinsRaw = Number.isFinite(rewardData.tournamentWins) ? rewardData.tournamentWins : undefined;
+          const cataclysmeWinsRaw = Number.isFinite(rewardData.cataclysmeWins) ? rewardData.cataclysmeWins : undefined;
           const rewardBossRushCompletions = Number.isFinite(rewardData.bossRushCompletions)
             ? rewardData.bossRushCompletions
             : 0;
@@ -689,12 +689,39 @@ const CharacterCreation = () => {
             ? rewardData.labyrinthFloor90Wins
             : (labFloor >= 90 ? 1 : 0);
           const bossRushCompletionsAccount = Math.max(bossRushCompletions, rewardBossRushCompletions);
+          const earnedTitles = charData.earnedTitles || [];
+          const unlockedBorders = charData.unlockedBorders || [];
+
+          // Fallbacks d'affichage pour les anciens joueurs:
+          // - si les compteurs n'existent pas encore dans tournamentRewards,
+          //   on infère un minimum cohérent via titres/bordures déjà obtenus.
+          const inferredTournamentWins = Math.max(
+            tournamentWinsRaw ?? 0,
+            earnedTitles.includes('legendaire') ? 2 : 0,
+            earnedTitles.includes('champion') ? 1 : 0,
+            unlockedBorders.includes('water_sun') ? 2 : 0,
+            unlockedBorders.includes('champion') ? 1 : 0,
+          );
+          const inferredCataclysmeWins = Math.max(
+            cataclysmeWinsRaw ?? 0,
+            earnedTitles.includes('sauveur_monde') ? 1 : 0,
+            unlockedBorders.includes('night_moon') ? 3 : 0,
+          );
+          const inferredBossRushCompletions = Math.max(
+            bossRushCompletionsAccount,
+            unlockedBorders.includes('storm_tempest') ? 5 : 0,
+            unlockedBorders.includes('blood') ? 1 : 0,
+          );
+          const inferredLabyrinthFloor90Wins = Math.max(
+            labyrinthFloor90Wins,
+            unlockedBorders.includes('sable') ? 5 : 0,
+          );
 
           setUnlockProgress({
-            tournamentWins,
-            cataclysmeWins,
-            bossRushCompletions: bossRushCompletionsAccount,
-            labyrinthFloor90Wins,
+            tournamentWins: inferredTournamentWins,
+            cataclysmeWins: inferredCataclysmeWins,
+            bossRushCompletions: inferredBossRushCompletions,
+            labyrinthFloor90Wins: inferredLabyrinthFloor90Wins,
           });
 
           const extras = {
@@ -702,8 +729,8 @@ const CharacterCreation = () => {
             bossRushCompleted: bossRushDone,
             bossRushCompletions: bossRushCompletionsAccount,
             dungeonCompletions,
-            tournamentWins,
-            cataclysmeWins,
+            tournamentWins: tournamentWinsRaw,
+            cataclysmeWins: cataclysmeWinsRaw,
             labyrinthFloor90Wins,
           };
 
