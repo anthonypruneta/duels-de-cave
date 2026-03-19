@@ -359,6 +359,23 @@ export async function getLegacyQualifierSnapshot() {
 
 export async function creerTournoi(docId = 'current') {
   try {
+    // Ne jamais écraser un tournoi du samedi non archivé.
+    // Si le tournoi précédent existe et n'a pas été "terminé/archivé" (archivedAt absent),
+    // on bloque la création du suivant pour ne pas perdre les infos d'arbre.
+    if (docId === 'current') {
+      const existingSnap = await getDoc(doc(db, 'tournaments', docId));
+      if (existingSnap.exists()) {
+        const existing = existingSnap.data() || {};
+        const isArchived = Boolean(existing.archivedAt);
+        if (!isArchived) {
+          return {
+            success: false,
+            error: 'Un tournoi du samedi existe déjà mais n’est pas archivé. Termine/archiver le tournoi précédent avant d’en créer un nouveau.',
+          };
+        }
+      }
+    }
+
     if (docId === LEGACY_TOURNAMENT_DOC_ID) {
       return {
         success: false,
@@ -918,6 +935,18 @@ export async function getCombatLogArchive(matchId, archiveId) {
 
 export async function supprimerTournoiTermine(docId = 'current') {
   try {
+    // Sécurité : ne pas supprimer un tournoi du samedi tant qu'il n'est pas archivé,
+    // pour éviter de perdre l'arbre avant que l'admin ait pu archiver.
+    if (docId === 'current') {
+      const tournoiSnap = await getDoc(doc(db, 'tournaments', docId));
+      if (tournoiSnap.exists()) {
+        const tournoi = tournoiSnap.data() || {};
+        if (!tournoi.archivedAt) {
+          return { success: false, error: 'Tournoi du samedi non archivé: suppression bloquée.' };
+        }
+      }
+    }
+
     const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
     for (const logDoc of logsSnapshot.docs) {
       await deleteDoc(logDoc.ref);
