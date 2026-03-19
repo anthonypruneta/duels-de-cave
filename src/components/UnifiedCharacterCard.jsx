@@ -130,7 +130,10 @@ const UnifiedCharacterCard = ({
 
   const wrapperGlow = borderOnImageOnly ? '' : glowCls;
   const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
-  const wrapperStyle = isAncient ? { filter: 'grayscale(1) contrast(1.15)' } : undefined;
+  // Filtre "vieille télé" : contraste fort + très peu de couleur + légère baisse de luminosité
+  const wrapperStyle = isAncient
+    ? { filter: 'grayscale(1) contrast(1.42) brightness(0.96) saturate(0.15)' }
+    : undefined;
 
   const realBorderSrc = getRealBorderImageSrc(realBorderId);
 

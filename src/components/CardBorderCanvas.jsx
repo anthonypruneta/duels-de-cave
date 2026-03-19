@@ -1371,6 +1371,17 @@ function initAncient(w, h) {
     flicker: rand(0.75, 1.15),
     scanPhase: rand(0, 5),
     nextFlickerIn: rand(18, 42),
+    roll: rand(-1.5, 1.5),
+    rollSpeed: rand(0.8, 1.6),
+    // Light leaks (fuites lumineuses) : positions / couleurs fixes, intensités animées.
+    leaks: Array.from({ length: 3 }, () => ({
+      x: rand(0.05, 0.95),
+      y: rand(0.05, 0.35),
+      r: rand(0.35, 0.75),
+      hue: rand(18, 55), // chaud (jaune/orange) plutôt qu'un bleu
+      alpha: rand(0.12, 0.30),
+      phase: rand(0, Math.PI * 2),
+    })),
   };
 }
 
@@ -1378,6 +1389,7 @@ function updateAncient(state, w, h, dt) {
   const s = dt / 16;
   state.time += 0.035 * s;
   state.scanPhase += 0.7 * s;
+  state.roll += Math.sin(state.time * state.rollSpeed) * 0.05;
 
   // Flicker aléatoire (plus “vieux” TV).
   state.nextFlickerIn -= s;
@@ -1399,38 +1411,81 @@ function drawAncient(ctx, state, w, h) {
 
   const flicker = state.flicker;
 
+  // “Light leaks” : dégradés chauds sur les bords (comme vieux films).
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const leak of state.leaks || []) {
+    const t = 0.5 + 0.5 * Math.sin(state.time * 0.9 + leak.phase);
+    const a = leak.alpha * (0.35 + 0.65 * t) * flicker;
+    const gx = w * leak.x;
+    const gy = h * leak.y;
+    const gr = Math.max(w, h) * leak.r;
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    g.addColorStop(0, `hsla(${leak.hue}, 95%, 60%, ${a})`);
+    g.addColorStop(0.35, `hsla(${leak.hue}, 95%, 60%, ${a * 0.35})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
+
   // Scanlines horizontales.
-  const lineSpacing = Math.max(2, Math.floor(h / 70));
-  const lineAlpha = 0.18 * flicker;
-  const jitter = Math.sin(state.time * 1.7) * 1.15;
+  const lineSpacing = Math.max(2, Math.floor(h / 60));
+  const lineAlpha = 0.22 * flicker;
+  const jitter = Math.sin(state.time * 1.7) * 1.45;
   const phaseOffset = (state.scanPhase % lineSpacing) * 1.0;
 
   ctx.globalAlpha = lineAlpha;
   ctx.fillStyle = 'rgba(0,0,0,1)';
   for (let y = -lineSpacing; y < h + lineSpacing; y += lineSpacing) {
-    ctx.fillRect(0, y + phaseOffset + jitter, w, 1);
+    const rollJ = Math.sin((y / h) * Math.PI * 2 + state.time * 0.9) * state.roll;
+    ctx.fillRect(0, y + phaseOffset + jitter + rollJ, w, 1);
   }
 
   // Bandes d'interférence (le “grésillement” grossier).
-  ctx.globalAlpha = 0.12 * flicker;
-  for (let i = 0; i < 3; i++) {
+  ctx.globalAlpha = 0.14 * flicker;
+  for (let i = 0; i < 4; i++) {
     const y = rand(0, h);
     const bandH = rand(1, 3);
-    const xOff = Math.sin(state.time * 1.1 + i) * (w * 0.02);
-    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+    const xOff = Math.sin(state.time * 1.1 + i) * (w * 0.03);
+    ctx.fillStyle = Math.random() < 0.55 ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.65)';
     ctx.fillRect(xOff, y, w, bandH);
   }
 
   // Grains aléatoires (petits points).
-  const noiseCount = Math.floor((w * h) / 3000);
-  ctx.globalAlpha = 0.08 * flicker;
+  const noiseCount = Math.floor(Math.min((w * h) / 1200, 220));
+  ctx.globalAlpha = 0.10 * flicker;
   for (let i = 0; i < noiseCount; i++) {
     const x = rand(0, w);
     const y = rand(0, h);
-    const on = Math.random() < 0.5;
-    ctx.fillStyle = on ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
+    const on = Math.random() < 0.48;
+    ctx.fillStyle = on ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.95)';
     ctx.fillRect(x, y, 1, 1);
   }
+
+  // Micro-scratches verticales (instables).
+  ctx.globalAlpha = 0.10 * flicker;
+  for (let i = 0; i < 7; i++) {
+    const x = rand(0, w);
+    const len = rand(h * 0.25, h * 0.85);
+    const y = rand(0, h - len);
+    ctx.strokeStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = Math.max(0.6, rand(0.6, 1.2));
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + rand(-2, 2), y + len);
+    ctx.stroke();
+  }
+
+  // Cadre “écran” (bordure épaisse).
+  const frame = Math.max(6, Math.floor(Math.min(w, h) * 0.06));
+  ctx.globalAlpha = 0.70;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(230, 230, 230, 0.18)';
+  ctx.strokeRect(frame, frame, w - frame * 2, h - frame * 2);
+  ctx.globalAlpha = 0.95;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.strokeRect(frame + 1, frame + 1, w - (frame + 1) * 2, h - (frame + 1) * 2);
 
   ctx.restore();
 }
