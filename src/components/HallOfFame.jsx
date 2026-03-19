@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getHallOfFame } from '../services/tournamentService';
+import { getHallOfFame, LEGACY_TOURNAMENT_DOC_ID } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
@@ -67,6 +67,7 @@ function dedoublonnerEntreesHallOfFame(entries) {
       normaliserCle(champion.nom || champion.name),
       normaliserCle(champion.race),
       normaliserCle(champion.classe || champion.class),
+      normaliserCle(entry.sourceTournamentId),
       Number(entry?.nbParticipants || 0),
       Number(entry?.nbMatchs || 0),
     ].join('|');
@@ -127,6 +128,7 @@ async function loadFullChampionForEntry(entry) {
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
+  const [activeTab, setActiveTab] = useState('samedi'); // 'samedi' | 'anciens'
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -151,6 +153,7 @@ const HallOfFame = () => {
             nbParticipants: entry.nbParticipants,
             nbMatchs: entry.nbMatchs,
             date: entry.date,
+            sourceTournamentId: entry.sourceTournamentId || null,
             ownerPseudo: entry.champion?.ownerPseudo || char.ownerPseudo,
             character: char,
             tournamentArchiveId: entry.tournamentArchiveId || null,
@@ -173,6 +176,15 @@ const HallOfFame = () => {
     );
   }
 
+  const entriesAnciens = champions.filter(
+    (c) => c.sourceTournamentId === LEGACY_TOURNAMENT_DOC_ID
+  );
+  const entriesSamedi = champions.filter(
+    (c) => c.sourceTournamentId !== LEGACY_TOURNAMENT_DOC_ID
+  );
+
+  const visibleEntries = activeTab === 'anciens' ? entriesAnciens : entriesSamedi;
+
   return (
     <div className="min-h-screen p-6">
       <Header />
@@ -184,21 +196,50 @@ const HallOfFame = () => {
           </div>
         </div>
 
-        {champions.length === 0 ? (
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('samedi')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition ${
+              activeTab === 'samedi'
+                ? 'bg-amber-700/80 text-white border-amber-500/60'
+                : 'bg-stone-800/90 text-stone-300 border-stone-600 hover:border-amber-600'
+            }`}
+          >
+            Tournois du samedi
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('anciens')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition ${
+              activeTab === 'anciens'
+                ? 'bg-amber-700/80 text-white border-amber-500/60'
+                : 'bg-stone-800/90 text-stone-300 border-stone-600 hover:border-amber-600'
+            }`}
+          >
+            Tournois des anciens
+          </button>
+        </div>
+
+        {visibleEntries.length === 0 ? (
           <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl text-center max-w-lg mx-auto">
             <p className="text-stone-400 text-xl">Aucun champion pour le moment</p>
-            <p className="text-stone-500 mt-2">Le premier tournoi n'a pas encore eu lieu</p>
+            <p className="text-stone-500 mt-2">
+              {activeTab === 'anciens'
+                ? 'Le premier tournoi des anciens n’a pas encore eu lieu'
+                : 'Le premier tournoi du samedi n’a pas encore eu lieu'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-8 justify-items-center">
-            {champions.map((champ) => (
+            {visibleEntries.map((champ) => (
               <div key={champ.id} className="flex flex-col items-center">
                 <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg mb-2 text-center">
                   🏆 {champ.ownerPseudo || champ.character.name || 'Champion'}
                 </div>
                 <CharacterCardContent
                   character={champ.character}
-                  borderId="champion"
+                  borderId={activeTab === 'anciens' ? 'ancient' : 'champion'}
                   detailsPlacement="left"
                 />
                 <div className="text-stone-500 text-xs mt-1 text-center">
@@ -215,7 +256,7 @@ const HallOfFame = () => {
                     }
                     className="mt-3 bg-amber-700/80 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-lg border border-amber-500/50 transition"
                   >
-                    Arbre &amp; replay
+                    {activeTab === 'anciens' ? 'Afficher l’arbre' : 'Arbre & replay'}
                   </button>
                 )}
               </div>
