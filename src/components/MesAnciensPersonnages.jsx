@@ -88,7 +88,7 @@ const MesAnciensPersonnages = () => {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-8 justify-items-center">
             {characters.map((char) => (
               <div key={char.id} className="flex flex-col items-center">
-                {legacyChampionArchiveIds.has(char.id) && (
+                {char.tournamentChampion && (
                   <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg mb-2">
                     👑 CHAMPION
                   </div>
