@@ -1559,24 +1559,25 @@ function drawWaterSun(ctx, state, w, h) {
   ctx.fillRect(0, 0, w, h * 0.6);
 
   // Rayons du soleil
-  const rayCount = 13;
-  const baseLen = Math.max(w, h) * 0.6;
+  const rayCount = 15;
+  const baseLen = Math.max(w, h) * 0.72;
   ctx.save();
   // Mettre les rayons dans le coin haut-gauche (au lieu du centre haut)
-  const sunX = w * 0.14;
-  const sunY = h * 0.12;
+  const sunX = w * 0.075;
+  const sunY = h * 0.075;
   ctx.translate(sunX, sunY);
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
-    const angle = lerp(-0.65, 0.65, t) + Math.sin(state.waterPhase * 0.7 + i) * 0.05;
+    // Focaliser l'éventail dans l'angle haut-gauche (orienté vers l'intérieur de la carte)
+    const angle = lerp(-0.15, 1.05, t) + Math.sin(state.waterPhase * 0.7 + i) * 0.07;
     ctx.save();
     ctx.rotate(angle);
-    const sw = lerp(5, 2, t) * (0.85 + 0.15 * Math.sin(state.waterPhase + i));
-    const len = baseLen * lerp(0.55, 0.85, Math.sin(state.waterPhase * 0.3 + i) * 0.5 + 0.5);
+    const sw = lerp(6, 2.2, t) * (0.85 + 0.15 * Math.sin(state.waterPhase + i)) * 1.25;
+    const len = baseLen * lerp(0.6, 0.95, Math.sin(state.waterPhase * 0.3 + i) * 0.5 + 0.5) * 1.03;
     const g = ctx.createLinearGradient(0, 0, 0, len);
     g.addColorStop(0, 'rgba(251, 191, 36, 0)');
-    g.addColorStop(0.25, 'rgba(251, 191, 36, 0.18)');
-    g.addColorStop(0.65, 'rgba(234, 179, 8, 0.32)');
+    g.addColorStop(0.25, 'rgba(251, 191, 36, 0.22)');
+    g.addColorStop(0.65, 'rgba(234, 179, 8, 0.40)');
     g.addColorStop(1, 'rgba(251, 191, 36, 0)');
     ctx.fillStyle = g;
     ctx.fillRect(-sw / 2, 0, sw, len);
@@ -1638,10 +1639,16 @@ function drawWaterSun(ctx, state, w, h) {
         const crestHeight = state.wave.amp * (0.70 + layerIdx * 0.12);
         const env = wavePulse * (0.85 + 0.15 * waveFade); // pic au milieu, puis décroît
 
-        raise = crestHeight * env * (crest + 0.55 * trail);
+        // "Rouleau" : bosses oscillantes dans la traînée (derrière le front)
+        const rollLen = Math.max(45, w * 0.18);
+        const rollK = (Math.PI * 2) / rollLen;
+        const rollPhase = (-dx) * rollK + state.wave.phase * 0.25 + state.waterPhase * 0.5 - waveProgress * 2.2;
+        const hump = dx < 0 ? Math.max(0, Math.sin(rollPhase)) : 0; // 0..1 (seules les crêtes comptent)
+
+        raise = crestHeight * env * (crest + 0.55 * trail + 0.35 * trail * hump);
 
         const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 7.0);
-        micro = crest * ripple * crestHeight * 0.045;
+        micro = crest * ripple * crestHeight * 0.045 + trail * hump * ripple * crestHeight * 0.02;
       }
 
       const y = surfaceY + wave + wave2 - raise + micro;
@@ -1676,11 +1683,16 @@ function drawWaterSun(ctx, state, w, h) {
 
         const crestHeight = state.wave.amp * (0.70 + layerIdx * 0.12);
         const env = wavePulse * (0.85 + 0.15 * waveFade);
+        // "Rouleau" : bosses oscillantes dans la traînée derrière le front
+        const rollLen = Math.max(45, w * 0.18);
+        const rollK = (Math.PI * 2) / rollLen;
+        const rollPhase = (-dx) * rollK + state.wave.phase * 0.25 + state.waterPhase * 0.5 - waveProgress * 2.2;
+        const hump = dx < 0 ? Math.max(0, Math.sin(rollPhase)) : 0;
 
-        raise = crestHeight * env * (crest + 0.55 * trail);
+        raise = crestHeight * env * (crest + 0.55 * trail + 0.35 * trail * hump);
 
         const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 7.0);
-        micro = crest * ripple * crestHeight * 0.045;
+        micro = crest * ripple * crestHeight * 0.045 + trail * hump * ripple * crestHeight * 0.02;
       }
 
       const y = surfaceY + wave + wave2 - raise + micro;
