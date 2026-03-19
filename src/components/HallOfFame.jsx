@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getHallOfFame, LEGACY_TOURNAMENT_DOC_ID } from '../services/tournamentService';
+import { getHallOfFame } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
@@ -67,6 +67,7 @@ function dedoublonnerEntreesHallOfFame(entries) {
       normaliserCle(champion.nom || champion.name),
       normaliserCle(champion.race),
       normaliserCle(champion.classe || champion.class),
+      normaliserCle(entry.sourceTournamentType),
       normaliserCle(entry.sourceTournamentId),
       Number(entry?.nbParticipants || 0),
       Number(entry?.nbMatchs || 0),
@@ -154,6 +155,7 @@ const HallOfFame = () => {
             nbMatchs: entry.nbMatchs,
             date: entry.date,
             sourceTournamentId: entry.sourceTournamentId || null,
+            sourceTournamentType: entry.sourceTournamentType || null,
             ownerPseudo: entry.champion?.ownerPseudo || char.ownerPseudo,
             character: char,
             tournamentArchiveId: entry.tournamentArchiveId || null,
@@ -176,12 +178,12 @@ const HallOfFame = () => {
     );
   }
 
-  const entriesAnciens = champions.filter(
-    (c) => c.sourceTournamentId === LEGACY_TOURNAMENT_DOC_ID
-  );
-  const entriesSamedi = champions.filter(
-    (c) => c.sourceTournamentId !== LEGACY_TOURNAMENT_DOC_ID
-  );
+  const entriesAnciens = champions.filter((c) => (
+    c.sourceTournamentType === 'legacy_archives'
+    || c.sourceTournamentId === 'legacy_current'
+    || String(c.sourceTournamentId || '').startsWith('legacy_')
+  ));
+  const entriesSamedi = champions.filter((c) => !entriesAnciens.includes(c));
 
   const visibleEntries = activeTab === 'anciens' ? entriesAnciens : entriesSamedi;
 

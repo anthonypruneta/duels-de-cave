@@ -63,6 +63,7 @@ const Admin = () => {
   const [simulationLoading, setSimulationLoading] = useState(false);
   const [legacyTournamentLoading, setLegacyTournamentLoading] = useState(false);
   const [legacyQualifier, setLegacyQualifier] = useState(null);
+  const [legacyTournamentDocId, setLegacyTournamentDocId] = useState(null);
 
   // État pour les rerolls disponibles
   const [rerollsData, setRerollsData] = useState([]);
@@ -503,6 +504,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       setLegacyTournamentLoading(false);
       return;
     }
+    if (createResult.tournamentDocId) setLegacyTournamentDocId(createResult.tournamentDocId);
     const excl =
       typeof createResult.retiredExclusionsCount === 'number'
         ? ` • ${createResult.retiredExclusionsCount} fiche(s) à la retraite (ex-tchampions legacy)`
@@ -524,25 +526,33 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       return;
     }
     setLegacyTournamentLoading(true);
-    const createResult = await creerTournoiLegacy();
-    if (!createResult.success) {
-      alert('❌ ' + createResult.error);
-      setLegacyTournamentLoading(false);
-      return;
+    let docId = legacyTournamentDocId;
+    let createResult = null;
+
+    if (!docId) {
+      createResult = await creerTournoiLegacy();
+      if (!createResult.success) {
+        alert('❌ ' + createResult.error);
+        setLegacyTournamentLoading(false);
+        return;
+      }
+      docId = createResult.tournamentDocId;
+      if (docId) setLegacyTournamentDocId(docId);
     }
-    const launchResult = await lancerTournoi(LEGACY_TOURNAMENT_DOC_ID);
+
+    const launchResult = await lancerTournoi(docId || LEGACY_TOURNAMENT_DOC_ID);
     if (!launchResult.success) {
       alert('❌ Lancement: ' + launchResult.error);
       setLegacyTournamentLoading(false);
       return;
     }
-    if (typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0) {
+    if (typeof createResult?.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0) {
       alert(
         `ℹ️ ${createResult.dedupeDroppedCount} archive(s) ignorée(s) (même compte + même nom → la plus récente).`
       );
     }
     setLegacyTournamentLoading(false);
-    navigate('/tournament?mode=legacy');
+    navigate(`/tournament?mode=legacy&legacyDocId=${encodeURIComponent(docId || LEGACY_TOURNAMENT_DOC_ID)}`);
   };
 
   const handleNettoyerTournoiLegacy = async () => {
@@ -1391,7 +1401,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             </button>
             <button
               type="button"
-              onClick={() => navigate('/tournament?mode=legacy')}
+              onClick={() => navigate(
+                legacyTournamentDocId
+                  ? `/tournament?mode=legacy&legacyDocId=${encodeURIComponent(legacyTournamentDocId)}`
+                  : '/tournament?mode=legacy'
+              )}
               className="w-full bg-stone-700 hover:bg-stone-600 text-stone-200 py-2 rounded-lg font-semibold transition text-sm"
             >
               Ouvrir la page tournoi des anciens

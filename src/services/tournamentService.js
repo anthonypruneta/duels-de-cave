@@ -36,11 +36,15 @@ async function getLegacyRetiredArchiveIdSet() {
 }
 
 function isDiscordAnnouncableDoc(docId) {
-  return docId === 'current' || docId === LEGACY_TOURNAMENT_DOC_ID;
+  const id = String(docId || '');
+  const isLegacy = id === LEGACY_TOURNAMENT_DOC_ID || id.startsWith('legacy_');
+  return docId === 'current' || isLegacy;
 }
 
 function discordLegacyPrefix(docId) {
-  return docId === LEGACY_TOURNAMENT_DOC_ID ? '📜 Tournoi des anciens — ' : '';
+  const id = String(docId || '');
+  const isLegacy = id === LEGACY_TOURNAMENT_DOC_ID || id.startsWith('legacy_');
+  return isLegacy ? '📜 Tournoi des anciens — ' : '';
 }
 
 // ============================================================================
@@ -263,12 +267,15 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
  */
 export async function creerTournoiLegacy() {
   try {
-    await supprimerCombatLogsTournoi(LEGACY_TOURNAMENT_DOC_ID);
+    // Ne jamais écraser un tournoi legacy déjà existant.
+    // On crée un nouveau document à chaque événement.
+    const tournamentDocId = `legacy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
     const retiredIds = await getLegacyRetiredArchiveIdSet();
     const retiredCount = retiredIds.size;
     const raw = await chargerParticipantsArchives(retiredIds);
     const rawEligible = raw.filter((p) => p.userId && p.archiveDocId);
-    const deduped = dedupeLegacyParticipantsByOwnerAndName(rawEligible, LEGACY_TOURNAMENT_DOC_ID);
+    const deduped = dedupeLegacyParticipantsByOwnerAndName(rawEligible, tournamentDocId);
     const dedupeDropped = rawEligible.length - deduped.length;
     const participants = deduped.map((p) => ({
       ...p,
@@ -309,13 +316,13 @@ export async function creerTournoiLegacy() {
       annonceIntro: annonceDebutTournoi(participants.length),
     };
 
-    await setDoc(doc(db, 'tournaments', LEGACY_TOURNAMENT_DOC_ID), tournoi);
+    await setDoc(doc(db, 'tournaments', tournamentDocId), tournoi);
     annoncerTirageDiscord(
       matches,
       matchOrder,
       participantsMap,
       participants.length,
-      LEGACY_TOURNAMENT_DOC_ID
+      tournamentDocId
     ).catch(() => {});
 
     return {
@@ -323,6 +330,7 @@ export async function creerTournoiLegacy() {
       nbParticipants: participants.length,
       retiredExclusionsCount: retiredCount,
       dedupeDroppedCount: dedupeDropped,
+      tournamentDocId,
     };
   } catch (error) {
     console.error('Erreur création tournoi legacy:', error);
@@ -735,7 +743,7 @@ export async function avancerMatch(docId = 'current') {
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
 
-      if (docId === LEGACY_TOURNAMENT_DOC_ID && champion && championId) {
+      if (tournoi?.tournamentType === 'legacy_archives' && champion && championId) {
         const row = participantsList.find(
           (p) => p.participantId === championId || p.userId === championId
         );
@@ -1038,6 +1046,7 @@ export async function terminerTournoi(docId = 'current') {
       nbParticipants: tournoi.participantsList.length,
       nbMatchs: tournoi.matchOrder.length,
       sourceTournamentId: docId,
+      sourceTournamentType: tournoi.tournamentType || null,
       sourceTournamentCreatedAt: tournoi.createdAt || null,
       tournamentArchiveId: hallOfFameEntryId,
       date: serverTimestamp()
