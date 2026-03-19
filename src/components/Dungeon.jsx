@@ -1381,7 +1381,7 @@ const Dungeon = () => {
         <audio id="dungeon-music" loop>
           <source src="/assets/music/grotte.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-14">
+        <div className="max-w-[1800px] mx-auto pt-20 sm:pt-14">
           {/* Indicateur de progression */}
           <div className="flex justify-center items-center gap-4 mb-4">
             {levels.map((level, idx) => (
