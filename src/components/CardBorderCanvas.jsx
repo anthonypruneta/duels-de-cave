@@ -999,12 +999,12 @@ function drawTitane(ctx, state, w, h) {
 
 function initCosmic(w, h) {
   return {
-    stars: Array.from({ length: 45 }, () => ({
+    stars: Array.from({ length: 72 }, () => ({
       x: rand(0, w), y: rand(0, h),
-      r: rand(0.5, 2.5),
+      r: rand(0.7, 2.9),
       twinkle: rand(0, Math.PI * 2),
       speed: rand(0.03, 0.08),
-      brightness: rand(0.4, 1),
+      brightness: rand(0.58, 1.25),
       hue: Math.random() < 0.3 ? rand(200, 280) : -1,
     })),
     nebulae: Array.from({ length: 6 }, () => ({
@@ -1093,7 +1093,15 @@ function drawCosmic(ctx, state, w, h) {
   }
 
   for (const st of state.stars) {
-    const a = st.brightness * (0.4 + 0.6 * Math.abs(Math.sin(st.twinkle)));
+    const a = Math.min(1, st.brightness * (0.45 + 0.75 * Math.abs(Math.sin(st.twinkle))));
+    const glow = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4.2);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${a * 0.36})`);
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.r * 4.2, 0, Math.PI * 2);
+    ctx.fill();
+
     if (st.hue >= 0) {
       ctx.fillStyle = hsl(st.hue, 60, 80, a);
     } else {
@@ -1771,7 +1779,7 @@ function drawWaterSun(ctx, state, w, h) {
 // ─── Sable : dunes basses + tempête de sable occasionnelle ───────────────────
 
 function spawnSandDust(w, h, gust = false) {
-  const baseY = rand(h * 0.62, h * 0.98);
+  const baseY = gust ? rand(h * 0.04, h * 0.98) : rand(h * 0.62, h * 0.98);
   return {
     x: gust ? rand(-w * 0.2, w * 1.15) : rand(0, w),
     y: baseY,
@@ -1823,7 +1831,7 @@ function updateSable(state, w, h, dt) {
     p.x += p.vx * s * boost;
     p.y += p.vy * s + Math.sin(state.time * 2.1 + p.x * 0.015) * 0.08 * s;
     p.life -= (state.gustActive ? 1.15 : 0.8) * s;
-    if (p.life <= 0 || p.x > w * 1.25 || p.y < h * 0.45 || p.y > h + 10) {
+    if (p.life <= 0 || p.x > w * 1.25 || p.y < -20 || p.y > h + 16) {
       Object.assign(p, spawnSandDust(w, h, state.gustActive && Math.random() < 0.45));
     }
   }
@@ -1864,12 +1872,18 @@ function drawSable(ctx, state, w, h) {
 
   if (state.gustActive) {
     const strength = Math.max(0, Math.min(1, state.gustTimer / 45));
-    const fog = ctx.createLinearGradient(0, h * 0.28, w, h * 0.82);
-    fog.addColorStop(0, `rgba(254, 243, 199, ${0.03 + 0.03 * strength})`);
-    fog.addColorStop(0.5, `rgba(245, 158, 11, ${0.08 + 0.05 * strength})`);
-    fog.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    const fog = ctx.createLinearGradient(0, 0, w, h);
+    fog.addColorStop(0, `rgba(254, 243, 199, ${0.015 + 0.02 * strength})`);
+    fog.addColorStop(0.45, `rgba(245, 158, 11, ${0.08 + 0.06 * strength})`);
+    fog.addColorStop(1, `rgba(120, 53, 15, ${0.02 + 0.03 * strength})`);
     ctx.fillStyle = fog;
-    ctx.fillRect(0, h * 0.2, w, h * 0.8);
+    ctx.fillRect(0, 0, w, h);
+
+    const haze = ctx.createRadialGradient(w * 0.55, h * 0.46, 0, w * 0.55, h * 0.46, Math.max(w, h) * 0.9);
+    haze.addColorStop(0, `rgba(251, 191, 36, ${0.06 + 0.05 * strength})`);
+    haze.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, w, h);
   }
 
   for (const p of state.dust) {
@@ -2163,14 +2177,23 @@ function updatePerfectCharacter(state, w, h, dt) {
 function drawPerfectCharacter(ctx, state, w, h) {
   const cx = w * 0.5;
   const cy = h * 0.48;
+  const epicPulse = 0.5 + 0.5 * Math.sin(state.t * 2.8);
 
-  // Aura globale prisme
+  // Aura globale prisme (plus flashy)
   const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.72);
-  aura.addColorStop(0, 'rgba(253, 224, 71, 0.13)');
-  aura.addColorStop(0.33, 'rgba(125, 211, 252, 0.11)');
-  aura.addColorStop(0.66, 'rgba(196, 181, 253, 0.10)');
+  aura.addColorStop(0, `rgba(253, 224, 71, ${0.18 + 0.06 * epicPulse})`);
+  aura.addColorStop(0.33, `rgba(125, 211, 252, ${0.15 + 0.05 * epicPulse})`);
+  aura.addColorStop(0.66, `rgba(196, 181, 253, ${0.13 + 0.05 * epicPulse})`);
   aura.addColorStop(1, 'rgba(15, 23, 42, 0)');
   ctx.fillStyle = aura;
+  ctx.fillRect(0, 0, w, h);
+
+  // Flash central épique
+  const coreFlash = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.38);
+  coreFlash.addColorStop(0, `rgba(255, 255, 255, ${0.12 + 0.12 * epicPulse})`);
+  coreFlash.addColorStop(0.45, `rgba(250, 204, 21, ${0.10 + 0.08 * epicPulse})`);
+  coreFlash.addColorStop(1, 'rgba(250, 204, 21, 0)');
+  ctx.fillStyle = coreFlash;
   ctx.fillRect(0, 0, w, h);
 
   // Anneaux "infini" (plus marqués)
@@ -2179,9 +2202,9 @@ function drawPerfectCharacter(ctx, state, w, h) {
   for (let i = 0; i < 5; i++) {
     const rx = w * (0.18 + i * 0.05);
     const ry = h * (0.08 + i * 0.025);
-    const a = 0.10 + 0.07 * Math.sin(state.ringPhase * 2 + i * 0.7);
+    const a = 0.14 + 0.11 * Math.sin(state.ringPhase * 2 + i * 0.7);
     ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
-    ctx.lineWidth = 1.3 + i * 0.25;
+    ctx.lineWidth = 1.6 + i * 0.32;
     ctx.beginPath();
     for (let p = 0; p <= 92; p++) {
       const u = (p / 92) * Math.PI * 2;
@@ -2207,29 +2230,29 @@ function drawPerfectCharacter(ctx, state, w, h) {
   }
   ctx.restore();
 
-  // Lune discrète en haut + faisceaux
-  const moonX = w * 0.76;
-  const moonY = h * 0.14;
+  // Lune en coin + faisceaux subtils
+  const moonX = w * 0.86;
+  const moonY = h * 0.10;
   const moon = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.max(w, h) * 0.18);
-  moon.addColorStop(0, 'rgba(244, 244, 255, 0.28)');
-  moon.addColorStop(0.4, 'rgba(167, 139, 250, 0.14)');
-  moon.addColorStop(1, 'rgba(167, 139, 250, 0)');
+  moon.addColorStop(0, 'rgba(255, 255, 255, 0.40)');
+  moon.addColorStop(0.4, 'rgba(226, 232, 240, 0.18)');
+  moon.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = moon;
   ctx.beginPath();
-  ctx.arc(moonX, moonY, Math.max(w, h) * 0.18, 0, Math.PI * 2);
+  ctx.arc(moonX, moonY, Math.max(w, h) * 0.16, 0, Math.PI * 2);
   ctx.fill();
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 8; i++) {
     const t = i / 6;
     const theta = lerp(0.5, 1.25, t) + Math.sin(state.t + i) * 0.03;
     const len = h * 0.66;
     const x2 = moonX + Math.cos(theta) * len;
     const y2 = moonY + Math.sin(theta) * len;
     const rg = ctx.createLinearGradient(moonX, moonY, x2, y2);
-    rg.addColorStop(0, 'rgba(216, 180, 254, 0.26)');
-    rg.addColorStop(1, 'rgba(216, 180, 254, 0)');
+    rg.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+    rg.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.strokeStyle = rg;
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(moonX, moonY);
     ctx.lineTo(x2, y2);
@@ -2303,7 +2326,22 @@ function initNightMoon(w, h) {
     alpha: rand(0.35, 0.85),
   }));
 
-  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones };
+  const chunks = [];
+  let x = 0;
+  while (x < w) {
+    const chunkW = rand(14, 34);
+    chunks.push({
+      x1: x,
+      x2: Math.min(w, x + chunkW),
+      topY: rand(groundY - 6, groundY + 18),
+      depth: rand(16, 42),
+      skew: rand(-8, 8),
+      alpha: rand(0.34, 0.66),
+    });
+    x += chunkW + rand(2, 6);
+  }
+
+  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks };
 }
 
 function updateNightMoon(state, w, h, dt) {
@@ -2322,22 +2360,22 @@ function updateNightMoon(state, w, h, dt) {
 }
 
 function drawNightMoon(ctx, state, w, h) {
-  // Fond nuit
+  // Fond nuit (éclairci)
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(11, 0, 35, 0.92)');
-  bg.addColorStop(0.45, 'rgba(27, 11, 55, 0.78)');
-  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  bg.addColorStop(0, 'rgba(18, 14, 60, 0.48)');
+  bg.addColorStop(0.45, 'rgba(30, 41, 59, 0.36)');
+  bg.addColorStop(1, 'rgba(2, 6, 23, 0.52)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  const moonX = w * 0.55;
-  const moonY = h * 0.18;
+  const moonX = w * 0.14;
+  const moonY = h * 0.13;
 
   // Glow de lune + halos
   const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.max(w, h) * 0.6);
-  moonGlow.addColorStop(0, `rgba(236, 72, 153, 0.06)`);
-  moonGlow.addColorStop(0.15, `rgba(167, 139, 250, 0.18)`);
-  moonGlow.addColorStop(0.42, `rgba(99, 102, 241, 0.10)`);
+  moonGlow.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+  moonGlow.addColorStop(0.2, 'rgba(226, 232, 240, 0.12)');
+  moonGlow.addColorStop(0.42, 'rgba(191, 219, 254, 0.06)');
   moonGlow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = moonGlow;
   ctx.fillRect(0, 0, w, h);
@@ -2345,17 +2383,17 @@ function drawNightMoon(ctx, state, w, h) {
   // Rayons de lune (faisceau)
   ctx.save();
   ctx.translate(moonX, moonY);
-  const rayCount = 11;
-  const len = h * 0.85;
+  const rayCount = 7;
+  const len = h * 0.74;
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
-    const angle = lerp(-0.35, 0.35, t) + Math.sin(state.moonPhase * 2 + i) * 0.03;
-    const sw = lerp(9, 2.5, Math.abs(t - 0.5) * 2);
+    const angle = lerp(0.12, 1.02, t) + Math.sin(state.moonPhase * 1.6 + i) * 0.02;
+    const sw = lerp(6.5, 1.8, Math.abs(t - 0.5) * 2);
     const g = ctx.createLinearGradient(0, 0, 0, len);
-    g.addColorStop(0, 'rgba(216, 180, 254, 0)');
-    g.addColorStop(0.2, 'rgba(216, 180, 254, 0.10)');
-    g.addColorStop(0.6, 'rgba(167, 139, 250, 0.14)');
-    g.addColorStop(1, 'rgba(216, 180, 254, 0)');
+    g.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    g.addColorStop(0.2, 'rgba(255, 255, 255, 0.07)');
+    g.addColorStop(0.6, 'rgba(226, 232, 240, 0.08)');
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.save();
     ctx.rotate(angle);
     ctx.fillStyle = g;
@@ -2365,11 +2403,11 @@ function drawNightMoon(ctx, state, w, h) {
   ctx.restore();
 
   // Sol fracturé en bas
-  const ridge = state.groundY + Math.sin(state.moonPhase) * 2;
+  const ridge = state.groundY + Math.sin(state.moonPhase) * 1.2;
   const groundG = ctx.createLinearGradient(0, ridge, 0, h);
-  groundG.addColorStop(0, 'rgba(148, 163, 184, 0.18)');
-  groundG.addColorStop(0.35, 'rgba(75, 85, 99, 0.35)');
-  groundG.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+  groundG.addColorStop(0, 'rgba(148, 163, 184, 0.14)');
+  groundG.addColorStop(0.35, 'rgba(75, 85, 99, 0.24)');
+  groundG.addColorStop(1, 'rgba(0, 0, 0, 0.40)');
   ctx.fillStyle = groundG;
 
   ctx.beginPath();
@@ -2377,9 +2415,30 @@ function drawNightMoon(ctx, state, w, h) {
   ctx.lineTo(0, ridge + Math.sin(0) * 3);
   const step = Math.max(5, Math.floor(w / 90));
   for (let x = 0; x <= w; x += step) {
-    const jag = Math.sin(x * 0.04 + state.moonPhase * 1.2) * 3 + Math.sin(x * 0.015 + 1.7) * 2;
+    const jag = Math.sin(x * 0.11 + state.moonPhase * 0.9) * 1.4 + Math.sin(x * 0.23 + 0.9) * 0.9;
     ctx.lineTo(x, ridge + jag);
   }
+  // Morceaux de sol explosés (angles plus rigides)
+  for (const c of state.chunks || []) {
+    const top = c.topY + Math.sin(state.moonPhase + c.x1 * 0.03) * 1.2;
+    ctx.fillStyle = `rgba(30, 41, 59, ${c.alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(c.x1, top);
+    ctx.lineTo(c.x2, top + Math.sin(c.x2 * 0.09 + state.moonPhase) * 1.1);
+    ctx.lineTo(c.x2 + c.skew * 0.3, Math.min(h, top + c.depth * 0.55));
+    ctx.lineTo((c.x1 + c.x2) * 0.5 + c.skew, Math.min(h, top + c.depth));
+    ctx.lineTo(c.x1 - c.skew * 0.25, Math.min(h, top + c.depth * 0.5));
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(226, 232, 240, ${0.16 + c.alpha * 0.15})`;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(c.x1, top);
+    ctx.lineTo(c.x2, top + 0.6);
+    ctx.stroke();
+  }
+
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
@@ -2387,7 +2446,7 @@ function drawNightMoon(ctx, state, w, h) {
   // Fissures lumineuses
   for (const f of state.fissures) {
     const a = f.alpha * (0.65 + 0.35 * Math.sin(state.moonPhase + f.x1 * 0.01));
-    ctx.strokeStyle = `rgba(167, 139, 250, ${a})`;
+    ctx.strokeStyle = `rgba(226, 232, 240, ${a * 0.75})`;
     ctx.lineWidth = f.width;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -2505,11 +2564,11 @@ function updateStormTempest(state, w, h, dt) {
 }
 
 function drawStormTempest(ctx, state, w, h) {
-  // Fond
+  // Fond (moins sombre)
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
-  bg.addColorStop(0.5, 'rgba(15, 23, 42, 0.85)');
-  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  bg.addColorStop(0, 'rgba(30, 41, 59, 0.64)');
+  bg.addColorStop(0.42, 'rgba(30, 41, 59, 0.42)');
+  bg.addColorStop(1, 'rgba(2, 6, 23, 0.30)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -2518,8 +2577,8 @@ function drawStormTempest(ctx, state, w, h) {
     const pulse = 0.7 + 0.3 * Math.sin(c.phase + state.cloudPhase);
     const a = c.alpha * pulse;
     const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-    g.addColorStop(0, `rgba(0, 0, 0, ${a})`);
-    g.addColorStop(0.4, `rgba(17, 24, 39, ${a * 0.9})`);
+    g.addColorStop(0, `rgba(15, 23, 42, ${a * 0.72})`);
+    g.addColorStop(0.4, `rgba(30, 41, 59, ${a * 0.58})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -2529,8 +2588,8 @@ function drawStormTempest(ctx, state, w, h) {
 
   // Ombres de nuages (dégradé)
   const fog = ctx.createLinearGradient(0, 0, 0, h * 0.55);
-  fog.addColorStop(0, 'rgba(0,0,0,0.45)');
-  fog.addColorStop(0.3, 'rgba(0,0,0,0.20)');
+  fog.addColorStop(0, 'rgba(15,23,42,0.28)');
+  fog.addColorStop(0.3, 'rgba(15,23,42,0.12)');
   fog.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = fog;
   ctx.fillRect(0, 0, w, h * 0.55);
