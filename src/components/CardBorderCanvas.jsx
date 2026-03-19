@@ -1363,14 +1363,86 @@ function drawChampion(ctx, state, w, h) {
   }
 }
 
+// ─── Ancient : noir & blanc + scanlines + grésillement ────────────────
+
+function initAncient(w, h) {
+  return {
+    time: rand(0, Math.PI * 2),
+    flicker: rand(0.75, 1.15),
+    scanPhase: rand(0, 5),
+    nextFlickerIn: rand(18, 42),
+  };
+}
+
+function updateAncient(state, w, h, dt) {
+  const s = dt / 16;
+  state.time += 0.035 * s;
+  state.scanPhase += 0.7 * s;
+
+  // Flicker aléatoire (plus “vieux” TV).
+  state.nextFlickerIn -= s;
+  if (state.nextFlickerIn <= 0) {
+    state.nextFlickerIn = rand(18, 42);
+    state.flicker = rand(0.65, 1.25);
+  }
+}
+
+function drawAncient(ctx, state, w, h) {
+  ctx.save();
+
+  // Légère vignette + assombrissement pour simuler un tube.
+  const vignette = ctx.createRadialGradient(w * 0.5, h * 0.55, 0, w * 0.5, h * 0.55, Math.max(w, h) * 0.75);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.42)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
+  const flicker = state.flicker;
+
+  // Scanlines horizontales.
+  const lineSpacing = Math.max(2, Math.floor(h / 70));
+  const lineAlpha = 0.18 * flicker;
+  const jitter = Math.sin(state.time * 1.7) * 1.15;
+  const phaseOffset = (state.scanPhase % lineSpacing) * 1.0;
+
+  ctx.globalAlpha = lineAlpha;
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  for (let y = -lineSpacing; y < h + lineSpacing; y += lineSpacing) {
+    ctx.fillRect(0, y + phaseOffset + jitter, w, 1);
+  }
+
+  // Bandes d'interférence (le “grésillement” grossier).
+  ctx.globalAlpha = 0.12 * flicker;
+  for (let i = 0; i < 3; i++) {
+    const y = rand(0, h);
+    const bandH = rand(1, 3);
+    const xOff = Math.sin(state.time * 1.1 + i) * (w * 0.02);
+    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+    ctx.fillRect(xOff, y, w, bandH);
+  }
+
+  // Grains aléatoires (petits points).
+  const noiseCount = Math.floor((w * h) / 3000);
+  ctx.globalAlpha = 0.08 * flicker;
+  for (let i = 0; i < noiseCount; i++) {
+    const x = rand(0, w);
+    const y = rand(0, h);
+    const on = Math.random() < 0.5;
+    ctx.fillStyle = on ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
+    ctx.fillRect(x, y, 1, 1);
+  }
+
+  ctx.restore();
+}
+
 // ─── Eau & Soleil : rayons en haut + eau vascillante en bas + vague ponctuelle ────
 
 function spawnWaterBubble(w, h) {
   // On aligne les bulles avec la nouvelle surface pour éviter les “trous”
-  const surfaceY = h * 0.72;
+  const surfaceY = h * 0.80;
   return {
     x: rand(0, w),
-    y: rand(surfaceY - h * 0.04, h * 0.98),
+    y: rand(surfaceY - h * 0.045, h * 0.98),
     vy: rand(-0.15, -0.9),
     vx: rand(-0.08, 0.08),
     r: rand(1.2, 3.2),
@@ -1398,18 +1470,18 @@ function updateWaterSun(state, w, h, dt) {
     b.y += b.vy * s - Math.sin(b.phase) * 0.15 * s;
     b.x += b.vx * s + Math.cos(b.phase * 0.7) * 0.03 * s;
     // Respawn quand la bulle sort trop haut (sinon elles “flottent” dans la zone air)
-    if (b.y < h * 0.65 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
+    if (b.y < h * 0.74 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
   }
 
   state.waveCooldown -= s;
   if (state.waveCooldown <= 0 && !state.wave) {
     state.wave = {
       t: 0,
-      // Front de vague plus “large” et un peu plus long
-      duration: randInt(40, 64),
-      amp: rand(12, 22),
+      // Vague plus lente + plus “tsunami” (front qui traverse moins vite)
+      duration: randInt(70, 110),
+      amp: rand(18, 30),
       phase: rand(0, Math.PI * 2),
-      speed: rand(0.9, 1.3),
+      speed: rand(0.45, 0.75),
     };
     state.waveCooldown = rand(360, 720);
   }
@@ -1457,14 +1529,15 @@ function drawWaterSun(ctx, state, w, h) {
   ctx.restore();
 
   // Eau trop haute actuellement => on baisse la surface (moins d'eau visible)
-  const surfaceY = h * 0.72;
+  const surfaceY = h * 0.80;
   const waveProgress = state.wave ? Math.min(1, state.wave.t / state.wave.duration) : 0;
   // Front qui va de droite -> gauche
   const waveFrontX = state.wave
     ? lerp(w * 1.05, -w * 0.05, waveProgress)
     : 0;
-  const waveSigma = Math.max(18, w * 0.055);
-  const waveFreq = Math.max(0.045, 0.075 * (w / 280));
+  // Largeur du front : plus grand pour que la vague ait plus d'impact visuel
+  const waveSigma = Math.max(22, w * 0.085);
+  const waveFreq = Math.max(0.03, 0.05 * (w / 280));
 
   // Fond eau
   const waterBg = ctx.createLinearGradient(0, surfaceY, 0, h);
@@ -1497,7 +1570,7 @@ function drawWaterSun(ctx, state, w, h) {
         const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 4.0);
         waveEvent = ripple * env;
       }
-      const y = surfaceY + wave + wave2 + waveEvent * (state.wave ? waveFade * amp : 0) * 0.12;
+      const y = surfaceY + wave + wave2 + waveEvent * (state.wave ? waveFade * amp : 0) * 0.18;
       ctx.lineTo(x, y);
     }
     ctx.lineTo(w, h);
@@ -1867,6 +1940,7 @@ const EFFECTS = {
   cosmique:       { init: initCosmic, update: updateCosmic, draw: drawCosmic },
   transcendance:  { init: initTranscendance, update: updateTranscendance, draw: drawTranscendance },
   champion:       { init: initChampion, update: updateChampion, draw: drawChampion },
+  ancient:        { init: initAncient, update: updateAncient, draw: drawAncient },
 };
 
 // ─── Composant React ─────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ const MesAnciensPersonnages = () => {
                 )}
                 <CharacterCardContent
                   character={char}
-                  borderId={char.tournamentChampion ? 'champion' : null}
+                  borderId={char.tournamentChampion ? 'ancient' : null}
                   detailsPlacement="left"
                 />
                 {char.archivedAt && (

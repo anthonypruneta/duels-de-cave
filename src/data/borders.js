@@ -70,6 +70,14 @@ export const BORDERS = {
     type: 'account',
     condition: 'Gagner 2 tournois',
   },
+  ancient: {
+    id: 'ancient',
+    nom: 'Ancien',
+    icon: '📺',
+    cssClass: 'border-ancient-glow',
+    type: 'account',
+    condition: 'Gagner un tournoi des anciens',
+  },
   night_moon: {
     id: 'night_moon',
     nom: 'Nuit de Lune',
@@ -223,6 +231,11 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('water_sun');
   }
 
+  // Débloquage rétroactif : champion du tournoi des anciens (archivé)
+  if ((extras.anciensChampionWins ?? 0) >= 1) {
+    unlocked.push('ancient');
+  }
+
   if ((extras.cataclysmeWins ?? 0) >= 3) {
     unlocked.push('night_moon');
   }
@@ -293,6 +306,23 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     }
 
     extras = { ...extras, tournamentWins: wins, cataclysmeWins: catWins };
+  }
+
+  // Rétroactif : si tu as déjà été champion du tournoi des anciens,
+  // alors la bordure "Ancien" doit être débloquée même si les compteurs
+  // de tournamentRewards n'existent pas (ou plus).
+  if (extras.anciensChampionWins === undefined) {
+    try {
+      const q = query(
+        collection(db, 'archivedCharacters'),
+        where('userId', '==', userId),
+        where('tournamentChampion', '==', true),
+      );
+      const snap = await getDocs(q);
+      extras = { ...extras, anciensChampionWins: snap.size };
+    } catch (_) {
+      extras = { ...extras, anciensChampionWins: 0 };
+    }
   }
 
   if (extras.bossRushCompletions === undefined) {
