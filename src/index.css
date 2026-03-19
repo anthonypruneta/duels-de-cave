@@ -347,6 +347,15 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 16px rgba(125, 211, 252, 0.36), 0 0 30px rgba(59, 130, 246, 0.18);
 }
 
+/* ===== Bordure Personnage Parfait (perfect_character) — glow seul, effet Canvas ===== */
+
+.border-perfect-character-glow {
+  box-shadow:
+    0 0 18px rgba(251, 191, 36, 0.35),
+    0 0 30px rgba(125, 211, 252, 0.24),
+    0 0 42px rgba(167, 139, 250, 0.18);
+}
+
 /* ===== Bordure Nuit de Lune (night_moon) — glow seul, effet Canvas ===== */
 
 .border-night-glow {

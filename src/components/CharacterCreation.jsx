@@ -389,6 +389,7 @@ const CharacterCreation = () => {
     cataclysmeWins: 0,
     bossRushCompletions: 0,
     labyrinthFloor90Wins: 0,
+    perfectCharacterCount: 0,
   });
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -402,6 +403,7 @@ const CharacterCreation = () => {
       night_moon: { current: unlockProgress.cataclysmeWins ?? 0, target: 3 },
       storm_tempest: { current: unlockProgress.bossRushCompletions ?? 0, target: 5 },
       sable: { current: unlockProgress.labyrinthFloor90Wins ?? 0, target: 5 },
+      perfect_character: { current: unlockProgress.perfectCharacterCount ?? 0, target: 1 },
       titane: { current: titleCount, target: 10 },
       cosmique: { current: titleCount, target: 20 },
       transcendance: { current: titleCount, target: totalTitlesCount },
@@ -688,6 +690,9 @@ const CharacterCreation = () => {
           const labyrinthFloor90Wins = Number.isFinite(rewardData.labyrinthFloor90Wins)
             ? rewardData.labyrinthFloor90Wins
             : (labFloor >= 90 ? 1 : 0);
+          const perfectCharacterCount = Number.isFinite(rewardData.perfectCharacterCount)
+            ? rewardData.perfectCharacterCount
+            : 0;
           const bossRushCompletionsAccount = Math.max(bossRushCompletions, rewardBossRushCompletions);
           const earnedTitles = charData.earnedTitles || [];
           const unlockedBorders = charData.unlockedBorders || [];
@@ -716,12 +721,17 @@ const CharacterCreation = () => {
             labyrinthFloor90Wins,
             unlockedBorders.includes('sable') ? 5 : 0,
           );
+          const inferredPerfectCharacterCount = Math.max(
+            perfectCharacterCount,
+            unlockedBorders.includes('perfect_character') ? 1 : 0,
+          );
 
           setUnlockProgress({
             tournamentWins: inferredTournamentWins,
             cataclysmeWins: inferredCataclysmeWins,
             bossRushCompletions: inferredBossRushCompletions,
             labyrinthFloor90Wins: inferredLabyrinthFloor90Wins,
+            perfectCharacterCount: inferredPerfectCharacterCount,
           });
 
           const extras = {

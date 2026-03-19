@@ -2000,26 +2000,30 @@ function drawOrnnRunic(ctx, state, w, h) {
   if (state.impact) {
     const it = Math.max(0, Math.min(1, state.impact.t / state.impact.duration));
     const boom = Math.sin(it * Math.PI);
-    const rr = (w * 0.08) + boom * (w * 0.22);
+    const rr = (w * 0.14) + boom * (w * 0.34);
     const gx = state.impact.x;
     const gy = state.impact.y;
 
-    // Flash de coup de marteau
+    // Diffusion d'impact de marteau (centre moins opaque + fondu progressif)
     const flash = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 1.25);
-    flash.addColorStop(0, `rgba(254, 243, 199, ${0.45 * boom})`);
-    flash.addColorStop(0.35, `rgba(251, 191, 36, ${0.25 * boom})`);
+    flash.addColorStop(0, `rgba(254, 243, 199, ${0.18 * boom})`);
+    flash.addColorStop(0.20, `rgba(251, 191, 36, ${0.20 * boom})`);
+    flash.addColorStop(0.58, `rgba(239, 68, 68, ${0.12 * boom})`);
     flash.addColorStop(1, 'rgba(239, 68, 68, 0)');
     ctx.fillStyle = flash;
     ctx.beginPath();
-    ctx.arc(gx, gy, rr * 1.25, 0, Math.PI * 2);
+    ctx.arc(gx, gy, rr * 1.45, 0, Math.PI * 2);
     ctx.fill();
 
-    // Onde
-    ctx.strokeStyle = `rgba(251, 191, 36, ${0.42 * (1 - it)})`;
-    ctx.lineWidth = 1.5 + 2.2 * (1 - it);
+    // Halo externe très diffus pour étaler l'impact
+    const outer = ctx.createRadialGradient(gx, gy, rr * 0.2, gx, gy, rr * 1.9);
+    outer.addColorStop(0, `rgba(251, 191, 36, ${0.07 * boom})`);
+    outer.addColorStop(0.55, `rgba(239, 68, 68, ${0.05 * boom})`);
+    outer.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = outer;
     ctx.beginPath();
-    ctx.arc(gx, gy, rr, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.arc(gx, gy, rr * 1.9, 0, Math.PI * 2);
+    ctx.fill();
 
     // Rune centrale renforcée après impact
     ctx.save();
@@ -2120,6 +2124,144 @@ function drawGojoInfinity(ctx, state, w, h) {
     ctx.arc(x, y, o.r * 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+// ─── Personnage parfait : fusion runique + infini + sable + lune ────────────
+
+function initPerfectCharacter(w, h) {
+  return {
+    t: rand(0, Math.PI * 2),
+    dunePhase: rand(0, Math.PI * 2),
+    ringPhase: rand(0, Math.PI * 2),
+    glyphs: Array.from({ length: Math.max(12, Math.floor(h / 22)) }, () => ({
+      x: rand(w * 0.06, w * 0.94),
+      y: rand(h * 0.10, h * 0.90),
+      size: rand(8, 14),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.10, 0.24),
+      char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+    })),
+    stars: Array.from({ length: Math.max(18, Math.floor(w / 16)) }, () => ({
+      x: rand(0, w),
+      y: rand(0, h * 0.62),
+      r: rand(0.7, 1.7),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.12, 0.28),
+    })),
+  };
+}
+
+function updatePerfectCharacter(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.017 * s;
+  state.dunePhase += 0.010 * s;
+  state.ringPhase += 0.014 * s;
+  for (const g of state.glyphs) g.phase += 0.018 * s;
+  for (const st of state.stars) st.phase += 0.028 * s;
+}
+
+function drawPerfectCharacter(ctx, state, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.48;
+
+  // Aura globale prisme
+  const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.72);
+  aura.addColorStop(0, 'rgba(253, 224, 71, 0.13)');
+  aura.addColorStop(0.33, 'rgba(125, 211, 252, 0.11)');
+  aura.addColorStop(0.66, 'rgba(196, 181, 253, 0.10)');
+  aura.addColorStop(1, 'rgba(15, 23, 42, 0)');
+  ctx.fillStyle = aura;
+  ctx.fillRect(0, 0, w, h);
+
+  // Anneaux "infini" (plus marqués)
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < 5; i++) {
+    const rx = w * (0.18 + i * 0.05);
+    const ry = h * (0.08 + i * 0.025);
+    const a = 0.10 + 0.07 * Math.sin(state.ringPhase * 2 + i * 0.7);
+    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
+    ctx.lineWidth = 1.3 + i * 0.25;
+    ctx.beginPath();
+    for (let p = 0; p <= 92; p++) {
+      const u = (p / 92) * Math.PI * 2;
+      const x = Math.sin(u) * rx;
+      const y = Math.sin(u * 2 + state.ringPhase + i * 0.45) * ry;
+      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Runes renforcées
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const g of state.glyphs) {
+    const pulse = 0.6 + 0.4 * Math.sin(state.t * 2.0 + g.phase);
+    ctx.font = `${g.size}px serif`;
+    ctx.shadowBlur = 11 + 7 * pulse;
+    ctx.shadowColor = `rgba(251, 191, 36, ${0.35 + 0.25 * pulse})`;
+    ctx.fillStyle = `rgba(255, 251, 235, ${g.alpha * (0.85 + 0.65 * pulse)})`;
+    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2.2);
+  }
+  ctx.restore();
+
+  // Lune discrète en haut + faisceaux
+  const moonX = w * 0.76;
+  const moonY = h * 0.14;
+  const moon = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.max(w, h) * 0.18);
+  moon.addColorStop(0, 'rgba(244, 244, 255, 0.28)');
+  moon.addColorStop(0.4, 'rgba(167, 139, 250, 0.14)');
+  moon.addColorStop(1, 'rgba(167, 139, 250, 0)');
+  ctx.fillStyle = moon;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, Math.max(w, h) * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6;
+    const theta = lerp(0.5, 1.25, t) + Math.sin(state.t + i) * 0.03;
+    const len = h * 0.66;
+    const x2 = moonX + Math.cos(theta) * len;
+    const y2 = moonY + Math.sin(theta) * len;
+    const rg = ctx.createLinearGradient(moonX, moonY, x2, y2);
+    rg.addColorStop(0, 'rgba(216, 180, 254, 0.26)');
+    rg.addColorStop(1, 'rgba(216, 180, 254, 0)');
+    ctx.strokeStyle = rg;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(moonX, moonY);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Étoiles
+  for (const st of state.stars) {
+    const a = st.alpha * (0.65 + 0.35 * Math.sin(st.phase + state.t * 2.4));
+    ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Dunes bas de carte (subtiles)
+  const duneY = h * 0.90;
+  const dg = ctx.createLinearGradient(0, duneY - 16, 0, h);
+  dg.addColorStop(0, 'rgba(245, 158, 11, 0.16)');
+  dg.addColorStop(1, 'rgba(120, 53, 15, 0.50)');
+  ctx.fillStyle = dg;
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, duneY);
+  const step = Math.max(5, Math.floor(w / 90));
+  for (let x = 0; x <= w; x += step) {
+    const yy = duneY + Math.sin(x * 0.022 + state.dunePhase) * 7 + Math.cos(x * 0.01 + state.dunePhase * 0.7) * 3;
+    ctx.lineTo(x, yy);
+  }
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
 }
 
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
@@ -2445,6 +2587,7 @@ const EFFECTS = {
   sable:          { init: initSable, update: updateSable, draw: drawSable },
   ornn_runic:     { init: initOrnnRunic, update: updateOrnnRunic, draw: drawOrnnRunic },
   gojo_infinity:  { init: initGojoInfinity, update: updateGojoInfinity, draw: drawGojoInfinity },
+  perfect_character: { init: initPerfectCharacter, update: updatePerfectCharacter, draw: drawPerfectCharacter },
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },

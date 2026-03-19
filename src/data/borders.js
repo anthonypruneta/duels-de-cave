@@ -10,6 +10,15 @@ import { db } from '../firebase/config';
 import { TITLES } from './titles';
 import { isForgeRollHighPerfection } from './forgeDungeon';
 
+function isPerfectCharacterProfile(row) {
+  if (!row || typeof row !== 'object') return false;
+  const hasOrnnPerfect = !!row.forgeUpgrade && isForgeRollHighPerfection(row.forgeUpgrade, 0.9);
+  const hasGojoLv3 = Number(row?.mageTowerExtensionPassive?.level ?? 0) >= 3;
+  const hasLevel400 = Number(row?.level ?? 0) >= 400;
+  const hasSubclass = !!row?.subclass;
+  return hasOrnnPerfect && hasGojoLv3 && hasLevel400 && hasSubclass;
+}
+
 /**
  * type: 'character' = lié à la progression hebdomadaire du personnage (reset chaque semaine)
  * type: 'account'   = lié à la progression du compte (persiste d'une semaine à l'autre)
@@ -102,6 +111,14 @@ export const BORDERS = {
     cssClass: 'border-gojo-infinity-glow',
     type: 'account',
     condition: 'Obtenir un passif niveau 3 chez Gojo',
+  },
+  perfect_character: {
+    id: 'perfect_character',
+    nom: 'Personnage Parfait',
+    icon: '👑',
+    cssClass: 'border-perfect-character-glow',
+    type: 'account',
+    condition: 'Avoir un personnage avec Ornn parfait + Gojo niv.3 + niveau 400 + sous-classe',
   },
   night_moon: {
     id: 'night_moon',
@@ -271,6 +288,10 @@ export function checkBorderUnlocks(character, extras = {}) {
 
   if ((extras.gojoPassiveLevel3Count ?? 0) >= 1) {
     unlocked.push('gojo_infinity');
+  }
+
+  if ((extras.perfectCharacterCount ?? 0) >= 1) {
+    unlocked.push('perfect_character');
   }
 
   if ((extras.cataclysmeWins ?? 0) >= 3) {
@@ -484,6 +505,38 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     extras = { ...extras, perfectOrnnWeaponCount, gojoPassiveLevel3Count };
   }
 
+  if (extras.perfectCharacterCount === undefined) {
+    let perfectCharacterCount = 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
+        perfectCharacterCount = Number.isFinite(data.perfectCharacterCount) ? data.perfectCharacterCount : 0;
+      }
+    } catch (_) { /* ignore */ }
+
+    if (perfectCharacterCount < 1) {
+      try {
+        if (isPerfectCharacterProfile(character)) perfectCharacterCount = 1;
+
+        if (perfectCharacterCount < 1) {
+          const archSnap = await getDocs(query(
+            collection(db, 'archivedCharacters'),
+            where('userId', '==', userId)
+          ));
+          archSnap.forEach((docSnap) => {
+            if (perfectCharacterCount >= 1) return;
+            if (isPerfectCharacterProfile(docSnap.data() || {})) perfectCharacterCount = 1;
+          });
+        }
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, perfectCharacterCount };
+  }
+
   // Migration rétroactive "compteurs persistants":
   // - ne baisse jamais une valeur déjà en base
   // - injecte les compteurs manquants dans tournamentRewards
@@ -513,6 +566,10 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       Number.isFinite(baseReward.gojoPassiveLevel3Count) ? baseReward.gojoPassiveLevel3Count : 0,
       extras.gojoPassiveLevel3Count ?? 0
     );
+    const migratedPerfectCharacterCount = Math.max(
+      Number.isFinite(baseReward.perfectCharacterCount) ? baseReward.perfectCharacterCount : 0,
+      extras.perfectCharacterCount ?? 0
+    );
 
     const needsMigration =
       !rewardReadOk ||
@@ -521,7 +578,8 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       migratedBossRushCompletions !== (baseReward.bossRushCompletions ?? 0) ||
       migratedLabFloor90Wins !== (baseReward.labyrinthFloor90Wins ?? 0) ||
       migratedPerfectOrnnWeaponCount !== (baseReward.perfectOrnnWeaponCount ?? 0) ||
-      migratedGojoPassiveLevel3Count !== (baseReward.gojoPassiveLevel3Count ?? 0);
+      migratedGojoPassiveLevel3Count !== (baseReward.gojoPassiveLevel3Count ?? 0) ||
+      migratedPerfectCharacterCount !== (baseReward.perfectCharacterCount ?? 0);
 
     if (needsMigration) {
       await setDoc(doc(db, 'tournamentRewards', userId), {
@@ -531,6 +589,7 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
         labyrinthFloor90Wins: migratedLabFloor90Wins,
         perfectOrnnWeaponCount: migratedPerfectOrnnWeaponCount,
         gojoPassiveLevel3Count: migratedGojoPassiveLevel3Count,
+        perfectCharacterCount: migratedPerfectCharacterCount,
         updatedAt: Timestamp.now(),
       }, { merge: true });
     }
