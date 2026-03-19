@@ -329,6 +329,12 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 14px rgba(226, 232, 240, 0.35), 0 0 26px rgba(148, 163, 184, 0.18);
 }
 
+/* ===== Bordure Sable (sable) — glow seul, effet Canvas ===== */
+
+.border-sable-glow {
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35), 0 0 30px rgba(180, 83, 9, 0.2);
+}
+
 /* ===== Bordure Nuit de Lune (night_moon) — glow seul, effet Canvas ===== */
 
 .border-night-glow {

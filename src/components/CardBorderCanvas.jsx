@@ -1768,6 +1768,123 @@ function drawWaterSun(ctx, state, w, h) {
   }
 }
 
+// ─── Sable : dunes basses + tempête de sable occasionnelle ───────────────────
+
+function spawnSandDust(w, h, gust = false) {
+  const baseY = rand(h * 0.62, h * 0.98);
+  return {
+    x: gust ? rand(-w * 0.2, w * 1.15) : rand(0, w),
+    y: baseY,
+    vx: gust ? rand(1.3, 3.2) : rand(0.35, 1.0),
+    vy: gust ? rand(-0.18, 0.12) : rand(-0.08, 0.06),
+    r: gust ? rand(0.9, 2.2) : rand(0.6, 1.4),
+    alpha: gust ? rand(0.28, 0.58) : rand(0.08, 0.22),
+    life: gust ? rand(55, 95) : rand(90, 170),
+  };
+}
+
+function initSable(w, h) {
+  return {
+    time: 0,
+    dunePhase: rand(0, Math.PI * 2),
+    dust: Array.from({ length: Math.max(38, Math.floor(w / 5.5)) }, () => spawnSandDust(w, h, false)),
+    gustActive: false,
+    gustTimer: 0,
+    gustCooldown: rand(220, 420),
+  };
+}
+
+function updateSable(state, w, h, dt) {
+  const s = dt / 16;
+  state.time += 0.02 * s;
+  state.dunePhase += 0.011 * s;
+
+  if (!state.gustActive) {
+    state.gustCooldown -= s;
+    if (state.gustCooldown <= 0) {
+      state.gustActive = true;
+      state.gustTimer = rand(80, 150);
+      const burstCount = randInt(24, 46);
+      for (let i = 0; i < burstCount; i++) {
+        state.dust.push(spawnSandDust(w, h, true));
+      }
+    }
+  } else {
+    state.gustTimer -= s;
+    if (state.gustTimer <= 0) {
+      state.gustActive = false;
+      state.gustCooldown = rand(280, 520);
+    }
+  }
+
+  for (let i = state.dust.length - 1; i >= 0; i--) {
+    const p = state.dust[i];
+    const boost = state.gustActive ? 1.85 : 1;
+    p.x += p.vx * s * boost;
+    p.y += p.vy * s + Math.sin(state.time * 2.1 + p.x * 0.015) * 0.08 * s;
+    p.life -= (state.gustActive ? 1.15 : 0.8) * s;
+    if (p.life <= 0 || p.x > w * 1.25 || p.y < h * 0.45 || p.y > h + 10) {
+      Object.assign(p, spawnSandDust(w, h, state.gustActive && Math.random() < 0.45));
+    }
+  }
+}
+
+function drawSable(ctx, state, w, h) {
+  const bg = ctx.createLinearGradient(0, h * 0.48, 0, h);
+  bg.addColorStop(0, 'rgba(245, 158, 11, 0)');
+  bg.addColorStop(0.45, 'rgba(217, 119, 6, 0.10)');
+  bg.addColorStop(1, 'rgba(120, 53, 15, 0.30)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, h * 0.45, w, h * 0.55);
+
+  const layers = [
+    { y: h * 0.80, a1: 10, a2: 5, c1: 'rgba(245, 158, 11, 0.30)', c2: 'rgba(202, 138, 4, 0.62)' },
+    { y: h * 0.86, a1: 14, a2: 7, c1: 'rgba(234, 179, 8, 0.26)', c2: 'rgba(180, 83, 9, 0.60)' },
+    { y: h * 0.92, a1: 9, a2: 5, c1: 'rgba(217, 119, 6, 0.32)', c2: 'rgba(120, 53, 15, 0.72)' },
+  ];
+  const step = Math.max(4, Math.floor(w / 92));
+  for (let li = 0; li < layers.length; li++) {
+    const L = layers[li];
+    const grad = ctx.createLinearGradient(0, L.y - L.a1 * 1.3, 0, h);
+    grad.addColorStop(0, L.c1);
+    grad.addColorStop(1, L.c2);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, L.y);
+    for (let x = 0; x <= w; x += step) {
+      const waveA = Math.sin(x * (0.02 + li * 0.004) + state.dunePhase * (1 + li * 0.18)) * L.a1;
+      const waveB = Math.cos(x * (0.009 + li * 0.002) + state.dunePhase * 0.8 + li) * L.a2;
+      ctx.lineTo(x, L.y + waveA + waveB);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (state.gustActive) {
+    const strength = Math.max(0, Math.min(1, state.gustTimer / 45));
+    const fog = ctx.createLinearGradient(0, h * 0.28, w, h * 0.82);
+    fog.addColorStop(0, `rgba(254, 243, 199, ${0.03 + 0.03 * strength})`);
+    fog.addColorStop(0.5, `rgba(245, 158, 11, ${0.08 + 0.05 * strength})`);
+    fog.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, h * 0.2, w, h * 0.8);
+  }
+
+  for (const p of state.dust) {
+    const a = p.alpha * (0.55 + 0.45 * Math.sin(state.time * 2.3 + p.x * 0.03));
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 1.8);
+    g.addColorStop(0, `rgba(254, 243, 199, ${a})`);
+    g.addColorStop(0.6, `rgba(245, 158, 11, ${a * 0.65})`);
+    g.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
@@ -2088,6 +2205,7 @@ const EFFECTS = {
   territory:      { init: initTerritory, update: updateTerritory, draw: drawTerritory },
   blood:          { init: initBlood, update: updateBlood, draw: drawBlood },
   water_sun:      { init: initWaterSun, update: updateWaterSun, draw: drawWaterSun },
+  sable:          { init: initSable, update: updateSable, draw: drawSable },
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },

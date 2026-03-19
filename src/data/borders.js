@@ -78,6 +78,14 @@ export const BORDERS = {
     type: 'account',
     condition: 'Gagner un tournoi des anciens',
   },
+  sable: {
+    id: 'sable',
+    nom: 'Sable',
+    icon: '🏜️',
+    cssClass: 'border-sable-glow',
+    type: 'account',
+    condition: 'Battre 5 fois le niveau 90 du Labyrinthe',
+  },
   night_moon: {
     id: 'night_moon',
     nom: 'Nuit de Lune',
@@ -236,6 +244,10 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('ancient');
   }
 
+  if ((extras.labyrinthFloor90Wins ?? 0) >= 5) {
+    unlocked.push('sable');
+  }
+
   if ((extras.cataclysmeWins ?? 0) >= 3) {
     unlocked.push('night_moon');
   }
@@ -342,6 +354,33 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     } catch (_) {
       extras = { ...extras, bossRushCompletions: 0 };
     }
+  }
+
+  if (extras.labyrinthFloor90Wins === undefined) {
+    let floor90Wins = 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        floor90Wins = Number.isFinite(data.labyrinthFloor90Wins) ? data.labyrinthFloor90Wins : 0;
+      }
+    } catch (_) { /* ignore */ }
+
+    // Rétro-compat : approximation basée sur les semaines où l'étage 90+ a été atteint.
+    // (1 victoire max comptée par semaine historique)
+    if (floor90Wins < 5) {
+      try {
+        const weeksSnap = await getDocs(collection(db, 'userLabyrinthProgress', userId, 'weeks'));
+        let retroCount = 0;
+        weeksSnap.forEach((docSnap) => {
+          const d = docSnap.data() || {};
+          if ((d.highestClearedFloor ?? 0) >= 90) retroCount += 1;
+        });
+        floor90Wins = Math.max(floor90Wins, retroCount);
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, labyrinthFloor90Wins: floor90Wins };
   }
 
   // Récupérer les titres du compte pour les bordures liées au compte
