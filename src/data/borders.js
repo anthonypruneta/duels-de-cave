@@ -313,10 +313,12 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   // de tournamentRewards n'existent pas (ou plus).
   if (extras.anciensChampionWins === undefined) {
     try {
+      // Source of truth : legacyRetiredArchives contient uniquement les champions
+      // (retirés à vie côté "anciens"), donc on débloque uniquement si un
+      // ownerUserId existe ici.
       const q = query(
-        collection(db, 'archivedCharacters'),
-        where('userId', '==', userId),
-        where('tournamentChampion', '==', true),
+        collection(db, 'legacyRetiredArchives'),
+        where('ownerUserId', '==', userId),
       );
       const snap = await getDocs(q);
       extras = { ...extras, anciensChampionWins: snap.size };
