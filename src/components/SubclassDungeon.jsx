@@ -307,7 +307,7 @@ const SubclassDungeon = () => {
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-[1800px] mx-auto pt-16">
+        <div className="max-w-[1800px] mx-auto pt-20 sm:pt-16">
           <div className="flex justify-center gap-3 md:gap-4 mb-6">
             {combatResult === null && (
               <button
