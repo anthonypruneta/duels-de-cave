@@ -1275,7 +1275,12 @@ export async function getTripleRollCount(userId) {
 
 export async function consumeTripleRoll(userId) {
   try {
-    await deleteDoc(doc(db, 'tournamentRewards', userId));
+    // Ne jamais supprimer le document complet: il contient aussi des compteurs
+    // persistants d'achievements (ex: labyrinthFloor90Wins).
+    await setDoc(doc(db, 'tournamentRewards', userId), {
+      tripleRoll: false,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
 
     return { success: true };
@@ -1286,13 +1291,16 @@ export async function consumeTripleRoll(userId) {
 
 /**
  * Réinitialise tous les gains de reroll (Tournoi + Cataclysme) pour tous les joueurs.
- * Supprime tous les documents de la collection tournamentRewards.
+ * IMPORTANT: conserve les stats persistantes (wins, compteurs achievements, etc.).
  */
 export async function resetAllRerollGains() {
   try {
     const snapshot = await getDocs(collection(db, 'tournamentRewards'));
-    const deletes = snapshot.docs.map((d) => deleteDoc(doc(db, 'tournamentRewards', d.id)));
-    await Promise.all(deletes);
+    const updates = snapshot.docs.map((d) => setDoc(doc(db, 'tournamentRewards', d.id), {
+      tripleRoll: false,
+      updatedAt: serverTimestamp()
+    }, { merge: true }));
+    await Promise.all(updates);
     return { success: true, count: snapshot.size };
   } catch (error) {
     console.error('Erreur reset rerolls:', error);

@@ -13,7 +13,7 @@ import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { syncUnlockedBorders } from '../data/borders';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -228,6 +228,12 @@ const BossRush = () => {
           await setDoc(progressRef, {
             bossRushCompleted: true,
             bossRushCompletions: newCompletions,
+            updatedAt: Timestamp.now(),
+          }, { merge: true });
+
+          // Persistance compte: conserve la progression boss rush même si dungeonProgress est reset.
+          await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
+            bossRushCompletions: increment(1),
             updatedAt: Timestamp.now(),
           }, { merge: true });
 

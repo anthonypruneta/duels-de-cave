@@ -682,21 +682,25 @@ const CharacterCreation = () => {
           const rewardData = rewardSnap?.exists?.() ? (rewardSnap.data() || {}) : {};
           const tournamentWins = Number.isFinite(rewardData.tournamentWins) ? rewardData.tournamentWins : 0;
           const cataclysmeWins = Number.isFinite(rewardData.cataclysmeWins) ? rewardData.cataclysmeWins : 0;
+          const rewardBossRushCompletions = Number.isFinite(rewardData.bossRushCompletions)
+            ? rewardData.bossRushCompletions
+            : 0;
           const labyrinthFloor90Wins = Number.isFinite(rewardData.labyrinthFloor90Wins)
             ? rewardData.labyrinthFloor90Wins
             : (labFloor >= 90 ? 1 : 0);
+          const bossRushCompletionsAccount = Math.max(bossRushCompletions, rewardBossRushCompletions);
 
           setUnlockProgress({
             tournamentWins,
             cataclysmeWins,
-            bossRushCompletions,
+            bossRushCompletions: bossRushCompletionsAccount,
             labyrinthFloor90Wins,
           });
 
           const extras = {
             labyrinthHighestFloor: labFloor,
             bossRushCompleted: bossRushDone,
-            bossRushCompletions,
+            bossRushCompletions: bossRushCompletionsAccount,
             dungeonCompletions,
             tournamentWins,
             cataclysmeWins,
