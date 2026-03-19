@@ -317,6 +317,24 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 15px rgba(220, 38, 38, 0.4), 0 0 30px rgba(127, 29, 29, 0.25);
 }
 
+/* ===== Bordure Eau & Soleil (water_sun) — glow seul, effet Canvas ===== */
+
+.border-water-glow {
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.38), 0 0 30px rgba(59, 130, 246, 0.22);
+}
+
+/* ===== Bordure Nuit de Lune (night_moon) — glow seul, effet Canvas ===== */
+
+.border-night-glow {
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.42), 0 0 30px rgba(99, 102, 241, 0.22);
+}
+
+/* ===== Bordure Tempête (storm_tempest) — glow seul, effet Canvas ===== */
+
+.border-storm-glow {
+  box-shadow: 0 0 16px rgba(148, 163, 184, 0.38), 0 0 28px rgba(59, 130, 246, 0.18);
+}
+
 /* ===== Bordure Nature (emerald) — glow seul, effet Canvas ===== */
 
 .border-nature-glow {

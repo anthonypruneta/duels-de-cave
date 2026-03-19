@@ -59,6 +59,7 @@ const BossRush = () => {
   const [combatResult, setCombatResult] = useState(null);
   const [carriedHP, setCarriedHP] = useState(null);
   const [bossRushCompleted, setBossRushCompleted] = useState(false);
+  const [bossRushCompletions, setBossRushCompletions] = useState(0);
   const [rewardGiven, setRewardGiven] = useState(false);
   const [newTitles, setNewTitles] = useState([]);
   const minHPPercentRef = useRef(100);
@@ -98,8 +99,14 @@ const BossRush = () => {
 
         const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
         const progressSnap = await getDoc(progressRef);
-        if (progressSnap.exists() && progressSnap.data().bossRushCompleted) {
-          setBossRushCompleted(true);
+        if (progressSnap.exists()) {
+          const data = progressSnap.data() || {};
+          const completed = !!data.bossRushCompleted;
+          setBossRushCompleted(completed);
+          const completions = Number.isFinite(data.bossRushCompletions)
+            ? data.bossRushCompletions
+            : (completed ? 1 : 0);
+          setBossRushCompletions(completions);
         }
       } catch (err) {
         setError('Erreur de chargement: ' + err.message);
@@ -201,15 +208,32 @@ const BossRush = () => {
 
         if (isFinalBoss) {
           setGameState('victory');
-          if (!bossRushCompleted) {
+          const firstCompletion = !bossRushCompleted;
+
+          // On compte les complétions (pour déblocages à seuils, ex: 5 boss rush).
+          const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
+          const progressSnap = await getDoc(progressRef);
+          const prevCompletions = progressSnap.exists()
+            ? (Number.isFinite(progressSnap.data()?.bossRushCompletions)
+              ? progressSnap.data().bossRushCompletions
+              : (progressSnap.data()?.bossRushCompleted ? 1 : 0))
+            : 0;
+          const newCompletions = prevCompletions + 1;
+
+          if (firstCompletion) {
             await grantRunsToPlayer(currentUser.uid, 10);
-            await setDoc(doc(db, 'dungeonProgress', currentUser.uid), {
-              bossRushCompleted: true,
-              updatedAt: Timestamp.now(),
-            }, { merge: true });
-            setBossRushCompleted(true);
             setRewardGiven(true);
           }
+
+          await setDoc(progressRef, {
+            bossRushCompleted: true,
+            bossRushCompletions: newCompletions,
+            updatedAt: Timestamp.now(),
+          }, { merge: true });
+
+          setBossRushCompleted(true);
+          setBossRushCompletions(newCompletions);
+
           // Titre boss_rush_parfait : jamais descendu sous 30% PV
           if (minHPPercentRef.current >= 30) {
             (async () => {
@@ -228,7 +252,10 @@ const BossRush = () => {
               } catch (_) { /* silencieux */ }
             })();
           }
-          syncUnlockedBorders(currentUser.uid, character, { bossRushCompleted: true }).catch(() => {});
+          syncUnlockedBorders(currentUser.uid, character, {
+            bossRushCompleted: true,
+            bossRushCompletions: newCompletions,
+          }).catch(() => {});
         } else {
           setGameState('transition');
         }
@@ -387,7 +414,9 @@ const BossRush = () => {
 
               {bossRushCompleted && (
                 <div className="bg-green-950 border border-green-600 rounded-lg p-3 mb-4 text-green-300 text-sm text-center">
-                  ✅ Boss Rush déjà complété ! Vous pouvez retenter sans récompense supplémentaire.
+                  ✅ Boss Rush déjà complété ! ({bossRushCompletions} complétions)
+                  <br />
+                  Vous pouvez retenter sans récompense supplémentaire.
                 </div>
               )}
 

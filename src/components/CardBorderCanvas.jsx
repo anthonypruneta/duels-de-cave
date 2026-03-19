@@ -1363,6 +1363,474 @@ function drawChampion(ctx, state, w, h) {
   }
 }
 
+// ─── Eau & Soleil : rayons en haut + eau vascillante en bas + vague ponctuelle ────
+
+function spawnWaterBubble(w, h) {
+  return {
+    x: rand(0, w),
+    y: rand(h * 0.58, h * 0.98),
+    vy: rand(-0.15, -0.9),
+    vx: rand(-0.08, 0.08),
+    r: rand(1.2, 3.2),
+    phase: rand(0, Math.PI * 2),
+    alpha: rand(0.18, 0.6),
+  };
+}
+
+function initWaterSun(w, h) {
+  return {
+    waterPhase: rand(0, Math.PI * 2),
+    bubbles: Array.from({ length: Math.max(14, Math.floor(w / 16)) }, () => spawnWaterBubble(w, h)),
+    waveCooldown: rand(140, 260),
+    wave: null,
+  };
+}
+
+function updateWaterSun(state, w, h, dt) {
+  const s = dt / 16;
+  state.waterPhase += 0.018 * s;
+
+  for (const b of state.bubbles) {
+    b.phase += 0.06 * s;
+    b.y += b.vy * s - Math.sin(b.phase) * 0.15 * s;
+    b.x += b.vx * s + Math.cos(b.phase * 0.7) * 0.03 * s;
+    if (b.y < h * 0.55 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
+  }
+
+  state.waveCooldown -= s;
+  if (state.waveCooldown <= 0 && !state.wave) {
+    state.wave = {
+      t: 0,
+      duration: randInt(28, 48),
+      amp: rand(7, 15),
+      phase: rand(0, Math.PI * 2),
+      speed: rand(0.9, 1.3),
+    };
+    state.waveCooldown = rand(220, 440);
+  }
+
+  if (state.wave) {
+    state.wave.t += s;
+    if (state.wave.t >= state.wave.duration) state.wave = null;
+  }
+}
+
+function drawWaterSun(ctx, state, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.16;
+
+  // Haze / ciel au-dessus
+  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+  sky.addColorStop(0, 'rgba(251, 191, 36, 0.12)');
+  sky.addColorStop(0.25, 'rgba(250, 204, 21, 0.07)');
+  sky.addColorStop(0.7, 'rgba(56, 189, 248, 0.03)');
+  sky.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h * 0.6);
+
+  // Rayons du soleil
+  const rayCount = 13;
+  const baseLen = Math.max(w, h) * 0.75;
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < rayCount; i++) {
+    const t = i / (rayCount - 1);
+    const angle = lerp(-0.65, 0.65, t) + Math.sin(state.waterPhase * 0.7 + i) * 0.05;
+    ctx.save();
+    ctx.rotate(angle);
+    const sw = lerp(5, 2, t) * (0.85 + 0.15 * Math.sin(state.waterPhase + i));
+    const len = baseLen * lerp(0.55, 0.85, Math.sin(state.waterPhase * 0.3 + i) * 0.5 + 0.5);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(251, 191, 36, 0)');
+    g.addColorStop(0.3, 'rgba(251, 191, 36, 0.10)');
+    g.addColorStop(0.65, 'rgba(234, 179, 8, 0.18)');
+    g.addColorStop(1, 'rgba(251, 191, 36, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-sw / 2, 0, sw, len);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  const surfaceY = h * 0.62;
+
+  // Fond eau
+  const waterBg = ctx.createLinearGradient(0, surfaceY, 0, h);
+  waterBg.addColorStop(0, 'rgba(56, 189, 248, 0.05)');
+  waterBg.addColorStop(0.25, 'rgba(59, 130, 246, 0.14)');
+  waterBg.addColorStop(1, 'rgba(37, 99, 235, 0.38)');
+  ctx.fillStyle = waterBg;
+  ctx.fillRect(0, surfaceY, w, h - surfaceY);
+
+  const waveFade = state.wave ? Math.max(0, 1 - state.wave.t / state.wave.duration) : 0;
+
+  // Vagues superposées (surface vascillante)
+  const drawWaveLayer = (layerIdx) => {
+    const step = Math.max(4, Math.floor(w / 120));
+    const ampBase = lerp(5, 12, layerIdx / 2);
+    const amp = ampBase + (state.wave ? waveFade * state.wave.amp * (0.6 + layerIdx * 0.2) : 0);
+
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, surfaceY);
+    for (let x = 0; x <= w; x += step) {
+      const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx);
+      const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
+      const waveEvent = state.wave
+        ? Math.sin(state.wave.phase + x * 0.05 + state.waterPhase * 0.9 * state.wave.speed)
+        : 0;
+      const y = surfaceY + wave + wave2 + waveEvent * (state.wave ? waveFade * amp : 0) * 0.08;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+
+    const alpha = layerIdx === 0 ? 0.22 : layerIdx === 1 ? 0.28 : 0.18;
+    ctx.fillStyle = `rgba(147, 197, 253, ${alpha})`;
+    ctx.fill();
+
+    // Petit trait lumineux sur la crête
+    ctx.strokeStyle = layerIdx === 0 ? `rgba(186, 230, 253, ${0.16})` : `rgba(147, 197, 253, ${0.12})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    let started = false;
+    for (let x = 0; x <= w; x += step) {
+      const y = surfaceY
+        + Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx)
+        + Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+
+  drawWaveLayer(0);
+  drawWaveLayer(1);
+  drawWaveLayer(2);
+
+  // Bulles / scintillement
+  for (const b of state.bubbles) {
+    const shimmer = 0.6 + 0.4 * Math.sin(b.phase + state.waterPhase);
+    const a = b.alpha * shimmer;
+    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 3);
+    g.addColorStop(0, `rgba(186, 230, 253, ${a * 0.35})`);
+    g.addColorStop(0.4, `rgba(56, 189, 248, ${a * 0.22})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
+
+function initNightMoon(w, h) {
+  const groundY = h * 0.78;
+
+  const fissures = [];
+  const fissCount = Math.max(10, Math.floor(w / 35));
+  for (let i = 0; i < fissCount; i++) {
+    const x1 = rand(0, w);
+    const y1 = rand(groundY - 10, h - 10);
+    const segs = randInt(3, 6);
+    let x = x1;
+    let y = y1;
+    for (let s = 0; s < segs; s++) {
+      const x2 = Math.max(0, Math.min(w, x + rand(-w * 0.08, w * 0.08)));
+      const y2 = Math.max(groundY - 25, Math.min(h, y + rand(-10, 25)));
+      fissures.push({
+        x1: x,
+        y1: y,
+        x2,
+        y2,
+        width: rand(0.8, 2.4),
+        alpha: rand(0.08, 0.22),
+      });
+      x = x2;
+      y = y2;
+    }
+  }
+
+  const stonesCount = Math.max(6, Math.floor(w / 45));
+  const stones = Array.from({ length: stonesCount }, () => ({
+    x: rand(10, w - 10),
+    baseY: rand(groundY - 55, groundY - 15),
+    floatAmp: rand(14, 32),
+    phase: rand(0, Math.PI * 2),
+    size: rand(7, 16),
+    alpha: rand(0.35, 0.85),
+  }));
+
+  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones };
+}
+
+function updateNightMoon(state, w, h, dt) {
+  const s = dt / 16;
+  state.moonPhase += 0.01 * s;
+
+  // Pierres qui lévitent
+  for (const st of state.stones) {
+    st.phase += 0.005 * s;
+    st.y = st.baseY + Math.sin(st.phase) * st.floatAmp;
+    // Petite dérive horizontale
+    st.x += Math.sin(st.phase * 0.6) * 0.04 * s;
+    if (st.x < -20) st.x = w + 20;
+    if (st.x > w + 20) st.x = -20;
+  }
+}
+
+function drawNightMoon(ctx, state, w, h) {
+  // Fond nuit
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, 'rgba(11, 0, 35, 0.92)');
+  bg.addColorStop(0.45, 'rgba(27, 11, 55, 0.78)');
+  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  const moonX = w * 0.55;
+  const moonY = h * 0.18;
+
+  // Glow de lune + halos
+  const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.max(w, h) * 0.6);
+  moonGlow.addColorStop(0, `rgba(236, 72, 153, 0.06)`);
+  moonGlow.addColorStop(0.15, `rgba(167, 139, 250, 0.18)`);
+  moonGlow.addColorStop(0.42, `rgba(99, 102, 241, 0.10)`);
+  moonGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = moonGlow;
+  ctx.fillRect(0, 0, w, h);
+
+  // Rayons de lune (faisceau)
+  ctx.save();
+  ctx.translate(moonX, moonY);
+  const rayCount = 11;
+  const len = h * 0.85;
+  for (let i = 0; i < rayCount; i++) {
+    const t = i / (rayCount - 1);
+    const angle = lerp(-0.35, 0.35, t) + Math.sin(state.moonPhase * 2 + i) * 0.03;
+    const sw = lerp(9, 2.5, Math.abs(t - 0.5) * 2);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(216, 180, 254, 0)');
+    g.addColorStop(0.2, 'rgba(216, 180, 254, 0.10)');
+    g.addColorStop(0.6, 'rgba(167, 139, 250, 0.14)');
+    g.addColorStop(1, 'rgba(216, 180, 254, 0)');
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.fillStyle = g;
+    ctx.fillRect(-sw / 2, 0, sw, len);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Sol fracturé en bas
+  const ridge = state.groundY + Math.sin(state.moonPhase) * 2;
+  const groundG = ctx.createLinearGradient(0, ridge, 0, h);
+  groundG.addColorStop(0, 'rgba(148, 163, 184, 0.18)');
+  groundG.addColorStop(0.35, 'rgba(75, 85, 99, 0.35)');
+  groundG.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+  ctx.fillStyle = groundG;
+
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, ridge + Math.sin(0) * 3);
+  const step = Math.max(5, Math.floor(w / 90));
+  for (let x = 0; x <= w; x += step) {
+    const jag = Math.sin(x * 0.04 + state.moonPhase * 1.2) * 3 + Math.sin(x * 0.015 + 1.7) * 2;
+    ctx.lineTo(x, ridge + jag);
+  }
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Fissures lumineuses
+  for (const f of state.fissures) {
+    const a = f.alpha * (0.65 + 0.35 * Math.sin(state.moonPhase + f.x1 * 0.01));
+    ctx.strokeStyle = `rgba(167, 139, 250, ${a})`;
+    ctx.lineWidth = f.width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(f.x1, f.y1);
+    ctx.lineTo(f.x2, f.y2);
+    ctx.stroke();
+  }
+
+  // Pierres lévitantes
+  for (const st of state.stones) {
+    const y = st.y ?? st.baseY;
+    const r = st.size;
+
+    // Ombre
+    ctx.fillStyle = `rgba(0,0,0,${0.18 * st.alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(st.x, state.groundY + 14, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Corps de pierre (ellipsoïde) + glow
+    const glow = ctx.createRadialGradient(st.x, y, 0, st.x, y, r * 3.2);
+    glow.addColorStop(0, `rgba(216, 180, 254, ${0.22 * st.alpha})`);
+    glow.addColorStop(0.35, `rgba(99, 102, 241, ${0.14 * st.alpha})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(st.x, y, r * 1.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(148, 163, 184, ${0.22 * st.alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(st.x, y, r * 0.85, r * 0.55, Math.sin(st.phase) * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.08 * st.alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(st.x - r * 0.25, y - r * 0.15, r * 0.25, r * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Tempête : nuages noirs en haut + petits éclairs fréquents + gros éclairs occasionnels ───
+
+function spawnStormCloud(w, h) {
+  return {
+    x: rand(-w * 0.1, w * 1.1),
+    y: rand(0, h * 0.38),
+    r: rand(28, 70),
+    vx: rand(-0.18, 0.18),
+    alpha: rand(0.18, 0.45),
+    phase: rand(0, Math.PI * 2),
+  };
+}
+
+function initStormTempest(w, h) {
+  return {
+    clouds: Array.from({ length: Math.max(14, Math.floor(w / 35)) }, () => spawnStormCloud(w, h)),
+    cloudPhase: rand(0, Math.PI * 2),
+    smallTimer: rand(40, 90),
+    bigTimer: rand(220, 520),
+    bolts: [],
+  };
+}
+
+function makeLightningBolt(w, h, kind) {
+  const big = kind === 'big';
+  const startX = rand(0, w);
+  const startY = rand(h * 0.02, h * 0.18);
+  const endY = big ? rand(h * 0.35, h * 0.8) : rand(h * 0.28, h * 0.62);
+  const steps = big ? randInt(7, 11) : randInt(5, 9);
+  const thickness = big ? rand(1.8, 3.4) : rand(1.0, 2.2);
+  const life = big ? 18 : 12;
+  const phase = rand(0, Math.PI * 2);
+
+  const points = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const y = lerp(startY, endY, t) + Math.sin(phase + t * 8) * (big ? 16 : 12) * (1 - t * 0.2);
+    const sway = Math.cos(phase * 0.8 + t * 6) * (big ? 26 : 18) * (1 - t * 0.15);
+    const x = startX + sway + Math.sin(phase + i * 1.5) * (big ? 8 : 6);
+    points.push({ x: Math.max(0, Math.min(w, x)), y: Math.max(0, Math.min(h, y)) });
+  }
+
+  return { kind, points, thickness, life, maxLife: life };
+}
+
+function updateStormTempest(state, w, h, dt) {
+  const s = dt / 16;
+  state.cloudPhase += 0.008 * s;
+
+  for (const c of state.clouds) {
+    c.x += c.vx * s;
+    if (c.x < -w * 0.3) c.x = w + w * 0.3;
+    if (c.x > w + w * 0.3) c.x = -w * 0.3;
+    c.phase += 0.02 * s;
+  }
+
+  state.smallTimer -= s;
+  state.bigTimer -= s;
+
+  if (state.smallTimer <= 0) {
+    state.bolts.push(makeLightningBolt(w, h, 'small'));
+    state.smallTimer = rand(55, 120);
+  }
+  if (state.bigTimer <= 0) {
+    state.bolts.push(makeLightningBolt(w, h, 'big'));
+    state.bigTimer = rand(320, 760);
+  }
+
+  for (let i = state.bolts.length - 1; i >= 0; i--) {
+    const b = state.bolts[i];
+    b.life -= 1.2 * s * (b.kind === 'big' ? 0.85 : 1);
+    if (b.life <= 0) state.bolts.splice(i, 1);
+  }
+}
+
+function drawStormTempest(ctx, state, w, h) {
+  // Fond
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
+  bg.addColorStop(0.5, 'rgba(15, 23, 42, 0.85)');
+  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Nuages noirs (haut)
+  for (const c of state.clouds) {
+    const pulse = 0.7 + 0.3 * Math.sin(c.phase + state.cloudPhase);
+    const a = c.alpha * pulse;
+    const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+    g.addColorStop(0, `rgba(0, 0, 0, ${a})`);
+    g.addColorStop(0.4, `rgba(17, 24, 39, ${a * 0.9})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Ombres de nuages (dégradé)
+  const fog = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+  fog.addColorStop(0, 'rgba(0,0,0,0.45)');
+  fog.addColorStop(0.3, 'rgba(0,0,0,0.20)');
+  fog.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = fog;
+  ctx.fillRect(0, 0, w, h * 0.55);
+
+  // Eclairs
+  for (const b of state.bolts) {
+    const t = b.life / b.maxLife;
+    const alpha = t * t;
+    if (alpha <= 0) continue;
+
+    ctx.save();
+    ctx.shadowBlur = (b.kind === 'big' ? 22 : 14) * alpha;
+    ctx.shadowColor = b.kind === 'big' ? `rgba(147, 197, 253, ${alpha})` : `rgba(226, 232, 240, ${alpha})`;
+    ctx.lineWidth = b.thickness * (0.75 + 0.6 * alpha);
+    ctx.lineCap = 'round';
+
+    const stroke = b.kind === 'big'
+      ? `rgba(186, 230, 253, ${0.85 * alpha})`
+      : `rgba(255, 255, 255, ${0.70 * alpha})`;
+    ctx.strokeStyle = stroke;
+    ctx.beginPath();
+    ctx.moveTo(b.points[0].x, b.points[0].y);
+    for (let i = 1; i < b.points.length; i++) {
+      ctx.lineTo(b.points[i].x, b.points[i].y);
+    }
+    ctx.stroke();
+
+    // Petit halo additionnel
+    if (b.kind === 'big') {
+      for (const p of b.points) {
+        const gg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, b.thickness * 8);
+        gg.addColorStop(0, `rgba(147, 197, 253, ${0.25 * alpha})`);
+        gg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, b.thickness * 4.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
 // ─── Registre des effets ─────────────────────────────────────────────────────
 
 const EFFECTS = {
@@ -1372,6 +1840,9 @@ const EFFECTS = {
   gold:           { init: initGold, update: updateGold, draw: drawGold },
   territory:      { init: initTerritory, update: updateTerritory, draw: drawTerritory },
   blood:          { init: initBlood, update: updateBlood, draw: drawBlood },
+  water_sun:      { init: initWaterSun, update: updateWaterSun, draw: drawWaterSun },
+  night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
+  storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },
   titane:         { init: initTitane, update: updateTitane, draw: drawTitane },
   cosmique:       { init: initCosmic, update: updateCosmic, draw: drawCosmic },

@@ -640,8 +640,13 @@ const CharacterCreation = () => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
           const labCurrentFloor = labResult.success ? (labResult.data?.currentFloor ?? labFloor + 1) : 1;
           const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
+          const bossRushCompletions = summaryResult.success
+            ? (Number.isFinite(summaryResult.data?.bossRushCompletions)
+              ? summaryResult.data?.bossRushCompletions
+              : (bossRushDone ? 1 : 0))
+            : 0;
           const dungeonCompletions = summaryResult.success ? (summaryResult.data?.dungeonCompletions || {}) : {};
-          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone, dungeonCompletions };
+          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone, bossRushCompletions, dungeonCompletions };
 
           syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
             if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {

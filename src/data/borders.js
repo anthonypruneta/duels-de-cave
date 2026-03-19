@@ -62,6 +62,30 @@ export const BORDERS = {
     type: 'account',
     condition: 'Remporter un tournoi',
   },
+  water_sun: {
+    id: 'water_sun',
+    nom: 'Eau & Soleil',
+    icon: '🌊',
+    cssClass: 'border-water-glow',
+    type: 'account',
+    condition: 'Gagner 2 tournois',
+  },
+  night_moon: {
+    id: 'night_moon',
+    nom: 'Nuit de Lune',
+    icon: '🌙',
+    cssClass: 'border-night-glow',
+    type: 'account',
+    condition: 'Vaincre 3 boss de cataclysme',
+  },
+  storm_tempest: {
+    id: 'storm_tempest',
+    nom: 'Tempête',
+    icon: '⛈️',
+    cssClass: 'border-storm-glow',
+    type: 'account',
+    condition: 'Finir 5 boss rush',
+  },
   territory: {
     id: 'territory',
     nom: 'Territoire',
@@ -165,6 +189,12 @@ export function checkBorderUnlocks(character, extras = {}) {
   if (!character) return ['default'];
   const unlocked = ['default'];
 
+  const bossRushCompletions = extras.bossRushCompletions ?? (
+    character.bossRushCompletions ?? (
+      (character.bossRushCompleted || extras.bossRushCompleted) ? 1 : 0
+    )
+  );
+
   if (character.forgeUpgrade && Object.keys(character.forgeUpgrade).length > 0) {
     unlocked.push('lava');
   }
@@ -189,9 +219,20 @@ export function checkBorderUnlocks(character, extras = {}) {
   if ((extras.tournamentWins ?? 0) >= 1) {
     unlocked.push('champion');
   }
+  if ((extras.tournamentWins ?? 0) >= 2) {
+    unlocked.push('water_sun');
+  }
 
-  if (character.bossRushCompleted || extras.bossRushCompleted) {
+  if ((extras.cataclysmeWins ?? 0) >= 3) {
+    unlocked.push('night_moon');
+  }
+
+  if (bossRushCompletions >= 1) {
     unlocked.push('blood');
+  }
+
+  if (bossRushCompletions >= 5) {
+    unlocked.push('storm_tempest');
   }
 
   if ((character.level ?? 1) >= 400) {
@@ -225,16 +266,21 @@ export function checkBorderUnlocks(character, extras = {}) {
  * Les bordures de type 'account' sont également sauvegardées dans userPreferences.
  */
 export async function syncUnlockedBorders(userId, character, extras = {}) {
-  if (extras.tournamentWins === undefined) {
-    let wins = 0;
+  if (extras.tournamentWins === undefined || extras.cataclysmeWins === undefined) {
+    let wins = extras.tournamentWins ?? 0;
+    let catWins = extras.cataclysmeWins ?? 0;
+
     try {
       const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
       if (rewardSnap.exists()) {
-        wins = rewardSnap.data().tournamentWins ?? 0;
+        const data = rewardSnap.data() || {};
+        if (extras.tournamentWins === undefined) wins = data.tournamentWins ?? 0;
+        if (extras.cataclysmeWins === undefined) catWins = data.cataclysmeWins ?? 0;
       }
     } catch (_) { /* ignore */ }
 
-    if (wins === 0) {
+    // Rétro-compat : si le doc ne contient pas encore `tournamentWins`, on tente une détection sur les archis.
+    if (extras.tournamentWins === undefined && wins === 0) {
       try {
         const q = query(
           collection(db, 'archivedCharacters'),
@@ -246,7 +292,24 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       } catch (_) { /* ignore */ }
     }
 
-    extras = { ...extras, tournamentWins: wins };
+    extras = { ...extras, tournamentWins: wins, cataclysmeWins: catWins };
+  }
+
+  if (extras.bossRushCompletions === undefined) {
+    try {
+      const progressSnap = await getDoc(doc(db, 'dungeonProgress', userId));
+      if (progressSnap.exists()) {
+        const data = progressSnap.data() || {};
+        const completions = Number.isFinite(data.bossRushCompletions)
+          ? data.bossRushCompletions
+          : (data.bossRushCompleted ? 1 : 0);
+        extras = { ...extras, bossRushCompletions: completions };
+      } else {
+        extras = { ...extras, bossRushCompletions: 0 };
+      }
+    } catch (_) {
+      extras = { ...extras, bossRushCompletions: 0 };
+    }
   }
 
   // Récupérer les titres du compte pour les bordures liées au compte
