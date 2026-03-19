@@ -31,6 +31,8 @@ import { getDisplayTitle, equipTitle, checkCrossWeekTitles, getObtentionStats } 
 import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveBorderId, getBorderGlowClass } from '../data/borders';
 import CardBorderCanvas from './CardBorderCanvas';
+import { db } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -382,9 +384,39 @@ const CharacterCreation = () => {
   const [isTitlesOpen, setIsTitlesOpen] = useState(true);
   const [isEffectsOpen, setIsEffectsOpen] = useState(true);
   const [isBordersOpen, setIsBordersOpen] = useState(true);
+  const [unlockProgress, setUnlockProgress] = useState({
+    tournamentWins: 0,
+    cataclysmeWins: 0,
+    bossRushCompletions: 0,
+    labyrinthFloor90Wins: 0,
+  });
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const weaponFamilies = getWeaponFamilyInfo();
+  const titleCount = (existingCharacter?.earnedTitles || []).length;
+  const totalTitlesCount = Object.keys(TITLES).length;
+
+  const getBorderProgressText = (borderId) => {
+    const progressMap = {
+      water_sun: { current: unlockProgress.tournamentWins ?? 0, target: 2 },
+      night_moon: { current: unlockProgress.cataclysmeWins ?? 0, target: 3 },
+      storm_tempest: { current: unlockProgress.bossRushCompletions ?? 0, target: 5 },
+      sable: { current: unlockProgress.labyrinthFloor90Wins ?? 0, target: 5 },
+      titane: { current: titleCount, target: 10 },
+      cosmique: { current: titleCount, target: 20 },
+      transcendance: { current: titleCount, target: totalTitlesCount },
+    };
+    const p = progressMap[borderId];
+    if (!p) return null;
+    const current = Math.max(0, Math.min(p.current, p.target));
+    return `${current}/${p.target}`;
+  };
+
+  const formatBorderCondition = (border) => {
+    const progress = getBorderProgressText(border.id);
+    if (!progress) return border.condition;
+    return `${border.condition} (${progress})`;
+  };
 
   useEffect(() => {
     const introMusic = document.getElementById('intro-music');
@@ -636,7 +668,8 @@ const CharacterCreation = () => {
           getPlayerDungeonSummary(currentUser.uid),
           getWorldBossEvent(),
           getPlayerTournamentRank(currentUser.uid),
-        ]).then(([labResult, summaryResult, wbResult, rankResult]) => {
+          getDoc(doc(db, 'tournamentRewards', currentUser.uid)),
+        ]).then(([labResult, summaryResult, wbResult, rankResult, rewardSnap]) => {
           const labFloor = labResult.success ? (labResult.data?.highestClearedFloor ?? 0) : 0;
           const labCurrentFloor = labResult.success ? (labResult.data?.currentFloor ?? labFloor + 1) : 1;
           const bossRushDone = summaryResult.success ? !!summaryResult.data?.bossRushCompleted : false;
@@ -646,7 +679,29 @@ const CharacterCreation = () => {
               : (bossRushDone ? 1 : 0))
             : 0;
           const dungeonCompletions = summaryResult.success ? (summaryResult.data?.dungeonCompletions || {}) : {};
-          const extras = { labyrinthHighestFloor: labFloor, bossRushCompleted: bossRushDone, bossRushCompletions, dungeonCompletions };
+          const rewardData = rewardSnap?.exists?.() ? (rewardSnap.data() || {}) : {};
+          const tournamentWins = Number.isFinite(rewardData.tournamentWins) ? rewardData.tournamentWins : 0;
+          const cataclysmeWins = Number.isFinite(rewardData.cataclysmeWins) ? rewardData.cataclysmeWins : 0;
+          const labyrinthFloor90Wins = Number.isFinite(rewardData.labyrinthFloor90Wins)
+            ? rewardData.labyrinthFloor90Wins
+            : (labFloor >= 90 ? 1 : 0);
+
+          setUnlockProgress({
+            tournamentWins,
+            cataclysmeWins,
+            bossRushCompletions,
+            labyrinthFloor90Wins,
+          });
+
+          const extras = {
+            labyrinthHighestFloor: labFloor,
+            bossRushCompleted: bossRushDone,
+            bossRushCompletions,
+            dungeonCompletions,
+            tournamentWins,
+            cataclysmeWins,
+            labyrinthFloor90Wins,
+          };
 
           syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
             if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {
@@ -1436,7 +1491,7 @@ const CharacterCreation = () => {
                             return (
                               <SharedTooltip key={border.id} content={
                                 <span>
-                                  {border.condition}
+                                  {formatBorderCondition(border)}
                                   {obtentionStats && obtentionStats.total > 0 && border.id !== 'default' && (
                                     <span className="text-amber-500/80">
                                       {' — '}{(() => {
@@ -1469,7 +1524,7 @@ const CharacterCreation = () => {
                                   <div className="relative z-10">
                                     <div className="text-lg mb-1">{border.icon}</div>
                                     <div className="font-semibold">{border.nom}</div>
-                                    {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{border.condition}</div>}
+                                    {!unlocked && <div className="text-[9px] text-stone-600 mt-0.5">{formatBorderCondition(border)}</div>}
                                     {isEquipped && unlocked && <div className="text-amber-400 text-[9px]">ACTIF</div>}
                                   </div>
                                 </button>
