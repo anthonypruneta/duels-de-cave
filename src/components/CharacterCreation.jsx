@@ -1097,7 +1097,7 @@ const CharacterCreation = () => {
 
         {renderIntroMusic()}
         {PseudoModal}
-        <div className="max-w-[1400px] mx-auto pt-20">
+        <div className="max-w-[1400px] mx-auto pt-24 sm:pt-20">
           <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
             {/* Info Panel (stats, weapon, passive, etc.) */}
             <div className="order-2 lg:order-1 w-full lg:w-[320px] lg:flex-shrink-0">
@@ -1576,7 +1576,7 @@ const CharacterCreation = () => {
         <Header />
 
         {renderIntroMusic()}
-        <div className="max-w-4xl w-full pt-20">
+        <div className="max-w-4xl w-full pt-24 sm:pt-20">
           <div className="text-center mb-8">
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
               <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
@@ -1773,7 +1773,7 @@ const CharacterCreation = () => {
 
         {renderIntroMusic()}
       {PseudoModal}
-      <div className="max-w-4xl w-full pt-20">
+      <div className="max-w-4xl w-full pt-24 sm:pt-20">
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>

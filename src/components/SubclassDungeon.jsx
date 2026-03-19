@@ -471,7 +471,7 @@ const SubclassDungeon = () => {
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-2xl mx-auto pt-16 text-center">
+        <div className="max-w-2xl mx-auto pt-20 sm:pt-16 text-center">
           <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-10 shadow-lg">
             <div className="text-7xl mb-6">💀</div>
             <h2 className="text-3xl font-bold text-red-400 mb-4">Défaite...</h2>
@@ -493,7 +493,7 @@ const SubclassDungeon = () => {
         <audio id="subclass-dungeon-music" loop>
           <source src="/assets/music/koro.mp3" type="audio/mpeg" />
         </audio>
-        <div className="max-w-5xl mx-auto pt-16 text-center">
+        <div className="max-w-5xl mx-auto pt-20 sm:pt-16 text-center">
           <div className="flex justify-center mb-8">
             <CharacterCardContent character={character} detailsPlacement="left" />
           </div>
@@ -583,7 +583,7 @@ const SubclassDungeon = () => {
       <audio id="subclass-dungeon-music" loop>
         <source src="/assets/music/koro.mp3" type="audio/mpeg" />
       </audio>
-      <div className="max-w-5xl mx-auto pt-16">
+      <div className="max-w-5xl mx-auto pt-20 sm:pt-16">
         {/* Titre */}
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-yellow-500/80 rounded-lg px-8 py-3 shadow-lg">
