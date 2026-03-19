@@ -43,6 +43,8 @@ import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { checkAndAwardTitles } from '../services/titleService';
+import { db } from '../firebase/config';
+import { doc, increment, setDoc, Timestamp } from 'firebase/firestore';
 
 const extensionImageModules = import.meta.glob('../assets/extension/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -308,6 +310,12 @@ const ExtensionDungeon = () => {
           `*"Quelle rareté!!! Une chance sur cent!!! On n'avait jamais vu ça depuis le début du Tenka— euh, de l'Extension du Territoire!!!"*\n\n` +
           `**${mixedName}** — la fusion de ${primaryName} et ${extensionName} — résonne dans l'arène!!! QUELLE PUISSANCE!!!`,
       }).catch((err) => console.warn('Annonce Discord extension niv.3:', err));
+
+      // Progression compte: passif extension Gojo niveau 3 (persistante).
+      await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
+        gojoPassiveLevel3Count: increment(1),
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
     }
     setSavingChoice(false);
   };

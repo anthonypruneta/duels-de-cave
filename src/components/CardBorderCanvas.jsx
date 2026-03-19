@@ -1885,6 +1885,177 @@ function drawSable(ctx, state, w, h) {
   }
 }
 
+// ─── Forge Runique : glyphes rouge-or + particules de braise ─────────────────
+
+function makeRunicGlyph(w, h) {
+  const side = Math.random() < 0.5 ? 'left' : 'right';
+  const x = side === 'left' ? rand(w * 0.02, w * 0.16) : rand(w * 0.84, w * 0.98);
+  return {
+    x,
+    y: rand(h * 0.10, h * 0.90),
+    size: rand(8, 16),
+    alpha: rand(0.15, 0.35),
+    phase: rand(0, Math.PI * 2),
+    drift: rand(-0.05, 0.05),
+    char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+  };
+}
+
+function initOrnnRunic(w, h) {
+  return {
+    t: rand(0, Math.PI * 2),
+    glyphs: Array.from({ length: Math.max(14, Math.floor(h / 18)) }, () => makeRunicGlyph(w, h)),
+    embers: Array.from({ length: Math.max(16, Math.floor(w / 18)) }, () => ({
+      x: rand(0, w),
+      y: rand(h * 0.58, h),
+      vx: rand(-0.25, 0.25),
+      vy: rand(-0.8, -0.25),
+      r: rand(0.8, 2.0),
+      life: rand(40, 95),
+      maxLife: 1,
+    })),
+  };
+}
+
+function updateOrnnRunic(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.018 * s;
+  for (const g of state.glyphs) {
+    g.phase += 0.02 * s;
+    g.y += g.drift * s;
+    if (g.y < h * 0.06) g.y = h * 0.94;
+    if (g.y > h * 0.94) g.y = h * 0.06;
+  }
+  for (const e of state.embers) {
+    e.x += e.vx * s;
+    e.y += e.vy * s;
+    e.life -= 1.1 * s;
+    if (e.life <= 0 || e.y < h * 0.45 || e.x < -5 || e.x > w + 5) {
+      e.x = rand(0, w);
+      e.y = rand(h * 0.62, h);
+      e.vx = rand(-0.25, 0.25);
+      e.vy = rand(-0.8, -0.25);
+      e.r = rand(0.8, 2.0);
+      e.life = rand(45, 110);
+    }
+  }
+}
+
+function drawOrnnRunic(ctx, state, w, h) {
+  const sideGlowL = ctx.createLinearGradient(0, 0, w * 0.22, 0);
+  sideGlowL.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+  sideGlowL.addColorStop(1, 'rgba(239, 68, 68, 0)');
+  ctx.fillStyle = sideGlowL;
+  ctx.fillRect(0, 0, w * 0.22, h);
+
+  const sideGlowR = ctx.createLinearGradient(w * 0.78, 0, w, 0);
+  sideGlowR.addColorStop(0, 'rgba(234, 179, 8, 0)');
+  sideGlowR.addColorStop(1, 'rgba(234, 179, 8, 0.20)');
+  ctx.fillStyle = sideGlowR;
+  ctx.fillRect(w * 0.78, 0, w * 0.22, h);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const g of state.glyphs) {
+    const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.1 + g.phase);
+    ctx.font = `${g.size}px serif`;
+    ctx.shadowBlur = 10 * pulse;
+    ctx.shadowColor = `rgba(245, 158, 11, ${0.45 * pulse})`;
+    ctx.fillStyle = `rgba(254, 243, 199, ${g.alpha * pulse})`;
+    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2);
+  }
+  ctx.restore();
+
+  for (const e of state.embers) {
+    const a = Math.max(0, Math.min(1, e.life / 110));
+    const gg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 2.8);
+    gg.addColorStop(0, `rgba(251, 191, 36, ${0.6 * a})`);
+    gg.addColorStop(0.5, `rgba(239, 68, 68, ${0.35 * a})`);
+    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Gojo Infinity : distortion cyan + orbes suspendues ─────────────────────
+
+function makeInfinityOrb(w, h) {
+  return {
+    x: rand(w * 0.2, w * 0.8),
+    y: rand(h * 0.18, h * 0.82),
+    r: rand(4, 10),
+    phase: rand(0, Math.PI * 2),
+    speed: rand(0.005, 0.014),
+    alpha: rand(0.18, 0.38),
+  };
+}
+
+function initGojoInfinity(w, h) {
+  return {
+    t: rand(0, Math.PI * 2),
+    ringPhase: rand(0, Math.PI * 2),
+    orbs: Array.from({ length: Math.max(10, Math.floor(w / 26)) }, () => makeInfinityOrb(w, h)),
+  };
+}
+
+function updateGojoInfinity(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.016 * s;
+  state.ringPhase += 0.012 * s;
+  for (const o of state.orbs) {
+    o.phase += o.speed * s * 3;
+  }
+}
+
+function drawGojoInfinity(ctx, state, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.52;
+
+  const haze = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.62);
+  haze.addColorStop(0, 'rgba(125, 211, 252, 0.18)');
+  haze.addColorStop(0.45, 'rgba(56, 189, 248, 0.09)');
+  haze.addColorStop(1, 'rgba(14, 116, 144, 0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < 4; i++) {
+    const t = i / 4;
+    const rx = w * (0.22 + t * 0.08);
+    const ry = h * (0.10 + t * 0.04);
+    const a = 0.08 + 0.05 * Math.sin(state.ringPhase * 2 + i);
+    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
+    ctx.lineWidth = 1.2 + i * 0.35;
+    ctx.beginPath();
+    for (let p = 0; p <= 80; p++) {
+      const u = (p / 80) * Math.PI * 2;
+      const x = Math.sin(u) * rx;
+      const y = Math.sin(u * 2 + state.ringPhase + i * 0.5) * ry;
+      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  for (const o of state.orbs) {
+    const x = o.x + Math.sin(state.t * 1.4 + o.phase) * 7;
+    const y = o.y + Math.cos(state.t * 1.1 + o.phase * 1.2) * 5;
+    const a = o.alpha * (0.65 + 0.35 * Math.sin(state.t * 3 + o.phase));
+    const gg = ctx.createRadialGradient(x, y, 0, x, y, o.r * 2.6);
+    gg.addColorStop(0, `rgba(224, 242, 254, ${a})`);
+    gg.addColorStop(0.5, `rgba(56, 189, 248, ${a * 0.55})`);
+    gg.addColorStop(1, 'rgba(14, 116, 144, 0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(x, y, o.r * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
@@ -2206,6 +2377,8 @@ const EFFECTS = {
   blood:          { init: initBlood, update: updateBlood, draw: drawBlood },
   water_sun:      { init: initWaterSun, update: updateWaterSun, draw: drawWaterSun },
   sable:          { init: initSable, update: updateSable, draw: drawSable },
+  ornn_runic:     { init: initOrnnRunic, update: updateOrnnRunic, draw: drawOrnnRunic },
+  gojo_infinity:  { init: initGojoInfinity, update: updateGojoInfinity, draw: drawGojoInfinity },
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },

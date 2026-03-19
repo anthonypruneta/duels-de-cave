@@ -335,6 +335,18 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 16px rgba(245, 158, 11, 0.35), 0 0 30px rgba(180, 83, 9, 0.2);
 }
 
+/* ===== Bordure Forge Runique (ornn_runic) — glow seul, effet Canvas ===== */
+
+.border-ornn-runic-glow {
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.34), 0 0 28px rgba(239, 68, 68, 0.2);
+}
+
+/* ===== Bordure Infini (gojo_infinity) — glow seul, effet Canvas ===== */
+
+.border-gojo-infinity-glow {
+  box-shadow: 0 0 16px rgba(125, 211, 252, 0.36), 0 0 30px rgba(59, 130, 246, 0.18);
+}
+
 /* ===== Bordure Nuit de Lune (night_moon) — glow seul, effet Canvas ===== */
 
 .border-night-glow {

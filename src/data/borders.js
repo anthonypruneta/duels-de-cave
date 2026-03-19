@@ -86,6 +86,22 @@ export const BORDERS = {
     type: 'account',
     condition: 'Battre 5 fois le niveau 90 du Labyrinthe',
   },
+  ornn_runic: {
+    id: 'ornn_runic',
+    nom: 'Forge Runique',
+    icon: 'ᚠ',
+    cssClass: 'border-ornn-runic-glow',
+    type: 'account',
+    condition: 'Obtenir une arme parfaite d’Ornn',
+  },
+  gojo_infinity: {
+    id: 'gojo_infinity',
+    nom: 'Infini',
+    icon: '∞',
+    cssClass: 'border-gojo-infinity-glow',
+    type: 'account',
+    condition: 'Obtenir un passif niveau 3 chez Gojo',
+  },
   night_moon: {
     id: 'night_moon',
     nom: 'Nuit de Lune',
@@ -248,6 +264,14 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('sable');
   }
 
+  if ((extras.perfectOrnnWeaponCount ?? 0) >= 1) {
+    unlocked.push('ornn_runic');
+  }
+
+  if ((extras.gojoPassiveLevel3Count ?? 0) >= 1) {
+    unlocked.push('gojo_infinity');
+  }
+
   if ((extras.cataclysmeWins ?? 0) >= 3) {
     unlocked.push('night_moon');
   }
@@ -404,6 +428,26 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     extras = { ...extras, labyrinthFloor90Wins: floor90Wins };
   }
 
+  if (extras.perfectOrnnWeaponCount === undefined || extras.gojoPassiveLevel3Count === undefined) {
+    let perfectOrnnWeaponCount = extras.perfectOrnnWeaponCount ?? 0;
+    let gojoPassiveLevel3Count = extras.gojoPassiveLevel3Count ?? 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
+        if (extras.perfectOrnnWeaponCount === undefined) {
+          perfectOrnnWeaponCount = Number.isFinite(data.perfectOrnnWeaponCount) ? data.perfectOrnnWeaponCount : 0;
+        }
+        if (extras.gojoPassiveLevel3Count === undefined) {
+          gojoPassiveLevel3Count = Number.isFinite(data.gojoPassiveLevel3Count) ? data.gojoPassiveLevel3Count : 0;
+        }
+      }
+    } catch (_) { /* ignore */ }
+    extras = { ...extras, perfectOrnnWeaponCount, gojoPassiveLevel3Count };
+  }
+
   // Migration rétroactive "compteurs persistants":
   // - ne baisse jamais une valeur déjà en base
   // - injecte les compteurs manquants dans tournamentRewards
@@ -425,13 +469,23 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       Number.isFinite(baseReward.labyrinthFloor90Wins) ? baseReward.labyrinthFloor90Wins : 0,
       extras.labyrinthFloor90Wins ?? 0
     );
+    const migratedPerfectOrnnWeaponCount = Math.max(
+      Number.isFinite(baseReward.perfectOrnnWeaponCount) ? baseReward.perfectOrnnWeaponCount : 0,
+      extras.perfectOrnnWeaponCount ?? 0
+    );
+    const migratedGojoPassiveLevel3Count = Math.max(
+      Number.isFinite(baseReward.gojoPassiveLevel3Count) ? baseReward.gojoPassiveLevel3Count : 0,
+      extras.gojoPassiveLevel3Count ?? 0
+    );
 
     const needsMigration =
       !rewardReadOk ||
       migratedTournamentWins !== (baseReward.tournamentWins ?? 0) ||
       migratedCataclysmeWins !== (baseReward.cataclysmeWins ?? 0) ||
       migratedBossRushCompletions !== (baseReward.bossRushCompletions ?? 0) ||
-      migratedLabFloor90Wins !== (baseReward.labyrinthFloor90Wins ?? 0);
+      migratedLabFloor90Wins !== (baseReward.labyrinthFloor90Wins ?? 0) ||
+      migratedPerfectOrnnWeaponCount !== (baseReward.perfectOrnnWeaponCount ?? 0) ||
+      migratedGojoPassiveLevel3Count !== (baseReward.gojoPassiveLevel3Count ?? 0);
 
     if (needsMigration) {
       await setDoc(doc(db, 'tournamentRewards', userId), {
@@ -439,6 +493,8 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
         cataclysmeWins: migratedCataclysmeWins,
         bossRushCompletions: migratedBossRushCompletions,
         labyrinthFloor90Wins: migratedLabFloor90Wins,
+        perfectOrnnWeaponCount: migratedPerfectOrnnWeaponCount,
+        gojoPassiveLevel3Count: migratedGojoPassiveLevel3Count,
         updatedAt: Timestamp.now(),
       }, { merge: true });
     }
