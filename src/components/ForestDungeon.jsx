@@ -212,6 +212,7 @@ const ForestDungeon = () => {
   const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
+  const lastAutoStartLevelRef = useRef(null);
 
   const ensureForestMusic = () => {
     const forestMusic = document.getElementById('forest-music');
@@ -303,6 +304,26 @@ const ForestDungeon = () => {
       stopForestMusic();
     }
   }, [gameState]);
+
+  // Mobile: certains layouts masquent le bouton, on lance le combat automatiquement.
+  useEffect(() => {
+    if (gameState !== 'fighting') {
+      lastAutoStartLevelRef.current = null;
+      return;
+    }
+
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const isPhone = window.matchMedia('(max-width: 767px)').matches;
+    if (!isPhone) return;
+
+    if (!player || !boss || !character) return;
+    if (isSimulating) return;
+    if (combatResult !== null) return;
+    if (lastAutoStartLevelRef.current === currentLevel) return;
+
+    lastAutoStartLevelRef.current = currentLevel;
+    void simulateCombat();
+  }, [gameState, player, boss, character, combatResult, isSimulating, currentLevel]);
 
   const getCalculatedDescription = getCalculatedClassDescription;
 

@@ -55,6 +55,7 @@ const SubclassDungeon = () => {
   const [savingSubclass, setSavingSubclass] = useState(false);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
+  const hasAutoStartedRef = useRef(false);
   const ensureSubclassMusic = () => {
     const el = document.getElementById('subclass-dungeon-music');
     if (el) {
@@ -77,6 +78,26 @@ const SubclassDungeon = () => {
     }
     stopSubclassMusic();
   }, [gameState, loading]);
+
+  // Mobile: certains layouts masquent le bouton, on lance le combat automatiquement.
+  useEffect(() => {
+    if (gameState !== 'fighting') {
+      hasAutoStartedRef.current = false;
+      return;
+    }
+
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const isPhone = window.matchMedia('(max-width: 767px)').matches;
+    if (!isPhone) return;
+
+    if (!player || !boss || !character) return;
+    if (isSimulating) return;
+    if (combatResult !== null) return;
+    if (hasAutoStartedRef.current) return;
+
+    hasAutoStartedRef.current = true;
+    void simulateCombat();
+  }, [gameState, player, boss, character, combatResult, isSimulating]);
 
   useEffect(() => {
     if (!currentUser) return;

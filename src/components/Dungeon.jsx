@@ -224,6 +224,7 @@ const Dungeon = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
+  const lastAutoStartLevelRef = useRef(null);
   const ensureDungeonMusic = () => {
     const dungeonMusic = document.getElementById('dungeon-music');
     if (dungeonMusic && dungeonMusic.paused) {
@@ -244,6 +245,25 @@ const Dungeon = () => {
       ensureDungeonMusic();
     }
   }, [gameState]);
+
+  // Mobile: certains layouts masquent le bouton, on lance le combat automatiquement.
+  useEffect(() => {
+    if (gameState !== 'fighting') {
+      lastAutoStartLevelRef.current = null;
+      return;
+    }
+
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const isPhone = window.matchMedia('(max-width: 767px)').matches;
+    if (!isPhone) return;
+    if (!player || !boss) return;
+    if (isSimulating) return;
+    if (combatResult !== null) return;
+    if (lastAutoStartLevelRef.current === currentLevel) return;
+
+    lastAutoStartLevelRef.current = currentLevel;
+    void simulateCombat();
+  }, [gameState, player, boss, combatResult, isSimulating, currentLevel]);
 
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;

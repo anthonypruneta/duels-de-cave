@@ -105,6 +105,7 @@ const ExtensionDungeon = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
+  const hasAutoStartedRef = useRef(false);
   const [rolledExtensionPassive, setRolledExtensionPassive] = useState(null);
   const [previousExtensionPassive, setPreviousExtensionPassive] = useState(null);
   const [extensionChoice, setExtensionChoice] = useState(null);
@@ -178,6 +179,26 @@ const ExtensionDungeon = () => {
     if (gameState === 'lobby' || gameState === 'fighting') ensureExtensionMusic();
     if (gameState === 'victory' || gameState === 'defeat') stopExtensionMusic();
   }, [gameState]);
+
+  // Mobile: certains layouts masquent le bouton, on lance le combat automatiquement.
+  useEffect(() => {
+    if (gameState !== 'fighting') {
+      hasAutoStartedRef.current = false;
+      return;
+    }
+
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const isPhone = window.matchMedia('(max-width: 767px)').matches;
+    if (!isPhone) return;
+
+    if (!player || !boss || !character) return;
+    if (isSimulating) return;
+    if (combatResult !== null) return;
+    if (hasAutoStartedRef.current) return;
+
+    hasAutoStartedRef.current = true;
+    void simulateCombat();
+  }, [gameState, player, boss, character, combatResult, isSimulating]);
 
   useEffect(() => {
     return () => stopExtensionMusic();
