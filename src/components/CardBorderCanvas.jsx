@@ -1914,12 +1914,34 @@ function initOrnnRunic(w, h) {
       life: rand(40, 95),
       maxLife: 1,
     })),
+    impactCooldown: rand(160, 280),
+    impact: null,
   };
 }
 
 function updateOrnnRunic(state, w, h, dt) {
   const s = dt / 16;
   state.t += 0.018 * s;
+  state.impactCooldown -= s;
+
+  if (!state.impact && state.impactCooldown <= 0) {
+    state.impact = {
+      x: rand(w * 0.2, w * 0.8),
+      y: rand(h * 0.3, h * 0.72),
+      t: 0,
+      duration: randInt(30, 48),
+      rune: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+    };
+    state.impactCooldown = rand(220, 360);
+  }
+
+  if (state.impact) {
+    state.impact.t += s;
+    if (state.impact.t >= state.impact.duration) {
+      state.impact = null;
+    }
+  }
+
   for (const g of state.glyphs) {
     g.phase += 0.02 * s;
     g.y += g.drift * s;
@@ -1959,13 +1981,57 @@ function drawOrnnRunic(ctx, state, w, h) {
   ctx.textBaseline = 'middle';
   for (const g of state.glyphs) {
     const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.1 + g.phase);
+    let impactBoost = 0;
+    if (state.impact) {
+      const dx = g.x - state.impact.x;
+      const dy = g.y - state.impact.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const reach = Math.max(50, w * 0.34);
+      impactBoost = Math.max(0, 1 - d / reach);
+    }
     ctx.font = `${g.size}px serif`;
-    ctx.shadowBlur = 10 * pulse;
-    ctx.shadowColor = `rgba(245, 158, 11, ${0.45 * pulse})`;
-    ctx.fillStyle = `rgba(254, 243, 199, ${g.alpha * pulse})`;
+    ctx.shadowBlur = 10 * pulse + impactBoost * 18;
+    ctx.shadowColor = `rgba(245, 158, 11, ${(0.45 + impactBoost * 0.35) * pulse})`;
+    ctx.fillStyle = `rgba(254, 243, 199, ${g.alpha * pulse * (1 + impactBoost * 1.5)})`;
     ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2);
   }
   ctx.restore();
+
+  if (state.impact) {
+    const it = Math.max(0, Math.min(1, state.impact.t / state.impact.duration));
+    const boom = Math.sin(it * Math.PI);
+    const rr = (w * 0.08) + boom * (w * 0.22);
+    const gx = state.impact.x;
+    const gy = state.impact.y;
+
+    // Flash de coup de marteau
+    const flash = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 1.25);
+    flash.addColorStop(0, `rgba(254, 243, 199, ${0.45 * boom})`);
+    flash.addColorStop(0.35, `rgba(251, 191, 36, ${0.25 * boom})`);
+    flash.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(gx, gy, rr * 1.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Onde
+    ctx.strokeStyle = `rgba(251, 191, 36, ${0.42 * (1 - it)})`;
+    ctx.lineWidth = 1.5 + 2.2 * (1 - it);
+    ctx.beginPath();
+    ctx.arc(gx, gy, rr, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Rune centrale renforcée après impact
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(18 + 22 * boom)}px serif`;
+    ctx.shadowBlur = 24 * boom;
+    ctx.shadowColor = `rgba(251, 191, 36, ${0.7 * boom})`;
+    ctx.fillStyle = `rgba(255, 251, 235, ${0.78 * boom})`;
+    ctx.fillText(state.impact.rune, gx, gy);
+    ctx.restore();
+  }
 
   for (const e of state.embers) {
     const a = Math.max(0, Math.min(1, e.life / 110));
