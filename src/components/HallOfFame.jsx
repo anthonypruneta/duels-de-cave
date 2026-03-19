@@ -129,6 +129,8 @@ async function loadFullChampionForEntry(entry) {
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
+  const [ancientsFallback, setAncientsFallback] = useState([]);
+  const [loadingAncientsFallback, setLoadingAncientsFallback] = useState(false);
   const [activeTab, setActiveTab] = useState('samedi'); // 'samedi' | 'anciens'
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -169,6 +171,58 @@ const HallOfFame = () => {
     load();
   }, []);
 
+  // Fallback pour l'onglet "anciens" :
+  // si la collection hallOfFame ne contient plus les entrées (arbre supprimé, etc.),
+  // on liste quand même les gagnants depuis legacyRetiredArchives.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingAncientsFallback(true);
+      try {
+        const { db } = await import('../firebase/config');
+        const { collection, getDocs, doc, getDoc } = await import('firebase/firestore');
+
+        const snap = await getDocs(collection(db, 'legacyRetiredArchives'));
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Trier par date de retraite desc
+        rows.sort((a, b) => (extraireTimestampMillis(b.retiredAt) || 0) - (extraireTimestampMillis(a.retiredAt) || 0));
+
+        const enriched = [];
+        for (const row of rows) {
+          // legacyRetiredArchives/<archiveDocId> ; archivedCharacters/<archiveDocId>
+          const charSnap = await getDoc(doc(db, 'archivedCharacters', row.id));
+          if (!charSnap.exists()) continue;
+          const char = charSnap.data() || {};
+          if (!char.name && char.nom) char.name = char.nom;
+
+          enriched.push({
+            id: row.id,
+            nbParticipants: null,
+            nbMatchs: null,
+            date: row.retiredAt || null,
+            sourceTournamentId: LEGACY_TOURNAMENT_DOC_ID,
+            sourceTournamentType: 'legacy_archives',
+            ownerPseudo: null,
+            character: char,
+            tournamentArchiveId: null, // l'arbre peut avoir été supprimé
+          });
+        }
+
+        if (!cancelled) setAncientsFallback(enriched);
+      } catch (e) {
+        console.error('Erreur chargement legacyRetiredArchives fallback:', e);
+        if (!cancelled) setAncientsFallback([]);
+      } finally {
+        if (!cancelled) setLoadingAncientsFallback(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -185,7 +239,18 @@ const HallOfFame = () => {
   ));
   const entriesSamedi = champions.filter((c) => !entriesAnciens.includes(c));
 
-  const visibleEntries = activeTab === 'anciens' ? entriesAnciens : entriesSamedi;
+  const mergedAncients = (() => {
+    if (activeTab !== 'anciens') return entriesAnciens;
+    // Fusionner hallOfFame legacy + fallback legacyRetiredArchives (sans doublons)
+    const map = new Map();
+    for (const e of entriesAnciens) map.set(e.id, e);
+    for (const e of ancientsFallback) {
+      if (!map.has(e.id)) map.set(e.id, e);
+    }
+    return [...map.values()];
+  })();
+
+  const visibleEntries = activeTab === 'anciens' ? mergedAncients : entriesSamedi;
 
   return (
     <div className="min-h-screen p-6">
@@ -228,7 +293,7 @@ const HallOfFame = () => {
             <p className="text-stone-400 text-xl">Aucun champion pour le moment</p>
             <p className="text-stone-500 mt-2">
               {activeTab === 'anciens'
-                ? 'Le premier tournoi des anciens n’a pas encore eu lieu'
+                ? (loadingAncientsFallback ? 'Chargement des anciens...' : 'Le premier tournoi des anciens n’a pas encore eu lieu')
                 : 'Le premier tournoi du samedi n’a pas encore eu lieu'}
             </p>
           </div>
@@ -245,7 +310,9 @@ const HallOfFame = () => {
                   detailsPlacement="left"
                 />
                 <div className="text-stone-500 text-xs mt-1 text-center">
-                  {champ.nbParticipants} participants • {champ.nbMatchs} matchs
+                  {Number.isFinite(champ.nbParticipants) && Number.isFinite(champ.nbMatchs)
+                    ? `${champ.nbParticipants} participants • ${champ.nbMatchs} matchs`
+                    : null}
                   {champ.date && (
                     <span> • {champ.date.toDate?.().toLocaleDateString('fr-FR') || ''}</span>
                   )}
