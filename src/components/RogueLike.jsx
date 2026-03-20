@@ -253,12 +253,19 @@ export default function RogueLike() {
           if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
           if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
         },
-        speed: 'fast',
+        speed: 'turbo',
       });
     } finally {
       setIsAnimatingFight(false);
     }
   };
+
+  // Garantit que la dernière action du log reste visible à l'écran,
+  // même quand l'auto-run enchaîne des combats très vite.
+  useEffect(() => {
+    if (!logContainerRef?.current) return;
+    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+  }, [combatLogs]);
 
   const handleAutoRun = async () => {
     if (!currentUser?.uid) return;

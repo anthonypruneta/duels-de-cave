@@ -1136,9 +1136,6 @@ export async function applyRogueLikeChoice({ userId, runId, choice }) {
   if (!run.pendingAction) return { success: false, error: 'Aucune action en attente.' };
 
   const pending = run.pendingAction;
-  const rngKey = `${runSeed}|choice|${pending.type}|${runId}`;
-  // eslint-disable-next-line no-unused-vars
-  const runSeed = run.runSeed;
 
   let character = { ...run.character };
 

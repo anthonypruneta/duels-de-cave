@@ -3,7 +3,10 @@
 
 const SPEEDS = {
   normal: { intro: 800, turn_start: 800, action_pre: 300, action_post: 2000 },
-  fast:   { intro: 400, turn_start: 400, action_pre: 150, action_post: 1000 }
+  fast:   { intro: 400, turn_start: 400, action_pre: 150, action_post: 1000 },
+  // Ultra rapide uniquement pour les modes “auto-run” (rogue-like).
+  // Doit rester lisible mais sans “trop attendre”.
+  turbo:  { intro: 250, turn_start: 250, action_pre: 80, action_post: 350 }
 };
 
 /**
