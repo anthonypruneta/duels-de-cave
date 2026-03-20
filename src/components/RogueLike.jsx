@@ -147,7 +147,7 @@ export default function RogueLike() {
         if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
         if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
       },
-      speed: 'normal',
+      speed: 'fast',
     });
   };
 
@@ -186,8 +186,8 @@ export default function RogueLike() {
           break;
         }
 
-        // Small delay to avoid UI lock
-        await new Promise((r) => setTimeout(r, 50));
+        // Small delay to avoid UI lock (MVP : on accélère)
+        await new Promise((r) => setTimeout(r, 10));
       }
     } catch (e) {
       setError(e?.message || 'Erreur auto-run.');
@@ -509,7 +509,7 @@ export default function RogueLike() {
                 <CharacterCardContent
                   character={run.character}
                   showHpBar
-                  detailsPlacement="right"
+                  infoSide="left"
                   currentHP={combatPlayerMaxHp > 0 ? combatPlayerHp : run.character.base?.hp}
                   maxHP={combatPlayerMaxHp > 0 ? combatPlayerMaxHp : run.character.base?.hp}
                   shield={0}
@@ -589,7 +589,7 @@ export default function RogueLike() {
                 <CharacterCardContent
                   character={combatEnemy}
                   showHpBar
-                  detailsPlacement="left"
+                  infoSide="left"
                   currentHP={combatEnemyMaxHp > 0 ? combatEnemyHp : combatEnemy?.base?.hp}
                   maxHP={combatEnemyMaxHp > 0 ? combatEnemyMaxHp : combatEnemy?.base?.hp}
                   shield={0}

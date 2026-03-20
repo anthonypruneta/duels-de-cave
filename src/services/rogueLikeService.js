@@ -56,7 +56,9 @@ const LABYRINTH_BOSS_IMAGES = import.meta.glob('../assets/labyrinthe/bosses/*.{p
 const LABYRINTH_MOB_IMAGES = import.meta.glob('../assets/labyrinthe/mobs/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 const CATACLYSM_IMAGES = import.meta.glob('../assets/cataclysme/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 const CATACLYSM_CHAMP_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/ChampBoss/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
-const ROGUELIKE_RACE_IMAGES = import.meta.glob('../assets/roguelike/races/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+// Tes assets races sont stockées en sous-dossiers : .../races/<race>/<fichier>.png
+// On doit donc inclure récursivement.
+const ROGUELIKE_RACE_IMAGES = import.meta.glob('../assets/roguelike/races/**/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
 function stripUndefined(obj) {
   if (obj === null || obj === undefined) return obj;
@@ -197,11 +199,16 @@ function rollExtensionPassiveSeeded(currentPassiveId, rng) {
 }
 
 function buildImageListFromGlob(globModules) {
-  return Object.entries(globModules).map(([sourcePath, imagePath]) => ({
-    sourcePath,
-    imagePath,
-    imageName: getEnemyNameFromFilename(sourcePath),
-  }));
+  return Object.entries(globModules).map(([sourcePath, imagePath]) => {
+    const src = String(sourcePath ?? '');
+    const file = src.split(/[\\/]/).pop() || '';
+    const imageName = file.replace(/\.[^/.]+$/, '');
+    return {
+      sourcePath,
+      imagePath,
+      imageName,
+    };
+  });
 }
 
 const LAB_BOSS_LIST = buildImageListFromGlob(LABYRINTH_BOSS_IMAGES);
@@ -861,7 +868,8 @@ export async function getLatestActiveRogueLikeRun(userId) {
   const docSnap = snapshot.docs[0];
   const run = docSnap.data();
   if (run?.status !== 'active') return { success: true, run: null };
-  return { success: true, runId: docSnap.id, run };
+  const ensuredRun = await ensureCharacterImagesOnRunMaybeUpdate({ userId, runId: docSnap.id, run });
+  return { success: true, runId: docSnap.id, run: ensuredRun };
 }
 
 export async function getRogueLikeRun({ userId, runId }) {
@@ -869,7 +877,35 @@ export async function getRogueLikeRun({ userId, runId }) {
   if (!snap.exists()) return { success: false, error: 'Run introuvable.' };
   const run = snap.data();
   if (run?.userId !== userId) return { success: false, error: 'Accès refusé.' };
-  return { success: true, run };
+  const ensuredRun = await ensureCharacterImagesOnRunMaybeUpdate({ userId, runId, run });
+  return { success: true, run: ensuredRun };
+}
+
+async function ensureCharacterImagesOnRunMaybeUpdate({ userId, runId, run }) {
+  try {
+    if (!run?.character?.race) return run;
+    const character = run.character || {};
+
+    // Si class choisie : image race+classe, sinon image race simple.
+    const hasClass = !!character?.class;
+    const computed = hasClass
+      ? getRogueLikeImageForRaceClass(character.race, character.class)
+      : getRogueLikeImageForRace(character.race);
+
+    if (!computed) return run;
+    if (character.characterImage === computed) return run;
+
+    const updatedRun = {
+      ...run,
+      character: { ...character, characterImage: computed },
+    };
+
+    // MVP: update “best effort” (évite de recalculer côté UI si run déjà créé avant le patch)
+    await setDoc(getRogueLikeRunRef(userId, runId), { character: updatedRun.character }, { merge: true });
+    return updatedRun;
+  } catch (e) {
+    return run;
+  }
 }
 
 function shouldTriggerClassGate({ floorNumber, runCharacter }) {
