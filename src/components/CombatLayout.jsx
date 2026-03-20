@@ -43,52 +43,39 @@ export const MiniCard = ({ entity, combatBase, side }) => {
   return (
     <div className={`flex-1 min-w-0 bg-stone-900/90 border ${borderColor} rounded-xl overflow-hidden`}>
       {/* Image + barre HP superposée */}
-      {image && (
-        <div className="relative w-full h-20 overflow-hidden bg-stone-800">
+      <div className="relative w-full h-20 overflow-hidden bg-stone-800">
+        {image ? (
           <img
             src={image}
             alt={entity.name}
             className="w-full h-full object-contain object-center"
           />
-          {/* HP bar en overlay */}
-          <div className="absolute bottom-0 left-0 right-0 px-1.5 pb-1">
-            <div className="bg-stone-800/80 h-2 rounded overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
-                style={{ width: `${hpPct}%` }}
-              />
-            </div>
-            {shieldPct > 0 && (
-              <div className="bg-stone-800/80 h-1 rounded overflow-hidden mt-0.5 border border-blue-800/60">
-                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
-              </div>
-            )}
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-3xl opacity-20">❓</span>
           </div>
+        )}
+        {/* HP bar en overlay */}
+        <div className="absolute bottom-0 left-0 right-0 px-1.5 pb-1">
+          <div className="bg-stone-800/80 h-2 rounded overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
+              style={{ width: `${hpPct}%` }}
+            />
+          </div>
+          {shieldPct > 0 && (
+            <div className="bg-stone-800/80 h-1 rounded overflow-hidden mt-0.5 border border-blue-800/60">
+              <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="p-2">
         <div className={`text-xs font-bold ${nameColor} truncate mb-1`}>{entity.name || '—'}</div>
         <div className="text-[10px] text-stone-400 mb-1">
           PV {Math.round(currentHP)} / {maxHP}
         </div>
-
-        {/* HP bar sans image */}
-        {!image && (
-          <>
-            <div className="bg-stone-800 h-2 rounded overflow-hidden mb-1">
-              <div
-                className={`h-full transition-all duration-300 ${getMiniHpClass(currentHP, maxHP)}`}
-                style={{ width: `${hpPct}%` }}
-              />
-            </div>
-            {shieldPct > 0 && (
-              <div className="bg-stone-800 h-1.5 rounded overflow-hidden mb-1 border border-blue-800">
-                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${shieldPct}%` }} />
-              </div>
-            )}
-          </>
-        )}
 
         <div className="grid grid-cols-2 gap-x-2 text-[10px] text-stone-400">
           {[['Auto', base.auto], ['DEF', base.def], ['CAP', base.cap], ['VIT', base.spd]].map(([lbl, val]) =>

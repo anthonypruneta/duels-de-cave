@@ -341,7 +341,7 @@ export default function CharacterCardContent({
 
   const cardFallback = character?.race && races[character.race]
     ? <div className="h-96 w-full flex items-center justify-center"><div className="text-9xl opacity-20">{races[character.race].icon}</div></div>
-    : <div className="h-48 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>;
+    : <div className="h-96 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>;
 
   const cardProps = {
     header,

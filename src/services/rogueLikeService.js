@@ -530,11 +530,21 @@ function buildPendingActionMageTowerChoice({ runSeed, floorNumber, runCharacter 
   const rng = createSeededRng(`${runSeed}|magtower|${floorNumber}|passivePair|keep`);
   const level = getLabyrinthPhase(floorNumber);
   const list = rollMageTowerPassivePairSeeded(level, rng);
+  const options = list.map((p) => {
+    const data = getMageTowerPassiveById(p.id);
+    return {
+      id: p.id,
+      level: p.level,
+      name: data?.name || p.id,
+      icon: data?.icon || null,
+      description: data?.levels?.[p.level]?.description || '',
+    };
+  });
   return {
     type: 'mageTowerPassiveChoice',
     createdAt: serverTimestamp(),
     keepOption: true,
-    options: list,
+    options,
   };
 }
 
@@ -571,7 +581,16 @@ function buildPendingActionLegendaryWeaponChoice({ runSeed, floorNumber, runChar
   return {
     type: 'legendaryWeaponChoice',
     createdAt: serverTimestamp(),
-    options: options.map((w) => ({ id: w.id, name: w.nom, icon: w.icon, stats: w.stats, effet: w.effet, rarete: w.rarete, imageFile: w.imageFile })),
+    options: options.map((w) => ({
+      id: w.id,
+      name: w.nom,
+      icon: w.icon,
+      stats: w.stats,
+      effet: w.effet,
+      rarete: w.rarete,
+      imageFile: w.imageFile,
+      description: w.description || '',
+    })),
     keepOption: true,
     // keepOption géré : si player a déjà une arme, keep la garde. Sinon, keep = null.
   };
@@ -673,6 +692,7 @@ function buildPendingActionGenericWeaponChoice({ runSeed, floorNumber, runCharac
     effet: w.effet || null,
     rarete: w.rarete,
     imageFile: w.imageFile,
+    description: w.description || '',
   }));
 
   return {

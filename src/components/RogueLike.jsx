@@ -386,9 +386,14 @@ export default function RogueLike() {
                   onClick={() => handleApplyChoice({ optionIndex: idx })}
                   className="p-4 rounded-lg bg-stone-950/60 hover:bg-violet-900/20 border border-stone-700/70 hover:border-violet-400/60 text-left"
                 >
-                  <div className="text-3xl mb-2">✨</div>
-                  <div className="font-bold text-stone-100 text-sm">{opt.id}</div>
+                  <div className="text-3xl mb-2">{opt.icon || '✨'}</div>
+                  <div className="font-bold text-stone-100 text-sm">{opt.name || opt.id}</div>
                   <div className="text-xs text-stone-300 mt-1">Niveau {opt.level}</div>
+                  {opt.description && (
+                    <div className="text-[11px] text-stone-300 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      {opt.description}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -415,6 +420,11 @@ export default function RogueLike() {
                   <div className="text-3xl mb-2">{opt.icon || '✨'}</div>
                   <div className="font-bold text-stone-100 text-sm">{opt.name || opt.id}</div>
                   <div className="text-xs text-stone-300 mt-1">Niveau {opt.level}</div>
+                  {opt.description && (
+                    <div className="text-[11px] text-stone-300 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      {opt.description}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -464,6 +474,17 @@ export default function RogueLike() {
                       .map(([k, v]) => `${k}${v > 0 ? `+${v}` : v}`)
                       .join(' • ')}
                   </div>
+                  {opt.description && (
+                    <div className="text-[11px] text-stone-300 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      {opt.description}
+                    </div>
+                  )}
+                  {opt.effet?.description && (
+                    <div className="text-[11px] text-amber-200 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      <div className="font-bold">{opt.effet?.nom || 'Effet'}</div>
+                      {opt.effet.description}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -492,6 +513,17 @@ export default function RogueLike() {
                   <div className="text-xs text-stone-300 mt-1">
                     {Object.entries(opt.stats || {}).filter(([, v]) => v !== 0).slice(0, 3).map(([k, v]) => `${k}${v > 0 ? `+${v}` : v}`).join(' • ')}
                   </div>
+                  {opt.description && (
+                    <div className="text-[11px] text-stone-300 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      {opt.description}
+                    </div>
+                  )}
+                  {opt.effet?.description && (
+                    <div className="text-[11px] text-amber-200 mt-2 whitespace-pre-line leading-relaxed max-h-28 overflow-y-auto">
+                      <div className="font-bold">{opt.effet?.nom || 'Effet'}</div>
+                      {opt.effet.description}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
