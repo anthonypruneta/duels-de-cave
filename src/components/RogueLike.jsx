@@ -176,22 +176,9 @@ export default function RogueLike() {
     if (run?.status !== 'active') return;
     if (pendingAction) return;
     if (loading) return;
-
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await advanceRogueLikeRun({ userId: currentUser.uid, runId });
-      if (!res?.success) throw new Error(res?.error || 'Avance run impossible.');
-
-      if (res?.result) {
-        await playCombat(res);
-      }
-      setRun(res.run);
-    } catch (e) {
-      setError(e?.message || 'Erreur lancement combat.');
-    } finally {
-      setLoading(false);
-    }
+    // Comme dans le Labyrinthe : le clic "Lancer le combat" démarre directement l'auto-run.
+    // Le premier combat est exécuté par la boucle dans `handleAutoRun()`.
+    await handleAutoRun();
   };
 
   const handleStart = async () => {
@@ -600,17 +587,10 @@ export default function RogueLike() {
             <div className="flex justify-center gap-3 mb-4">
               <button
                 onClick={handleStartCurrentFloorFight}
-                disabled={loading || autoRunActive || !!pendingAction || !run || run?.status !== 'active'}
+                  disabled={loading || autoRunActive || !!pendingAction || !run || run?.status !== 'active'}
                 className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2.5 rounded-lg font-bold border border-stone-400"
               >
                 ▶️ Lancer le combat
-              </button>
-              <button
-                onClick={handleAutoRun}
-                disabled={loading || autoRunActive || !!pendingAction || !run || run?.status !== 'active'}
-                className="bg-violet-700 hover:bg-violet-600 disabled:bg-stone-700 disabled:text-stone-400 text-white border border-violet-500 px-5 py-2.5 rounded-lg font-bold"
-              >
-                ▶️ Auto-run
               </button>
               <button
                 onClick={stopAutoRun}
