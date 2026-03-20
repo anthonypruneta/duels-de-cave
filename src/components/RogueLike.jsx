@@ -581,7 +581,7 @@ export default function RogueLike() {
     <div className="min-h-screen p-6">
       <Header />
 
-      <div className="max-w-5xl mx-auto pt-24">
+      <div className="max-w-[1800px] mx-auto pt-20">
         <div className="flex justify-center mb-6">
           <div className="bg-stone-950/85 border border-violet-700/80 rounded-lg px-6 py-2 shadow">
             <h1 className="text-2xl font-bold text-violet-300">🟣 Rogue-like (MVP admin)</h1>

@@ -39,6 +39,8 @@ const BOSS_FLOOR_STEP = 10;
 // On évite donc d’imposer un plafond “artificiel”.
 const MAX_ROGUELIKE_FLOOR = null;
 
+const STAT_POINT_POOL = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
+
 const BASE_DUNGEON_LEVEL_1_STATS = {
   hp: 132,
   auto: 17,
@@ -1064,6 +1066,25 @@ export async function advanceRogueLikeRun({ userId, runId }) {
   const nextFloor = floorNumber + 1;
   updatedRun.highestClearedFloor = Math.max(updatedRun.highestClearedFloor || 0, floorNumber);
   updatedRun.currentFloor = nextFloor;
+
+  // ============================================
+  // Récompense : +1 point de stats à chaque étage réussi
+  // (donc le niveau progresse automatiquement car on combat au floor suivant)
+  // ============================================
+  const statRng = createSeededRng(`${runSeed}|statPoint|${floorNumber}`);
+  const statKey = STAT_POINT_POOL[Math.floor(statRng() * STAT_POINT_POOL.length)];
+  const { updatedStats: updatedForestBoosts } = applyStatPoints(
+    updatedRun.character.forestBoosts || getEmptyStatBoosts(),
+    statKey,
+    1
+  );
+
+  updatedRun.character = {
+    ...updatedRun.character,
+    forestBoosts: updatedForestBoosts,
+    // Le niveau doit correspondre au prochain étage (pour le prochain combat)
+    level: nextFloor + (run.levelOffset || 0),
+  };
 
   // Gates post-combat : pendingAction
   let pendingAction = null;
