@@ -295,20 +295,40 @@ const BASIC_MOBS_POOL = [
   ...BASIC_DUNGEON_MOBS,
 ].filter(Boolean);
 
-// “Boss pool” : tout ce qui n’est pas dans le pool mobs basic (visuels uniquement)
+// “Boss pool” : visuels boss uniquement.
+// On exclut volontairement :
+// - les visuels de personnages (races/slug)
+// - les trash mobs + les 2 premiers mobs de donjons
+// pour éviter qu’ils apparaissent comme “boss” en rogue-like.
 const ALL_FOREST_BOSSES = FOREST_LEVELS.map((l) => bossTemplateToPoolItem(l.boss)).filter(Boolean);
 const ALL_MAGE_TOWER_BOSSES = MAGE_TOWER_LEVELS.map((l) => bossTemplateToPoolItem(l.boss)).filter(Boolean);
 const ALL_DUNGEON_BOSSES = Object.values(DUNGEON_BOSSES || {}).map((b) => bossTemplateToPoolItem(b)).filter(Boolean);
 
-const BOSS_POOL_FOR_VISUALS = [
+const BASIC_MOBS_IMAGE_PATHS = new Set(
+  (BASIC_MOBS_POOL || []).map((it) => it?.imagePath).filter(Boolean)
+);
+const BASIC_MOBS_IMAGE_FILES = new Set(
+  (BASIC_MOBS_POOL || [])
+    .map((it) => (it?.imageFile ? String(it.imageFile).toLowerCase() : null))
+    .filter(Boolean)
+);
+
+const BOSS_POOL_FOR_VISUALS_RAW = [
   ...LAB_BOSS_LIST,
   ...ALL_FOREST_BOSSES,
   ...ALL_MAGE_TOWER_BOSSES,
   ...ALL_DUNGEON_BOSSES,
   ...CATACLYSM_LIST,
   ...CATACLYSM_CHAMP_LIST,
-  ...ROGUELIKE_RACE_LIST,
 ].filter(Boolean);
+
+const BOSS_POOL_FOR_VISUALS = BOSS_POOL_FOR_VISUALS_RAW.filter((it) => {
+  if (!it) return false;
+  if (it?.imagePath && BASIC_MOBS_IMAGE_PATHS.has(it.imagePath)) return false;
+  const imageFileLower = it?.imageFile ? String(it.imageFile).toLowerCase() : null;
+  if (imageFileLower && BASIC_MOBS_IMAGE_FILES.has(imageFileLower)) return false;
+  return true;
+});
 
 function getRogueLikeImageForRace(raceName) {
   if (!raceName) return null;
