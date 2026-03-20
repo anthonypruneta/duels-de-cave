@@ -143,7 +143,11 @@ const UnifiedCharacterCard = ({
     >
       {canvasOverlay}
       {image ? (
-        <img src={image} alt={name} className={`w-full h-auto object-contain ${imageClassName}`.trim()} />
+        <img
+          src={image}
+          alt={name}
+          className={`w-full h-auto object-contain ${imageClassName || ''}`}
+        />
       ) : (
         {/* Important : ne pas “créer” une hauteur fixe ici.
             On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
