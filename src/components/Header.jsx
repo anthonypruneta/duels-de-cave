@@ -147,6 +147,7 @@ function Header() {
     { path: '/encyclopedie', label: '📚 Encyclopédie' },
     { path: '/hall-of-fame', label: '👑 Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
+    ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
     ...(isAdmin ? [{ path: '/combat', label: '⚔️ PvP' }] : []),
   ];
 
@@ -182,8 +183,12 @@ function Header() {
                   }}
                   className={`px-2.5 py-1.5 rounded text-xs font-medium transition border whitespace-nowrap flex-shrink-0 ${
                     location.pathname === link.path
-                      ? 'bg-amber-600 border-amber-400 text-white shadow-lg'
-                      : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
+                      ? (link.rogueLike
+                        ? 'bg-violet-700 border-violet-300 text-white shadow-lg'
+                        : 'bg-amber-600 border-amber-400 text-white shadow-lg')
+                      : (link.rogueLike
+                        ? 'bg-violet-900/50 border-violet-600 text-stone-200 hover:bg-violet-800/50 hover:border-violet-400/60 hover:text-white'
+                        : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white')
                   }`}
                 >
                   {link.label}

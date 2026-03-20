@@ -13,6 +13,7 @@ import MesAnciensPersonnages from './components/MesAnciensPersonnages';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import InfiniteLabyrinth from './components/InfiniteLabyrinth';
+import RogueLike from './components/RogueLike';
 import Training from './components/Training';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
@@ -218,6 +219,16 @@ function Application() {
             element={
               <ProtectedRoute>
                 <WorldBoss />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/roguelike"
+            element={
+              <ProtectedRoute>
+                <AdminOnlyRoute>
+                  <RogueLike />
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />
