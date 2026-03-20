@@ -30,6 +30,7 @@ export default function RogueLike() {
 
   const [availableRaces, setAvailableRaces] = useState(() => pickRandomThree(allRaceNames));
   const [selectedRace, setSelectedRace] = useState(null);
+  const [characterName, setCharacterName] = useState('');
 
   const [runId, setRunId] = useState(null);
   const [run, setRun] = useState(null);
@@ -52,6 +53,31 @@ export default function RogueLike() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   const pendingAction = run?.pendingAction || null;
+
+  const playerPseudoName = run?.character?.name || '';
+  const enemyName = combatEnemy?.name || '';
+
+  const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const renderLogLineWithColoredNames = (text) => {
+    const t = String(text ?? '');
+    if (!playerPseudoName && !enemyName) return t;
+    const names = [];
+    if (playerPseudoName) names.push({ name: playerPseudoName, cls: 'font-bold text-blue-400' });
+    if (enemyName && enemyName !== playerPseudoName) names.push({ name: enemyName, cls: 'font-bold text-purple-400' });
+    if (names.length === 0) return t;
+
+    const joined = names.map((n) => escapeRegExp(n.name)).join('|');
+    if (!joined) return t;
+
+    const nameRegex = new RegExp(`(${joined})`, 'g');
+    const parts = t.split(nameRegex);
+    return parts.map((part, idx) => {
+      const hit = names.find((n) => n.name === part);
+      if (hit) return <span key={`${idx}-${part}`} className={hit.cls}>{part}</span>;
+      return <React.Fragment key={idx}>{part}</React.Fragment>;
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -102,6 +128,7 @@ export default function RogueLike() {
     setRun(null);
     setAvailableRaces(pickRandomThree(allRaceNames));
     setSelectedRace(null);
+    setCharacterName('');
     setCombatLogs([]);
     setCombatEnemy(null);
     autoRunWasActiveRef.current = false;
@@ -113,7 +140,7 @@ export default function RogueLike() {
     setError(null);
     setLoading(true);
     try {
-      const res = await startRogueLikeRun({ userId: currentUser.uid, race: selectedRace });
+      const res = await startRogueLikeRun({ userId: currentUser.uid, race: selectedRace, characterName });
       if (!res?.success) throw new Error(res?.error || 'Erreur démarrage run.');
       setRunId(res.runId);
       setRun(res.run);
@@ -538,7 +565,7 @@ export default function RogueLike() {
                             return (
                               <div key={idx} className="flex justify-center my-3">
                                 <div className="bg-stone-950 text-stone-100 px-6 py-2 font-bold text-sm shadow-lg border border-stone-600">
-                                  {cleanLog}
+                                  {renderLogLineWithColoredNames(cleanLog)}
                                 </div>
                               </div>
                             );
@@ -547,14 +574,14 @@ export default function RogueLike() {
                             return (
                               <div key={idx} className="flex justify-center my-2">
                                 <div className="bg-stone-900/40 text-stone-200 px-4 py-1 text-xs font-bold border border-stone-700">
-                                  {cleanLog}
+                                  {renderLogLineWithColoredNames(cleanLog)}
                                 </div>
                               </div>
                             );
                           }
                           return (
                             <div key={idx} className="flex justify-center">
-                              <div className="text-stone-400 text-xs italic">{cleanLog}</div>
+                            <div className="text-stone-400 text-xs italic">{renderLogLineWithColoredNames(cleanLog)}</div>
                             </div>
                           );
                         }
@@ -565,7 +592,7 @@ export default function RogueLike() {
                             <div key={idx} className="flex justify-start">
                               <div className="max-w-[80%]">
                                 <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500 rounded-r-lg">
-                                  <div className="text-xs">{cleanLog}</div>
+                                  <div className="text-xs">{renderLogLineWithColoredNames(cleanLog)}</div>
                                 </div>
                               </div>
                             </div>
@@ -575,7 +602,7 @@ export default function RogueLike() {
                           <div key={idx} className="flex justify-end">
                             <div className="max-w-[80%]">
                               <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500 rounded-l-lg">
-                                <div className="text-xs">{cleanLog}</div>
+                                <div className="text-xs">{renderLogLineWithColoredNames(cleanLog)}</div>
                               </div>
                             </div>
                           </div>
@@ -656,6 +683,21 @@ export default function RogueLike() {
               ))}
             </div>
 
+            <div className="mb-4">
+              <label className="block text-stone-200 text-sm font-bold mb-2">
+                Nom du personnage
+              </label>
+              <input
+                value={characterName}
+                onChange={(e) => setCharacterName(e.target.value)}
+                placeholder="Ex: Serpent Géant"
+                className="w-full bg-stone-950/70 border border-stone-700/80 text-stone-100 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/60"
+              />
+              <div className="text-xs text-stone-400 mt-2">
+                Ce nom apparaîtra dans le log de combat.
+              </div>
+            </div>
+
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setAvailableRaces(pickRandomThree(allRaceNames))}
@@ -665,7 +707,7 @@ export default function RogueLike() {
               </button>
               <button
                 onClick={handleStart}
-                disabled={!selectedRace || loading}
+                disabled={!selectedRace || loading || characterName.trim().length < 2}
                 className="bg-violet-700 hover:bg-violet-600 disabled:bg-stone-700 disabled:text-stone-400 text-white border border-violet-500 px-6 py-2.5 rounded-lg font-bold"
               >
                 {loading ? '⏳...' : 'Choisir cette race'}

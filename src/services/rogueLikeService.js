@@ -59,6 +59,8 @@ const CATACLYSM_CHAMP_BOSS_IMAGES = import.meta.glob('../assets/cataclysme/Champ
 // Tes assets races sont stockées en sous-dossiers : .../races/<race>/<fichier>.png
 // On doit donc inclure récursivement.
 const ROGUELIKE_RACE_IMAGES = import.meta.glob('../assets/roguelike/races/**/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
+// Boss “forêt”/“grotte”/“tour” sont stockés à part : src/assets/bosses/*.png
+const ALL_BOSSES_IMAGES = import.meta.glob('../assets/bosses/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' });
 
 function stripUndefined(obj) {
   if (obj === null || obj === undefined) return obj;
@@ -243,7 +245,13 @@ const ROGUELIKE_IMAGE_BY_NORMALIZED_NAME = new Map(
 function findImagePathByFileName(imageFile) {
   if (!imageFile) return null;
   const fileLower = String(imageFile).toLowerCase();
-  const allModules = [LABYRINTH_BOSS_IMAGES, CATACLYSM_IMAGES, CATACLYSM_CHAMP_BOSS_IMAGES, ROGUELIKE_RACE_IMAGES];
+  const allModules = [
+    LABYRINTH_BOSS_IMAGES,
+    ALL_BOSSES_IMAGES,
+    CATACLYSM_IMAGES,
+    CATACLYSM_CHAMP_BOSS_IMAGES,
+    ROGUELIKE_RACE_IMAGES,
+  ];
   for (const modules of allModules) {
     for (const [sourcePath, imagePath] of Object.entries(modules || {})) {
       const sp = sourcePath.replace(/\\/g, '/').toLowerCase();
@@ -758,7 +766,7 @@ async function createRunLeaderboardEntryOnDeath({ userId, runId, run }) {
   });
 }
 
-export async function startRogueLikeRun({ userId, race }) {
+export async function startRogueLikeRun({ userId, race, characterName }) {
   const runId = (typeof crypto !== 'undefined' && crypto?.randomUUID && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
     : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -779,7 +787,7 @@ export async function startRogueLikeRun({ userId, race }) {
   };
 
   const runChar = {
-    name: `Run ${race}`,
+    name: (characterName || '').toString().trim() || `Run ${race}`,
     gender: 'male',
     race,
     class: null,
