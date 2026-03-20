@@ -13,7 +13,7 @@ import {
   getRogueLikeLeaderboard,
 } from '../services/rogueLikeService';
 import { replayCombatSteps } from '../utils/combatReplay';
-import CombatLayout from './CombatLayout';
+import { MiniCard } from './CombatLayout';
 
 function pickRandomThree(list) {
   const cloned = [...list];
@@ -61,6 +61,9 @@ export default function RogueLike() {
 
   const logContainerRef = useRef(null);
 
+  const [isAnimatingFight, setIsAnimatingFight] = useState(false);
+  const [replayWinner, setReplayWinner] = useState('');
+
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
@@ -68,28 +71,6 @@ export default function RogueLike() {
 
   const playerPseudoName = run?.character?.name || '';
   const enemyName = combatEnemy?.name || '';
-
-  const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  const renderLogLineWithColoredNames = (text) => {
-    const t = String(text ?? '');
-    if (!playerPseudoName && !enemyName) return t;
-    const names = [];
-    if (playerPseudoName) names.push({ name: playerPseudoName, cls: 'font-bold text-blue-400' });
-    if (enemyName && enemyName !== playerPseudoName) names.push({ name: enemyName, cls: 'font-bold text-purple-400' });
-    if (names.length === 0) return t;
-
-    const joined = names.map((n) => escapeRegExp(n.name)).join('|');
-    if (!joined) return t;
-
-    const nameRegex = new RegExp(`(${joined})`, 'g');
-    const parts = t.split(nameRegex);
-    return parts.map((part, idx) => {
-      const hit = names.find((n) => n.name === part);
-      if (hit) return <span key={`${idx}-${part}`} className={hit.cls}>{part}</span>;
-      return <React.Fragment key={idx}>{part}</React.Fragment>;
-    });
-  };
 
   const formatLogMessage = (text) => {
     const pName = playerPseudoName;
@@ -121,7 +102,7 @@ export default function RogueLike() {
         if (match.index > lastIndex) {
           parts.push(part.slice(lastIndex, match.index));
         }
-        const isHeal = String(match[2] || '').toLowerCase().includes('vie');
+        const isHeal = match[2].toLowerCase().includes('vie');
         const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
         parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
         parts.push(` ${match[2]}`);
@@ -237,6 +218,7 @@ export default function RogueLike() {
 
     setCombatLogs([]);
     setCombatEnemy(advanceRes?.enemy || null);
+    setReplayWinner(advanceRes?.result?.winnerNom || '');
 
     const p1Max = advanceRes?.result?.p1MaxHP ?? steps?.[0]?.p1Base?.hp ?? 0;
     const p2Max = advanceRes?.result?.p2MaxHP ?? steps?.[0]?.p2Base?.hp ?? 0;
@@ -251,26 +233,31 @@ export default function RogueLike() {
     setCombatPlayerStatus(steps?.[0]?.p1Status ?? null);
     setCombatEnemyStatus(steps?.[0]?.p2Status ?? null);
 
-    // Anime les steps (intro / début tour / actions) pour ralentir l’auto-run
-    await replayCombatSteps(steps, {
-      setCombatLog: setCombatLogs,
-      onStepHP: (step) => {
-        setCombatPlayerHp(step?.p1HP ?? 0);
-        setCombatEnemyHp(step?.p2HP ?? 0);
-        setCombatPlayerShield(step?.p1Shield ?? 0);
-        setCombatEnemyShield(step?.p2Shield ?? 0);
-        if (step?.p1Base) setCombatPlayerBase(step.p1Base);
-        if (step?.p2Base) setCombatEnemyBase(step.p2Base);
-        if (step?.p1Modifiers) setCombatPlayerModifiers(step.p1Modifiers);
-        if (step?.p2Modifiers) setCombatEnemyModifiers(step.p2Modifiers);
-        if (step?.p1Status) setCombatPlayerStatus(step.p1Status);
-        if (step?.p2Status) setCombatEnemyStatus(step.p2Status);
+    setIsAnimatingFight(true);
+    try {
+      // Anime les steps (intro / début tour / actions) : même structure que le Labyrinthe
+      await replayCombatSteps(steps, {
+        setCombatLog: setCombatLogs,
+        onStepHP: (step) => {
+          setCombatPlayerHp(step?.p1HP ?? 0);
+          setCombatEnemyHp(step?.p2HP ?? 0);
+          setCombatPlayerShield(step?.p1Shield ?? 0);
+          setCombatEnemyShield(step?.p2Shield ?? 0);
+          if (step?.p1Base) setCombatPlayerBase(step.p1Base);
+          if (step?.p2Base) setCombatEnemyBase(step.p2Base);
+          if (step?.p1Modifiers) setCombatPlayerModifiers(step.p1Modifiers);
+          if (step?.p2Modifiers) setCombatEnemyModifiers(step.p2Modifiers);
+          if (step?.p1Status) setCombatPlayerStatus(step.p1Status);
+          if (step?.p2Status) setCombatEnemyStatus(step.p2Status);
 
-        if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
-        if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
-      },
-      speed: 'fast',
-    });
+          if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
+          if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
+        },
+        speed: 'fast',
+      });
+    } finally {
+      setIsAnimatingFight(false);
+    }
   };
 
   const handleAutoRun = async () => {
@@ -633,137 +620,131 @@ export default function RogueLike() {
               </button>
             </div>
 
-            <div className="mb-4">
-              <CombatLayout
-                p1Entity={run?.character ? {
-                  name: run.character.name,
-                  currentHP: combatPlayerHp,
-                  maxHP: combatPlayerMaxHp,
-                  shield: combatPlayerShield,
-                  base: combatPlayerBase || run.character.base || {},
-                } : null}
-                p2Entity={combatEnemy ? {
-                  name: combatEnemy.name,
-                  currentHP: combatEnemyHp,
-                  maxHP: combatEnemyMaxHp,
-                  shield: combatEnemyShield,
-                  base: combatEnemyBase || combatEnemy.base || {},
-                  ability: combatEnemy.ability,
-                } : null}
-                p1CombatBase={combatPlayerBase}
-                p2CombatBase={combatEnemyBase}
-                logRef={logContainerRef}
-                logTitle="⚔️ Combat en direct"
-                logHeaderBg="bg-stone-900"
-                renderLog={() => {
-                  if (!combatLogs || combatLogs.length === 0) {
-                    return (
-                      <p className="text-stone-500 italic text-center py-6">Cliquez sur “Lancer le combat”...</p>
-                    );
-                  }
+            {/* Mobile (identique au Labyrinthe) */}
+            <div className="lg:hidden flex flex-col gap-2">
+              <div className="flex gap-2">
+                <MiniCard entity={{ name: run?.character?.name, currentHP: combatPlayerHp || (run?.character?.currentHP ?? run?.character?.base?.hp), maxHP: combatPlayerMaxHp || (run?.character?.maxHP ?? run?.character?.base?.hp), shield: combatPlayerShield ?? 0, base: combatPlayerBase ?? run?.character?.base ?? {}, image: run?.character?.characterImage }} side="left" />
+                <MiniCard entity={{ name: combatEnemy?.name, currentHP: combatEnemyHp || (combatEnemy?.currentHP ?? combatEnemy?.base?.hp), maxHP: combatEnemyMaxHp || (combatEnemy?.maxHP ?? combatEnemy?.base?.hp), shield: combatEnemyShield ?? 0, base: combatEnemyBase ?? combatEnemy?.base ?? {}, ability: combatEnemy?.ability, image: combatEnemy?.characterImage }} side="right" />
+              </div>
 
-                  return combatLogs.map((log, idx) => {
-                    const isP1 = log.startsWith('[P1]');
-                    const isP2 = log.startsWith('[P2]');
-                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+              {replayWinner && (
+                <div className="flex justify-center">
+                  <div className="bg-stone-100 text-stone-900 px-4 py-2 font-bold text-sm animate-pulse shadow-2xl rounded-lg border-2 border-stone-400">
+                    🏆 {replayWinner} remporte le combat! 🏆
+                  </div>
+                </div>
+              )}
 
-                    if (!isP1 && !isP2) {
-                      if (log.includes('🏆')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-2">
-                            <div className="bg-stone-100 text-stone-900 px-3 py-1.5 font-bold text-xs shadow-lg border border-stone-400">
-                              {formatLogMessage(cleanLog)}
-                            </div>
-                          </div>
-                        );
+              <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col" style={{ height: 'calc(100dvh - 320px)', minHeight: '240px', maxHeight: '400px' }}>
+                <div className="bg-stone-900 px-3 py-2 border-b border-stone-700">
+                  <h2 className="text-sm font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                </div>
+                <div ref={logContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+                  {combatLogs.length === 0 ? (
+                    <p className="text-stone-500 italic text-center py-4">Cliquez sur "Lancer le combat"...</p>
+                  ) : (
+                    combatLogs.map((log, idx) => {
+                      const isP1 = log.startsWith('[P1]');
+                      const isP2 = log.startsWith('[P2]');
+                      const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+                      if (!isP1 && !isP2) {
+                        if (log.includes('🏆')) return <div key={idx} className="flex justify-center my-2"><div className="bg-stone-100 text-stone-900 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                        if (log.includes('💀')) return <div key={idx} className="flex justify-center my-2"><div className="bg-red-900 text-red-200 px-3 py-1.5 font-bold text-xs rounded-lg">{cleanLog}</div></div>;
+                        if (log.includes('💚')) return <div key={idx} className="flex justify-center my-1"><div className="bg-green-900/50 text-green-300 px-2 py-0.5 text-[10px] font-bold border border-green-600">{cleanLog}</div></div>;
+                        if (log.includes('---')) return <div key={idx} className="flex justify-center my-1"><div className="bg-stone-700 text-stone-200 px-2 py-0.5 text-[10px] font-bold rounded">{cleanLog}</div></div>;
+                        return <div key={idx} className="text-center text-stone-400 text-[10px] italic">{cleanLog}</div>;
                       }
-                      if (log.includes('💀')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-2">
-                            <div className="bg-red-900 text-red-200 px-3 py-1.5 font-bold text-xs shadow-lg border border-red-600">
-                              {formatLogMessage(cleanLog)}
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (log.includes('💚')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-1">
-                            <div className="bg-green-900/50 text-green-300 px-2 py-0.5 text-[10px] font-bold border border-green-600">
-                              {formatLogMessage(cleanLog)}
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (log.includes('---') || log.includes('⚔️')) {
-                        return (
-                          <div key={idx} className="flex justify-center my-1">
-                            <div className="bg-stone-700 text-stone-200 px-2 py-0.5 text-[10px] font-bold border border-stone-500 rounded">
-                              {formatLogMessage(cleanLog)}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={idx} className="flex justify-center">
-                          <div className="text-stone-400 text-[10px] italic">{formatLogMessage(cleanLog)}</div>
-                        </div>
-                      );
-                    }
+                      if (isP1) return <div key={idx} className="flex justify-start"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-l-2 border-blue-500 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                      return <div key={idx} className="flex justify-end"><div className="max-w-[85%] bg-stone-700 text-stone-200 px-2 py-1 rounded border-r-2 border-purple-500 text-[11px]">{formatLogMessage(cleanLog)}</div></div>;
+                    })
+                  )}
+                </div>
+                {isAnimatingFight && <p className="text-amber-300 text-xs text-center">Combat en cours...</p>}
+              </div>
+            </div>
 
-                    if (isP1) {
-                      return (
-                        <div key={idx} className="flex justify-start">
-                          <div className="max-w-[85%]">
-                            <div className="bg-stone-700 text-stone-200 px-2 py-1 rounded border-l-2 border-blue-500 text-[11px]">
-                              {formatLogMessage(cleanLog)}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={idx} className="flex justify-end">
-                        <div className="max-w-[85%]">
-                          <div className="bg-stone-700 text-stone-200 px-2 py-1 rounded border-r-2 border-purple-500 text-[11px]">
-                            {formatLogMessage(cleanLog)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                }}
-                p1Card={
-                  <CharacterCardContent
-                    character={run.character}
-                    showHpBar
-                    detailsPlacement="left"
-                    currentHP={combatPlayerMaxHp > 0 ? combatPlayerHp : run.character.base?.hp}
-                    maxHP={combatPlayerMaxHp > 0 ? combatPlayerMaxHp : run.character.base?.hp}
-                    shield={combatPlayerShield}
-                    combatBaseOverride={combatPlayerBase}
-                    combatModifiers={combatPlayerModifiers}
-                    opponent={combatEnemy}
-                    combatStatus={combatPlayerStatus}
-                    borderIdOverride={null}
-                  />
-                }
-                p2Card={
-                  <CharacterCardContent
-                    character={combatEnemy}
-                    showHpBar
-                    detailsPlacement="right"
-                    currentHP={combatEnemyMaxHp > 0 ? combatEnemyHp : combatEnemy?.base?.hp}
-                    maxHP={combatEnemyMaxHp > 0 ? combatEnemyMaxHp : combatEnemy?.base?.hp}
-                    shield={combatEnemyShield}
-                    combatBaseOverride={combatEnemyBase}
-                    combatModifiers={combatEnemyModifiers}
-                    opponent={run.character}
-                    combatStatus={combatEnemyStatus}
-                    borderIdOverride={null}
-                  />
-                }
-              />
+            {/* Desktop (identique au Labyrinthe) */}
+            <div className="hidden lg:flex flex-row gap-4 items-start justify-center text-sm">
+              <div className="w-auto flex-shrink-0">
+                <CharacterCardContent
+                  character={run?.character}
+                  showHpBar
+                  currentHP={combatPlayerHp || (run?.character?.currentHP ?? run?.character?.base?.hp)}
+                  maxHP={combatPlayerMaxHp || (run?.character?.maxHP ?? run?.character?.base?.hp)}
+                  shield={combatPlayerShield}
+                  combatBaseOverride={combatPlayerBase}
+                  combatModifiers={combatPlayerModifiers}
+                  opponent={combatEnemy}
+                  combatStatus={combatPlayerStatus}
+                  detailsPlacement="left"
+                />
+              </div>
+
+              <div className="flex-1 min-w-[400px] flex-shrink flex flex-col">
+                {replayWinner && (
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-stone-100 text-stone-900 px-8 py-3 font-bold text-xl animate-pulse shadow-2xl rounded-lg border-2 border-stone-400">
+                      🏆 {replayWinner} remporte le combat! 🏆
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col h-[600px] overflow-hidden">
+                  <div className="bg-stone-900 p-3 border-b border-stone-700 rounded-t-xl">
+                    <h2 className="text-2xl font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
+                  </div>
+
+                  <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+                    {combatLogs.length === 0 ? (
+                      <p className="text-stone-500 italic text-center py-8 text-sm">Cliquez sur "Lancer le combat" pour commencer...</p>
+                    ) : (
+                      combatLogs.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        if (!isP1 && !isP2) {
+                          if (log.includes('🏆')) {
+                            return <div key={idx} className="flex justify-center my-4"><div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg shadow-lg border border-stone-400">{cleanLog}</div></div>;
+                          }
+                          if (log.includes('💀')) {
+                            return <div key={idx} className="flex justify-center my-4"><div className="bg-red-900 text-red-200 px-6 py-3 font-bold text-lg shadow-lg border border-red-600">{cleanLog}</div></div>;
+                          }
+                          if (log.includes('💚')) {
+                            return <div key={idx} className="flex justify-center my-3"><div className="bg-green-900/50 text-green-300 px-4 py-2 text-sm font-bold border border-green-600">{cleanLog}</div></div>;
+                          }
+                          if (log.includes('---') || log.includes('⚔️')) {
+                            return <div key={idx} className="flex justify-center my-3"><div className="bg-stone-700 text-stone-200 px-4 py-1 text-sm font-bold border border-stone-500">{cleanLog}</div></div>;
+                          }
+                          return <div key={idx} className="flex justify-center"><div className="text-stone-400 text-sm italic">{cleanLog}</div></div>;
+                        }
+
+                        if (isP1) {
+                          return <div key={idx} className="flex justify-start"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-l-4 border-blue-500"><div className="text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
+                        }
+                        return <div key={idx} className="flex justify-end"><div className="max-w-[80%]"><div className="bg-stone-700 text-stone-200 px-4 py-2 shadow-lg border-r-4 border-purple-500"><div className="text-sm">{formatLogMessage(cleanLog)}</div></div></div></div>;
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {isAnimatingFight && <p className="text-amber-300 text-sm mt-3 text-center">Combat en cours...</p>}
+              </div>
+
+              <div className="w-auto flex-shrink-0">
+                <CharacterCardContent
+                  character={combatEnemy}
+                  showHpBar
+                  currentHP={combatEnemyHp || (combatEnemy?.currentHP ?? combatEnemy?.base?.hp)}
+                  maxHP={combatEnemyMaxHp || (combatEnemy?.maxHP ?? combatEnemy?.base?.hp)}
+                  shield={combatEnemyShield}
+                  combatBaseOverride={combatEnemyBase}
+                  combatModifiers={combatEnemyModifiers}
+                  opponent={run?.character}
+                  combatStatus={combatEnemyStatus}
+                  detailsPlacement="right"
+                />
+              </div>
             </div>
 
             {run?.status === 'dead' && (
