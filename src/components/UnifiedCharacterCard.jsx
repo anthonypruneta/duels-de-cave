@@ -122,19 +122,26 @@ const UnifiedCharacterCard = ({
 
   const resolvedBorder = resolveBorderId(borderId);
   const hasCanvasBorder = resolvedBorder && resolvedBorder !== 'default';
+  const isAncient = resolvedBorder === 'ancient';
   const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
   const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
 
   const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
 
   const wrapperGlow = borderOnImageOnly ? '' : glowCls;
-  const wrapperCanvas = borderOnImageOnly ? null : canvasOverlay;
+  // Filtre "vieille télé" : contraste fort + très peu de couleur + légère baisse de luminosité
+  const wrapperStyle = isAncient
+    ? { filter: 'grayscale(1) contrast(1.42) brightness(0.96) saturate(0.15)' }
+    : undefined;
 
   const realBorderSrc = getRealBorderImageSrc(realBorderId);
 
   const imageSection = (
-    <div className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}>
-      {borderOnImageOnly && canvasOverlay}
+    <div
+      className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}
+      style={wrapperStyle}
+    >
+      {canvasOverlay}
       {image ? (
         <img src={image} alt={name} className={`w-full h-auto object-contain ${imageClassName}`.trim()} />
       ) : (
@@ -145,7 +152,7 @@ const UnifiedCharacterCard = ({
           src={realBorderSrc}
           alt=""
           className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-          style={{ zIndex: 3 }}
+          style={{ zIndex: 2 }}
         />
       )}
       {imageOverlayContent}
@@ -186,7 +193,6 @@ const UnifiedCharacterCard = ({
     return (
       <div className={`w-full ${cardClassName}`.trim()}>
         <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
-          {wrapperCanvas}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
             {header}
           </div>
@@ -205,7 +211,6 @@ const UnifiedCharacterCard = ({
   return (
     <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
       <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
-        {wrapperCanvas}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
           {header}
         </div>

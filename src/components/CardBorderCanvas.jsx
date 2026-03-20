@@ -999,12 +999,12 @@ function drawTitane(ctx, state, w, h) {
 
 function initCosmic(w, h) {
   return {
-    stars: Array.from({ length: 45 }, () => ({
+    stars: Array.from({ length: 72 }, () => ({
       x: rand(0, w), y: rand(0, h),
-      r: rand(0.5, 2.5),
+      r: rand(0.7, 2.9),
       twinkle: rand(0, Math.PI * 2),
       speed: rand(0.03, 0.08),
-      brightness: rand(0.4, 1),
+      brightness: rand(0.58, 1.25),
       hue: Math.random() < 0.3 ? rand(200, 280) : -1,
     })),
     nebulae: Array.from({ length: 6 }, () => ({
@@ -1093,7 +1093,15 @@ function drawCosmic(ctx, state, w, h) {
   }
 
   for (const st of state.stars) {
-    const a = st.brightness * (0.4 + 0.6 * Math.abs(Math.sin(st.twinkle)));
+    const a = Math.min(1, st.brightness * (0.45 + 0.75 * Math.abs(Math.sin(st.twinkle))));
+    const glow = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4.2);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${a * 0.36})`);
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.r * 4.2, 0, Math.PI * 2);
+    ctx.fill();
+
     if (st.hue >= 0) {
       ctx.fillStyle = hsl(st.hue, 60, 80, a);
     } else {
@@ -1363,12 +1371,131 @@ function drawChampion(ctx, state, w, h) {
   }
 }
 
+// ─── Ancient : noir & blanc + scanlines + grésillement ────────────────
+
+function initAncient(w, h) {
+  return {
+    time: rand(0, Math.PI * 2),
+    flicker: rand(0.75, 1.15),
+    scanPhase: rand(0, 5),
+    nextFlickerIn: rand(18, 42),
+    roll: rand(-1.5, 1.5),
+    rollSpeed: rand(0.8, 1.6),
+    // Light leaks (fuites lumineuses) : positions / couleurs fixes, intensités animées.
+    leaks: Array.from({ length: 3 }, () => ({
+      x: rand(0.05, 0.95),
+      y: rand(0.05, 0.35),
+      r: rand(0.35, 0.75),
+      hue: rand(18, 55), // chaud (jaune/orange) plutôt qu'un bleu
+      alpha: rand(0.12, 0.30),
+      phase: rand(0, Math.PI * 2),
+    })),
+  };
+}
+
+function updateAncient(state, w, h, dt) {
+  const s = dt / 16;
+  state.time += 0.035 * s;
+  state.scanPhase += 0.7 * s;
+  state.roll += Math.sin(state.time * state.rollSpeed) * 0.05;
+
+  // Flicker aléatoire (plus “vieux” TV).
+  state.nextFlickerIn -= s;
+  if (state.nextFlickerIn <= 0) {
+    state.nextFlickerIn = rand(18, 42);
+    state.flicker = rand(0.65, 1.25);
+  }
+}
+
+function drawAncient(ctx, state, w, h) {
+  ctx.save();
+
+  // Légère vignette + assombrissement pour simuler un tube.
+  const vignette = ctx.createRadialGradient(w * 0.5, h * 0.55, 0, w * 0.5, h * 0.55, Math.max(w, h) * 0.75);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.42)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
+  const flicker = state.flicker;
+
+  // “Light leaks” : dégradés chauds sur les bords (comme vieux films).
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const leak of state.leaks || []) {
+    const t = 0.5 + 0.5 * Math.sin(state.time * 0.9 + leak.phase);
+    const a = leak.alpha * (0.35 + 0.65 * t) * flicker;
+    const gx = w * leak.x;
+    const gy = h * leak.y;
+    const gr = Math.max(w, h) * leak.r;
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    g.addColorStop(0, `hsla(${leak.hue}, 95%, 60%, ${a})`);
+    g.addColorStop(0.35, `hsla(${leak.hue}, 95%, 60%, ${a * 0.35})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
+
+  // Scanlines horizontales.
+  const lineSpacing = Math.max(2, Math.floor(h / 60));
+  const lineAlpha = 0.22 * flicker;
+  const jitter = Math.sin(state.time * 1.7) * 1.45;
+  const phaseOffset = (state.scanPhase % lineSpacing) * 1.0;
+
+  ctx.globalAlpha = lineAlpha;
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  for (let y = -lineSpacing; y < h + lineSpacing; y += lineSpacing) {
+    const rollJ = Math.sin((y / h) * Math.PI * 2 + state.time * 0.9) * state.roll;
+    ctx.fillRect(0, y + phaseOffset + jitter + rollJ, w, 1);
+  }
+
+  // Bandes d'interférence (le “grésillement” grossier).
+  ctx.globalAlpha = 0.14 * flicker;
+  for (let i = 0; i < 4; i++) {
+    const y = rand(0, h);
+    const bandH = rand(1, 3);
+    const xOff = Math.sin(state.time * 1.1 + i) * (w * 0.03);
+    ctx.fillStyle = Math.random() < 0.55 ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.65)';
+    ctx.fillRect(xOff, y, w, bandH);
+  }
+
+  // Grains aléatoires (petits points).
+  const noiseCount = Math.floor(Math.min((w * h) / 1200, 220));
+  ctx.globalAlpha = 0.10 * flicker;
+  for (let i = 0; i < noiseCount; i++) {
+    const x = rand(0, w);
+    const y = rand(0, h);
+    const on = Math.random() < 0.48;
+    ctx.fillStyle = on ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.95)';
+    ctx.fillRect(x, y, 1, 1);
+  }
+
+  // Micro-scratches verticales (instables).
+  ctx.globalAlpha = 0.10 * flicker;
+  for (let i = 0; i < 7; i++) {
+    const x = rand(0, w);
+    const len = rand(h * 0.25, h * 0.85);
+    const y = rand(0, h - len);
+    ctx.strokeStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = Math.max(0.6, rand(0.6, 1.2));
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + rand(-2, 2), y + len);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 // ─── Eau & Soleil : rayons en haut + eau vascillante en bas + vague ponctuelle ────
 
 function spawnWaterBubble(w, h) {
+  // On aligne les bulles avec la nouvelle surface pour éviter les “trous”
+  const surfaceY = h * 0.93;
   return {
     x: rand(0, w),
-    y: rand(h * 0.58, h * 0.98),
+    y: rand(surfaceY - h * 0.05, h * 0.99),
     vy: rand(-0.15, -0.9),
     vx: rand(-0.08, 0.08),
     r: rand(1.2, 3.2),
@@ -1381,7 +1508,8 @@ function initWaterSun(w, h) {
   return {
     waterPhase: rand(0, Math.PI * 2),
     bubbles: Array.from({ length: Math.max(14, Math.floor(w / 16)) }, () => spawnWaterBubble(w, h)),
-    waveCooldown: rand(140, 260),
+    // Plus rare et plus “tsunami” (mini) : cooldown plus long
+    waveCooldown: rand(220, 360),
     wave: null,
   };
 }
@@ -1394,19 +1522,22 @@ function updateWaterSun(state, w, h, dt) {
     b.phase += 0.06 * s;
     b.y += b.vy * s - Math.sin(b.phase) * 0.15 * s;
     b.x += b.vx * s + Math.cos(b.phase * 0.7) * 0.03 * s;
-    if (b.y < h * 0.55 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
+    // Respawn quand la bulle sort trop haut (sinon elles “flottent” dans la zone air)
+    if (b.y < h * 0.89 || b.x < -10 || b.x > w + 10) Object.assign(b, spawnWaterBubble(w, h));
   }
 
   state.waveCooldown -= s;
   if (state.waveCooldown <= 0 && !state.wave) {
     state.wave = {
       t: 0,
-      duration: randInt(28, 48),
-      amp: rand(7, 15),
+      // Vague "tsunami" : front qui se déplace lentement
+      // (on augmente la durée pour que ça ressemble à une vague mur)
+      duration: randInt(240, 340),
+      amp: rand(80, 140),
       phase: rand(0, Math.PI * 2),
-      speed: rand(0.9, 1.3),
+      speed: rand(0.18, 0.35),
     };
-    state.waveCooldown = rand(220, 440);
+    state.waveCooldown = rand(650, 1300);
   }
 
   if (state.wave) {
@@ -1416,9 +1547,6 @@ function updateWaterSun(state, w, h, dt) {
 }
 
 function drawWaterSun(ctx, state, w, h) {
-  const cx = w * 0.5;
-  const cy = h * 0.16;
-
   // Haze / ciel au-dessus
   const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
   sky.addColorStop(0, 'rgba(251, 191, 36, 0.12)');
@@ -1428,30 +1556,96 @@ function drawWaterSun(ctx, state, w, h) {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h * 0.6);
 
-  // Rayons du soleil
-  const rayCount = 13;
-  const baseLen = Math.max(w, h) * 0.75;
+  // Rayons du soleil (flare) : gros glow radial collé à l'angle + quelques streaks vers l'intérieur.
+  // Objectif : garder la zone la plus lumineuse au maximum dans le coin haut-gauche.
+  const baseLen = Math.max(w, h);
+  const sunX = w * 0.03;
+  const sunY = h * 0.03;
+
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.globalCompositeOperation = 'screen';
+
+  // Glow principal
+  const flareR = baseLen * 0.60;
+  const core = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, flareR);
+  core.addColorStop(0, 'rgba(255, 252, 220, 0.78)');
+  core.addColorStop(0.08, 'rgba(251, 191, 36, 0.42)');
+  core.addColorStop(0.28, 'rgba(234, 179, 8, 0.18)');
+  core.addColorStop(0.65, 'rgba(251, 191, 36, 0.07)');
+  core.addColorStop(1, 'rgba(251, 191, 36, 0)');
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, flareR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Halo doux (plus large)
+  const haloR = baseLen * 0.92;
+  const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, haloR);
+  halo.addColorStop(0, 'rgba(251, 191, 36, 0.20)');
+  halo.addColorStop(0.40, 'rgba(234, 179, 8, 0.06)');
+  halo.addColorStop(1, 'rgba(251, 191, 36, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, haloR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Streaks (segments) dans le quadrant "droit + bas"
+  const rayCount = 10;
+  const rayLenBase = baseLen * 0.82;
+  ctx.translate(sunX, sunY);
+  ctx.globalAlpha = 1;
+
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
-    const angle = lerp(-0.65, 0.65, t) + Math.sin(state.waterPhase * 0.7 + i) * 0.05;
-    ctx.save();
-    ctx.rotate(angle);
-    const sw = lerp(5, 2, t) * (0.85 + 0.15 * Math.sin(state.waterPhase + i));
-    const len = baseLen * lerp(0.55, 0.85, Math.sin(state.waterPhase * 0.3 + i) * 0.5 + 0.5);
-    const g = ctx.createLinearGradient(0, 0, 0, len);
-    g.addColorStop(0, 'rgba(251, 191, 36, 0)');
-    g.addColorStop(0.3, 'rgba(251, 191, 36, 0.10)');
-    g.addColorStop(0.65, 'rgba(234, 179, 8, 0.18)');
-    g.addColorStop(1, 'rgba(251, 191, 36, 0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(-sw / 2, 0, sw, len);
-    ctx.restore();
+    const theta = lerp(0.05, Math.PI * 0.95, t) + Math.sin(state.waterPhase * 0.55 + i) * 0.035;
+
+    const rayLen = rayLenBase * (0.75 + 0.25 * Math.sin(state.waterPhase * 0.30 + i) * 0.5 + 0.5);
+    const x2 = Math.cos(theta) * rayLen;
+    const y2 = Math.sin(theta) * rayLen;
+
+    const rayW = lerp(22, 7, t);
+    const streak = ctx.createLinearGradient(0, 0, x2, y2);
+    streak.addColorStop(0, 'rgba(251, 191, 36, 0)');
+    streak.addColorStop(0.18, 'rgba(251, 191, 36, 0.48)');
+    streak.addColorStop(0.56, 'rgba(234, 179, 8, 0.28)');
+    streak.addColorStop(1, 'rgba(251, 191, 36, 0)');
+
+    ctx.strokeStyle = streak;
+    ctx.lineWidth = Math.max(1.5, rayW * 0.12);
+    ctx.lineCap = 'round';
+
+    const segs = 9;
+    for (let s = 0; s < segs; s++) {
+      const segT0 = s / segs;
+      const segT1 = (s + 1) / segs;
+      const p = (segT0 + segT1) * 0.5;
+
+      const gap = Math.sin(state.waterPhase * 1.15 + i * 1.7 + s * 2.25);
+      if (gap > 0.38) continue;
+
+      ctx.globalAlpha = 0.35 + 0.65 * (1 - p);
+      ctx.beginPath();
+      ctx.moveTo(x2 * segT0, y2 * segT0);
+      ctx.lineTo(x2 * segT1, y2 * segT1);
+      ctx.stroke();
+    }
   }
+
+  ctx.globalAlpha = 1;
   ctx.restore();
 
-  const surfaceY = h * 0.62;
+  // Eau trop haute actuellement => on baisse la surface (moins d'eau visible)
+  // Pour que l'eau de base soit plus basse (moins visible).
+  const surfaceY = h * 0.93;
+  const waveProgress = state.wave ? Math.min(1, state.wave.t / state.wave.duration) : 0;
+  const wavePulse = state.wave ? Math.sin(waveProgress * Math.PI) : 0; // pic au milieu
+  // Front qui va de droite -> gauche
+  const waveFrontX = state.wave
+    ? lerp(w * 1.05, -w * 0.05, waveProgress)
+    : 0;
+  // Largeur du front (tsunami large)
+  const waveSigma = Math.max(34, w * 0.13);
+  const waveFreq = Math.max(0.02, 0.04 * (w / 280));
 
   // Fond eau
   const waterBg = ctx.createLinearGradient(0, surfaceY, 0, h);
@@ -1473,12 +1667,45 @@ function drawWaterSun(ctx, state, w, h) {
     ctx.moveTo(0, h);
     ctx.lineTo(0, surfaceY);
     for (let x = 0; x <= w; x += step) {
-      const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx);
-      const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
-      const waveEvent = state.wave
-        ? Math.sin(state.wave.phase + x * 0.05 + state.waterPhase * 0.9 * state.wave.speed)
-        : 0;
-      const y = surfaceY + wave + wave2 + waveEvent * (state.wave ? waveFade * amp : 0) * 0.08;
+      const baseScale = state.wave ? (0.25 + 0.25 * (1 - wavePulse)) : 1; // calmer la mer pendant le tsunami
+      const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx) * baseScale;
+      const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4) * baseScale;
+
+      // Tsunami façon "mur/poussée" :
+      // - relief surtout sur le front (enveloppe gaussienne autour de dx=0)
+      // - petite traînée qui décroît derrière le front (dx<0)
+      let raise = 0;
+      let micro = 0;
+      if (state.wave) {
+        const dx = x - waveFrontX; // dx < 0 = derrière le front (zone déjà touchée)
+
+        // Crest plus large (moins pointu) + traînée plus étalée
+        const crestW = waveSigma * (0.45 + layerIdx * 0.05);
+        const trailW = waveSigma * (0.80 + layerIdx * 0.07);
+
+        // Sommet “plat” : gaussienne d'ordre 4 (tt^4) au lieu de tt^2
+        const tt = dx / crestW;
+        const crest = Math.exp(-(tt * tt * tt * tt) / 2);
+        const trail = dx < 0 ? Math.exp(dx / Math.max(1, trailW)) : 0;
+
+        const crestHeight = state.wave.amp * (0.62 + layerIdx * 0.08);
+        const env = wavePulse * (0.85 + 0.15 * waveFade); // pic au milieu, puis décroît
+
+        // "Rouleau" : bosses oscillantes dans la traînée (derrière le front)
+        const rollLen = Math.max(60, w * 0.24);
+        const rollK = (Math.PI * 2) / rollLen;
+        const rollPhase = (-dx) * rollK + state.wave.phase * 0.25 + state.waterPhase * 0.5 - waveProgress * 2.2;
+        let hump = dx < 0 ? Math.max(0, Math.sin(rollPhase)) : 0; // 0..1
+        // adoucit pour éviter un relief trop “pic”
+        hump = hump * hump * (3 - 2 * hump);
+
+        raise = crestHeight * env * (crest + 0.55 * trail + 0.25 * trail * hump);
+
+        const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 7.0);
+        micro = crest * ripple * crestHeight * 0.03 + trail * hump * ripple * crestHeight * 0.014;
+      }
+
+      const y = surfaceY + wave + wave2 - raise + micro;
       ctx.lineTo(x, y);
     }
     ctx.lineTo(w, h);
@@ -1494,9 +1721,37 @@ function drawWaterSun(ctx, state, w, h) {
     ctx.beginPath();
     let started = false;
     for (let x = 0; x <= w; x += step) {
-      const y = surfaceY
-        + Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx)
-        + Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4);
+      const baseScale = state.wave ? (0.25 + 0.25 * (1 - wavePulse)) : 1;
+      const wave = Math.sin(state.waterPhase * (1.0 + layerIdx * 0.12) + x * 0.03 + layerIdx * 2.2) * (2.5 + layerIdx) * baseScale;
+      const wave2 = Math.sin(state.waterPhase * 1.7 + x * 0.06 + layerIdx) * (1.1 + layerIdx * 0.4) * baseScale;
+
+      let raise = 0;
+      let micro = 0;
+      if (state.wave) {
+        const dx = x - waveFrontX;
+        const crestW = waveSigma * (0.45 + layerIdx * 0.05);
+        const trailW = waveSigma * (0.80 + layerIdx * 0.07);
+
+        const tt = dx / crestW;
+        const crest = Math.exp(-(tt * tt * tt * tt) / 2);
+        const trail = dx < 0 ? Math.exp(dx / Math.max(1, trailW)) : 0;
+
+        const crestHeight = state.wave.amp * (0.62 + layerIdx * 0.08);
+        const env = wavePulse * (0.85 + 0.15 * waveFade);
+        // "Rouleau" : bosses oscillantes dans la traînée derrière le front
+        const rollLen = Math.max(60, w * 0.24);
+        const rollK = (Math.PI * 2) / rollLen;
+        const rollPhase = (-dx) * rollK + state.wave.phase * 0.25 + state.waterPhase * 0.5 - waveProgress * 2.2;
+        let hump = dx < 0 ? Math.max(0, Math.sin(rollPhase)) : 0;
+        hump = hump * hump * (3 - 2 * hump);
+
+        raise = crestHeight * env * (crest + 0.55 * trail + 0.25 * trail * hump);
+
+        const ripple = Math.sin(state.wave.phase + dx * waveFreq - waveProgress * state.wave.speed * 7.0);
+        micro = crest * ripple * crestHeight * 0.03 + trail * hump * ripple * crestHeight * 0.014;
+      }
+
+      const y = surfaceY + wave + wave2 - raise + micro;
       if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
     }
     ctx.stroke();
@@ -1521,10 +1776,541 @@ function drawWaterSun(ctx, state, w, h) {
   }
 }
 
+// ─── Sable : dunes basses + tempête de sable occasionnelle ───────────────────
+
+function spawnSandDust(w, h, gust = false) {
+  const baseY = gust ? rand(h * 0.04, h * 0.98) : rand(h * 0.62, h * 0.98);
+  return {
+    x: gust ? rand(-w * 0.2, w * 1.15) : rand(0, w),
+    y: baseY,
+    vx: gust ? rand(1.3, 3.2) : rand(0.35, 1.0),
+    vy: gust ? rand(-0.18, 0.12) : rand(-0.08, 0.06),
+    r: gust ? rand(0.9, 2.2) : rand(0.6, 1.4),
+    alpha: gust ? rand(0.28, 0.58) : rand(0.08, 0.22),
+    life: gust ? rand(55, 95) : rand(90, 170),
+  };
+}
+
+function initSable(w, h) {
+  return {
+    time: 0,
+    dunePhase: rand(0, Math.PI * 2),
+    dust: Array.from({ length: Math.max(38, Math.floor(w / 5.5)) }, () => spawnSandDust(w, h, false)),
+    gustActive: false,
+    gustTimer: 0,
+    gustCooldown: rand(220, 420),
+  };
+}
+
+function updateSable(state, w, h, dt) {
+  const s = dt / 16;
+  state.time += 0.02 * s;
+  state.dunePhase += 0.011 * s;
+
+  if (!state.gustActive) {
+    state.gustCooldown -= s;
+    if (state.gustCooldown <= 0) {
+      state.gustActive = true;
+      state.gustTimer = rand(80, 150);
+      const burstCount = randInt(24, 46);
+      for (let i = 0; i < burstCount; i++) {
+        state.dust.push(spawnSandDust(w, h, true));
+      }
+    }
+  } else {
+    state.gustTimer -= s;
+    if (state.gustTimer <= 0) {
+      state.gustActive = false;
+      state.gustCooldown = rand(280, 520);
+    }
+  }
+
+  for (let i = state.dust.length - 1; i >= 0; i--) {
+    const p = state.dust[i];
+    const boost = state.gustActive ? 1.85 : 1;
+    p.x += p.vx * s * boost;
+    p.y += p.vy * s + Math.sin(state.time * 2.1 + p.x * 0.015) * 0.08 * s;
+    p.life -= (state.gustActive ? 1.15 : 0.8) * s;
+    if (p.life <= 0 || p.x > w * 1.25 || p.y < -20 || p.y > h + 16) {
+      Object.assign(p, spawnSandDust(w, h, state.gustActive && Math.random() < 0.45));
+    }
+  }
+}
+
+function drawSable(ctx, state, w, h) {
+  const bg = ctx.createLinearGradient(0, h * 0.48, 0, h);
+  bg.addColorStop(0, 'rgba(245, 158, 11, 0)');
+  bg.addColorStop(0.45, 'rgba(217, 119, 6, 0.10)');
+  bg.addColorStop(1, 'rgba(120, 53, 15, 0.30)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, h * 0.45, w, h * 0.55);
+
+  const layers = [
+    { y: h * 0.80, a1: 10, a2: 5, c1: 'rgba(245, 158, 11, 0.30)', c2: 'rgba(202, 138, 4, 0.62)' },
+    { y: h * 0.86, a1: 14, a2: 7, c1: 'rgba(234, 179, 8, 0.26)', c2: 'rgba(180, 83, 9, 0.60)' },
+    { y: h * 0.92, a1: 9, a2: 5, c1: 'rgba(217, 119, 6, 0.32)', c2: 'rgba(120, 53, 15, 0.72)' },
+  ];
+  const step = Math.max(4, Math.floor(w / 92));
+  for (let li = 0; li < layers.length; li++) {
+    const L = layers[li];
+    const grad = ctx.createLinearGradient(0, L.y - L.a1 * 1.3, 0, h);
+    grad.addColorStop(0, L.c1);
+    grad.addColorStop(1, L.c2);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, L.y);
+    for (let x = 0; x <= w; x += step) {
+      const waveA = Math.sin(x * (0.02 + li * 0.004) + state.dunePhase * (1 + li * 0.18)) * L.a1;
+      const waveB = Math.cos(x * (0.009 + li * 0.002) + state.dunePhase * 0.8 + li) * L.a2;
+      ctx.lineTo(x, L.y + waveA + waveB);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (state.gustActive) {
+    const strength = Math.max(0, Math.min(1, state.gustTimer / 45));
+    const fog = ctx.createLinearGradient(0, 0, w, h);
+    fog.addColorStop(0, `rgba(254, 243, 199, ${0.015 + 0.02 * strength})`);
+    fog.addColorStop(0.45, `rgba(245, 158, 11, ${0.08 + 0.06 * strength})`);
+    fog.addColorStop(1, `rgba(120, 53, 15, ${0.02 + 0.03 * strength})`);
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, w, h);
+
+    const haze = ctx.createRadialGradient(w * 0.55, h * 0.46, 0, w * 0.55, h * 0.46, Math.max(w, h) * 0.9);
+    haze.addColorStop(0, `rgba(251, 191, 36, ${0.06 + 0.05 * strength})`);
+    haze.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  for (const p of state.dust) {
+    const a = p.alpha * (0.55 + 0.45 * Math.sin(state.time * 2.3 + p.x * 0.03));
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 1.8);
+    g.addColorStop(0, `rgba(254, 243, 199, ${a})`);
+    g.addColorStop(0.6, `rgba(245, 158, 11, ${a * 0.65})`);
+    g.addColorStop(1, 'rgba(120, 53, 15, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Forge Runique : glyphes rouge-or + particules de braise ─────────────────
+
+function makeRunicGlyph(w, h) {
+  const side = Math.random() < 0.5 ? 'left' : 'right';
+  const x = side === 'left' ? rand(w * 0.02, w * 0.16) : rand(w * 0.84, w * 0.98);
+  return {
+    x,
+    y: rand(h * 0.10, h * 0.90),
+    size: rand(8, 16),
+    alpha: rand(0.15, 0.35),
+    phase: rand(0, Math.PI * 2),
+    drift: rand(-0.05, 0.05),
+    char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+  };
+}
+
+function initOrnnRunic(w, h) {
+  return {
+    t: rand(0, Math.PI * 2),
+    glyphs: Array.from({ length: Math.max(14, Math.floor(h / 18)) }, () => makeRunicGlyph(w, h)),
+    embers: Array.from({ length: Math.max(16, Math.floor(w / 18)) }, () => ({
+      x: rand(0, w),
+      y: rand(h * 0.58, h),
+      vx: rand(-0.25, 0.25),
+      vy: rand(-0.8, -0.25),
+      r: rand(0.8, 2.0),
+      life: rand(40, 95),
+      maxLife: 1,
+    })),
+    impactCooldown: rand(160, 280),
+    impact: null,
+  };
+}
+
+function updateOrnnRunic(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.018 * s;
+  state.impactCooldown -= s;
+
+  if (!state.impact && state.impactCooldown <= 0) {
+    state.impact = {
+      x: rand(w * 0.2, w * 0.8),
+      y: rand(h * 0.3, h * 0.72),
+      t: 0,
+      duration: randInt(30, 48),
+      rune: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+    };
+    state.impactCooldown = rand(220, 360);
+  }
+
+  if (state.impact) {
+    state.impact.t += s;
+    if (state.impact.t >= state.impact.duration) {
+      state.impact = null;
+    }
+  }
+
+  for (const g of state.glyphs) {
+    g.phase += 0.02 * s;
+    g.y += g.drift * s;
+    if (g.y < h * 0.06) g.y = h * 0.94;
+    if (g.y > h * 0.94) g.y = h * 0.06;
+  }
+  for (const e of state.embers) {
+    e.x += e.vx * s;
+    e.y += e.vy * s;
+    e.life -= 1.1 * s;
+    if (e.life <= 0 || e.y < h * 0.45 || e.x < -5 || e.x > w + 5) {
+      e.x = rand(0, w);
+      e.y = rand(h * 0.62, h);
+      e.vx = rand(-0.25, 0.25);
+      e.vy = rand(-0.8, -0.25);
+      e.r = rand(0.8, 2.0);
+      e.life = rand(45, 110);
+    }
+  }
+}
+
+function drawOrnnRunic(ctx, state, w, h) {
+  const sideGlowL = ctx.createLinearGradient(0, 0, w * 0.22, 0);
+  sideGlowL.addColorStop(0, 'rgba(239, 68, 68, 0.22)');
+  sideGlowL.addColorStop(1, 'rgba(239, 68, 68, 0)');
+  ctx.fillStyle = sideGlowL;
+  ctx.fillRect(0, 0, w * 0.22, h);
+
+  const sideGlowR = ctx.createLinearGradient(w * 0.78, 0, w, 0);
+  sideGlowR.addColorStop(0, 'rgba(234, 179, 8, 0)');
+  sideGlowR.addColorStop(1, 'rgba(234, 179, 8, 0.20)');
+  ctx.fillStyle = sideGlowR;
+  ctx.fillRect(w * 0.78, 0, w * 0.22, h);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const g of state.glyphs) {
+    const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.1 + g.phase);
+    let impactBoost = 0;
+    if (state.impact) {
+      const dx = g.x - state.impact.x;
+      const dy = g.y - state.impact.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const reach = Math.max(50, w * 0.34);
+      impactBoost = Math.max(0, 1 - d / reach);
+    }
+    ctx.font = `${g.size}px serif`;
+    ctx.shadowBlur = 10 * pulse + impactBoost * 18;
+    ctx.shadowColor = `rgba(245, 158, 11, ${(0.45 + impactBoost * 0.35) * pulse})`;
+    ctx.fillStyle = `rgba(254, 243, 199, ${g.alpha * pulse * (1 + impactBoost * 1.5)})`;
+    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2);
+  }
+  ctx.restore();
+
+  if (state.impact) {
+    const it = Math.max(0, Math.min(1, state.impact.t / state.impact.duration));
+    const boom = Math.sin(it * Math.PI);
+    const rr = (w * 0.14) + boom * (w * 0.34);
+    const gx = state.impact.x;
+    const gy = state.impact.y;
+
+    // Diffusion d'impact de marteau (centre moins opaque + fondu progressif)
+    const flash = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 1.25);
+    flash.addColorStop(0, `rgba(254, 243, 199, ${0.18 * boom})`);
+    flash.addColorStop(0.20, `rgba(251, 191, 36, ${0.20 * boom})`);
+    flash.addColorStop(0.58, `rgba(239, 68, 68, ${0.12 * boom})`);
+    flash.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(gx, gy, rr * 1.45, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Halo externe très diffus pour étaler l'impact
+    const outer = ctx.createRadialGradient(gx, gy, rr * 0.2, gx, gy, rr * 1.9);
+    outer.addColorStop(0, `rgba(251, 191, 36, ${0.07 * boom})`);
+    outer.addColorStop(0.55, `rgba(239, 68, 68, ${0.05 * boom})`);
+    outer.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = outer;
+    ctx.beginPath();
+    ctx.arc(gx, gy, rr * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rune centrale renforcée après impact
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(18 + 22 * boom)}px serif`;
+    ctx.shadowBlur = 24 * boom;
+    ctx.shadowColor = `rgba(251, 191, 36, ${0.7 * boom})`;
+    ctx.fillStyle = `rgba(255, 251, 235, ${0.78 * boom})`;
+    ctx.fillText(state.impact.rune, gx, gy);
+    ctx.restore();
+  }
+
+  for (const e of state.embers) {
+    const a = Math.max(0, Math.min(1, e.life / 110));
+    const gg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 2.8);
+    gg.addColorStop(0, `rgba(251, 191, 36, ${0.6 * a})`);
+    gg.addColorStop(0.5, `rgba(239, 68, 68, ${0.35 * a})`);
+    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Gojo Infinity : distortion cyan + orbes suspendues ─────────────────────
+
+function makeInfinityOrb(w, h) {
+  return {
+    x: rand(w * 0.2, w * 0.8),
+    y: rand(h * 0.18, h * 0.82),
+    r: rand(4, 10),
+    phase: rand(0, Math.PI * 2),
+    speed: rand(0.005, 0.014),
+    alpha: rand(0.18, 0.38),
+  };
+}
+
+function initGojoInfinity(w, h) {
+  return {
+    t: rand(0, Math.PI * 2),
+    ringPhase: rand(0, Math.PI * 2),
+    orbs: Array.from({ length: Math.max(10, Math.floor(w / 26)) }, () => makeInfinityOrb(w, h)),
+  };
+}
+
+function updateGojoInfinity(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.016 * s;
+  state.ringPhase += 0.012 * s;
+  for (const o of state.orbs) {
+    o.phase += o.speed * s * 3;
+  }
+}
+
+function drawGojoInfinity(ctx, state, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.52;
+
+  const haze = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.62);
+  haze.addColorStop(0, 'rgba(125, 211, 252, 0.18)');
+  haze.addColorStop(0.45, 'rgba(56, 189, 248, 0.09)');
+  haze.addColorStop(1, 'rgba(14, 116, 144, 0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < 4; i++) {
+    const t = i / 4;
+    const rx = w * (0.22 + t * 0.08);
+    const ry = h * (0.10 + t * 0.04);
+    const a = 0.08 + 0.05 * Math.sin(state.ringPhase * 2 + i);
+    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
+    ctx.lineWidth = 1.2 + i * 0.35;
+    ctx.beginPath();
+    for (let p = 0; p <= 80; p++) {
+      const u = (p / 80) * Math.PI * 2;
+      const x = Math.sin(u) * rx;
+      const y = Math.sin(u * 2 + state.ringPhase + i * 0.5) * ry;
+      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  for (const o of state.orbs) {
+    const x = o.x + Math.sin(state.t * 1.4 + o.phase) * 7;
+    const y = o.y + Math.cos(state.t * 1.1 + o.phase * 1.2) * 5;
+    const a = o.alpha * (0.65 + 0.35 * Math.sin(state.t * 3 + o.phase));
+    const gg = ctx.createRadialGradient(x, y, 0, x, y, o.r * 2.6);
+    gg.addColorStop(0, `rgba(224, 242, 254, ${a})`);
+    gg.addColorStop(0.5, `rgba(56, 189, 248, ${a * 0.55})`);
+    gg.addColorStop(1, 'rgba(14, 116, 144, 0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(x, y, o.r * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Personnage parfait : fusion runique + infini + sable + lune ────────────
+
+function initPerfectCharacter(w, h) {
+  const shards = Array.from({ length: Math.max(26, Math.floor(w / 9)) }, () => {
+    const angle = rand(-Math.PI * 0.95, -Math.PI * 0.05);
+    const dist = rand(12, Math.min(w, h) * 0.45);
+    return {
+      angle,
+      dist,
+      drift: rand(-0.28, 0.28),
+      size: rand(5, 14),
+      spin: rand(-0.04, 0.04),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.22, 0.65),
+      hue: rand(185, 300),
+    };
+  });
+  return {
+    t: rand(0, Math.PI * 2),
+    ringPhase: rand(0, Math.PI * 2),
+    burstPhase: rand(0, Math.PI * 2),
+    glyphs: Array.from({ length: Math.max(15, Math.floor(h / 16)) }, () => ({
+      x: rand(w * 0.05, w * 0.95),
+      y: rand(h * 0.06, h * 0.92),
+      size: rand(10, 18),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.18, 0.36),
+      char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
+    })),
+    stars: Array.from({ length: Math.max(24, Math.floor(w / 12)) }, () => ({
+      x: rand(0, w),
+      y: rand(0, h * 0.72),
+      r: rand(0.8, 2.1),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.18, 0.42),
+    })),
+    shards,
+  };
+}
+
+function updatePerfectCharacter(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.018 * s;
+  state.ringPhase += 0.02 * s;
+  state.burstPhase += 0.016 * s;
+  for (const g of state.glyphs) g.phase += 0.026 * s;
+  for (const st of state.stars) st.phase += 0.036 * s;
+  for (const sh of state.shards) {
+    sh.phase += sh.spin * s;
+    sh.dist += sh.drift * s;
+    if (sh.dist < 8 || sh.dist > Math.min(w, h) * 0.54) sh.drift *= -1;
+  }
+}
+
+function drawPerfectCharacter(ctx, state, w, h) {
+  const cx = w * 0.5;
+  const cy = h * 0.46;
+  const epicPulse = 0.5 + 0.5 * Math.sin(state.t * 3.2);
+
+  // Noyau épique
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.78);
+  core.addColorStop(0, `rgba(255, 255, 255, ${0.16 + 0.18 * epicPulse})`);
+  core.addColorStop(0.17, `rgba(253, 224, 71, ${0.18 + 0.14 * epicPulse})`);
+  core.addColorStop(0.42, `rgba(56, 189, 248, ${0.13 + 0.10 * epicPulse})`);
+  core.addColorStop(0.70, `rgba(192, 132, 252, ${0.11 + 0.08 * epicPulse})`);
+  core.addColorStop(1, 'rgba(30, 41, 59, 0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, w, h);
+
+  // Couronne de rayons
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2 + state.burstPhase * 0.55;
+    const len = Math.min(w, h) * (0.34 + 0.12 * Math.sin(state.burstPhase + i * 0.5));
+    const width = 1.2 + (i % 3) * 0.8;
+    const x2 = Math.cos(a) * len;
+    const y2 = Math.sin(a) * len;
+    const g = ctx.createLinearGradient(0, 0, x2, y2);
+    g.addColorStop(0, `rgba(255,255,255,${0.18 + 0.12 * epicPulse})`);
+    g.addColorStop(0.55, `rgba(250,204,21,${0.10 + 0.12 * epicPulse})`);
+    g.addColorStop(1, 'rgba(250,204,21,0)');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Anneaux d'infini toniques
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (let i = 0; i < 6; i++) {
+    const rx = w * (0.16 + i * 0.052);
+    const ry = h * (0.07 + i * 0.022);
+    const a = 0.18 + 0.15 * Math.sin(state.ringPhase * 2.6 + i * 0.7);
+    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
+    ctx.lineWidth = 1.9 + i * 0.35;
+    ctx.beginPath();
+    for (let p = 0; p <= 100; p++) {
+      const u = (p / 100) * Math.PI * 2;
+      const x = Math.sin(u) * rx;
+      const y = Math.sin(u * 2 + state.ringPhase * 1.4 + i * 0.45) * ry;
+      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Runes dominantes
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const g of state.glyphs) {
+    const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.5 + g.phase);
+    ctx.font = `${g.size}px serif`;
+    ctx.shadowBlur = 14 + 12 * pulse;
+    ctx.shadowColor = `rgba(251, 191, 36, ${0.45 + 0.30 * pulse})`;
+    ctx.fillStyle = `rgba(255, 251, 235, ${g.alpha * (1 + 0.8 * pulse)})`;
+    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2.2);
+  }
+  ctx.restore();
+
+  // Éclats flottants prisme
+  for (const sh of state.shards) {
+    const x = cx + Math.cos(sh.angle + state.burstPhase * 0.22) * sh.dist;
+    const y = cy + Math.sin(sh.angle + state.burstPhase * 0.22) * sh.dist;
+    const rot = sh.phase + state.t * 0.4;
+    const a = sh.alpha * (0.65 + 0.35 * Math.sin(state.t * 2 + sh.phase));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = hsl(sh.hue, 90, 72, a * 0.85);
+    ctx.beginPath();
+    ctx.moveTo(0, -sh.size * 0.9);
+    ctx.lineTo(sh.size * 0.55, -sh.size * 0.1);
+    ctx.lineTo(sh.size * 0.25, sh.size * 0.95);
+    ctx.lineTo(-sh.size * 0.45, sh.size * 0.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${a * 0.75})`;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Étoiles renforcées
+  for (const st of state.stars) {
+    const a = st.alpha * (0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2));
+    const gg = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4);
+    gg.addColorStop(0, `rgba(255,255,255,${a * 0.45})`);
+    gg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.r * 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+    ctx.beginPath();
+    ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
   const groundY = h * 0.78;
+  const epicenterX = w * 0.5;
+  const epicenterY = groundY + h * 0.08;
 
   const fissures = [];
   const fissCount = Math.max(10, Math.floor(w / 35));
@@ -1550,51 +2336,78 @@ function initNightMoon(w, h) {
     }
   }
 
-  const stonesCount = Math.max(6, Math.floor(w / 45));
-  const stones = Array.from({ length: stonesCount }, () => ({
-    x: rand(10, w - 10),
-    baseY: rand(groundY - 55, groundY - 15),
-    floatAmp: rand(14, 32),
-    phase: rand(0, Math.PI * 2),
-    size: rand(7, 16),
-    alpha: rand(0.35, 0.85),
-  }));
+  const stonesCount = Math.max(20, Math.floor(w / 18));
+  const stones = Array.from({ length: stonesCount }, () => {
+    const angle = rand(-Math.PI * 0.98, -Math.PI * 0.02);
+    const dist = rand(12, Math.min(w, h) * 0.42);
+    return {
+      angle,
+      dist,
+      drift: rand(-0.32, 0.32),
+      x: epicenterX + Math.cos(angle) * dist,
+      y: epicenterY + Math.sin(angle) * dist,
+      spin: rand(-0.06, 0.06),
+      phase: rand(0, Math.PI * 2),
+      size: rand(4, 16),
+      alpha: rand(0.35, 0.9),
+      jag: rand(0.5, 1.2),
+    };
+  });
 
-  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones };
+  const chunks = Array.from({ length: Math.max(10, Math.floor(w / 26)) }, () => {
+    const angle = rand(-Math.PI * 0.96, -Math.PI * 0.04);
+    const dist = rand(8, Math.min(w, h) * 0.24);
+    return {
+      angle,
+      dist,
+      drift: rand(-0.25, 0.25),
+      spin: rand(-0.03, 0.03),
+      phase: rand(0, Math.PI * 2),
+      w: rand(12, 30),
+      h: rand(8, 20),
+      alpha: rand(0.42, 0.75),
+    };
+  });
+
+  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks, epicenterX, epicenterY };
 }
 
 function updateNightMoon(state, w, h, dt) {
   const s = dt / 16;
   state.moonPhase += 0.01 * s;
 
-  // Pierres qui lévitent
+  // Débris en suspension (gravité quasi nulle)
   for (const st of state.stones) {
-    st.phase += 0.005 * s;
-    st.y = st.baseY + Math.sin(st.phase) * st.floatAmp;
-    // Petite dérive horizontale
-    st.x += Math.sin(st.phase * 0.6) * 0.04 * s;
-    if (st.x < -20) st.x = w + 20;
-    if (st.x > w + 20) st.x = -20;
+    st.phase += st.spin * s;
+    st.dist += st.drift * s;
+    if (st.dist < 8 || st.dist > Math.min(w, h) * 0.5) st.drift *= -1;
+    st.x = state.epicenterX + Math.cos(st.angle + state.moonPhase * 0.14) * st.dist;
+    st.y = state.epicenterY + Math.sin(st.angle + state.moonPhase * 0.14) * st.dist;
+  }
+  for (const c of state.chunks || []) {
+    c.phase += c.spin * s;
+    c.dist += c.drift * s;
+    if (c.dist < 6 || c.dist > Math.min(w, h) * 0.34) c.drift *= -1;
   }
 }
 
 function drawNightMoon(ctx, state, w, h) {
-  // Fond nuit
+  // Fond nuit (éclairci)
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(11, 0, 35, 0.92)');
-  bg.addColorStop(0.45, 'rgba(27, 11, 55, 0.78)');
-  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  bg.addColorStop(0, 'rgba(18, 14, 60, 0.48)');
+  bg.addColorStop(0.45, 'rgba(30, 41, 59, 0.36)');
+  bg.addColorStop(1, 'rgba(2, 6, 23, 0.52)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  const moonX = w * 0.55;
-  const moonY = h * 0.18;
+  const moonX = w * 0.14;
+  const moonY = h * 0.13;
 
   // Glow de lune + halos
   const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.max(w, h) * 0.6);
-  moonGlow.addColorStop(0, `rgba(236, 72, 153, 0.06)`);
-  moonGlow.addColorStop(0.15, `rgba(167, 139, 250, 0.18)`);
-  moonGlow.addColorStop(0.42, `rgba(99, 102, 241, 0.10)`);
+  moonGlow.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+  moonGlow.addColorStop(0.2, 'rgba(226, 232, 240, 0.12)');
+  moonGlow.addColorStop(0.42, 'rgba(191, 219, 254, 0.06)');
   moonGlow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = moonGlow;
   ctx.fillRect(0, 0, w, h);
@@ -1602,17 +2415,17 @@ function drawNightMoon(ctx, state, w, h) {
   // Rayons de lune (faisceau)
   ctx.save();
   ctx.translate(moonX, moonY);
-  const rayCount = 11;
-  const len = h * 0.85;
+  const rayCount = 7;
+  const len = h * 0.74;
   for (let i = 0; i < rayCount; i++) {
     const t = i / (rayCount - 1);
-    const angle = lerp(-0.35, 0.35, t) + Math.sin(state.moonPhase * 2 + i) * 0.03;
-    const sw = lerp(9, 2.5, Math.abs(t - 0.5) * 2);
+    const angle = lerp(0.12, 1.02, t) + Math.sin(state.moonPhase * 1.6 + i) * 0.02;
+    const sw = lerp(6.5, 1.8, Math.abs(t - 0.5) * 2);
     const g = ctx.createLinearGradient(0, 0, 0, len);
-    g.addColorStop(0, 'rgba(216, 180, 254, 0)');
-    g.addColorStop(0.2, 'rgba(216, 180, 254, 0.10)');
-    g.addColorStop(0.6, 'rgba(167, 139, 250, 0.14)');
-    g.addColorStop(1, 'rgba(216, 180, 254, 0)');
+    g.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    g.addColorStop(0.2, 'rgba(255, 255, 255, 0.07)');
+    g.addColorStop(0.6, 'rgba(226, 232, 240, 0.08)');
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.save();
     ctx.rotate(angle);
     ctx.fillStyle = g;
@@ -1621,12 +2434,12 @@ function drawNightMoon(ctx, state, w, h) {
   }
   ctx.restore();
 
-  // Sol fracturé en bas
-  const ridge = state.groundY + Math.sin(state.moonPhase) * 2;
+  // Sol de base
+  const ridge = state.groundY + Math.sin(state.moonPhase) * 1.2;
   const groundG = ctx.createLinearGradient(0, ridge, 0, h);
-  groundG.addColorStop(0, 'rgba(148, 163, 184, 0.18)');
-  groundG.addColorStop(0.35, 'rgba(75, 85, 99, 0.35)');
-  groundG.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+  groundG.addColorStop(0, 'rgba(148, 163, 184, 0.14)');
+  groundG.addColorStop(0.35, 'rgba(75, 85, 99, 0.24)');
+  groundG.addColorStop(1, 'rgba(0, 0, 0, 0.40)');
   ctx.fillStyle = groundG;
 
   ctx.beginPath();
@@ -1634,17 +2447,50 @@ function drawNightMoon(ctx, state, w, h) {
   ctx.lineTo(0, ridge + Math.sin(0) * 3);
   const step = Math.max(5, Math.floor(w / 90));
   for (let x = 0; x <= w; x += step) {
-    const jag = Math.sin(x * 0.04 + state.moonPhase * 1.2) * 3 + Math.sin(x * 0.015 + 1.7) * 2;
+    const jag = Math.sin(x * 0.11 + state.moonPhase * 0.9) * 1.4 + Math.sin(x * 0.23 + 0.9) * 0.9;
     ctx.lineTo(x, ridge + jag);
   }
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
 
+  // Cratère d'explosion central
+  const craterR = Math.min(w, h) * 0.16;
+  const crater = ctx.createRadialGradient(state.epicenterX, state.epicenterY - 2, craterR * 0.15, state.epicenterX, state.epicenterY, craterR);
+  crater.addColorStop(0, 'rgba(2, 6, 23, 0.85)');
+  crater.addColorStop(0.55, 'rgba(15, 23, 42, 0.45)');
+  crater.addColorStop(1, 'rgba(15, 23, 42, 0)');
+  ctx.fillStyle = crater;
+  ctx.beginPath();
+  ctx.ellipse(state.epicenterX, state.epicenterY, craterR, craterR * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Blocs de sol arrachés (gros morceaux)
+  for (const c of state.chunks || []) {
+    const x = state.epicenterX + Math.cos(c.angle + state.moonPhase * 0.12) * c.dist;
+    const y = state.epicenterY + Math.sin(c.angle + state.moonPhase * 0.12) * c.dist;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(c.phase);
+    ctx.fillStyle = `rgba(71, 85, 105, ${c.alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(-c.w * 0.48, -c.h * 0.22);
+    ctx.lineTo(c.w * 0.42, -c.h * 0.35);
+    ctx.lineTo(c.w * 0.50, c.h * 0.22);
+    ctx.lineTo(-c.w * 0.18, c.h * 0.48);
+    ctx.lineTo(-c.w * 0.55, c.h * 0.08);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.18 + c.alpha * 0.16})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Fissures lumineuses
   for (const f of state.fissures) {
     const a = f.alpha * (0.65 + 0.35 * Math.sin(state.moonPhase + f.x1 * 0.01));
-    ctx.strokeStyle = `rgba(167, 139, 250, ${a})`;
+    ctx.strokeStyle = `rgba(226, 232, 240, ${a * 0.75})`;
     ctx.lineWidth = f.width;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -1653,36 +2499,39 @@ function drawNightMoon(ctx, state, w, h) {
     ctx.stroke();
   }
 
-  // Pierres lévitantes
+  // Petits débris flottants (style explosion en suspension)
   for (const st of state.stones) {
-    const y = st.y ?? st.baseY;
+    const y = st.y;
     const r = st.size;
 
-    // Ombre
-    ctx.fillStyle = `rgba(0,0,0,${0.18 * st.alpha})`;
-    ctx.beginPath();
-    ctx.ellipse(st.x, state.groundY + 14, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Corps de pierre (ellipsoïde) + glow
+    // Halo glacial léger
     const glow = ctx.createRadialGradient(st.x, y, 0, st.x, y, r * 3.2);
-    glow.addColorStop(0, `rgba(216, 180, 254, ${0.22 * st.alpha})`);
-    glow.addColorStop(0.35, `rgba(99, 102, 241, ${0.14 * st.alpha})`);
+    glow.addColorStop(0, `rgba(226, 232, 240, ${0.20 * st.alpha})`);
+    glow.addColorStop(0.35, `rgba(148, 163, 184, ${0.12 * st.alpha})`);
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(st.x, y, r * 1.7, 0, Math.PI * 2);
+    ctx.arc(st.x, y, r * 1.9, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = `rgba(148, 163, 184, ${0.22 * st.alpha})`;
+    ctx.save();
+    ctx.translate(st.x, y);
+    ctx.rotate(st.phase);
+    ctx.fillStyle = `rgba(148, 163, 184, ${0.26 * st.alpha})`;
     ctx.beginPath();
-    ctx.ellipse(st.x, y, r * 0.85, r * 0.55, Math.sin(st.phase) * 0.2, 0, Math.PI * 2);
+    ctx.moveTo(0, -r * st.jag);
+    ctx.lineTo(r * 0.9, -r * 0.2);
+    ctx.lineTo(r * 0.35, r * 0.95);
+    ctx.lineTo(-r * 0.6, r * 0.45);
+    ctx.lineTo(-r * 0.95, -r * 0.25);
+    ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = `rgba(255, 255, 255, ${0.08 * st.alpha})`;
     ctx.beginPath();
-    ctx.ellipse(st.x - r * 0.25, y - r * 0.15, r * 0.25, r * 0.15, 0, 0, Math.PI * 2);
+    ctx.arc(-r * 0.2, -r * 0.2, r * 0.22, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -1762,11 +2611,11 @@ function updateStormTempest(state, w, h, dt) {
 }
 
 function drawStormTempest(ctx, state, w, h) {
-  // Fond
+  // Fond (moins sombre)
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
-  bg.addColorStop(0.5, 'rgba(15, 23, 42, 0.85)');
-  bg.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+  bg.addColorStop(0, 'rgba(30, 41, 59, 0.64)');
+  bg.addColorStop(0.42, 'rgba(30, 41, 59, 0.42)');
+  bg.addColorStop(1, 'rgba(2, 6, 23, 0.30)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -1775,8 +2624,8 @@ function drawStormTempest(ctx, state, w, h) {
     const pulse = 0.7 + 0.3 * Math.sin(c.phase + state.cloudPhase);
     const a = c.alpha * pulse;
     const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
-    g.addColorStop(0, `rgba(0, 0, 0, ${a})`);
-    g.addColorStop(0.4, `rgba(17, 24, 39, ${a * 0.9})`);
+    g.addColorStop(0, `rgba(15, 23, 42, ${a * 0.72})`);
+    g.addColorStop(0.4, `rgba(30, 41, 59, ${a * 0.58})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -1786,8 +2635,8 @@ function drawStormTempest(ctx, state, w, h) {
 
   // Ombres de nuages (dégradé)
   const fog = ctx.createLinearGradient(0, 0, 0, h * 0.55);
-  fog.addColorStop(0, 'rgba(0,0,0,0.45)');
-  fog.addColorStop(0.3, 'rgba(0,0,0,0.20)');
+  fog.addColorStop(0, 'rgba(15,23,42,0.28)');
+  fog.addColorStop(0.3, 'rgba(15,23,42,0.12)');
   fog.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = fog;
   ctx.fillRect(0, 0, w, h * 0.55);
@@ -1841,6 +2690,10 @@ const EFFECTS = {
   territory:      { init: initTerritory, update: updateTerritory, draw: drawTerritory },
   blood:          { init: initBlood, update: updateBlood, draw: drawBlood },
   water_sun:      { init: initWaterSun, update: updateWaterSun, draw: drawWaterSun },
+  sable:          { init: initSable, update: updateSable, draw: drawSable },
+  ornn_runic:     { init: initOrnnRunic, update: updateOrnnRunic, draw: drawOrnnRunic },
+  gojo_infinity:  { init: initGojoInfinity, update: updateGojoInfinity, draw: drawGojoInfinity },
+  perfect_character: { init: initPerfectCharacter, update: updatePerfectCharacter, draw: drawPerfectCharacter },
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },
@@ -1848,6 +2701,7 @@ const EFFECTS = {
   cosmique:       { init: initCosmic, update: updateCosmic, draw: drawCosmic },
   transcendance:  { init: initTranscendance, update: updateTranscendance, draw: drawTranscendance },
   champion:       { init: initChampion, update: updateChampion, draw: drawChampion },
+  ancient:        { init: initAncient, update: updateAncient, draw: drawAncient },
 };
 
 // ─── Composant React ─────────────────────────────────────────────────────────
@@ -1935,7 +2789,7 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
         top: 0, left: 0,
         width: '100%', height: '100%',
         pointerEvents: 'none',
-        zIndex: 2,
+        zIndex: 3,
       }}
     />
   );

@@ -6,24 +6,43 @@ import CharacterCardContent from './CharacterCardContent';
 import { getArchivedCharacters } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
 import { races } from '../data/gameData';
+import { db } from '../firebase/config';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const MesAnciensPersonnages = () => {
   const { currentUser } = useAuth();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [legacyChampionArchiveIds, setLegacyChampionArchiveIds] = useState(() => new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
-      const result = await getArchivedCharacters(currentUser.uid);
+
+      setLoading(true);
+
+      const [result, legacySnap] = await Promise.all([
+        getArchivedCharacters(currentUser.uid),
+        (async () => {
+          const q = query(
+            collection(db, 'legacyRetiredArchives'),
+            where('ownerUserId', '==', currentUser.uid),
+          );
+          const snap = await getDocs(q);
+          return new Set(snap.docs.map((d) => d.id));
+        })(),
+      ]);
+
+      if (legacySnap) setLegacyChampionArchiveIds(legacySnap);
+
       if (result.success) {
         const sorted = [...result.data].sort((a, b) => {
           const aTs = a.archivedAt?.toMillis?.() || 0;
           const bTs = b.archivedAt?.toMillis?.() || 0;
           return bTs - aTs;
         });
-        const enriched = sorted.map(char => {
+        const enriched = sorted.map((char) => {
           const copy = { ...char };
           if (copy.equippedWeaponId && !copy.equippedWeaponData) {
             copy.equippedWeaponData = getWeaponById(copy.equippedWeaponId);
@@ -31,7 +50,10 @@ const MesAnciensPersonnages = () => {
           return copy;
         });
         setCharacters(enriched);
+      } else {
+        setCharacters([]);
       }
+
       setLoading(false);
     };
     load();
@@ -73,7 +95,7 @@ const MesAnciensPersonnages = () => {
                 )}
                 <CharacterCardContent
                   character={char}
-                  borderId={char.tournamentChampion ? 'champion' : null}
+                  borderId={legacyChampionArchiveIds.has(char.id) ? 'ancient' : null}
                   detailsPlacement="left"
                 />
                 {char.archivedAt && (

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getHallOfFame } from '../services/tournamentService';
+import { getHallOfFame, LEGACY_TOURNAMENT_DOC_ID } from '../services/tournamentService';
 import { getWeaponById } from '../data/weapons';
+import { db } from '../firebase/config';
+import { collection, doc, getDocs, getDoc, query, where } from 'firebase/firestore';
 
 const FENETRE_DOUBLON_MS = 5 * 60 * 1000;
 
@@ -67,6 +69,8 @@ function dedoublonnerEntreesHallOfFame(entries) {
       normaliserCle(champion.nom || champion.name),
       normaliserCle(champion.race),
       normaliserCle(champion.classe || champion.class),
+      normaliserCle(entry.sourceTournamentType),
+      normaliserCle(entry.sourceTournamentId),
       Number(entry?.nbParticipants || 0),
       Number(entry?.nbMatchs || 0),
     ].join('|');
@@ -127,6 +131,9 @@ async function loadFullChampionForEntry(entry) {
 
 const HallOfFame = () => {
   const [champions, setChampions] = useState([]);
+  const [ancientsFallback, setAncientsFallback] = useState([]);
+  const [loadingAncientsFallback, setLoadingAncientsFallback] = useState(false);
+  const [activeTab, setActiveTab] = useState('samedi'); // 'samedi' | 'anciens'
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -151,6 +158,8 @@ const HallOfFame = () => {
             nbParticipants: entry.nbParticipants,
             nbMatchs: entry.nbMatchs,
             date: entry.date,
+            sourceTournamentId: entry.sourceTournamentId || null,
+            sourceTournamentType: entry.sourceTournamentType || null,
             ownerPseudo: entry.champion?.ownerPseudo || char.ownerPseudo,
             character: char,
             tournamentArchiveId: entry.tournamentArchiveId || null,
@@ -164,6 +173,96 @@ const HallOfFame = () => {
     load();
   }, []);
 
+  // Fallback pour l'onglet "anciens" :
+  // si la collection hallOfFame ne contient plus les entrées (arbre supprimé, etc.),
+  // on liste quand même les gagnants depuis legacyRetiredArchives.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingAncientsFallback(true);
+      try {
+        const snap = await getDocs(collection(db, 'legacyRetiredArchives'));
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Trier par date de retraite desc
+        rows.sort((a, b) => (extraireTimestampMillis(b.retiredAt) || 0) - (extraireTimestampMillis(a.retiredAt) || 0));
+
+        const enriched = [];
+        for (const row of rows) {
+          const targetUserId = row.ownerUserId || null;
+          const targetNom = (row.nom || row.name || '').trim();
+          if (!targetUserId || !targetNom) continue;
+
+          // On récupère toutes les fiches archivées du compte,
+          // puis on choisit celle qui correspond au nom du champion legacy.
+          const qSnap = await getDocs(
+            query(
+              collection(db, 'archivedCharacters'),
+              where('userId', '==', targetUserId),
+            )
+          );
+          const candidates = qSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          if (!candidates.length) continue;
+
+          const norm = (s) => String(s || '').trim().toLowerCase();
+          const targetNorm = norm(targetNom);
+
+          // 1) Exact match name/nom
+          let match = candidates.find((c) => {
+            const n = norm(c.name ?? c.nom);
+            return n === targetNorm;
+          });
+
+          // 2) Si pas trouvé, on essaie match par tournamentChampion (si présent)
+          if (!match) {
+            const champ = candidates.find((c) => c.tournamentChampion === true);
+            if (champ && norm(champ.name ?? champ.nom) === targetNorm) match = champ;
+          }
+
+          // 3) Sinon, prendre l'archive la plus proche de retiredAt
+          if (!match) {
+            const best = trouverMeilleureArchive(
+              candidates,
+              extraireTimestampMillis(row.retiredAt)
+            );
+            match = best || candidates[0];
+          }
+
+          const char = match || null;
+          if (!char) continue;
+          if (!char.name && char.nom) char.name = char.nom;
+          // archivedCharacters fournit parfois seulement equippedWeaponId sans equippedWeaponData
+          if (char.equippedWeaponId && !char.equippedWeaponData) {
+            char.equippedWeaponData = getWeaponById(char.equippedWeaponId);
+          }
+
+          enriched.push({
+            id: row.id,
+            nbParticipants: null,
+            nbMatchs: null,
+            date: row.retiredAt || null,
+            sourceTournamentId: LEGACY_TOURNAMENT_DOC_ID,
+            sourceTournamentType: 'legacy_archives',
+            ownerPseudo: null,
+            character: char,
+            tournamentArchiveId: null, // l'arbre peut avoir été supprimé
+          });
+        }
+
+        if (!cancelled) setAncientsFallback(enriched);
+      } catch (e) {
+        console.error('Erreur chargement legacyRetiredArchives fallback:', e);
+        if (!cancelled) setAncientsFallback([]);
+      } finally {
+        if (!cancelled) setLoadingAncientsFallback(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -172,6 +271,26 @@ const HallOfFame = () => {
       </div>
     );
   }
+
+  const entriesAnciens = champions.filter((c) => (
+    c.sourceTournamentType === 'legacy_archives'
+    || c.sourceTournamentId === 'legacy_current'
+    || String(c.sourceTournamentId || '').startsWith('legacy_')
+  ));
+  const entriesSamedi = champions.filter((c) => !entriesAnciens.includes(c));
+
+  const mergedAncients = (() => {
+    if (activeTab !== 'anciens') return entriesAnciens;
+    // Fusionner hallOfFame legacy + fallback legacyRetiredArchives (sans doublons)
+    const map = new Map();
+    for (const e of entriesAnciens) map.set(e.id, e);
+    for (const e of ancientsFallback) {
+      if (!map.has(e.id)) map.set(e.id, e);
+    }
+    return [...map.values()];
+  })();
+
+  const visibleEntries = activeTab === 'anciens' ? mergedAncients : entriesSamedi;
 
   return (
     <div className="min-h-screen p-6">
@@ -184,25 +303,56 @@ const HallOfFame = () => {
           </div>
         </div>
 
-        {champions.length === 0 ? (
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('samedi')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition ${
+              activeTab === 'samedi'
+                ? 'bg-amber-700/80 text-white border-amber-500/60'
+                : 'bg-stone-800/90 text-stone-300 border-stone-600 hover:border-amber-600'
+            }`}
+          >
+            Tournois du samedi
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('anciens')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold border transition ${
+              activeTab === 'anciens'
+                ? 'bg-amber-700/80 text-white border-amber-500/60'
+                : 'bg-stone-800/90 text-stone-300 border-stone-600 hover:border-amber-600'
+            }`}
+          >
+            Tournois des anciens
+          </button>
+        </div>
+
+        {visibleEntries.length === 0 ? (
           <div className="bg-stone-800/90 p-8 border-2 border-stone-600 rounded-xl text-center max-w-lg mx-auto">
             <p className="text-stone-400 text-xl">Aucun champion pour le moment</p>
-            <p className="text-stone-500 mt-2">Le premier tournoi n'a pas encore eu lieu</p>
+            <p className="text-stone-500 mt-2">
+              {activeTab === 'anciens'
+                ? (loadingAncientsFallback ? 'Chargement des anciens...' : 'Le premier tournoi des anciens n’a pas encore eu lieu')
+                : 'Le premier tournoi du samedi n’a pas encore eu lieu'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-8 justify-items-center">
-            {champions.map((champ) => (
+            {visibleEntries.map((champ) => (
               <div key={champ.id} className="flex flex-col items-center">
                 <div className="bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg mb-2 text-center">
                   🏆 {champ.ownerPseudo || champ.character.name || 'Champion'}
                 </div>
                 <CharacterCardContent
                   character={champ.character}
-                  borderId="champion"
+                  borderId={activeTab === 'anciens' ? 'ancient' : 'champion'}
                   detailsPlacement="left"
                 />
                 <div className="text-stone-500 text-xs mt-1 text-center">
-                  {champ.nbParticipants} participants • {champ.nbMatchs} matchs
+                  {Number.isFinite(champ.nbParticipants) && Number.isFinite(champ.nbMatchs)
+                    ? `${champ.nbParticipants} participants • ${champ.nbMatchs} matchs`
+                    : null}
                   {champ.date && (
                     <span> • {champ.date.toDate?.().toLocaleDateString('fr-FR') || ''}</span>
                   )}
@@ -215,7 +365,7 @@ const HallOfFame = () => {
                     }
                     className="mt-3 bg-amber-700/80 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-lg border border-amber-500/50 transition"
                   >
-                    Arbre &amp; replay
+                    {activeTab === 'anciens' ? 'Afficher l’arbre' : 'Arbre & replay'}
                   </button>
                 )}
               </div>

@@ -8,6 +8,16 @@
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { TITLES } from './titles';
+import { isForgeRollHighPerfection } from './forgeDungeon';
+
+function isPerfectCharacterProfile(row) {
+  if (!row || typeof row !== 'object') return false;
+  const hasOrnnPerfect = !!row.forgeUpgrade && isForgeRollHighPerfection(row.forgeUpgrade, 0.9);
+  const hasGojoLv3 = Number(row?.mageTowerExtensionPassive?.level ?? 0) >= 3;
+  const hasLevel400 = Number(row?.level ?? 0) >= 400;
+  const hasSubclass = !!row?.subclass;
+  return hasOrnnPerfect && hasGojoLv3 && hasLevel400 && hasSubclass;
+}
 
 /**
  * type: 'character' = lié à la progression hebdomadaire du personnage (reset chaque semaine)
@@ -69,6 +79,46 @@ export const BORDERS = {
     cssClass: 'border-water-glow',
     type: 'account',
     condition: 'Gagner 2 tournois',
+  },
+  ancient: {
+    id: 'ancient',
+    nom: 'Ancien',
+    icon: '📺',
+    cssClass: 'border-ancient-glow',
+    type: 'account',
+    condition: 'Gagner un tournoi des anciens',
+  },
+  sable: {
+    id: 'sable',
+    nom: 'Sable',
+    icon: '🏜️',
+    cssClass: 'border-sable-glow',
+    type: 'account',
+    condition: 'Battre 5 fois le niveau 90 du Labyrinthe',
+  },
+  ornn_runic: {
+    id: 'ornn_runic',
+    nom: 'Forge Runique',
+    icon: 'ᚠ',
+    cssClass: 'border-ornn-runic-glow',
+    type: 'account',
+    condition: 'Obtenir une arme parfaite d’Ornn',
+  },
+  gojo_infinity: {
+    id: 'gojo_infinity',
+    nom: 'Infini',
+    icon: '∞',
+    cssClass: 'border-gojo-infinity-glow',
+    type: 'account',
+    condition: 'Obtenir un passif niveau 3 chez Gojo',
+  },
+  perfect_character: {
+    id: 'perfect_character',
+    nom: 'Personnage Parfait',
+    icon: '👑',
+    cssClass: 'border-perfect-character-glow',
+    type: 'account',
+    condition: 'Avoir un personnage avec Ornn parfait + Gojo niv.3 + niveau 400 + sous-classe',
   },
   night_moon: {
     id: 'night_moon',
@@ -223,6 +273,27 @@ export function checkBorderUnlocks(character, extras = {}) {
     unlocked.push('water_sun');
   }
 
+  // Débloquage rétroactif : champion du tournoi des anciens (archivé)
+  if ((extras.anciensChampionWins ?? 0) >= 1) {
+    unlocked.push('ancient');
+  }
+
+  if ((extras.labyrinthFloor90Wins ?? 0) >= 5) {
+    unlocked.push('sable');
+  }
+
+  if ((extras.perfectOrnnWeaponCount ?? 0) >= 1) {
+    unlocked.push('ornn_runic');
+  }
+
+  if ((extras.gojoPassiveLevel3Count ?? 0) >= 1) {
+    unlocked.push('gojo_infinity');
+  }
+
+  if ((extras.perfectCharacterCount ?? 0) >= 1) {
+    unlocked.push('perfect_character');
+  }
+
   if ((extras.cataclysmeWins ?? 0) >= 3) {
     unlocked.push('night_moon');
   }
@@ -266,14 +337,19 @@ export function checkBorderUnlocks(character, extras = {}) {
  * Les bordures de type 'account' sont également sauvegardées dans userPreferences.
  */
 export async function syncUnlockedBorders(userId, character, extras = {}) {
+  let rewardSnapshotData = null;
+  let rewardReadOk = false;
+
   if (extras.tournamentWins === undefined || extras.cataclysmeWins === undefined) {
     let wins = extras.tournamentWins ?? 0;
     let catWins = extras.cataclysmeWins ?? 0;
 
     try {
       const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
       if (rewardSnap.exists()) {
         const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
         if (extras.tournamentWins === undefined) wins = data.tournamentWins ?? 0;
         if (extras.cataclysmeWins === undefined) catWins = data.cataclysmeWins ?? 0;
       }
@@ -295,22 +371,229 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     extras = { ...extras, tournamentWins: wins, cataclysmeWins: catWins };
   }
 
+  // Rétroactif : si tu as déjà été champion du tournoi des anciens,
+  // alors la bordure "Ancien" doit être débloquée même si les compteurs
+  // de tournamentRewards n'existent pas (ou plus).
+  if (extras.anciensChampionWins === undefined) {
+    try {
+      // Source of truth : legacyRetiredArchives contient uniquement les champions
+      // (retirés à vie côté "anciens"), donc on débloque uniquement si un
+      // ownerUserId existe ici.
+      const q = query(
+        collection(db, 'legacyRetiredArchives'),
+        where('ownerUserId', '==', userId),
+      );
+      const snap = await getDocs(q);
+      extras = { ...extras, anciensChampionWins: snap.size };
+    } catch (_) {
+      extras = { ...extras, anciensChampionWins: 0 };
+    }
+  }
+
   if (extras.bossRushCompletions === undefined) {
+    let completions = 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const rewardData = rewardSnap.data() || {};
+        rewardSnapshotData = rewardData;
+        completions = Number.isFinite(rewardData.bossRushCompletions)
+          ? rewardData.bossRushCompletions
+          : 0;
+      }
+    } catch (_) { /* ignore */ }
+
     try {
       const progressSnap = await getDoc(doc(db, 'dungeonProgress', userId));
       if (progressSnap.exists()) {
         const data = progressSnap.data() || {};
-        const completions = Number.isFinite(data.bossRushCompletions)
+        const progressCompletions = Number.isFinite(data.bossRushCompletions)
           ? data.bossRushCompletions
           : (data.bossRushCompleted ? 1 : 0);
-        extras = { ...extras, bossRushCompletions: completions };
+        completions = Math.max(completions, progressCompletions);
       } else {
-        extras = { ...extras, bossRushCompletions: 0 };
+        completions = Math.max(completions, 0);
       }
     } catch (_) {
-      extras = { ...extras, bossRushCompletions: 0 };
+      completions = Math.max(completions, 0);
     }
+    extras = { ...extras, bossRushCompletions: completions };
   }
+
+  if (extras.labyrinthFloor90Wins === undefined) {
+    let floor90Wins = 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
+        floor90Wins = Number.isFinite(data.labyrinthFloor90Wins) ? data.labyrinthFloor90Wins : 0;
+      }
+    } catch (_) { /* ignore */ }
+
+    // Rétro-compat : approximation basée sur les semaines où l'étage 90+ a été atteint.
+    // (1 victoire max comptée par semaine historique)
+    if (floor90Wins < 5) {
+      try {
+        const weeksSnap = await getDocs(collection(db, 'userLabyrinthProgress', userId, 'weeks'));
+        let retroCount = 0;
+        weeksSnap.forEach((docSnap) => {
+          const d = docSnap.data() || {};
+          if ((d.highestClearedFloor ?? 0) >= 90) retroCount += 1;
+        });
+        floor90Wins = Math.max(floor90Wins, retroCount);
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, labyrinthFloor90Wins: floor90Wins };
+  }
+
+  if (extras.perfectOrnnWeaponCount === undefined || extras.gojoPassiveLevel3Count === undefined) {
+    let perfectOrnnWeaponCount = extras.perfectOrnnWeaponCount ?? 0;
+    let gojoPassiveLevel3Count = extras.gojoPassiveLevel3Count ?? 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
+        if (extras.perfectOrnnWeaponCount === undefined) {
+          perfectOrnnWeaponCount = Number.isFinite(data.perfectOrnnWeaponCount) ? data.perfectOrnnWeaponCount : 0;
+        }
+        if (extras.gojoPassiveLevel3Count === undefined) {
+          gojoPassiveLevel3Count = Number.isFinite(data.gojoPassiveLevel3Count) ? data.gojoPassiveLevel3Count : 0;
+        }
+      }
+    } catch (_) { /* ignore */ }
+
+    // Rétro-compat: anciens persos archivés / perso actuel.
+    // Si les compteurs n'étaient pas encore persistés, on infère un minimum.
+    if (perfectOrnnWeaponCount < 1 || gojoPassiveLevel3Count < 1) {
+      try {
+        const archSnap = await getDocs(query(
+          collection(db, 'archivedCharacters'),
+          where('userId', '==', userId)
+        ));
+
+        let hasPerfectOrnn = false;
+        let hasGojoLv3 = false;
+
+        archSnap.forEach((docSnap) => {
+          const row = docSnap.data() || {};
+          if (!hasPerfectOrnn && row.forgeUpgrade && isForgeRollHighPerfection(row.forgeUpgrade, 0.9)) {
+            hasPerfectOrnn = true;
+          }
+          if (!hasGojoLv3 && Number(row?.mageTowerExtensionPassive?.level ?? 0) >= 3) {
+            hasGojoLv3 = true;
+          }
+        });
+
+        if (!hasPerfectOrnn && character?.forgeUpgrade && isForgeRollHighPerfection(character.forgeUpgrade, 0.9)) {
+          hasPerfectOrnn = true;
+        }
+        if (!hasGojoLv3 && Number(character?.mageTowerExtensionPassive?.level ?? 0) >= 3) {
+          hasGojoLv3 = true;
+        }
+
+        if (hasPerfectOrnn) perfectOrnnWeaponCount = Math.max(perfectOrnnWeaponCount, 1);
+        if (hasGojoLv3) gojoPassiveLevel3Count = Math.max(gojoPassiveLevel3Count, 1);
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, perfectOrnnWeaponCount, gojoPassiveLevel3Count };
+  }
+
+  if (extras.perfectCharacterCount === undefined) {
+    let perfectCharacterCount = 0;
+    try {
+      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+      rewardReadOk = true;
+      if (rewardSnap.exists()) {
+        const data = rewardSnap.data() || {};
+        rewardSnapshotData = data;
+        perfectCharacterCount = Number.isFinite(data.perfectCharacterCount) ? data.perfectCharacterCount : 0;
+      }
+    } catch (_) { /* ignore */ }
+
+    if (perfectCharacterCount < 1) {
+      try {
+        if (isPerfectCharacterProfile(character)) perfectCharacterCount = 1;
+
+        if (perfectCharacterCount < 1) {
+          const archSnap = await getDocs(query(
+            collection(db, 'archivedCharacters'),
+            where('userId', '==', userId)
+          ));
+          archSnap.forEach((docSnap) => {
+            if (perfectCharacterCount >= 1) return;
+            if (isPerfectCharacterProfile(docSnap.data() || {})) perfectCharacterCount = 1;
+          });
+        }
+      } catch (_) { /* ignore */ }
+    }
+
+    extras = { ...extras, perfectCharacterCount };
+  }
+
+  // Migration rétroactive "compteurs persistants":
+  // - ne baisse jamais une valeur déjà en base
+  // - injecte les compteurs manquants dans tournamentRewards
+  try {
+    const baseReward = rewardSnapshotData || {};
+    const migratedTournamentWins = Math.max(
+      Number.isFinite(baseReward.tournamentWins) ? baseReward.tournamentWins : 0,
+      extras.tournamentWins ?? 0
+    );
+    const migratedCataclysmeWins = Math.max(
+      Number.isFinite(baseReward.cataclysmeWins) ? baseReward.cataclysmeWins : 0,
+      extras.cataclysmeWins ?? 0
+    );
+    const migratedBossRushCompletions = Math.max(
+      Number.isFinite(baseReward.bossRushCompletions) ? baseReward.bossRushCompletions : 0,
+      extras.bossRushCompletions ?? 0
+    );
+    const migratedLabFloor90Wins = Math.max(
+      Number.isFinite(baseReward.labyrinthFloor90Wins) ? baseReward.labyrinthFloor90Wins : 0,
+      extras.labyrinthFloor90Wins ?? 0
+    );
+    const migratedPerfectOrnnWeaponCount = Math.max(
+      Number.isFinite(baseReward.perfectOrnnWeaponCount) ? baseReward.perfectOrnnWeaponCount : 0,
+      extras.perfectOrnnWeaponCount ?? 0
+    );
+    const migratedGojoPassiveLevel3Count = Math.max(
+      Number.isFinite(baseReward.gojoPassiveLevel3Count) ? baseReward.gojoPassiveLevel3Count : 0,
+      extras.gojoPassiveLevel3Count ?? 0
+    );
+    const migratedPerfectCharacterCount = Math.max(
+      Number.isFinite(baseReward.perfectCharacterCount) ? baseReward.perfectCharacterCount : 0,
+      extras.perfectCharacterCount ?? 0
+    );
+
+    const needsMigration =
+      !rewardReadOk ||
+      migratedTournamentWins !== (baseReward.tournamentWins ?? 0) ||
+      migratedCataclysmeWins !== (baseReward.cataclysmeWins ?? 0) ||
+      migratedBossRushCompletions !== (baseReward.bossRushCompletions ?? 0) ||
+      migratedLabFloor90Wins !== (baseReward.labyrinthFloor90Wins ?? 0) ||
+      migratedPerfectOrnnWeaponCount !== (baseReward.perfectOrnnWeaponCount ?? 0) ||
+      migratedGojoPassiveLevel3Count !== (baseReward.gojoPassiveLevel3Count ?? 0) ||
+      migratedPerfectCharacterCount !== (baseReward.perfectCharacterCount ?? 0);
+
+    if (needsMigration) {
+      await setDoc(doc(db, 'tournamentRewards', userId), {
+        tournamentWins: migratedTournamentWins,
+        cataclysmeWins: migratedCataclysmeWins,
+        bossRushCompletions: migratedBossRushCompletions,
+        labyrinthFloor90Wins: migratedLabFloor90Wins,
+        perfectOrnnWeaponCount: migratedPerfectOrnnWeaponCount,
+        gojoPassiveLevel3Count: migratedGojoPassiveLevel3Count,
+        perfectCharacterCount: migratedPerfectCharacterCount,
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+    }
+  } catch (_) { /* ignore migration errors */ }
 
   // Récupérer les titres du compte pour les bordures liées au compte
   if (extras.accountTitles === undefined) {
@@ -329,15 +612,28 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 
-  const hasNew = newUnlocked.some(id => !currentUnlocked.includes(id));
-  if (!hasNew) return currentUnlocked;
+  // Anti-régression : si "ancient" a été débloqué à tort dans le passé,
+  // on le retire si la condition n'est plus valide.
+  let adjustedCurrentUnlocked = currentUnlocked;
+  if (!newUnlocked.includes('ancient') && currentUnlocked.includes('ancient')) {
+    adjustedCurrentUnlocked = currentUnlocked.filter(id => id !== 'ancient');
+  }
 
-  const merged = [...new Set([...currentUnlocked, ...newUnlocked])];
+  const merged = [...new Set([...adjustedCurrentUnlocked, ...newUnlocked])];
+  const hasChanges = (
+    merged.length !== currentUnlocked.length ||
+    merged.some(id => !currentUnlocked.includes(id)) ||
+    currentUnlocked.some(id => id === 'ancient' && !merged.includes('ancient'))
+  );
+  if (!hasChanges) return currentUnlocked;
   
   // Sauvegarder dans le personnage
   try {
     await setDoc(doc(db, 'characters', userId), {
       unlockedBorders: merged,
+      // Si l'effet "ancient" n'est plus débloqué mais qu'il était équipé,
+      // on le déséquipe pour éviter un affichage incorrect.
+      equippedBorder: (!merged.includes('ancient') && character?.equippedBorder === 'ancient') ? null : character?.equippedBorder,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {
@@ -350,7 +646,11 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     try {
       const prefsRef = doc(db, 'userPreferences', userId);
       const prefsSnap = await getDoc(prefsRef);
-      const existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      let existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      // Si "ancient" n'est plus débloqué, on le retire aussi des prefs.
+      if (!merged.includes('ancient') && existingAccountBorders.includes('ancient')) {
+        existingAccountBorders = existingAccountBorders.filter(id => id !== 'ancient');
+      }
       const mergedAccountBorders = [...new Set([...existingAccountBorders, ...accountBordersUnlocked])];
       await setDoc(prefsRef, {
         unlockedAccountBorders: mergedAccountBorders,

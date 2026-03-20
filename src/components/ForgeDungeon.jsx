@@ -41,6 +41,8 @@ import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { checkAndAwardTitles } from '../services/titleService';
+import { db } from '../firebase/config';
+import { doc, increment, setDoc, Timestamp } from 'firebase/firestore';
 
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -386,6 +388,12 @@ const ForgeDungeon = () => {
           `*"Regardez-moi ça!!! Une telle qualité!!! On dirait presque une arme des dieux!!! La foule n'en revient pas!!!"*\n\n` +
           `**${weaponName}** : ${rollDesc} — QUELLE ŒUVRE!!!`,
       }).catch((err) => console.warn('Annonce Discord forge perfection:', err));
+
+      // Progression compte: "arme parfaite d'Ornn" (persistante).
+      await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
+        perfectOrnnWeaponCount: increment(1),
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
     }
     setSavingUpgrade(false);
   };

@@ -168,7 +168,12 @@ const Tournament = () => {
   const isHistoryMode = Boolean(archiveId);
   const isSimulation = !isHistoryMode && searchParams.get('mode') === 'simulation';
   const isLegacyMode = !isHistoryMode && searchParams.get('mode') === 'legacy';
-  const docId = isSimulation ? 'simulation' : isLegacyMode ? LEGACY_TOURNAMENT_DOC_ID : 'current';
+  const legacyDocIdParam = searchParams.get('legacyDocId');
+  const docId = isSimulation
+    ? 'simulation'
+    : isLegacyMode
+      ? (legacyDocIdParam || LEGACY_TOURNAMENT_DOC_ID)
+      : 'current';
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
 
   // Tournoi state

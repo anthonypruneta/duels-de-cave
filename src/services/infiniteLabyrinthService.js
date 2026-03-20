@@ -539,6 +539,15 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
       updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
       updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
 
+      if (floor.floorNumber === 90) {
+        try {
+          await setDoc(doc(db, 'tournamentRewards', userId), {
+            labyrinthFloor90Wins: increment(1),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        } catch (_) { /* ignore */ }
+      }
+
       if ([80, 90, 100, 110, 120].includes(floor.floorNumber)) {
         await announceFirstLabyrinthFloorClear({
           userId,

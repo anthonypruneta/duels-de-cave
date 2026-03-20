@@ -36,11 +36,15 @@ async function getLegacyRetiredArchiveIdSet() {
 }
 
 function isDiscordAnnouncableDoc(docId) {
-  return docId === 'current' || docId === LEGACY_TOURNAMENT_DOC_ID;
+  const id = String(docId || '');
+  const isLegacy = id === LEGACY_TOURNAMENT_DOC_ID || id.startsWith('legacy_');
+  return docId === 'current' || isLegacy;
 }
 
 function discordLegacyPrefix(docId) {
-  return docId === LEGACY_TOURNAMENT_DOC_ID ? '📜 Tournoi des anciens — ' : '';
+  const id = String(docId || '');
+  const isLegacy = id === LEGACY_TOURNAMENT_DOC_ID || id.startsWith('legacy_');
+  return isLegacy ? '📜 Tournoi des anciens — ' : '';
 }
 
 // ============================================================================
@@ -263,12 +267,15 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
  */
 export async function creerTournoiLegacy() {
   try {
-    await supprimerCombatLogsTournoi(LEGACY_TOURNAMENT_DOC_ID);
+    // Ne jamais écraser un tournoi legacy déjà existant.
+    // On crée un nouveau document à chaque événement.
+    const tournamentDocId = `legacy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
     const retiredIds = await getLegacyRetiredArchiveIdSet();
     const retiredCount = retiredIds.size;
     const raw = await chargerParticipantsArchives(retiredIds);
     const rawEligible = raw.filter((p) => p.userId && p.archiveDocId);
-    const deduped = dedupeLegacyParticipantsByOwnerAndName(rawEligible, LEGACY_TOURNAMENT_DOC_ID);
+    const deduped = dedupeLegacyParticipantsByOwnerAndName(rawEligible, tournamentDocId);
     const dedupeDropped = rawEligible.length - deduped.length;
     const participants = deduped.map((p) => ({
       ...p,
@@ -309,13 +316,13 @@ export async function creerTournoiLegacy() {
       annonceIntro: annonceDebutTournoi(participants.length),
     };
 
-    await setDoc(doc(db, 'tournaments', LEGACY_TOURNAMENT_DOC_ID), tournoi);
+    await setDoc(doc(db, 'tournaments', tournamentDocId), tournoi);
     annoncerTirageDiscord(
       matches,
       matchOrder,
       participantsMap,
       participants.length,
-      LEGACY_TOURNAMENT_DOC_ID
+      tournamentDocId
     ).catch(() => {});
 
     return {
@@ -323,6 +330,7 @@ export async function creerTournoiLegacy() {
       nbParticipants: participants.length,
       retiredExclusionsCount: retiredCount,
       dedupeDroppedCount: dedupeDropped,
+      tournamentDocId,
     };
   } catch (error) {
     console.error('Erreur création tournoi legacy:', error);
@@ -351,6 +359,23 @@ export async function getLegacyQualifierSnapshot() {
 
 export async function creerTournoi(docId = 'current') {
   try {
+    // Ne jamais écraser un tournoi du samedi non archivé.
+    // Si le tournoi précédent existe et n'a pas été "terminé/archivé" (archivedAt absent),
+    // on bloque la création du suivant pour ne pas perdre les infos d'arbre.
+    if (docId === 'current') {
+      const existingSnap = await getDoc(doc(db, 'tournaments', docId));
+      if (existingSnap.exists()) {
+        const existing = existingSnap.data() || {};
+        const isArchived = Boolean(existing.archivedAt);
+        if (!isArchived) {
+          return {
+            success: false,
+            error: 'Un tournoi du samedi existe déjà mais n’est pas archivé. Termine/archiver le tournoi précédent avant d’en créer un nouveau.',
+          };
+        }
+      }
+    }
+
     if (docId === LEGACY_TOURNAMENT_DOC_ID) {
       return {
         success: false,
@@ -735,7 +760,7 @@ export async function avancerMatch(docId = 'current') {
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
 
-      if (docId === LEGACY_TOURNAMENT_DOC_ID && champion && championId) {
+      if (tournoi?.tournamentType === 'legacy_archives' && champion && championId) {
         const row = participantsList.find(
           (p) => p.participantId === championId || p.userId === championId
         );
@@ -910,6 +935,18 @@ export async function getCombatLogArchive(matchId, archiveId) {
 
 export async function supprimerTournoiTermine(docId = 'current') {
   try {
+    // Sécurité : ne pas supprimer un tournoi du samedi tant qu'il n'est pas archivé,
+    // pour éviter de perdre l'arbre avant que l'admin ait pu archiver.
+    if (docId === 'current') {
+      const tournoiSnap = await getDoc(doc(db, 'tournaments', docId));
+      if (tournoiSnap.exists()) {
+        const tournoi = tournoiSnap.data() || {};
+        if (!tournoi.archivedAt) {
+          return { success: false, error: 'Tournoi du samedi non archivé: suppression bloquée.' };
+        }
+      }
+    }
+
     const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
     for (const logDoc of logsSnapshot.docs) {
       await deleteDoc(logDoc.ref);
@@ -1038,6 +1075,7 @@ export async function terminerTournoi(docId = 'current') {
       nbParticipants: tournoi.participantsList.length,
       nbMatchs: tournoi.matchOrder.length,
       sourceTournamentId: docId,
+      sourceTournamentType: tournoi.tournamentType || null,
       sourceTournamentCreatedAt: tournoi.createdAt || null,
       tournamentArchiveId: hallOfFameEntryId,
       date: serverTimestamp()
@@ -1237,7 +1275,12 @@ export async function getTripleRollCount(userId) {
 
 export async function consumeTripleRoll(userId) {
   try {
-    await deleteDoc(doc(db, 'tournamentRewards', userId));
+    // Ne jamais supprimer le document complet: il contient aussi des compteurs
+    // persistants d'achievements (ex: labyrinthFloor90Wins).
+    await setDoc(doc(db, 'tournamentRewards', userId), {
+      tripleRoll: false,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
 
     return { success: true };
@@ -1248,13 +1291,16 @@ export async function consumeTripleRoll(userId) {
 
 /**
  * Réinitialise tous les gains de reroll (Tournoi + Cataclysme) pour tous les joueurs.
- * Supprime tous les documents de la collection tournamentRewards.
+ * IMPORTANT: conserve les stats persistantes (wins, compteurs achievements, etc.).
  */
 export async function resetAllRerollGains() {
   try {
     const snapshot = await getDocs(collection(db, 'tournamentRewards'));
-    const deletes = snapshot.docs.map((d) => deleteDoc(doc(db, 'tournamentRewards', d.id)));
-    await Promise.all(deletes);
+    const updates = snapshot.docs.map((d) => setDoc(doc(db, 'tournamentRewards', d.id), {
+      tripleRoll: false,
+      updatedAt: serverTimestamp()
+    }, { merge: true }));
+    await Promise.all(updates);
     return { success: true, count: snapshot.size };
   } catch (error) {
     console.error('Erreur reset rerolls:', error);
