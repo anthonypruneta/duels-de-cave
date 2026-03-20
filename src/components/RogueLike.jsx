@@ -12,6 +12,7 @@ import {
   applyRogueLikeChoice,
   getRogueLikeLeaderboard,
 } from '../services/rogueLikeService';
+import { replayCombatSteps } from '../utils/combatReplay';
 
 function pickRandomThree(list) {
   const cloned = [...list];
@@ -127,13 +128,27 @@ export default function RogueLike() {
 
   const playCombat = async (advanceRes) => {
     const steps = advanceRes?.result?.steps || [];
-    const lastStep = steps.at(-1);
-    setCombatLogs(advanceRes?.result?.combatLog || []);
+
+    setCombatLogs([]);
     setCombatEnemy(advanceRes?.enemy || null);
-    setCombatPlayerHp(lastStep?.p1HP ?? 0);
-    setCombatPlayerMaxHp(lastStep?.p1Base?.hp ?? lastStep?.p1HP ?? 0);
-    setCombatEnemyHp(lastStep?.p2HP ?? 0);
-    setCombatEnemyMaxHp(lastStep?.p2Base?.hp ?? lastStep?.p2HP ?? 0);
+
+    const p1Max = advanceRes?.result?.p1MaxHP ?? steps?.[0]?.p1Base?.hp ?? 0;
+    const p2Max = advanceRes?.result?.p2MaxHP ?? steps?.[0]?.p2Base?.hp ?? 0;
+    setCombatPlayerMaxHp(p1Max);
+    setCombatEnemyMaxHp(p2Max);
+
+    // Anime les steps (intro / début tour / actions) pour ralentir l’auto-run
+    await replayCombatSteps(steps, {
+      setCombatLog: setCombatLogs,
+      onStepHP: (step) => {
+        setCombatPlayerHp(step?.p1HP ?? 0);
+        setCombatEnemyHp(step?.p2HP ?? 0);
+        // Les step contiennent p1Base/p2Base => utile si le maxHP est recalculé
+        if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
+        if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
+      },
+      speed: 'normal',
+    });
   };
 
   const handleAutoRun = async () => {
@@ -502,19 +517,70 @@ export default function RogueLike() {
                 />
               </div>
               <div className="lg:col-span-1 flex justify-center">
-                <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl w-full h-[420px] overflow-hidden">
+                <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col w-full h-[420px]">
                   <div className="bg-stone-900 p-3 border-b border-stone-700">
-                    <h2 className="text-sm font-bold text-stone-200">Log de combat</h2>
+                    <h2 className="text-sm font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
                   </div>
-                  <div className="p-3 overflow-y-auto space-y-1 text-xs text-stone-200">
+                  <div className="p-4 overflow-y-auto space-y-3 text-xs text-stone-200">
                     {combatLogs.length === 0 ? (
-                      <div className="text-stone-400 italic py-6 text-center">Lance l’auto-run pour commencer.</div>
+                      <div className="text-stone-500 italic py-10 text-center">Lance l’auto-run pour commencer.</div>
                     ) : (
-                      combatLogs.map((line, idx) => (
-                        <div key={idx} className={line.includes('💀') ? 'text-red-200' : line.includes('🏆') ? 'text-green-200' : ''}>
-                          {line}
-                        </div>
-                      ))
+                      combatLogs.map((line, idx) => {
+                        const isP1 = typeof line === 'string' && line.startsWith('[P1]');
+                        const isP2 = typeof line === 'string' && line.startsWith('[P2]');
+                        const cleanLog = (typeof line === 'string')
+                          ? line.replace(/^\[P[12]\]\s*/, '')
+                          : String(line);
+
+                        // Messages système (tours / victoire)
+                        if (!isP1 && !isP2) {
+                          if (cleanLog.includes('🏆')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-stone-950 text-stone-100 px-6 py-2 font-bold text-sm shadow-lg border border-stone-600">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (cleanLog.includes('---')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-2">
+                                <div className="bg-stone-900/40 text-stone-200 px-4 py-1 text-xs font-bold border border-stone-700">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-400 text-xs italic">{cleanLog}</div>
+                            </div>
+                          );
+                        }
+
+                        // Messages joueurs (gauche/droite)
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500 rounded-r-lg">
+                                  <div className="text-xs">{cleanLog}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={idx} className="flex justify-end">
+                            <div className="max-w-[80%]">
+                              <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500 rounded-l-lg">
+                                <div className="text-xs">{cleanLog}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>

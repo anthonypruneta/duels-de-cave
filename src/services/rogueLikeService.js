@@ -217,6 +217,18 @@ function normalizeForImageKey(input) {
   return noAccents.toLowerCase().trim().replace(/\s+/g, '-');
 }
 
+function getRogueLikeRaceSlug(raceName) {
+  // Les fichiers simple races suivent un slug utilisé côté projet images.
+  // Dans le code, les noms de races peuvent être différents (ex: “Elfe” => “elf”).
+  const normalized = normalizeForImageKey(raceName);
+  switch (normalized) {
+    case 'elfe':
+      return 'elf';
+    default:
+      return normalized;
+  }
+}
+
 const ROGUELIKE_IMAGE_BY_NORMALIZED_NAME = new Map(
   ROGUELIKE_RACE_LIST.map((it) => [normalizeForImageKey(it.imageName), it.imagePath]),
 );
@@ -283,13 +295,13 @@ const BOSS_POOL_FOR_VISUALS = [
 
 function getRogueLikeImageForRace(raceName) {
   if (!raceName) return null;
-  const key = normalizeForImageKey(raceName);
+  const key = normalizeForImageKey(getRogueLikeRaceSlug(raceName));
   return ROGUELIKE_IMAGE_BY_NORMALIZED_NAME.get(key) || null;
 }
 
 function getRogueLikeImageForRaceClass(raceName, className) {
   if (!raceName || !className) return null;
-  const raceKey = normalizeForImageKey(raceName);
+  const raceKey = normalizeForImageKey(getRogueLikeRaceSlug(raceName));
   const classKey = normalizeForImageKey(className);
   const combinedKey = `${raceKey}-${classKey}`;
   return ROGUELIKE_IMAGE_BY_NORMALIZED_NAME.get(combinedKey) || null;
@@ -444,8 +456,15 @@ function normalizeRunCharacterForEngine(character) {
   };
 }
 
-function buildPendingActionChooseClass() {
-  const classList = Object.keys(classes).map((id) => ({ id, icon: classes[id]?.icon ?? '❓', ability: classes[id]?.ability ?? '' }));
+function buildPendingActionChooseClass({ runSeed, floorNumber }) {
+  const allClassIds = Object.keys(classes);
+  const rng = createSeededRng(`${runSeed}|chooseClass|${floorNumber}`);
+  const picked = pickNUniqueSeeded(allClassIds, 3, rng).filter(Boolean);
+  const classList = picked.map((id) => ({
+    id,
+    icon: classes[id]?.icon ?? '❓',
+    ability: classes[id]?.ability ?? '',
+  }));
   return {
     type: 'chooseClass',
     createdAt: serverTimestamp(),
@@ -954,7 +973,7 @@ export async function advanceRogueLikeRun({ userId, runId }) {
 
   // Gate pré-combat : choisir la classe à l’étage 10
   if (shouldTriggerClassGate({ floorNumber, runCharacter: run.character })) {
-    const pendingAction = buildPendingActionChooseClass();
+    const pendingAction = buildPendingActionChooseClass({ runSeed, floorNumber });
     const updatedRun = stripUndefined({
       ...run,
       character: {
