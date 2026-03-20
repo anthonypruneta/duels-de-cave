@@ -13,6 +13,7 @@ import {
   getRogueLikeLeaderboard,
 } from '../services/rogueLikeService';
 import { replayCombatSteps } from '../utils/combatReplay';
+import CombatLayout from './CombatLayout';
 
 function pickRandomThree(list) {
   const cloned = [...list];
@@ -49,6 +50,17 @@ export default function RogueLike() {
   const [combatEnemyHp, setCombatEnemyHp] = useState(0);
   const [combatEnemyMaxHp, setCombatEnemyMaxHp] = useState(0);
 
+  const [combatPlayerShield, setCombatPlayerShield] = useState(0);
+  const [combatEnemyShield, setCombatEnemyShield] = useState(0);
+  const [combatPlayerBase, setCombatPlayerBase] = useState(null);
+  const [combatEnemyBase, setCombatEnemyBase] = useState(null);
+  const [combatPlayerModifiers, setCombatPlayerModifiers] = useState(null);
+  const [combatEnemyModifiers, setCombatEnemyModifiers] = useState(null);
+  const [combatPlayerStatus, setCombatPlayerStatus] = useState(null);
+  const [combatEnemyStatus, setCombatEnemyStatus] = useState(null);
+
+  const logContainerRef = useRef(null);
+
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
@@ -77,6 +89,49 @@ export default function RogueLike() {
       if (hit) return <span key={`${idx}-${part}`} className={hit.cls}>{part}</span>;
       return <React.Fragment key={idx}>{part}</React.Fragment>;
     });
+  };
+
+  const formatLogMessage = (text) => {
+    const pName = playerPseudoName;
+    const eName = enemyName;
+    if (!pName || !eName) return text;
+
+    const escapedPName = pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedEName = eName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const nameRegex = new RegExp(`(${escapedPName}|${escapedEName})`, 'g');
+
+    const parts = [];
+    let key = 0;
+    text.split(nameRegex).forEach((part) => {
+      if (!part) return;
+      if (part === pName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        return;
+      }
+      if (part === eName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-purple-400">{part}</span>);
+        return;
+      }
+
+      // Colorize numbers: heals (vie) = green, damage = red
+      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+      let lastIndex = 0;
+      let match;
+      while ((match = numRegex.exec(part)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(part.slice(lastIndex, match.index));
+        }
+        const isHeal = String(match[2] || '').toLowerCase().includes('vie');
+        const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
+        parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
+        parts.push(` ${match[2]}`);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < part.length) {
+        parts.push(part.slice(lastIndex));
+      }
+    });
+    return parts;
   };
 
   useEffect(() => {
@@ -134,6 +189,30 @@ export default function RogueLike() {
     autoRunWasActiveRef.current = false;
   };
 
+  const handleStartCurrentFloorFight = async () => {
+    if (!currentUser?.uid) return;
+    if (!runId || !run) return;
+    if (run?.status !== 'active') return;
+    if (pendingAction) return;
+    if (loading) return;
+
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await advanceRogueLikeRun({ userId: currentUser.uid, runId });
+      if (!res?.success) throw new Error(res?.error || 'Avance run impossible.');
+
+      if (res?.result) {
+        await playCombat(res);
+      }
+      setRun(res.run);
+    } catch (e) {
+      setError(e?.message || 'Erreur lancement combat.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStart = async () => {
     if (!currentUser?.uid) return;
     if (!selectedRace) return;
@@ -163,6 +242,14 @@ export default function RogueLike() {
     const p2Max = advanceRes?.result?.p2MaxHP ?? steps?.[0]?.p2Base?.hp ?? 0;
     setCombatPlayerMaxHp(p1Max);
     setCombatEnemyMaxHp(p2Max);
+    setCombatPlayerShield(0);
+    setCombatEnemyShield(0);
+    setCombatPlayerBase(steps?.[0]?.p1Base || null);
+    setCombatEnemyBase(steps?.[0]?.p2Base || null);
+    setCombatPlayerModifiers(steps?.[0]?.p1Modifiers ?? null);
+    setCombatEnemyModifiers(steps?.[0]?.p2Modifiers ?? null);
+    setCombatPlayerStatus(steps?.[0]?.p1Status ?? null);
+    setCombatEnemyStatus(steps?.[0]?.p2Status ?? null);
 
     // Anime les steps (intro / début tour / actions) pour ralentir l’auto-run
     await replayCombatSteps(steps, {
@@ -170,7 +257,15 @@ export default function RogueLike() {
       onStepHP: (step) => {
         setCombatPlayerHp(step?.p1HP ?? 0);
         setCombatEnemyHp(step?.p2HP ?? 0);
-        // Les step contiennent p1Base/p2Base => utile si le maxHP est recalculé
+        setCombatPlayerShield(step?.p1Shield ?? 0);
+        setCombatEnemyShield(step?.p2Shield ?? 0);
+        if (step?.p1Base) setCombatPlayerBase(step.p1Base);
+        if (step?.p2Base) setCombatEnemyBase(step.p2Base);
+        if (step?.p1Modifiers) setCombatPlayerModifiers(step.p1Modifiers);
+        if (step?.p2Modifiers) setCombatEnemyModifiers(step.p2Modifiers);
+        if (step?.p1Status) setCombatPlayerStatus(step.p1Status);
+        if (step?.p2Status) setCombatEnemyStatus(step.p2Status);
+
         if (typeof step?.p1Base?.hp === 'number') setCombatPlayerMaxHp(step.p1Base.hp);
         if (typeof step?.p2Base?.hp === 'number') setCombatEnemyMaxHp(step.p2Base.hp);
       },
@@ -510,6 +605,13 @@ export default function RogueLike() {
 
             <div className="flex justify-center gap-3 mb-4">
               <button
+                onClick={handleStartCurrentFloorFight}
+                disabled={loading || autoRunActive || !!pendingAction || !run || run?.status !== 'active'}
+                className="bg-stone-100 hover:bg-white disabled:bg-stone-600 disabled:text-stone-400 text-stone-900 px-4 py-2.5 rounded-lg font-bold border border-stone-400"
+              >
+                ▶️ Lancer le combat
+              </button>
+              <button
                 onClick={handleAutoRun}
                 disabled={loading || autoRunActive || !!pendingAction || !run || run?.status !== 'active'}
                 className="bg-violet-700 hover:bg-violet-600 disabled:bg-stone-700 disabled:text-stone-400 text-white border border-violet-500 px-5 py-2.5 rounded-lg font-bold"
@@ -531,98 +633,137 @@ export default function RogueLike() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start mb-4">
-              <div className="lg:col-span-1">
-                <CharacterCardContent
-                  character={run.character}
-                  showHpBar
-                  infoSide="left"
-                  currentHP={combatPlayerMaxHp > 0 ? combatPlayerHp : run.character.base?.hp}
-                  maxHP={combatPlayerMaxHp > 0 ? combatPlayerMaxHp : run.character.base?.hp}
-                  shield={0}
-                  borderIdOverride={null}
-                />
-              </div>
-              <div className="lg:col-span-1 flex justify-center">
-                <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col w-full h-[420px]">
-                  <div className="bg-stone-900 p-3 border-b border-stone-700">
-                    <h2 className="text-sm font-bold text-stone-200 text-center">⚔️ Combat en direct</h2>
-                  </div>
-                  <div className="p-4 overflow-y-auto space-y-3 text-xs text-stone-200">
-                    {combatLogs.length === 0 ? (
-                      <div className="text-stone-500 italic py-10 text-center">Lance l’auto-run pour commencer.</div>
-                    ) : (
-                      combatLogs.map((line, idx) => {
-                        const isP1 = typeof line === 'string' && line.startsWith('[P1]');
-                        const isP2 = typeof line === 'string' && line.startsWith('[P2]');
-                        const cleanLog = (typeof line === 'string')
-                          ? line.replace(/^\[P[12]\]\s*/, '')
-                          : String(line);
+            <div className="mb-4">
+              <CombatLayout
+                p1Entity={run?.character ? {
+                  name: run.character.name,
+                  currentHP: combatPlayerHp,
+                  maxHP: combatPlayerMaxHp,
+                  shield: combatPlayerShield,
+                  base: combatPlayerBase || run.character.base || {},
+                } : null}
+                p2Entity={combatEnemy ? {
+                  name: combatEnemy.name,
+                  currentHP: combatEnemyHp,
+                  maxHP: combatEnemyMaxHp,
+                  shield: combatEnemyShield,
+                  base: combatEnemyBase || combatEnemy.base || {},
+                  ability: combatEnemy.ability,
+                } : null}
+                p1CombatBase={combatPlayerBase}
+                p2CombatBase={combatEnemyBase}
+                logRef={logContainerRef}
+                logTitle="⚔️ Combat en direct"
+                logHeaderBg="bg-stone-900"
+                renderLog={() => {
+                  if (!combatLogs || combatLogs.length === 0) {
+                    return (
+                      <p className="text-stone-500 italic text-center py-6">Cliquez sur “Lancer le combat”...</p>
+                    );
+                  }
 
-                        // Messages système (tours / victoire)
-                        if (!isP1 && !isP2) {
-                          if (cleanLog.includes('🏆')) {
-                            return (
-                              <div key={idx} className="flex justify-center my-3">
-                                <div className="bg-stone-950 text-stone-100 px-6 py-2 font-bold text-sm shadow-lg border border-stone-600">
-                                  {renderLogLineWithColoredNames(cleanLog)}
-                                </div>
-                              </div>
-                            );
-                          }
-                          if (cleanLog.includes('---')) {
-                            return (
-                              <div key={idx} className="flex justify-center my-2">
-                                <div className="bg-stone-900/40 text-stone-200 px-4 py-1 text-xs font-bold border border-stone-700">
-                                  {renderLogLineWithColoredNames(cleanLog)}
-                                </div>
-                              </div>
-                            );
-                          }
-                          return (
-                            <div key={idx} className="flex justify-center">
-                            <div className="text-stone-400 text-xs italic">{renderLogLineWithColoredNames(cleanLog)}</div>
-                            </div>
-                          );
-                        }
+                  return combatLogs.map((log, idx) => {
+                    const isP1 = log.startsWith('[P1]');
+                    const isP2 = log.startsWith('[P2]');
+                    const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
 
-                        // Messages joueurs (gauche/droite)
-                        if (isP1) {
-                          return (
-                            <div key={idx} className="flex justify-start">
-                              <div className="max-w-[80%]">
-                                <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-l-4 border-blue-500 rounded-r-lg">
-                                  <div className="text-xs">{renderLogLineWithColoredNames(cleanLog)}</div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
+                    if (!isP1 && !isP2) {
+                      if (log.includes('🏆')) {
                         return (
-                          <div key={idx} className="flex justify-end">
-                            <div className="max-w-[80%]">
-                              <div className="bg-stone-700/70 text-stone-200 px-3 py-2 shadow-lg border-r-4 border-purple-500 rounded-l-lg">
-                                <div className="text-xs">{renderLogLineWithColoredNames(cleanLog)}</div>
-                              </div>
+                          <div key={idx} className="flex justify-center my-2">
+                            <div className="bg-stone-100 text-stone-900 px-3 py-1.5 font-bold text-xs shadow-lg border border-stone-400">
+                              {formatLogMessage(cleanLog)}
                             </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="lg:col-span-1">
-                <CharacterCardContent
-                  character={combatEnemy}
-                  showHpBar
-                  infoSide="left"
-                  currentHP={combatEnemyMaxHp > 0 ? combatEnemyHp : combatEnemy?.base?.hp}
-                  maxHP={combatEnemyMaxHp > 0 ? combatEnemyMaxHp : combatEnemy?.base?.hp}
-                  shield={0}
-                  borderIdOverride={null}
-                />
-              </div>
+                      }
+                      if (log.includes('💀')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-2">
+                            <div className="bg-red-900 text-red-200 px-3 py-1.5 font-bold text-xs shadow-lg border border-red-600">
+                              {formatLogMessage(cleanLog)}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('💚')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-1">
+                            <div className="bg-green-900/50 text-green-300 px-2 py-0.5 text-[10px] font-bold border border-green-600">
+                              {formatLogMessage(cleanLog)}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (log.includes('---') || log.includes('⚔️')) {
+                        return (
+                          <div key={idx} className="flex justify-center my-1">
+                            <div className="bg-stone-700 text-stone-200 px-2 py-0.5 text-[10px] font-bold border border-stone-500 rounded">
+                              {formatLogMessage(cleanLog)}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="flex justify-center">
+                          <div className="text-stone-400 text-[10px] italic">{formatLogMessage(cleanLog)}</div>
+                        </div>
+                      );
+                    }
+
+                    if (isP1) {
+                      return (
+                        <div key={idx} className="flex justify-start">
+                          <div className="max-w-[85%]">
+                            <div className="bg-stone-700 text-stone-200 px-2 py-1 rounded border-l-2 border-blue-500 text-[11px]">
+                              {formatLogMessage(cleanLog)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={idx} className="flex justify-end">
+                        <div className="max-w-[85%]">
+                          <div className="bg-stone-700 text-stone-200 px-2 py-1 rounded border-r-2 border-purple-500 text-[11px]">
+                            {formatLogMessage(cleanLog)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                }}
+                p1Card={
+                  <CharacterCardContent
+                    character={run.character}
+                    showHpBar
+                    detailsPlacement="left"
+                    currentHP={combatPlayerMaxHp > 0 ? combatPlayerHp : run.character.base?.hp}
+                    maxHP={combatPlayerMaxHp > 0 ? combatPlayerMaxHp : run.character.base?.hp}
+                    shield={combatPlayerShield}
+                    combatBaseOverride={combatPlayerBase}
+                    combatModifiers={combatPlayerModifiers}
+                    opponent={combatEnemy}
+                    combatStatus={combatPlayerStatus}
+                    borderIdOverride={null}
+                  />
+                }
+                p2Card={
+                  <CharacterCardContent
+                    character={combatEnemy}
+                    showHpBar
+                    detailsPlacement="right"
+                    currentHP={combatEnemyMaxHp > 0 ? combatEnemyHp : combatEnemy?.base?.hp}
+                    maxHP={combatEnemyMaxHp > 0 ? combatEnemyMaxHp : combatEnemy?.base?.hp}
+                    shield={combatEnemyShield}
+                    combatBaseOverride={combatEnemyBase}
+                    combatModifiers={combatEnemyModifiers}
+                    opponent={run.character}
+                    combatStatus={combatEnemyStatus}
+                    borderIdOverride={null}
+                  />
+                }
+              />
             </div>
 
             {run?.status === 'dead' && (
