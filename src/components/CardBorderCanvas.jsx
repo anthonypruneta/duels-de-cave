@@ -3035,26 +3035,56 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/** Calque offscreen : silhouette marron + reflet lumineux très discret sur le marron (t = temps). */
+/** Calque offscreen : silhouette marron avec volume (ombre + modelé + reflet pulsé). */
 function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   octx.setTransform(1, 0, 0, 1, 0, 0);
   octx.clearRect(0, 0, w, h);
   octx.globalAlpha = 1;
+
+  // 1) Ombre décalée (carte qui se détache du fond doré)
+  octx.save();
+  octx.translate(2.6, 3.4);
+  octx.globalCompositeOperation = 'source-over';
+  octx.filter = 'blur(2.8px)';
+  octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
+  octx.filter = 'none';
+  octx.globalCompositeOperation = 'source-in';
+  octx.fillStyle = 'rgba(18, 7, 3, 0.62)';
+  octx.fillRect(-w, -h, w * 3, h * 3);
+  octx.restore();
+
   octx.globalCompositeOperation = 'source-over';
 
+  // 2) Corps : masque + dégradé radial (lumière haut-gauche → ombre bas-droite)
   octx.filter = 'blur(1.05px)';
   octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
   octx.filter = 'none';
-
   octx.globalCompositeOperation = 'source-in';
-  const darkGold = octx.createLinearGradient(0, 0, w, h);
-  darkGold.addColorStop(0, 'rgba(124, 64, 22, 0.94)');
-  darkGold.addColorStop(0.45, 'rgba(98, 48, 18, 0.96)');
-  darkGold.addColorStop(1, 'rgba(72, 38, 14, 0.96)');
-  octx.fillStyle = darkGold;
+  const mh = Math.max(w, h);
+  const lx0 = w * 0.33;
+  const ly0 = h * 0.29;
+  const bodyGrad = octx.createRadialGradient(lx0, ly0, 0, lx0, ly0, mh * 0.82);
+  bodyGrad.addColorStop(0, 'rgba(188, 108, 52, 0.88)');
+  bodyGrad.addColorStop(0.32, 'rgba(132, 70, 30, 0.94)');
+  bodyGrad.addColorStop(0.68, 'rgba(88, 44, 18, 0.97)');
+  bodyGrad.addColorStop(1, 'rgba(38, 18, 8, 0.99)');
+  octx.fillStyle = bodyGrad;
   octx.fillRect(0, 0, w, h);
 
-  // Halo clair uniquement sur la silhouette : comme un reflet qui pulse (pas de zoom ni d’alpha globale)
+  // 3) Biseau doux sur la silhouette (clair / zone morte / assombrissement)
+  octx.save();
+  octx.globalCompositeOperation = 'source-atop';
+  octx.globalAlpha = 0.62;
+  const bevel = octx.createLinearGradient(0, 0, w * 0.96, h * 0.94);
+  bevel.addColorStop(0, 'rgba(255, 236, 205, 0.5)');
+  bevel.addColorStop(0.35, 'rgba(255, 255, 255, 0)');
+  bevel.addColorStop(0.72, 'rgba(0, 0, 0, 0)');
+  bevel.addColorStop(1, 'rgba(12, 4, 2, 0.38)');
+  octx.fillStyle = bevel;
+  octx.fillRect(0, 0, w, h);
+  octx.restore();
+
+  // 4) Reflet lumineux très discret qui pulse (inchangé d’esprit)
   const lum = 0.5 + 0.5 * Math.sin(t * 0.72);
   const drift = 0.5 + 0.5 * Math.sin(t * 0.48 + 0.9);
   octx.save();
