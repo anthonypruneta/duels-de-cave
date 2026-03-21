@@ -2699,8 +2699,8 @@ function drawStormTempest(ctx, state, w, h) {
 // ─── Gold Relief (test heuristique, sans masque réel) ─────────────────────────
 
 function buildHeuristicSubjectMask(img, w, h) {
-  const sw = Math.max(84, Math.min(180, Math.round(w * 0.34)));
-  const sh = Math.max(120, Math.min(260, Math.round(h * 0.34)));
+  const sw = Math.max(92, Math.min(200, Math.round(w * 0.40)));
+  const sh = Math.max(132, Math.min(290, Math.round(h * 0.40)));
   const sample = document.createElement('canvas');
   sample.width = sw;
   sample.height = sh;
@@ -2746,9 +2746,9 @@ function buildHeuristicSubjectMask(img, w, h) {
       const edge = Math.min(1, (lx + ly) * 3.2);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const centerBias = Math.exp(-(nX * nX / 0.09 + nY * nY / 0.16));
-      const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.8);
-      const v = (edge * 0.62 + sat[i] * 0.24 + detail * 0.14) * (0.50 + centerBias * 0.92);
+      const centerBias = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.24));
+      const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.65);
+      const v = (edge * 0.62 + sat[i] * 0.24 + detail * 0.14) * (0.44 + centerBias * 1.02);
       score[i] = v;
       sum += v;
       sum2 += v * v;
@@ -2758,7 +2758,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.28;
+  const thr = mean + std * 0.20;
 
   // Binaire initial
   const bin = new Uint8Array(sw * sh);
@@ -2767,26 +2767,31 @@ function buildHeuristicSubjectMask(img, w, h) {
       const i = idx(x, y);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.18 + nY * nY / 0.27));
-      if (radial < 0.03) continue;
+      const radial = Math.exp(-(nX * nX / 0.26 + nY * nY / 0.38));
+      if (radial < 0.012) continue;
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      if (aRaw > 0.038) bin[i] = 1;
+      if (aRaw > 0.028) bin[i] = 1;
     }
   }
 
-  // Fermeture morphologique simple pour reconnecter les parties du perso
-  const dil = new Uint8Array(sw * sh);
-  for (let y = 1; y < sh - 1; y++) {
-    for (let x = 1; x < sw - 1; x++) {
-      let on = 0;
-      for (let oy = -1; oy <= 1 && !on; oy++) {
-        for (let ox = -1; ox <= 1; ox++) {
-          if (bin[idx(x + ox, y + oy)]) { on = 1; break; }
+  // Fermeture morphologique + double dilatation pour élargir la zone masquée
+  const dilOnce = (src) => {
+    const dst = new Uint8Array(sw * sh);
+    for (let y = 1; y < sh - 1; y++) {
+      for (let x = 1; x < sw - 1; x++) {
+        let on = 0;
+        for (let oy = -1; oy <= 1 && !on; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            if (src[idx(x + ox, y + oy)]) { on = 1; break; }
+          }
         }
+        dst[idx(x, y)] = on;
       }
-      dil[idx(x, y)] = on;
     }
-  }
+    return dst;
+  };
+  let dil = dilOnce(bin);
+  dil = dilOnce(dil);
   const closed = new Uint8Array(sw * sh);
   for (let y = 1; y < sh - 1; y++) {
     for (let x = 1; x < sw - 1; x++) {
@@ -2892,29 +2897,29 @@ function buildHeuristicSubjectMask(img, w, h) {
     // on le resserre automatiquement autour de la zone centrale/forte.
     const coverage = bestPixels.length / Math.max(1, sw * sh);
     let tighten = false;
-    if (coverage > 0.55) tighten = true;
+    if (coverage > 0.62) tighten = true;
 
-    const extraThr = thr + std * 0.22;
+    const extraThr = thr + std * 0.18;
     for (const i of bestPixels) {
       const x = i % sw;
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.20 + nY * nY / 0.33));
+      const radial = Math.exp(-(nX * nX / 0.28 + nY * nY / 0.42));
       if (tighten) {
-        const tightRadial = Math.exp(-(nX * nX / 0.12 + nY * nY / 0.22));
-        if (tightRadial < 0.08) continue;
+        const tightRadial = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.26));
+        if (tightRadial < 0.06) continue;
         if (score[i] < extraThr) continue;
       }
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      const a = aRaw * (0.72 + radial * 0.45);
+      const a = aRaw * (0.78 + radial * 0.52);
       const p = i * 4;
       outPx[p + 3] = Math.round(255 * Math.max(0, Math.min(1, Math.pow(a, 1.2))));
     }
   }
   mctx.putImageData(out, 0, 0);
-  // Lissage léger: on floute très peu pour éviter de "manger" tout le décor.
-  mctx.filter = 'blur(0.9px)';
+  // Lissage léger: léger halo pour étendre visuellement le relief sans trop fondre le décor.
+  mctx.filter = 'blur(1.15px)';
   mctx.drawImage(maskSmall, 0, 0);
   mctx.filter = 'none';
 
@@ -2964,8 +2969,8 @@ function drawGoldReliefTest(ctx, state, w, h) {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 0.92;
-  ctx.filter = 'blur(0.9px)';
-  ctx.drawImage(state.maskCanvas, 0.8, 0.8, w, h);
+  ctx.filter = 'blur(1.05px)';
+  ctx.drawImage(state.maskCanvas, -1.2, -1.2, w + 2.4, h + 2.4);
   ctx.globalCompositeOperation = 'source-in';
   const darkGold = ctx.createLinearGradient(0, 0, w, h);
   darkGold.addColorStop(0, 'rgba(130, 66, 20, 0.82)');
