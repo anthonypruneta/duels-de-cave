@@ -2146,16 +2146,35 @@ function initPerfectCharacter(w, h) {
   return {
     t: rand(0, Math.PI * 2),
     sweepPos: -w * 0.45,
-    sweepWidth: Math.max(60, w * 0.24),
-    sweepSpeed: Math.max(1.8, w * 0.0065),
-    stars: Array.from({ length: Math.max(42, Math.floor(w / 7.5)) }, () => ({
+    sweepWidth: Math.max(68, w * 0.2),
+    sweepSpeed: Math.max(2.1, w * 0.0072),
+    prismaticStars: Array.from({ length: Math.max(54, Math.floor(w / 6.5)) }, () => ({
       x: rand(0, w),
-      y: rand(0, h * 0.92),
-      r: rand(0.9, 2.4),
+      y: rand(0, h * 0.95),
+      r: rand(1.0, 2.8),
       phase: rand(0, Math.PI * 2),
-      alpha: rand(0.22, 0.55),
+      alpha: rand(0.24, 0.6),
       hue: rand(185, 320),
       seen: 0,
+    })),
+    streaks: Array.from({ length: Math.max(34, Math.floor(w / 12)) }, () => ({
+      x: rand(0, w),
+      y: rand(h * 0.06, h * 0.98),
+      len: rand(24, 90),
+      width: rand(0.9, 2.8),
+      hue: rand(180, 330),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.10, 0.26),
+      tilt: rand(-1.15, 1.15),
+    })),
+    shards: Array.from({ length: Math.max(18, Math.floor(w / 20)) }, () => ({
+      x: rand(0, w),
+      y: rand(h * 0.05, h * 0.95),
+      s: rand(8, 22),
+      rot: rand(0, Math.PI * 2),
+      rotV: rand(-0.014, 0.014),
+      hue: rand(175, 325),
+      alpha: rand(0.10, 0.28),
     })),
   };
 }
@@ -2166,10 +2185,10 @@ function updatePerfectCharacter(state, w, h, dt) {
   state.sweepPos += state.sweepSpeed * s;
   if (state.sweepPos > w * 1.45) {
     state.sweepPos = -w * 0.45;
-    state.sweepSpeed = Math.max(1.8, w * rand(0.0055, 0.008));
-    state.sweepWidth = Math.max(56, w * rand(0.18, 0.3));
+    state.sweepSpeed = Math.max(2.0, w * rand(0.0062, 0.0088));
+    state.sweepWidth = Math.max(58, w * rand(0.17, 0.28));
   }
-  for (const st of state.stars) {
+  for (const st of state.prismaticStars) {
     st.phase += 0.032 * s;
     const sweepY = (st.x - state.sweepPos) * 0.72 + h * 0.18;
     const d = Math.abs(st.y - sweepY);
@@ -2177,15 +2196,47 @@ function updatePerfectCharacter(state, w, h, dt) {
     const nearBeam = Math.max(0, 1 - d / Math.max(1, revealBand));
     st.seen = Math.max(st.seen * (1 - 0.0014 * s), nearBeam);
   }
+  for (const st of state.streaks) {
+    st.phase += 0.02 * s;
+    st.x += Math.cos(st.phase * 0.85) * 0.14 * s;
+    st.y += Math.sin(st.phase * 0.65) * 0.09 * s;
+    if (st.x < -40) st.x = w + 40;
+    if (st.x > w + 40) st.x = -40;
+    if (st.y < -30) st.y = h + 30;
+    if (st.y > h + 30) st.y = -30;
+  }
+  for (const sh of state.shards) {
+    sh.rot += sh.rotV * s;
+  }
 }
 
 function drawPerfectCharacter(ctx, state, w, h) {
-  // Base discrète
+  // Base + teinte cristal
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(15, 23, 42, 0.06)');
-  bg.addColorStop(1, 'rgba(15, 23, 42, 0.12)');
+  bg.addColorStop(0, 'rgba(255,255,255,0.02)');
+  bg.addColorStop(1, 'rgba(15, 23, 42, 0.06)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
+
+  // Halo prismatique global (comme carte Téracristal)
+  const prismGlow = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, Math.max(w, h) * 0.72);
+  prismGlow.addColorStop(0, 'rgba(255,255,255,0.16)');
+  prismGlow.addColorStop(0.22, 'rgba(125, 211, 252, 0.12)');
+  prismGlow.addColorStop(0.52, 'rgba(216, 180, 254, 0.13)');
+  prismGlow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = prismGlow;
+  ctx.fillRect(0, 0, w, h);
+
+  // Liseré arc-en-ciel doux sur les bords
+  const edge = ctx.createLinearGradient(0, 0, w, h);
+  edge.addColorStop(0, 'rgba(56,189,248,0.18)');
+  edge.addColorStop(0.25, 'rgba(244,114,182,0.16)');
+  edge.addColorStop(0.5, 'rgba(250,204,21,0.14)');
+  edge.addColorStop(0.75, 'rgba(52,211,153,0.15)');
+  edge.addColorStop(1, 'rgba(99,102,241,0.18)');
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = Math.max(10, w * 0.03);
+  ctx.strokeRect(0, 0, w, h);
 
   // Faisceau lumineux diagonal qui traverse la carte
   const x1 = state.sweepPos;
@@ -2204,16 +2255,57 @@ function drawPerfectCharacter(ctx, state, w, h) {
   // Coeur du faisceau (plus franc)
   const core = ctx.createLinearGradient(x1, y1, x2, y2);
   core.addColorStop(0, 'rgba(255,255,255,0)');
-  core.addColorStop(0.45, 'rgba(255,255,255,0.28)');
-  core.addColorStop(0.55, 'rgba(255,255,255,0.28)');
+  core.addColorStop(0.45, 'rgba(255,255,255,0.34)');
+  core.addColorStop(0.55, 'rgba(255,255,255,0.34)');
   core.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = core;
   ctx.fillRect(state.sweepPos - state.sweepWidth * 0.2, 0, state.sweepWidth * 1.2, h);
 
-  // Etoiles prismatiques révélées par la lumière
-  for (const st of state.stars) {
+  // Trainées prismatiques multi-axes (style référence)
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const st of state.streaks) {
+    const pulse = 0.55 + 0.45 * Math.sin(st.phase + state.t * 1.4);
+    const a = st.alpha * pulse;
+    const dx = Math.cos(st.tilt) * st.len * 0.5;
+    const dy = Math.sin(st.tilt) * st.len * 0.5;
+    const xA = st.x - dx;
+    const yA = st.y - dy;
+    const xB = st.x + dx;
+    const yB = st.y + dy;
+    const lg = ctx.createLinearGradient(xA, yA, xB, yB);
+    lg.addColorStop(0, hsl(st.hue, 90, 74, 0));
+    lg.addColorStop(0.5, hsl(st.hue, 90, 80, a));
+    lg.addColorStop(1, hsl(st.hue, 90, 74, 0));
+    ctx.strokeStyle = lg;
+    ctx.lineWidth = st.width;
+    ctx.beginPath();
+    ctx.moveTo(xA, yA);
+    ctx.lineTo(xB, yB);
+    ctx.stroke();
+  }
+  for (const sh of state.shards) {
+    ctx.save();
+    ctx.translate(sh.x, sh.y);
+    ctx.rotate(sh.rot);
+    ctx.fillStyle = hsl(sh.hue, 88, 80, sh.alpha);
+    ctx.beginPath();
+    ctx.moveTo(0, -sh.s);
+    ctx.lineTo(sh.s * 0.72, -sh.s * 0.15);
+    ctx.lineTo(sh.s * 0.22, sh.s);
+    ctx.lineTo(-sh.s * 0.64, sh.s * 0.28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Etoiles prismatiques : visibles globalement, boostées au passage du faisceau
+  for (const st of state.prismaticStars) {
     const tw = 0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2);
-    const a = st.alpha * st.seen * tw;
+    const base = st.alpha * (0.15 + 0.35 * tw);
+    const boosted = st.alpha * st.seen * tw;
+    const a = Math.max(base, boosted);
     if (a <= 0.02) continue;
 
     const gg = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4);
@@ -2224,10 +2316,28 @@ function drawPerfectCharacter(ctx, state, w, h) {
     ctx.arc(st.x, st.y, st.r * 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = hsl(st.hue, 85, 78, a);
+    // Etoile diamant
+    ctx.save();
+    ctx.translate(st.x, st.y);
+    ctx.rotate(st.phase * 0.5);
+    ctx.fillStyle = hsl(st.hue, 85, 80, a);
     ctx.beginPath();
-    ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+    ctx.moveTo(0, -st.r * 1.45);
+    ctx.lineTo(st.r * 0.95, 0);
+    ctx.lineTo(0, st.r * 1.45);
+    ctx.lineTo(-st.r * 0.95, 0);
+    ctx.closePath();
     ctx.fill();
+
+    ctx.strokeStyle = `rgba(255,255,255,${a * 0.85})`;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(0, -st.r * 2.0);
+    ctx.lineTo(0, st.r * 2.0);
+    ctx.moveTo(-st.r * 2.0, 0);
+    ctx.lineTo(st.r * 2.0, 0);
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
