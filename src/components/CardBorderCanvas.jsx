@@ -2820,18 +2820,26 @@ function updateGoldReliefTest(state, w, h, dt) {
 
 function drawGoldReliefTest(ctx, state, w, h) {
   const metal = ctx.createLinearGradient(0, 0, w, h);
-  metal.addColorStop(0, 'rgba(250, 204, 21, 0.22)');
-  metal.addColorStop(0.2, 'rgba(234, 179, 8, 0.34)');
-  metal.addColorStop(0.5, 'rgba(161, 98, 7, 0.26)');
-  metal.addColorStop(0.8, 'rgba(250, 204, 21, 0.30)');
-  metal.addColorStop(1, 'rgba(202, 138, 4, 0.24)');
+  metal.addColorStop(0, 'rgba(253, 224, 71, 0.36)');
+  metal.addColorStop(0.18, 'rgba(250, 204, 21, 0.50)');
+  metal.addColorStop(0.46, 'rgba(217, 119, 6, 0.46)');
+  metal.addColorStop(0.76, 'rgba(234, 179, 8, 0.50)');
+  metal.addColorStop(1, 'rgba(161, 98, 7, 0.40)');
   ctx.fillStyle = metal;
+  ctx.fillRect(0, 0, w, h);
+
+  // Couche "or poli" plus couvrante
+  const polish = ctx.createLinearGradient(0, 0, 0, h);
+  polish.addColorStop(0, 'rgba(255, 236, 170, 0.18)');
+  polish.addColorStop(0.42, 'rgba(250, 204, 21, 0.16)');
+  polish.addColorStop(1, 'rgba(120, 53, 15, 0.14)');
+  ctx.fillStyle = polish;
   ctx.fillRect(0, 0, w, h);
 
   // Grain métal léger
   for (let y = 0; y < h; y += 3) {
-    const a = 0.015 + 0.012 * Math.sin(state.grainPhase + y * 0.06);
-    ctx.fillStyle = `rgba(255, 244, 200, ${a})`;
+    const a = 0.02 + 0.014 * Math.sin(state.grainPhase + y * 0.06);
+    ctx.fillStyle = `rgba(255, 245, 210, ${a})`;
     ctx.fillRect(0, y, w, 1);
   }
 
@@ -2848,23 +2856,30 @@ function drawGoldReliefTest(ctx, state, w, h) {
   // Emboss clair (haut-gauche)
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.42;
+  ctx.globalAlpha = 0.30;
   ctx.filter = 'blur(1.1px)';
   ctx.drawImage(state.maskCanvas, -1.5, -1.5, w, h);
   ctx.restore();
 
-  // Emboss sombre (bas-droite)
+  // Emboss sombre (bas-droite) en or foncé / brun
   ctx.save();
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = 0.35;
-  ctx.filter = 'blur(1.5px)';
-  ctx.drawImage(state.maskCanvas, 1.8, 1.8, w, h);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.filter = 'blur(1.2px)';
+  ctx.drawImage(state.maskCanvas, 1.6, 1.6, w, h);
+  ctx.globalCompositeOperation = 'source-in';
+  const darkGold = ctx.createLinearGradient(0, 0, w, h);
+  darkGold.addColorStop(0, 'rgba(120, 53, 15, 0.70)');
+  darkGold.addColorStop(0.5, 'rgba(146, 64, 14, 0.80)');
+  darkGold.addColorStop(1, 'rgba(92, 40, 12, 0.76)');
+  ctx.fillStyle = darkGold;
+  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
   // Liseré interne doré autour de la silhouette
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.28 + 0.10 * Math.sin(state.t * 2.6);
+  ctx.globalAlpha = 0.22 + 0.08 * Math.sin(state.t * 2.6);
   ctx.filter = 'blur(0.6px)';
   ctx.drawImage(state.maskCanvas, -0.7, -0.7, w, h);
   ctx.restore();
