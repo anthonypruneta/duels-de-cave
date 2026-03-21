@@ -149,10 +149,12 @@ const UnifiedCharacterCard = ({
           className={`w-full h-auto object-contain ${imageClassName || ''}`}
         />
       ) : (
-        {/* Important : ne pas “créer” une hauteur fixe ici.
-            On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
-            sinon la zone se retrouve trop petite quand l'image n'existe pas. */}
-        <div className="w-full flex items-center justify-center">{fallback}</div>
+        <>
+          {/* Important : ne pas “créer” une hauteur fixe ici.
+              On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
+              sinon la zone se retrouve trop petite quand l'image n'existe pas. */}
+          <div className="w-full flex items-center justify-center">{fallback}</div>
+        </>
       )}
       {realBorderSrc && (
         <img
