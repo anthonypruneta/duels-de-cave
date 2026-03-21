@@ -109,18 +109,31 @@ async function loadFullChampionForEntry(entry) {
     const { collection, query, where, getDocs } = await import('firebase/firestore');
 
     const archivedRef = collection(db, 'archivedCharacters');
-    const q = query(
-      archivedRef,
-      where('userId', '==', championUserId),
-      where('tournamentChampion', '==', true)
-    );
+    const q = query(archivedRef, where('userId', '==', championUserId));
 
     const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
       const archives = snapshot.docs.map((docSnap) => docSnap.data());
-      const fullData = trouverMeilleureArchive(archives, extraireDateMillis(entry));
-      return { entry, fullData: fullData || champion };
+      const dateMs = extraireDateMillis(entry);
+      const nomChampion = normaliserCle(champion.nom || champion.name);
+
+      let candidats = archives;
+      if (nomChampion) {
+        const parNom = archives.filter(
+          (a) => normaliserCle(a.name ?? a.nom) === nomChampion
+        );
+        if (parNom.length > 0) candidats = parNom;
+      }
+
+      // tournoi du samedi : plusieurs persos archivés, un seul tournamentChampion.
+      // tournoi des anciens : la bonne fiche n’a souvent pas ce flag — on ne filtre
+      // par tournamentChampion que si ça garde au moins une entrée (même nom).
+      const marquesChampion = candidats.filter((a) => a.tournamentChampion === true);
+      const pool = marquesChampion.length > 0 ? marquesChampion : candidats;
+
+      const fullData = trouverMeilleureArchive(pool, dateMs);
+      if (fullData) return { entry, fullData };
     }
   } catch (error) {
     console.error('Erreur chargement champion complet:', error);

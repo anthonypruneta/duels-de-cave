@@ -13,5 +13,5 @@ export const classes = {
   'Briseur de Sort': { ability: 'Égide fractale (Passif)', description: 'Après avoir subi une capacité, gagne un bouclier égal à 40% des dégâts reçus + 25% de votre CAP. Réduit les soins adverses de 20%. Auto + 10% CAP.', icon: '🧱' },
   'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 35% CAP. La prochaine attaque adverse inflige -50% dégâts.', icon: '💋' },
   'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +8% DEF. Inflige auto + 50% CAP + 50% DEF.', icon: '🏰' },
-  'Alchimiste': { ability: 'Cycle de flasques (Passif)', description: 'Pas d\'auto classique. Cycle de 3 flasques (vs ResC) :\n- Feu : inflige Auto + 10% CAP\n- Vie : soigne d\'un montant égal à votre Cap\n- Acide : inflige Auto et réduit DEF/ResC de 10%', icon: '🧪' }
+  'Alchimiste': { ability: 'Cycle de flasques (Passif)', description: 'Pas d\'auto classique. Cycle de 3 flasques (vs ResC) :\n- Feu : inflige Auto + 10% CAP\n- Vie : soigne 130% de votre Cap\n- Acide : inflige Auto et réduit DEF/ResC de 10%', icon: '🧪' }
 };
