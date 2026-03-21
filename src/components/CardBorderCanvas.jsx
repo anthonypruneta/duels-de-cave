@@ -2927,37 +2927,8 @@ function updateGoldReliefTest(state, w, h, dt) {
 }
 
 function drawGoldReliefTest(ctx, state, w, h) {
-  // Base full gold clair 100% opaque (cache totalement la carte d'origine)
-  const metal = ctx.createLinearGradient(0, 0, w, h);
-  metal.addColorStop(0, 'rgba(255, 235, 150, 1)');
-  metal.addColorStop(0.20, 'rgba(250, 204, 21, 1)');
-  metal.addColorStop(0.50, 'rgba(245, 184, 40, 1)');
-  metal.addColorStop(0.78, 'rgba(251, 191, 36, 1)');
-  metal.addColorStop(1, 'rgba(234, 179, 8, 1)');
-  ctx.fillStyle = metal;
-  ctx.fillRect(0, 0, w, h);
-
-  // Polish métal (lignes de réflexion fines)
-  const polish = ctx.createLinearGradient(0, 0, 0, h);
-  polish.addColorStop(0, 'rgba(255, 248, 220, 0.18)');
-  polish.addColorStop(0.38, 'rgba(255, 240, 170, 0.08)');
-  polish.addColorStop(1, 'rgba(255, 215, 90, 0.05)');
-  ctx.fillStyle = polish;
-  ctx.fillRect(0, 0, w, h);
-
-  // Grain métal clair
-  for (let y = 0; y < h; y += 2) {
-    const a = 0.022 + 0.012 * Math.sin(state.grainPhase + y * 0.07);
-    ctx.fillStyle = `rgba(255, 245, 210, ${a})`;
-    ctx.fillRect(0, y, w, 1);
-  }
-
-  // Reflets polis subtils (pas de bande mobile)
-  for (let x = 0; x < w; x += Math.max(10, Math.floor(w / 16))) {
-    const alpha = 0.018 + 0.01 * Math.sin(state.t * 1.2 + x * 0.08);
-    ctx.fillStyle = `rgba(255,255,240,${alpha})`;
-    ctx.fillRect(x, 0, 1, h);
-  }
+  // Mode test demandé: on n'applique PAS le fond full-or.
+  // On affiche uniquement le masque relief pour valider la détection du personnage.
 
   if (!state.maskCanvas) return;
 
