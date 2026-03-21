@@ -2746,9 +2746,9 @@ function buildHeuristicSubjectMask(img, w, h) {
       const edge = Math.min(1, (lx + ly) * 3.2);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const centerBias = Math.exp(-(nX * nX / 0.19 + nY * nY / 0.30));
+      const centerBias = Math.exp(-(nX * nX / 0.10 + nY * nY / 0.18));
       const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.8);
-      const v = (edge * 0.56 + sat[i] * 0.24 + detail * 0.20) * (0.72 + centerBias * 0.42);
+      const v = (edge * 0.60 + sat[i] * 0.24 + detail * 0.16) * (0.52 + centerBias * 0.84);
       score[i] = v;
       sum += v;
       sum2 += v * v;
@@ -2758,7 +2758,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.22;
+  const thr = mean + std * 0.95;
 
   const maskSmall = document.createElement('canvas');
   maskSmall.width = sw;
@@ -2771,9 +2771,13 @@ function buildHeuristicSubjectMask(img, w, h) {
   for (let y = 0; y < sh; y++) {
     for (let x = 0; x < sw; x++) {
       const i = idx(x, y);
-      const a = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const radial = Math.exp(-(nX * nX / 0.085 + nY * nY / 0.16));
+      const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      const a = radial < 0.10 ? 0 : aRaw * Math.pow(radial, 0.9);
       const p = i * 4;
-      const aa = Math.round(255 * Math.pow(a, 0.86));
+      const aa = Math.round(255 * Math.pow(a, 1.65));
       outPx[p] = 255;
       outPx[p + 1] = 255;
       outPx[p + 2] = 255;
