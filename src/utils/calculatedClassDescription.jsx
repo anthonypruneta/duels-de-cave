@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { classConstants, getSubclassCapacityConstants, dmgCap, dmgPhys } from '../data/combatMechanics';
+import { classConstants, getSubclassCapacityConstants, dmgCap } from '../data/combatMechanics';
 import { getSubclassStatBonuses } from '../data/subclasses';
 import { getClassDescriptionText, buildSubclassDescription } from './descriptionBuilders';
 import SharedTooltip from '../components/SharedTooltip';
@@ -230,7 +230,6 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round(lifeCapScale * cap);
       const lifeTotal = lifeBonus;
-      const acidDmg = dmgPhys(auto, def);
       const defRedPct = Math.round((acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((acidRescReduction ?? 0) * 100);
       return (
@@ -250,8 +249,8 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           {' '}soins
           <br />
           Acide : inflige{' '}
-          <Tooltip content={`Physique : Auto (${auto}) − 50% × DEF ennemie — ex. si DEF ennemie = la vôtre (${def}) → ${acidDmg}`}>
-            <span className="text-green-400">{acidDmg}</span>
+          <Tooltip content={`Auto : ${auto}`}>
+            <span className="text-green-400">{auto}</span>
           </Tooltip>
           {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
@@ -683,13 +682,11 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round((c.lifeCapScale ?? 0) * cap);
       const lifeTotal = lifeBonus;
-      const acidDmg = dmgPhys(auto, def);
       const defRedPct = Math.round((c.acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((c.acidRescReduction ?? 0) * 100);
 
       const hasMetal = cycleLen >= 4;
       const stunDur = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      const metalDmg = dmgPhys(auto, def);
 
       return (
         <>
@@ -710,16 +707,16 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           {' '}soins
           <br />
           Acide : inflige{' '}
-          <Tooltip content={`Physique : Auto (${auto}) − 50% × DEF ennemie — ex. DEF ennemie = ${def} → ${acidDmg}`}>
-            <span className="text-green-400">{acidDmg}</span>
+          <Tooltip content={`Auto : ${auto}`}>
+            <span className="text-green-400">{auto}</span>
           </Tooltip>
           {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
           {hasMetal ? (
             <>
               <br />
               Métal : inflige{' '}
-              <Tooltip content={`Physique : Auto (${auto}) − 50% × DEF ennemie — ex. DEF ennemie = ${def} → ${metalDmg}`}>
-                <span className="text-green-400">{metalDmg}</span>
+              <Tooltip content={`Auto : ${auto}`}>
+                <span className="text-green-400">{auto}</span>
               </Tooltip>
               {' '}dégâts (vs Défense) et étourdit <span className="text-green-400">{stunDur}</span> tour
             </>
