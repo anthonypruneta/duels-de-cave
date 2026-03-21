@@ -2962,24 +2962,27 @@ function updateGoldReliefSparkles(state, w, h, dt) {
 }
 
 function drawGoldReliefSparkles(ctx, state, w, h) {
-  const list = state.reliefSparkles;
-  if (!list) return;
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  for (const sp of list) {
-    if (sp.delay > 0) continue;
-    const t = sp.life / sp.maxLife;
-    const pulse = t < 0.22 ? t / 0.22 : t < 0.68 ? 1 : (1 - t) / 0.32;
-    const a = pulse * 0.32;
-    drawStar(ctx, sp.x, sp.y, sp.size, 4, hsl(sp.hue, 78, 78, a));
-    const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.size * 3.2);
-    g.addColorStop(0, hsl(sp.hue, 70, 88, a * 0.45));
-    g.addColorStop(1, hsl(sp.hue, 60, 55, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(sp.x, sp.y, sp.size * 3.2, 0, Math.PI * 2);
-    ctx.fill();
+  const list = state.reliefSparkles;
+  if (list) {
+    for (const sp of list) {
+      if (sp.delay > 0) continue;
+      const t = sp.life / sp.maxLife;
+      const pulse = t < 0.22 ? t / 0.22 : t < 0.68 ? 1 : (1 - t) / 0.32;
+      const a = pulse * 0.32;
+      drawStar(ctx, sp.x, sp.y, sp.size, 4, hsl(sp.hue, 78, 78, a));
+      const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.size * 3.2);
+      g.addColorStop(0, hsl(sp.hue, 70, 88, a * 0.45));
+      g.addColorStop(1, hsl(sp.hue, 60, 55, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, sp.size * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
+  // Balayage iridium : même passe que les scintillements (or visible) — testMode = bien visible pour valider
+  drawGoldReliefIridiumSweep(ctx, w, h, state.t, true);
   ctx.restore();
 }
 
@@ -3035,35 +3038,53 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/** Fine bande lumineuse diagonale (coin haut-gauche → bas-droite), iridium / arc-en-ciel très discret. */
-function drawGoldReliefIridiumSweep(ctx, w, h, t) {
+/**
+ * Fine bande diagonale haut-gauche → bas-droite, iridium.
+ * @param testMode — si true : même pile que les scintillements, contrastes renforcés pour debug / test.
+ */
+function drawGoldReliefIridiumSweep(ctx, w, h, t, testMode = false) {
   const ang = Math.atan2(h, w);
   const diag = Math.hypot(w, h);
-  const band = diag * 0.019;
+  const band = diag * (testMode ? 0.034 : 0.019);
 
   ctx.save();
-  // « Screen » : visible sur or et sur marron ; rotation centrée pour balayer toute la carte
-  ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.072;
+  if (testMode) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.26;
+  } else {
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.072;
+  }
 
   ctx.translate(w * 0.5, h * 0.5);
   ctx.rotate(ang);
   ctx.translate(-w * 0.5, -h * 0.5);
 
   const cycle = diag * 1.65;
-  const pos = ((t * 16) % cycle) - cycle * 0.48;
+  const speed = testMode ? 26 : 16;
+  const pos = ((t * speed) % cycle) - cycle * 0.48;
   const hueBase = (t * 28) % 360;
 
   const gx0 = pos - band * 0.35;
   const gx1 = pos + band * 1.45;
   const g = ctx.createLinearGradient(gx0, 0, gx1, 0);
-  g.addColorStop(0, hsl((hueBase + 268) % 360, 42, 72, 0));
-  g.addColorStop(0.18, hsl((hueBase + 312) % 360, 48, 64, 0.12));
-  g.addColorStop(0.35, hsl((hueBase + 188) % 360, 52, 58, 0.2));
-  g.addColorStop(0.5, hsl((hueBase + 328) % 360, 46, 66, 0.17));
-  g.addColorStop(0.66, hsl((hueBase + 162) % 360, 48, 58, 0.14));
-  g.addColorStop(0.82, hsl((hueBase + 292) % 360, 44, 68, 0.09));
-  g.addColorStop(1, hsl((hueBase + 228) % 360, 38, 72, 0));
+  if (testMode) {
+    g.addColorStop(0, hsl((hueBase + 268) % 360, 52, 68, 0));
+    g.addColorStop(0.2, hsl((hueBase + 312) % 360, 58, 58, 0.45));
+    g.addColorStop(0.38, hsl((hueBase + 188) % 360, 62, 54, 0.62));
+    g.addColorStop(0.52, hsl((hueBase + 328) % 360, 56, 62, 0.55));
+    g.addColorStop(0.68, hsl((hueBase + 162) % 360, 58, 56, 0.48));
+    g.addColorStop(0.84, hsl((hueBase + 292) % 360, 54, 64, 0.32));
+    g.addColorStop(1, hsl((hueBase + 228) % 360, 48, 70, 0));
+  } else {
+    g.addColorStop(0, hsl((hueBase + 268) % 360, 42, 72, 0));
+    g.addColorStop(0.18, hsl((hueBase + 312) % 360, 48, 64, 0.12));
+    g.addColorStop(0.35, hsl((hueBase + 188) % 360, 52, 58, 0.2));
+    g.addColorStop(0.5, hsl((hueBase + 328) % 360, 46, 66, 0.17));
+    g.addColorStop(0.66, hsl((hueBase + 162) % 360, 48, 58, 0.14));
+    g.addColorStop(0.82, hsl((hueBase + 292) % 360, 44, 68, 0.09));
+    g.addColorStop(1, hsl((hueBase + 228) % 360, 38, 72, 0));
+  }
 
   ctx.fillStyle = g;
   ctx.fillRect(pos - band * 5, -diag * 1.05, band * 18, diag * 2.35);
@@ -3201,10 +3222,6 @@ function drawGoldReliefTest(ctx, state, w, h) {
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 0.93;
   ctx.drawImage(overlay, 0, 0);
-
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-  drawGoldReliefIridiumSweep(ctx, w, h, state.t);
 
   ctx.restore();
 }
