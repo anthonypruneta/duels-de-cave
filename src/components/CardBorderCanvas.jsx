@@ -2758,7 +2758,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.82;
+  const thr = mean + std * 0.60;
 
   // Binaire initial
   const bin = new Uint8Array(sw * sh);
@@ -2864,18 +2864,18 @@ function buildHeuristicSubjectMask(img, w, h) {
     // on le resserre automatiquement autour de la zone centrale/forte.
     const coverage = bestPixels.length / Math.max(1, sw * sh);
     let tighten = false;
-    if (coverage > 0.33) tighten = true;
+    if (coverage > 0.38) tighten = true;
 
-    const extraThr = thr + std * 0.55;
+    const extraThr = thr + std * 0.34;
     for (const i of bestPixels) {
       const x = i % sw;
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.11 + nY * nY / 0.19));
+      const radial = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.24));
       if (tighten) {
-        const tightRadial = Math.exp(-(nX * nX / 0.065 + nY * nY / 0.11));
-        if (tightRadial < 0.22) continue;
+        const tightRadial = Math.exp(-(nX * nX / 0.095 + nY * nY / 0.17));
+        if (tightRadial < 0.14) continue;
         if (score[i] < extraThr) continue;
       }
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
@@ -2886,7 +2886,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   }
   mctx.putImageData(out, 0, 0);
   // Lissage léger: on floute très peu pour éviter de "manger" tout le décor.
-  mctx.filter = 'blur(0.45px)';
+  mctx.filter = 'blur(0.7px)';
   mctx.drawImage(maskSmall, 0, 0);
   mctx.filter = 'none';
 
