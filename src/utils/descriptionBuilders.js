@@ -116,7 +116,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
-    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques (vs ResC) :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : ${(c.lifeCapScale || 0) * 100}% CAP\n- Acide : réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
+    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques (vs ResC) :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
     default: return classes[className]?.description || '';
   }
 };
@@ -182,12 +182,12 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi (réduits par la ResC), puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
 
     case 'maitre_alchimiste': {
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
     }
 
     case 'alchimiste_metal': {
       const stun = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs ResC) et étourdit ${stun} tour`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs ResC) et étourdit ${stun} tour`;
     }
     default:
       return '';
@@ -288,8 +288,8 @@ export const buildClassDescriptionParts = (className, constants = null) => {
     case 'Alchimiste':
       return [
         text('Cycle de '), slot(['cycleLength'], 'raw'), text(' flasques (vs ResC) :\n- Feu : Auto + '),
-        slot(['fireCapScale'], 'percent'), text('% CAP\n- Vie : '),
-        slot(['lifeCapScale'], 'percent'), text('% CAP\n- Acide : réduit DEF '),
+        slot(['fireCapScale'], 'percent'), text('% CAP\n- Vie : soin '),
+        slot(['lifeCapScale'], 'percent'), text('% de votre CAP\n- Acide : réduit DEF '),
         slot(['acidDefReduction'], 'percent'), text('% / ResC '),
         slot(['acidRescReduction'], 'percent'), text('%')
       ];

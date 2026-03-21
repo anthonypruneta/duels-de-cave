@@ -77,7 +77,7 @@ export const classConstants = {
   alchimiste: {
     cycleLength: 3,              // 3 phases : feu, vie, acide
     fireCapScale: 0.10,          // Flasque de feu : Auto + 10% CAP
-    lifeCapScale: 0.10,          // Flasque de vie : 10% CAP (soin)
+    lifeCapScale: 1.0,           // Flasque de vie : soin = Cap × ce facteur (1 = 100% de la Cap)
     acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
     acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
@@ -124,7 +124,7 @@ export const subclassConstants = {
   ecorche_fer: { defRescapStack: 0.03 },               // +7% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
-  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 0.30, acidDefReduction: 0.25, acidRescReduction: 0.25 },
+  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.4, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // soin ~ ancien Auto + 30% Cap (Cap≈20, Auto≈22 → ×1,4)
   alchimiste_metal: { cycleLength: 4 }                 // 4 phases (ajout flasque de métal)
 };
 

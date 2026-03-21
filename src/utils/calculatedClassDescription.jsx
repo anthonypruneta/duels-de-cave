@@ -244,10 +244,10 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           {' '}dégâts (vs RésCap)
           <br />
           Vie :{' '}
-          <Tooltip content={`${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`Soin = ${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
-          {' '}soins (vs RésCap)
+          {' '}soins
           <br />
           Acide : inflige{' '}
           <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${acidDmg}`}>
@@ -704,7 +704,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           {' '}dégâts (vs ResC)
           <br />
           Vie :{' '}
-          <Tooltip content={`${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`Soin = ${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
           {' '}soins
