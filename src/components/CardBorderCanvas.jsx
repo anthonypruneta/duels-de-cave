@@ -2718,6 +2718,193 @@ function drawStormTempest(ctx, state, w, h) {
   }
 }
 
+// ─── Gold Relief (test heuristique, sans masque réel) ─────────────────────────
+
+function buildHeuristicSubjectMask(img, w, h) {
+  const sw = Math.max(84, Math.min(180, Math.round(w * 0.34)));
+  const sh = Math.max(120, Math.min(260, Math.round(h * 0.34)));
+  const sample = document.createElement('canvas');
+  sample.width = sw;
+  sample.height = sh;
+  const sctx = sample.getContext('2d', { willReadFrequently: true });
+  if (!sctx) return null;
+
+  sctx.clearRect(0, 0, sw, sh);
+  const ratio = Math.min(sw / img.width, sh / img.height);
+  const dw = img.width * ratio;
+  const dh = img.height * ratio;
+  const ox = (sw - dw) * 0.5;
+  const oy = (sh - dh) * 0.5;
+  sctx.drawImage(img, ox, oy, dw, dh);
+
+  const data = sctx.getImageData(0, 0, sw, sh);
+  const px = data.data;
+  const lum = new Float32Array(sw * sh);
+  const sat = new Float32Array(sw * sh);
+  const score = new Float32Array(sw * sh);
+
+  const idx = (x, y) => y * sw + x;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const p = i * 4;
+      const r = px[p] / 255;
+      const g = px[p + 1] / 255;
+      const b = px[p + 2] / 255;
+      const maxc = Math.max(r, g, b);
+      const minc = Math.min(r, g, b);
+      lum[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+      sat[i] = maxc > 0 ? (maxc - minc) / maxc : 0;
+    }
+  }
+
+  let sum = 0;
+  let sum2 = 0;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const lx = x < sw - 1 ? Math.abs(lum[i] - lum[idx(x + 1, y)]) : 0;
+      const ly = y < sh - 1 ? Math.abs(lum[i] - lum[idx(x, y + 1)]) : 0;
+      const edge = Math.min(1, (lx + ly) * 3.2);
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const centerBias = Math.exp(-(nX * nX / 0.19 + nY * nY / 0.30));
+      const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.8);
+      const v = (edge * 0.56 + sat[i] * 0.24 + detail * 0.20) * (0.72 + centerBias * 0.42);
+      score[i] = v;
+      sum += v;
+      sum2 += v * v;
+    }
+  }
+  const count = sw * sh;
+  const mean = sum / Math.max(1, count);
+  const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
+  const std = Math.sqrt(variance);
+  const thr = mean + std * 0.22;
+
+  const maskSmall = document.createElement('canvas');
+  maskSmall.width = sw;
+  maskSmall.height = sh;
+  const mctx = maskSmall.getContext('2d');
+  if (!mctx) return null;
+  const out = mctx.createImageData(sw, sh);
+  const outPx = out.data;
+
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const a = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      const p = i * 4;
+      const aa = Math.round(255 * Math.pow(a, 0.86));
+      outPx[p] = 255;
+      outPx[p + 1] = 255;
+      outPx[p + 2] = 255;
+      outPx[p + 3] = aa;
+    }
+  }
+  mctx.putImageData(out, 0, 0);
+
+  const maskFull = document.createElement('canvas');
+  maskFull.width = w;
+  maskFull.height = h;
+  const fctx = maskFull.getContext('2d');
+  if (!fctx) return null;
+  fctx.imageSmoothingEnabled = true;
+  fctx.clearRect(0, 0, w, h);
+  fctx.drawImage(maskSmall, 0, 0, w, h);
+  return maskFull;
+}
+
+function initGoldReliefTest(w, h, imageSrc) {
+  const state = {
+    t: rand(0, Math.PI * 2),
+    sweepPos: -w * 0.36,
+    sweepSpeed: Math.max(1.5, w * 0.0055),
+    grainPhase: rand(0, Math.PI * 2),
+    maskCanvas: null,
+  };
+
+  if (imageSrc) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      state.maskCanvas = buildHeuristicSubjectMask(img, w, h);
+    };
+    img.onerror = () => {};
+    img.src = imageSrc;
+  }
+  return state;
+}
+
+function updateGoldReliefTest(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.02 * s;
+  state.grainPhase += 0.016 * s;
+  state.sweepPos += state.sweepSpeed * s;
+  if (state.sweepPos > w * 1.28) {
+    state.sweepPos = -w * 0.40;
+    state.sweepSpeed = Math.max(1.4, w * rand(0.0048, 0.007));
+  }
+}
+
+function drawGoldReliefTest(ctx, state, w, h) {
+  const metal = ctx.createLinearGradient(0, 0, w, h);
+  metal.addColorStop(0, 'rgba(250, 204, 21, 0.22)');
+  metal.addColorStop(0.2, 'rgba(234, 179, 8, 0.34)');
+  metal.addColorStop(0.5, 'rgba(161, 98, 7, 0.26)');
+  metal.addColorStop(0.8, 'rgba(250, 204, 21, 0.30)');
+  metal.addColorStop(1, 'rgba(202, 138, 4, 0.24)');
+  ctx.fillStyle = metal;
+  ctx.fillRect(0, 0, w, h);
+
+  // Grain métal léger
+  for (let y = 0; y < h; y += 3) {
+    const a = 0.015 + 0.012 * Math.sin(state.grainPhase + y * 0.06);
+    ctx.fillStyle = `rgba(255, 244, 200, ${a})`;
+    ctx.fillRect(0, y, w, 1);
+  }
+
+  // Reflet spéculaire mobile
+  const bx1 = state.sweepPos;
+  const by1 = -h * 0.1;
+  const bx2 = state.sweepPos + w * 0.26;
+  const by2 = h * 1.1;
+  const beam = ctx.createLinearGradient(bx1, by1, bx2, by2);
+  beam.addColorStop(0, 'rgba(255,255,255,0)');
+  beam.addColorStop(0.25, 'rgba(255,248,220,0.10)');
+  beam.addColorStop(0.52, 'rgba(255,255,255,0.24)');
+  beam.addColorStop(0.72, 'rgba(255,240,180,0.10)');
+  beam.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = beam;
+  ctx.fillRect(state.sweepPos - w * 0.12, 0, w * 0.52, h);
+
+  if (!state.maskCanvas) return;
+
+  // Emboss clair (haut-gauche)
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = 0.42;
+  ctx.filter = 'blur(1.1px)';
+  ctx.drawImage(state.maskCanvas, -1.5, -1.5, w, h);
+  ctx.restore();
+
+  // Emboss sombre (bas-droite)
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = 0.35;
+  ctx.filter = 'blur(1.5px)';
+  ctx.drawImage(state.maskCanvas, 1.8, 1.8, w, h);
+  ctx.restore();
+
+  // Liseré interne doré autour de la silhouette
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = 0.28 + 0.10 * Math.sin(state.t * 2.6);
+  ctx.filter = 'blur(0.6px)';
+  ctx.drawImage(state.maskCanvas, -0.7, -0.7, w, h);
+  ctx.restore();
+}
+
 // ─── Registre des effets ─────────────────────────────────────────────────────
 
 const EFFECTS = {
@@ -2734,6 +2921,7 @@ const EFFECTS = {
   perfect_character: { init: initPerfectCharacter, update: updatePerfectCharacter, draw: drawPerfectCharacter },
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
+  gold_relief_test: { init: initGoldReliefTest, update: updateGoldReliefTest, draw: drawGoldReliefTest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },
   titane:         { init: initTitane, update: updateTitane, draw: drawTitane },
   cosmique:       { init: initCosmic, update: updateCosmic, draw: drawCosmic },
@@ -2744,7 +2932,7 @@ const EFFECTS = {
 
 // ─── Composant React ─────────────────────────────────────────────────────────
 
-const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
+const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId, imageSrc = null }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
@@ -2796,7 +2984,7 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
       canvas.height = h * DPR;
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
-      stateRef.current = effect.init(w, h);
+      stateRef.current = effect.init(w, h, imageSrc);
     };
 
     const ro = new ResizeObserver(resize);
@@ -2815,7 +3003,7 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
       io.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [effect, animate]);
+  }, [effect, animate, imageSrc]);
 
   if (!effect) return null;
 

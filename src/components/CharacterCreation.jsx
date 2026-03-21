@@ -1415,7 +1415,7 @@ const CharacterCreation = () => {
                       })()}
                       {(() => {
                         const bid = resolveBorderId(existingCharacter.equippedBorder);
-                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
+                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} imageSrc={existingCharacter.characterImage || null} /> : null;
                       })()}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
@@ -1560,7 +1560,7 @@ const CharacterCreation = () => {
                                   }`}
                                 >
                                   {unlocked && border.id !== 'default' && (
-                                    <CardBorderCanvas borderId={border.id} />
+                                    <CardBorderCanvas borderId={border.id} imageSrc={existingCharacter.characterImage || null} />
                                   )}
                                   <div className="relative z-10">
                                     <div className="text-lg mb-1">{border.icon}</div>

@@ -64,6 +64,14 @@ export const BORDERS = {
     type: 'character',
     condition: 'Obtenir une sous-classe',
   },
+  gold_relief_test: {
+    id: 'gold_relief_test',
+    nom: 'Gold Relief (Test)',
+    icon: '🟨',
+    cssClass: 'border-gold-relief-glow',
+    type: 'account',
+    condition: 'Effet de test admin',
+  },
   champion: {
     id: 'champion',
     nom: 'Champion',

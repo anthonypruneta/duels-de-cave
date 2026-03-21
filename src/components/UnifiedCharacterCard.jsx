@@ -126,7 +126,7 @@ const UnifiedCharacterCard = ({
   const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
   const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
 
-  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
+  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} imageSrc={image || null} /> : null;
 
   const wrapperGlow = borderOnImageOnly ? '' : glowCls;
   // Filtre "vieille télé" : contraste fort + très peu de couleur + légère baisse de luminosité
