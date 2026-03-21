@@ -2860,12 +2860,24 @@ function buildHeuristicSubjectMask(img, w, h) {
     outPx[p + 3] = 0;
   }
   if (bestPixels && bestPixels.length > 0) {
+    // Garde-fou: si le composant est trop grand (attrape presque toute la carte),
+    // on le resserre automatiquement autour de la zone centrale/forte.
+    const coverage = bestPixels.length / Math.max(1, sw * sh);
+    let tighten = false;
+    if (coverage > 0.33) tighten = true;
+
+    const extraThr = thr + std * 0.55;
     for (const i of bestPixels) {
       const x = i % sw;
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
       const radial = Math.exp(-(nX * nX / 0.11 + nY * nY / 0.19));
+      if (tighten) {
+        const tightRadial = Math.exp(-(nX * nX / 0.065 + nY * nY / 0.11));
+        if (tightRadial < 0.22) continue;
+        if (score[i] < extraThr) continue;
+      }
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
       const a = aRaw * (0.72 + radial * 0.45);
       const p = i * 4;
@@ -2873,8 +2885,8 @@ function buildHeuristicSubjectMask(img, w, h) {
     }
   }
   mctx.putImageData(out, 0, 0);
-  // Lissage léger pour éviter les contours pixellisés du masque
-  mctx.filter = 'blur(1px)';
+  // Lissage léger: on floute très peu pour éviter de "manger" tout le décor.
+  mctx.filter = 'blur(0.45px)';
   mctx.drawImage(maskSmall, 0, 0);
   mctx.filter = 'none';
 
