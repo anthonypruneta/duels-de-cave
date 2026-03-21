@@ -2758,7 +2758,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.34;
+  const thr = mean + std * 0.28;
 
   // Binaire initial
   const bin = new Uint8Array(sw * sh);
@@ -2767,10 +2767,10 @@ function buildHeuristicSubjectMask(img, w, h) {
       const i = idx(x, y);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.16 + nY * nY / 0.24));
-      if (radial < 0.04) continue;
+      const radial = Math.exp(-(nX * nX / 0.18 + nY * nY / 0.27));
+      if (radial < 0.03) continue;
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      if (aRaw > 0.045) bin[i] = 1;
+      if (aRaw > 0.038) bin[i] = 1;
     }
   }
 
@@ -2861,7 +2861,7 @@ function buildHeuristicSubjectMask(img, w, h) {
       const centerPenalty = Math.sqrt(dx * dx + dy * dy);
       const heightScore = (maxY - minY + 1) / sh;
       const widthScore = (maxX - minX + 1) / sw;
-      const sizeGate = (heightScore > 0.28 ? 1 : 0.42) * (widthScore > 0.16 ? 1 : 0.55);
+      const sizeGate = (heightScore > 0.24 ? 1 : 0.42) * (widthScore > 0.14 ? 1 : 0.55);
       const weight = area * sizeGate * (1 - Math.min(0.8, centerPenalty * 1.6)) * (0.85 + heightScore * 0.7);
 
       if (weight > bestWeight) {
@@ -2900,7 +2900,7 @@ function buildHeuristicSubjectMask(img, w, h) {
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.18 + nY * nY / 0.30));
+      const radial = Math.exp(-(nX * nX / 0.20 + nY * nY / 0.33));
       if (tighten) {
         const tightRadial = Math.exp(-(nX * nX / 0.12 + nY * nY / 0.22));
         if (tightRadial < 0.08) continue;
