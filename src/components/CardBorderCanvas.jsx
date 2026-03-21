@@ -3035,6 +3035,37 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/** Fine bande lumineuse diagonale (coin haut-gauche → bas-droite), iridium / arc-en-ciel très discret. */
+function drawGoldReliefIridiumSweep(ctx, w, h, t) {
+  const ang = Math.atan2(h, w);
+  const diag = Math.sqrt(w * w + h * h);
+  const band = diag * 0.014;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = 0.03;
+
+  ctx.rotate(ang);
+
+  const cycle = diag * 1.55;
+  const pos = ((t * 18) % cycle) - band * 2.5;
+  const hueBase = (t * 32) % 360;
+
+  const g = ctx.createLinearGradient(pos, 0, pos + band * 1.55, 0);
+  g.addColorStop(0, hsl((hueBase + 268) % 360, 38, 66, 0));
+  g.addColorStop(0.2, hsl((hueBase + 312) % 360, 44, 58, 0.05));
+  g.addColorStop(0.36, hsl((hueBase + 188) % 360, 50, 56, 0.085));
+  g.addColorStop(0.52, hsl((hueBase + 328) % 360, 42, 60, 0.075));
+  g.addColorStop(0.68, hsl((hueBase + 162) % 360, 46, 54, 0.065));
+  g.addColorStop(0.84, hsl((hueBase + 292) % 360, 40, 62, 0.04));
+  g.addColorStop(1, hsl((hueBase + 228) % 360, 34, 68, 0));
+
+  ctx.fillStyle = g;
+  ctx.fillRect(pos - band * 2, -diag * 1.45, band * 14, diag * 3.4);
+
+  ctx.restore();
+}
+
 /** Calque offscreen : silhouette marron avec volume (ombre + modelé + reflet pulsé). */
 function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   octx.setTransform(1, 0, 0, 1, 0, 0);
@@ -3165,6 +3196,10 @@ function drawGoldReliefTest(ctx, state, w, h) {
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 0.93;
   ctx.drawImage(overlay, 0, 0);
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  drawGoldReliefIridiumSweep(ctx, w, h, state.t);
 
   ctx.restore();
 }
