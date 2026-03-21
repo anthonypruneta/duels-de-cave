@@ -1296,9 +1296,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
 
     } else if (phase === 2) {
-      // Flasque d'acide : dégâts + réduction DEF/ResC
+      // Flasque d'acide : dégâts physiques (Auto vs DEF ennemie, comme une attaque normale) + réduction DEF/ResC
       const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
-      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1344,9 +1344,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
 
     } else if (phase === 3) {
-      // Flasque de métal (sous-classe Alchimiste de Métal uniquement)
+      // Flasque de métal (sous-classe Alchimiste de Métal uniquement) : physique vs DEF ennemie
       const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
-      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {

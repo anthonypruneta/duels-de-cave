@@ -52,8 +52,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'latum', name: 'Latum', bonus: '+8% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 15% des PV manquants en dégâts à l\'ennemi (réduits par la ResC), puis soigne 25% des PV manquants + 40% Cap.' },
   ],
   'Alchimiste': [
-    { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + 30% CAP (vs ResC)\n- Vie : soigne 130% de votre Cap\n- Acide : Auto (vs ResC) et réduit DEF/ResC de 25%' },
-    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP (vs ResC)\n- Vie : soigne 100% de votre Cap\n- Acide : Auto (vs ResC) et réduit DEF/ResC de 10%\n- Métal : Auto (vs ResC) et étourdit 1 tour' },
+    { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + 30% CAP (vs ResC)\n- Vie : soigne 130% de votre Cap\n- Acide : Auto (vs DEF ennemie) et réduit DEF/ResC de 25%' },
+    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP (vs ResC)\n- Vie : soigne 100% de votre Cap\n- Acide : Auto (vs DEF ennemie) et réduit DEF/ResC de 10%\n- Métal : Auto (vs DEF ennemie) et étourdit 1 tour' },
   ],
 };
 
