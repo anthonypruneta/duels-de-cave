@@ -2140,185 +2140,6 @@ function drawGojoInfinity(ctx, state, w, h) {
   }
 }
 
-// ─── Personnage parfait : fusion runique + infini + sable + lune ────────────
-
-function initPerfectCharacter(w, h) {
-  return {
-    t: rand(0, Math.PI * 2),
-    revealCenterX: w * 0.5,
-    revealBand: Math.max(56, w * 0.24),
-    prismaticStars: Array.from({ length: Math.max(54, Math.floor(w / 6.5)) }, () => ({
-      x: rand(0, w),
-      y: rand(0, h * 0.95),
-      r: rand(1.0, 2.8),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.24, 0.6),
-      hue: rand(185, 320),
-      seen: 0,
-    })),
-    streaks: Array.from({ length: Math.max(34, Math.floor(w / 12)) }, () => ({
-      x: rand(0, w),
-      y: rand(h * 0.06, h * 0.98),
-      len: rand(24, 90),
-      width: rand(0.9, 2.8),
-      hue: rand(180, 330),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.10, 0.26),
-      tilt: rand(-1.15, 1.15),
-    })),
-    shards: Array.from({ length: Math.max(18, Math.floor(w / 20)) }, () => ({
-      x: rand(0, w),
-      y: rand(h * 0.05, h * 0.95),
-      s: rand(8, 22),
-      rot: rand(0, Math.PI * 2),
-      rotV: rand(-0.014, 0.014),
-      hue: rand(175, 325),
-      alpha: rand(0.10, 0.28),
-    })),
-  };
-}
-
-function updatePerfectCharacter(state, w, h, dt) {
-  const s = dt / 16;
-  state.t += 0.022 * s;
-  state.revealCenterX = w * 0.5 + Math.sin(state.t * 0.45) * (w * 0.14);
-  state.revealBand = Math.max(54, w * (0.21 + 0.04 * (0.5 + 0.5 * Math.sin(state.t * 0.72))));
-  for (const st of state.prismaticStars) {
-    st.phase += 0.032 * s;
-    const dx = Math.abs(st.x - state.revealCenterX);
-    const nearArea = Math.max(0, 1 - dx / Math.max(1, state.revealBand));
-    st.seen = Math.max(st.seen * (1 - 0.0012 * s), nearArea * 0.82);
-  }
-  for (const st of state.streaks) {
-    st.phase += 0.02 * s;
-    st.x += Math.cos(st.phase * 0.85) * 0.14 * s;
-    st.y += Math.sin(st.phase * 0.65) * 0.09 * s;
-    if (st.x < -40) st.x = w + 40;
-    if (st.x > w + 40) st.x = -40;
-    if (st.y < -30) st.y = h + 30;
-    if (st.y > h + 30) st.y = -30;
-  }
-  for (const sh of state.shards) {
-    sh.rot += sh.rotV * s;
-  }
-}
-
-function drawPerfectCharacter(ctx, state, w, h) {
-  // Base + teinte cristal
-  const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, 'rgba(255,255,255,0.02)');
-  bg.addColorStop(1, 'rgba(15, 23, 42, 0.06)');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-
-  // Halo prismatique global (comme carte Téracristal)
-  const prismGlow = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, Math.max(w, h) * 0.72);
-  prismGlow.addColorStop(0, 'rgba(255,255,255,0.16)');
-  prismGlow.addColorStop(0.22, 'rgba(125, 211, 252, 0.12)');
-  prismGlow.addColorStop(0.52, 'rgba(216, 180, 254, 0.13)');
-  prismGlow.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = prismGlow;
-  ctx.fillRect(0, 0, w, h);
-
-  // Liseré arc-en-ciel doux sur les bords
-  const edge = ctx.createLinearGradient(0, 0, w, h);
-  edge.addColorStop(0, 'rgba(56,189,248,0.18)');
-  edge.addColorStop(0.25, 'rgba(244,114,182,0.16)');
-  edge.addColorStop(0.5, 'rgba(250,204,21,0.14)');
-  edge.addColorStop(0.75, 'rgba(52,211,153,0.15)');
-  edge.addColorStop(1, 'rgba(99,102,241,0.18)');
-  ctx.strokeStyle = edge;
-  ctx.lineWidth = Math.max(10, w * 0.03);
-  ctx.strokeRect(0, 0, w, h);
-
-  // Lueur centrale douce (sans bande traversante)
-  const softCore = ctx.createRadialGradient(state.revealCenterX, h * 0.5, 0, state.revealCenterX, h * 0.5, Math.max(w, h) * 0.42);
-  softCore.addColorStop(0, 'rgba(255,255,255,0.14)');
-  softCore.addColorStop(0.45, 'rgba(186,230,253,0.08)');
-  softCore.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = softCore;
-  ctx.fillRect(0, 0, w, h);
-
-  // Trainées prismatiques multi-axes (style référence)
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  for (const st of state.streaks) {
-    const pulse = 0.55 + 0.45 * Math.sin(st.phase + state.t * 1.4);
-    const a = st.alpha * pulse;
-    const dx = Math.cos(st.tilt) * st.len * 0.5;
-    const dy = Math.sin(st.tilt) * st.len * 0.5;
-    const xA = st.x - dx;
-    const yA = st.y - dy;
-    const xB = st.x + dx;
-    const yB = st.y + dy;
-    const lg = ctx.createLinearGradient(xA, yA, xB, yB);
-    lg.addColorStop(0, hsl(st.hue, 90, 74, 0));
-    lg.addColorStop(0.5, hsl(st.hue, 90, 80, a));
-    lg.addColorStop(1, hsl(st.hue, 90, 74, 0));
-    ctx.strokeStyle = lg;
-    ctx.lineWidth = st.width;
-    ctx.beginPath();
-    ctx.moveTo(xA, yA);
-    ctx.lineTo(xB, yB);
-    ctx.stroke();
-  }
-  for (const sh of state.shards) {
-    ctx.save();
-    ctx.translate(sh.x, sh.y);
-    ctx.rotate(sh.rot);
-    ctx.fillStyle = hsl(sh.hue, 88, 80, sh.alpha);
-    ctx.beginPath();
-    ctx.moveTo(0, -sh.s);
-    ctx.lineTo(sh.s * 0.72, -sh.s * 0.15);
-    ctx.lineTo(sh.s * 0.22, sh.s);
-    ctx.lineTo(-sh.s * 0.64, sh.s * 0.28);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-  ctx.restore();
-
-  // Etoiles prismatiques : visibles globalement, boostées au passage du faisceau
-  for (const st of state.prismaticStars) {
-    const tw = 0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2);
-    const base = st.alpha * (0.15 + 0.35 * tw);
-    const boosted = st.alpha * st.seen * tw;
-    const a = Math.max(base, boosted);
-    if (a <= 0.02) continue;
-
-    const gg = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4);
-    gg.addColorStop(0, `rgba(255,255,255,${a * 0.55})`);
-    gg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gg;
-    ctx.beginPath();
-    ctx.arc(st.x, st.y, st.r * 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Etoile diamant
-    ctx.save();
-    ctx.translate(st.x, st.y);
-    ctx.rotate(st.phase * 0.5);
-    ctx.fillStyle = hsl(st.hue, 85, 80, a);
-    ctx.beginPath();
-    ctx.moveTo(0, -st.r * 1.45);
-    ctx.lineTo(st.r * 0.95, 0);
-    ctx.lineTo(0, st.r * 1.45);
-    ctx.lineTo(-st.r * 0.95, 0);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = `rgba(255,255,255,${a * 0.85})`;
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(0, -st.r * 2.0);
-    ctx.lineTo(0, st.r * 2.0);
-    ctx.moveTo(-st.r * 2.0, 0);
-    ctx.lineTo(st.r * 2.0, 0);
-    ctx.stroke();
-    ctx.restore();
-  }
-}
-
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
@@ -2696,7 +2517,7 @@ function drawStormTempest(ctx, state, w, h) {
   }
 }
 
-// ─── Gold Relief (test heuristique, sans masque réel) ─────────────────────────
+// ─── Gold Relief (Personnage parfait + ancien gold_relief_test) ──────────────
 
 function buildHeuristicSubjectMask(img, w, h) {
   const sw = Math.max(92, Math.min(200, Math.round(w * 0.40)));
@@ -3208,6 +3029,8 @@ function drawGoldReliefTest(ctx, state, w, h) {
 
 // ─── Registre des effets ─────────────────────────────────────────────────────
 
+const GOLD_RELIEF_CANVAS_EFFECT = { init: initGoldReliefTest, update: updateGoldReliefTest, draw: drawGoldReliefTest };
+
 const EFFECTS = {
   lava:           { init: initLava, update: updateLava, draw: drawLava },
   ice:            { init: initIce, update: updateIce, draw: drawIce },
@@ -3219,10 +3042,9 @@ const EFFECTS = {
   sable:          { init: initSable, update: updateSable, draw: drawSable },
   ornn_runic:     { init: initOrnnRunic, update: updateOrnnRunic, draw: drawOrnnRunic },
   gojo_infinity:  { init: initGojoInfinity, update: updateGojoInfinity, draw: drawGojoInfinity },
-  perfect_character: { init: initPerfectCharacter, update: updatePerfectCharacter, draw: drawPerfectCharacter },
+  perfect_character: GOLD_RELIEF_CANVAS_EFFECT,
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
-  gold_relief_test: { init: initGoldReliefTest, update: updateGoldReliefTest, draw: drawGoldReliefTest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },
   titane:         { init: initTitane, update: updateTitane, draw: drawTitane },
   cosmique:       { init: initCosmic, update: updateCosmic, draw: drawCosmic },

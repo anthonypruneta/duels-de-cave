@@ -64,14 +64,6 @@ export const BORDERS = {
     type: 'character',
     condition: 'Obtenir une sous-classe',
   },
-  gold_relief_test: {
-    id: 'gold_relief_test',
-    nom: 'Gold Relief (Test)',
-    icon: '🟨',
-    cssClass: 'border-gold-relief-glow',
-    type: 'account',
-    condition: 'Effet de test admin',
-  },
   champion: {
     id: 'champion',
     nom: 'Champion',
@@ -124,7 +116,7 @@ export const BORDERS = {
     id: 'perfect_character',
     nom: 'Personnage Parfait',
     icon: '👑',
-    cssClass: 'border-perfect-character-glow',
+    cssClass: 'border-gold-relief-glow',
     type: 'account',
     condition: 'Avoir un personnage avec Ornn parfait + Gojo niv.3 + niveau 400 + sous-classe',
   },
@@ -223,6 +215,8 @@ const _cssToIdCache = {};
  */
 export function resolveBorderId(value) {
   if (!value) return 'default';
+  if (value === 'gold_relief_test') return 'perfect_character';
+  if (value === 'border-perfect-character-glow') return 'perfect_character';
   if (BORDERS[value]) return value;
   if (_cssToIdCache[value]) return _cssToIdCache[value];
   for (const border of Object.values(BORDERS)) {
@@ -627,21 +621,28 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     adjustedCurrentUnlocked = currentUnlocked.filter(id => id !== 'ancient');
   }
 
-  const merged = [...new Set([...adjustedCurrentUnlocked, ...newUnlocked])];
+  const normalizeBorderId = (id) => (id === 'gold_relief_test' ? 'perfect_character' : id);
+  const merged = [...new Set([...adjustedCurrentUnlocked, ...newUnlocked].map(normalizeBorderId))];
+  const equippedNeedsMigrate = character?.equippedBorder === 'gold_relief_test';
   const hasChanges = (
     merged.length !== currentUnlocked.length ||
     merged.some(id => !currentUnlocked.includes(id)) ||
-    currentUnlocked.some(id => id === 'ancient' && !merged.includes('ancient'))
+    currentUnlocked.some(id => id === 'ancient' && !merged.includes('ancient')) ||
+    currentUnlocked.some(id => id === 'gold_relief_test') ||
+    equippedNeedsMigrate
   );
   if (!hasChanges) return currentUnlocked;
-  
+
+  let nextEquipped = character?.equippedBorder;
+  if (nextEquipped === 'gold_relief_test') nextEquipped = 'perfect_character';
+
   // Sauvegarder dans le personnage
   try {
     await setDoc(doc(db, 'characters', userId), {
       unlockedBorders: merged,
       // Si l'effet "ancient" n'est plus débloqué mais qu'il était équipé,
       // on le déséquipe pour éviter un affichage incorrect.
-      equippedBorder: (!merged.includes('ancient') && character?.equippedBorder === 'ancient') ? null : character?.equippedBorder,
+      equippedBorder: (!merged.includes('ancient') && nextEquipped === 'ancient') ? null : nextEquipped,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {
@@ -655,6 +656,7 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       const prefsRef = doc(db, 'userPreferences', userId);
       const prefsSnap = await getDoc(prefsRef);
       let existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+      existingAccountBorders = existingAccountBorders.map(normalizeBorderId);
       // Si "ancient" n'est plus débloqué, on le retire aussi des prefs.
       if (!merged.includes('ancient') && existingAccountBorders.includes('ancient')) {
         existingAccountBorders = existingAccountBorders.filter(id => id !== 'ancient');
