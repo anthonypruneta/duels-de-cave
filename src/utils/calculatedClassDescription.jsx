@@ -229,7 +229,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
       const fireBonus = Math.round(fireCapScale * cap);
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round(lifeCapScale * cap);
-      const lifeTotal = auto + lifeBonus;
+      const lifeTotal = lifeBonus;
       const acidDmg = dmgCap(auto, rescap);
       const defRedPct = Math.round((acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((acidRescReduction ?? 0) * 100);
@@ -244,7 +244,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           {' '}dégâts (vs RésCap)
           <br />
           Vie :{' '}
-          <Tooltip content={`Auto (${auto}) + ${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
           {' '}soins (vs RésCap)
@@ -682,7 +682,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const fireBonus = Math.round((c.fireCapScale ?? 0) * cap);
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round((c.lifeCapScale ?? 0) * cap);
-      const lifeTotal = auto + lifeBonus;
+      const lifeTotal = lifeBonus;
       const acidDmg = dmgCap(auto, rescap);
       const defRedPct = Math.round((c.acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((c.acidRescReduction ?? 0) * 100);
@@ -704,7 +704,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           {' '}dégâts (vs ResC)
           <br />
           Vie :{' '}
-          <Tooltip content={`Auto (${auto}) + ${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
           {' '}soins

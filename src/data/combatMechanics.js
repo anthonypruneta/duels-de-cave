@@ -77,7 +77,7 @@ export const classConstants = {
   alchimiste: {
     cycleLength: 3,              // 3 phases : feu, vie, acide
     fireCapScale: 0.10,          // Flasque de feu : Auto + 10% CAP
-    lifeCapScale: 0.10,          // Flasque de vie : Auto + 10% CAP (soin)
+    lifeCapScale: 0.10,          // Flasque de vie : 10% CAP (soin)
     acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
     acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour

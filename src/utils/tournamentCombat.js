@@ -1259,7 +1259,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     } else if (phase === 1) {
       // Flasque de vie : soin
-      let baseHeal = Math.max(1, Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
+      let baseHeal = Math.max(1, Math.round((getEffectiveCapForSceptre(att) * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
       // Sirène stacks (boost soins)
       if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
