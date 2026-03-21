@@ -2748,7 +2748,8 @@ function buildHeuristicSubjectMask(img, w, h) {
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
       const centerBias = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.24));
       const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.65);
-      const v = (edge * 0.62 + sat[i] * 0.24 + detail * 0.14) * (0.44 + centerBias * 1.02);
+      // Peu de poids « détail » : moins de texture interne dans le masque final
+      const v = (edge * 0.62 + sat[i] * 0.26 + detail * 0.04) * (0.44 + centerBias * 1.02);
       score[i] = v;
       sum += v;
       sum2 += v * v;
@@ -2900,26 +2901,40 @@ function buildHeuristicSubjectMask(img, w, h) {
     if (coverage > 0.62) tighten = true;
 
     const extraThr = thr + std * 0.18;
+    const pixelSet = new Set(bestPixels);
+    const nei4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
     for (const i of bestPixels) {
       const x = i % sw;
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.28 + nY * nY / 0.42));
       if (tighten) {
         const tightRadial = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.26));
         if (tightRadial < 0.06) continue;
         if (score[i] < extraThr) continue;
       }
-      const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      const a = aRaw * (0.78 + radial * 0.52);
+
+      // Intérieur uniforme (peu de « dessin » interne), contour nettement marqué
+      let onBoundary = x <= 0 || x >= sw - 1 || y <= 0 || y >= sh - 1;
+      if (!onBoundary) {
+        for (const [dx, dy] of nei4) {
+          if (!pixelSet.has(idx(x + dx, y + dy))) {
+            onBoundary = true;
+            break;
+          }
+        }
+      }
+      const innerA = 0.9;
+      const edgeA = 1;
+      const a = onBoundary ? edgeA : innerA;
       const p = i * 4;
-      outPx[p + 3] = Math.round(255 * Math.max(0, Math.min(1, Math.pow(a, 1.2))));
+      outPx[p + 3] = Math.round(255 * a);
     }
   }
   mctx.putImageData(out, 0, 0);
-  // Lissage léger: léger halo pour étendre visuellement le relief sans trop fondre le décor.
-  mctx.filter = 'blur(1.15px)';
+  // Flou modéré : adoucit l’échelle sans effacer le contour comme un gros blur
+  mctx.filter = 'blur(0.65px)';
   mctx.drawImage(maskSmall, 0, 0);
   mctx.filter = 'none';
 
@@ -3041,8 +3056,8 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask) {
   octx.clearRect(0, 0, w, h);
   octx.globalAlpha = 1;
   octx.globalCompositeOperation = 'source-over';
-  octx.filter = 'blur(1.05px)';
-  octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
+  octx.filter = 'blur(0.55px)';
+  octx.drawImage(mask, -0.6, -0.6, w + 1.2, h + 1.2);
   octx.filter = 'none';
   octx.globalCompositeOperation = 'source-in';
   const darkGold = octx.createLinearGradient(0, 0, w, h);
