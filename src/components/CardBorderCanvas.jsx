@@ -2746,9 +2746,9 @@ function buildHeuristicSubjectMask(img, w, h) {
       const edge = Math.min(1, (lx + ly) * 3.2);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const centerBias = Math.exp(-(nX * nX / 0.10 + nY * nY / 0.18));
+      const centerBias = Math.exp(-(nX * nX / 0.09 + nY * nY / 0.16));
       const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.8);
-      const v = (edge * 0.60 + sat[i] * 0.24 + detail * 0.16) * (0.52 + centerBias * 0.84);
+      const v = (edge * 0.62 + sat[i] * 0.24 + detail * 0.14) * (0.50 + centerBias * 0.92);
       score[i] = v;
       sum += v;
       sum2 += v * v;
@@ -2758,7 +2758,90 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.95;
+  const thr = mean + std * 0.82;
+
+  // Binaire initial
+  const bin = new Uint8Array(sw * sh);
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const radial = Math.exp(-(nX * nX / 0.085 + nY * nY / 0.15));
+      if (radial < 0.09) continue;
+      const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      if (aRaw > 0.08) bin[i] = 1;
+    }
+  }
+
+  // On garde uniquement le composant connecté principal proche du centre (forme du perso)
+  const visited = new Uint8Array(sw * sh);
+  let bestPixels = null;
+  let bestWeight = -1;
+  const cx = Math.round(sw * 0.5);
+  const cy = Math.round(sh * 0.56);
+  const queue = new Int32Array(sw * sh);
+
+  const neighbors = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+  ];
+
+  for (let sy = 0; sy < sh; sy++) {
+    for (let sx = 0; sx < sw; sx++) {
+      const start = idx(sx, sy);
+      if (!bin[start] || visited[start]) continue;
+
+      let head = 0;
+      let tail = 0;
+      queue[tail++] = start;
+      visited[start] = 1;
+
+      const pixels = [];
+      let minX = sx;
+      let maxX = sx;
+      let minY = sy;
+      let maxY = sy;
+      let sumX = 0;
+      let sumY = 0;
+
+      while (head < tail) {
+        const cur = queue[head++];
+        const x = cur % sw;
+        const y = Math.floor(cur / sw);
+        pixels.push(cur);
+        sumX += x;
+        sumY += y;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+
+        for (const [dx, dy] of neighbors) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= sw || ny < 0 || ny >= sh) continue;
+          const ni = idx(nx, ny);
+          if (!bin[ni] || visited[ni]) continue;
+          visited[ni] = 1;
+          queue[tail++] = ni;
+        }
+      }
+
+      const area = pixels.length;
+      const bx = (minX + maxX) * 0.5;
+      const by = (minY + maxY) * 0.5;
+      const dx = (bx - cx) / sw;
+      const dy = (by - cy) / sh;
+      const centerPenalty = Math.sqrt(dx * dx + dy * dy);
+      const heightScore = (maxY - minY + 1) / sh;
+      const weight = area * (1 - Math.min(0.9, centerPenalty * 2.1)) * (0.75 + heightScore * 0.6);
+
+      if (weight > bestWeight) {
+        bestWeight = weight;
+        bestPixels = pixels;
+      }
+    }
+  }
 
   const maskSmall = document.createElement('canvas');
   maskSmall.width = sw;
@@ -2768,23 +2851,32 @@ function buildHeuristicSubjectMask(img, w, h) {
   const out = mctx.createImageData(sw, sh);
   const outPx = out.data;
 
-  for (let y = 0; y < sh; y++) {
-    for (let x = 0; x < sw; x++) {
-      const i = idx(x, y);
+  // Tout transparent, puis composant conservé en alpha
+  for (let i = 0; i < sw * sh; i++) {
+    const p = i * 4;
+    outPx[p] = 255;
+    outPx[p + 1] = 255;
+    outPx[p + 2] = 255;
+    outPx[p + 3] = 0;
+  }
+  if (bestPixels && bestPixels.length > 0) {
+    for (const i of bestPixels) {
+      const x = i % sw;
+      const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.085 + nY * nY / 0.16));
+      const radial = Math.exp(-(nX * nX / 0.11 + nY * nY / 0.19));
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      const a = radial < 0.10 ? 0 : aRaw * Math.pow(radial, 0.9);
+      const a = aRaw * (0.72 + radial * 0.45);
       const p = i * 4;
-      const aa = Math.round(255 * Math.pow(a, 1.65));
-      outPx[p] = 255;
-      outPx[p + 1] = 255;
-      outPx[p + 2] = 255;
-      outPx[p + 3] = aa;
+      outPx[p + 3] = Math.round(255 * Math.max(0, Math.min(1, Math.pow(a, 1.2))));
     }
   }
   mctx.putImageData(out, 0, 0);
+  // Lissage léger pour éviter les contours pixellisés du masque
+  mctx.filter = 'blur(1px)';
+  mctx.drawImage(maskSmall, 0, 0);
+  mctx.filter = 'none';
 
   const maskFull = document.createElement('canvas');
   maskFull.width = w;
