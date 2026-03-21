@@ -2758,7 +2758,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   const mean = sum / Math.max(1, count);
   const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
   const std = Math.sqrt(variance);
-  const thr = mean + std * 0.60;
+  const thr = mean + std * 0.34;
 
   // Binaire initial
   const bin = new Uint8Array(sw * sh);
@@ -2767,10 +2767,36 @@ function buildHeuristicSubjectMask(img, w, h) {
       const i = idx(x, y);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.085 + nY * nY / 0.15));
-      if (radial < 0.09) continue;
+      const radial = Math.exp(-(nX * nX / 0.16 + nY * nY / 0.24));
+      if (radial < 0.04) continue;
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
-      if (aRaw > 0.08) bin[i] = 1;
+      if (aRaw > 0.045) bin[i] = 1;
+    }
+  }
+
+  // Fermeture morphologique simple pour reconnecter les parties du perso
+  const dil = new Uint8Array(sw * sh);
+  for (let y = 1; y < sh - 1; y++) {
+    for (let x = 1; x < sw - 1; x++) {
+      let on = 0;
+      for (let oy = -1; oy <= 1 && !on; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if (bin[idx(x + ox, y + oy)]) { on = 1; break; }
+        }
+      }
+      dil[idx(x, y)] = on;
+    }
+  }
+  const closed = new Uint8Array(sw * sh);
+  for (let y = 1; y < sh - 1; y++) {
+    for (let x = 1; x < sw - 1; x++) {
+      let on = 1;
+      for (let oy = -1; oy <= 1 && on; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if (!dil[idx(x + ox, y + oy)]) { on = 0; break; }
+        }
+      }
+      closed[idx(x, y)] = on;
     }
   }
 
@@ -2789,7 +2815,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   for (let sy = 0; sy < sh; sy++) {
     for (let sx = 0; sx < sw; sx++) {
       const start = idx(sx, sy);
-      if (!bin[start] || visited[start]) continue;
+      if (!closed[start] || visited[start]) continue;
 
       let head = 0;
       let tail = 0;
@@ -2821,7 +2847,7 @@ function buildHeuristicSubjectMask(img, w, h) {
           const ny = y + dy;
           if (nx < 0 || nx >= sw || ny < 0 || ny >= sh) continue;
           const ni = idx(nx, ny);
-          if (!bin[ni] || visited[ni]) continue;
+          if (!closed[ni] || visited[ni]) continue;
           visited[ni] = 1;
           queue[tail++] = ni;
         }
@@ -2834,7 +2860,9 @@ function buildHeuristicSubjectMask(img, w, h) {
       const dy = (by - cy) / sh;
       const centerPenalty = Math.sqrt(dx * dx + dy * dy);
       const heightScore = (maxY - minY + 1) / sh;
-      const weight = area * (1 - Math.min(0.9, centerPenalty * 2.1)) * (0.75 + heightScore * 0.6);
+      const widthScore = (maxX - minX + 1) / sw;
+      const sizeGate = (heightScore > 0.28 ? 1 : 0.42) * (widthScore > 0.16 ? 1 : 0.55);
+      const weight = area * sizeGate * (1 - Math.min(0.8, centerPenalty * 1.6)) * (0.85 + heightScore * 0.7);
 
       if (weight > bestWeight) {
         bestWeight = weight;
@@ -2864,18 +2892,18 @@ function buildHeuristicSubjectMask(img, w, h) {
     // on le resserre automatiquement autour de la zone centrale/forte.
     const coverage = bestPixels.length / Math.max(1, sw * sh);
     let tighten = false;
-    if (coverage > 0.38) tighten = true;
+    if (coverage > 0.55) tighten = true;
 
-    const extraThr = thr + std * 0.34;
+    const extraThr = thr + std * 0.22;
     for (const i of bestPixels) {
       const x = i % sw;
       const y = Math.floor(i / sw);
       const nX = (x / Math.max(1, sw - 1)) - 0.5;
       const nY = (y / Math.max(1, sh - 1)) - 0.56;
-      const radial = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.24));
+      const radial = Math.exp(-(nX * nX / 0.18 + nY * nY / 0.30));
       if (tighten) {
-        const tightRadial = Math.exp(-(nX * nX / 0.095 + nY * nY / 0.17));
-        if (tightRadial < 0.14) continue;
+        const tightRadial = Math.exp(-(nX * nX / 0.12 + nY * nY / 0.22));
+        if (tightRadial < 0.08) continue;
         if (score[i] < extraThr) continue;
       }
       const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
@@ -2886,7 +2914,7 @@ function buildHeuristicSubjectMask(img, w, h) {
   }
   mctx.putImageData(out, 0, 0);
   // Lissage léger: on floute très peu pour éviter de "manger" tout le décor.
-  mctx.filter = 'blur(0.7px)';
+  mctx.filter = 'blur(0.9px)';
   mctx.drawImage(maskSmall, 0, 0);
   mctx.filter = 'none';
 
