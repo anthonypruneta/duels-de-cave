@@ -2819,21 +2819,21 @@ function updateGoldReliefTest(state, w, h, dt) {
 }
 
 function drawGoldReliefTest(ctx, state, w, h) {
-  // Base full gold clair (cache quasi totalement la carte d'origine)
+  // Base full gold clair 100% opaque (cache totalement la carte d'origine)
   const metal = ctx.createLinearGradient(0, 0, w, h);
-  metal.addColorStop(0, 'rgba(255, 235, 150, 0.90)');
-  metal.addColorStop(0.20, 'rgba(250, 204, 21, 0.94)');
-  metal.addColorStop(0.50, 'rgba(245, 184, 40, 0.92)');
-  metal.addColorStop(0.78, 'rgba(251, 191, 36, 0.95)');
-  metal.addColorStop(1, 'rgba(234, 179, 8, 0.93)');
+  metal.addColorStop(0, 'rgba(255, 235, 150, 1)');
+  metal.addColorStop(0.20, 'rgba(250, 204, 21, 1)');
+  metal.addColorStop(0.50, 'rgba(245, 184, 40, 1)');
+  metal.addColorStop(0.78, 'rgba(251, 191, 36, 1)');
+  metal.addColorStop(1, 'rgba(234, 179, 8, 1)');
   ctx.fillStyle = metal;
   ctx.fillRect(0, 0, w, h);
 
   // Polish métal (lignes de réflexion fines)
   const polish = ctx.createLinearGradient(0, 0, 0, h);
-  polish.addColorStop(0, 'rgba(255, 248, 220, 0.24)');
-  polish.addColorStop(0.38, 'rgba(255, 240, 170, 0.10)');
-  polish.addColorStop(1, 'rgba(255, 215, 90, 0.06)');
+  polish.addColorStop(0, 'rgba(255, 248, 220, 0.18)');
+  polish.addColorStop(0.38, 'rgba(255, 240, 170, 0.08)');
+  polish.addColorStop(1, 'rgba(255, 215, 90, 0.05)');
   ctx.fillStyle = polish;
   ctx.fillRect(0, 0, w, h);
 
@@ -2868,31 +2868,7 @@ function drawGoldReliefTest(ctx, state, w, h) {
   ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
-  // Relief : contour or poli autour du masque (léger et net)
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.85;
-  ctx.filter = 'blur(0.5px)';
-  const ringOffsets = [
-    [-1.4, 0], [1.4, 0], [0, -1.4], [0, 1.4],
-    [-1, -1], [1, -1], [-1, 1], [1, 1],
-  ];
-  for (const [ox, oy] of ringOffsets) {
-    ctx.drawImage(state.maskCanvas, ox, oy, w, h);
-  }
-  ctx.globalCompositeOperation = 'source-in';
-  const polishedRing = ctx.createLinearGradient(0, 0, w, h);
-  polishedRing.addColorStop(0, 'rgba(255, 245, 210, 0.96)');
-  polishedRing.addColorStop(0.35, 'rgba(253, 224, 71, 0.92)');
-  polishedRing.addColorStop(0.7, 'rgba(250, 204, 21, 0.90)');
-  polishedRing.addColorStop(1, 'rgba(217, 119, 6, 0.84)');
-  ctx.fillStyle = polishedRing;
-  ctx.fillRect(0, 0, w, h);
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.globalAlpha = 0.96;
-  ctx.filter = 'blur(0.2px)';
-  ctx.drawImage(state.maskCanvas, 0, 0, w, h);
-  ctx.restore();
+  // Pas de contour additionnel: uniquement masque foncé visible
 }
 
 // ─── Registre des effets ─────────────────────────────────────────────────────
