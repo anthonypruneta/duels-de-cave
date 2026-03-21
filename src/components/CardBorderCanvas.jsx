@@ -3061,23 +3061,24 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   octx.filter = 'none';
   octx.globalCompositeOperation = 'source-in';
   const mh = Math.max(w, h);
-  const lx0 = w * 0.33;
-  const ly0 = h * 0.29;
-  const bodyGrad = octx.createRadialGradient(lx0, ly0, 0, lx0, ly0, mh * 0.82);
-  bodyGrad.addColorStop(0, 'rgba(188, 108, 52, 0.88)');
-  bodyGrad.addColorStop(0.32, 'rgba(132, 70, 30, 0.94)');
-  bodyGrad.addColorStop(0.68, 'rgba(88, 44, 18, 0.97)');
-  bodyGrad.addColorStop(1, 'rgba(38, 18, 8, 0.99)');
+  const lx0 = w * 0.36;
+  const ly0 = h * 0.32;
+  // Hotspot resserré et moins orangé pour éviter une « grosse » lumière en haut-gauche
+  const bodyGrad = octx.createRadialGradient(lx0, ly0, 0, lx0, ly0, mh * 0.42);
+  bodyGrad.addColorStop(0, 'rgba(152, 88, 40, 0.93)');
+  bodyGrad.addColorStop(0.2, 'rgba(128, 68, 28, 0.95)');
+  bodyGrad.addColorStop(0.52, 'rgba(92, 46, 18, 0.97)');
+  bodyGrad.addColorStop(1, 'rgba(36, 17, 7, 0.99)');
   octx.fillStyle = bodyGrad;
   octx.fillRect(0, 0, w, h);
 
   // 3) Biseau doux sur la silhouette (clair / zone morte / assombrissement)
   octx.save();
   octx.globalCompositeOperation = 'source-atop';
-  octx.globalAlpha = 0.62;
+  octx.globalAlpha = 0.38;
   const bevel = octx.createLinearGradient(0, 0, w * 0.96, h * 0.94);
-  bevel.addColorStop(0, 'rgba(255, 236, 205, 0.5)');
-  bevel.addColorStop(0.35, 'rgba(255, 255, 255, 0)');
+  bevel.addColorStop(0, 'rgba(240, 218, 185, 0.2)');
+  bevel.addColorStop(0.18, 'rgba(255, 255, 255, 0)');
   bevel.addColorStop(0.72, 'rgba(0, 0, 0, 0)');
   bevel.addColorStop(1, 'rgba(12, 4, 2, 0.38)');
   octx.fillStyle = bevel;
@@ -3089,13 +3090,13 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   const drift = 0.5 + 0.5 * Math.sin(t * 0.48 + 0.9);
   octx.save();
   octx.globalCompositeOperation = 'source-atop';
-  octx.globalAlpha = 0.015 + 0.042 * lum;
+  octx.globalAlpha = 0.012 + 0.028 * lum;
   const lx = w * (0.5 + 0.11 * Math.sin(t * 0.36));
   const ly = h * (0.44 + 0.09 * Math.cos(t * 0.31));
-  const r = Math.min(w, h) * (0.28 + 0.07 * drift);
+  const r = Math.min(w, h) * (0.19 + 0.05 * drift);
   const hi = octx.createRadialGradient(lx, ly, 0, lx, ly, r);
   hi.addColorStop(0, 'rgba(255, 248, 232, 1)');
-  hi.addColorStop(0.38, 'rgba(238, 214, 168, 0.22)');
+  hi.addColorStop(0.42, 'rgba(238, 214, 168, 0.16)');
   hi.addColorStop(1, 'rgba(200, 168, 118, 0)');
   octx.fillStyle = hi;
   octx.fillRect(0, 0, w, h);
