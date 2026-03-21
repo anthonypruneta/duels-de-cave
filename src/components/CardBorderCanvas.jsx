@@ -2145,9 +2145,8 @@ function drawGojoInfinity(ctx, state, w, h) {
 function initPerfectCharacter(w, h) {
   return {
     t: rand(0, Math.PI * 2),
-    sweepPos: -w * 0.45,
-    sweepWidth: Math.max(68, w * 0.2),
-    sweepSpeed: Math.max(2.1, w * 0.0072),
+    revealCenterX: w * 0.5,
+    revealBand: Math.max(56, w * 0.24),
     prismaticStars: Array.from({ length: Math.max(54, Math.floor(w / 6.5)) }, () => ({
       x: rand(0, w),
       y: rand(0, h * 0.95),
@@ -2182,19 +2181,13 @@ function initPerfectCharacter(w, h) {
 function updatePerfectCharacter(state, w, h, dt) {
   const s = dt / 16;
   state.t += 0.022 * s;
-  state.sweepPos += state.sweepSpeed * s;
-  if (state.sweepPos > w * 1.45) {
-    state.sweepPos = -w * 0.45;
-    state.sweepSpeed = Math.max(2.0, w * rand(0.0062, 0.0088));
-    state.sweepWidth = Math.max(58, w * rand(0.17, 0.28));
-  }
+  state.revealCenterX = w * 0.5 + Math.sin(state.t * 0.45) * (w * 0.14);
+  state.revealBand = Math.max(54, w * (0.21 + 0.04 * (0.5 + 0.5 * Math.sin(state.t * 0.72))));
   for (const st of state.prismaticStars) {
     st.phase += 0.032 * s;
-    const sweepY = (st.x - state.sweepPos) * 0.72 + h * 0.18;
-    const d = Math.abs(st.y - sweepY);
-    const revealBand = state.sweepWidth * 0.65;
-    const nearBeam = Math.max(0, 1 - d / Math.max(1, revealBand));
-    st.seen = Math.max(st.seen * (1 - 0.0014 * s), nearBeam);
+    const dx = Math.abs(st.x - state.revealCenterX);
+    const nearArea = Math.max(0, 1 - dx / Math.max(1, state.revealBand));
+    st.seen = Math.max(st.seen * (1 - 0.0012 * s), nearArea * 0.82);
   }
   for (const st of state.streaks) {
     st.phase += 0.02 * s;
@@ -2238,28 +2231,13 @@ function drawPerfectCharacter(ctx, state, w, h) {
   ctx.lineWidth = Math.max(10, w * 0.03);
   ctx.strokeRect(0, 0, w, h);
 
-  // Faisceau lumineux diagonal qui traverse la carte
-  const x1 = state.sweepPos;
-  const y1 = h * 0.08;
-  const x2 = state.sweepPos + state.sweepWidth;
-  const y2 = h * 0.92;
-  const beam = ctx.createLinearGradient(x1, y1, x2, y2);
-  beam.addColorStop(0, 'rgba(255, 255, 255, 0)');
-  beam.addColorStop(0.22, 'rgba(186, 230, 253, 0.18)');
-  beam.addColorStop(0.5, 'rgba(255, 255, 255, 0.34)');
-  beam.addColorStop(0.78, 'rgba(216, 180, 254, 0.16)');
-  beam.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = beam;
-  ctx.fillRect(state.sweepPos - state.sweepWidth * 0.35, 0, state.sweepWidth * 1.7, h);
-
-  // Coeur du faisceau (plus franc)
-  const core = ctx.createLinearGradient(x1, y1, x2, y2);
-  core.addColorStop(0, 'rgba(255,255,255,0)');
-  core.addColorStop(0.45, 'rgba(255,255,255,0.34)');
-  core.addColorStop(0.55, 'rgba(255,255,255,0.34)');
-  core.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(state.sweepPos - state.sweepWidth * 0.2, 0, state.sweepWidth * 1.2, h);
+  // Lueur centrale douce (sans bande traversante)
+  const softCore = ctx.createRadialGradient(state.revealCenterX, h * 0.5, 0, state.revealCenterX, h * 0.5, Math.max(w, h) * 0.42);
+  softCore.addColorStop(0, 'rgba(255,255,255,0.14)');
+  softCore.addColorStop(0.45, 'rgba(186,230,253,0.08)');
+  softCore.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = softCore;
+  ctx.fillRect(0, 0, w, h);
 
   // Trainées prismatiques multi-axes (style référence)
   ctx.save();
@@ -2818,8 +2796,6 @@ function buildHeuristicSubjectMask(img, w, h) {
 function initGoldReliefTest(w, h, imageSrc) {
   const state = {
     t: rand(0, Math.PI * 2),
-    sweepPos: -w * 0.36,
-    sweepSpeed: Math.max(1.5, w * 0.0055),
     grainPhase: rand(0, Math.PI * 2),
     maskCanvas: null,
   };
@@ -2840,11 +2816,6 @@ function updateGoldReliefTest(state, w, h, dt) {
   const s = dt / 16;
   state.t += 0.02 * s;
   state.grainPhase += 0.016 * s;
-  state.sweepPos += state.sweepSpeed * s;
-  if (state.sweepPos > w * 1.28) {
-    state.sweepPos = -w * 0.40;
-    state.sweepSpeed = Math.max(1.4, w * rand(0.0048, 0.007));
-  }
 }
 
 function drawGoldReliefTest(ctx, state, w, h) {
@@ -2864,19 +2835,13 @@ function drawGoldReliefTest(ctx, state, w, h) {
     ctx.fillRect(0, y, w, 1);
   }
 
-  // Reflet spéculaire mobile
-  const bx1 = state.sweepPos;
-  const by1 = -h * 0.1;
-  const bx2 = state.sweepPos + w * 0.26;
-  const by2 = h * 1.1;
-  const beam = ctx.createLinearGradient(bx1, by1, bx2, by2);
-  beam.addColorStop(0, 'rgba(255,255,255,0)');
-  beam.addColorStop(0.25, 'rgba(255,248,220,0.10)');
-  beam.addColorStop(0.52, 'rgba(255,255,255,0.24)');
-  beam.addColorStop(0.72, 'rgba(255,240,180,0.10)');
-  beam.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = beam;
-  ctx.fillRect(state.sweepPos - w * 0.12, 0, w * 0.52, h);
+  // Reflet statique doux (sans bande traversante)
+  const topShine = ctx.createLinearGradient(0, 0, 0, h * 0.5);
+  topShine.addColorStop(0, 'rgba(255, 250, 220, 0.12)');
+  topShine.addColorStop(0.5, 'rgba(255, 240, 180, 0.05)');
+  topShine.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = topShine;
+  ctx.fillRect(0, 0, w, h * 0.5);
 
   if (!state.maskCanvas) return;
 
