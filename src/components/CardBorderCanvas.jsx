@@ -2935,6 +2935,53 @@ function buildHeuristicSubjectMask(img, w, h) {
 }
 
 const GOLD_RELIEF_GRAIN_TILE = 96;
+/** Or uni (teinte « centre » de l’ancien dégradé) sur toute la carte. */
+const GOLD_RELIEF_FLAT_GOLD = '#b8922a';
+
+function spawnGoldReliefSparkle(w, h) {
+  return {
+    x: rand(4, Math.max(5, w - 4)),
+    y: rand(4, Math.max(5, h - 4)),
+    life: 0,
+    maxLife: rand(50, 105),
+    size: rand(0.55, 1.65),
+    delay: rand(0, 150),
+    hue: rand(40, 52),
+  };
+}
+
+function updateGoldReliefSparkles(state, w, h, dt) {
+  const list = state.reliefSparkles;
+  if (!list) return;
+  const s = dt / 16;
+  for (const sp of list) {
+    if (sp.delay > 0) { sp.delay -= s; continue; }
+    sp.life += s;
+    if (sp.life > sp.maxLife) Object.assign(sp, spawnGoldReliefSparkle(w, h));
+  }
+}
+
+function drawGoldReliefSparkles(ctx, state, w, h) {
+  const list = state.reliefSparkles;
+  if (!list) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  for (const sp of list) {
+    if (sp.delay > 0) continue;
+    const t = sp.life / sp.maxLife;
+    const pulse = t < 0.22 ? t / 0.22 : t < 0.68 ? 1 : (1 - t) / 0.32;
+    const a = pulse * 0.32;
+    drawStar(ctx, sp.x, sp.y, sp.size, 4, hsl(sp.hue, 78, 78, a));
+    const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.size * 3.2);
+    g.addColorStop(0, hsl(sp.hue, 70, 88, a * 0.45));
+    g.addColorStop(1, hsl(sp.hue, 60, 55, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, sp.size * 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
 
 /** Tuile répétable pour grain métallique (générée une fois par init). */
 function buildGoldReliefGrainTile(size) {
@@ -2962,32 +3009,12 @@ function buildGoldReliefGrainTile(size) {
 
 /** Or métallique + grain sur tout le rectangle (avant découpe masque). */
 function drawGoldReliefMetallicFill(ctx, w, h, state) {
-  const tt = state.t;
   const gp = state.grainPhase;
   const tw = state.grainTile?.width || GOLD_RELIEF_GRAIN_TILE;
 
-  const skew = Math.sin(tt * 0.38) * 0.07;
-  const gBase = ctx.createLinearGradient(-w * skew, 0, w * (1 + skew), h);
-  gBase.addColorStop(0, '#261a08');
-  gBase.addColorStop(0.12, '#4a3410');
-  gBase.addColorStop(0.28, '#6e5214');
-  gBase.addColorStop(0.42, '#8f6a18');
-  gBase.addColorStop(0.52, '#a67c1e');
-  gBase.addColorStop(0.62, '#7a5612');
-  gBase.addColorStop(0.78, '#4d360c');
-  gBase.addColorStop(1, '#1e1406');
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
-  ctx.fillStyle = gBase;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.globalCompositeOperation = 'soft-light';
-  const k = 0.45 + 0.55 * Math.sin(tt * 0.31);
-  const gHi = ctx.createLinearGradient(w * 0.85, 0, w * 0.15, h);
-  gHi.addColorStop(0, `rgba(200, 170, 110, ${0.14 * k})`);
-  gHi.addColorStop(0.45, 'rgba(150, 118, 55, 0.09)');
-  gHi.addColorStop(1, 'rgba(45, 32, 12, 0.16)');
-  ctx.fillStyle = gHi;
+  ctx.fillStyle = GOLD_RELIEF_FLAT_GOLD;
   ctx.fillRect(0, 0, w, h);
 
   ctx.globalCompositeOperation = 'overlay';
@@ -3005,20 +3032,6 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
     }
   }
   ctx.globalAlpha = 1;
-
-  ctx.globalCompositeOperation = 'soft-light';
-  const gSweep = ctx.createLinearGradient(
-    w * (0.2 + 0.08 * Math.sin(tt * 0.22)),
-    h * (0.1 + 0.06 * Math.cos(tt * 0.19)),
-    w * (0.9 + 0.05 * Math.sin(tt * 0.17)),
-    h * (0.95)
-  );
-  gSweep.addColorStop(0, 'rgba(190, 160, 100, 0.09)');
-  gSweep.addColorStop(0.5, 'rgba(130, 95, 38, 0.05)');
-  gSweep.addColorStop(1, 'rgba(35, 24, 10, 0.10)');
-  ctx.fillStyle = gSweep;
-  ctx.fillRect(0, 0, w, h);
-
   ctx.globalCompositeOperation = 'source-over';
 }
 
@@ -3053,6 +3066,7 @@ function initGoldReliefTest(w, h, imageSrc) {
     maskShapeCanvas: null,
     grainTile: buildGoldReliefGrainTile(GOLD_RELIEF_GRAIN_TILE),
     reliefOverlayCanvas,
+    reliefSparkles: Array.from({ length: 20 }, () => spawnGoldReliefSparkle(w, h)),
   };
 
   if (imageSrc) {
@@ -3071,6 +3085,7 @@ function updateGoldReliefTest(state, w, h, dt) {
   const s = dt / 16;
   state.t += 0.02 * s;
   state.grainPhase += 0.016 * s;
+  updateGoldReliefSparkles(state, w, h, dt);
 }
 
 function drawGoldReliefTest(ctx, state, w, h) {
@@ -3090,8 +3105,9 @@ function drawGoldReliefTest(ctx, state, w, h) {
 
   ctx.save();
 
-  // 1) Toute la carte : or métallique granuleux (fond)
+  // 1) Toute la carte : or uni + grain métallique
   drawGoldReliefMetallicFill(ctx, w, h, state);
+  drawGoldReliefSparkles(ctx, state, w, h);
 
   // 2) Par-dessus : masque = or foncé / marron uniquement sur la silhouette
   renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask);
