@@ -2934,18 +2934,108 @@ function buildHeuristicSubjectMask(img, w, h) {
   return maskFull;
 }
 
+const GOLD_RELIEF_GRAIN_TILE = 96;
+
+/** Tuile répétable pour grain métallique (générée une fois par init). */
+function buildGoldReliefGrainTile(size) {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const nctx = c.getContext('2d');
+  if (!nctx) return c;
+  const d = nctx.createImageData(size, size);
+  const px = d.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const n = Math.random();
+    const speck = n > 0.93 ? 0.82 + Math.random() * 0.18 : n * n * 0.5;
+    const r = 38 + speck * 200;
+    const g = 26 + speck * 175;
+    const b = 6 + speck * 105;
+    px[i] = Math.min(255, r);
+    px[i + 1] = Math.min(255, g);
+    px[i + 2] = Math.min(255, b);
+    px[i + 3] = Math.floor(32 + n * 118);
+  }
+  nctx.putImageData(d, 0, 0);
+  return c;
+}
+
+/** Or métallique + grain sur tout le rectangle (avant découpe masque). */
+function drawGoldReliefMetallicFill(ctx, w, h, state) {
+  const tt = state.t;
+  const gp = state.grainPhase;
+  const tw = state.grainTile?.width || GOLD_RELIEF_GRAIN_TILE;
+
+  const skew = Math.sin(tt * 0.38) * 0.07;
+  const gBase = ctx.createLinearGradient(-w * skew, 0, w * (1 + skew), h);
+  gBase.addColorStop(0, '#2a1c0a');
+  gBase.addColorStop(0.12, '#5c3f12');
+  gBase.addColorStop(0.28, '#8a6a18');
+  gBase.addColorStop(0.42, '#c9a227');
+  gBase.addColorStop(0.52, '#e6c04a');
+  gBase.addColorStop(0.62, '#b8891a');
+  gBase.addColorStop(0.78, '#6e4a0e');
+  gBase.addColorStop(1, '#241808');
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = gBase;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'soft-light';
+  const k = 0.45 + 0.55 * Math.sin(tt * 0.31);
+  const gHi = ctx.createLinearGradient(w * 0.85, 0, w * 0.15, h);
+  gHi.addColorStop(0, `rgba(255, 236, 180, ${0.22 * k})`);
+  gHi.addColorStop(0.45, 'rgba(200, 160, 70, 0.10)');
+  gHi.addColorStop(1, 'rgba(60, 40, 15, 0.18)');
+  ctx.fillStyle = gHi;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.48;
+  if (state.grainTile) {
+    const pat = ctx.createPattern(state.grainTile, 'repeat');
+    if (pat) {
+      const ox = (gp * 1.9) % tw;
+      const oy = (gp * 1.17) % tw;
+      ctx.save();
+      ctx.translate(-ox, -oy);
+      ctx.fillStyle = pat;
+      ctx.fillRect(ox, oy, w + tw * 2, h + tw * 2);
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.globalCompositeOperation = 'soft-light';
+  const gSweep = ctx.createLinearGradient(
+    w * (0.2 + 0.08 * Math.sin(tt * 0.22)),
+    h * (0.1 + 0.06 * Math.cos(tt * 0.19)),
+    w * (0.9 + 0.05 * Math.sin(tt * 0.17)),
+    h * (0.95)
+  );
+  gSweep.addColorStop(0, 'rgba(255, 248, 210, 0.14)');
+  gSweep.addColorStop(0.5, 'rgba(180, 130, 40, 0.06)');
+  gSweep.addColorStop(1, 'rgba(40, 28, 10, 0.12)');
+  ctx.fillStyle = gSweep;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 function initGoldReliefTest(w, h, imageSrc) {
   const state = {
     t: rand(0, Math.PI * 2),
     grainPhase: rand(0, Math.PI * 2),
-    maskCanvas: null,
+    /** Silhouette du sujet (figée au chargement de l’image). */
+    maskShapeCanvas: null,
+    grainTile: buildGoldReliefGrainTile(GOLD_RELIEF_GRAIN_TILE),
   };
 
   if (imageSrc) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      state.maskCanvas = buildHeuristicSubjectMask(img, w, h);
+      state.maskShapeCanvas = buildHeuristicSubjectMask(img, w, h);
     };
     img.onerror = () => {};
     img.src = imageSrc;
@@ -2960,27 +3050,22 @@ function updateGoldReliefTest(state, w, h, dt) {
 }
 
 function drawGoldReliefTest(ctx, state, w, h) {
-  // Mode test demandé: on n'applique PAS le fond full-or.
-  // On affiche uniquement le masque relief pour valider la détection du personnage.
+  const mask = state.maskShapeCanvas;
+  if (!mask) return;
 
-  if (!state.maskCanvas) return;
-
-  // Corps du personnage : masque en or foncé/marron
   ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.92;
-  ctx.filter = 'blur(1.05px)';
-  ctx.drawImage(state.maskCanvas, -1.2, -1.2, w + 2.4, h + 2.4);
-  ctx.globalCompositeOperation = 'source-in';
-  const darkGold = ctx.createLinearGradient(0, 0, w, h);
-  darkGold.addColorStop(0, 'rgba(130, 66, 20, 0.82)');
-  darkGold.addColorStop(0.5, 'rgba(110, 48, 16, 0.90)');
-  darkGold.addColorStop(1, 'rgba(84, 36, 12, 0.90)');
-  ctx.fillStyle = darkGold;
-  ctx.fillRect(0, 0, w, h);
-  ctx.restore();
+  ctx.globalAlpha = 0.94;
 
-  // Pas de contour additionnel: uniquement masque foncé visible
+  // 1) Remplissage complet : or métallique + grain (toute la surface logique)
+  drawGoldReliefMetallicFill(ctx, w, h, state);
+
+  // 2) Conserver uniquement la zone de la silhouette (masque sauvegardé)
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.filter = 'blur(1.05px)';
+  ctx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
+  ctx.filter = 'none';
+
+  ctx.restore();
 }
 
 // ─── Registre des effets ─────────────────────────────────────────────────────
