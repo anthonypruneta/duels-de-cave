@@ -3038,30 +3038,35 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
 /** Fine bande lumineuse diagonale (coin haut-gauche → bas-droite), iridium / arc-en-ciel très discret. */
 function drawGoldReliefIridiumSweep(ctx, w, h, t) {
   const ang = Math.atan2(h, w);
-  const diag = Math.sqrt(w * w + h * h);
-  const band = diag * 0.014;
+  const diag = Math.hypot(w, h);
+  const band = diag * 0.019;
 
   ctx.save();
-  ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = 0.03;
+  // « Screen » : visible sur or et sur marron ; rotation centrée pour balayer toute la carte
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = 0.072;
 
+  ctx.translate(w * 0.5, h * 0.5);
   ctx.rotate(ang);
+  ctx.translate(-w * 0.5, -h * 0.5);
 
-  const cycle = diag * 1.55;
-  const pos = ((t * 18) % cycle) - band * 2.5;
-  const hueBase = (t * 32) % 360;
+  const cycle = diag * 1.65;
+  const pos = ((t * 16) % cycle) - cycle * 0.48;
+  const hueBase = (t * 28) % 360;
 
-  const g = ctx.createLinearGradient(pos, 0, pos + band * 1.55, 0);
-  g.addColorStop(0, hsl((hueBase + 268) % 360, 38, 66, 0));
-  g.addColorStop(0.2, hsl((hueBase + 312) % 360, 44, 58, 0.05));
-  g.addColorStop(0.36, hsl((hueBase + 188) % 360, 50, 56, 0.085));
-  g.addColorStop(0.52, hsl((hueBase + 328) % 360, 42, 60, 0.075));
-  g.addColorStop(0.68, hsl((hueBase + 162) % 360, 46, 54, 0.065));
-  g.addColorStop(0.84, hsl((hueBase + 292) % 360, 40, 62, 0.04));
-  g.addColorStop(1, hsl((hueBase + 228) % 360, 34, 68, 0));
+  const gx0 = pos - band * 0.35;
+  const gx1 = pos + band * 1.45;
+  const g = ctx.createLinearGradient(gx0, 0, gx1, 0);
+  g.addColorStop(0, hsl((hueBase + 268) % 360, 42, 72, 0));
+  g.addColorStop(0.18, hsl((hueBase + 312) % 360, 48, 64, 0.12));
+  g.addColorStop(0.35, hsl((hueBase + 188) % 360, 52, 58, 0.2));
+  g.addColorStop(0.5, hsl((hueBase + 328) % 360, 46, 66, 0.17));
+  g.addColorStop(0.66, hsl((hueBase + 162) % 360, 48, 58, 0.14));
+  g.addColorStop(0.82, hsl((hueBase + 292) % 360, 44, 68, 0.09));
+  g.addColorStop(1, hsl((hueBase + 228) % 360, 38, 72, 0));
 
   ctx.fillStyle = g;
-  ctx.fillRect(pos - band * 2, -diag * 1.45, band * 14, diag * 3.4);
+  ctx.fillRect(pos - band * 5, -diag * 1.05, band * 18, diag * 2.35);
 
   ctx.restore();
 }

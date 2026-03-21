@@ -141,12 +141,11 @@ const UnifiedCharacterCard = ({
       className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}
       style={wrapperStyle}
     >
-      {canvasOverlay}
       {image ? (
         <img
           src={image}
           alt={name}
-          className={`w-full h-auto object-contain ${imageClassName || ''}`}
+          className={`relative z-[1] w-full h-auto object-contain ${imageClassName || ''}`}
         />
       ) : (
         <>
@@ -164,6 +163,7 @@ const UnifiedCharacterCard = ({
           style={{ zIndex: 2 }}
         />
       )}
+      {canvasOverlay}
       {imageOverlayContent}
       <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`} style={{ zIndex: 4 }}>
         <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
