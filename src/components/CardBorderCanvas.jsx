@@ -2143,162 +2143,88 @@ function drawGojoInfinity(ctx, state, w, h) {
 // ─── Personnage parfait : fusion runique + infini + sable + lune ────────────
 
 function initPerfectCharacter(w, h) {
-  const shards = Array.from({ length: Math.max(26, Math.floor(w / 9)) }, () => {
-    const angle = rand(-Math.PI * 0.95, -Math.PI * 0.05);
-    const dist = rand(12, Math.min(w, h) * 0.45);
-    return {
-      angle,
-      dist,
-      drift: rand(-0.28, 0.28),
-      size: rand(5, 14),
-      spin: rand(-0.04, 0.04),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.22, 0.65),
-      hue: rand(185, 300),
-    };
-  });
   return {
     t: rand(0, Math.PI * 2),
-    ringPhase: rand(0, Math.PI * 2),
-    burstPhase: rand(0, Math.PI * 2),
-    glyphs: Array.from({ length: Math.max(15, Math.floor(h / 16)) }, () => ({
-      x: rand(w * 0.05, w * 0.95),
-      y: rand(h * 0.06, h * 0.92),
-      size: rand(10, 18),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.18, 0.36),
-      char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
-    })),
-    stars: Array.from({ length: Math.max(24, Math.floor(w / 12)) }, () => ({
+    sweepPos: -w * 0.45,
+    sweepWidth: Math.max(60, w * 0.24),
+    sweepSpeed: Math.max(1.8, w * 0.0065),
+    stars: Array.from({ length: Math.max(42, Math.floor(w / 7.5)) }, () => ({
       x: rand(0, w),
-      y: rand(0, h * 0.72),
-      r: rand(0.8, 2.1),
+      y: rand(0, h * 0.92),
+      r: rand(0.9, 2.4),
       phase: rand(0, Math.PI * 2),
-      alpha: rand(0.18, 0.42),
+      alpha: rand(0.22, 0.55),
+      hue: rand(185, 320),
+      seen: 0,
     })),
-    shards,
   };
 }
 
 function updatePerfectCharacter(state, w, h, dt) {
   const s = dt / 16;
-  state.t += 0.018 * s;
-  state.ringPhase += 0.02 * s;
-  state.burstPhase += 0.016 * s;
-  for (const g of state.glyphs) g.phase += 0.026 * s;
-  for (const st of state.stars) st.phase += 0.036 * s;
-  for (const sh of state.shards) {
-    sh.phase += sh.spin * s;
-    sh.dist += sh.drift * s;
-    if (sh.dist < 8 || sh.dist > Math.min(w, h) * 0.54) sh.drift *= -1;
+  state.t += 0.022 * s;
+  state.sweepPos += state.sweepSpeed * s;
+  if (state.sweepPos > w * 1.45) {
+    state.sweepPos = -w * 0.45;
+    state.sweepSpeed = Math.max(1.8, w * rand(0.0055, 0.008));
+    state.sweepWidth = Math.max(56, w * rand(0.18, 0.3));
+  }
+  for (const st of state.stars) {
+    st.phase += 0.032 * s;
+    const sweepY = (st.x - state.sweepPos) * 0.72 + h * 0.18;
+    const d = Math.abs(st.y - sweepY);
+    const revealBand = state.sweepWidth * 0.65;
+    const nearBeam = Math.max(0, 1 - d / Math.max(1, revealBand));
+    st.seen = Math.max(st.seen * (1 - 0.0014 * s), nearBeam);
   }
 }
 
 function drawPerfectCharacter(ctx, state, w, h) {
-  const cx = w * 0.5;
-  const cy = h * 0.46;
-  const epicPulse = 0.5 + 0.5 * Math.sin(state.t * 3.2);
-
-  // Noyau épique
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.78);
-  core.addColorStop(0, `rgba(255, 255, 255, ${0.16 + 0.18 * epicPulse})`);
-  core.addColorStop(0.17, `rgba(253, 224, 71, ${0.18 + 0.14 * epicPulse})`);
-  core.addColorStop(0.42, `rgba(56, 189, 248, ${0.13 + 0.10 * epicPulse})`);
-  core.addColorStop(0.70, `rgba(192, 132, 252, ${0.11 + 0.08 * epicPulse})`);
-  core.addColorStop(1, 'rgba(30, 41, 59, 0)');
-  ctx.fillStyle = core;
+  // Base discrète
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, 'rgba(15, 23, 42, 0.06)');
+  bg.addColorStop(1, 'rgba(15, 23, 42, 0.12)');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // Couronne de rayons
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (let i = 0; i < 22; i++) {
-    const a = (i / 22) * Math.PI * 2 + state.burstPhase * 0.55;
-    const len = Math.min(w, h) * (0.34 + 0.12 * Math.sin(state.burstPhase + i * 0.5));
-    const width = 1.2 + (i % 3) * 0.8;
-    const x2 = Math.cos(a) * len;
-    const y2 = Math.sin(a) * len;
-    const g = ctx.createLinearGradient(0, 0, x2, y2);
-    g.addColorStop(0, `rgba(255,255,255,${0.18 + 0.12 * epicPulse})`);
-    g.addColorStop(0.55, `rgba(250,204,21,${0.10 + 0.12 * epicPulse})`);
-    g.addColorStop(1, 'rgba(250,204,21,0)');
-    ctx.strokeStyle = g;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-  ctx.restore();
+  // Faisceau lumineux diagonal qui traverse la carte
+  const x1 = state.sweepPos;
+  const y1 = h * 0.08;
+  const x2 = state.sweepPos + state.sweepWidth;
+  const y2 = h * 0.92;
+  const beam = ctx.createLinearGradient(x1, y1, x2, y2);
+  beam.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  beam.addColorStop(0.22, 'rgba(186, 230, 253, 0.18)');
+  beam.addColorStop(0.5, 'rgba(255, 255, 255, 0.34)');
+  beam.addColorStop(0.78, 'rgba(216, 180, 254, 0.16)');
+  beam.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = beam;
+  ctx.fillRect(state.sweepPos - state.sweepWidth * 0.35, 0, state.sweepWidth * 1.7, h);
 
-  // Anneaux d'infini toniques
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (let i = 0; i < 6; i++) {
-    const rx = w * (0.16 + i * 0.052);
-    const ry = h * (0.07 + i * 0.022);
-    const a = 0.18 + 0.15 * Math.sin(state.ringPhase * 2.6 + i * 0.7);
-    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
-    ctx.lineWidth = 1.9 + i * 0.35;
-    ctx.beginPath();
-    for (let p = 0; p <= 100; p++) {
-      const u = (p / 100) * Math.PI * 2;
-      const x = Math.sin(u) * rx;
-      const y = Math.sin(u * 2 + state.ringPhase * 1.4 + i * 0.45) * ry;
-      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
+  // Coeur du faisceau (plus franc)
+  const core = ctx.createLinearGradient(x1, y1, x2, y2);
+  core.addColorStop(0, 'rgba(255,255,255,0)');
+  core.addColorStop(0.45, 'rgba(255,255,255,0.28)');
+  core.addColorStop(0.55, 'rgba(255,255,255,0.28)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(state.sweepPos - state.sweepWidth * 0.2, 0, state.sweepWidth * 1.2, h);
 
-  // Runes dominantes
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const g of state.glyphs) {
-    const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.5 + g.phase);
-    ctx.font = `${g.size}px serif`;
-    ctx.shadowBlur = 14 + 12 * pulse;
-    ctx.shadowColor = `rgba(251, 191, 36, ${0.45 + 0.30 * pulse})`;
-    ctx.fillStyle = `rgba(255, 251, 235, ${g.alpha * (1 + 0.8 * pulse)})`;
-    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2.2);
-  }
-  ctx.restore();
-
-  // Éclats flottants prisme
-  for (const sh of state.shards) {
-    const x = cx + Math.cos(sh.angle + state.burstPhase * 0.22) * sh.dist;
-    const y = cy + Math.sin(sh.angle + state.burstPhase * 0.22) * sh.dist;
-    const rot = sh.phase + state.t * 0.4;
-    const a = sh.alpha * (0.65 + 0.35 * Math.sin(state.t * 2 + sh.phase));
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
-    ctx.fillStyle = hsl(sh.hue, 90, 72, a * 0.85);
-    ctx.beginPath();
-    ctx.moveTo(0, -sh.size * 0.9);
-    ctx.lineTo(sh.size * 0.55, -sh.size * 0.1);
-    ctx.lineTo(sh.size * 0.25, sh.size * 0.95);
-    ctx.lineTo(-sh.size * 0.45, sh.size * 0.2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = `rgba(255,255,255,${a * 0.75})`;
-    ctx.lineWidth = 0.9;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Étoiles renforcées
+  // Etoiles prismatiques révélées par la lumière
   for (const st of state.stars) {
-    const a = st.alpha * (0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2));
+    const tw = 0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2);
+    const a = st.alpha * st.seen * tw;
+    if (a <= 0.02) continue;
+
     const gg = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4);
-    gg.addColorStop(0, `rgba(255,255,255,${a * 0.45})`);
+    gg.addColorStop(0, `rgba(255,255,255,${a * 0.55})`);
     gg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gg;
     ctx.beginPath();
     ctx.arc(st.x, st.y, st.r * 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
+
+    ctx.fillStyle = hsl(st.hue, 85, 78, a);
     ctx.beginPath();
     ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
     ctx.fill();
@@ -2308,9 +2234,7 @@ function drawPerfectCharacter(ctx, state, w, h) {
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
-  const groundY = h * 0.78;
-  const epicenterX = w * 0.5;
-  const epicenterY = groundY + h * 0.08;
+  const groundY = h * 0.90;
 
   const fissures = [];
   const fissCount = Math.max(10, Math.floor(w / 35));
@@ -2336,16 +2260,17 @@ function initNightMoon(w, h) {
     }
   }
 
-  const stonesCount = Math.max(20, Math.floor(w / 18));
+  const stonesCount = Math.max(22, Math.floor(w / 15));
   const stones = Array.from({ length: stonesCount }, () => {
-    const angle = rand(-Math.PI * 0.98, -Math.PI * 0.02);
-    const dist = rand(12, Math.min(w, h) * 0.42);
+    const x = rand(8, w - 8);
+    const baseY = rand(groundY - 58, groundY - 10);
     return {
-      angle,
-      dist,
+      x,
+      baseY,
+      y: baseY,
+      floatAmp: rand(8, 24),
+      driftX: rand(-0.45, 0.45),
       drift: rand(-0.32, 0.32),
-      x: epicenterX + Math.cos(angle) * dist,
-      y: epicenterY + Math.sin(angle) * dist,
       spin: rand(-0.06, 0.06),
       phase: rand(0, Math.PI * 2),
       size: rand(4, 16),
@@ -2354,13 +2279,14 @@ function initNightMoon(w, h) {
     };
   });
 
-  const chunks = Array.from({ length: Math.max(10, Math.floor(w / 26)) }, () => {
-    const angle = rand(-Math.PI * 0.96, -Math.PI * 0.04);
-    const dist = rand(8, Math.min(w, h) * 0.24);
+  const chunks = Array.from({ length: Math.max(14, Math.floor(w / 20)) }, () => {
+    const x = rand(10, w - 10);
+    const y = rand(groundY - 34, groundY + 8);
     return {
-      angle,
-      dist,
+      x,
+      y,
       drift: rand(-0.25, 0.25),
+      driftX: rand(-0.38, 0.38),
       spin: rand(-0.03, 0.03),
       phase: rand(0, Math.PI * 2),
       w: rand(12, 30),
@@ -2369,25 +2295,27 @@ function initNightMoon(w, h) {
     };
   });
 
-  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks, epicenterX, epicenterY };
+  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks };
 }
 
 function updateNightMoon(state, w, h, dt) {
   const s = dt / 16;
   state.moonPhase += 0.01 * s;
 
-  // Débris en suspension (gravité quasi nulle)
+  // Débris en suspension répartis sur toute la largeur du sol
   for (const st of state.stones) {
     st.phase += st.spin * s;
-    st.dist += st.drift * s;
-    if (st.dist < 8 || st.dist > Math.min(w, h) * 0.5) st.drift *= -1;
-    st.x = state.epicenterX + Math.cos(st.angle + state.moonPhase * 0.14) * st.dist;
-    st.y = state.epicenterY + Math.sin(st.angle + state.moonPhase * 0.14) * st.dist;
+    st.y = st.baseY + Math.sin(st.phase) * st.floatAmp;
+    st.x += st.driftX * s + Math.sin(st.phase * 0.7) * 0.12 * s;
+    if (st.x < -20) st.x = w + 20;
+    if (st.x > w + 20) st.x = -20;
   }
   for (const c of state.chunks || []) {
     c.phase += c.spin * s;
-    c.dist += c.drift * s;
-    if (c.dist < 6 || c.dist > Math.min(w, h) * 0.34) c.drift *= -1;
+    c.y += Math.sin(c.phase * 0.9) * 0.12 * s + c.drift * 0.06 * s;
+    c.x += c.driftX * s + Math.cos(c.phase) * 0.08 * s;
+    if (c.x < -30) c.x = w + 30;
+    if (c.x > w + 30) c.x = -30;
   }
 }
 
@@ -2434,7 +2362,7 @@ function drawNightMoon(ctx, state, w, h) {
   }
   ctx.restore();
 
-  // Sol de base
+  // Sol droit de base
   const ridge = state.groundY + Math.sin(state.moonPhase) * 1.2;
   const groundG = ctx.createLinearGradient(0, ridge, 0, h);
   groundG.addColorStop(0, 'rgba(148, 163, 184, 0.14)');
@@ -2444,33 +2372,16 @@ function drawNightMoon(ctx, state, w, h) {
 
   ctx.beginPath();
   ctx.moveTo(0, h);
-  ctx.lineTo(0, ridge + Math.sin(0) * 3);
-  const step = Math.max(5, Math.floor(w / 90));
-  for (let x = 0; x <= w; x += step) {
-    const jag = Math.sin(x * 0.11 + state.moonPhase * 0.9) * 1.4 + Math.sin(x * 0.23 + 0.9) * 0.9;
-    ctx.lineTo(x, ridge + jag);
-  }
+  ctx.lineTo(0, ridge);
+  ctx.lineTo(w, ridge);
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
 
-  // Cratère d'explosion central
-  const craterR = Math.min(w, h) * 0.16;
-  const crater = ctx.createRadialGradient(state.epicenterX, state.epicenterY - 2, craterR * 0.15, state.epicenterX, state.epicenterY, craterR);
-  crater.addColorStop(0, 'rgba(2, 6, 23, 0.85)');
-  crater.addColorStop(0.55, 'rgba(15, 23, 42, 0.45)');
-  crater.addColorStop(1, 'rgba(15, 23, 42, 0)');
-  ctx.fillStyle = crater;
-  ctx.beginPath();
-  ctx.ellipse(state.epicenterX, state.epicenterY, craterR, craterR * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-
   // Blocs de sol arrachés (gros morceaux)
   for (const c of state.chunks || []) {
-    const x = state.epicenterX + Math.cos(c.angle + state.moonPhase * 0.12) * c.dist;
-    const y = state.epicenterY + Math.sin(c.angle + state.moonPhase * 0.12) * c.dist;
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(c.x, c.y);
     ctx.rotate(c.phase);
     ctx.fillStyle = `rgba(71, 85, 105, ${c.alpha})`;
     ctx.beginPath();
@@ -2499,7 +2410,7 @@ function drawNightMoon(ctx, state, w, h) {
     ctx.stroke();
   }
 
-  // Petits débris flottants (style explosion en suspension)
+  // Petits débris flottants (sur toute la distance du sol)
   for (const st of state.stones) {
     const y = st.y;
     const r = st.size;
@@ -2562,7 +2473,7 @@ function makeLightningBolt(w, h, kind) {
   const big = kind === 'big';
   const startX = rand(0, w);
   const startY = rand(h * 0.02, h * 0.18);
-  const endY = big ? rand(h * 0.35, h * 0.8) : rand(h * 0.28, h * 0.62);
+  const endY = big ? rand(h * 0.90, h * 0.99) : rand(h * 0.28, h * 0.62);
   const steps = big ? randInt(7, 11) : randInt(5, 9);
   const thickness = big ? rand(1.8, 3.4) : rand(1.0, 2.2);
   const life = big ? 18 : 12;
@@ -2675,6 +2586,23 @@ function drawStormTempest(ctx, state, w, h) {
         ctx.arc(p.x, p.y, b.thickness * 4.2, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Impact au sol : flash + onde d'explosion
+      const end = b.points[b.points.length - 1];
+      const flash = ctx.createRadialGradient(end.x, end.y, 0, end.x, end.y, w * 0.22);
+      flash.addColorStop(0, `rgba(255,255,255,${0.35 * alpha})`);
+      flash.addColorStop(0.25, `rgba(147,197,253,${0.22 * alpha})`);
+      flash.addColorStop(1, 'rgba(147,197,253,0)');
+      ctx.fillStyle = flash;
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, w * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(191, 219, 254, ${0.55 * alpha})`;
+      ctx.lineWidth = 2.4 + 2 * alpha;
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, w * (0.04 + 0.08 * (1 - alpha)), 0, Math.PI * 2);
+      ctx.stroke();
     }
     ctx.restore();
   }
