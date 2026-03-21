@@ -3035,15 +3035,24 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/** Calque offscreen : silhouette en or/bronze foncé (source-in sur le masque). */
-function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask) {
+/** Calque offscreen : silhouette en or/bronze foncé (source-in sur le masque). pulseScale ≈ 1 = respiration légère du relief. */
+function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, pulseScale = 1) {
   octx.setTransform(1, 0, 0, 1, 0, 0);
   octx.clearRect(0, 0, w, h);
   octx.globalAlpha = 1;
   octx.globalCompositeOperation = 'source-over';
+
+  const cx = w * 0.5;
+  const cy = h * 0.5;
+  octx.save();
+  octx.translate(cx, cy);
+  octx.scale(pulseScale, pulseScale);
+  octx.translate(-cx, -cy);
   octx.filter = 'blur(1.05px)';
   octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
   octx.filter = 'none';
+  octx.restore();
+
   octx.globalCompositeOperation = 'source-in';
   const darkGold = octx.createLinearGradient(0, 0, w, h);
   darkGold.addColorStop(0, 'rgba(124, 64, 22, 0.94)');
@@ -3109,10 +3118,12 @@ function drawGoldReliefTest(ctx, state, w, h) {
   drawGoldReliefMetallicFill(ctx, w, h, state);
   drawGoldReliefSparkles(ctx, state, w, h);
 
-  // 2) Par-dessus : masque = or foncé / marron uniquement sur la silhouette
-  renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask);
+  // 2) Par-dessus : masque = or foncé / marron, pulsation légère (relief vivant)
+  const pulse = Math.sin(state.t * 0.82);
+  const pulseScale = 1 + 0.009 * pulse;
+  renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, pulseScale);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.93;
+  ctx.globalAlpha = 0.91 + 0.038 * pulse;
   ctx.drawImage(overlay, 0, 0);
 
   ctx.restore();
