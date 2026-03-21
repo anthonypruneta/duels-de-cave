@@ -2853,35 +2853,45 @@ function drawGoldReliefTest(ctx, state, w, h) {
 
   if (!state.maskCanvas) return;
 
-  // Emboss clair (haut-gauche)
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.30;
-  ctx.filter = 'blur(1.1px)';
-  ctx.drawImage(state.maskCanvas, -1.5, -1.5, w, h);
-  ctx.restore();
-
-  // Emboss sombre (bas-droite) en or foncé / brun
+  // Masque intérieur en or foncé / brun (corps du relief)
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1;
-  ctx.filter = 'blur(1.2px)';
-  ctx.drawImage(state.maskCanvas, 1.6, 1.6, w, h);
+  ctx.globalAlpha = 0.92;
+  ctx.filter = 'blur(0.9px)';
+  ctx.drawImage(state.maskCanvas, 0.8, 0.8, w, h);
   ctx.globalCompositeOperation = 'source-in';
   const darkGold = ctx.createLinearGradient(0, 0, w, h);
-  darkGold.addColorStop(0, 'rgba(120, 53, 15, 0.70)');
-  darkGold.addColorStop(0.5, 'rgba(146, 64, 14, 0.80)');
-  darkGold.addColorStop(1, 'rgba(92, 40, 12, 0.76)');
+  darkGold.addColorStop(0, 'rgba(125, 59, 18, 0.74)');
+  darkGold.addColorStop(0.5, 'rgba(120, 53, 15, 0.86)');
+  darkGold.addColorStop(1, 'rgba(82, 36, 12, 0.84)');
   ctx.fillStyle = darkGold;
   ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
-  // Liseré interne doré autour de la silhouette
+  // Contour du personnage en or poli (anneau)
   ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.22 + 0.08 * Math.sin(state.t * 2.6);
-  ctx.filter = 'blur(0.6px)';
-  ctx.drawImage(state.maskCanvas, -0.7, -0.7, w, h);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 0.75;
+  ctx.filter = 'blur(0.8px)';
+  const ringOffsets = [
+    [-1.8, 0], [1.8, 0], [0, -1.8], [0, 1.8],
+    [-1.3, -1.3], [1.3, -1.3], [-1.3, 1.3], [1.3, 1.3],
+  ];
+  for (const [ox, oy] of ringOffsets) {
+    ctx.drawImage(state.maskCanvas, ox, oy, w, h);
+  }
+  ctx.globalCompositeOperation = 'source-in';
+  const polishedRing = ctx.createLinearGradient(0, 0, w, h);
+  polishedRing.addColorStop(0, 'rgba(255, 244, 200, 0.95)');
+  polishedRing.addColorStop(0.35, 'rgba(250, 204, 21, 0.88)');
+  polishedRing.addColorStop(0.7, 'rgba(234, 179, 8, 0.82)');
+  polishedRing.addColorStop(1, 'rgba(180, 83, 9, 0.78)');
+  ctx.fillStyle = polishedRing;
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 0.96;
+  ctx.filter = 'blur(0.2px)';
+  ctx.drawImage(state.maskCanvas, 0, 0, w, h);
   ctx.restore();
 }
 
