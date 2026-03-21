@@ -2936,7 +2936,7 @@ function buildHeuristicSubjectMask(img, w, h) {
 
 const GOLD_RELIEF_GRAIN_TILE = 96;
 /** Or uni (teinte « centre » de l’ancien dégradé) sur toute la carte. */
-const GOLD_RELIEF_FLAT_GOLD = '#b8922a';
+const GOLD_RELIEF_FLAT_GOLD = '#b58e27';
 
 function spawnGoldReliefSparkle(w, h) {
   return {
