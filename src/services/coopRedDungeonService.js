@@ -1,5 +1,5 @@
 /**
- * Donjon coop async « Rouge » — rooms Firestore + quota quotidien.
+ * Donjon coop async « Red » — rooms Firestore + quota quotidien.
  */
 import {
   doc,
@@ -15,14 +15,9 @@ import {
   COOP_RED_LEVEL_REQUIRED,
   COOP_RED_MAX_ATTEMPTS_PER_DAY,
   COOP_RED_DROP_RATE,
-  COOP_RED_DNA_COST_ECHO,
 } from '../data/coopRedDungeon.js';
-import {
-  createCoopRedCombatState,
-  coopRedResolveFromNewState,
-  coopRedSubmitPlayerAction,
-} from '../utils/coopRedCombat';
-import { getUserCharacter, updateCharacterCoopRedRewards } from './characterService';
+import { simulateCoopRedCombatFull } from '../utils/coopRedCombat';
+import { getUserCharacter } from './characterService';
 import { races } from '../data/races.js';
 
 function coopDropRoll01(seed, rngCounter, salt) {
@@ -165,8 +160,8 @@ export async function createCoopRedRoom(hostUserId, difficulty) {
     hostSnapshot: snapshotCharacterForCoop(charRes.data),
     guestSnapshot: null,
     combat: null,
-    hostReady: false,
-    guestReady: false,
+    attemptsConsumed: false,
+    combatSeed: null,
     hostDropGranted: false,
     guestDropGranted: false,
     rewardsWritten: false,
@@ -200,7 +195,11 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
         throw new Error('room_not_found');
       }
       const r = snap.data();
-      if (r.status !== 'waiting' && r.status !== 'ready') {
+      if (
+        r.status !== 'waiting' &&
+        r.status !== 'ready' &&
+        r.status !== 'matched'
+      ) {
         throw new Error('room_closed');
       }
       if (r.hostId === guestUserId) {
@@ -213,16 +212,12 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
       if ((charRes.data.level ?? 1) < minLv) {
         throw new Error(`level_too_low:${minLv}`);
       }
-      const updates = {
+      tx.update(ref, {
         guestId: guestUserId,
         guestSnapshot: snapshotCharacterForCoop(charRes.data),
         status: 'ready',
         updatedAt: Timestamp.now(),
-      };
-      if (!r.guestId) {
-        updates.guestReady = false;
-      }
-      tx.update(ref, updates);
+      });
       return { roomId: code };
     });
   }).catch((e) => {
@@ -231,7 +226,7 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
     if (msg === 'room_closed') return { success: false, error: 'Cette salle n’accepte plus de joueurs.' };
     if (msg === 'self_join') return { success: false, error: 'Tu es déjà l’hôte de cette salle.' };
     if (msg === 'room_full') return { success: false, error: 'La salle est pleine.' };
-    if (msg === 'level_too_low') {
+    if (msg?.startsWith('level_too_low')) {
       const parts = msg.split(':');
       const minLv = parts[1] ? parseInt(parts[1], 10) : 0;
       return { success: false, error: `Niveau ${minLv || '?'} requis pour cette difficulté.` };
@@ -243,28 +238,11 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
   return { success: true, roomId: code };
 }
 
-export async function setCoopRedReady(userId, roomId, ready) {
-  const ref = doc(db, ROOMS, roomId);
-  const snap = await retryOperation(() => getDoc(ref));
-  if (!snap.exists()) return { success: false, error: 'Salle introuvable.' };
-  const r = snap.data();
-  const field = r.hostId === userId ? 'hostReady' : 'guestReady';
-  if (r.guestId == null && r.hostId !== userId) {
-    return { success: false, error: 'Accès refusé.' };
-  }
-  if (r.hostId !== userId && r.guestId !== userId) {
-    return { success: false, error: 'Accès refusé.' };
-  }
-  await retryOperation(() =>
-    updateDoc(ref, {
-      [field]: !!ready,
-      updatedAt: Timestamp.now(),
-    })
-  );
-  return { success: true };
-}
-
-export async function startCoopRedCombat(roomId) {
+/**
+ * Dès que les deux joueurs sont inscrits : consomme les essais, simule tout le combat (bots), enregistre le résultat.
+ * Idempotent : plusieurs appels / clients convergent vers le même état final.
+ */
+export async function runCoopRedAutoSimulation(roomId) {
   const ref = doc(db, ROOMS, roomId);
   try {
     await retryOperation(async () => {
@@ -272,33 +250,82 @@ export async function startCoopRedCombat(roomId) {
         const snap = await tx.get(ref);
         if (!snap.exists()) throw new Error('missing');
         const r = snap.data();
-        if (r.status !== 'ready' || !r.guestId || !r.hostSnapshot || !r.guestSnapshot) {
-          throw new Error('not_ready');
-        }
-        if (!r.hostReady || !r.guestReady) throw new Error('not_ready');
-        if (r.combat) throw new Error('already_started');
+        if (r.status === 'completed' && r.combat?.winner) return;
+        if (!r.guestId || !r.hostSnapshot || !r.guestSnapshot) return;
+        if (r.status === 'waiting') return;
+        if (r.attemptsConsumed === true) return;
+
+        if (r.status !== 'ready' && r.status !== 'matched') return;
 
         await consumeOneAttemptInTransaction(tx, r.hostId);
         await consumeOneAttemptInTransaction(tx, r.guestId);
-
         const seed = (Math.random() * 0x7fffffff) >>> 0;
-        let combat = createCoopRedCombatState(r.hostSnapshot, r.guestSnapshot, r.difficulty, seed);
-        combat = coopRedResolveFromNewState(combat, r.hostSnapshot, r.guestSnapshot, r.difficulty);
-
         tx.update(ref, {
-          status: 'in_progress',
-          combat,
+          attemptsConsumed: true,
+          combatSeed: seed,
+          status: 'simulating',
+          combat: null,
           updatedAt: Timestamp.now(),
         });
       });
     });
-    return { success: true };
   } catch (e) {
-    if (e.message === 'not_ready') return { success: false, error: 'Les deux joueurs doivent être prêts.' };
-    if (e.message === 'already_started') return { success: false, error: 'Combat déjà lancé.' };
-    if (e.message === 'no_attempts') return { success: false, error: 'Un joueur n’a plus d’essais aujourd’hui.' };
-    return { success: false, error: e.message || 'Erreur au lancement.' };
+    if (e.message === 'no_attempts') {
+      await retryOperation(() =>
+        updateDoc(ref, {
+          status: 'failed_no_attempts',
+          updatedAt: Timestamp.now(),
+        })
+      ).catch(() => {});
+      return { success: false, error: 'Un joueur n’a plus d’essais aujourd’hui.' };
+    }
+    return { success: false, error: e.message || 'Erreur' };
   }
+
+  const snapAfter = await retryOperation(() => getDoc(ref));
+  if (!snapAfter.exists()) return { success: false, error: 'Salle introuvable.' };
+  const rd = snapAfter.data();
+  if (rd.status === 'completed' && rd.combat?.winner) return { success: true };
+  if (rd.status === 'failed_no_attempts') {
+    return { success: false, error: 'Essais insuffisants pour lancer la simulation.' };
+  }
+  if (!rd.attemptsConsumed || rd.combatSeed == null) return { success: true };
+
+  const finalCombat = simulateCoopRedCombatFull(
+    rd.hostSnapshot,
+    rd.guestSnapshot,
+    rd.difficulty,
+    rd.combatSeed
+  );
+
+  try {
+    await retryOperation(async () => {
+      await runTransaction(db, async (tx) => {
+        const s2 = await tx.get(ref);
+        if (!s2.exists()) return;
+        const d = s2.data();
+        if (d.status === 'completed' && d.combat?.winner) return;
+        if (d.combat?.winner) return;
+
+        const rate = COOP_RED_DROP_RATE[d.difficulty] ?? 0.25;
+        const hRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x51a1beef);
+        const gRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x52a1beef);
+
+        tx.update(ref, {
+          combat: finalCombat,
+          status: 'completed',
+          hostDropGranted: hRoll < rate,
+          guestDropGranted: gRoll < rate,
+          rewardsWritten: true,
+          updatedAt: Timestamp.now(),
+        });
+      });
+    });
+  } catch (e) {
+    return { success: false, error: e.message || 'Erreur sauvegarde combat.' };
+  }
+
+  return { success: true };
 }
 
 async function consumeOneAttemptInTransaction(tx, userId) {
@@ -328,77 +355,12 @@ async function consumeOneAttemptInTransaction(tx, userId) {
   );
 }
 
-function cloneCombatState(combat) {
-  if (!combat) return null;
-  return {
-    ...combat,
-    bossHP: [...(combat.bossHP || [])],
-    bossMaxHP: [...(combat.bossMaxHP || [])],
-    turnQueue: [...(combat.turnQueue || [])],
-    log: [...(combat.log || [])],
-    hostCd: { ...combat.hostCd },
-    guestCd: { ...combat.guestCd },
-  };
-}
-
-export async function submitCoopRedAction(roomId, userId, actionType) {
-  const ref = doc(db, ROOMS, roomId);
-  let txResult;
-  try {
-    txResult = await retryOperation(async () => {
-      return await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error('missing');
-        const r = snap.data();
-        if (r.status !== 'in_progress' || !r.combat) throw new Error('no_combat');
-        if (r.combat.winner) throw new Error('ended');
-        if (r.combat.pendingUserId !== userId) throw new Error('not_your_turn');
-
-        const next = coopRedSubmitPlayerAction(
-          cloneCombatState(r.combat),
-          r.hostSnapshot,
-          r.guestSnapshot,
-          r.difficulty,
-          userId,
-          actionType === 'capacity' ? 'capacity' : 'auto'
-        );
-
-        const updates = {
-          combat: next,
-          updatedAt: Timestamp.now(),
-        };
-
-        if (next.winner === 'players' && !r.rewardsWritten) {
-          const rate = COOP_RED_DROP_RATE[r.difficulty] ?? 0.25;
-          const hRoll = coopDropRoll01(next.seed, next.rngCounter, 0x51a1beef);
-          const gRoll = coopDropRoll01(next.seed, next.rngCounter, 0x52a1beef);
-          updates.hostDropGranted = hRoll < rate;
-          updates.guestDropGranted = gRoll < rate;
-          updates.rewardsWritten = true;
-          updates.status = 'completed';
-        } else if (next.winner === 'boss') {
-          updates.status = 'completed';
-        }
-
-        tx.update(ref, updates);
-        return { combat: next };
-      });
-    });
-  } catch (e) {
-    const m = e?.message;
-    if (m === 'not_your_turn') return { success: false, error: 'Ce n’est pas à ton tour.' };
-    if (m === 'ended') return { success: false, error: 'Le combat est terminé.' };
-    if (m === 'no_combat') return { success: false, error: 'Pas de combat en cours.' };
-    return { success: false, error: m || 'Erreur' };
-  }
-
-  return { success: true, combat: txResult.combat };
-}
-
 /**
- * Chaque joueur crédite son propre personnage (règles Firestore) après victoire.
+ * Après victoire + drop réussi : enregistre sur le perso l’écho racial du coéquipier
+ * (25 % des bonus plats de sa race, comme en combat via preparerCombattant).
+ * Idempotent (hostDnaDelivered / guestDnaDelivered sur la salle).
  */
-export async function claimCoopRedDnaIfNeeded(roomId, userId) {
+export async function claimCoopRedRewardIfNeeded(roomId, userId) {
   const ref = doc(db, ROOMS, roomId);
   try {
     await retryOperation(async () => {
@@ -412,12 +374,20 @@ export async function claimCoopRedDnaIfNeeded(roomId, userId) {
         if (!cSnap.exists()) return;
 
         if (r.hostId === userId && r.hostDropGranted && !r.hostDnaDelivered) {
-          const cur = Number(cSnap.data().dnaFragments) || 0;
-          tx.update(charRef, { dnaFragments: cur + 1, updatedAt: Timestamp.now() });
+          const allyRace = r.guestSnapshot?.race;
+          const charUpdate = { updatedAt: Timestamp.now() };
+          if (allyRace && races[allyRace]) {
+            charUpdate.allyRaceEcho = { race: allyRace };
+          }
+          tx.update(charRef, charUpdate);
           tx.update(ref, { hostDnaDelivered: true, updatedAt: Timestamp.now() });
         } else if (r.guestId === userId && r.guestDropGranted && !r.guestDnaDelivered) {
-          const cur = Number(cSnap.data().dnaFragments) || 0;
-          tx.update(charRef, { dnaFragments: cur + 1, updatedAt: Timestamp.now() });
+          const allyRace = r.hostSnapshot?.race;
+          const charUpdate = { updatedAt: Timestamp.now() };
+          if (allyRace && races[allyRace]) {
+            charUpdate.allyRaceEcho = { race: allyRace };
+          }
+          tx.update(charRef, charUpdate);
           tx.update(ref, { guestDnaDelivered: true, updatedAt: Timestamp.now() });
         }
       });
@@ -426,20 +396,4 @@ export async function claimCoopRedDnaIfNeeded(roomId, userId) {
   } catch (e) {
     return { success: false, error: e.message };
   }
-}
-
-export async function purchaseAllyRaceEcho(userId, allyRace) {
-  const charRes = await getUserCharacter(userId);
-  if (!charRes.success || !charRes.data) return { success: false, error: 'Personnage introuvable.' };
-  const dna = Number(charRes.data.dnaFragments) || 0;
-  if (dna < COOP_RED_DNA_COST_ECHO) {
-    return { success: false, error: `Il faut ${COOP_RED_DNA_COST_ECHO} fragments ADN.` };
-  }
-  if (!allyRace || typeof allyRace !== 'string' || !races[allyRace]) {
-    return { success: false, error: 'Race invalide.' };
-  }
-  return updateCharacterCoopRedRewards(userId, {
-    dnaDelta: -COOP_RED_DNA_COST_ECHO,
-    setAllyRaceEcho: { race: allyRace },
-  });
 }

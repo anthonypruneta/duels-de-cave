@@ -865,7 +865,7 @@ export const migrateHpStat4To6 = async () => {
 };
 
 /**
- * Fragments ADN (donjon coop) et écho racial allié.
+ * Mise à jour optionnelle des fragments ADN et/ou de l’écho racial (hors flux donjon Red).
  * @param {string} userId
  * @param {{ dnaDelta?: number, setAllyRaceEcho?: { race: string } | null }} opts
  */

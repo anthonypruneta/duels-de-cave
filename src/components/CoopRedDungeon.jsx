@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
@@ -9,41 +9,16 @@ import {
   COOP_RED_MAX_ATTEMPTS_PER_DAY,
   COOP_RED_DROP_RATE,
   COOP_RED_DIFFICULTY_LABELS,
-  COOP_RED_DNA_COST_ECHO,
   getCoopRedLineup,
 } from '../data/coopRedDungeon';
-import { races } from '../data/races';
 import {
   createCoopRedRoom,
   joinCoopRedRoom,
   subscribeCoopRedRoom,
-  setCoopRedReady,
-  startCoopRedCombat,
-  submitCoopRedAction,
+  runCoopRedAutoSimulation,
   getCoopRedAttemptsLeft,
-  claimCoopRedDnaIfNeeded,
-  purchaseAllyRaceEcho,
+  claimCoopRedRewardIfNeeded,
 } from '../services/coopRedDungeonService';
-
-const RACE_NAMES = Object.keys(races);
-
-const cdKeyForClass = (className) => {
-  const m = {
-    Guerrier: 'war',
-    Voleur: 'rog',
-    Paladin: 'pal',
-    Healer: 'heal',
-    Archer: 'arc',
-    Mage: 'mag',
-    Demoniste: 'dem',
-    Masochiste: 'maso',
-    Succube: 'succ',
-    Bastion: 'bast',
-    Alchimiste: 'alch',
-    'Briseur de Sort': 'mag',
-  };
-  return m[className] || 'war';
-};
 
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
@@ -56,7 +31,8 @@ function CoopRedDungeon() {
   const [room, setRoom] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [echoRacePick, setEchoRacePick] = useState(RACE_NAMES[0] || 'Humain');
+  const [simRunning, setSimRunning] = useState(false);
+  const simRunningRef = useRef(false);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -83,7 +59,7 @@ function CoopRedDungeon() {
       (data) => {
         setRoom(data);
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
-          claimCoopRedDnaIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
+          claimCoopRedRewardIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
         }
       },
       (e) => console.warn('coop room snap', e)
@@ -91,20 +67,45 @@ function CoopRedDungeon() {
     return () => unsub();
   }, [roomId, currentUser, loadCharAndAttempts]);
 
+  useEffect(() => {
+    if (!roomId || !room || !currentUser) return;
+    if (!room.guestId || !room.hostSnapshot || !room.guestSnapshot) return;
+    if (room.status === 'waiting' || room.status === 'failed_no_attempts') return;
+    if (room.status === 'completed' && room.combat?.winner) return;
+
+    const needSim =
+      (room.status === 'ready' && room.attemptsConsumed !== true) ||
+      (room.status === 'simulating' && !room.combat?.winner);
+
+    if (!needSim) return;
+    if (simRunningRef.current) return;
+
+    simRunningRef.current = true;
+    setSimRunning(true);
+    runCoopRedAutoSimulation(roomId)
+      .then((res) => {
+        if (!res.success && res.error) setError(res.error);
+      })
+      .finally(() => {
+        simRunningRef.current = false;
+        setSimRunning(false);
+      });
+  }, [
+    roomId,
+    currentUser,
+    room?.guestId,
+    room?.status,
+    room?.attemptsConsumed,
+    room?.combat?.winner,
+    room?.hostSnapshot,
+    room?.guestSnapshot,
+  ]);
+
   const isHost = room && currentUser && room.hostId === currentUser.uid;
   const isGuest = room && currentUser && room.guestId === currentUser.uid;
   const inRoom = isHost || isGuest;
 
   const lineup = useMemo(() => (room ? getCoopRedLineup(room.difficulty) : null), [room]);
-
-  const myCd = useMemo(() => {
-    if (!room?.combat) return null;
-    return isHost ? room.combat.hostCd : room.combat.guestCd;
-  }, [room, isHost]);
-
-  const myClass = character?.class;
-  const myCdKey = myClass ? cdKeyForClass(myClass) : 'war';
-  const capacityReady = myCd && (myCd[myCdKey] ?? 0) <= 0;
 
   const handleCreate = async () => {
     setError(null);
@@ -136,39 +137,7 @@ function CoopRedDungeon() {
     setRoom(null);
   };
 
-  const handleReady = async (ready) => {
-    setBusy(true);
-    await setCoopRedReady(currentUser.uid, roomId, ready);
-    setBusy(false);
-  };
-
-  const handleStart = async () => {
-    setError(null);
-    setBusy(true);
-    const res = await startCoopRedCombat(roomId);
-    setBusy(false);
-    if (!res.success) setError(res.error);
-  };
-
-  const handleAction = async (actionType) => {
-    setError(null);
-    setBusy(true);
-    const res = await submitCoopRedAction(roomId, currentUser.uid, actionType);
-    setBusy(false);
-    if (!res.success) setError(res.error);
-  };
-
-  const handlePurchaseEcho = async () => {
-    setError(null);
-    setBusy(true);
-    const res = await purchaseAllyRaceEcho(currentUser.uid, echoRacePick);
-    setBusy(false);
-    if (!res.success) setError(res.error);
-    else await loadCharAndAttempts();
-  };
-
   const level = character?.level ?? 1;
-  const dna = Number(character?.dnaFragments) || 0;
 
   const diffOptions = [
     COOP_RED_DIFFICULTY.EASY,
@@ -181,10 +150,40 @@ function CoopRedDungeon() {
       <Header />
       <div className="max-w-3xl mx-auto pt-20 space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Rouge (coop async)</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
           <p className="text-stone-400 text-sm">
-            Deux joueurs, trois adversaires en rotation, ordre des tours selon la VIT. Boss alterne ses cibles.
+            Dès que les deux joueurs sont inscrits, le combat est simulé jusqu’au bout avec le{' '}
+            <span className="text-stone-300">même moteur que le tournoi</span> (armes légendaires, passifs, sous-classes,
+            etc.). Tirage déterministe (seed) : même résultat pour tout le monde. Tu peux quitter la page.
           </p>
+        </div>
+
+        <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
+          <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">
+            Récompenses Red : pointeau & écho de l’allié
+          </h2>
+          <ul className="space-y-2 text-stone-400 leading-relaxed">
+            <li>
+              <span className="text-stone-200 font-semibold">Pendant le combat Red</span> — Chacun profite déjà sur sa
+              base de <span className="text-stone-300">25 % des bonus plats de la race du coéquipier</span> (allié =
+              invité ou hôte selon ton rôle).
+            </li>
+            <li>
+              <span className="text-stone-200 font-semibold">Après une victoire</span> — Chaque joueur a un{' '}
+              <span className="text-stone-300">tirage séparé</span> (pointeau). S’il réussit, la{' '}
+              <span className="text-stone-300">race de ton allié sur cette salle</span> est enregistrée sur ton
+              personnage comme <span className="text-stone-300">écho racial</span> : dans les autres modes (tournoi,
+              donjons solo, etc.), tes stats de base reçoivent encore <span className="text-stone-300">25 % des bonus plats</span>{' '}
+              de cette race (valeurs numériques seulement, pas les passifs spéciaux type crit ou régén). Une nouvelle
+              victoire avec pointeau <span className="text-stone-300">remplace</span> l’écho par la race du nouvel allié.
+            </li>
+            <li>
+              Chances de pointeau selon la difficulté de la salle — Facile{' '}
+              {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
+              {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.MEDIUM] * 100)} %, Difficile{' '}
+              {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.HARD] * 100)} %. Rien en défaite.
+            </li>
+          </ul>
         </div>
 
         <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 flex flex-wrap justify-between gap-3">
@@ -192,13 +191,13 @@ function CoopRedDungeon() {
             <p className="text-amber-400 text-xs font-bold uppercase">Essais restants (Paris)</p>
             <p className="text-2xl font-bold">{attemptsLeft} / {COOP_RED_MAX_ATTEMPTS_PER_DAY}</p>
           </div>
-          <div>
-            <p className="text-amber-400 text-xs font-bold uppercase">Fragments ADN</p>
-            <p className="text-2xl font-bold">{dna}</p>
-          </div>
           {character?.allyRaceEcho?.race && (
-            <div className="text-right text-sm text-stone-400">
-              Écho racial actif : <span className="text-emerald-300">{character.allyRaceEcho.race}</span>
+            <div className="text-right text-sm text-stone-400 max-w-xs">
+              <p className="text-amber-400 text-xs font-bold uppercase mb-1">Écho racial enregistré</p>
+              <span className="text-emerald-300 font-semibold">{character.allyRaceEcho.race}</span>
+              <p className="text-[11px] text-stone-500 mt-1">
+                Bonus permanent (hors Red) : 25 % des stats plates de cette race.
+              </p>
             </div>
           )}
         </div>
@@ -285,7 +284,7 @@ function CoopRedDungeon() {
                 onClick={handleLeaveRoom}
                 className="text-sm text-stone-400 hover:text-white underline"
               >
-                Quitter l’affichage (la salle reste en ligne)
+                Quitter l’affichage
               </button>
             </div>
 
@@ -301,36 +300,28 @@ function CoopRedDungeon() {
             </p>
 
             {room.status === 'waiting' && (
-              <p className="text-amber-200 text-sm">En attente d’un invité avec le code…</p>
+              <p className="text-amber-200 text-sm">
+                En attente d’un invité avec le code… Tu peux quitter : reviens plus tard avec le même code ou la même session.
+              </p>
             )}
 
-            {room.status === 'ready' && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-3 items-center">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={isHost ? !!room.hostReady : !!room.guestReady}
-                      onChange={(e) => handleReady(e.target.checked)}
-                      disabled={busy}
-                    />
-                    Prêt
-                  </label>
-                  {room.hostReady && room.guestReady && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={handleStart}
-                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 font-bold"
-                    >
-                      Lancer le combat (consomme 1 essai chacun)
-                    </button>
-                  )}
+            {room.status === 'failed_no_attempts' && (
+              <p className="text-red-300 text-sm">
+                Impossible de lancer le combat : au moins un joueur n’avait plus d’essais. Crée une nouvelle salle.
+              </p>
+            )}
+
+            {(room.status === 'ready' || room.status === 'simulating' || simRunning) &&
+              room.guestId &&
+              !room.combat?.winner && (
+                <div className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-amber-100 text-sm">
+                  {room.status === 'simulating' || simRunning
+                    ? 'Simulation (moteur tournoi) en cours…'
+                    : 'Les deux joueurs sont inscrits — lancement automatique du combat.'}
                 </div>
-              </div>
-            )}
+              )}
 
-            {(room.status === 'in_progress' || room.status === 'completed') && room.combat && (
+            {room.status === 'completed' && room.combat && (
               <div className="space-y-4 border-t border-stone-700 pt-4">
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
@@ -384,89 +375,50 @@ function CoopRedDungeon() {
                   </div>
                 )}
 
-                {room.combat.pendingUserId === currentUser?.uid && room.status === 'in_progress' && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleAction('auto')}
-                      className="px-4 py-2 rounded-lg bg-stone-700 hover:bg-stone-600 font-bold"
-                    >
-                      Attaque
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || !capacityReady}
-                      onClick={() => handleAction('capacity')}
-                      className="px-4 py-2 rounded-lg bg-violet-700 hover:bg-violet-600 font-bold disabled:opacity-40"
-                    >
-                      Capacité {capacityReady ? '' : `(CD ${myCd?.[myCdKey] ?? '—'})`}
-                    </button>
-                  </div>
-                )}
+                <p className="text-xs text-stone-500">
+                  Résolution : moteur tournoi complet (2 cibles joueurs, boss actif en rotation). Logs = règles PvP
+                  habituelles.
+                </p>
 
-                {room.combat.pendingUserId && room.combat.pendingUserId !== currentUser?.uid && room.status === 'in_progress' && (
-                  <p className="text-amber-200 text-sm">Tour de l’autre joueur — actualisation auto.</p>
-                )}
-
-                <div className="max-h-48 overflow-y-auto bg-stone-950/80 rounded-lg p-2 text-xs font-mono text-stone-300 space-y-1">
-                  {(room.combat.log || []).slice(-24).map((line, i) => (
+                <div className="max-h-64 overflow-y-auto bg-stone-950/80 rounded-lg p-2 text-xs font-mono text-stone-300 space-y-1">
+                  {(room.combat.log || []).map((line, i) => (
                     <div key={i}>{line}</div>
                   ))}
                 </div>
 
-                {room.status === 'completed' && (
-                  <div className="text-sm space-y-1">
-                    {room.combat.winner === 'players' && (
-                      <p className="text-emerald-400 font-bold">Victoire !</p>
-                    )}
-                    {room.combat.winner === 'boss' && (
-                      <p className="text-red-400 font-bold">Défaite…</p>
-                    )}
-                    {room.combat.winner === 'players' && (
-                      <p className="text-stone-400">
-                        {isHost && room.hostDropGranted && 'Tu as reçu un fragment ADN ! '}
-                        {isHost && !room.hostDropGranted && 'Pas de fragment ADN pour toi. '}
-                        {isGuest && room.guestDropGranted && 'Tu as reçu un fragment ADN ! '}
-                        {isGuest && !room.guestDropGranted && 'Pas de fragment ADN pour toi. '}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div className="text-sm space-y-1">
+                  {room.combat.winner === 'players' && (
+                    <p className="text-emerald-400 font-bold">Victoire !</p>
+                  )}
+                  {room.combat.winner === 'boss' && (
+                    <p className="text-red-400 font-bold">Défaite…</p>
+                  )}
+                  {room.combat.winner === 'players' && (
+                    <p className="text-stone-400">
+                      {isHost && room.hostDropGranted && (
+                        <>
+                          Pointeau obtenu : l’écho racial de{' '}
+                          <span className="text-emerald-300">{room.guestSnapshot?.name}</span> (
+                          {room.guestSnapshot?.race}) est enregistré sur ton personnage (25 % des bonus plats de cette
+                          race en dehors de Red).
+                        </>
+                      )}
+                      {isHost && !room.hostDropGranted && <>Pas de pointeau : l’écho de ton allié n’a pas été gravé.</>}
+                      {isGuest && room.guestDropGranted && (
+                        <>
+                          Pointeau obtenu : l’écho racial de{' '}
+                          <span className="text-emerald-300">{room.hostSnapshot?.name}</span> ({room.hostSnapshot?.race})
+                          est enregistré sur ton personnage (25 % des bonus plats de cette race en dehors de Red).
+                        </>
+                      )}
+                      {isGuest && !room.guestDropGranted && <>Pas de pointeau : l’écho de ton allié n’a pas été gravé.</>}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
         )}
-
-        <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-3">
-          <h2 className="font-bold text-lg text-amber-400">Écho racial (boutique ADN)</h2>
-          <p className="text-xs text-stone-400">
-            Pour {COOP_RED_DNA_COST_ECHO} fragments, applique un bonus racial réduit ({' '}
-            <span className="text-stone-300">25 % des bonus plats</span> de la race choisie) sur tes stats en combat
-            (tournoi, donjons, etc.).
-          </p>
-          <div className="flex flex-wrap gap-2 items-center">
-            <select
-              value={echoRacePick}
-              onChange={(e) => setEchoRacePick(e.target.value)}
-              className="bg-stone-800 border border-stone-600 rounded-lg px-2 py-2 text-sm"
-            >
-              {RACE_NAMES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={busy || dna < COOP_RED_DNA_COST_ECHO}
-              onClick={handlePurchaseEcho}
-              className="px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 font-bold text-sm disabled:opacity-40"
-            >
-              Acheter l’écho ({COOP_RED_DNA_COST_ECHO} ADN)
-            </button>
-          </div>
-        </div>
 
         <button
           type="button"

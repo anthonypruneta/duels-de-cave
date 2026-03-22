@@ -23,6 +23,7 @@ import { isForgeActive } from '../data/featureFlags.js';
 import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
 import { getSubclassStatBonuses } from '../data/subclasses.js';
 import { applyCoopAllyRaceEchoToRawCharacter } from './coopAllyRaceEcho.js';
+import { combatRandom01 } from './combatRngContext.js';
 
 // ============================================================================
 // HELPERS
@@ -81,7 +82,7 @@ function getPassiveDetails(passive) {
 }
 
 /** Liste des passifs d'un combattant (principal + extension) pour appliquer les deux en combat. */
-function getPassiveDetailsList(fighter) {
+export function getPassiveDetailsList(fighter) {
   const primary = getPassiveDetails(fighter?.mageTowerPassive);
   const extension = getPassiveDetails(fighter?.mageTowerExtensionPassive);
   return [primary, extension].filter(Boolean);
@@ -99,7 +100,7 @@ function getUnicornPactTurnData(passiveDetails, turn) {
 }
 
 /** Pacte Licorne : pris sur le premier passif (principal ou extension) qui l'a. */
-function getUnicornPactTurnDataFromList(passiveList, turn) {
+export function getUnicornPactTurnDataFromList(passiveList, turn) {
   if (!passiveList?.length) return null;
   for (const p of passiveList) {
     const data = getUnicornPactTurnData(p, turn);
@@ -180,7 +181,7 @@ function hasMortVivantRevive(fighter) {
   return (fighter.race === 'Mort-vivant' || (fighter.awakening?.revivePercent ?? 0) > 0) && !fighter.undead;
 }
 
-function applyStartOfCombatPassives(attacker, defender, log, label) {
+export function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passives = [attacker.mageTowerPassive, attacker.mageTowerExtensionPassive].filter(Boolean);
   for (const p of passives) {
     const passiveDetails = getPassiveDetails(p);
@@ -677,7 +678,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     return 0;
   }
   const speedDuel = getSpeedDuelBonuses(def, att);
-  if (speedDuel.dodge > 0 && Math.random() < speedDuel.dodge) {
+  if (speedDuel.dodge > 0 && combatRandom01() < speedDuel.dodge) {
     log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
     return 0;
   }
@@ -820,10 +821,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   return adjusted;
 }
 
-function processPlayerAction(att, def, log, isP1, turn) {
+export function processPlayerAction(att, def, log, isP1, turn, logLabel = null) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
-  const playerColor = isP1 ? '[P1]' : '[P2]';
+  const playerColor = logLabel ?? (isP1 ? '[P1]' : '[P2]');
   const attackerPassiveList = getPassiveDetailsList(att);
   const defenderPassiveList = getPassiveDetailsList(def);
   const attackerUnicorn = getUnicornPactTurnDataFromList(attackerPassiveList, turn);
@@ -1147,7 +1148,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const spellCapMultSucc = consumeAuraCapacityCapMultiplier();
     const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
-    const isCrit = forceCritAme || Math.random() < calcCritChance(att, def);
+    const isCrit = forceCritAme || combatRandom01() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     if (att.subclass?.id === 'dompteuse_chair') {
       const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
@@ -1184,7 +1185,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (isBastion) {
     skillUsed = true;
     const spellCapMultBast = consumeAuraCapacityCapMultiplier();
-    const isCrit = Math.random() < calcCritChance(att, def);
+    const isCrit = combatRandom01() < calcCritChance(att, def);
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'bast', log, playerColor);
@@ -1224,7 +1225,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     if (phase === 0) {
       // Flasque de feu : dégâts vs ResC
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
       let raw = dmgCap(Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * fireCapScale) * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
@@ -1302,7 +1303,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     } else if (phase === 2) {
       // Flasque d'acide : dégâts physiques (Auto vs DEF ennemie, comme une attaque normale) + réduction DEF/ResC
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
       let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
@@ -1350,7 +1351,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     } else if (phase === 3) {
       // Flasque de métal (sous-classe Alchimiste de Métal uniquement) : physique vs DEF ennemie
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
       let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
@@ -1407,7 +1408,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
-      const stat = stats[Math.floor(Math.random() * stats.length)];
+      const stat = stats[Math.floor(combatRandom01() * stats.length)];
       const stolen = Math.max(0, Math.round(def.base[stat] * 0.06));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
@@ -1570,7 +1571,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const isBonusAttack = i >= baseHits;
     const subclassCritBonus = att.subclass?.id === 'ame_tentatrice' ? 0.15 : (att.subclass?.id === 'chasseur_fantome' ? 0.10 : 0);
     const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
-    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
+    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : combatRandom01() < critChance;
     if (isCrit) wasCrit = true;
     let raw = 0;
     const weaponBonus = i === 0 ? consumeWeaponDamageBonus() : 1;
@@ -1842,7 +1843,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 // SIMULATION COMPLÈTE (synchrone) — avec steps pour animation
 // ============================================================================
 
-function applyGnomeCapBonus(fighter, opponent) {
+export function applyGnomeCapBonus(fighter, opponent) {
   if (fighter.race !== 'Gnome') return;
   const speedDuel = getSpeedDuelBonuses(fighter, opponent);
   if (speedDuel.capBonus > 0) {

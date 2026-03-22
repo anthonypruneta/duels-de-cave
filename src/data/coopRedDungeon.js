@@ -1,5 +1,5 @@
 /**
- * Donjon coop « Rouge » — 3 difficultés, 3 adversaires en rotation par run.
+ * Donjon coop « Red » — 3 difficultés, 3 adversaires en rotation par run.
  * Noms volontairement dérivés (éviter marques déposées).
  */
 
@@ -22,8 +22,6 @@ export const COOP_RED_DROP_RATE = {
 };
 
 export const COOP_RED_MAX_ATTEMPTS_PER_DAY = 3;
-
-export const COOP_RED_DNA_COST_ECHO = 3;
 
 /** Facteur d’écho racial (allié) : fraction des bonus plats de raceConstants */
 export const COOP_ALLY_RACE_ECHO_FACTOR = 0.25;

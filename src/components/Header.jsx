@@ -137,7 +137,7 @@ function Header() {
   const navLinks = [
     { path: '/', label: '🏠 Accueil' },
     { path: '/dungeons', label: '🏰 Donjons' },
-    { path: '/coop-red', label: '🔴 Rouge coop' },
+    { path: '/coop-red', label: '🔴 Red coop' },
     { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
     { path: '/boss-rush', label: '💀 Boss Rush' },
     { path: '/mirror', label: '🪞 Miroir' },

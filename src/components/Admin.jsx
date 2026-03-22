@@ -33,6 +33,7 @@ import CharacterCardContent from './CharacterCardContent';
 import { BORDERS } from '../data/borders';
 import { TITLES } from '../data/titles';
 import { getDisplayTitle } from '../services/titleService';
+import { runAdminCoopRedSimulations } from '../utils/coopRedAdminSim';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -91,6 +92,12 @@ const Admin = () => {
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
+
+  const [redSimLoading, setRedSimLoading] = useState(false);
+  const [redSimError, setRedSimError] = useState('');
+  const [redSimPayload, setRedSimPayload] = useState(null);
+  const [redSimSeedInput, setRedSimSeedInput] = useState('');
+  const [redSimExpandedKey, setRedSimExpandedKey] = useState(null);
 
   // Personnages archivés
   const [archivedCharacters, setArchivedCharacters] = useState([]);
@@ -1034,6 +1041,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             { key: 'cataclysme', label: '🌋 Cataclysme' },
             { key: 'tournois', label: '🏆 Tournois' },
             { key: 'equilibrage', label: '⚖️ Équilibrage' },
+            { key: 'red-sim', label: '🔴 Red simu' },
             { key: 'combat-hd2d', label: '⚔️ Combat HD-2D' },
             { key: 'skins', label: '🎨 Skins' },
             { key: 'personnage', label: '👤 Personnage' }
@@ -1467,6 +1475,103 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         {adminMainTab === 'equilibrage' && (
           <div className="bg-stone-900/40 border-2 border-amber-600 rounded-xl p-6 mb-8">
             <AdminBalance embedded />
+          </div>
+        )}
+
+        {adminMainTab === 'red-sim' && (
+          <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-6 mb-8">
+            <h2 className="text-2xl font-bold text-red-400 mb-2">🔴 Simulation donjon Red (coop)</h2>
+            <p className="text-stone-400 text-sm mb-4">
+              Génère deux personnages <span className="text-stone-300">aléatoires</span> par palier (niveau 150, 250 et
+              350) et lance le <span className="text-stone-300">même moteur</span> que le donjon coop (2 joueurs vs 3
+              boss). Utile pour voir durée, issues et logs.
+            </p>
+            <div className="flex flex-wrap gap-3 items-end mb-4">
+              <div>
+                <label className="text-stone-500 text-xs block mb-1">Seed (optionnel, entier)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={redSimSeedInput}
+                  onChange={(e) => setRedSimSeedInput(e.target.value)}
+                  placeholder="Vide = horodatage"
+                  className="w-48 bg-stone-800 border border-stone-600 rounded px-3 py-2 text-white text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={redSimLoading}
+                onClick={() => {
+                  setRedSimError('');
+                  setRedSimLoading(true);
+                  try {
+                    const raw = redSimSeedInput.trim();
+                    const parsed = raw === '' ? Date.now() : parseInt(raw, 10);
+                    const seed = Number.isFinite(parsed) ? parsed : Date.now();
+                    const payload = runAdminCoopRedSimulations(seed);
+                    setRedSimPayload(payload);
+                    setRedSimExpandedKey(null);
+                  } catch (err) {
+                    setRedSimError(err?.message || 'Erreur simulation');
+                    setRedSimPayload(null);
+                  } finally {
+                    setRedSimLoading(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 font-bold text-white disabled:opacity-40"
+              >
+                {redSimLoading ? 'Simulation…' : 'Lancer 3 combats (150 / 250 / 350)'}
+              </button>
+            </div>
+            {redSimError && <p className="text-red-400 text-sm mb-3">{redSimError}</p>}
+            {redSimPayload && (
+              <p className="text-stone-500 text-xs mb-4">Seed utilisé : {redSimPayload.seed}</p>
+            )}
+            {redSimPayload?.runs?.map((run) => {
+              const key = `${run.difficulty}-${run.level}`;
+              const open = redSimExpandedKey === key;
+              return (
+                <div key={key} className="border border-stone-600 rounded-lg p-4 mb-3 bg-stone-950/50">
+                  <div className="flex flex-wrap justify-between gap-2 items-start">
+                    <div>
+                      <p className="font-bold text-amber-300">
+                        {run.difficultyLabel} — niveau {run.level}
+                      </p>
+                      <p className="text-stone-400 text-sm mt-1">
+                        {run.hostSummary.name} : {run.hostSummary.race} {run.hostSummary.class} ·{' '}
+                        {run.guestSummary.name} : {run.guestSummary.race} {run.guestSummary.class}
+                      </p>
+                      <p className="text-stone-500 text-xs mt-1">Seed combat : {run.combatSeed}</p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p
+                        className={
+                          run.winner === 'players' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'
+                        }
+                      >
+                        {run.winner === 'players' ? 'Victoire joueurs' : 'Défaite'}
+                      </p>
+                      <p className="text-stone-500 text-xs">
+                        Tours ~{run.tours} · PV finaux hôte {run.hostHP} · invité {run.guestHP}
+                      </p>
+                      <p className="text-stone-500 text-xs">Boss restants : {run.bossHP?.join(' / ') ?? '—'}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRedSimExpandedKey(open ? null : key)}
+                    className="mt-2 text-xs text-amber-500/90 hover:text-amber-400 underline"
+                  >
+                    {open ? 'Masquer le log' : 'Voir le log'}
+                  </button>
+                  {open && (
+                    <pre className="mt-2 max-h-64 overflow-y-auto text-[11px] text-stone-400 whitespace-pre-wrap font-mono bg-black/40 p-2 rounded border border-stone-700">
+                      {(run.log || []).join('\n')}
+                    </pre>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

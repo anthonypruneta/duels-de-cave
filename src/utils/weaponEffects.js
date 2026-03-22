@@ -12,6 +12,7 @@
 
 import { getWeaponById, RARITY } from '../data/weapons.js';
 import { weaponConstants, dmgPhys, dmgCap, calcCritChance } from '../data/combatMechanics.js';
+import { combatRandom01 } from './combatRngContext.js';
 
 // ============================================================================
 // ÉTAT DE COMBAT POUR LES ARMES
@@ -435,7 +436,7 @@ export function rollHealCrit(weaponState, healer, healAmount) {
   }
 
   const critChance = calcCritChance(healer);
-  const isCrit = Math.random() < critChance;
+  const isCrit = combatRandom01() < critChance;
   if (!isCrit) return { amount: healAmount, isCrit: false };
 
   const critAmount = Math.max(1, Math.round(healAmount * weaponConstants.yggdrasil.healCritMultiplier));
