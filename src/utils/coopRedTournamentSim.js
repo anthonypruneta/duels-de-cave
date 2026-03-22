@@ -260,11 +260,3 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
     bossNextTargetsHost
   );
 }
-</think>
-
-I made an error - `turn` is not in scope in buildRoundOrder. Fix the file.
-</think>
-
-
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Read
