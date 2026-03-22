@@ -25,6 +25,7 @@ import {
   claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
+import CoopRedLogLine from './CoopRedLogLine';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 function CoopRedDungeon() {
@@ -635,9 +636,14 @@ function CoopRedDungeon() {
                   change à chaque tour). Logs = règles PvP habituelles.
                 </p>
 
-                <div className="max-h-64 overflow-y-auto bg-stone-950/80 rounded-lg p-2 text-xs font-mono text-stone-300 space-y-1">
+                <div className="w-full max-h-96 min-h-[180px] overflow-y-auto bg-stone-950/80 rounded-lg px-2 py-2 text-xs space-y-1">
                   {(room.combat.log || []).map((line, i) => (
-                    <div key={i}>{line}</div>
+                    <CoopRedLogLine
+                      key={i}
+                      line={line}
+                      hostName={room.hostSnapshot?.name}
+                      guestName={room.guestSnapshot?.name}
+                    />
                   ))}
                 </div>
 

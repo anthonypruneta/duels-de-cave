@@ -3,6 +3,7 @@ import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
+import CoopRedLogLine, { COOP_RED_BOSS_NAME_COLORS } from './CoopRedLogLine';
 
 /**
  * Disposition type arène : joueur actif à gauche (switch hôte / invité au tour) | centre boss + log | boss actif à droite.
@@ -72,8 +73,8 @@ export default function CoopRedReplayArena({
   const leftHighlight =
     (leftIsHost && coopActor === 1) || (!leftIsHost && coopActor === 2)
       ? leftIsHost
-        ? 'ring-blue-400'
-        : 'ring-violet-400'
+        ? 'ring-violet-400'
+        : 'ring-red-400'
       : null;
 
   const bossHighlight = coopActor === 3 ? 'ring-red-500' : null;
@@ -104,7 +105,7 @@ export default function CoopRedReplayArena({
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base max-w-[1800px] mx-auto">
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start w-full text-sm md:text-base max-w-[1800px] mx-auto">
         <div
           className={`order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
             leftHighlight
@@ -127,15 +128,15 @@ export default function CoopRedReplayArena({
           />
         </div>
 
-        <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col gap-3">
+        <div className="order-2 md:order-2 w-full min-w-0 flex-1 md:min-w-[480px] lg:min-w-[620px] flex flex-col gap-3">
           <div className="rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-400">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-blue-300/90 font-semibold truncate">{hostF.name}</p>
+                <p className="text-violet-300/90 font-semibold truncate">{hostF.name}</p>
                 <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
                   <div
-                    className="h-full bg-blue-600 transition-all"
+                    className="h-full bg-violet-600 transition-all"
                     style={{
                       width: `${Math.max(0, Math.min(100, (100 * hostF.currentHP) / (hostF.maxHP || 1)))}%`,
                     }}
@@ -146,10 +147,10 @@ export default function CoopRedReplayArena({
                 </p>
               </div>
               <div>
-                <p className="text-violet-300/90 font-semibold truncate">{guestF.name}</p>
+                <p className="text-red-300/90 font-semibold truncate">{guestF.name}</p>
                 <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
                   <div
-                    className="h-full bg-violet-600 transition-all"
+                    className="h-full bg-red-600 transition-all"
                     style={{
                       width: `${Math.max(0, Math.min(100, (100 * guestF.currentHP) / (guestF.maxHP || 1)))}%`,
                     }}
@@ -193,7 +194,11 @@ export default function CoopRedReplayArena({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         ) : null}
-                        <span className="truncate">{boss.nom}</span>
+                        <span
+                          className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}
+                        >
+                          {boss.nom}
+                        </span>
                       </span>
                       <span className="flex-shrink-0">
                         {cur} / {maxH}
@@ -211,18 +216,21 @@ export default function CoopRedReplayArena({
             </div>
           </div>
 
-          <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[360px] md:h-[480px]">
-            <div className="bg-stone-900 p-3 border-b border-stone-600">
+          <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[380px] md:h-[520px] w-full min-w-0">
+            <div className="bg-stone-900 px-2 py-3 border-b border-stone-600">
               <h2 className="text-lg md:text-xl font-bold text-stone-200 text-center">{logTitle}</h2>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800">
+            <div className="flex-1 overflow-y-auto px-2 py-2 md:px-3 space-y-1.5 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800 w-full min-w-0">
               {combatLog.length === 0 ? (
                 <p className="text-stone-500 italic text-center py-6 text-sm">Le fil de combat apparaît ici…</p>
               ) : (
                 combatLog.map((line, idx) => (
-                  <p key={idx} className="text-xs md:text-sm text-stone-200 leading-snug font-mono whitespace-pre-wrap">
-                    {line}
-                  </p>
+                  <CoopRedLogLine
+                    key={idx}
+                    line={line}
+                    hostName={hostF?.name}
+                    guestName={guestF?.name}
+                  />
                 ))
               )}
             </div>
