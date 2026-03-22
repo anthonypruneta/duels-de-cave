@@ -487,8 +487,13 @@ const Training = () => {
           Cible d'entraînement
         </div>
         <div className="overflow-visible">
-          <div className="h-auto relative bg-stone-900 flex items-center justify-center">
-            <img src={mannequinImg} alt="Mannequin" className="w-full h-auto object-contain" />
+          <div className="h-auto relative bg-stone-900 flex items-center justify-center px-2 py-3">
+            <img
+              src={mannequinImg}
+              alt="Mannequin"
+              className="max-h-[200px] sm:max-h-[240px] w-auto max-w-[min(100%,260px)] object-contain mx-auto"
+              style={{ imageRendering: 'pixelated' }}
+            />
             <div className="absolute bottom-4 left-4 right-4 bg-black/80 p-3">
               <div className="text-white font-bold text-xl text-center">Mannequin</div>
             </div>
