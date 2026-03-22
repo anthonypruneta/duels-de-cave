@@ -12,7 +12,7 @@ import {
 } from './tournamentCombat.js';
 import { rebuildPreparedCoop } from './coopRedPrep.js';
 import { getCoopRedLineup } from '../data/coopRedDungeon.js';
-import { generalConstants, weaponConstants } from '../data/combatMechanics.js';
+import { generalConstants, weaponConstants, classConstants } from '../data/combatMechanics.js';
 
 const MAX_COOP_TURNS = 250;
 
@@ -91,7 +91,74 @@ function allBossesDead(bosses) {
   return bosses.every((b) => (b?.currentHP ?? 0) <= 0);
 }
 
-function buildCombatResult(host, guest, bosses, lineup, winner, log, seed, rngCounter, activeBossIndex, bossNextTargetsHost) {
+function snapshotFighterBase(b) {
+  if (!b?.base) return undefined;
+  return {
+    hp: b.base.hp,
+    auto: b.base.auto,
+    def: b.base.def,
+    cap: b.base.cap,
+    rescap: b.base.rescap,
+    spd: b.base.spd,
+  };
+}
+
+/** Aligné sur tournamentCombat (steps / CharacterCardContent). */
+function snapshotFighterStatus(b) {
+  if (!b) return undefined;
+  const status = {
+    stunned: !!b.stunned,
+    stunnedTurns: b.stunnedTurns ?? 0,
+    bleed_stacks: b.bleed_stacks ?? 0,
+    bleedPercentPerStack: b.bleedPercentPerStack ?? 0,
+    spectralMarked: !!b.spectralMarked,
+    spectralMarkBonus: b.spectralMarkBonus ?? 0,
+    dodge: !!b.dodge,
+    reflect: typeof b.reflect === 'number' ? b.reflect : 0,
+    sorcierNeantBurn: !!b.sorcierNeantBurn,
+    undead: !!b.undead,
+    boneGuardActive: !!b.boneGuardActive,
+    sireneStacks: b.sireneStacks ?? 0,
+    succubeWeakenNextAttack: !!b.succubeWeakenNextAttack,
+    familiarStacks: b.familiarStacks ?? 0,
+    nextSpellReduction: typeof b.nextSpellReduction === 'number' ? b.nextSpellReduction : 0,
+    onctionLastStandUsed: !!b.onctionLastStandUsed,
+    gungnirDebuffed: !!b.base?._gungnirDebuffed,
+    awakening:
+      b.awakening && (b.awakening.damageStackBonus != null || b.awakening.damageTakenStacks != null)
+        ? {
+            damageTakenStacks: b.awakening.damageTakenStacks ?? 0,
+            damageStackBonus: b.awakening.damageStackBonus ?? 0,
+          }
+        : null,
+    pacteSombreCapStolen: b.pacteSombreCapStolen ?? 0,
+    pacteSombreCapLost: b.pacteSombreCapLost ?? 0,
+    suddenDeath: !!b.suddenDeath,
+  };
+  if (b.class === 'Demoniste' && b.base) {
+    const { capBase, capPerCap, stackPerAuto } = classConstants.demoniste;
+    const cap = b.base.cap;
+    const stacks = b.familiarStacks ?? 0;
+    const familierPct = capBase + capPerCap * cap + stackPerAuto * stacks;
+    status.familiarPercent = familierPct * 100;
+    status.familiarDamage = Math.round(familierPct * cap);
+  }
+  return status;
+}
+
+function buildCombatResult(
+  host,
+  guest,
+  bosses,
+  lineup,
+  winner,
+  log,
+  seed,
+  rngCounter,
+  activeBossIndex,
+  bossNextTargetsHost,
+  steps = null
+) {
   const bossHP = bosses.map((b) => Math.max(0, b.currentHP));
   const bossMaxHP = lineup.map((l) => l.baseStats.hp);
   const payload = {
@@ -109,6 +176,9 @@ function buildCombatResult(host, guest, bosses, lineup, winner, log, seed, rngCo
     log,
     pendingUserId: null,
   };
+  if (steps && steps.length > 0) {
+    payload.steps = steps;
+  }
   if (payload.log.length > 200) {
     payload.log = payload.log.slice(-200);
   }
@@ -118,19 +188,88 @@ function buildCombatResult(host, guest, bosses, lineup, winner, log, seed, rngCo
 /**
  * @returns {object} Même forme que l’ancien simulateCoopRedCombatFull pour Firestore / UI.
  */
-export function simulerMatchCoopRed(hostSnap, guestSnap, difficulty, seed) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.recordSteps] — si true, ajoute `steps` pour replay UI (ne pas persister tel quel dans Firestore).
+ */
+export function simulerMatchCoopRed(hostSnap, guestSnap, difficulty, seed, options = {}) {
+  const recordSteps = options.recordSteps === true;
   const seedU = seed >>> 0;
   const rng = createCoopSeededRng(seedU);
   return runWithCombatRandom01(() => rng.next01(), () =>
-    runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng)
+    runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps)
   );
 }
 
-function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
+function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps) {
   const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty);
   const lineup = getCoopRedLineup(difficulty);
+  const steps = [];
+
+  const makeSnap = (activeIdx) => {
+    const bi = getActiveBossIndex(bosses, activeIdx);
+    const bb = bosses[bi];
+    return {
+      hostHP: Math.max(0, host.currentHP),
+      guestHP: Math.max(0, guest.currentHP),
+      hostShield: host.shield || 0,
+      guestShield: guest.shield || 0,
+      bossHP: bosses.map((b) => Math.max(0, b.currentHP)),
+      bossMaxHP: lineup.map((l) => l.baseStats.hp),
+      activeBossIndex: bi,
+      hostBase: snapshotFighterBase(host),
+      guestBase: snapshotFighterBase(guest),
+      bossBase: snapshotFighterBase(bb),
+      hostStatus: snapshotFighterStatus(host),
+      guestStatus: snapshotFighterStatus(guest),
+      bossStatus: snapshotFighterStatus(bb),
+    };
+  };
+
+  const pushStep = (phase, logsSlice, activeIdx, extras = {}) => {
+    if (!recordSteps) return;
+    steps.push({
+      phase,
+      logs: Array.isArray(logsSlice) ? [...logsSlice] : [],
+      ...makeSnap(activeIdx),
+      ...extras,
+    });
+  };
+
   if (!lineup || bosses.length !== 3) {
-    return buildCombatResult(host, guest, bosses, lineup || [], 'boss', ['Erreur lineup Red.'], seedU, rng.getCounter(), 0, true);
+    return buildCombatResult(
+      host,
+      guest,
+      bosses,
+      lineup || [],
+      'boss',
+      ['Erreur lineup Red.'],
+      seedU,
+      rng.getCounter(),
+      0,
+      true,
+      recordSteps
+        ? [
+            {
+              phase: 'victory',
+              logs: ['Erreur lineup Red.'],
+              hostHP: Math.max(0, host.currentHP),
+              guestHP: Math.max(0, guest.currentHP),
+              hostShield: host.shield || 0,
+              guestShield: guest.shield || 0,
+              bossHP: bosses.map((b) => Math.max(0, b.currentHP)),
+              bossMaxHP: [1, 1, 1],
+              activeBossIndex: 0,
+              hostBase: snapshotFighterBase(host),
+              guestBase: snapshotFighterBase(guest),
+              bossBase: snapshotFighterBase(bosses[0]),
+              hostStatus: snapshotFighterStatus(host),
+              guestStatus: snapshotFighterStatus(guest),
+              bossStatus: snapshotFighterStatus(bosses[0]),
+            },
+          ]
+        : null
+    );
   }
 
   const refBoss = bosses[0];
@@ -146,6 +285,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
   const log = [...introLogs, `⚔️ Red (moteur tournoi) : ${lineup.map((l) => l.nom).join(', ')} !`];
 
   let activeBossIndex = 0;
+  pushStep('intro', log, activeBossIndex);
   let bossNextTargetsHost = true;
   let turn = 1;
   let winner = null;
@@ -181,6 +321,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
       }
     }
     log.push(...turnStartLogs);
+    pushStep('turn_start', turnStartLogs, activeBossIndex);
 
     if (host.currentHP <= 0 || guest.currentHP <= 0) {
       winner = 'boss';
@@ -219,6 +360,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
         const chunk = [];
         processPlayerAction(bossNow, target, chunk, false, turn, '[Boss]');
         log.push(...chunk);
+        pushStep('action', chunk, activeBossIndex, { player: 3 });
 
         bossNextTargetsHost = !bossNextTargetsHost;
         activeBossIndex = (biNow + 1) % 3;
@@ -231,12 +373,14 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
         const label = actorKey === 'host' ? '[Hôte]' : '[Invité]';
         processPlayerAction(player, bossNow, chunk, actorKey === 'host', turn, label);
         log.push(...chunk);
+        pushStep('action', chunk, activeBossIndex, { player: actorKey === 'host' ? 1 : 2 });
       }
     }
 
     turn += 1;
   }
 
+  const endStart = log.length;
   if (!winner) {
     winner = 'boss';
     log.push('⏱️ Limite de tours atteinte (Red coop).');
@@ -246,6 +390,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
   } else if (winner === 'boss') {
     log.push('💀 Défaite…');
   }
+  pushStep('victory', log.slice(endStart), activeBossIndex);
 
   return buildCombatResult(
     host,
@@ -257,6 +402,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng) {
     seedU,
     rng.getCounter(),
     activeBossIndex,
-    bossNextTargetsHost
+    bossNextTargetsHost,
+    recordSteps ? steps : null
   );
 }

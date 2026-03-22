@@ -10,6 +10,7 @@ import { simulerMatchCoopRed } from './coopRedTournamentSim.js';
 import {
   COOP_RED_DIFFICULTY,
   COOP_RED_DIFFICULTY_LABELS,
+  getCoopRedLineup,
 } from '../data/coopRedDungeon.js';
 
 const STAT_KEYS = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
@@ -114,12 +115,16 @@ export function runAdminCoopRedSimulations(seed) {
     const host = buildAdminRandomCoopCharacter(`sim-h-${level}`, `Hôte ${level}`, level, rng);
     const guest = buildAdminRandomCoopCharacter(`sim-g-${level}`, `Invité ${level}`, level, rng);
     const combatSeed = (Math.floor(rng() * 0x7fffffff) >>> 0);
-    const combat = simulerMatchCoopRed(host, guest, difficulty, combatSeed);
+    const combat = simulerMatchCoopRed(host, guest, difficulty, combatSeed, { recordSteps: true });
     runs.push({
       difficulty,
       difficultyLabel: COOP_RED_DIFFICULTY_LABELS[difficulty] ?? difficulty,
       level,
       combatSeed,
+      hostSnap: host,
+      guestSnap: guest,
+      lineup: getCoopRedLineup(difficulty),
+      steps: combat.steps ?? [],
       hostSummary: { race: host.race, class: host.class, name: host.name },
       guestSummary: { race: guest.race, class: guest.class, name: guest.name },
       winner: combat.winner,

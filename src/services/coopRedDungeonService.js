@@ -297,6 +297,8 @@ export async function runCoopRedAutoSimulation(roomId) {
     rd.difficulty,
     rd.combatSeed
   );
+  const combatForDb = { ...finalCombat };
+  delete combatForDb.steps;
 
   try {
     await retryOperation(async () => {
@@ -312,7 +314,7 @@ export async function runCoopRedAutoSimulation(roomId) {
         const gRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x52a1beef);
 
         tx.update(ref, {
-          combat: finalCombat,
+          combat: combatForDb,
           status: 'completed',
           hostDropGranted: hRoll < rate,
           guestDropGranted: gRoll < rate,
