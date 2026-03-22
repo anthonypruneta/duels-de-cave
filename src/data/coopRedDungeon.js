@@ -45,21 +45,37 @@ export const coopRedBossLineups = {
       nom: 'Salamèche',
       icon: '🔥',
       imageFile: 'Salameche.png',
-      baseStats: { hp: 220, auto: 22, def: 22, cap: 20, rescap: 20, spd: 24 },
+      baseStats: { hp: 180, auto: 45, def: 30, cap: 40, rescap: 30, spd: 40 },
+      /** Pas de CD : chaque attaque = Lance-Flammes (physique) + brûlure. */
+      ability: {
+        cooldown: 0,
+        effect: {
+          burnAutoMult: 0.9,
+          burnHpPerTurnPercent: 0.01,
+        },
+      },
     },
     {
       id: 'coop_red_carapace',
       nom: 'Carapuce',
       icon: '💧',
       imageFile: 'Carapuce.png',
-      baseStats: { hp: 260, auto: 18, def: 28, cap: 18, rescap: 26, spd: 16 },
+      baseStats: { hp: 250, auto: 35, def: 45, cap: 40, rescap: 35, spd: 30 },
+      ability: {
+        cooldown: 2,
+        effect: { capBonusRatio: 0.35 },
+      },
     },
     {
       id: 'coop_red_pousse',
       nom: 'Bulbizarre',
       icon: '🌿',
       imageFile: 'Bulbizarre.png',
-      baseStats: { hp: 240, auto: 20, def: 20, cap: 24, rescap: 22, spd: 20 },
+      baseStats: { hp: 230, auto: 35, def: 40, cap: 50, rescap: 45, spd: 30 },
+      ability: {
+        cooldown: 3,
+        effect: { capScale: 1, leechMaxHpPercent: 0.01 },
+      },
     },
   ],
   [COOP_RED_DIFFICULTY.MEDIUM]: [
@@ -144,7 +160,7 @@ export function coopRedBossDefToCombatant(def) {
     mageTowerPassive: null,
     forestBoosts: {},
     additionalAwakeningRaces: [],
-    ability: null,
+    ability: def.ability ? { ...def.ability, effect: def.ability.effect ? { ...def.ability.effect } : {} } : null,
     passive: null,
   };
 }

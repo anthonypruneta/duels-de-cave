@@ -134,6 +134,9 @@ function snapshotFighterStatus(b) {
     pacteSombreCapStolen: b.pacteSombreCapStolen ?? 0,
     pacteSombreCapLost: b.pacteSombreCapLost ?? 0,
     suddenDeath: !!b.suddenDeath,
+    coopRedBrulureDrain: typeof b.coopRedBrulureDrain === 'number' && b.coopRedBrulureDrain > 0 ? b.coopRedBrulureDrain : null,
+    coopRedVampigraineLeech: typeof b.coopRedVampigraineLeech === 'number' && b.coopRedVampigraineLeech > 0 ? b.coopRedVampigraineLeech : null,
+    coopRedBrulureAutoApplied: !!b.coopRedBrulureAutoApplied,
   };
   if (b.class === 'Demoniste' && b.base) {
     const { capBase, capPerCap, stackPerAuto } = classConstants.demoniste;
@@ -320,6 +323,26 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
         const burn = Math.max(1, Math.round(f.currentHP * 0.02));
         f.currentHP -= burn;
         turnStartLogs.push(`🌑 Brûlure du Néant: ${f.name} perd ${burn} PV.`);
+      }
+    }
+    for (const pj of [host, guest]) {
+      if (pj.currentHP <= 0) continue;
+      if (pj.coopRedBrulureDrain > 0) {
+        const d = Math.max(1, Math.round(pj.maxHP * pj.coopRedBrulureDrain));
+        pj.currentHP -= d;
+        turnStartLogs.push(
+          `🔥 Brûlure (Lance-Flammes) : ${pj.name} perd ${d} PV (${Math.round(pj.coopRedBrulureDrain * 100)}% PV max/tour).`
+        );
+      }
+      if (pj.coopRedVampigraineLeech > 0) {
+        const d = Math.max(1, Math.round(pj.maxHP * pj.coopRedVampigraineLeech));
+        pj.currentHP -= d;
+        const biLeech = getActiveBossIndex(bosses, activeBossIndex);
+        const bb = bosses[biLeech];
+        if (bb && bb.currentHP > 0) {
+          bb.currentHP = Math.min(bb.maxHP, bb.currentHP + d);
+        }
+        turnStartLogs.push(`🌱 Vampigraine : ${pj.name} perd ${d} PV ; le boss actif récupère des PV.`);
       }
     }
     log.push(...turnStartLogs);

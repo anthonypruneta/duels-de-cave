@@ -1426,6 +1426,75 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null) 
   if (att.isBoss && att.ability) {
     att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
 
+    // --- Donjon Red (facile) : attaque remplacée par le sort quand le CD est prêt ---
+    if (att.bossId === 'coop_red_salamandre' && att.cd.boss_ability >= (att.ability.cooldown ?? 0)) {
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, false, turn);
+      log.push(`${playerColor} 🔥 ${att.name} lance Lance-Flammes et inflige ${inflicted} dégâts physiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      const burnMult = att.ability.effect?.burnAutoMult ?? 0.9;
+      const hpDrain = att.ability.effect?.burnHpPerTurnPercent ?? 0.01;
+      if (!def.coopRedBrulureAutoApplied) {
+        def.coopRedBrulureAutoApplied = true;
+        def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * burnMult)) };
+        def.coopRedBrulureDrain = hpDrain;
+        log.push(`${playerColor} 🔥 Brûlure : ${def.name} perd 10% d’Auto et subit ${Math.round(hpDrain * 100)}% PV max en dégâts par tour (permanent).`);
+      } else {
+        log.push(`${playerColor} 🔥 ${def.name} est déjà brûlé ; la brûlure continue de faire des dégâts chaque tour.`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    if (att.bossId === 'coop_red_carapace' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capRatio = att.ability.effect?.capBonusRatio ?? 0.35;
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.auto + att.base.cap * capRatio), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 💧 ${att.name} lance Pistolet à O et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    if (att.bossId === 'coop_red_pousse' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const leechPct = att.ability.effect?.leechMaxHpPercent ?? 0.01;
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.cap * capScale), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 🌱 ${att.name} lance Vampigraine et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      if (!def.coopRedVampigraineLeech || def.coopRedVampigraineLeech < leechPct) {
+        def.coopRedVampigraineLeech = leechPct;
+        log.push(`${playerColor} 🌱 ${def.name} est infecté : ${Math.round(leechPct * 100)}% PV max volés au boss actif chaque tour.`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
     // Bandit: Saignement tous les N tours
     if (att.bossId === 'bandit' && att.cd.boss_ability >= att.ability.cooldown) {
       def.bleed_stacks = (def.bleed_stacks || 0) + (att.ability.effect?.stacksPerHit || 1);
