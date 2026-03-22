@@ -1,12 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
+import { ADMIN_EMAIL } from './AdminOnlyRoute';
 
 function ModeAvailabilityRoute({ children }) {
+  const { currentUser, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
 
+  const isAdmin = currentUser?.email === ADMIN_EMAIL;
+
   useEffect(() => {
+    if (authLoading) return;
+
+    if (isAdmin) {
+      setLocked(false);
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     const checkAvailability = async () => {
@@ -21,9 +34,9 @@ function ModeAvailabilityRoute({ children }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [authLoading, isAdmin]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-amber-400 text-2xl">Chargement...</div>
@@ -31,7 +44,7 @@ function ModeAvailabilityRoute({ children }) {
     );
   }
 
-  if (!locked) return children;
+  if (!locked || isAdmin) return children;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
