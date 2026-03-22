@@ -27,7 +27,7 @@ import {
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
-import CoopRedLogLine from './CoopRedLogLine';
+import CoopRedCombatLog from './CoopRedCombatLog';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 function CoopRedDungeon() {
@@ -664,16 +664,14 @@ function CoopRedDungeon() {
                   change à chaque tour). Logs = règles PvP habituelles.
                 </p>
 
-                <div className="w-full max-h-96 min-h-[180px] overflow-y-auto bg-stone-950/80 rounded-lg px-2 py-2 text-xs space-y-1">
-                  {(room.combat.log || []).map((line, i) => (
-                    <CoopRedLogLine
-                      key={i}
-                      line={line}
-                      hostName={room.hostSnapshot?.name}
-                      guestName={room.guestSnapshot?.name}
-                    />
-                  ))}
-                </div>
+                <CoopRedCombatLog
+                  lines={room.combat.log || []}
+                  hostName={room.hostSnapshot?.name}
+                  guestName={room.guestSnapshot?.name}
+                  title="⚔️ Red — journal de combat"
+                  containerStyle={{ maxHeight: '24rem', minHeight: '12rem' }}
+                  className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full"
+                />
 
                 <div className="text-sm space-y-1">
                   {room.combat.winner === 'players' && (

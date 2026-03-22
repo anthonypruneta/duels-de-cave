@@ -4,7 +4,8 @@ import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 import { getCoopRedBossMoveDisplay } from '../data/coopRedDungeon';
-import CoopRedLogLine, { COOP_RED_BOSS_NAME_COLORS } from './CoopRedLogLine';
+import { COOP_RED_BOSS_NAME_COLORS } from './CoopRedLogLine';
+import CoopRedCombatLog from './CoopRedCombatLog';
 
 /**
  * Disposition type arène : joueur actif à gauche (switch hôte / invité au tour) | centre boss + log | boss actif à droite.
@@ -232,25 +233,14 @@ export default function CoopRedReplayArena({
             </div>
           </div>
 
-          <div className="bg-stone-800 border-2 border-stone-600 shadow-2xl flex flex-col h-[380px] md:h-[520px] w-full min-w-0">
-            <div className="bg-stone-900 px-2 py-3 border-b border-stone-600">
-              <h2 className="text-lg md:text-xl font-bold text-stone-200 text-center">{logTitle}</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto px-2 py-2 md:px-3 space-y-1.5 scrollbar-thin scrollbar-thumb-stone-600 scrollbar-track-stone-800 w-full min-w-0">
-              {combatLog.length === 0 ? (
-                <p className="text-stone-500 italic text-center py-6 text-sm">Le fil de combat apparaît ici…</p>
-              ) : (
-                combatLog.map((line, idx) => (
-                  <CoopRedLogLine
-                    key={idx}
-                    line={line}
-                    hostName={hostF?.name}
-                    guestName={guestF?.name}
-                  />
-                ))
-              )}
-            </div>
-          </div>
+          <CoopRedCombatLog
+            lines={combatLog}
+            hostName={hostF?.name}
+            guestName={guestF?.name}
+            title={logTitle}
+            containerStyle={{ height: 'clamp(260px, 45dvh, 520px)' }}
+            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full min-w-0"
+          />
         </div>
 
         <div
