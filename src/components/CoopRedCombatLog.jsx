@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useLayoutEffect } from 'react';
 import { formatCoopRedLogRichText } from './coopRedLogFormat';
 
 function stripCoopActorPrefix(log) {
@@ -30,12 +30,21 @@ export default function CoopRedCombatLog({
   /** Zone scroll */
   scrollClassName = 'flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent',
 }) {
+  const scrollRef = useRef(null);
+
+  // Toujours afficher la fin du journal (replay animé + combat terminé)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [lines]);
+
   return (
     <div className={className} style={containerStyle}>
       <div className="p-3 border-b border-stone-700/60 shrink-0">
         <h2 className="text-sm font-bold text-stone-300 text-center uppercase tracking-wider">{title}</h2>
       </div>
-      <div className={scrollClassName}>
+      <div ref={scrollRef} className={scrollClassName}>
         {lines.length === 0 ? (
           <p className="text-stone-600 italic text-center py-8 text-sm">{emptyMessage}</p>
         ) : (
