@@ -891,7 +891,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   return adjusted;
 }
 
-export function processPlayerAction(att, def, log, isP1, turn, logLabel = null) {
+export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, options = {}) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
   const playerColor = logLabel ?? (isP1 ? '[P1]' : '[P2]');
@@ -1494,7 +1494,111 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null) 
 
   // ===== CAPACITÉS SPÉCIALES DES BOSS =====
   if (att.isBoss && att.ability) {
+    // --- Donjon Red (difficile) : Florizarre — Lance-soleil (décharge avant incrément CD) ---
+    if (att.bossId === 'coop_red_flore' && att.coopRedFlorizarreSolarCharging) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(
+        `${playerColor} ☀️ ${att.name} libère Lance-soleil et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.coopRedFlorizarreSolarCharging = false;
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
     att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
+
+    // --- Donjon Red (difficile) : Dracaufeu — Déflagration (Auto + % Cap, tous les adversaires) ---
+    if (att.bossId === 'coop_red_dragonnet' && att.cd.boss_ability >= (att.ability.cooldown ?? 4)) {
+      const capScale = att.ability.effect?.capScale ?? 0.3;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const other = options?.coopRedOtherPlayer;
+      const targets = [];
+      if (def?.currentHP > 0) targets.push(def);
+      if (other && other.currentHP > 0 && other !== def) targets.push(other);
+      let weaponConsumed = false;
+      const consumeForTarget = () => {
+        if (!weaponConsumed) {
+          weaponConsumed = true;
+          return consumeWeaponDamageBonus();
+        }
+        return 1;
+      };
+      for (const tDef of targets) {
+        const tPassive = getPassiveDetailsList(tDef);
+        const tUnicorn = getUnicornPactTurnDataFromList(tPassive, turn);
+        const rawOne = dmgCap(spellDmg, tDef.base.rescap);
+        const isCrit = combatRandom01() < calcCritChance(att, tDef);
+        let adj = rawOne;
+        adj = Math.round(adj * consumeForTarget());
+        if (isCrit) {
+          adj = Math.round(adj * getCritMultiplier(att, tDef));
+          adj = modifyCritDamage(att.weaponState, adj);
+        }
+        const inflicted = applyDamage(att, tDef, adj, isCrit, log, playerColor, attackerPassiveList, tPassive, attackerUnicorn, tUnicorn, auraBonus, true, true, turn);
+        log.push(
+          `${playerColor} 🔥 ${att.name} lance Déflagration sur ${tDef.name} : ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+        );
+        triggerMindflayerCapacityCopy(att, tDef, log, playerColor, attackerPassiveList, tPassive, attackerUnicorn, tUnicorn, auraBonus, inflicted, null, turn);
+        if (tDef.currentHP <= 0 && hasMortVivantRevive(tDef)) reviveUndead(tDef, att, log, playerColor);
+      }
+      if (targets.length === 0) {
+        log.push(`${playerColor} 🔥 ${att.name} lance Déflagration, mais aucun adversaire n’est à portée.`);
+      }
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (difficile) : Tortank — Aqua-jet (Auto + % Cap, priorité d’initiative gérée dans coopRedTournamentSim) ---
+    if (att.bossId === 'coop_red_blinde' && att.cd.boss_ability >= (att.ability.cooldown ?? 3)) {
+      const capScale = att.ability.effect?.capScale ?? 0.1;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(
+        `${playerColor} 💧 ${att.name} lance Aqua-jet et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (difficile) : Florizarre — charge Lance-soleil (pas de dégât ce tour) ---
+    if (
+      att.bossId === 'coop_red_flore' &&
+      att.cd.boss_ability >= (att.ability.cooldown ?? 5) &&
+      !att.coopRedFlorizarreSolarCharging
+    ) {
+      att.coopRedFlorizarreSolarCharging = true;
+      att.cd.boss_ability = 0;
+      log.push(
+        `${playerColor} ☀️ ${att.name} absorbe la lumière et charge Lance-soleil (dégâts au prochain tour d’action du boss).`
+      );
+      flushPendingCombatLogs(att, log);
+      return;
+    }
 
     // --- Donjon Red (facile) : attaque remplacée par le sort quand le CD est prêt ---
     if (att.bossId === 'coop_red_salamandre' && att.cd.boss_ability >= (att.ability.cooldown ?? 0)) {

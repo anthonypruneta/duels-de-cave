@@ -154,24 +154,31 @@ export const coopRedBossLineups = {
       nom: 'Dracaufeu',
       icon: '🐉',
       imageFile: 'Dracaufeu.png',
-      baseStats: { hp: 580, auto: 52, def: 44, cap: 48, rescap: 44, spd: 46 },
+      baseStats: { hp: 750, auto: 100, def: 80, cap: 90, rescap: 70, spd: 90 },
+      ability: {
+        cooldown: 4,
+        effect: { capScale: 0.3 },
+      },
       moveDisplay: {
-        name: 'Danse du Feu',
+        name: 'Déflagration',
         description:
-          'Phase finale : attaques type arène (même règles que le PvP) — mélange de coups physiques et magiques.',
+          'Dégâts magiques (Auto + 30 % Cap) sur tous les adversaires vivants.',
       },
     },
     {
       id: 'coop_red_blinde',
       nom: 'Tortank',
       icon: '🛡️',
-      // Pas de sprite Tortank dans le dossier pour l’instant : même ligne que Carapuce (à remplacer par Tortank.png).
-      imageFile: 'Carapuce.png',
-      baseStats: { hp: 640, auto: 48, def: 56, cap: 40, rescap: 50, spd: 38 },
+      imageFile: 'Tortank.png',
+      baseStats: { hp: 800, auto: 110, def: 100, cap: 70, rescap: 80, spd: 65 },
+      ability: {
+        cooldown: 3,
+        effect: { capScale: 0.1 },
+      },
       moveDisplay: {
-        name: 'Lame de Roc',
+        name: 'Aqua-jet',
         description:
-          'Mur défensif : privilégie Auto et Défense ; enchaîne des frappes physiques sous le même moteur que le PvP.',
+          'Dégâts magiques (Auto + 10 % Cap). Quand le sort est prêt, Tortank joue en premier ce tour.',
       },
     },
     {
@@ -179,11 +186,15 @@ export const coopRedBossLineups = {
       nom: 'Florizarre',
       icon: '🌸',
       imageFile: 'Florizarre.png',
-      baseStats: { hp: 560, auto: 46, def: 42, cap: 54, rescap: 48, spd: 44 },
+      baseStats: { hp: 900, auto: 85, def: 110, cap: 100, rescap: 100, spd: 50 },
+      ability: {
+        cooldown: 5,
+        effect: { capScale: 1 },
+      },
       moveDisplay: {
-        name: 'Tempête Verte',
+        name: 'Lance-soleil',
         description:
-          'Équilibré Cap / ResC : sorts et touches magiques fréquents, cadence identique aux combats joueur contre joueur.',
+          'Charge pendant 1 action puis, au tour d’action suivant du boss, dégâts magiques (Auto + 100 % Cap).',
       },
     },
   ],

@@ -55,6 +55,14 @@ function bastionMurFirst(f) {
   return f.class === 'Bastion' && f.cd.bast === 0 && f.subclass?.id === 'mur_implacable';
 }
 
+/** Tortank : au tour où Aqua-jet est prêt (CD-1 avant incrément), initiative maximale. */
+function tortankAquaJetPriorityThisRound(f) {
+  if (f?.bossId !== 'coop_red_blinde' || !f.ability?.cooldown) return false;
+  const cd = f.ability.cooldown;
+  const cur = f.cd?.boss_ability ?? 0;
+  return cur === cd - 1 && cd > 0;
+}
+
 /** Ex-aequo sur la VIT : hôte, puis invité, puis boss slot 0 → 1 → 2. */
 function initiativeTiebreakRank(entry) {
   if (entry.key === 'host') return 0;
@@ -65,9 +73,14 @@ function initiativeTiebreakRank(entry) {
 }
 
 /**
- * Ordre d’initiative sur un tour : Licorne, Zweihänder, Bastion mur, puis VIT, puis départage fixe.
+ * Ordre d’initiative sur un tour : Tortank (Aqua-jet prêt), Licorne, Zweihänder, Bastion mur, puis VIT, puis départage fixe.
  */
 function compareCoopActors(a, b, turn) {
+  const aTort = tortankAquaJetPriorityThisRound(a.f);
+  const bTort = tortankAquaJetPriorityThisRound(b.f);
+  if (aTort && !bTort) return -1;
+  if (bTort && !aTort) return 1;
+
   const aUni = getUnicornPactTurnDataFromList(getPassiveDetailsList(a.f), turn);
   const bUni = getUnicornPactTurnDataFromList(getPassiveDetailsList(b.f), turn);
   if (aUni && !bUni) return aUni.label === 'Tour A' ? -1 : 1;
@@ -425,7 +438,10 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
         if (target.currentHP <= 0) continue;
 
         const chunk = [];
-        processPlayerAction(bossNow, target, chunk, false, turn, '[Boss]');
+        const otherPlayer = target === host ? guest : host;
+        processPlayerAction(bossNow, target, chunk, false, turn, '[Boss]', {
+          coopRedOtherPlayer: otherPlayer,
+        });
         if (bossNow.coopRedLokhlassBorealisPending) {
           const p = bossNow.coopRedLokhlassBorealisPending;
           delete bossNow.coopRedLokhlassBorealisPending;
