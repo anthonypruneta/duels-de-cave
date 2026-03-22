@@ -19,6 +19,7 @@ import {
   getCoopRedAttemptsLeft,
   claimCoopRedRewardIfNeeded,
 } from '../services/coopRedDungeonService';
+import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
@@ -33,6 +34,7 @@ function CoopRedDungeon() {
   const [busy, setBusy] = useState(false);
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
+  const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -135,6 +137,7 @@ function CoopRedDungeon() {
     sessionStorage.removeItem('coopRedRoomId');
     setRoomId('');
     setRoom(null);
+    setShowAnimatedReplay(false);
   };
 
   const level = character?.level ?? 1;
@@ -148,7 +151,9 @@ function CoopRedDungeon() {
   return (
     <div className="min-h-screen p-4 md:p-6 bg-stone-950 text-stone-100">
       <Header />
-      <div className="max-w-3xl mx-auto pt-20 space-y-6">
+      <div
+        className={`mx-auto pt-20 space-y-6 px-0 ${showAnimatedReplay ? 'max-w-[1800px]' : 'max-w-3xl'}`}
+      >
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
           <p className="text-stone-400 text-sm">
@@ -415,6 +420,36 @@ function CoopRedDungeon() {
                     </p>
                   )}
                 </div>
+
+                {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
+                  <div className="border-t border-stone-700 pt-4 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAnimatedReplay((v) => !v)}
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
+                    >
+                      {showAnimatedReplay
+                        ? 'Masquer le déroulé animé'
+                        : 'Voir le déroulé animé (même UI que le combat)'}
+                    </button>
+                    <p className="text-[11px] text-stone-500">
+                      Même disposition que l’arène PvP : deux cartes complètes qui changent de côté au tour de chaque
+                      joueur. Recalcul local avec le seed de la salle — résultat identique à celui enregistré.
+                    </p>
+                    {showAnimatedReplay && (
+                      <CoopRedAnimatedReplay
+                        key={`${room.roomCode}-${room.combatSeed}`}
+                        hostSnap={room.hostSnapshot}
+                        guestSnap={room.guestSnapshot}
+                        difficulty={room.difficulty}
+                        combatSeed={room.combatSeed}
+                        logTitle="🔴 Red — ton combat"
+                        wrapperClassName="mt-2 border border-amber-900/50 rounded-lg p-3 md:p-4 bg-stone-950/70"
+                        onReplayError={(msg) => setError(msg)}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
