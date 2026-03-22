@@ -2,6 +2,7 @@ import React from 'react';
 import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
+import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 /**
  * Disposition type Combat.jsx : carte joueur | zone centrale (boss + log) | carte joueur.
@@ -109,6 +110,7 @@ export default function CoopRedReplayArena({
                 const pct = Math.min(100, Math.max(0, (cur / maxH) * 100));
                 const isActive = activeBossIdx === i;
                 const bossHighlight = coopActor === 3 && isActive;
+                const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
                 return (
                   <div
                     key={i}
@@ -120,9 +122,19 @@ export default function CoopRedReplayArena({
                           : 'border-stone-700 bg-stone-900/40 opacity-70'
                     }`}
                   >
-                    <div className="flex justify-between text-[11px] text-stone-400 mb-1">
-                      <span className="text-stone-300 font-medium">{boss.nom}</span>
-                      <span>
+                    <div className="flex justify-between text-[11px] text-stone-400 mb-1 gap-2 items-center">
+                      <span className="flex items-center gap-2 min-w-0 text-stone-300 font-medium">
+                        {sprite ? (
+                          <img
+                            src={sprite}
+                            alt=""
+                            className="w-9 h-9 object-contain flex-shrink-0"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        ) : null}
+                        <span className="truncate">{boss.nom}</span>
+                      </span>
+                      <span className="flex-shrink-0">
                         {cur} / {maxH}
                       </span>
                     </div>

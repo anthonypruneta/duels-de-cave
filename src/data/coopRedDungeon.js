@@ -1,7 +1,9 @@
 /**
  * Donjon coop « Red » — 3 difficultés, 3 adversaires en rotation par run.
- * Noms volontairement dérivés (éviter marques déposées).
+ * Noms & sprites Pokémon (FR) — images dans src/assets/coop/.
  */
+
+import { getCoopRedSpriteUrl } from '../utils/coopRedSprites.js';
 
 export const COOP_RED_DIFFICULTY = {
   EASY: 'easy',
@@ -40,69 +42,70 @@ export const coopRedBossLineups = {
   [COOP_RED_DIFFICULTY.EASY]: [
     {
       id: 'coop_red_salamandre',
-      nom: 'Salamandre de braise',
+      nom: 'Salamèche',
       icon: '🔥',
-      imageFile: null,
+      imageFile: 'Salameche.png',
       baseStats: { hp: 220, auto: 22, def: 22, cap: 20, rescap: 20, spd: 24 },
     },
     {
       id: 'coop_red_carapace',
-      nom: 'Tortue de cristal',
+      nom: 'Carapuce',
       icon: '💧',
-      imageFile: null,
+      imageFile: 'Carapuce.png',
       baseStats: { hp: 260, auto: 18, def: 28, cap: 18, rescap: 26, spd: 16 },
     },
     {
       id: 'coop_red_pousse',
-      nom: 'Pousse géante',
+      nom: 'Bulbizarre',
       icon: '🌿',
-      imageFile: null,
+      imageFile: 'Bulbizarre.png',
       baseStats: { hp: 240, auto: 20, def: 20, cap: 24, rescap: 22, spd: 20 },
     },
   ],
   [COOP_RED_DIFFICULTY.MEDIUM]: [
     {
       id: 'coop_red_foudre',
-      nom: 'Rongeur foudroyant',
+      nom: 'Pikachu',
       icon: '⚡',
-      imageFile: null,
+      imageFile: 'Pikachu.png',
       baseStats: { hp: 380, auto: 34, def: 30, cap: 32, rescap: 30, spd: 38 },
     },
     {
       id: 'coop_red_dormeur',
-      nom: 'Colosse endormi',
+      nom: 'Ronflex',
       icon: '😴',
-      imageFile: null,
+      imageFile: 'Ronflex.png',
       baseStats: { hp: 520, auto: 40, def: 42, cap: 28, rescap: 36, spd: 22 },
     },
     {
       id: 'coop_red_lagon',
-      nom: 'Serpent des lagons',
+      nom: 'Lokhlass',
       icon: '🌊',
-      imageFile: null,
+      imageFile: 'Lokhlass.png',
       baseStats: { hp: 420, auto: 32, def: 32, cap: 36, rescap: 34, spd: 30 },
     },
   ],
   [COOP_RED_DIFFICULTY.HARD]: [
     {
       id: 'coop_red_dragonnet',
-      nom: 'Dragonnet cramoisi',
+      nom: 'Dracaufeu',
       icon: '🐉',
-      imageFile: null,
+      imageFile: 'Dracaufeu.png',
       baseStats: { hp: 580, auto: 52, def: 44, cap: 48, rescap: 44, spd: 46 },
     },
     {
       id: 'coop_red_blinde',
-      nom: 'Blindé marécageux',
+      nom: 'Tortank',
       icon: '🛡️',
-      imageFile: null,
+      // Pas de sprite Tortank dans le dossier pour l’instant : même ligne que Carapuce (à remplacer par Tortank.png).
+      imageFile: 'Carapuce.png',
       baseStats: { hp: 640, auto: 48, def: 56, cap: 40, rescap: 50, spd: 38 },
     },
     {
       id: 'coop_red_flore',
-      nom: 'Florézilla',
+      nom: 'Florizarre',
       icon: '🌸',
-      imageFile: null,
+      imageFile: 'Florizarre.png',
       baseStats: { hp: 560, auto: 46, def: 42, cap: 54, rescap: 48, spd: 44 },
     },
   ],
@@ -121,6 +124,7 @@ export function getCoopRedDropRate(difficulty) {
  */
 export function coopRedBossDefToCombatant(def) {
   if (!def) return null;
+  const characterImage = def.imageFile ? getCoopRedSpriteUrl(def.imageFile) : null;
   return {
     name: def.nom,
     race: 'Boss',
@@ -128,6 +132,7 @@ export function coopRedBossDefToCombatant(def) {
     isBoss: true,
     bossId: def.id,
     imageFile: def.imageFile,
+    characterImage,
     base: { ...def.baseStats },
     bonuses: { race: {}, class: {} },
     currentHP: def.baseStats.hp,

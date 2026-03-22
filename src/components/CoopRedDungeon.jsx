@@ -20,6 +20,7 @@ import {
   claimCoopRedRewardIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
+import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
@@ -367,12 +368,25 @@ function CoopRedDungeon() {
                         const hp = room.combat.bossHP[i] ?? 0;
                         const maxHp = room.combat.bossMaxHP[i] ?? 1;
                         const active = i === (room.combat.activeBossIndex % 3);
+                        const sprite = b.imageFile ? getCoopRedSpriteUrl(b.imageFile) : null;
                         return (
                           <div
                             key={b.id}
-                            className={`px-2 py-1 rounded border text-xs ${active ? 'border-amber-500 bg-amber-950/40' : 'border-stone-600'}`}
+                            className={`px-2 py-1 rounded border text-xs flex items-center gap-2 ${active ? 'border-amber-500 bg-amber-950/40' : 'border-stone-600'}`}
                           >
-                            {b.icon} {b.nom} — {hp}/{maxHp}
+                            {sprite ? (
+                              <img
+                                src={sprite}
+                                alt=""
+                                className="w-8 h-8 object-contain flex-shrink-0"
+                                style={{ imageRendering: 'pixelated' }}
+                              />
+                            ) : (
+                              <span>{b.icon}</span>
+                            )}
+                            <span>
+                              {b.nom} — {hp}/{maxHp}
+                            </span>
                           </div>
                         );
                       })}
