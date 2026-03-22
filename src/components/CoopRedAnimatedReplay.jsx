@@ -170,6 +170,7 @@ export default function CoopRedAnimatedReplay({
   return (
     <CoopRedReplayArena
       run={run}
+      difficulty={difficulty}
       hostF={hostF}
       guestF={guestF}
       hostCombatBase={hostCombatBase}

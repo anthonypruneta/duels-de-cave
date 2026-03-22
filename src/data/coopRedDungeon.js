@@ -35,9 +35,30 @@ export const COOP_RED_DIFFICULTY_LABELS = {
   [COOP_RED_DIFFICULTY.HARD]: 'Difficile',
 };
 
+/** Multiplicateur appliqué aux baseStats des boss Pokémon au moment du combat (valeurs de base = fiche ci-dessous). */
+export const COOP_RED_BOSS_STAT_MULT = {
+  [COOP_RED_DIFFICULTY.EASY]: 1.1,
+  [COOP_RED_DIFFICULTY.MEDIUM]: 1.05,
+  [COOP_RED_DIFFICULTY.HARD]: 0.95,
+};
+
+/** Stats affichées / combat après multiplicateur de difficulté (+10 % / +5 % / −5 %). */
+export function scaleCoopRedBossBaseStats(baseStats, difficulty) {
+  const mult = COOP_RED_BOSS_STAT_MULT[difficulty] ?? 1;
+  const r = (n) => Math.max(1, Math.round(Number(n) * mult));
+  return {
+    hp: r(baseStats.hp),
+    auto: r(baseStats.auto),
+    def: r(baseStats.def),
+    cap: r(baseStats.cap),
+    rescap: r(baseStats.rescap),
+    spd: r(baseStats.spd),
+  };
+}
+
 /**
  * Lignes de boss par difficulté : ordre de rotation (0 → 1 → 2).
- * baseStats fixes par palier (équilibrage donjon coop 2 joueurs).
+ * baseStats de référence par palier ; au combat, `scaleCoopRedBossBaseStats` applique +10 % / +5 % / −5 % (facile / moyen / difficile).
  */
 export const coopRedBossLineups = {
   [COOP_RED_DIFFICULTY.EASY]: [
@@ -231,10 +252,12 @@ export function getCoopRedLineup(difficulty) {
 
 /**
  * Objet combattant brut compatible preparerCombattant (boss).
+ * @param {string} difficulty — COOP_RED_DIFFICULTY : applique COOP_RED_BOSS_STAT_MULT sur les stats.
  */
-export function coopRedBossDefToCombatant(def) {
+export function coopRedBossDefToCombatant(def, difficulty) {
   if (!def) return null;
   const characterImage = def.imageFile ? getCoopRedSpriteUrl(def.imageFile) : null;
+  const scaled = scaleCoopRedBossBaseStats(def.baseStats, difficulty);
   return {
     name: def.nom,
     race: 'Boss',
@@ -243,10 +266,10 @@ export function coopRedBossDefToCombatant(def) {
     bossId: def.id,
     imageFile: def.imageFile,
     characterImage,
-    base: { ...def.baseStats },
+    base: { ...scaled },
     bonuses: { race: {}, class: {} },
-    currentHP: def.baseStats.hp,
-    maxHP: def.baseStats.hp,
+    currentHP: scaled.hp,
+    maxHP: scaled.hp,
     userId: `coop-boss-${def.id}`,
     level: 1,
     equippedWeaponId: null,
@@ -262,5 +285,5 @@ export function coopRedBossDefToCombatant(def) {
 export function buildCoopRedBossCombatants(difficulty) {
   const lineup = getCoopRedLineup(difficulty);
   if (!lineup) return [];
-  return lineup.map(coopRedBossDefToCombatant);
+  return lineup.map((def) => coopRedBossDefToCombatant(def, difficulty));
 }

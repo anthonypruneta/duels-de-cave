@@ -3,7 +3,7 @@ import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
-import { getCoopRedBossMoveDisplay } from '../data/coopRedDungeon';
+import { getCoopRedBossMoveDisplay, scaleCoopRedBossBaseStats } from '../data/coopRedDungeon';
 import { COOP_RED_BOSS_NAME_COLORS } from './CoopRedLogLine';
 import CoopRedCombatLog from './CoopRedCombatLog';
 
@@ -32,6 +32,8 @@ export default function CoopRedReplayArena({
   onRelanceReplay,
   logTitle = '🔴 Red — déroulé',
   wrapperClassName = 'mt-4 border border-red-900/60 rounded-lg p-4 bg-black/40',
+  /** Aligne les PV max affichés sur les stats réelles du combat (multiplicateur par difficulté). */
+  difficulty = null,
 }) {
   const leftIsHost = focusLeftIsHost;
   const leftChar = leftIsHost ? hostF : guestF;
@@ -40,15 +42,20 @@ export default function CoopRedReplayArena({
   const leftImg = leftIsHost ? hostF.characterImage ?? testImage1 : guestF.characterImage ?? testImage2;
 
   const activeBossDef = run.lineup?.[activeBossIdx] ?? null;
-  const bossMaxHP = activeBossDef?.baseStats?.hp ?? 1;
+  const bossMaxHP =
+    activeBossDef?.baseStats && difficulty
+      ? scaleCoopRedBossBaseStats(activeBossDef.baseStats, difficulty).hp
+      : activeBossDef?.baseStats?.hp ?? 1;
   const bossCurrentHP = bossHPs[activeBossIdx] ?? 0;
   const bossSprite = activeBossDef?.imageFile ? getCoopRedSpriteUrl(activeBossDef.imageFile) : null;
 
   const bossBaseForCard = useMemo(() => {
     if (!activeBossDef?.baseStats) return null;
+    const base =
+      difficulty != null ? scaleCoopRedBossBaseStats(activeBossDef.baseStats, difficulty) : { ...activeBossDef.baseStats };
     const snap = bossCombatBase;
-    return snap ? { ...activeBossDef.baseStats, ...snap } : { ...activeBossDef.baseStats };
-  }, [activeBossDef, bossCombatBase]);
+    return snap ? { ...base, ...snap } : base;
+  }, [activeBossDef, bossCombatBase, difficulty]);
 
   const bossCharacter = useMemo(() => {
     if (!activeBossDef || !bossBaseForCard) return null;
@@ -172,7 +179,10 @@ export default function CoopRedReplayArena({
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid gap-2 mt-2">
               {(run.lineup || []).map((boss, i) => {
-                const maxH = boss?.baseStats?.hp ?? 1;
+                const maxH =
+                  boss?.baseStats && difficulty
+                    ? scaleCoopRedBossBaseStats(boss.baseStats, difficulty).hp
+                    : boss?.baseStats?.hp ?? 1;
                 const cur = bossHPs[i] ?? 0;
                 const pct = Math.min(100, Math.max(0, (cur / maxH) * 100));
                 const isActive = activeBossIdx === i;
