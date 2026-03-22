@@ -10,7 +10,8 @@ import {
   where,
   orderBy,
   Timestamp,
-  runTransaction
+  runTransaction,
+  deleteField,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
@@ -19,6 +20,7 @@ import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import { getEmptyStatBoosts } from '../utils/statPoints';
+import { races } from '../data/races.js';
 
 
 // Helper pour retry automatique en cas d'erreur réseau
@@ -891,6 +893,40 @@ export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
     return { success: true };
   } catch (error) {
     console.error('updateCharacterCoopRedRewards:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Donjon Red : après un pointeau alors qu’un écho existait déjà, choisir de remplacer ou garder l’écho actuel.
+ * @param {string} userId
+ * @param {boolean} acceptReplace — true = appliquer la race proposée, false = garder l’écho actuel et abandonner la proposition
+ */
+export const resolveCoopRaceEchoOffer = async (userId, acceptReplace) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(characterRef);
+        if (!snap.exists()) throw new Error('Personnage introuvable');
+        const data = snap.data();
+        const offer = data.coopRaceEchoOffer;
+        if (!offer?.race || !races[offer.race]) {
+          throw new Error('Aucune proposition d’écho en attente');
+        }
+        const patch = {
+          updatedAt: Timestamp.now(),
+          coopRaceEchoOffer: deleteField(),
+        };
+        if (acceptReplace) {
+          patch.coopRaceEcho = { race: offer.race };
+        }
+        tx.update(characterRef, patch);
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('resolveCoopRaceEchoOffer:', error);
     return { success: false, error: error.message };
   }
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
-import { getUserCharacter } from '../services/characterService';
+import { getUserCharacter, resolveCoopRaceEchoOffer } from '../services/characterService';
 import {
   COOP_RED_DIFFICULTY,
   COOP_RED_LEVEL_REQUIRED,
@@ -43,6 +43,7 @@ function CoopRedDungeon() {
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
+  const [echoOfferBusy, setEchoOfferBusy] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -57,6 +58,17 @@ function CoopRedDungeon() {
   useEffect(() => {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
+
+  useEffect(() => {
+    const el = document.getElementById('coop-red-music');
+    if (el && el.paused) el.play().catch(() => {});
+    return () => {
+      if (el) {
+        el.pause();
+        el.currentTime = 0;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentUser || roomId) {
@@ -192,6 +204,19 @@ function CoopRedDungeon() {
     handleLeaveRoom();
   };
 
+  const handleResolveEchoOffer = async (acceptReplace) => {
+    if (!currentUser) return;
+    setEchoOfferBusy(true);
+    setError(null);
+    const res = await resolveCoopRaceEchoOffer(currentUser.uid, acceptReplace);
+    setEchoOfferBusy(false);
+    if (!res.success) {
+      setError(res.error);
+      return;
+    }
+    await loadCharAndAttempts();
+  };
+
   const handleHostCancelRoom = async () => {
     if (!roomId || !currentUser) return;
     setBusy(true);
@@ -238,15 +263,14 @@ function CoopRedDungeon() {
           <ul className="space-y-2 text-stone-400 leading-relaxed">
             <li>
               <span className="text-stone-200 font-semibold">Après une victoire</span> — Chaque joueur a un{' '}
-              <span className="text-stone-300">tirage séparé</span> (pointeau). S’il réussit, la{' '}
-              <span className="text-stone-300">race de ton coéquipier sur cette salle</span> est gravée sur ton
-              personnage : en combat (hors donjon Red, tu gardes ta propre race), tu reçois en plus un{' '}
-              <span className="text-stone-300">fragment du passif racial d’éveil de cette race</span>, aux environs de{' '}
+              <span className="text-stone-300">tirage séparé</span> (pointeau). S’il réussit, une{' '}
+              <span className="text-stone-300">race aléatoire</span> (hors ta propre race) te propose un{' '}
+              <span className="text-stone-300">fragment du passif racial d’éveil</span> à environ{' '}
               <span className="text-stone-300">{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %</span> de l’intensité de
-              l’éveil (ex. : copie Mindflayer à 50 % des dégâts du sort copié, Sirène +2,5 % par stack max 4, Turtlekin
-              premier coup plafonné à 20 % des PV max, regen Sylvari, etc.). Une nouvelle victoire avec pointeau{' '}
-              <span className="text-stone-300">remplace</span> l’écho
-              par la race du nouvel allié.
+              l’éveil en combat (hors donjon Red, tu gardes ta race). Exemples : copie Mindflayer à 50 % des dégâts du
+              sort copié, Sirène +2,5 % par stack max 4, Turtlekin premier coup plafonné à 20 % des PV max, regen
+              Sylvari, etc. Si tu avais déjà un écho, tu choisis de{' '}
+              <span className="text-stone-300">remplacer</span> ou de <span className="text-stone-300">garder</span> l’ancien.
             </li>
             <li>
               Pointeau : Facile {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
@@ -275,6 +299,43 @@ function CoopRedDungeon() {
         {error && (
           <div className="bg-red-950/50 border border-red-700/60 text-red-200 text-sm px-4 py-2 rounded-lg">
             {error}
+          </div>
+        )}
+
+        {character?.coopRaceEchoOffer?.race && (
+          <div className="rounded-xl border border-amber-500/50 bg-amber-950/30 p-4 space-y-3">
+            <p className="text-sm text-stone-200">
+              <span className="font-bold text-amber-400">Nouvel écho racial (Red)</span> — proposition :{' '}
+              <span className="text-emerald-300 font-semibold">{character.coopRaceEchoOffer.race}</span>
+              {character.coopRaceEcho?.race && (
+                <>
+                  {' '}
+                  · écho actuel :{' '}
+                  <span className="text-stone-300">{character.coopRaceEcho.race}</span>
+                </>
+              )}
+            </p>
+            <p className="text-xs text-stone-500">
+              Remplace ton fragment d’éveil actuel par celui-ci, ou garde l’actuel et abandonne la proposition.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={echoOfferBusy}
+                onClick={() => handleResolveEchoOffer(true)}
+                className="px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-sm font-bold border border-emerald-600/60 disabled:opacity-50"
+              >
+                Remplacer par {character.coopRaceEchoOffer.race}
+              </button>
+              <button
+                type="button"
+                disabled={echoOfferBusy}
+                onClick={() => handleResolveEchoOffer(false)}
+                className="px-4 py-2 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 text-sm font-bold border border-stone-500/60 disabled:opacity-50"
+              >
+                Garder l’écho actuel
+              </button>
+            </div>
           </div>
         )}
 
@@ -574,22 +635,40 @@ function CoopRedDungeon() {
                     <p className="text-red-400 font-bold">Défaite…</p>
                   )}
                   {room.combat.winner === 'players' && (
-                    <p className="text-stone-400">
+                    <p className="text-stone-400 space-y-1">
                       {isHost && room.hostDropGranted && (
                         <>
-                          Pointeau obtenu : l’écho de la race{' '}
-                          <span className="text-emerald-300">{room.guestSnapshot?.race}</span> (
-                          {room.guestSnapshot?.name}) est gravé sur ton personnage (~
-                          {Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
+                          <span>
+                            Pointeau : écho racial tiré au sort :{' '}
+                            <span className="text-emerald-300 font-semibold">
+                              {room.hostEchoRaceGrant ?? '—'}
+                            </span>{' '}
+                            (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
+                            {character?.coopRaceEcho?.race &&
+                              character?.coopRaceEchoOffer?.roomId === room.id && (
+                                <span className="block mt-1 text-amber-200/90 text-xs">
+                                  Tu avais déjà un écho : choisis en haut de page de remplacer ou de le garder.
+                                </span>
+                              )}
+                          </span>
                         </>
                       )}
                       {isHost && !room.hostDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
                       {isGuest && room.guestDropGranted && (
                         <>
-                          Pointeau obtenu : l’écho de la race{' '}
-                          <span className="text-emerald-300">{room.hostSnapshot?.race}</span> ({room.hostSnapshot?.name}) est
-                          gravé sur ton personnage (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de
-                          cette race).
+                          <span>
+                            Pointeau : écho racial tiré au sort :{' '}
+                            <span className="text-emerald-300 font-semibold">
+                              {room.guestEchoRaceGrant ?? '—'}
+                            </span>{' '}
+                            (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
+                            {character?.coopRaceEcho?.race &&
+                              character?.coopRaceEchoOffer?.roomId === room.id && (
+                                <span className="block mt-1 text-amber-200/90 text-xs">
+                                  Tu avais déjà un écho : choisis en haut de page de remplacer ou de le garder.
+                                </span>
+                              )}
+                          </span>
                         </>
                       )}
                       {isGuest && !room.guestDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
@@ -639,6 +718,9 @@ function CoopRedDungeon() {
           ← Retour aux donjons
         </button>
       </div>
+      <audio id="coop-red-music" loop>
+        <source src="/assets/music/red.mp3" type="audio/mpeg" />
+      </audio>
     </div>
   );
 }

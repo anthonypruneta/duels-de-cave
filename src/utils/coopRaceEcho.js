@@ -1,5 +1,5 @@
 /**
- * Écho racial Red (coop) : fragment de l’éveil de la race du coéquipier, à COOP_RACE_ECHO_POTENCY.
+ * Écho racial Red (coop) : fragment d’éveil d’une race tirée au sort, à COOP_RACE_ECHO_POTENCY.
  * Basé sur la race uniquement (pas la classe).
  */
 import { races } from '../data/races.js';

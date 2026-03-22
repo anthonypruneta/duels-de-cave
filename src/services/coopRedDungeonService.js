@@ -31,6 +31,25 @@ function coopDropRoll01(seed, rngCounter, salt) {
   const s = (Math.imul((seed ^ salt) >>> 0, 1597334677) ^ (rngCounter * 2654435761)) >>> 0;
   return (s >>> 0) / 4294967296;
 }
+
+function hashUserId32(userId) {
+  if (!userId || typeof userId !== 'string') return 0;
+  let h = 2166136261;
+  for (let i = 0; i < userId.length; i++) {
+    h = Math.imul(h ^ userId.charCodeAt(i), 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Race d’écho Red : aléatoire parmi les races, hors la race du joueur (déterministe). */
+export function pickCoopRaceEchoGrant(playerRace, combatSeed, userId, salt) {
+  const seed = typeof combatSeed === 'number' ? combatSeed >>> 0 : 0;
+  const pool = Object.keys(races).filter((name) => name !== playerRace);
+  const list = pool.length ? pool : Object.keys(races);
+  const u = coopDropRoll01(seed, hashUserId32(userId), salt);
+  const idx = Math.floor(u * list.length);
+  return list[Math.min(idx, list.length - 1)];
+}
 const DAILY = 'coopDungeonDaily';
 
 function getParisDateKey() {
@@ -398,12 +417,26 @@ export async function runCoopRedAutoSimulation(roomId) {
         const rate = COOP_RED_DROP_RATE[d.difficulty] ?? 0.25;
         const hRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x51a1beef);
         const gRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x52a1beef);
+        const hostDrop = hRoll < rate;
+        const guestDrop = gRoll < rate;
+        const seed = finalCombat.seed >>> 0;
+
+        let hostEchoRaceGrant = null;
+        let guestEchoRaceGrant = null;
+        if (hostDrop && d.hostSnapshot?.race && races[d.hostSnapshot.race] && d.hostId) {
+          hostEchoRaceGrant = pickCoopRaceEchoGrant(d.hostSnapshot.race, seed, d.hostId, 0x55a1beef);
+        }
+        if (guestDrop && d.guestSnapshot?.race && races[d.guestSnapshot.race] && d.guestId) {
+          guestEchoRaceGrant = pickCoopRaceEchoGrant(d.guestSnapshot.race, seed, d.guestId, 0x56a1beef);
+        }
 
         tx.update(ref, {
           combat: combatForDb,
           status: 'completed',
-          hostDropGranted: hRoll < rate,
-          guestDropGranted: gRoll < rate,
+          hostDropGranted: hostDrop,
+          guestDropGranted: guestDrop,
+          hostEchoRaceGrant,
+          guestEchoRaceGrant,
           updatedAt: Timestamp.now(),
         });
       });
@@ -416,7 +449,7 @@ export async function runCoopRedAutoSimulation(roomId) {
 }
 
 /**
- * Après victoire + pointeau : enregistre sur le perso l’écho de la race du coéquipier (fragment d’éveil ~25 %).
+ * Après victoire + pointeau : applique l’écho (race aléatoire) ou place une offre si un écho existe déjà.
  * Idempotent (hostEchoDelivered / guestEchoDelivered).
  */
 export async function claimCoopRedRaceEchoIfNeeded(roomId, userId) {
@@ -432,20 +465,44 @@ export async function claimCoopRedRaceEchoIfNeeded(roomId, userId) {
         const cSnap = await tx.get(charRef);
         if (!cSnap.exists()) return;
 
-        if (r.hostId === userId && r.hostDropGranted && !r.hostEchoDelivered) {
-          const allyRace = r.guestSnapshot?.race;
+        const applyEchoGrant = (echoRace, charData) => {
           const charUpdate = { updatedAt: Timestamp.now() };
-          if (allyRace && races[allyRace]) {
-            charUpdate.coopRaceEcho = { race: allyRace };
+          if (!echoRace || !races[echoRace]) return charUpdate;
+          const hadEcho = Boolean(charData?.coopRaceEcho?.race);
+          if (hadEcho) {
+            charUpdate.coopRaceEchoOffer = {
+              race: echoRace,
+              roomId,
+              grantedAt: Timestamp.now(),
+            };
+          } else {
+            charUpdate.coopRaceEcho = { race: echoRace };
           }
+          return charUpdate;
+        };
+
+        if (r.hostId === userId && r.hostDropGranted && !r.hostEchoDelivered) {
+          let echoRace = r.hostEchoRaceGrant;
+          if (
+            (echoRace == null || !races[echoRace]) &&
+            r.hostSnapshot?.race &&
+            r.combatSeed != null
+          ) {
+            echoRace = pickCoopRaceEchoGrant(r.hostSnapshot.race, r.combatSeed, r.hostId, 0x55a1beef);
+          }
+          const charUpdate = applyEchoGrant(echoRace, cSnap.data());
           tx.update(charRef, charUpdate);
           tx.update(ref, { hostEchoDelivered: true, updatedAt: Timestamp.now() });
         } else if (r.guestId === userId && r.guestDropGranted && !r.guestEchoDelivered) {
-          const allyRace = r.hostSnapshot?.race;
-          const charUpdate = { updatedAt: Timestamp.now() };
-          if (allyRace && races[allyRace]) {
-            charUpdate.coopRaceEcho = { race: allyRace };
+          let echoRace = r.guestEchoRaceGrant;
+          if (
+            (echoRace == null || !races[echoRace]) &&
+            r.guestSnapshot?.race &&
+            r.combatSeed != null
+          ) {
+            echoRace = pickCoopRaceEchoGrant(r.guestSnapshot.race, r.combatSeed, r.guestId, 0x56a1beef);
           }
+          const charUpdate = applyEchoGrant(echoRace, cSnap.data());
           tx.update(charRef, charUpdate);
           tx.update(ref, { guestEchoDelivered: true, updatedAt: Timestamp.now() });
         }
