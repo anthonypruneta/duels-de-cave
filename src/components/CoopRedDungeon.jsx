@@ -30,6 +30,8 @@ import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
 import CoopRedCombatLog from './CoopRedCombatLog';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
+const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
+
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -261,13 +263,23 @@ function CoopRedDungeon() {
   }, [openRooms, listDifficultyFilter]);
 
   return (
-    <div className="min-h-screen p-4 md:p-6 bg-stone-950 text-stone-100">
-      <Header />
+    <div className="relative min-h-screen text-stone-100">
       <div
-        className={`mx-auto pt-20 space-y-6 px-0 ${
-          showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-3xl'
-        }`}
-      >
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${COOP_RED_PAGE_BG})` }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950/70"
+      />
+      <div className="relative z-10 p-4 md:p-6 min-h-screen">
+        <Header />
+        <div
+          className={`mx-auto pt-20 space-y-6 px-0 ${
+            showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-3xl'
+          }`}
+        >
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
           <p className="text-stone-400 text-sm">
@@ -759,14 +771,15 @@ function CoopRedDungeon() {
         <button
           type="button"
           onClick={() => navigate('/dungeons')}
-          className="text-sm text-stone-500 hover:text-stone-300"
+          className="text-sm text-stone-200/80 hover:text-white drop-shadow-sm"
         >
           ← Retour aux donjons
         </button>
+        </div>
+        <audio ref={audioRef} id="coop-red-music" loop preload="auto" playsInline>
+          <source src="/assets/music/red.mp3" type="audio/mpeg" />
+        </audio>
       </div>
-      <audio ref={audioRef} id="coop-red-music" loop preload="auto" playsInline>
-        <source src="/assets/music/red.mp3" type="audio/mpeg" />
-      </audio>
     </div>
   );
 }
