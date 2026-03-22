@@ -35,6 +35,10 @@ import redTrainerPortraitUrl from '../assets/coop/red.png';
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 
+function coopRedHostRoomStorageKey(uid) {
+  return uid ? `coopRedHostRoom:${uid}` : null;
+}
+
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.email === ADMIN_EMAIL;
@@ -51,6 +55,8 @@ function CoopRedDungeon() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
+  /** Après « Masquer », on n’applique pas tout de suite la restauration auto depuis localStorage (sinon retour instantané dans la salle). */
+  const skipAutoResumeRef = useRef(false);
   const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
   const [offlineSimWide, setOfflineSimWide] = useState(false);
@@ -69,6 +75,19 @@ function CoopRedDungeon() {
   useEffect(() => {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
+
+  /** Retrouver l’id de salle (session puis localStorage hôte) si on revient sur la page sans roomId en mémoire. */
+  useEffect(() => {
+    if (!currentUser?.uid || roomId) return;
+    if (skipAutoResumeRef.current) return;
+    const sid = sessionStorage.getItem('coopRedRoomId');
+    const key = coopRedHostRoomStorageKey(currentUser.uid);
+    const lid = key ? localStorage.getItem(key) : '';
+    const raw = (sid || lid || '').trim();
+    if (!raw) return;
+    setRoomId(raw);
+    sessionStorage.setItem('coopRedRoomId', raw);
+  }, [currentUser?.uid, roomId]);
 
   // Autoplay navigateur : souvent bloqué sans geste — on retente au 1er pointerdown (salle / boutons / header).
   useEffect(() => {
@@ -114,7 +133,19 @@ function CoopRedDungeon() {
     const unsub = subscribeCoopRedRoom(
       roomId,
       (data) => {
+        if (!data) {
+          setRoom(null);
+          sessionStorage.removeItem('coopRedRoomId');
+          const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
+          if (k) localStorage.removeItem(k);
+          setRoomId('');
+          return;
+        }
         setRoom(data);
+        if (currentUser?.uid && data.hostId === currentUser.uid) {
+          const k = coopRedHostRoomStorageKey(currentUser.uid);
+          if (k) localStorage.setItem(k, roomId);
+        }
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
           claimCoopRedRaceEchoIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
         } else if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
@@ -172,6 +203,12 @@ function CoopRedDungeon() {
   const isGuest = room && currentUser && room.guestId === currentUser.uid;
   const inRoom = isHost || isGuest;
 
+  /** Salle hôte encore enregistrée localement alors qu’on n’a pas d’abonnement actif (masqué ou navigation). */
+  const hostPendingRoomId =
+    currentUser?.uid && !roomId
+      ? (localStorage.getItem(coopRedHostRoomStorageKey(currentUser.uid)) || '').trim()
+      : '';
+
   const lineup = useMemo(() => (room ? getCoopRedLineup(room.difficulty) : null), [room]);
 
   const handleCreate = async () => {
@@ -183,7 +220,31 @@ function CoopRedDungeon() {
       setError(res.error);
       return;
     }
-    setRoomId(res.roomId);
+    const id = res.roomId;
+    setRoomId(id);
+    sessionStorage.setItem('coopRedRoomId', id);
+    const k = coopRedHostRoomStorageKey(currentUser.uid);
+    if (k) localStorage.setItem(k, id);
+  };
+
+  const handleResumeHostRoom = (id) => {
+    if (!id || !currentUser?.uid) return;
+    setError(null);
+    skipAutoResumeRef.current = false;
+    const t = String(id).trim();
+    setRoomId(t);
+    sessionStorage.setItem('coopRedRoomId', t);
+    const k = coopRedHostRoomStorageKey(currentUser.uid);
+    if (k) localStorage.setItem(k, t);
+  };
+
+  /** Affiche la liste / création sans quitter la salle Firestore (ex. annuler / supprimer toujours possibles après). */
+  const handleMasquerSalleVoirListe = () => {
+    skipAutoResumeRef.current = true;
+    sessionStorage.removeItem('coopRedRoomId');
+    setRoomId('');
+    setRoom(null);
+    setShowAnimatedReplay(false);
   };
 
   const handleJoinListedRoom = async (id) => {
@@ -208,7 +269,10 @@ function CoopRedDungeon() {
   };
 
   const handleLeaveRoom = () => {
+    skipAutoResumeRef.current = false;
     sessionStorage.removeItem('coopRedRoomId');
+    const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
+    if (k) localStorage.removeItem(k);
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
@@ -396,6 +460,21 @@ function CoopRedDungeon() {
 
         {!inRoom && (
           <>
+            {hostPendingRoomId && (
+              <div className="rounded-xl border border-amber-600/70 bg-amber-950/25 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-amber-100/95">
+                  Tu as une salle Red en cours (elle n’apparaît pas toujours dans la liste, ex. si un invité a déjà rejoint).
+                </p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleResumeHostRoom(hostPendingRoomId)}
+                  className="shrink-0 px-4 py-2 rounded-lg bg-red-800 hover:bg-red-700 font-bold text-sm disabled:opacity-40"
+                >
+                  Reprendre ma salle
+                </button>
+              </div>
+            )}
             <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-3">
               <p className="text-sm font-bold text-amber-400">Difficulté</p>
               <div className="flex flex-wrap gap-2">
@@ -482,14 +561,25 @@ function CoopRedDungeon() {
                             {COOP_RED_DIFFICULTY_LABELS[row.difficulty]} · niv. {minLv}+
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          disabled={busy || attemptsLeft <= 0 || locked || mine}
-                          onClick={() => handleJoinListedRoom(row.id)}
-                          className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-sm font-bold disabled:opacity-40"
-                        >
-                          {mine ? 'Ta salle' : locked ? 'Niveau' : 'Rejoindre'}
-                        </button>
+                        {mine ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => handleResumeHostRoom(row.id)}
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-sm font-bold disabled:opacity-40"
+                          >
+                            Reprendre ma salle
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy || attemptsLeft <= 0 || locked}
+                            onClick={() => handleJoinListedRoom(row.id)}
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-sm font-bold disabled:opacity-40"
+                          >
+                            {locked ? 'Niveau' : 'Rejoindre'}
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -535,10 +625,10 @@ function CoopRedDungeon() {
                 )}
                 <button
                   type="button"
-                  onClick={handleLeaveRoom}
+                  onClick={handleMasquerSalleVoirListe}
                   className="text-sm text-stone-400 hover:text-white underline"
                 >
-                  Masquer (rester connecté côté liste)
+                  Masquer (voir la liste) — reprends via « Reprendre ma salle »
                 </button>
               </div>
             </div>
