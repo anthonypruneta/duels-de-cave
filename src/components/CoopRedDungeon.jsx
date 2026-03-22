@@ -30,6 +30,8 @@ import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
 import CoopRedCombatLog from './CoopRedCombatLog';
 import { ADMIN_EMAIL } from './AdminOnlyRoute';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
+/** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
+import redTrainerPortraitUrl from '../assets/coop/red.png';
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 
@@ -278,8 +280,13 @@ function CoopRedDungeon() {
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />
         <div
-          className={`mx-auto pt-20 space-y-6 px-0 ${
-            showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-3xl'
+          className={`mx-auto pt-20 px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
+            showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-6xl'
+          }`}
+        >
+        <div
+          className={`space-y-6 flex-1 min-w-0 w-full ${
+            showAnimatedReplay || offlineSimWide ? '' : 'max-w-3xl mx-auto xl:mx-0'
           }`}
         >
         <div className="text-center">
@@ -330,7 +337,7 @@ function CoopRedDungeon() {
 
         <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 flex flex-wrap justify-between gap-3">
           <div>
-            <p className="text-amber-400 text-xs font-bold uppercase">Essais restants (Paris)</p>
+            <p className="text-amber-400 text-xs font-bold uppercase">Essais restants</p>
             <p className="text-2xl font-bold">{attemptsLeft} / {COOP_RED_MAX_ATTEMPTS_PER_DAY}</p>
           </div>
           {character?.coopRaceEcho?.race && (
@@ -780,6 +787,20 @@ function CoopRedDungeon() {
         >
           ← Retour aux donjons
         </button>
+        </div>
+
+        {!(showAnimatedReplay || offlineSimWide) && (
+          <aside className="hidden xl:flex flex-col items-center flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start">
+            <div className="rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
+              <img
+                src={redTrainerPortraitUrl}
+                alt="Red"
+                className="w-full h-auto object-cover object-top block max-h-[min(72vh,560px)]"
+              />
+            </div>
+            <p className="text-center text-red-400/95 text-sm font-bold mt-2 tracking-wide drop-shadow-sm">Red</p>
+          </aside>
+        )}
         </div>
         <audio ref={audioRef} id="coop-red-music" loop preload="auto" playsInline>
           <source src="/assets/music/red.mp3" type="audio/mpeg" />

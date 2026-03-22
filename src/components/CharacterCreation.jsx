@@ -74,24 +74,6 @@ const getWeaponImage = (imageFile) => {
   return weaponImageModules[`../assets/weapons/${imageFile}`] || null;
 };
 
-const RED_DUNGEON_PROMO_SRC = '/assets/backgrounds/red.png';
-
-/** Visuel Donjon Red à droite du flux création / fiche personnage (même asset que la page coop). */
-function RedDungeonPromoAside({ className = '' }) {
-  return (
-    <aside className={className}>
-      <div className="rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40">
-        <img
-          src={RED_DUNGEON_PROMO_SRC}
-          alt="Donjon Red"
-          className="w-full h-auto object-cover object-center block max-h-[min(52vh,440px)] xl:max-h-[min(78vh,640px)]"
-        />
-      </div>
-      <p className="text-center text-red-400/95 text-sm font-bold mt-2 tracking-wide drop-shadow-sm">Donjon Red</p>
-    </aside>
-  );
-}
-
 // Composant Tooltip réutilisable
 const Tooltip = ({ children, content }) => {
   return (
@@ -1388,11 +1370,6 @@ const CharacterCreation = () => {
               </div>
             </div>
 
-            {/* Promo Donjon Red (à droite de la carte sur grand écran) */}
-            <div className="order-3 lg:order-3 w-full max-w-sm mx-auto lg:max-w-[300px] lg:mx-0 lg:flex-shrink-0">
-              <RedDungeonPromoAside />
-            </div>
-
             {/* Character Card (image + name) */}
             <div className="order-1 lg:order-2 relative flex-shrink-0 mx-auto lg:mx-0" style={{ width: '340px' }}>
               <div className="shadow-2xl">
@@ -1706,8 +1683,7 @@ const CharacterCreation = () => {
         <Header />
 
         {renderIntroMusic()}
-        <div className="flex flex-col xl:flex-row flex-1 gap-8 w-full max-w-[1700px] mx-auto pt-24 sm:pt-20 items-start justify-center">
-        <div className="flex-1 min-w-0 w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-4xl mx-auto pt-24 sm:pt-20">
           <div className="text-center mb-8">
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
               <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
@@ -1892,8 +1868,6 @@ const CharacterCreation = () => {
           )}
           {renderGameEncyclopedia()}
         </div>
-        <RedDungeonPromoAside className="w-full max-w-sm mx-auto xl:mx-0 xl:w-[300px] xl:flex-shrink-0 pb-8 xl:pb-0" />
-        </div>
       {renderDungeonGrantPopup()}
       </div>
     );
@@ -1906,8 +1880,7 @@ const CharacterCreation = () => {
 
         {renderIntroMusic()}
       {PseudoModal}
-      <div className="flex flex-col xl:flex-row flex-1 gap-8 w-full max-w-[1700px] mx-auto pt-24 sm:pt-20 items-start justify-center">
-      <div className="flex-1 min-w-0 w-full max-w-4xl mx-auto">
+      <div className="w-full max-w-4xl mx-auto pt-24 sm:pt-20">
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>
@@ -2050,8 +2023,6 @@ const CharacterCreation = () => {
           </button>
         </div>
         {renderGameEncyclopedia()}
-      </div>
-      <RedDungeonPromoAside className="w-full max-w-sm mx-auto xl:mx-0 xl:w-[300px] xl:flex-shrink-0 pb-8 xl:pb-0" />
       </div>
       {renderDungeonGrantPopup()}
     </div>
