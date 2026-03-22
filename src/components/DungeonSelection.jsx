@@ -31,15 +31,15 @@ function DungeonCard({ icon, title, description, buttonLabel, onClick, accent = 
   );
 }
 
-function CategorySection({ title, children }) {
+function CategorySection({ title, children, className = '', cardsClassName = '' }) {
   return (
-    <div className="mb-8">
+    <div className={`mb-8 ${className}`}>
       <div className="flex justify-center mb-4">
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-lg px-5 py-1.5 shadow">
           <h3 className="text-sm font-bold text-amber-400/90 uppercase tracking-widest">{title}</h3>
         </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-4">
+      <div className={`flex flex-wrap justify-center gap-4 ${cardsClassName}`}>
         {children}
       </div>
     </div>
@@ -71,7 +71,7 @@ const DungeonSelection = () => {
   return (
     <div className="min-h-screen p-6">
       <Header />
-      <div className="max-w-4xl mx-auto pt-20">
+      <div className="max-w-6xl mx-auto pt-20 px-2">
 
         {/* Essais disponibles */}
         <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-8 flex justify-between items-center">
@@ -87,77 +87,89 @@ const DungeonSelection = () => {
           </div>
         </div>
 
-        {/* Armes */}
-        <CategorySection title="Armes">
-          <DungeonCard
-            icon="🏰"
-            title="La Grotte aux merveilles"
-            description="Donjon d'armes et loot"
-            buttonLabel="Entrer dans la grotte"
-            onClick={() => navigate('/dungeon')}
-          />
-          {isForgeActive() && (
-            <DungeonCard
-              icon="🔨"
-              title="Forge des Légendes"
-              description="Upgrade d'arme légendaire"
-              buttonLabel="Entrer dans la forge"
-              onClick={() => navigate('/forge')}
-              accent="orange"
-            />
-          )}
-        </CategorySection>
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 lg:items-start justify-center">
+          {/* Colonne gauche : tous les donjons « solo » */}
+          <div className="flex-1 min-w-0 w-full max-w-[640px] mx-auto lg:mx-0">
+            {/* Armes */}
+            <CategorySection title="Armes">
+              <DungeonCard
+                icon="🏰"
+                title="La Grotte aux merveilles"
+                description="Donjon d'armes et loot"
+                buttonLabel="Entrer dans la grotte"
+                onClick={() => navigate('/dungeon')}
+              />
+              {isForgeActive() && (
+                <DungeonCard
+                  icon="🔨"
+                  title="Forge des Légendes"
+                  description="Upgrade d'arme légendaire"
+                  buttonLabel="Entrer dans la forge"
+                  onClick={() => navigate('/forge')}
+                  accent="orange"
+                />
+              )}
+            </CategorySection>
 
-        {/* Sorts */}
-        <CategorySection title="Sorts">
-          <DungeonCard
-            icon="🪄"
-            title="Tour du Mage"
-            description="Donjon de passifs mystiques"
-            buttonLabel="Entrer dans la tour"
-            onClick={() => navigate('/mage-tower')}
-          />
-          <DungeonCard
-            icon="👁️"
-            title="Extension du Territoire"
-            description="Fusionne un second passif mystique"
-            buttonLabel="Étendre le territoire"
-            onClick={() => navigate('/extension')}
-            accent="violet"
-          />
-        </CategorySection>
+            {/* Sorts */}
+            <CategorySection title="Sorts">
+              <DungeonCard
+                icon="🪄"
+                title="Tour du Mage"
+                description="Donjon de passifs mystiques"
+                buttonLabel="Entrer dans la tour"
+                onClick={() => navigate('/mage-tower')}
+              />
+              <DungeonCard
+                icon="👁️"
+                title="Extension du Territoire"
+                description="Fusionne un second passif mystique"
+                buttonLabel="Étendre le territoire"
+                onClick={() => navigate('/extension')}
+                accent="violet"
+              />
+            </CategorySection>
 
-        <CategorySection title="Coopération">
-          <DungeonCard
-            icon="🔴"
-            title="Donjon Red (async)"
-            description="À deux contre Red : liste de salles, prêt des deux joueurs, tirage Pointeau ADN aléatoire."
-            buttonLabel="Ouvrir le donjon"
-            onClick={() => navigate('/coop-red')}
-            accent="orange"
-          />
-        </CategorySection>
+            {/* Expérience */}
+            <CategorySection title="Expérience" className="mb-0 lg:mb-0">
+              <DungeonCard
+                icon="🌲"
+                title="La Forêt enchantée"
+                description="Donjon d'EXP et progression"
+                buttonLabel="Entrer dans la forêt"
+                onClick={() => navigate('/forest')}
+              />
+              {isSubclassDungeonVisible() && (
+                <DungeonCard
+                  icon="🎓"
+                  title="Collège Kunugigaoka"
+                  description="Sous-classe — Niveau 400 requis"
+                  buttonLabel="Entrer au Collège"
+                  onClick={() => navigate('/sous-classe')}
+                  accent="yellow"
+                />
+              )}
+            </CategorySection>
+          </div>
 
-        {/* Expérience */}
-        <CategorySection title="Expérience">
-          <DungeonCard
-            icon="🌲"
-            title="La Forêt enchantée"
-            description="Donjon d'EXP et progression"
-            buttonLabel="Entrer dans la forêt"
-            onClick={() => navigate('/forest')}
-          />
-          {isSubclassDungeonVisible() && (
-            <DungeonCard
-              icon="🎓"
-              title="Collège Kunugigaoka"
-              description="Sous-classe — Niveau 400 requis"
-              buttonLabel="Entrer au Collège"
-              onClick={() => navigate('/sous-classe')}
-              accent="yellow"
-            />
-          )}
-        </CategorySection>
+          {/* Colonne droite : coop uniquement (alignée comme sur la maquette) */}
+          <aside className="w-full max-w-[320px] mx-auto lg:mx-0 lg:flex-shrink-0 lg:sticky lg:top-24 self-start">
+            <CategorySection
+              title="Coopération"
+              className="mb-0"
+              cardsClassName="lg:justify-start"
+            >
+              <DungeonCard
+                icon="🔴"
+                title="Donjon Red (async)"
+                description="À deux contre Red : liste de salles, prêt des deux joueurs, tirage Pointeau ADN aléatoire."
+                buttonLabel="Ouvrir le donjon"
+                onClick={() => navigate('/coop-red')}
+                accent="orange"
+              />
+            </CategorySection>
+          </aside>
+        </div>
       </div>
     </div>
   );
