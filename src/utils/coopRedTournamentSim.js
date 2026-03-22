@@ -18,7 +18,8 @@ import { generalConstants, weaponConstants, classConstants } from '../data/comba
 
 const MAX_COOP_TURNS = 400;
 
-function createCoopSeededRng(seed) {
+/** RNG déterministe pour donjon Red (préparation + combat). */
+export function createCoopSeededRng(seed) {
   let counter = 0;
   return {
     next01() {
@@ -224,7 +225,9 @@ export function simulerMatchCoopRed(hostSnap, guestSnap, difficulty, seed, optio
 }
 
 function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps) {
-  const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty);
+  const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty, {
+    rngNext01: () => rng.next01(),
+  });
   const lineup = getCoopRedLineup(difficulty);
   const steps = [];
 

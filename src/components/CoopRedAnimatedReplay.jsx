@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import CoopRedReplayArena from './CoopRedReplayArena';
 import { rebuildPreparedCoop } from '../utils/coopRedCombat';
 import { replayCoopRedSteps } from '../utils/combatReplay';
-import { simulerMatchCoopRed } from '../utils/coopRedTournamentSim';
+import { simulerMatchCoopRed, createCoopSeededRng } from '../utils/coopRedTournamentSim';
 import { getCoopRedLineup } from '../data/coopRedDungeon';
 
 /**
@@ -94,7 +94,10 @@ export default function CoopRedAnimatedReplay({
     setReplaying(true);
     setCoopActor(null);
 
-    const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty);
+    const prepRng = createCoopSeededRng(combatSeed >>> 0);
+    const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty, {
+      rngNext01: () => prepRng.next01(),
+    });
     const s0 = steps[0];
     setHostF({
       ...host,
