@@ -46,7 +46,7 @@ export const coopRedBossLineups = {
       nom: 'Salamèche',
       icon: '🔥',
       imageFile: 'Salameche.png',
-      baseStats: { hp: 180, auto: 45, def: 30, cap: 40, rescap: 30, spd: 40 },
+      baseStats: { hp: 190, auto: 55, def: 40, cap: 50, rescap: 40, spd: 50 },
       /** Pas de CD : chaque attaque = Lance-Flammes (physique) + brûlure. */
       ability: {
         cooldown: 0,
@@ -61,7 +61,7 @@ export const coopRedBossLineups = {
       nom: 'Carapuce',
       icon: '💧',
       imageFile: 'Carapuce.png',
-      baseStats: { hp: 250, auto: 35, def: 45, cap: 40, rescap: 35, spd: 30 },
+      baseStats: { hp: 260, auto: 45, def: 55, cap: 50, rescap: 45, spd: 40 },
       ability: {
         cooldown: 2,
         effect: { capBonusRatio: 0.35 },
@@ -72,7 +72,7 @@ export const coopRedBossLineups = {
       nom: 'Bulbizarre',
       icon: '🌿',
       imageFile: 'Bulbizarre.png',
-      baseStats: { hp: 230, auto: 35, def: 40, cap: 50, rescap: 45, spd: 30 },
+      baseStats: { hp: 240, auto: 45, def: 50, cap: 60, rescap: 55, spd: 40 },
       ability: {
         cooldown: 3,
         effect: { capScale: 1, leechMaxHpPercent: 0.01 },
