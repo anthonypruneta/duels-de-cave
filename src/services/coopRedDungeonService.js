@@ -41,7 +41,7 @@ function hashUserId32(userId) {
   return h >>> 0;
 }
 
-/** Race d’écho Red : aléatoire parmi les races, hors la race du joueur (déterministe). */
+/** Race du Pointeau ADN Red : aléatoire parmi les races, hors la race du joueur (déterministe). */
 export function pickCoopRaceEchoGrant(playerRace, combatSeed, userId, salt) {
   const seed = typeof combatSeed === 'number' ? combatSeed >>> 0 : 0;
   const pool = Object.keys(races).filter((name) => name !== playerRace);
@@ -449,7 +449,7 @@ export async function runCoopRedAutoSimulation(roomId) {
 }
 
 /**
- * Après victoire + pointeau : applique l’écho (race aléatoire) ou place une offre si un écho existe déjà.
+ * Après victoire + tirage : applique le Pointeau ADN (race aléatoire) ou place une offre si un Pointeau ADN existe déjà.
  * Idempotent (hostEchoDelivered / guestEchoDelivered).
  */
 export async function claimCoopRedRaceEchoIfNeeded(roomId, userId) {

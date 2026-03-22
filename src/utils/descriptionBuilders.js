@@ -5,6 +5,8 @@ import { raceConstants, classConstants, getSubclassCapacityConstants } from '../
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
+import { getCoopRaceEchoAwakeningFragment, COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT } from './coopRaceEcho.js';
+import { COOP_RACE_ECHO_POTENCY } from '../data/coopRedDungeon.js';
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
@@ -97,6 +99,30 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     default: return races[raceName]?.awakening?.description || '';
   }
 };
+
+/**
+ * Effet d’éveil fusionné via le Pointeau ADN (donjon Red coop) : même logique que le combat,
+ * valeurs issues de {@link getCoopRaceEchoAwakeningFragment}.
+ */
+export const buildRacePointeauAdnDescription = (raceName) => {
+  const e = getCoopRaceEchoAwakeningFragment(raceName);
+  if (!e) return '—';
+
+  if (raceName === 'Mindflayer') {
+    return `Copie du sort : dégâts et soins à ${pct(COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT, 0)} de la valeur « pleine ». Scaling CAP sur la copie : 0 % (règle Pointeau ADN).`;
+  }
+
+  if (raceName === 'Turtlekin') {
+    const capP = e.turtlekinFirstHitCapPercent ?? 0.2;
+    return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(capP, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50 % PV pour la première fois.`;
+  }
+
+  return buildRaceAwakeningDescription(raceName, e);
+};
+
+/** Intensité affichée (fraction de l’éveil complet) — alignée sur COOP_RACE_ECHO_POTENCY + cas Mindflayer / Sirène / Turtlekin. */
+export const getPointeauAdnIntensityLabel = () =>
+  `~${Math.round(COOP_RACE_ECHO_POTENCY * 100)} % de l’éveil (sauf ajustements Mindflayer / Sirène / Turtlekin)`;
 
 // ============================================================================
 // DESCRIPTIONS DE CLASSES

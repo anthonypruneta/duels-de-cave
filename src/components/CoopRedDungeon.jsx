@@ -302,21 +302,22 @@ function CoopRedDungeon() {
         />
 
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
-          <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : pointeau &amp; écho racial</h2>
+          <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : Pointeau ADN</h2>
           <ul className="space-y-2 text-stone-400 leading-relaxed">
             <li>
               <span className="text-stone-200 font-semibold">Après une victoire</span> — Chaque joueur a un{' '}
-              <span className="text-stone-300">tirage séparé</span> (pointeau). S’il réussit, une{' '}
-              <span className="text-stone-300">race aléatoire</span> (hors ta propre race) te propose un{' '}
-              <span className="text-stone-300">fragment du passif racial d’éveil</span> à environ{' '}
-              <span className="text-stone-300">{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %</span> de l’intensité de
-              l’éveil en combat (hors donjon Red, tu gardes ta race). Exemples : copie Mindflayer à 50 % des dégâts du
+              <span className="text-stone-300">tirage séparé</span> (chance de pointeau). S’il réussit, tu obtiens un{' '}
+              <span className="text-stone-300">Pointeau ADN</span> : une{' '}
+              <span className="text-stone-300">race aléatoire</span> (hors la tienne) dont le passif d’éveil est
+              fusionné à environ{' '}
+              <span className="text-stone-300">{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %</span> de sa puissance
+              d’origine en combat (hors donjon Red, tu gardes ta race). Exemples : copie Mindflayer à 50 % des dégâts du
               sort copié, Sirène +2,5 % par stack max 4, Turtlekin premier coup plafonné à 20 % des PV max, regen
-              Sylvari, etc. Si tu avais déjà un écho, tu choisis de{' '}
+              Sylvari, etc. Si tu avais déjà un Pointeau ADN, tu choisis de{' '}
               <span className="text-stone-300">remplacer</span> ou de <span className="text-stone-300">garder</span> l’ancien.
             </li>
             <li>
-              Pointeau : Facile {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
+              Chance de tirage : Facile {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
               {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.MEDIUM] * 100)} %, Difficile{' '}
               {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.HARD] * 100)} %. Rien en défaite.
             </li>
@@ -330,10 +331,10 @@ function CoopRedDungeon() {
           </div>
           {character?.coopRaceEcho?.race && (
             <div className="text-right text-sm text-stone-400 max-w-sm">
-              <p className="text-amber-400 text-xs font-bold uppercase mb-1">Écho racial actif</p>
+              <p className="text-amber-400 text-xs font-bold uppercase mb-1">Pointeau ADN actif</p>
               <span className="text-emerald-300 font-semibold">{character.coopRaceEcho.race}</span>
               <p className="text-[11px] text-stone-500 mt-1">
-                Fragment d’éveil (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %) fusionné à ton éveil en combat.
+                Passif d’éveil (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %) fusionné au tien en combat.
               </p>
             </div>
           )}
@@ -348,18 +349,18 @@ function CoopRedDungeon() {
         {character?.coopRaceEchoOffer?.race && (
           <div className="rounded-xl border border-amber-500/50 bg-amber-950/30 p-4 space-y-3">
             <p className="text-sm text-stone-200">
-              <span className="font-bold text-amber-400">Nouvel écho racial (Red)</span> — proposition :{' '}
+              <span className="font-bold text-amber-400">Nouveau Pointeau ADN (Red)</span> — proposition :{' '}
               <span className="text-emerald-300 font-semibold">{character.coopRaceEchoOffer.race}</span>
               {character.coopRaceEcho?.race && (
                 <>
                   {' '}
-                  · écho actuel :{' '}
+                  · Pointeau ADN actuel :{' '}
                   <span className="text-stone-300">{character.coopRaceEcho.race}</span>
                 </>
               )}
             </p>
             <p className="text-xs text-stone-500">
-              Remplace ton fragment d’éveil actuel par celui-ci, ou garde l’actuel et abandonne la proposition.
+              Remplace ton Pointeau ADN actuel par celui-ci, ou garde l’actuel et abandonne la proposition.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -376,7 +377,7 @@ function CoopRedDungeon() {
                 onClick={() => handleResolveEchoOffer(false)}
                 className="px-4 py-2 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 text-sm font-bold border border-stone-500/60 disabled:opacity-50"
               >
-                Garder l’écho actuel
+                Garder le Pointeau ADN actuel
               </button>
             </div>
           </div>
@@ -697,7 +698,7 @@ function CoopRedDungeon() {
                       {isHost && room.hostDropGranted && (
                         <>
                           <span>
-                            Pointeau : écho racial tiré au sort :{' '}
+                            Pointeau ADN tiré au sort :{' '}
                             <span className="text-emerald-300 font-semibold">
                               {room.hostEchoRaceGrant ?? '—'}
                             </span>{' '}
@@ -705,7 +706,7 @@ function CoopRedDungeon() {
                             {character?.coopRaceEcho?.race &&
                               character?.coopRaceEchoOffer?.roomId === room.id && (
                                 <span className="block mt-1 text-amber-200/90 text-xs">
-                                  Tu avais déjà un écho : choisis en haut de page de remplacer ou de le garder.
+                                  Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
                                 </span>
                               )}
                           </span>
@@ -715,7 +716,7 @@ function CoopRedDungeon() {
                       {isGuest && room.guestDropGranted && (
                         <>
                           <span>
-                            Pointeau : écho racial tiré au sort :{' '}
+                            Pointeau ADN tiré au sort :{' '}
                             <span className="text-emerald-300 font-semibold">
                               {room.guestEchoRaceGrant ?? '—'}
                             </span>{' '}
@@ -723,7 +724,7 @@ function CoopRedDungeon() {
                             {character?.coopRaceEcho?.race &&
                               character?.coopRaceEchoOffer?.roomId === room.id && (
                                 <span className="block mt-1 text-amber-200/90 text-xs">
-                                  Tu avais déjà un écho : choisis en haut de page de remplacer ou de le garder.
+                                  Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
                                 </span>
                               )}
                           </span>

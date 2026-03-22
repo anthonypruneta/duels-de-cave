@@ -1,19 +1,19 @@
 /**
- * Écho racial Red (coop) : fragment d’éveil d’une race tirée au sort, à COOP_RACE_ECHO_POTENCY.
+ * Pointeau ADN Red (coop) : fragment d’éveil d’une race tirée au sort, à COOP_RACE_ECHO_POTENCY.
  * Basé sur la race uniquement (pas la classe).
  */
 import { races } from '../data/races.js';
 import { getAwakeningEffect } from './awakening.js';
 import { COOP_RACE_ECHO_POTENCY } from '../data/coopRedDungeon.js';
 
-/** Copie Mindflayer (écho coop uniquement) : dégâts/soins de la copie = ce % de la valeur « pleine ». */
+/** Copie Mindflayer (Pointeau ADN / coop Red uniquement) : dégâts/soins de la copie = ce % de la valeur « pleine ». */
 export const COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT = 0.5;
 
-/** Sirène (écho coop) : bonus par stack et plafond de stacks (fixe, hors formule globale). */
+/** Sirène (Pointeau ADN coop) : bonus par stack et plafond de stacks (fixe, hors formule globale). */
 export const COOP_SIRENE_ECHO_STACK_BONUS = 0.025;
 export const COOP_SIRENE_ECHO_MAX_STACKS = 4;
 
-/** Turtlekin (écho coop) : plafond du 1er coup reçu (% PV max). */
+/** Turtlekin (Pointeau ADN coop) : plafond du 1er coup reçu (% PV max). */
 export const COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP = 0.2;
 
 const SPEED_DUEL_KEYS = [

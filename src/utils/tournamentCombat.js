@@ -479,7 +479,7 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
     return Math.max(1, Math.round(v * echoCopyMult));
   };
   const echoCopyLog = echoCopyMult != null && echoCopyMult > 0 && echoCopyMult < 1
-    ? ` (écho : ${Math.round(echoCopyMult * 100)} % des dégâts du sort copié)`
+    ? ` (Pointeau ADN : ${Math.round(echoCopyMult * 100)} % des dégâts du sort copié)`
     : '';
 
   const copiedClass = caster.class;
@@ -748,7 +748,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
     return 0;
   }
-  // Turtlekin / écho : cap le premier coup reçu (% PV max ; éveil = constante globale, écho peut surcharger)
+  // Turtlekin / Pointeau ADN : cap le premier coup reçu (% PV max ; éveil = constante globale, Pointeau ADN peut surcharger)
   if ((def.race === 'Turtlekin' || def.awakening?.turtlekinResetAt50) && !def.turtlekinFirstHitUsed && adjusted > 0) {
     const tkCapPct =
       typeof def.awakening?.turtlekinFirstHitCapPercent === 'number' && def.awakening.turtlekinFirstHitCapPercent > 0

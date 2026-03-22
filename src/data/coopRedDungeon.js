@@ -26,7 +26,7 @@ export const COOP_RED_DROP_RATE = {
   [COOP_RED_DIFFICULTY.HARD]: 0.45,
 };
 
-/** Intensité de l’écho racial gravé : fraction de l’éveil de la race de l’allié (passifs numériques). */
+/** Intensité du Pointeau ADN : fraction de l’éveil de la race tirée (passifs numériques). */
 export const COOP_RACE_ECHO_POTENCY = 0.25;
 
 export const COOP_RED_DIFFICULTY_LABELS = {
@@ -88,9 +88,9 @@ export const coopRedBossLineups = {
         effect: { capScale: 1, leechMaxHpPercent: 0.01 },
       },
       moveDisplay: {
-        name: 'Giga-Sangsue',
+        name: 'Vampigraine',
         description:
-          'Toutes les 3 actions : sort magique puissant qui applique un vol de vie (fraction des PV max des cibles).',
+          'Toutes les 3 actions : sort magique avec vol de vie sur une fraction des PV max des cibles (effet Vampigraine).',
       },
     },
   ],

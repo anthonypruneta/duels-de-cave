@@ -898,9 +898,9 @@ export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
 };
 
 /**
- * Donjon Red : après un pointeau alors qu’un écho existait déjà, choisir de remplacer ou garder l’écho actuel.
+ * Donjon Red : après un tirage réussi alors qu’un Pointeau ADN existait déjà, choisir de remplacer ou garder l’actuel.
  * @param {string} userId
- * @param {boolean} acceptReplace — true = appliquer la race proposée, false = garder l’écho actuel et abandonner la proposition
+ * @param {boolean} acceptReplace — true = appliquer la race proposée, false = garder le Pointeau ADN actuel et abandonner la proposition
  */
 export const resolveCoopRaceEchoOffer = async (userId, acceptReplace) => {
   try {
@@ -912,7 +912,7 @@ export const resolveCoopRaceEchoOffer = async (userId, acceptReplace) => {
         const data = snap.data();
         const offer = data.coopRaceEchoOffer;
         if (!offer?.race || !races[offer.race]) {
-          throw new Error('Aucune proposition d’écho en attente');
+          throw new Error('Aucune proposition de Pointeau ADN en attente');
         }
         const patch = {
           updatedAt: Timestamp.now(),

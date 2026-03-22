@@ -5,7 +5,14 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
 import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
-import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription, buildSubclassDescription } from '../utils/descriptionBuilders';
+import {
+  getRaceBonusText,
+  getClassDescriptionText,
+  buildRaceAwakeningDescription,
+  buildRacePointeauAdnDescription,
+  getPointeauAdnIntensityLabel,
+  buildSubclassDescription,
+} from '../utils/descriptionBuilders';
 import { SUBCLASSES_BY_CLASS } from '../data/subclasses';
 
 const STAT_LABELS = {
@@ -99,19 +106,25 @@ function Encyclopedia() {
           {activeTab === 'races' && (
             <section>
               <h2 className="text-xl text-amber-300 font-bold mb-4">🎭 Races & Awakening</h2>
-              <p className="text-stone-400 text-sm mb-6">
+              <p className="text-stone-400 text-sm mb-2">
                 Chaque race apporte des bonus de base. L'Awakening (éveil) se débloque au niveau indiqué et renforce ces effets.
+              </p>
+              <p className="text-stone-500 text-xs mb-6 border-l-2 border-red-800/60 pl-3">
+                <span className="text-red-300/95 font-semibold">Pointeau ADN</span> (donjon Red) : fragment d’éveil d’une
+                autre race fusionné au tien — {getPointeauAdnIntensityLabel()}. Les valeurs ci-dessous suivent le même
+                calcul qu’en combat.
               </p>
               <div className="space-y-6">
                 {Object.entries(races).map(([name, info]) => {
                   const bonusLines = splitDescriptionLines(getRaceBonusText(name));
                   const awakeningLines = splitDescriptionLines(buildRaceAwakeningDescription(name));
+                  const pointeauLines = splitDescriptionLines(buildRacePointeauAdnDescription(name));
                   return (
                     <div key={name} className="bg-stone-800/80 border border-stone-700 rounded-lg overflow-hidden">
                       <div className="bg-stone-700/50 px-4 py-2 font-bold text-amber-200 border-b border-stone-600">
                         {info.icon} {name}
                       </div>
-                      <div className="p-4 grid md:grid-cols-2 gap-4">
+                      <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-stone-900/60 border border-stone-700 p-4 rounded-lg">
                           <div className="text-stone-400 text-xs font-semibold mb-2 uppercase">Bonus racial</div>
                           <ul className="text-stone-300 text-sm space-y-1">
@@ -127,6 +140,14 @@ function Encyclopedia() {
                           <ul className="text-emerald-200/90 text-sm space-y-1">
                             {awakeningLines.map((line, idx) => (
                               <li key={`${name}-awak-${idx}`}>• {line}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="bg-stone-900/60 border border-red-900/40 p-4 rounded-lg ring-1 ring-red-950/30">
+                          <div className="text-red-300 text-xs font-semibold mb-2 uppercase">Pointeau ADN</div>
+                          <ul className="text-red-100/90 text-sm space-y-1">
+                            {pointeauLines.map((line, idx) => (
+                              <li key={`${name}-padn-${idx}`}>• {line}</li>
                             ))}
                           </ul>
                         </div>
