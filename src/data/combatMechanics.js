@@ -186,9 +186,15 @@ export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap
 // Calcul du crit chance (identique à Combat.jsx)
 export const getSpeedDuelBonuses = (attacker, defender) => {
   const bonuses = { crit: 0, critDamage: 0, dodge: 0, capBonus: 0 };
-  if (attacker?.race !== 'Gnome' || !defender?.base) return bonuses;
+  if (!defender?.base) return bonuses;
 
   const aw = attacker?.awakening || {};
+  const hasSpeedDuelFromAwakening =
+    aw.speedDuelCritHigh != null ||
+    aw.speedDuelDodgeLow != null ||
+    aw.speedDuelEqualCrit != null;
+  if (attacker?.race !== 'Gnome' && !hasSpeedDuelFromAwakening) return bonuses;
+
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
   const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
   let dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;

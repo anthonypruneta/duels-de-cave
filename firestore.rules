@@ -179,7 +179,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
                        request.resource.data.hostId == request.auth.uid;
-      // Hôte ou invité déjà enregistré ; ou première jointure (guestId null → on s’assigne soi-même)
+      // Hôte ou invité ; première jointure ; invité quitte (guestId → null) ; champs prêt / lobby
       allow update: if request.auth != null && (
                        resource.data.hostId == request.auth.uid ||
                        resource.data.guestId == request.auth.uid ||

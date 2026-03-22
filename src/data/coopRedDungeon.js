@@ -17,16 +17,17 @@ export const COOP_RED_LEVEL_REQUIRED = {
   [COOP_RED_DIFFICULTY.HARD]: 350,
 };
 
+export const COOP_RED_MAX_ATTEMPTS_PER_DAY = 3;
+
+/** Chances de pointeau par joueur après victoire Red (tirages indépendants). */
 export const COOP_RED_DROP_RATE = {
   [COOP_RED_DIFFICULTY.EASY]: 0.15,
   [COOP_RED_DIFFICULTY.MEDIUM]: 0.25,
   [COOP_RED_DIFFICULTY.HARD]: 0.45,
 };
 
-export const COOP_RED_MAX_ATTEMPTS_PER_DAY = 3;
-
-/** Facteur d’écho racial (allié) : fraction des bonus plats de raceConstants */
-export const COOP_ALLY_RACE_ECHO_FACTOR = 0.25;
+/** Intensité de l’écho racial gravé : fraction de l’éveil de la race de l’allié (passifs numériques). */
+export const COOP_RACE_ECHO_POTENCY = 0.25;
 
 export const COOP_RED_DIFFICULTY_LABELS = {
   [COOP_RED_DIFFICULTY.EASY]: 'Facile',
@@ -129,10 +130,6 @@ export const coopRedBossLineups = {
 
 export function getCoopRedLineup(difficulty) {
   return coopRedBossLineups[difficulty] || null;
-}
-
-export function getCoopRedDropRate(difficulty) {
-  return COOP_RED_DROP_RATE[difficulty] ?? 0.25;
 }
 
 /**

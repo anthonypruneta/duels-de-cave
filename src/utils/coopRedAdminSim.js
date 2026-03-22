@@ -88,7 +88,7 @@ export function buildAdminRandomCoopCharacter(userId, name, level, rng) {
     mageTowerExtensionPassive: null,
     additionalAwakeningRaces: [],
     awakeningForced: false,
-    allyRaceEcho: null,
+    coopRaceEcho: null,
   };
 }
 

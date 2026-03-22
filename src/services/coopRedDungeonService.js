@@ -2,11 +2,16 @@
  * Donjon coop async « Red » — rooms Firestore + quota quotidien.
  */
 import {
+  collection,
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   updateDoc,
   onSnapshot,
+  query,
+  where,
+  limit,
   runTransaction,
   Timestamp,
 } from 'firebase/firestore';
@@ -20,15 +25,13 @@ import { simulateCoopRedCombatFull } from '../utils/coopRedCombat';
 import { getUserCharacter } from './characterService';
 import { races } from '../data/races.js';
 
+const ROOMS = 'coopDungeonRooms';
+
 function coopDropRoll01(seed, rngCounter, salt) {
   const s = (Math.imul((seed ^ salt) >>> 0, 1597334677) ^ (rngCounter * 2654435761)) >>> 0;
   return (s >>> 0) / 4294967296;
 }
-
-const ROOMS = 'coopDungeonRooms';
 const DAILY = 'coopDungeonDaily';
-
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function getParisDateKey() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -43,12 +46,24 @@ function getParisDateKey() {
   return `${y}-${m}-${d}`;
 }
 
-function randomRoomCode() {
-  let s = '';
-  for (let i = 0; i < 6; i++) {
-    s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
-  }
-  return s;
+/** Salles ouvertes (en attente d’un invité) pour la liste publique. */
+export function subscribeOpenCoopRedRooms(onData, onError) {
+  const q = query(collection(db, ROOMS), where('status', '==', 'waiting'), limit(60));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((r) => !r.guestId);
+      rows.sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? a.createdAt?.seconds * 1000 ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? b.createdAt?.seconds * 1000 ?? 0;
+        return tb - ta;
+      });
+      onData(rows);
+    },
+    onError
+  );
 }
 
 function snapshotCharacterForCoop(data) {
@@ -71,7 +86,7 @@ function snapshotCharacterForCoop(data) {
       ? [...data.additionalAwakeningRaces]
       : [],
     awakeningForced: !!data.awakeningForced,
-    allyRaceEcho: data.allyRaceEcho ?? null,
+    coopRaceEcho: data.coopRaceEcho ?? null,
   };
 }
 
@@ -144,50 +159,47 @@ export async function createCoopRedRoom(hostUserId, difficulty) {
     return { success: false, error: 'Plus d’essais disponibles aujourd’hui.' };
   }
 
-  let roomId = randomRoomCode();
-  for (let t = 0; t < 5; t++) {
-    const existing = await retryOperation(() => getDoc(doc(db, ROOMS, roomId)));
-    if (!existing.exists()) break;
-    roomId = randomRoomCode();
-  }
+  const roomRef = doc(collection(db, ROOMS));
+  const roomId = roomRef.id;
 
   const room = {
-    roomCode: roomId,
     hostId: hostUserId,
     guestId: null,
     difficulty,
     status: 'waiting',
     hostSnapshot: snapshotCharacterForCoop(charRes.data),
     guestSnapshot: null,
+    hostReady: false,
+    guestReady: false,
     combat: null,
     attemptsConsumed: false,
     combatSeed: null,
     hostDropGranted: false,
     guestDropGranted: false,
-    rewardsWritten: false,
-    hostDnaDelivered: false,
-    guestDnaDelivered: false,
+    hostEchoDelivered: false,
+    guestEchoDelivered: false,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
 
-  await retryOperation(() => setDoc(doc(db, ROOMS, roomId), room));
-  return { success: true, roomId, roomCode: roomId };
+  await retryOperation(() => setDoc(roomRef, room));
+  return { success: true, roomId };
 }
 
-export async function joinCoopRedRoom(guestUserId, roomCode) {
-  const code = String(roomCode || '')
-    .trim()
-    .toUpperCase();
-  if (code.length !== 6) {
-    return { success: false, error: 'Code invalide (6 caractères).' };
+/**
+ * Rejoindre une salle ouverte (id document Firestore, ex. depuis la liste).
+ */
+export async function joinCoopRedRoom(guestUserId, roomId) {
+  const id = String(roomId || '').trim();
+  if (!id) {
+    return { success: false, error: 'Salle invalide.' };
   }
   const charRes = await getUserCharacter(guestUserId);
   if (!charRes.success || !charRes.data) {
     return { success: false, error: 'Personnage introuvable.' };
   }
 
-  const ref = doc(db, ROOMS, code);
+  const ref = doc(db, ROOMS, id);
   const result = await retryOperation(async () => {
     return await runTransaction(db, async (tx) => {
       const snap = await tx.get(ref);
@@ -195,11 +207,7 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
         throw new Error('room_not_found');
       }
       const r = snap.data();
-      if (
-        r.status !== 'waiting' &&
-        r.status !== 'ready' &&
-        r.status !== 'matched'
-      ) {
+      if (r.status !== 'waiting') {
         throw new Error('room_closed');
       }
       if (r.hostId === guestUserId) {
@@ -215,15 +223,17 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
       tx.update(ref, {
         guestId: guestUserId,
         guestSnapshot: snapshotCharacterForCoop(charRes.data),
-        status: 'ready',
+        status: 'lobby',
+        hostReady: false,
+        guestReady: false,
         updatedAt: Timestamp.now(),
       });
-      return { roomId: code };
+      return { roomId: id };
     });
   }).catch((e) => {
     const msg = e?.message;
     if (msg === 'room_not_found') return { success: false, error: 'Salle introuvable.' };
-    if (msg === 'room_closed') return { success: false, error: 'Cette salle n’accepte plus de joueurs.' };
+    if (msg === 'room_closed') return { success: false, error: 'Cette salle n’est plus disponible.' };
     if (msg === 'self_join') return { success: false, error: 'Tu es déjà l’hôte de cette salle.' };
     if (msg === 'room_full') return { success: false, error: 'La salle est pleine.' };
     if (msg?.startsWith('level_too_low')) {
@@ -235,7 +245,80 @@ export async function joinCoopRedRoom(guestUserId, roomCode) {
   });
 
   if (result && result.success === false) return result;
-  return { success: true, roomId: code };
+  return { success: true, roomId: id };
+}
+
+export async function setCoopRedPlayerReady(roomId, userId, ready) {
+  const ref = doc(db, ROOMS, roomId);
+  try {
+    await retryOperation(async () => {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error('missing');
+        const r = snap.data();
+        if (r.status !== 'lobby') throw new Error('not_lobby');
+        const patch = { updatedAt: Timestamp.now() };
+        if (r.hostId === userId) patch.hostReady = !!ready;
+        else if (r.guestId === userId) patch.guestReady = !!ready;
+        else throw new Error('not_member');
+        tx.update(ref, patch);
+      });
+    });
+    return { success: true };
+  } catch (e) {
+    const m = e?.message;
+    if (m === 'not_lobby') return { success: false, error: 'Impossible de changer le prêt maintenant.' };
+    if (m === 'not_member') return { success: false, error: 'Tu n’es pas dans cette salle.' };
+    return { success: false, error: e.message || 'Erreur' };
+  }
+}
+
+/** Invité quitte avant combat : la salle redevient ouverte. */
+export async function leaveCoopRedRoomAsGuest(roomId, userId) {
+  const ref = doc(db, ROOMS, roomId);
+  try {
+    await retryOperation(async () => {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const r = snap.data();
+        if (r.guestId !== userId) return;
+        if (r.status === 'completed' || r.status === 'simulating') return;
+        tx.update(ref, {
+          guestId: null,
+          guestSnapshot: null,
+          guestReady: false,
+          hostReady: false,
+          status: 'waiting',
+          updatedAt: Timestamp.now(),
+        });
+      });
+    });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/** Hôte supprime la salle (attente ou lobby). */
+export async function deleteCoopRedRoom(roomId, hostUserId) {
+  const ref = doc(db, ROOMS, roomId);
+  try {
+    const snap = await retryOperation(() => getDoc(ref));
+    if (!snap.exists()) return { success: true };
+    const r = snap.data();
+    if (r.hostId !== hostUserId) return { success: false, error: 'Seul l’hôte peut supprimer la salle.' };
+    if (r.status === 'simulating' && !r.combat?.winner) {
+      return { success: false, error: 'Combat en cours.' };
+    }
+    if (r.status === 'completed') {
+      return { success: false, error: 'La salle est déjà terminée.' };
+    }
+    await retryOperation(() => deleteDoc(ref));
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 /**
@@ -255,7 +338,10 @@ export async function runCoopRedAutoSimulation(roomId) {
         if (r.status === 'waiting') return;
         if (r.attemptsConsumed === true) return;
 
-        if (r.status !== 'ready' && r.status !== 'matched') return;
+        const legacyReady =
+          r.status === 'ready' && r.hostReady == null && r.guestReady == null;
+        const bothReadyLobby = r.status === 'lobby' && r.hostReady === true && r.guestReady === true;
+        if (!legacyReady && !bothReadyLobby) return;
 
         await consumeOneAttemptInTransaction(tx, r.hostId);
         await consumeOneAttemptInTransaction(tx, r.guestId);
@@ -318,7 +404,6 @@ export async function runCoopRedAutoSimulation(roomId) {
           status: 'completed',
           hostDropGranted: hRoll < rate,
           guestDropGranted: gRoll < rate,
-          rewardsWritten: true,
           updatedAt: Timestamp.now(),
         });
       });
@@ -328,6 +413,48 @@ export async function runCoopRedAutoSimulation(roomId) {
   }
 
   return { success: true };
+}
+
+/**
+ * Après victoire + pointeau : enregistre sur le perso l’écho de la race du coéquipier (fragment d’éveil ~25 %).
+ * Idempotent (hostEchoDelivered / guestEchoDelivered).
+ */
+export async function claimCoopRedRaceEchoIfNeeded(roomId, userId) {
+  const ref = doc(db, ROOMS, roomId);
+  try {
+    await retryOperation(async () => {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const r = snap.data();
+        if (r.status !== 'completed' || r.combat?.winner !== 'players') return;
+        const charRef = doc(db, 'characters', userId);
+        const cSnap = await tx.get(charRef);
+        if (!cSnap.exists()) return;
+
+        if (r.hostId === userId && r.hostDropGranted && !r.hostEchoDelivered) {
+          const allyRace = r.guestSnapshot?.race;
+          const charUpdate = { updatedAt: Timestamp.now() };
+          if (allyRace && races[allyRace]) {
+            charUpdate.coopRaceEcho = { race: allyRace };
+          }
+          tx.update(charRef, charUpdate);
+          tx.update(ref, { hostEchoDelivered: true, updatedAt: Timestamp.now() });
+        } else if (r.guestId === userId && r.guestDropGranted && !r.guestEchoDelivered) {
+          const allyRace = r.hostSnapshot?.race;
+          const charUpdate = { updatedAt: Timestamp.now() };
+          if (allyRace && races[allyRace]) {
+            charUpdate.coopRaceEcho = { race: allyRace };
+          }
+          tx.update(charRef, charUpdate);
+          tx.update(ref, { guestEchoDelivered: true, updatedAt: Timestamp.now() });
+        }
+      });
+    });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 async function consumeOneAttemptInTransaction(tx, userId) {
@@ -355,47 +482,4 @@ async function consumeOneAttemptInTransaction(tx, userId) {
     },
     { merge: true }
   );
-}
-
-/**
- * Après victoire + drop réussi : enregistre sur le perso l’écho racial du coéquipier
- * (25 % des bonus plats de sa race, comme en combat via preparerCombattant).
- * Idempotent (hostDnaDelivered / guestDnaDelivered sur la salle).
- */
-export async function claimCoopRedRewardIfNeeded(roomId, userId) {
-  const ref = doc(db, ROOMS, roomId);
-  try {
-    await retryOperation(async () => {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) return;
-        const r = snap.data();
-        if (r.status !== 'completed' || r.combat?.winner !== 'players') return;
-        const charRef = doc(db, 'characters', userId);
-        const cSnap = await tx.get(charRef);
-        if (!cSnap.exists()) return;
-
-        if (r.hostId === userId && r.hostDropGranted && !r.hostDnaDelivered) {
-          const allyRace = r.guestSnapshot?.race;
-          const charUpdate = { updatedAt: Timestamp.now() };
-          if (allyRace && races[allyRace]) {
-            charUpdate.allyRaceEcho = { race: allyRace };
-          }
-          tx.update(charRef, charUpdate);
-          tx.update(ref, { hostDnaDelivered: true, updatedAt: Timestamp.now() });
-        } else if (r.guestId === userId && r.guestDropGranted && !r.guestDnaDelivered) {
-          const allyRace = r.hostSnapshot?.race;
-          const charUpdate = { updatedAt: Timestamp.now() };
-          if (allyRace && races[allyRace]) {
-            charUpdate.allyRaceEcho = { race: allyRace };
-          }
-          tx.update(charRef, charUpdate);
-          tx.update(ref, { guestDnaDelivered: true, updatedAt: Timestamp.now() });
-        }
-      });
-    });
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
 }

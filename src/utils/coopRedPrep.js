@@ -1,21 +1,12 @@
 /**
- * Préparation des combattants donjon Red (écho allié + preparerCombattant).
+ * Préparation des combattants donjon Red (preparerCombattant).
  */
 import { preparerCombattant } from './tournamentCombat.js';
-import { applyCoopAllyRaceEchoToRawCharacter } from './coopAllyRaceEcho.js';
 import { buildCoopRedBossCombatants } from '../data/coopRedDungeon.js';
 
 export function rebuildPreparedCoop(hostSnap, guestSnap, difficulty) {
-  const hostRaw = applyCoopAllyRaceEchoToRawCharacter(
-    hostSnap,
-    hostSnap?.allyRaceEcho?.race === guestSnap?.race ? null : guestSnap?.race
-  );
-  const guestRaw = applyCoopAllyRaceEchoToRawCharacter(
-    guestSnap,
-    guestSnap?.allyRaceEcho?.race === hostSnap?.race ? null : hostSnap?.race
-  );
-  const host = preparerCombattant(hostRaw);
-  const guest = preparerCombattant(guestRaw);
+  const host = preparerCombattant(hostSnap);
+  const guest = preparerCombattant(guestSnap);
   const bossRaws = buildCoopRedBossCombatants(difficulty);
   const bosses = bossRaws.map((b) => preparerCombattant(b));
   return { host, guest, bosses };

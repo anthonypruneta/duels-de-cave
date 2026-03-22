@@ -865,13 +865,12 @@ export const migrateHpStat4To6 = async () => {
 };
 
 /**
- * Mise à jour optionnelle des fragments ADN et/ou de l’écho racial (hors flux donjon Red).
+ * Mise à jour optionnelle des fragments ADN.
  * @param {string} userId
- * @param {{ dnaDelta?: number, setAllyRaceEcho?: { race: string } | null }} opts
+ * @param {{ dnaDelta?: number }} opts
  */
 export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
   const dnaDelta = Number(opts.dnaDelta) || 0;
-  const setAllyRaceEcho = opts.setAllyRaceEcho;
 
   try {
     await retryOperation(async () => {
@@ -883,14 +882,10 @@ export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
         const prev = Number(data.dnaFragments) || 0;
         const next = prev + dnaDelta;
         if (next < 0) throw new Error('Fragments ADN insuffisants');
-        const payload = {
+        tx.update(characterRef, {
           dnaFragments: next,
           updatedAt: Timestamp.now(),
-        };
-        if (setAllyRaceEcho !== undefined) {
-          payload.allyRaceEcho = setAllyRaceEcho;
-        }
-        tx.update(characterRef, payload);
+        });
       });
     });
     return { success: true };

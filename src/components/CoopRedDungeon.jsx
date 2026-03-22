@@ -8,6 +8,7 @@ import {
   COOP_RED_LEVEL_REQUIRED,
   COOP_RED_MAX_ATTEMPTS_PER_DAY,
   COOP_RED_DROP_RATE,
+  COOP_RACE_ECHO_POTENCY,
   COOP_RED_DIFFICULTY_LABELS,
   getCoopRedLineup,
 } from '../data/coopRedDungeon';
@@ -15,9 +16,13 @@ import {
   createCoopRedRoom,
   joinCoopRedRoom,
   subscribeCoopRedRoom,
+  subscribeOpenCoopRedRooms,
+  setCoopRedPlayerReady,
+  leaveCoopRedRoomAsGuest,
+  deleteCoopRedRoom,
   runCoopRedAutoSimulation,
   getCoopRedAttemptsLeft,
-  claimCoopRedRewardIfNeeded,
+  claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
@@ -28,11 +33,13 @@ function CoopRedDungeon() {
   const [character, setCharacter] = useState(null);
   const [attemptsLeft, setAttemptsLeft] = useState(COOP_RED_MAX_ATTEMPTS_PER_DAY);
   const [difficulty, setDifficulty] = useState(COOP_RED_DIFFICULTY.EASY);
-  const [joinCode, setJoinCode] = useState('');
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem('coopRedRoomId') || '');
   const [room, setRoom] = useState(null);
+  const [openRooms, setOpenRooms] = useState([]);
+  const [listDifficultyFilter, setListDifficultyFilter] = useState('all');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [readyBusy, setReadyBusy] = useState(false);
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
@@ -52,6 +59,18 @@ function CoopRedDungeon() {
   }, [loadCharAndAttempts]);
 
   useEffect(() => {
+    if (!currentUser || roomId) {
+      setOpenRooms([]);
+      return undefined;
+    }
+    const unsub = subscribeOpenCoopRedRooms(
+      (rows) => setOpenRooms(rows),
+      (e) => console.warn('coop open rooms', e)
+    );
+    return () => unsub();
+  }, [currentUser, roomId]);
+
+  useEffect(() => {
     if (!roomId) {
       setRoom(null);
       return;
@@ -62,7 +81,9 @@ function CoopRedDungeon() {
       (data) => {
         setRoom(data);
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
-          claimCoopRedRewardIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
+          claimCoopRedRaceEchoIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
+        } else if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
+          loadCharAndAttempts();
         }
       },
       (e) => console.warn('coop room snap', e)
@@ -76,8 +97,14 @@ function CoopRedDungeon() {
     if (room.status === 'waiting' || room.status === 'failed_no_attempts') return;
     if (room.status === 'completed' && room.combat?.winner) return;
 
+    const legacyReadyFlow =
+      room.status === 'ready' && room.hostReady == null && room.guestReady == null;
+    const lobbyBothReady =
+      room.status === 'lobby' && room.hostReady === true && room.guestReady === true;
+    const canKickOff = legacyReadyFlow || lobbyBothReady;
+
     const needSim =
-      (room.status === 'ready' && room.attemptsConsumed !== true) ||
+      (canKickOff && room.attemptsConsumed !== true) ||
       (room.status === 'simulating' && !room.combat?.winner);
 
     if (!needSim) return;
@@ -98,6 +125,8 @@ function CoopRedDungeon() {
     currentUser,
     room?.guestId,
     room?.status,
+    room?.hostReady,
+    room?.guestReady,
     room?.attemptsConsumed,
     room?.combat?.winner,
     room?.hostSnapshot,
@@ -122,10 +151,10 @@ function CoopRedDungeon() {
     setRoomId(res.roomId);
   };
 
-  const handleJoin = async () => {
+  const handleJoinListedRoom = async (id) => {
     setError(null);
     setBusy(true);
-    const res = await joinCoopRedRoom(currentUser.uid, joinCode);
+    const res = await joinCoopRedRoom(currentUser.uid, id);
     setBusy(false);
     if (!res.success) {
       setError(res.error);
@@ -134,11 +163,46 @@ function CoopRedDungeon() {
     setRoomId(res.roomId);
   };
 
+  const handleToggleReady = async (next) => {
+    if (!roomId || !currentUser) return;
+    setReadyBusy(true);
+    setError(null);
+    const res = await setCoopRedPlayerReady(roomId, currentUser.uid, next);
+    setReadyBusy(false);
+    if (!res.success) setError(res.error);
+  };
+
   const handleLeaveRoom = () => {
     sessionStorage.removeItem('coopRedRoomId');
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
+  };
+
+  const handleGuestLeaveLobby = async () => {
+    if (!roomId || !currentUser) return;
+    setBusy(true);
+    setError(null);
+    const res = await leaveCoopRedRoomAsGuest(roomId, currentUser.uid);
+    setBusy(false);
+    if (!res.success) {
+      setError(res.error);
+      return;
+    }
+    handleLeaveRoom();
+  };
+
+  const handleHostCancelRoom = async () => {
+    if (!roomId || !currentUser) return;
+    setBusy(true);
+    setError(null);
+    const res = await deleteCoopRedRoom(roomId, currentUser.uid);
+    setBusy(false);
+    if (!res.success) {
+      setError(res.error);
+      return;
+    }
+    handleLeaveRoom();
   };
 
   const level = character?.level ?? 1;
@@ -149,6 +213,11 @@ function CoopRedDungeon() {
     COOP_RED_DIFFICULTY.HARD,
   ];
 
+  const filteredOpenRooms = useMemo(() => {
+    if (listDifficultyFilter === 'all') return openRooms;
+    return openRooms.filter((r) => r.difficulty === listDifficultyFilter);
+  }, [openRooms, listDifficultyFilter]);
+
   return (
     <div className="min-h-screen p-4 md:p-6 bg-stone-950 text-stone-100">
       <Header />
@@ -158,34 +227,29 @@ function CoopRedDungeon() {
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
           <p className="text-stone-400 text-sm">
-            Dès que les deux joueurs sont inscrits, le combat est simulé jusqu’au bout avec le{' '}
-            <span className="text-stone-300">même moteur que le tournoi</span> (armes légendaires, passifs, sous-classes,
-            etc.). Tirage déterministe (seed) : même résultat pour tout le monde. Tu peux quitter la page.
+            Crée une salle ou choisis-en une dans la liste. Une fois à deux, chacun clique sur{' '}
+            <span className="text-stone-300">Prêt</span> : le combat se lance quand les deux sont prêts. Même moteur que
+            le tournoi ; seed déterministe. Tu peux quitter la page.
           </p>
         </div>
 
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
-          <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">
-            Récompenses Red : pointeau & écho de l’allié
-          </h2>
+          <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : pointeau &amp; écho racial</h2>
           <ul className="space-y-2 text-stone-400 leading-relaxed">
-            <li>
-              <span className="text-stone-200 font-semibold">Pendant le combat Red</span> — Chacun profite déjà sur sa
-              base de <span className="text-stone-300">25 % des bonus plats de la race du coéquipier</span> (allié =
-              invité ou hôte selon ton rôle).
-            </li>
             <li>
               <span className="text-stone-200 font-semibold">Après une victoire</span> — Chaque joueur a un{' '}
               <span className="text-stone-300">tirage séparé</span> (pointeau). S’il réussit, la{' '}
-              <span className="text-stone-300">race de ton allié sur cette salle</span> est enregistrée sur ton
-              personnage comme <span className="text-stone-300">écho racial</span> : dans les autres modes (tournoi,
-              donjons solo, etc.), tes stats de base reçoivent encore <span className="text-stone-300">25 % des bonus plats</span>{' '}
-              de cette race (valeurs numériques seulement, pas les passifs spéciaux type crit ou régén). Une nouvelle
-              victoire avec pointeau <span className="text-stone-300">remplace</span> l’écho par la race du nouvel allié.
+              <span className="text-stone-300">race de ton coéquipier sur cette salle</span> est gravée sur ton
+              personnage : en combat (hors donjon Red, tu gardes ta propre race), tu reçois en plus un{' '}
+              <span className="text-stone-300">fragment du passif racial d’éveil de cette race</span>, aux environs de{' '}
+              <span className="text-stone-300">{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %</span> de l’intensité de
+              l’éveil (ex. : copie Mindflayer à 50 % des dégâts du sort copié, Sirène +2,5 % par stack max 4, Turtlekin
+              premier coup plafonné à 20 % des PV max, regen Sylvari, etc.). Une nouvelle victoire avec pointeau{' '}
+              <span className="text-stone-300">remplace</span> l’écho
+              par la race du nouvel allié.
             </li>
             <li>
-              Chances de pointeau selon la difficulté de la salle — Facile{' '}
-              {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
+              Pointeau : Facile {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.EASY] * 100)} %, Moyen{' '}
               {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.MEDIUM] * 100)} %, Difficile{' '}
               {Math.round(COOP_RED_DROP_RATE[COOP_RED_DIFFICULTY.HARD] * 100)} %. Rien en défaite.
             </li>
@@ -197,12 +261,12 @@ function CoopRedDungeon() {
             <p className="text-amber-400 text-xs font-bold uppercase">Essais restants (Paris)</p>
             <p className="text-2xl font-bold">{attemptsLeft} / {COOP_RED_MAX_ATTEMPTS_PER_DAY}</p>
           </div>
-          {character?.allyRaceEcho?.race && (
-            <div className="text-right text-sm text-stone-400 max-w-xs">
-              <p className="text-amber-400 text-xs font-bold uppercase mb-1">Écho racial enregistré</p>
-              <span className="text-emerald-300 font-semibold">{character.allyRaceEcho.race}</span>
+          {character?.coopRaceEcho?.race && (
+            <div className="text-right text-sm text-stone-400 max-w-sm">
+              <p className="text-amber-400 text-xs font-bold uppercase mb-1">Écho racial actif</p>
+              <span className="text-emerald-300 font-semibold">{character.coopRaceEcho.race}</span>
               <p className="text-[11px] text-stone-500 mt-1">
-                Bonus permanent (hors Red) : 25 % des stats plates de cette race.
+                Fragment d’éveil (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %) fusionné à ton éveil en combat.
               </p>
             </div>
           )}
@@ -236,7 +300,7 @@ function CoopRedDungeon() {
                     >
                       {COOP_RED_DIFFICULTY_LABELS[d]} (niv. {min}+)
                       <span className="block text-[10px] font-normal text-stone-400">
-                        Drop {Math.round((COOP_RED_DROP_RATE[d] ?? 0) * 100)} %
+                        Pointeau {Math.round((COOP_RED_DROP_RATE[d] ?? 0) * 100)} %
                       </span>
                     </button>
                   );
@@ -244,35 +308,76 @@ function CoopRedDungeon() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid lg:grid-cols-2 gap-4">
               <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-3">
                 <h2 className="font-bold text-lg">Créer une salle</h2>
+                <p className="text-xs text-stone-500">
+                  Ta salle apparaît dans la liste avec la difficulté choisie ci-dessus.
+                </p>
                 <button
                   type="button"
                   disabled={busy || attemptsLeft <= 0}
                   onClick={handleCreate}
                   className="w-full py-3 rounded-lg bg-red-700 hover:bg-red-600 font-bold disabled:opacity-40"
                 >
-                  Générer un code
+                  Créer la salle
                 </button>
               </div>
               <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-3">
-                <h2 className="font-bold text-lg">Rejoindre</h2>
-                <input
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  maxLength={6}
-                  placeholder="CODE"
-                  className="w-full bg-stone-800 border border-stone-600 rounded-lg px-3 py-2 uppercase tracking-widest text-center"
-                />
-                <button
-                  type="button"
-                  disabled={busy || joinCode.length !== 6 || attemptsLeft <= 0}
-                  onClick={handleJoin}
-                  className="w-full py-3 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold disabled:opacity-40"
-                >
-                  Rejoindre
-                </button>
+                <h2 className="font-bold text-lg">Salles ouvertes</h2>
+                <div className="flex flex-wrap gap-2 items-center text-xs">
+                  <span className="text-stone-500">Filtrer :</span>
+                  {[
+                    { id: 'all', label: 'Toutes' },
+                    { id: COOP_RED_DIFFICULTY.EASY, label: COOP_RED_DIFFICULTY_LABELS[COOP_RED_DIFFICULTY.EASY] },
+                    { id: COOP_RED_DIFFICULTY.MEDIUM, label: COOP_RED_DIFFICULTY_LABELS[COOP_RED_DIFFICULTY.MEDIUM] },
+                    { id: COOP_RED_DIFFICULTY.HARD, label: COOP_RED_DIFFICULTY_LABELS[COOP_RED_DIFFICULTY.HARD] },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setListDifficultyFilter(opt.id)}
+                      className={`px-2 py-1 rounded border text-[11px] font-bold ${
+                        listDifficultyFilter === opt.id
+                          ? 'bg-amber-900/60 border-amber-500 text-amber-100'
+                          : 'border-stone-600 text-stone-400 hover:border-stone-500'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {filteredOpenRooms.length === 0 && (
+                    <p className="text-sm text-stone-500 py-4 text-center">Aucune salle pour ce filtre.</p>
+                  )}
+                  {filteredOpenRooms.map((row) => {
+                    const minLv = COOP_RED_LEVEL_REQUIRED[row.difficulty];
+                    const locked = level < minLv;
+                    const mine = row.hostId === currentUser?.uid;
+                    return (
+                      <div
+                        key={row.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-600 bg-stone-800/60 px-3 py-2"
+                      >
+                        <div className="text-sm min-w-0">
+                          <p className="font-semibold text-stone-200 truncate">{row.hostSnapshot?.name ?? 'Hôte'}</p>
+                          <p className="text-[11px] text-stone-500">
+                            {COOP_RED_DIFFICULTY_LABELS[row.difficulty]} · niv. {minLv}+
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy || attemptsLeft <= 0 || locked || mine}
+                          onClick={() => handleJoinListedRoom(row.id)}
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-600 text-sm font-bold disabled:opacity-40"
+                        >
+                          {mine ? 'Ta salle' : locked ? 'Niveau' : 'Rejoindre'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </>
@@ -281,34 +386,94 @@ function CoopRedDungeon() {
         {inRoom && room && (
           <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-4">
             <div className="flex flex-wrap justify-between gap-2">
-              <div>
-                <p className="text-xs text-stone-500">Code salle</p>
-                <p className="text-2xl font-mono font-bold tracking-widest text-amber-300">{room.roomCode}</p>
+              <p className="text-sm text-stone-400">
+                {COOP_RED_DIFFICULTY_LABELS[room.difficulty]} — hôte :{' '}
+                <span className="text-stone-200">{room.hostSnapshot?.name}</span>
+                {room.guestSnapshot && (
+                  <>
+                    {' '}
+                    · invité : <span className="text-stone-200">{room.guestSnapshot.name}</span>
+                  </>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {isGuest && (room.status === 'waiting' || room.status === 'lobby') && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleGuestLeaveLobby}
+                    className="text-sm text-amber-300 hover:text-amber-200 underline"
+                  >
+                    Quitter la salle
+                  </button>
+                )}
+                {isHost && (room.status === 'waiting' || room.status === 'lobby') && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleHostCancelRoom}
+                    className="text-sm text-red-400 hover:text-red-300 underline"
+                  >
+                    Annuler la salle
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLeaveRoom}
+                  className="text-sm text-stone-400 hover:text-white underline"
+                >
+                  Masquer (rester connecté côté liste)
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleLeaveRoom}
-                className="text-sm text-stone-400 hover:text-white underline"
-              >
-                Quitter l’affichage
-              </button>
             </div>
-
-            <p className="text-sm text-stone-400">
-              {COOP_RED_DIFFICULTY_LABELS[room.difficulty]} — hôte :{' '}
-              <span className="text-stone-200">{room.hostSnapshot?.name}</span>
-              {room.guestSnapshot && (
-                <>
-                  {' '}
-                  · invité : <span className="text-stone-200">{room.guestSnapshot.name}</span>
-                </>
-              )}
-            </p>
 
             {room.status === 'waiting' && (
               <p className="text-amber-200 text-sm">
-                En attente d’un invité avec le code… Tu peux quitter : reviens plus tard avec le même code ou la même session.
+                En attente d’un joueur depuis la liste des salles ouvertes…
               </p>
+            )}
+
+            {room.status === 'lobby' && room.guestId && (
+              <div className="rounded-lg border border-stone-600 bg-stone-800/50 p-4 space-y-3">
+                <p className="text-sm font-bold text-amber-400">Prêt pour le combat</p>
+                <p className="text-xs text-stone-500">
+                  Les deux joueurs doivent indiquer qu’ils sont prêts. Le combat démarre automatiquement ensuite.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded border border-stone-600 px-3 py-2">
+                    <p className="text-stone-400 text-xs mb-1">Hôte — {room.hostSnapshot?.name}</p>
+                    <p className={room.hostReady ? 'text-emerald-400 font-bold' : 'text-stone-500'}>
+                      {room.hostReady ? 'Prêt' : 'Pas prêt'}
+                    </p>
+                    {isHost && (
+                      <button
+                        type="button"
+                        disabled={readyBusy}
+                        onClick={() => handleToggleReady(!room.hostReady)}
+                        className="mt-2 w-full py-2 rounded-lg bg-red-800 hover:bg-red-700 font-bold text-sm disabled:opacity-40"
+                      >
+                        {room.hostReady ? 'Annuler prêt' : 'Je suis prêt'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="rounded border border-stone-600 px-3 py-2">
+                    <p className="text-stone-400 text-xs mb-1">Invité — {room.guestSnapshot?.name}</p>
+                    <p className={room.guestReady ? 'text-emerald-400 font-bold' : 'text-stone-500'}>
+                      {room.guestReady ? 'Prêt' : 'Pas prêt'}
+                    </p>
+                    {isGuest && (
+                      <button
+                        type="button"
+                        disabled={readyBusy}
+                        onClick={() => handleToggleReady(!room.guestReady)}
+                        className="mt-2 w-full py-2 rounded-lg bg-amber-800 hover:bg-amber-700 font-bold text-sm disabled:opacity-40"
+                      >
+                        {room.guestReady ? 'Annuler prêt' : 'Je suis prêt'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
 
             {room.status === 'failed_no_attempts' && (
@@ -317,15 +482,11 @@ function CoopRedDungeon() {
               </p>
             )}
 
-            {(room.status === 'ready' || room.status === 'simulating' || simRunning) &&
-              room.guestId &&
-              !room.combat?.winner && (
-                <div className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-amber-100 text-sm">
-                  {room.status === 'simulating' || simRunning
-                    ? 'Simulation (moteur tournoi) en cours…'
-                    : 'Les deux joueurs sont inscrits — lancement automatique du combat.'}
-                </div>
-              )}
+            {(room.status === 'simulating' || simRunning) && room.guestId && !room.combat?.winner && (
+              <div className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-amber-100 text-sm">
+                Simulation (moteur tournoi) en cours…
+              </div>
+            )}
 
             {room.status === 'completed' && room.combat && (
               <div className="space-y-4 border-t border-stone-700 pt-4">
@@ -416,21 +577,22 @@ function CoopRedDungeon() {
                     <p className="text-stone-400">
                       {isHost && room.hostDropGranted && (
                         <>
-                          Pointeau obtenu : l’écho racial de{' '}
-                          <span className="text-emerald-300">{room.guestSnapshot?.name}</span> (
-                          {room.guestSnapshot?.race}) est enregistré sur ton personnage (25 % des bonus plats de cette
-                          race en dehors de Red).
+                          Pointeau obtenu : l’écho de la race{' '}
+                          <span className="text-emerald-300">{room.guestSnapshot?.race}</span> (
+                          {room.guestSnapshot?.name}) est gravé sur ton personnage (~
+                          {Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
                         </>
                       )}
-                      {isHost && !room.hostDropGranted && <>Pas de pointeau : l’écho de ton allié n’a pas été gravé.</>}
+                      {isHost && !room.hostDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
                       {isGuest && room.guestDropGranted && (
                         <>
-                          Pointeau obtenu : l’écho racial de{' '}
-                          <span className="text-emerald-300">{room.hostSnapshot?.name}</span> ({room.hostSnapshot?.race})
-                          est enregistré sur ton personnage (25 % des bonus plats de cette race en dehors de Red).
+                          Pointeau obtenu : l’écho de la race{' '}
+                          <span className="text-emerald-300">{room.hostSnapshot?.race}</span> ({room.hostSnapshot?.name}) est
+                          gravé sur ton personnage (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de
+                          cette race).
                         </>
                       )}
-                      {isGuest && !room.guestDropGranted && <>Pas de pointeau : l’écho de ton allié n’a pas été gravé.</>}
+                      {isGuest && !room.guestDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
                     </p>
                   )}
                 </div>
@@ -452,7 +614,7 @@ function CoopRedDungeon() {
                     </p>
                     {showAnimatedReplay && (
                       <CoopRedAnimatedReplay
-                        key={`${room.roomCode}-${room.combatSeed}`}
+                        key={`${room.id}-${room.combatSeed}`}
                         hostSnap={room.hostSnapshot}
                         guestSnap={room.guestSnapshot}
                         difficulty={room.difficulty}
