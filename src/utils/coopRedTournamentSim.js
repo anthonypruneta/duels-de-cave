@@ -315,6 +315,14 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
   let winner = null;
 
   while (!winner && turn <= MAX_COOP_TURNS) {
+    for (const b of bosses) {
+      if (b.coopRedBorealisLastTurn != null && turn > b.coopRedBorealisLastTurn) {
+        b.coopRedDamageTakenMult = 1;
+        b.coopRedBorealisFirstTurn = undefined;
+        b.coopRedBorealisLastTurn = undefined;
+      }
+    }
+
     const biStart = getActiveBossIndex(bosses, activeBossIndex);
     activeBossIndex = biStart;
 
@@ -415,6 +423,16 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
 
         const chunk = [];
         processPlayerAction(bossNow, target, chunk, false, turn, '[Boss]');
+        if (bossNow.coopRedLokhlassBorealisPending) {
+          const p = bossNow.coopRedLokhlassBorealisPending;
+          delete bossNow.coopRedLokhlassBorealisPending;
+          for (const ob of bosses) {
+            if (ob === bossNow || (ob.currentHP ?? 0) <= 0) continue;
+            ob.coopRedDamageTakenMult = 1 - p.reduction;
+            ob.coopRedBorealisFirstTurn = p.castTurn + 1;
+            ob.coopRedBorealisLastTurn = p.castTurn + p.turns;
+          }
+        }
         log.push(...chunk);
         pushStep('action', chunk, bi, { player: 3 });
 

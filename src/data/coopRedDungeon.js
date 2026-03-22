@@ -85,21 +85,37 @@ export const coopRedBossLineups = {
       nom: 'Pikachu',
       icon: '⚡',
       imageFile: 'Pikachu.png',
-      baseStats: { hp: 380, auto: 34, def: 30, cap: 32, rescap: 30, spd: 38 },
+      baseStats: { hp: 400, auto: 65, def: 50, cap: 65, rescap: 50, spd: 90 },
+      ability: {
+        cooldown: 5,
+        effect: { capScale: 0.3, stunDuration: 1 },
+      },
     },
     {
       id: 'coop_red_dormeur',
       nom: 'Ronflex',
       icon: '😴',
       imageFile: 'Ronflex.png',
-      baseStats: { hp: 520, auto: 40, def: 42, cap: 28, rescap: 36, spd: 22 },
+      baseStats: { hp: 800, auto: 80, def: 70, cap: 50, rescap: 50, spd: 20 },
+      ability: {
+        cooldown: 6,
+        effect: { oncePerCombat: true, selfStunTurns: 2 },
+      },
     },
     {
       id: 'coop_red_lagon',
       nom: 'Lokhlass',
       icon: '🌊',
       imageFile: 'Lokhlass.png',
-      baseStats: { hp: 420, auto: 32, def: 32, cap: 36, rescap: 34, spd: 30 },
+      baseStats: { hp: 550, auto: 50, def: 60, cap: 80, rescap: 70, spd: 55 },
+      ability: {
+        cooldown: 5,
+        effect: {
+          capScale: 1,
+          teamDamageReduction: 0.3,
+          teamReductionTurns: 2,
+        },
+      },
     },
   ],
   [COOP_RED_DIFFICULTY.HARD]: [

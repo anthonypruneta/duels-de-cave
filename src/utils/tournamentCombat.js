@@ -707,6 +707,20 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   }
   adjusted = applyOutgoingAwakeningBonus(att, adjusted);
   adjusted = applyIncomingAwakeningModifiers(def, adjusted);
+  // Donjon Red (Lokhlass) : Onde boréale — alliés boss subissent moins de dégâts pendant N tours
+  if (
+    def.isBoss &&
+    turn != null &&
+    typeof def.coopRedDamageTakenMult === 'number' &&
+    def.coopRedDamageTakenMult > 0 &&
+    def.coopRedDamageTakenMult < 1 &&
+    def.coopRedBorealisFirstTurn != null &&
+    def.coopRedBorealisLastTurn != null &&
+    turn >= def.coopRedBorealisFirstTurn &&
+    turn <= def.coopRedBorealisLastTurn
+  ) {
+    adjusted = Math.max(1, Math.round(adjusted * def.coopRedDamageTakenMult));
+  }
   if (def.arcanisteDamageTakenStack != null && def.arcanisteDamageTakenStack > 0) {
     adjusted = Math.max(1, Math.round(adjusted * (1 + def.arcanisteDamageTakenStack)));
   }
@@ -1544,6 +1558,83 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null) 
         def.coopRedVampigraineLeech = leechPct;
         log.push(`${playerColor} 🌱 ${def.name} est infecté : ${Math.round(leechPct * 100)}% PV max volés au boss actif chaque tour.`);
       }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Pikachu — Fatal-foudre (Auto + % Cap, stun 1 tour) ---
+    if (att.bossId === 'coop_red_foudre' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 0.3;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      log.push(
+        `${playerColor} ⚡ ${att.name} lance Fatal-foudre et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      if (def.currentHP > 0) {
+        const stunDur = att.ability.effect?.stunDuration ?? 1;
+        def.stunned = true;
+        def.stunnedTurns = stunDur;
+        log.push(`${playerColor} 😵 ${def.name} est étourdi (${stunDur} tour).`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Ronflex — Repos (1× combat : PV max, stun 2 tours sur soi) ---
+    if (
+      att.bossId === 'coop_red_dormeur' &&
+      att.ability?.effect?.oncePerCombat &&
+      !att.coopRedRonflexReposUsed &&
+      att.cd.boss_ability >= att.ability.cooldown
+    ) {
+      att.coopRedRonflexReposUsed = true;
+      att.currentHP = att.maxHP;
+      att.stunned = true;
+      att.stunnedTurns = att.ability.effect?.selfStunTurns ?? 2;
+      log.push(
+        `${playerColor} 😴 ${att.name} utilise Repos et récupère tous ses PV ! Il s’endort profondément (${att.stunnedTurns} tours sans agir).`
+      );
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Lokhlass — Onde boréale (dégâts magiques Cap ; alliés -30 % dégâts reçus 2 tours) ---
+    if (att.bossId === 'coop_red_lagon' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const red = att.ability.effect?.teamDamageReduction ?? 0.3;
+      const allyTurns = att.ability.effect?.teamReductionTurns ?? 2;
+      const spellDmg = Math.round(att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      log.push(
+        `${playerColor} 🌊 ${att.name} lance Onde boréale et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      att.coopRedLokhlassBorealisPending = { reduction: red, turns: allyTurns, castTurn: turn };
+      log.push(
+        `${playerColor} ❄️ Les alliés de ${att.name} sont protégés : -${Math.round(red * 100)} % dégâts reçus pendant ${allyTurns} tours.`
+      );
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
       att.cd.boss_ability = 0;
