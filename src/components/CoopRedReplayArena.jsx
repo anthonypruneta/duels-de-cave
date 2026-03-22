@@ -1,12 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 /**
- * Disposition type Combat.jsx : carte joueur | zone centrale (boss + log) | carte joueur.
- * Les cartes échangent gauche/droite selon focusLeftIsHost (tour du joueur).
+ * Disposition type arène : joueur actif à gauche (switch hôte / invité au tour) | centre boss + log | boss actif à droite.
  */
 export default function CoopRedReplayArena({
   run,
@@ -16,6 +15,9 @@ export default function CoopRedReplayArena({
   guestCombatBase,
   hostCombatStatus,
   guestCombatStatus,
+  bossCombatBase,
+  bossCombatStatus,
+  bossShield = 0,
   bossHPs,
   activeBossIdx,
   combatLog,
@@ -30,13 +32,42 @@ export default function CoopRedReplayArena({
 }) {
   const leftIsHost = focusLeftIsHost;
   const leftChar = leftIsHost ? hostF : guestF;
-  const rightChar = leftIsHost ? guestF : hostF;
   const leftBase = leftIsHost ? hostCombatBase : guestCombatBase;
-  const rightBase = leftIsHost ? guestCombatBase : hostCombatBase;
   const leftStatus = leftIsHost ? hostCombatStatus : guestCombatStatus;
-  const rightStatus = leftIsHost ? guestCombatStatus : hostCombatStatus;
   const leftImg = leftIsHost ? hostF.characterImage ?? testImage1 : guestF.characterImage ?? testImage2;
-  const rightImg = leftIsHost ? guestF.characterImage ?? testImage2 : hostF.characterImage ?? testImage1;
+
+  const activeBossDef = run.lineup?.[activeBossIdx] ?? null;
+  const bossMaxHP = activeBossDef?.baseStats?.hp ?? 1;
+  const bossCurrentHP = bossHPs[activeBossIdx] ?? 0;
+  const bossSprite = activeBossDef?.imageFile ? getCoopRedSpriteUrl(activeBossDef.imageFile) : null;
+
+  const bossBaseForCard = useMemo(() => {
+    if (!activeBossDef?.baseStats) return null;
+    const snap = bossCombatBase;
+    return snap ? { ...activeBossDef.baseStats, ...snap } : { ...activeBossDef.baseStats };
+  }, [activeBossDef, bossCombatBase]);
+
+  const bossCharacter = useMemo(() => {
+    if (!activeBossDef || !bossBaseForCard) return null;
+    return {
+      name: activeBossDef.nom,
+      race: 'Boss',
+      class: 'Boss',
+      isBoss: true,
+      bossId: activeBossDef.id,
+      level: 1,
+      userId: `coop-boss-arena-${activeBossDef.id}`,
+      base: bossBaseForCard,
+      bonuses: { race: {}, class: {} },
+      forestBoosts: {},
+      equippedWeaponId: null,
+      equippedWeaponData: null,
+      mageTowerPassive: null,
+      subclass: null,
+      forgeUpgrade: null,
+      additionalAwakeningRaces: [],
+    };
+  }, [activeBossDef, bossBaseForCard]);
 
   const leftHighlight =
     (leftIsHost && coopActor === 1) || (!leftIsHost && coopActor === 2)
@@ -44,12 +75,8 @@ export default function CoopRedReplayArena({
         ? 'ring-blue-400'
         : 'ring-violet-400'
       : null;
-  const rightHighlight =
-    (leftIsHost && coopActor === 2) || (!leftIsHost && coopActor === 1)
-      ? leftIsHost
-        ? 'ring-violet-400'
-        : 'ring-blue-400'
-      : null;
+
+  const bossHighlight = coopActor === 3 ? 'ring-red-500' : null;
 
   return (
     <div className={wrapperClassName}>
@@ -94,13 +121,47 @@ export default function CoopRedReplayArena({
             shield={leftChar.shield ?? 0}
             combatBaseOverride={leftBase}
             combatStatus={leftStatus}
-            opponent={rightChar}
+            opponent={bossCharacter ?? leftChar}
             imageOverride={leftImg}
             detailsPlacement="left"
           />
         </div>
 
         <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col gap-3">
+          <div className="rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-400">
+            <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-blue-300/90 font-semibold truncate">{hostF.name}</p>
+                <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-blue-600 transition-all"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (100 * hostF.currentHP) / (hostF.maxHP || 1)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-stone-500 mt-0.5">
+                  {hostF.currentHP} / {hostF.maxHP}
+                </p>
+              </div>
+              <div>
+                <p className="text-violet-300/90 font-semibold truncate">{guestF.name}</p>
+                <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-violet-600 transition-all"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (100 * guestF.currentHP) / (guestF.maxHP || 1)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-stone-500 mt-0.5">
+                  {guestF.currentHP} / {guestF.maxHP}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-stone-900/90 border border-stone-600 rounded-lg px-3 py-2">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid gap-2 mt-2">
@@ -109,13 +170,13 @@ export default function CoopRedReplayArena({
                 const cur = bossHPs[i] ?? 0;
                 const pct = Math.min(100, Math.max(0, (cur / maxH) * 100));
                 const isActive = activeBossIdx === i;
-                const bossHighlight = coopActor === 3 && isActive;
+                const rowBossHighlight = coopActor === 3 && isActive;
                 const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
                 return (
                   <div
                     key={i}
                     className={`rounded-lg px-2 py-1.5 border transition ${
-                      bossHighlight
+                      rowBossHighlight
                         ? 'border-red-400 bg-red-950/40'
                         : isActive
                           ? 'border-amber-600/80 bg-stone-900/80'
@@ -170,24 +231,30 @@ export default function CoopRedReplayArena({
 
         <div
           className={`order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
-            rightHighlight
-              ? `ring-2 ${rightHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]`
+            bossHighlight
+              ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]`
               : ''
-          } ${coopActor === 3 ? 'opacity-90' : ''}`}
+          } ${coopActor === 3 ? '' : 'opacity-95'}`}
         >
-          <CharacterCardContent
-            key={leftIsHost ? 'slot-right-guest' : 'slot-right-host'}
-            character={rightChar}
-            showHpBar
-            currentHP={rightChar.currentHP}
-            maxHP={rightChar.maxHP}
-            shield={rightChar.shield ?? 0}
-            combatBaseOverride={rightBase}
-            combatStatus={rightStatus}
-            opponent={leftChar}
-            imageOverride={rightImg}
-            detailsPlacement="right"
-          />
+          {bossCharacter ? (
+            <CharacterCardContent
+              key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}
+              character={bossCharacter}
+              showHpBar
+              currentHP={bossCurrentHP}
+              maxHP={bossMaxHP}
+              shield={bossShield}
+              combatBaseOverride={bossCombatBase}
+              combatStatus={bossCombatStatus}
+              opponent={leftChar}
+              imageOverride={bossSprite ?? undefined}
+              detailsPlacement="right"
+            />
+          ) : (
+            <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
+              Boss indisponible
+            </div>
+          )}
         </div>
       </div>
     </div>

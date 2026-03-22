@@ -217,6 +217,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
       bossHP: bosses.map((b) => Math.max(0, b.currentHP)),
       bossMaxHP: lineup.map((l) => l.baseStats.hp),
       activeBossIndex: bi,
+      bossShield: bb.shield || 0,
       hostBase: snapshotFighterBase(host),
       guestBase: snapshotFighterBase(guest),
       bossBase: snapshotFighterBase(bb),
@@ -266,6 +267,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
               hostStatus: snapshotFighterStatus(host),
               guestStatus: snapshotFighterStatus(guest),
               bossStatus: snapshotFighterStatus(bosses[0]),
+              bossShield: bosses[0].shield || 0,
             },
           ]
         : null

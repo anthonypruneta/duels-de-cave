@@ -34,6 +34,9 @@ export default function CoopRedAnimatedReplay({
   const [guestCombatBase, setGuestCombatBase] = useState(null);
   const [hostCombatStatus, setHostCombatStatus] = useState(null);
   const [guestCombatStatus, setGuestCombatStatus] = useState(null);
+  const [bossCombatBase, setBossCombatBase] = useState(null);
+  const [bossCombatStatus, setBossCombatStatus] = useState(null);
+  const [bossShield, setBossShield] = useState(0);
   const [combatLog, setCombatLog] = useState([]);
   const [coopActor, setCoopActor] = useState(null);
   const [focusLeftIsHost, setFocusLeftIsHost] = useState(true);
@@ -71,6 +74,9 @@ export default function CoopRedAnimatedReplay({
     setGuestCombatBase(s.guestBase ?? null);
     setHostCombatStatus(s.hostStatus ?? null);
     setGuestCombatStatus(s.guestStatus ?? null);
+    setBossCombatBase(s.bossBase ?? null);
+    setBossCombatStatus(s.bossStatus ?? null);
+    setBossShield(s.bossShield ?? 0);
   }, []);
 
   const runReplay = useCallback(async () => {
@@ -106,6 +112,9 @@ export default function CoopRedAnimatedReplay({
     setGuestCombatBase(s0.guestBase ?? null);
     setHostCombatStatus(s0.hostStatus ?? null);
     setGuestCombatStatus(s0.guestStatus ?? null);
+    setBossCombatBase(s0.bossBase ?? null);
+    setBossCombatStatus(s0.bossStatus ?? null);
+    setBossShield(s0.bossShield ?? 0);
     setCombatLog([]);
     setFocusLeftIsHost(true);
 
@@ -164,6 +173,9 @@ export default function CoopRedAnimatedReplay({
       guestCombatBase={guestCombatBase}
       hostCombatStatus={hostCombatStatus}
       guestCombatStatus={guestCombatStatus}
+      bossCombatBase={bossCombatBase}
+      bossCombatStatus={bossCombatStatus}
+      bossShield={bossShield}
       bossHPs={bossHPs}
       activeBossIdx={activeBossIdx}
       combatLog={combatLog}
