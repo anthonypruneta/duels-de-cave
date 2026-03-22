@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { getPlayerDungeonSummary } from '../services/dungeonService';
 import { isForgeActive, isSubclassDungeonVisible } from '../data/featureFlags';
 import Header from './Header';
-import { ADMIN_EMAIL } from './AdminOnlyRoute';
 
 function DungeonCard({ icon, title, description, buttonLabel, onClick, accent = 'amber' }) {
   const accentClasses = {
@@ -50,7 +49,6 @@ function CategorySection({ title, children }) {
 const DungeonSelection = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const isAdmin = currentUser?.email === ADMIN_EMAIL;
   const [runsRemaining, setRunsRemaining] = useState(0);
   const [maxRuns, setMaxRuns] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -129,19 +127,16 @@ const DungeonSelection = () => {
           />
         </CategorySection>
 
-        {/* Coop — Red réservé admin (route / visu masquées pour les autres joueurs) */}
-        {isAdmin && (
-          <CategorySection title="Coopération">
-            <DungeonCard
-              icon="🔴"
-              title="Donjon Red (async)"
-              description="À deux contre Red : liste de salles, prêt des deux joueurs, tirage Pointeau ADN aléatoire."
-              buttonLabel="Ouvrir le donjon"
-              onClick={() => navigate('/coop-red')}
-              accent="orange"
-            />
-          </CategorySection>
-        )}
+        <CategorySection title="Coopération">
+          <DungeonCard
+            icon="🔴"
+            title="Donjon Red (async)"
+            description="À deux contre Red : liste de salles, prêt des deux joueurs, tirage Pointeau ADN aléatoire."
+            buttonLabel="Ouvrir le donjon"
+            onClick={() => navigate('/coop-red')}
+            accent="orange"
+          />
+        </CategorySection>
 
         {/* Expérience */}
         <CategorySection title="Expérience">

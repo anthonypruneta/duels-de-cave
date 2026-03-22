@@ -341,35 +341,102 @@ export async function deleteCoopRedRoom(roomId, hostUserId) {
 }
 
 /**
- * Dès que les deux joueurs sont inscrits : consomme les essais, simule tout le combat (bots), enregistre le résultat.
- * Idempotent : plusieurs appels / clients convergent vers le même état final.
+ * Dès que les deux joueurs sont prêts : simule le combat (hors transaction), puis en une transaction courte
+ * consomme les essais et enregistre le résultat — si la simulation plante, aucun essai n’est débité.
+ * Idempotent ; rattrape les anciennes salles restées en « simulating » sans combat.
  */
 export async function runCoopRedAutoSimulation(roomId) {
   const ref = doc(db, ROOMS, roomId);
+  const snap = await retryOperation(() => getDoc(ref));
+  if (!snap.exists()) return { success: false, error: 'Salle introuvable.' };
+  const r = snap.data();
+
+  if (r.status === 'completed' && r.combat?.winner) return { success: true };
+  if (r.status === 'failed_no_attempts') {
+    return { success: false, error: 'Essais insuffisants pour lancer la simulation.' };
+  }
+
+  // Rattrapage : version précédente mettait « simulating » puis simulait — salles coincées sans combat
+  if (
+    r.attemptsConsumed === true &&
+    r.combatSeed != null &&
+    (r.status === 'simulating' || r.status === 'completed') &&
+    !r.combat?.winner
+  ) {
+    try {
+      const finalCombat = simulateCoopRedCombatFull(
+        r.hostSnapshot,
+        r.guestSnapshot,
+        r.difficulty,
+        r.combatSeed
+      );
+      await retryOperation(async () => {
+        await runTransaction(db, async (tx) => {
+          const s2 = await tx.get(ref);
+          if (!s2.exists()) return;
+          const d = s2.data();
+          if (d.combat?.winner) return;
+          const payload = buildCoopRedCombatFirestorePayload(finalCombat, d);
+          tx.update(ref, {
+            combat: payload.combatForDb,
+            status: 'completed',
+            hostDropGranted: payload.hostDropGranted,
+            guestDropGranted: payload.guestDropGranted,
+            hostEchoRaceGrant: payload.hostEchoRaceGrant,
+            guestEchoRaceGrant: payload.guestEchoRaceGrant,
+            updatedAt: Timestamp.now(),
+          });
+        });
+      });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Erreur fin de simulation.' };
+    }
+  }
+
+  const legacyReady = r.status === 'ready' && r.hostReady == null && r.guestReady == null;
+  const bothReadyLobby = r.status === 'lobby' && r.hostReady === true && r.guestReady === true;
+  const canKickOff = legacyReady || bothReadyLobby;
+
+  if (!canKickOff || !r.guestId || !r.hostSnapshot || !r.guestSnapshot) return { success: true };
+  if (r.status === 'waiting') return { success: true };
+  if (r.attemptsConsumed === true) return { success: true };
+
+  const seed = (Math.random() * 0x7fffffff) >>> 0;
+  let finalCombat;
+  try {
+    finalCombat = simulateCoopRedCombatFull(r.hostSnapshot, r.guestSnapshot, r.difficulty, seed);
+  } catch (e) {
+    return { success: false, error: `Simulation impossible : ${e.message || 'erreur'}` };
+  }
+
   try {
     await retryOperation(async () => {
       await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error('missing');
-        const r = snap.data();
-        if (r.status === 'completed' && r.combat?.winner) return;
-        if (!r.guestId || !r.hostSnapshot || !r.guestSnapshot) return;
-        if (r.status === 'waiting') return;
-        if (r.attemptsConsumed === true) return;
+        const s2 = await tx.get(ref);
+        if (!s2.exists()) throw new Error('missing');
+        const d = s2.data();
+        if (d.status === 'completed' && d.combat?.winner) return;
+        if (d.attemptsConsumed === true) return;
 
-        const legacyReady =
-          r.status === 'ready' && r.hostReady == null && r.guestReady == null;
-        const bothReadyLobby = r.status === 'lobby' && r.hostReady === true && r.guestReady === true;
-        if (!legacyReady && !bothReadyLobby) return;
+        const lr = d.status === 'ready' && d.hostReady == null && d.guestReady == null;
+        const br = d.status === 'lobby' && d.hostReady === true && d.guestReady === true;
+        if (!lr && !br) return;
+        if (!d.guestId || !d.hostSnapshot || !d.guestSnapshot) return;
 
-        await consumeOneAttemptInTransaction(tx, r.hostId);
-        await consumeOneAttemptInTransaction(tx, r.guestId);
-        const seed = (Math.random() * 0x7fffffff) >>> 0;
+        await consumeOneAttemptInTransaction(tx, d.hostId);
+        await consumeOneAttemptInTransaction(tx, d.guestId);
+
+        const payload = buildCoopRedCombatFirestorePayload(finalCombat, d);
         tx.update(ref, {
           attemptsConsumed: true,
           combatSeed: seed,
-          status: 'simulating',
-          combat: null,
+          status: 'completed',
+          combat: payload.combatForDb,
+          hostDropGranted: payload.hostDropGranted,
+          guestDropGranted: payload.guestDropGranted,
+          hostEchoRaceGrant: payload.hostEchoRaceGrant,
+          guestEchoRaceGrant: payload.guestEchoRaceGrant,
           updatedAt: Timestamp.now(),
         });
       });
@@ -385,64 +452,6 @@ export async function runCoopRedAutoSimulation(roomId) {
       return { success: false, error: 'Un joueur n’a plus d’essais aujourd’hui.' };
     }
     return { success: false, error: e.message || 'Erreur' };
-  }
-
-  const snapAfter = await retryOperation(() => getDoc(ref));
-  if (!snapAfter.exists()) return { success: false, error: 'Salle introuvable.' };
-  const rd = snapAfter.data();
-  if (rd.status === 'completed' && rd.combat?.winner) return { success: true };
-  if (rd.status === 'failed_no_attempts') {
-    return { success: false, error: 'Essais insuffisants pour lancer la simulation.' };
-  }
-  if (!rd.attemptsConsumed || rd.combatSeed == null) return { success: true };
-
-  const finalCombat = simulateCoopRedCombatFull(
-    rd.hostSnapshot,
-    rd.guestSnapshot,
-    rd.difficulty,
-    rd.combatSeed
-  );
-  const combatForDb = { ...finalCombat };
-  delete combatForDb.steps;
-
-  try {
-    await retryOperation(async () => {
-      await runTransaction(db, async (tx) => {
-        const s2 = await tx.get(ref);
-        if (!s2.exists()) return;
-        const d = s2.data();
-        if (d.status === 'completed' && d.combat?.winner) return;
-        if (d.combat?.winner) return;
-
-        const rate = COOP_RED_DROP_RATE[d.difficulty] ?? 0.25;
-        const hRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x51a1beef);
-        const gRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x52a1beef);
-        const hostDrop = hRoll < rate;
-        const guestDrop = gRoll < rate;
-        const seed = finalCombat.seed >>> 0;
-
-        let hostEchoRaceGrant = null;
-        let guestEchoRaceGrant = null;
-        if (hostDrop && d.hostSnapshot?.race && races[d.hostSnapshot.race] && d.hostId) {
-          hostEchoRaceGrant = pickCoopRaceEchoGrant(d.hostSnapshot.race, seed, d.hostId, 0x55a1beef);
-        }
-        if (guestDrop && d.guestSnapshot?.race && races[d.guestSnapshot.race] && d.guestId) {
-          guestEchoRaceGrant = pickCoopRaceEchoGrant(d.guestSnapshot.race, seed, d.guestId, 0x56a1beef);
-        }
-
-        tx.update(ref, {
-          combat: combatForDb,
-          status: 'completed',
-          hostDropGranted: hostDrop,
-          guestDropGranted: guestDrop,
-          hostEchoRaceGrant,
-          guestEchoRaceGrant,
-          updatedAt: Timestamp.now(),
-        });
-      });
-    });
-  } catch (e) {
-    return { success: false, error: e.message || 'Erreur sauvegarde combat.' };
   }
 
   return { success: true };
@@ -512,6 +521,36 @@ export async function claimCoopRedRaceEchoIfNeeded(roomId, userId) {
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+/** Prépare le document combat + tirages (hors transaction lourde). */
+function buildCoopRedCombatFirestorePayload(finalCombat, roomData) {
+  const rate = COOP_RED_DROP_RATE[roomData.difficulty] ?? 0.25;
+  const hRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x51a1beef);
+  const gRoll = coopDropRoll01(finalCombat.seed, finalCombat.rngCounter, 0x52a1beef);
+  const hostDrop = hRoll < rate;
+  const guestDrop = gRoll < rate;
+  const seed = finalCombat.seed >>> 0;
+
+  let hostEchoRaceGrant = null;
+  let guestEchoRaceGrant = null;
+  if (hostDrop && roomData.hostSnapshot?.race && races[roomData.hostSnapshot.race] && roomData.hostId) {
+    hostEchoRaceGrant = pickCoopRaceEchoGrant(roomData.hostSnapshot.race, seed, roomData.hostId, 0x55a1beef);
+  }
+  if (guestDrop && roomData.guestSnapshot?.race && races[roomData.guestSnapshot.race] && roomData.guestId) {
+    guestEchoRaceGrant = pickCoopRaceEchoGrant(roomData.guestSnapshot.race, seed, roomData.guestId, 0x56a1beef);
+  }
+
+  const combatForDb = { ...finalCombat };
+  delete combatForDb.steps;
+
+  return {
+    combatForDb,
+    hostDropGranted: hostDrop,
+    guestDropGranted: guestDrop,
+    hostEchoRaceGrant,
+    guestEchoRaceGrant,
+  };
 }
 
 async function consumeOneAttemptInTransaction(tx, userId) {

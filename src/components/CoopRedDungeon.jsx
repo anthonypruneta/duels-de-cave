@@ -28,12 +28,14 @@ import {
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
 import CoopRedCombatLog from './CoopRedCombatLog';
+import { ADMIN_EMAIL } from './AdminOnlyRoute';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
+  const isAdmin = currentUser?.email === ADMIN_EMAIL;
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
   const [attemptsLeft, setAttemptsLeft] = useState(COOP_RED_MAX_ATTEMPTS_PER_DAY);
@@ -289,17 +291,19 @@ function CoopRedDungeon() {
           </p>
         </div>
 
-        <CoopRedOfflineSimPanel
-          title="Simulation locale (même UI que le combat)"
-          intro={
-            <>
-              Sans salle ni Firestore : trois combats test (niveaux 150 / 250 / 350) avec le moteur tournoi. Ouvre{' '}
-              <span className="text-stone-300">Déroulé animé</span> pour l’arène complète (cartes, barres, log) comme
-              après une vraie partie.
-            </>
-          }
-          onWideLayoutChange={setOfflineSimWide}
-        />
+        {isAdmin && (
+          <CoopRedOfflineSimPanel
+            title="Simulation locale (même UI que le combat)"
+            intro={
+              <>
+                Sans salle ni Firestore : trois combats test (niveaux 150 / 250 / 350) avec le moteur tournoi. Ouvre{' '}
+                <span className="text-stone-300">Déroulé animé</span> pour l’arène complète (cartes, barres, log) comme
+                après une vraie partie.
+              </>
+            }
+            onWideLayoutChange={setOfflineSimWide}
+          />
+        )}
 
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
           <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : Pointeau ADN</h2>

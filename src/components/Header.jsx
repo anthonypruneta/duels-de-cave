@@ -146,7 +146,7 @@ function Header() {
     { path: '/encyclopedie', label: '📚 Encyclopédie' },
     { path: '/hall-of-fame', label: '👑 Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
-    ...(isAdmin ? [{ path: '/coop-red', label: '🔴 Red coop' }] : []),
+    { path: '/coop-red', label: '🔴 Red coop' },
     ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
     ...(isAdmin ? [{ path: '/combat', label: '⚔️ PvP' }] : []),
   ];
