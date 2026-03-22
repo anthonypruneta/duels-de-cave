@@ -2,6 +2,7 @@
  * Donjon Red coop : même moteur que le tournoi (processPlayerAction, armes, passifs, sous-classes).
  * Chaque tour : tous les combattants vivants agissent une fois, dans l’ordre d’initiative (VIT + Licorne / Zweihänder / Bastion puis ex-aequo hôte → invité → boss0 → boss1 → boss2).
  * Les joueurs frappent le boss « focal » du tour (rotation en fin de round). Chaque boss vivant joue son tour ; la cible du boss alterne toujours hôte / invité.
+ * Défaite des joueurs uniquement si hôte et invité sont tous les deux à 0 PV.
  */
 import { runWithCombatRandom01 } from './combatRngContext.js';
 import {
@@ -317,7 +318,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
     const biStart = getActiveBossIndex(bosses, activeBossIndex);
     activeBossIndex = biStart;
 
-    if (host.currentHP <= 0 || guest.currentHP <= 0) {
+    if (host.currentHP <= 0 && guest.currentHP <= 0) {
       winner = 'boss';
       break;
     }
@@ -366,7 +367,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
     log.push(...turnStartLogs);
     pushStep('turn_start', turnStartLogs, activeBossIndex);
 
-    if (host.currentHP <= 0 || guest.currentHP <= 0) {
+    if (host.currentHP <= 0 && guest.currentHP <= 0) {
       winner = 'boss';
       break;
     }
@@ -381,7 +382,7 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
     for (const actorKey of order) {
       if (winner) break;
 
-      if (host.currentHP <= 0 || guest.currentHP <= 0) {
+      if (host.currentHP <= 0 && guest.currentHP <= 0) {
         winner = 'boss';
         break;
       }
