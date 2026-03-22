@@ -9,7 +9,8 @@ import {
   query,
   where,
   orderBy,
-  Timestamp
+  Timestamp,
+  runTransaction
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
@@ -859,6 +860,42 @@ export const migrateHpStat4To6 = async () => {
     return { success: true, migrated, skipped, total: characters.length };
   } catch (error) {
     console.error('Erreur migration HP 4→6:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Fragments ADN (donjon coop) et écho racial allié.
+ * @param {string} userId
+ * @param {{ dnaDelta?: number, setAllyRaceEcho?: { race: string } | null }} opts
+ */
+export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
+  const dnaDelta = Number(opts.dnaDelta) || 0;
+  const setAllyRaceEcho = opts.setAllyRaceEcho;
+
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(characterRef);
+        if (!snap.exists()) throw new Error('Personnage introuvable');
+        const data = snap.data();
+        const prev = Number(data.dnaFragments) || 0;
+        const next = prev + dnaDelta;
+        if (next < 0) throw new Error('Fragments ADN insuffisants');
+        const payload = {
+          dnaFragments: next,
+          updatedAt: Timestamp.now(),
+        };
+        if (setAllyRaceEcho !== undefined) {
+          payload.allyRaceEcho = setAllyRaceEcho;
+        }
+        tx.update(characterRef, payload);
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('updateCharacterCoopRedRewards:', error);
     return { success: false, error: error.message };
   }
 };

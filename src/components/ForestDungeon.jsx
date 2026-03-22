@@ -8,6 +8,7 @@ import {
   updateCharacterLevel
 } from '../services/characterService';
 import { getEquippedWeapon, getDungeonProgress, getPlayerDungeonSummary, markDungeonCompleted, startDungeonRun } from '../services/dungeonService';
+import { DUNGEON_CONSTANTS } from '../data/dungeons';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -1873,7 +1874,7 @@ const ForestDungeon = () => {
             <p className="text-white text-3xl font-bold mt-1">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-xs mt-1">+5 à minuit et +5 à midi</p>
+            <p className="text-stone-400 text-xs mt-1">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit, +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à 18h</p>
           </div>
           <div className="text-right">
             <p className="text-stone-400 text-xs uppercase tracking-wider">Fin instantanée</p>

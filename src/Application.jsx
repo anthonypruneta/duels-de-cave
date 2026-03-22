@@ -5,6 +5,7 @@ import CharacterCreation from './components/CharacterCreation';
 import Combat from './components/Combat';
 import Dungeon from './components/Dungeon';
 import DungeonSelection from './components/DungeonSelection';
+import CoopRedDungeon from './components/CoopRedDungeon';
 import ForestDungeon from './components/ForestDungeon';
 import MageTower from './components/MageTower';
 import Tournament from './components/Tournament';
@@ -73,6 +74,16 @@ function Application() {
               <ProtectedRoute>
                 <ModeAvailabilityRoute>
                   <DungeonSelection />
+                </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coop-red"
+            element={
+              <ProtectedRoute>
+                <ModeAvailabilityRoute>
+                  <CoopRedDungeon />
                 </ModeAvailabilityRoute>
               </ProtectedRoute>
             }

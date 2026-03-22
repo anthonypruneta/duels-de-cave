@@ -80,7 +80,7 @@ const DungeonSelection = () => {
             <p className="text-white text-3xl font-bold">
               {loading ? '...' : runsRemaining}
             </p>
-            <p className="text-stone-500 text-xs mt-0.5">+{maxRuns} à minuit et +{maxRuns} à midi</p>
+            <p className="text-stone-500 text-xs mt-0.5">+{maxRuns} à minuit, +{maxRuns} à midi et +{maxRuns} à 18h</p>
           </div>
           <div className="text-right text-stone-500 text-xs">
             Chaque donjon consomme 1 essai
@@ -124,6 +124,18 @@ const DungeonSelection = () => {
             buttonLabel="Étendre le territoire"
             onClick={() => navigate('/extension')}
             accent="violet"
+          />
+        </CategorySection>
+
+        {/* Coop */}
+        <CategorySection title="Coopération">
+          <DungeonCard
+            icon="🔴"
+            title="Donjon Rouge (async)"
+            description="À deux contre Rouge : rotation de boss, fragments ADN, écho racial."
+            buttonLabel="Ouvrir le donjon"
+            onClick={() => navigate('/coop-red')}
+            accent="orange"
           />
         </CategorySection>
 

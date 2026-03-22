@@ -2,7 +2,7 @@
  * Système de Donjon - Duels de Cave
  *
  * 3 niveaux de donjon progressifs (1 → 2 → 3 à la suite)
- * Limite: 10 runs par jour (cumulables)
+ * Limite: 15 runs par jour max cumulés (5 à minuit, 5 à midi, 5 à 18h)
  * Si on meurt, on récupère le loot du dernier étage réussi
  *
  * Niveau 1: Très facile → Arme Commune
@@ -16,7 +16,7 @@ import { RARITY } from './weapons.js';
 // CONSTANTES DU DONJON
 // ============================================================================
 export const DUNGEON_CONSTANTS = {
-  MAX_RUNS_PER_DAY: 10,
+  MAX_RUNS_PER_DAY: 15,
   MAX_RUNS_PER_RESET: 5,
   TOTAL_LEVELS: 3,
 };
@@ -122,13 +122,34 @@ export function getAllDungeonLevels() {
 }
 
 /**
- * Vérifie si c'est une nouvelle période (reset à minuit et à midi)
+ * Début de la période courante : minuit, midi ou 18h (heure locale).
  */
 export function getResetAnchor(date) {
   const anchor = new Date(date);
   const hour = anchor.getHours();
-  anchor.setHours(hour >= 12 ? 12 : 0, 0, 0, 0);
+  if (hour < 12) {
+    anchor.setHours(0, 0, 0, 0);
+  } else if (hour < 18) {
+    anchor.setHours(12, 0, 0, 0);
+  } else {
+    anchor.setHours(18, 0, 0, 0);
+  }
   return anchor;
+}
+
+/** Prochain début de période après une ancre déjà normalisée (0h, 12h ou 18h). */
+function advanceResetAnchor(anchor) {
+  const d = new Date(anchor);
+  const h = d.getHours();
+  if (h === 0) {
+    d.setHours(12, 0, 0, 0);
+  } else if (h === 12) {
+    d.setHours(18, 0, 0, 0);
+  } else {
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+  }
+  return d;
 }
 
 export function isNewDay(lastRunDate) {
@@ -170,15 +191,13 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
   const lastAnchor = getResetAnchor(last);
   const diffMs = currentAnchor - lastAnchor;
   if (diffMs <= 0) return 0;
-  // Compter les périodes en excluant celles qui tombent le dimanche (heure de Paris)
-  const periodMs = 12 * 60 * 60 * 1000;
   let count = 0;
-  let cursor = new Date(lastAnchor.getTime() + periodMs);
+  let cursor = advanceResetAnchor(new Date(lastAnchor.getTime()));
   while (cursor <= currentAnchor) {
     if (!isParisSunday(cursor)) {
       count++;
     }
-    cursor = new Date(cursor.getTime() + periodMs);
+    cursor = advanceResetAnchor(cursor);
   }
   return count;
 }
@@ -186,7 +205,7 @@ export function getResetPeriodsSince(lastCreditDate, now = new Date()) {
 /**
  * Calcule le nombre d'essais accumulés depuis le lundi 00h00 de la semaine courante.
  * Un nouveau joueur qui rejoint en cours de semaine reçoit tous les essais qu'il a loupés.
- * Ex: arrivée mardi matin → lundi matin (5) + lundi midi (5) + mardi matin (5) = 15
+ * Ex: arrivée mardi 10h → 4 créneaux depuis lundi 0h (lun 0–12, 12–18, 18–mar 0, mar 0–12) × 5 = 20
  */
 export function getRunsSinceWeekStart(now = new Date()) {
   const day = now.getDay(); // 0=dim, 1=lun, ...

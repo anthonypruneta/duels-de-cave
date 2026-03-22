@@ -22,6 +22,7 @@ import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { isForgeActive } from '../data/featureFlags.js';
 import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
 import { getSubclassStatBonuses } from '../data/subclasses.js';
+import { applyCoopAllyRaceEchoToRawCharacter } from './coopAllyRaceEcho.js';
 
 // ============================================================================
 // HELPERS
@@ -235,33 +236,37 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
 // ============================================================================
 
 export function preparerCombattant(char) {
-  const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-  const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
-  const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
-  const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
-  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
+  let charForPrep = char;
+  if (char?.allyRaceEcho?.race) {
+    charForPrep = applyCoopAllyRaceEchoToRawCharacter(char, char.allyRaceEcho.race);
+  }
+  const weaponId = charForPrep?.equippedWeaponId || charForPrep?.equippedWeaponData?.id || null;
+  const effectiveLevel = charForPrep.awakeningForced ? 999 : (charForPrep.level ?? 1);
+  const forestBoosts = { ...getEmptyStatBoosts(), ...(charForPrep.forestBoosts || {}) };
+  const baseWithBoostsRaw = applyStatBoosts(charForPrep.base, forestBoosts);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, charForPrep.race, effectiveLevel);
   // Boss / NPC avec forge (ex. labyrinthe 100) : même logique que joueur avec forge (skip flat, appliquer %)
-  const hasForgeData = char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-  const skipWeaponFlat = hasForgeData && (isForgeActive() || char.awakeningForced);
-  const passiveList = getPassiveDetailsList(char);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, passiveList, skipWeaponFlat);
-  const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
+  const hasForgeData = charForPrep.forgeUpgrade && hasAnyForgeUpgrade(charForPrep.forgeUpgrade);
+  const skipWeaponFlat = hasForgeData && (isForgeActive() || charForPrep.awakeningForced);
+  const passiveList = getPassiveDetailsList(charForPrep);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, charForPrep.class, charForPrep.race, passiveList, skipWeaponFlat);
+  const additionalAwakeningEffects = (charForPrep.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([
-    getAwakeningEffect(char.race, effectiveLevel),
+    getAwakeningEffect(charForPrep.race, effectiveLevel),
     ...additionalAwakeningEffects
   ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   // Forge des Légendes: appliquer les % d'upgrade sur les stats totales
-  const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
-  const baseWithClassPassive = char.class === 'Bastion'
+  const baseWithForge = applyForgeUpgrade(baseWithAwakening, charForPrep.forgeUpgrade);
+  const baseWithClassPassive = charForPrep.class === 'Bastion'
     ? { ...baseWithForge, def: Math.max(1, Math.round(baseWithForge.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithForge;
   // Bonus de stats des sous-classes (Collège Kunugigaoka)
   let baseFinal = baseWithClassPassive;
-  const subclassBonuses = getSubclassStatBonuses(char.subclass?.id);
-  if (subclassBonuses && typeof char.subclass?.id === 'string') {
+  const subclassBonuses = getSubclassStatBonuses(charForPrep.subclass?.id);
+  if (subclassBonuses && typeof charForPrep.subclass?.id === 'string') {
     baseFinal = { ...baseWithClassPassive };
     for (const [stat, pct] of Object.entries(subclassBonuses)) {
       if (baseFinal[stat] != null && pct) {
@@ -269,12 +274,12 @@ export function preparerCombattant(char) {
       }
     }
   }
-  const weaponState = initWeaponCombatState(char, weaponId);
-  const startHP = (typeof char._bossRushStartHP === 'number' && char._bossRushStartHP > 0)
-    ? Math.min(char._bossRushStartHP, baseFinal.hp)
+  const weaponState = initWeaponCombatState(charForPrep, weaponId);
+  const startHP = (typeof charForPrep._bossRushStartHP === 'number' && charForPrep._bossRushStartHP > 0)
+    ? Math.min(charForPrep._bossRushStartHP, baseFinal.hp)
     : baseFinal.hp;
   return {
-    ...char,
+    ...charForPrep,
     _storedBase: char.base,
     base: baseFinal,
     baseWithoutWeapon,

@@ -1636,7 +1636,7 @@ const Dungeon = () => {
             <p className="text-white text-3xl font-bold mt-1">
               {dungeonSummary?.runsRemaining || 0}
             </p>
-            <p className="text-stone-400 text-xs mt-1">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi</p>
+            <p className="text-stone-400 text-xs mt-1">+{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à minuit, +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à midi et +{DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET} à 18h</p>
           </div>
           <div className="text-right">
             <p className="text-stone-400 text-xs uppercase tracking-wider">Meilleur run</p>
