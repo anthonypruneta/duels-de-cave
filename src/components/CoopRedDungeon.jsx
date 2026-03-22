@@ -42,6 +42,7 @@ function CoopRedDungeon() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
+  const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
 
@@ -59,10 +60,22 @@ function CoopRedDungeon() {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
 
+  // Autoplay navigateur : souvent bloqué sans geste — on retente au 1er pointerdown (salle / boutons / header).
   useEffect(() => {
-    const el = document.getElementById('coop-red-music');
-    if (el && el.paused) el.play().catch(() => {});
+    const tryPlay = () => {
+      const el = audioRef.current;
+      if (!el || !el.paused) return;
+      el.play().catch(() => {});
+    };
+
+    tryPlay();
+
+    const onGesture = () => tryPlay();
+    window.addEventListener('pointerdown', onGesture, true);
+
     return () => {
+      window.removeEventListener('pointerdown', onGesture, true);
+      const el = audioRef.current;
       if (el) {
         el.pause();
         el.currentTime = 0;
@@ -718,7 +731,7 @@ function CoopRedDungeon() {
           ← Retour aux donjons
         </button>
       </div>
-      <audio id="coop-red-music" loop>
+      <audio ref={audioRef} id="coop-red-music" loop preload="auto" playsInline>
         <source src="/assets/music/red.mp3" type="audio/mpeg" />
       </audio>
     </div>
