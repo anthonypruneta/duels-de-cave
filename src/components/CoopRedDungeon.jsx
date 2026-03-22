@@ -25,6 +25,7 @@ import {
   claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
+import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
 import CoopRedLogLine from './CoopRedLogLine';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
@@ -45,6 +46,7 @@ function CoopRedDungeon() {
   const simRunningRef = useRef(false);
   const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
+  const [offlineSimWide, setOfflineSimWide] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
@@ -261,7 +263,9 @@ function CoopRedDungeon() {
     <div className="min-h-screen p-4 md:p-6 bg-stone-950 text-stone-100">
       <Header />
       <div
-        className={`mx-auto pt-20 space-y-6 px-0 ${showAnimatedReplay ? 'max-w-[1800px]' : 'max-w-3xl'}`}
+        className={`mx-auto pt-20 space-y-6 px-0 ${
+          showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-3xl'
+        }`}
       >
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
@@ -271,6 +275,18 @@ function CoopRedDungeon() {
             le tournoi ; seed déterministe. Tu peux quitter la page.
           </p>
         </div>
+
+        <CoopRedOfflineSimPanel
+          title="Simulation locale (même UI que le combat)"
+          intro={
+            <>
+              Sans salle ni Firestore : trois combats test (niveaux 150 / 250 / 350) avec le moteur tournoi. Ouvre{' '}
+              <span className="text-stone-300">Déroulé animé</span> pour l’arène complète (cartes, barres, log) comme
+              après une vraie partie.
+            </>
+          }
+          onWideLayoutChange={setOfflineSimWide}
+        />
 
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
           <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : pointeau &amp; écho racial</h2>
