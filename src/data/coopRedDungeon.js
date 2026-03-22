@@ -46,7 +46,7 @@ export const coopRedBossLineups = {
       nom: 'Salamèche',
       icon: '🔥',
       imageFile: 'Salameche.png',
-      baseStats: { hp: 190, auto: 55, def: 40, cap: 50, rescap: 40, spd: 50 },
+      baseStats: { hp: 162, auto: 47, def: 34, cap: 43, rescap: 34, spd: 43 },
       /** Pas de CD : chaque attaque = Lance-Flammes (physique) + brûlure. */
       ability: {
         cooldown: 0,
@@ -66,7 +66,7 @@ export const coopRedBossLineups = {
       nom: 'Carapuce',
       icon: '💧',
       imageFile: 'Carapuce.png',
-      baseStats: { hp: 260, auto: 45, def: 55, cap: 50, rescap: 45, spd: 40 },
+      baseStats: { hp: 221, auto: 38, def: 47, cap: 43, rescap: 38, spd: 34 },
       ability: {
         cooldown: 2,
         effect: { capBonusRatio: 0.35 },
@@ -82,7 +82,7 @@ export const coopRedBossLineups = {
       nom: 'Bulbizarre',
       icon: '🌿',
       imageFile: 'Bulbizarre.png',
-      baseStats: { hp: 240, auto: 45, def: 50, cap: 60, rescap: 55, spd: 40 },
+      baseStats: { hp: 204, auto: 38, def: 43, cap: 51, rescap: 47, spd: 34 },
       ability: {
         cooldown: 3,
         effect: { capScale: 1, leechMaxHpPercent: 0.01 },
@@ -100,7 +100,7 @@ export const coopRedBossLineups = {
       nom: 'Pikachu',
       icon: '⚡',
       imageFile: 'Pikachu.png',
-      baseStats: { hp: 400, auto: 65, def: 50, cap: 65, rescap: 50, spd: 90 },
+      baseStats: { hp: 340, auto: 55, def: 43, cap: 55, rescap: 43, spd: 77 },
       ability: {
         cooldown: 5,
         effect: { capScale: 0.3, stunDuration: 1 },
@@ -116,7 +116,7 @@ export const coopRedBossLineups = {
       nom: 'Ronflex',
       icon: '😴',
       imageFile: 'Ronflex.png',
-      baseStats: { hp: 800, auto: 80, def: 70, cap: 50, rescap: 50, spd: 20 },
+      baseStats: { hp: 680, auto: 68, def: 60, cap: 43, rescap: 43, spd: 17 },
       ability: {
         cooldown: 6,
         effect: { oncePerCombat: true, selfStunTurns: 2 },
@@ -132,7 +132,7 @@ export const coopRedBossLineups = {
       nom: 'Lokhlass',
       icon: '🌊',
       imageFile: 'Lokhlass.png',
-      baseStats: { hp: 550, auto: 50, def: 60, cap: 80, rescap: 70, spd: 55 },
+      baseStats: { hp: 468, auto: 43, def: 51, cap: 68, rescap: 60, spd: 47 },
       ability: {
         cooldown: 5,
         effect: {
@@ -154,7 +154,7 @@ export const coopRedBossLineups = {
       nom: 'Dracaufeu',
       icon: '🐉',
       imageFile: 'Dracaufeu.png',
-      baseStats: { hp: 750, auto: 100, def: 80, cap: 90, rescap: 70, spd: 90 },
+      baseStats: { hp: 638, auto: 85, def: 68, cap: 77, rescap: 60, spd: 77 },
       ability: {
         cooldown: 4,
         effect: { capScale: 0.3 },
@@ -170,7 +170,7 @@ export const coopRedBossLineups = {
       nom: 'Tortank',
       icon: '🛡️',
       imageFile: 'Tortank.png',
-      baseStats: { hp: 800, auto: 110, def: 100, cap: 70, rescap: 80, spd: 65 },
+      baseStats: { hp: 680, auto: 94, def: 85, cap: 60, rescap: 68, spd: 55 },
       ability: {
         cooldown: 3,
         effect: { capScale: 0.1 },
@@ -186,7 +186,7 @@ export const coopRedBossLineups = {
       nom: 'Florizarre',
       icon: '🌸',
       imageFile: 'Florizarre.png',
-      baseStats: { hp: 900, auto: 85, def: 110, cap: 100, rescap: 100, spd: 50 },
+      baseStats: { hp: 765, auto: 72, def: 94, cap: 85, rescap: 85, spd: 43 },
       ability: {
         cooldown: 5,
         effect: { capScale: 1 },
