@@ -11,6 +11,7 @@ import {
   COOP_RACE_ECHO_POTENCY,
   COOP_RED_DIFFICULTY_LABELS,
   getCoopRedLineup,
+  getCoopRedBossMoveDisplay,
 } from '../data/coopRedDungeon';
 import {
   createCoopRedRoom,
@@ -621,6 +622,7 @@ function CoopRedDungeon() {
                         const maxHp = room.combat.bossMaxHP[i] ?? 1;
                         const active = i === (room.combat.activeBossIndex % 3);
                         const sprite = b.imageFile ? getCoopRedSpriteUrl(b.imageFile) : null;
+                        const moveUi = getCoopRedBossMoveDisplay(b);
                         return (
                           <div
                             key={b.id}
@@ -636,9 +638,19 @@ function CoopRedDungeon() {
                             ) : (
                               <span>{b.icon}</span>
                             )}
-                            <span>
-                              {b.nom} — {hp}/{maxHp}
-                            </span>
+                            <div className="min-w-0 flex flex-col gap-0.5">
+                              <span>
+                                {b.nom} — {hp}/{maxHp}
+                              </span>
+                              {moveUi && (
+                                <span
+                                  className="text-[10px] text-amber-200/85 truncate"
+                                  title={`${moveUi.name} — ${moveUi.description}`}
+                                >
+                                  Sort : {moveUi.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

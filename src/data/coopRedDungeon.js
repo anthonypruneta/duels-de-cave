@@ -55,6 +55,11 @@ export const coopRedBossLineups = {
           burnHpPerTurnPercent: 0.01,
         },
       },
+      moveDisplay: {
+        name: 'Lance-Flammes',
+        description:
+          'Attaque physique à chaque action. Inflige une brûlure : perte de PV chaque tour (fraction des PV max).',
+      },
     },
     {
       id: 'coop_red_carapace',
@@ -66,6 +71,11 @@ export const coopRedBossLineups = {
         cooldown: 2,
         effect: { capBonusRatio: 0.35 },
       },
+      moveDisplay: {
+        name: 'Pistolet à O',
+        description:
+          'Toutes les 2 actions : salve magique avec fort bonus de Cap sur ce tour — dégâts magiques accentués.',
+      },
     },
     {
       id: 'coop_red_pousse',
@@ -76,6 +86,11 @@ export const coopRedBossLineups = {
       ability: {
         cooldown: 3,
         effect: { capScale: 1, leechMaxHpPercent: 0.01 },
+      },
+      moveDisplay: {
+        name: 'Giga-Sangsue',
+        description:
+          'Toutes les 3 actions : sort magique puissant qui applique un vol de vie (fraction des PV max des cibles).',
       },
     },
   ],
@@ -90,6 +105,11 @@ export const coopRedBossLineups = {
         cooldown: 5,
         effect: { capScale: 0.3, stunDuration: 1 },
       },
+      moveDisplay: {
+        name: 'Fatal-Foudre',
+        description:
+          'Toutes les 5 actions : foudre magique ; peut étourdir un joueur pendant un tour (ne joue pas ce tour-là).',
+      },
     },
     {
       id: 'coop_red_dormeur',
@@ -100,6 +120,11 @@ export const coopRedBossLineups = {
       ability: {
         cooldown: 6,
         effect: { oncePerCombat: true, selfStunTurns: 2 },
+      },
+      moveDisplay: {
+        name: 'Repos',
+        description:
+          'Une fois par combat : récupération massive, puis le boss s’endort (ne joue pas pendant 2 tours).',
       },
     },
     {
@@ -116,6 +141,11 @@ export const coopRedBossLineups = {
           teamReductionTurns: 2,
         },
       },
+      moveDisplay: {
+        name: 'Voile Aurore',
+        description:
+          'Toutes les 5 actions : vague magique puis protection — dégâts subis réduits pendant plusieurs tours (effet « aurore »).',
+      },
     },
   ],
   [COOP_RED_DIFFICULTY.HARD]: [
@@ -125,6 +155,11 @@ export const coopRedBossLineups = {
       icon: '🐉',
       imageFile: 'Dracaufeu.png',
       baseStats: { hp: 580, auto: 52, def: 44, cap: 48, rescap: 44, spd: 46 },
+      moveDisplay: {
+        name: 'Danse du Feu',
+        description:
+          'Phase finale : attaques type arène (même règles que le PvP) — mélange de coups physiques et magiques.',
+      },
     },
     {
       id: 'coop_red_blinde',
@@ -133,6 +168,11 @@ export const coopRedBossLineups = {
       // Pas de sprite Tortank dans le dossier pour l’instant : même ligne que Carapuce (à remplacer par Tortank.png).
       imageFile: 'Carapuce.png',
       baseStats: { hp: 640, auto: 48, def: 56, cap: 40, rescap: 50, spd: 38 },
+      moveDisplay: {
+        name: 'Lame de Roc',
+        description:
+          'Mur défensif : privilégie Auto et Défense ; enchaîne des frappes physiques sous le même moteur que le PvP.',
+      },
     },
     {
       id: 'coop_red_flore',
@@ -140,9 +180,39 @@ export const coopRedBossLineups = {
       icon: '🌸',
       imageFile: 'Florizarre.png',
       baseStats: { hp: 560, auto: 46, def: 42, cap: 54, rescap: 48, spd: 44 },
+      moveDisplay: {
+        name: 'Tempête Verte',
+        description:
+          'Équilibré Cap / ResC : sorts et touches magiques fréquents, cadence identique aux combats joueur contre joueur.',
+      },
     },
   ],
 };
+
+/**
+ * Texte affiché sur les cartes (sort signature + recharge) à partir de la fiche boss Red.
+ * @param {object|null} def — entrée de coopRedBossLineups
+ * @returns {{ name: string, description: string, cooldownLabel: string|null }|null}
+ */
+export function getCoopRedBossMoveDisplay(def) {
+  if (!def?.moveDisplay?.name || !def.moveDisplay.description) return null;
+  const cd = def.ability?.cooldown;
+  let cooldownLabel = null;
+  if (def.ability == null) {
+    cooldownLabel = 'Style PvP — pas de sort à recharge fixe';
+  } else if (def.ability?.effect?.oncePerCombat && typeof cd === 'number' && cd > 0) {
+    cooldownLabel = `1× par combat (après ${cd} tour${cd > 1 ? 's' : ''} de jauge)`;
+  } else if (cd === 0) {
+    cooldownLabel = 'Sans recharge (chaque action)';
+  } else if (typeof cd === 'number' && cd > 0) {
+    cooldownLabel = `Recharge : ${cd} tour${cd > 1 ? 's' : ''}`;
+  }
+  return {
+    name: def.moveDisplay.name,
+    description: def.moveDisplay.description,
+    cooldownLabel,
+  };
+}
 
 export function getCoopRedLineup(difficulty) {
   return coopRedBossLineups[difficulty] || null;

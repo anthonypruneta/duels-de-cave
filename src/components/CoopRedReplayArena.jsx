@@ -3,6 +3,7 @@ import CharacterCardContent from './CharacterCardContent';
 import testImage1 from '../assets/characters/test.png';
 import testImage2 from '../assets/characters/test2.png';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
+import { getCoopRedBossMoveDisplay } from '../data/coopRedDungeon';
 import CoopRedLogLine, { COOP_RED_BOSS_NAME_COLORS } from './CoopRedLogLine';
 
 /**
@@ -50,6 +51,7 @@ export default function CoopRedReplayArena({
 
   const bossCharacter = useMemo(() => {
     if (!activeBossDef || !bossBaseForCard) return null;
+    const coopRedMoveDisplay = getCoopRedBossMoveDisplay(activeBossDef);
     return {
       name: activeBossDef.nom,
       race: 'Boss',
@@ -67,6 +69,8 @@ export default function CoopRedReplayArena({
       subclass: null,
       forgeUpgrade: null,
       additionalAwakeningRaces: [],
+      coopRedBossIcon: activeBossDef.icon,
+      coopRedMoveDisplay,
     };
   }, [activeBossDef, bossBaseForCard]);
 
@@ -173,6 +177,7 @@ export default function CoopRedReplayArena({
                 const isActive = activeBossIdx === i;
                 const rowBossHighlight = coopActor === 3 && isActive;
                 const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
+                const moveUi = getCoopRedBossMoveDisplay(boss);
                 return (
                   <div
                     key={i}
@@ -210,6 +215,17 @@ export default function CoopRedReplayArena({
                         style={{ width: `${pct}%` }}
                       />
                     </div>
+                    {moveUi && (
+                      <p
+                        className="text-[10px] text-amber-200/90 mt-1.5 leading-tight line-clamp-2"
+                        title={`${moveUi.name} — ${moveUi.description}${moveUi.cooldownLabel ? ` (${moveUi.cooldownLabel})` : ''}`}
+                      >
+                        <span className="text-stone-500">Sort :</span> {moveUi.name}
+                        {moveUi.cooldownLabel ? (
+                          <span className="text-stone-500 font-normal"> · {moveUi.cooldownLabel}</span>
+                        ) : null}
+                      </p>
+                    )}
                   </div>
                 );
               })}
