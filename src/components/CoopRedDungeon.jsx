@@ -630,8 +630,9 @@ function CoopRedDungeon() {
                 )}
 
                 <p className="text-xs text-stone-500">
-                  Résolution : moteur tournoi complet (2 cibles joueurs, boss actif en rotation). Logs = règles PvP
-                  habituelles.
+                  Résolution : chaque tour, ordre par VIT (même priorités que le tournoi) ; tout le monde vivant joue
+                  une fois — 2 joueurs + chaque boss encore debout. Les joueurs attaquent le boss focal du tour (il
+                  change à chaque tour). Logs = règles PvP habituelles.
                 </p>
 
                 <div className="max-h-64 overflow-y-auto bg-stone-950/80 rounded-lg p-2 text-xs font-mono text-stone-300 space-y-1">

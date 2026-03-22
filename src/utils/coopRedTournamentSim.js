@@ -1,6 +1,7 @@
 /**
  * Donjon Red coop : même moteur que le tournoi (processPlayerAction, armes, passifs, sous-classes).
- * 2 joueurs vs 3 boss en rotation (cible du boss alternée comme avant).
+ * Chaque tour : tous les combattants vivants agissent une fois, dans l’ordre d’initiative (VIT + Licorne / Zweihänder / Bastion puis ex-aequo hôte → invité → boss0 → boss1 → boss2).
+ * Les joueurs frappent le boss « focal » du tour (rotation en fin de round). Chaque boss vivant joue son tour ; la cible du boss alterne toujours hôte / invité.
  */
 import { runWithCombatRandom01 } from './combatRngContext.js';
 import {
@@ -14,7 +15,7 @@ import { rebuildPreparedCoop } from './coopRedPrep.js';
 import { getCoopRedLineup } from '../data/coopRedDungeon.js';
 import { generalConstants, weaponConstants, classConstants } from '../data/combatMechanics.js';
 
-const MAX_COOP_TURNS = 250;
+const MAX_COOP_TURNS = 400;
 
 function createCoopSeededRng(seed) {
   let counter = 0;
@@ -52,8 +53,17 @@ function bastionMurFirst(f) {
   return f.class === 'Bastion' && f.cd.bast === 0 && f.subclass?.id === 'mur_implacable';
 }
 
+/** Ex-aequo sur la VIT : hôte, puis invité, puis boss slot 0 → 1 → 2. */
+function initiativeTiebreakRank(entry) {
+  if (entry.key === 'host') return 0;
+  if (entry.key === 'guest') return 1;
+  const m = /^boss(\d+)$/.exec(entry.key);
+  if (m) return 2 + parseInt(m[1], 10);
+  return 99;
+}
+
 /**
- * Ordre d’initiative sur un tour (3 acteurs vivants) : Licorne, Zweihänder, Bastion mur, puis VIT (ex-aequo hôte → invité → boss).
+ * Ordre d’initiative sur un tour : Licorne, Zweihänder, Bastion mur, puis VIT, puis départage fixe.
  */
 function compareCoopActors(a, b, turn) {
   const aUni = getUnicornPactTurnDataFromList(getPassiveDetailsList(a.f), turn);
@@ -72,19 +82,27 @@ function compareCoopActors(a, b, turn) {
   if (bB && !aB) return 1;
 
   if (b.f.base.spd !== a.f.base.spd) return b.f.base.spd - a.f.base.spd;
-  const order = { host: 0, guest: 1, boss: 2 };
-  return order[a.key] - order[b.key];
+  return initiativeTiebreakRank(a) - initiativeTiebreakRank(b);
 }
 
-function buildRoundOrder(host, guest, bossFighter, bossKey, turn) {
+/** Tous les vivants : hôte, invité, puis chaque boss encore debout. */
+function buildRoundOrder(host, guest, bosses, turn) {
   const entries = [];
   if (host.currentHP > 0) entries.push({ key: 'host', f: host });
   if (guest.currentHP > 0) entries.push({ key: 'guest', f: guest });
-  if (bossFighter.currentHP > 0) entries.push({ key: bossKey, f: bossFighter });
+  for (let i = 0; i < bosses.length; i++) {
+    if ((bosses[i]?.currentHP ?? 0) > 0) entries.push({ key: `boss${i}`, f: bosses[i] });
+  }
   if (entries.length <= 1) return entries.map((e) => e.key);
 
   entries.sort((a, b) => compareCoopActors(a, b, turn));
   return entries.map((e) => e.key);
+}
+
+/** Boss ciblé par les joueurs : préfère le focal s’il vit, sinon premier vivant. */
+function getPlayerTargetBossIndex(bosses, preferredIdx) {
+  if (bosses[preferredIdx]?.currentHP > 0) return preferredIdx;
+  return getActiveBossIndex(bosses, 0);
 }
 
 function allBossesDead(bosses) {
@@ -357,15 +375,11 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
       break;
     }
 
-    const activeBoss = bosses[activeBossIndex];
-    const order = buildRoundOrder(host, guest, activeBoss, 'boss', turn);
+    const roundFocalBossIndex = getActiveBossIndex(bosses, activeBossIndex);
+    const order = buildRoundOrder(host, guest, bosses, turn);
 
     for (const actorKey of order) {
       if (winner) break;
-
-      const biNow = getActiveBossIndex(bosses, activeBossIndex);
-      activeBossIndex = biNow;
-      const bossNow = bosses[biNow];
 
       if (host.currentHP <= 0 || guest.currentHP <= 0) {
         winner = 'boss';
@@ -376,8 +390,24 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
         break;
       }
 
-      if (actorKey === 'boss') {
-        if (bossNow.currentHP <= 0) continue;
+      if (actorKey === 'host' || actorKey === 'guest') {
+        const player = actorKey === 'host' ? host : guest;
+        if (player.currentHP <= 0) continue;
+
+        const targetBossIdx = getPlayerTargetBossIndex(bosses, roundFocalBossIndex);
+        const bossTarget = bosses[targetBossIdx];
+        if (!bossTarget || bossTarget.currentHP <= 0) continue;
+
+        const chunk = [];
+        const label = actorKey === 'host' ? '[Hôte]' : '[Invité]';
+        processPlayerAction(player, bossTarget, chunk, actorKey === 'host', turn, label);
+        log.push(...chunk);
+        pushStep('action', chunk, targetBossIdx, { player: actorKey === 'host' ? 1 : 2 });
+      } else {
+        const bi = parseInt(actorKey.replace('boss', ''), 10);
+        const bossNow = bosses[bi];
+        if (!bossNow || bossNow.currentHP <= 0) continue;
+
         let target = bossNextTargetsHost ? host : guest;
         if (target.currentHP <= 0) target = target === host ? guest : host;
         if (target.currentHP <= 0) continue;
@@ -385,21 +415,15 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
         const chunk = [];
         processPlayerAction(bossNow, target, chunk, false, turn, '[Boss]');
         log.push(...chunk);
-        pushStep('action', chunk, activeBossIndex, { player: 3 });
+        pushStep('action', chunk, bi, { player: 3 });
 
         bossNextTargetsHost = !bossNextTargetsHost;
-        activeBossIndex = (biNow + 1) % 3;
-      } else {
-        const player = actorKey === 'host' ? host : guest;
-        if (player.currentHP <= 0) continue;
-        if (bossNow.currentHP <= 0) continue;
-
-        const chunk = [];
-        const label = actorKey === 'host' ? '[Hôte]' : '[Invité]';
-        processPlayerAction(player, bossNow, chunk, actorKey === 'host', turn, label);
-        log.push(...chunk);
-        pushStep('action', chunk, activeBossIndex, { player: actorKey === 'host' ? 1 : 2 });
       }
+    }
+
+    if (!winner) {
+      const nextFocalStart = (roundFocalBossIndex + 1) % bosses.length;
+      activeBossIndex = getActiveBossIndex(bosses, nextFocalStart);
     }
 
     turn += 1;
