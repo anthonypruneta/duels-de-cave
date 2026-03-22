@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ADMIN_EMAIL } from './AdminOnlyRoute';
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
 function Header() {
   const { currentUser, logout } = useAuth();
@@ -137,7 +136,6 @@ function Header() {
   const navLinks = [
     { path: '/', label: '🏠 Accueil' },
     { path: '/dungeons', label: '🏰 Donjons' },
-    { path: '/coop-red', label: '🔴 Red coop' },
     { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
     { path: '/boss-rush', label: '💀 Boss Rush' },
     { path: '/mirror', label: '🪞 Miroir' },
@@ -148,6 +146,7 @@ function Header() {
     { path: '/encyclopedie', label: '📚 Encyclopédie' },
     { path: '/hall-of-fame', label: '👑 Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
+    ...(isAdmin ? [{ path: '/coop-red', label: '🔴 Red coop' }] : []),
     ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
     ...(isAdmin ? [{ path: '/combat', label: '⚔️ PvP' }] : []),
   ];

@@ -82,9 +82,9 @@ function Application() {
             path="/coop-red"
             element={
               <ProtectedRoute>
-                <ModeAvailabilityRoute>
+                <AdminOnlyRoute>
                   <CoopRedDungeon />
-                </ModeAvailabilityRoute>
+                </AdminOnlyRoute>
               </ProtectedRoute>
             }
           />

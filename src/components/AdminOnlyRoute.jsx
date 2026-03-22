@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
+export const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
 function AdminOnlyRoute({ children }) {
   const { currentUser, loading } = useAuth();
