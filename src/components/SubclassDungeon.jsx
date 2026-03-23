@@ -234,12 +234,49 @@ const SubclassDungeon = () => {
     if (!player || !boss) return text;
     const pName = player.name;
     const bName = boss.name;
+    const parts = [];
+    let key = 0;
     const nameRegex = new RegExp(`(${pName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${bName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g');
-    return text.split(nameRegex).map((part, i) => {
-      if (part === pName) return <span key={i} className="font-bold text-blue-400">{part}</span>;
-      if (part === bName) return <span key={i} className="font-bold text-amber-400">{part}</span>;
-      return part;
+    const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
+    const critRegex = /(CRITIQUE\s*!?)/gi;
+    const pushWithCritHighlight = (target, chunk) => {
+      if (!chunk) return;
+      const critParts = chunk.split(critRegex);
+      critParts.forEach((critPart) => {
+        if (!critPart) return;
+        if (/^CRITIQUE\s*!?$/i.test(critPart)) {
+          target.push(<span key={`crit-${key++}`} className="font-bold text-yellow-300">{critPart}</span>);
+        } else {
+          target.push(critPart);
+        }
+      });
+    };
+
+    text.split(nameRegex).forEach((part) => {
+      if (!part) return;
+      if (part === pName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-blue-400">{part}</span>);
+        return;
+      }
+      if (part === bName) {
+        parts.push(<span key={`name-${key++}`} className="font-bold text-amber-400">{part}</span>);
+        return;
+      }
+
+      let lastIndex = 0;
+      let match;
+      while ((match = numRegex.exec(part)) !== null) {
+        if (match.index > lastIndex) pushWithCritHighlight(parts, part.slice(lastIndex, match.index));
+        const token = match[2].toLowerCase();
+        const isHeal = token.includes('vie') || token.includes('pv');
+        parts.push(<span key={`num-${key++}`} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{match[1]}</span>);
+        parts.push(` ${match[2]}`);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < part.length) pushWithCritHighlight(parts, part.slice(lastIndex));
     });
+
+    return parts;
   };
 
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {

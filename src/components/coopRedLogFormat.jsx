@@ -7,17 +7,36 @@ export function escapeRegex(str) {
 }
 
 /**
- * Surligne les nombres « X points de vie / dégâts » comme Combat / Tournoi.
+ * Surligne les nombres « X points de vie / dégâts / PV » et les critiques.
  */
 function appendDamageHealHighlights(part, out, keyRef) {
-  const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+  const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
+  const critRegex = /(CRITIQUE\s*!?)/gi;
   let lastIndex = 0;
   let match;
+  const pushWithCritHighlight = (chunk) => {
+    if (!chunk) return;
+    const critParts = chunk.split(critRegex);
+    critParts.forEach((critPart) => {
+      if (!critPart) return;
+      if (/^CRITIQUE\s*!?$/i.test(critPart)) {
+        out.push(
+          <span key={`crit-${keyRef.k++}`} className="font-bold text-yellow-300">
+            {critPart}
+          </span>
+        );
+      } else {
+        out.push(critPart);
+      }
+    });
+  };
+
   while ((match = numRegex.exec(part)) !== null) {
     if (match.index > lastIndex) {
-      out.push(part.slice(lastIndex, match.index));
+      pushWithCritHighlight(part.slice(lastIndex, match.index));
     }
-    const isHeal = match[2].toLowerCase().includes('vie');
+    const token = match[2].toLowerCase();
+    const isHeal = token.includes('vie') || token.includes('pv');
     out.push(
       <span key={`n-${keyRef.k++}`} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>
         {match[1]}
@@ -27,7 +46,7 @@ function appendDamageHealHighlights(part, out, keyRef) {
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < part.length) {
-    out.push(part.slice(lastIndex));
+    pushWithCritHighlight(part.slice(lastIndex));
   }
 }
 

@@ -302,7 +302,33 @@ const BossRush = () => {
       } else if (part === bName) {
         parts.push(<span key={`n-${key++}`} className="font-bold text-red-400">{part}</span>);
       } else if (part) {
-        parts.push(<span key={`n-${key++}`}>{part}</span>);
+        const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
+        const critRegex = /(CRITIQUE\s*!?)/gi;
+        let lastIndex = 0;
+        let match;
+        const subParts = [];
+        const pushWithCritHighlight = (chunk) => {
+          if (!chunk) return;
+          const critParts = chunk.split(critRegex);
+          critParts.forEach((critPart) => {
+            if (!critPart) return;
+            if (/^CRITIQUE\s*!?$/i.test(critPart)) {
+              subParts.push(<span key={`n-${key++}`} className="font-bold text-yellow-300">{critPart}</span>);
+            } else {
+              subParts.push(<span key={`n-${key++}`}>{critPart}</span>);
+            }
+          });
+        };
+        while ((match = numRegex.exec(part)) !== null) {
+          if (match.index > lastIndex) pushWithCritHighlight(part.slice(lastIndex, match.index));
+          const token = match[2].toLowerCase();
+          const isHeal = token.includes('vie') || token.includes('pv');
+          subParts.push(<span key={`n-${key++}`} className={`font-bold ${isHeal ? 'text-green-400' : 'text-red-400'}`}>{match[1]}</span>);
+          subParts.push(<span key={`n-${key++}`}>{` ${match[2]}`}</span>);
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < part.length) pushWithCritHighlight(part.slice(lastIndex));
+        if (subParts.length > 0) parts.push(...subParts);
       }
     });
     return parts.length > 0 ? parts : text;

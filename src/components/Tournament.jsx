@@ -668,17 +668,31 @@ const Tournament = () => {
       } else if (part === p2Name) {
         parts.push(<span key={key++} className="font-bold text-purple-400">{part}</span>);
       } else if (part) {
-        const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+        const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
+        const critRegex = /(CRITIQUE\s*!?)/gi;
         let lastIndex = 0;
         let numMatch;
+        const pushWithCritHighlight = (chunk) => {
+          if (!chunk) return;
+          const critParts = chunk.split(critRegex);
+          critParts.forEach((critPart) => {
+            if (!critPart) return;
+            if (/^CRITIQUE\s*!?$/i.test(critPart)) {
+              parts.push(<span key={key++} className="font-bold text-yellow-300">{critPart}</span>);
+            } else {
+              parts.push(critPart);
+            }
+          });
+        };
         while ((numMatch = numRegex.exec(part)) !== null) {
-          if (numMatch.index > lastIndex) parts.push(part.slice(lastIndex, numMatch.index));
-          const isHeal = numMatch[2].toLowerCase().includes('vie');
+          if (numMatch.index > lastIndex) pushWithCritHighlight(part.slice(lastIndex, numMatch.index));
+          const token = numMatch[2].toLowerCase();
+          const isHeal = token.includes('vie') || token.includes('pv');
           parts.push(<span key={key++} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{numMatch[1]}</span>);
           parts.push(` ${numMatch[2]}`);
           lastIndex = numMatch.index + numMatch[0].length;
         }
-        if (lastIndex < part.length) parts.push(part.slice(lastIndex));
+        if (lastIndex < part.length) pushWithCritHighlight(part.slice(lastIndex));
       }
     });
 

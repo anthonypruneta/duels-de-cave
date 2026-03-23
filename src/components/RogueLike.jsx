@@ -94,22 +94,36 @@ export default function RogueLike() {
         return;
       }
 
-      // Colorize numbers: heals (vie) = green, damage = red
-      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?))/gi;
+      // Colorize numbers: heals (vie/PV) = green, damage = red + CRITIQUE en jaune
+      const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
+      const critRegex = /(CRITIQUE\s*!?)/gi;
       let lastIndex = 0;
       let match;
+      const pushWithCritHighlight = (chunk) => {
+        if (!chunk) return;
+        const critParts = chunk.split(critRegex);
+        critParts.forEach((critPart) => {
+          if (!critPart) return;
+          if (/^CRITIQUE\s*!?$/i.test(critPart)) {
+            parts.push(<span key={`crit-${key++}`} className="font-bold text-yellow-300">{critPart}</span>);
+          } else {
+            parts.push(critPart);
+          }
+        });
+      };
       while ((match = numRegex.exec(part)) !== null) {
         if (match.index > lastIndex) {
-          parts.push(part.slice(lastIndex, match.index));
+          pushWithCritHighlight(part.slice(lastIndex, match.index));
         }
-        const isHeal = match[2].toLowerCase().includes('vie');
+        const token = match[2].toLowerCase();
+        const isHeal = token.includes('vie') || token.includes('pv');
         const colorClass = isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400';
         parts.push(<span key={`num-${key++}`} className={colorClass}>{match[1]}</span>);
         parts.push(` ${match[2]}`);
         lastIndex = match.index + match[0].length;
       }
       if (lastIndex < part.length) {
-        parts.push(part.slice(lastIndex));
+        pushWithCritHighlight(part.slice(lastIndex));
       }
     });
     return parts;
