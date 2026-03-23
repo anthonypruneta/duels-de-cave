@@ -61,6 +61,7 @@ import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
+import CombatSpeedSelector from './CombatSpeedSelector';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -209,6 +210,8 @@ const ForestDungeon = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const [canInstantFinish, setCanInstantFinish] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
+  // Default maintient le comportement actuel (animation "rapide")
+  const [combatSpeed, setCombatSpeed] = useState('fast'); // normal | fast | turbo
   const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
@@ -1148,7 +1151,7 @@ const ForestDungeon = () => {
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? prev.shield ?? 0 } : null);
       },
       existingLogs: logs,
-      speed: 'fast'
+      speed: combatSpeed
     });
     logs.length = 0;
     logs.push(...finalLogs);
@@ -1920,7 +1923,8 @@ const ForestDungeon = () => {
           </div>
         )}
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
+          <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition">
             ← Retour aux donjons
           </button>

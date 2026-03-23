@@ -7,6 +7,7 @@ import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import CombatSpeedSelector from './CombatSpeedSelector';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
@@ -56,6 +57,7 @@ const MirrorMode = () => {
   const [loading, setLoading] = useState(true);
   const [character, setCharacter] = useState(null);
   const [gameState, setGameState] = useState('lobby');
+  const [replaySpeed, setReplaySpeed] = useState('normal'); // normal | fast | turbo
   const [alreadyDone, setAlreadyDone] = useState(false);
   const [playerHP, setPlayerHP] = useState(null);
   const [playerMaxHP, setPlayerMaxHP] = useState(null);
@@ -170,7 +172,7 @@ const MirrorMode = () => {
           setCloneCombatModifiers(step.p2Modifiers || null);
           setCloneCombatStatus(step.p2Status || null);
         },
-        speed: 'normal',
+        speed: replaySpeed,
       });
 
       const lastStep = result.steps[result.steps.length - 1];
@@ -308,6 +310,9 @@ const MirrorMode = () => {
               <div className="text-4xl mb-2">⚔️</div>
               <h3 className="text-base font-bold text-stone-300 mb-1">Duel contre votre Doppelgänger</h3>
               <p className="text-stone-500 text-xs mb-3">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
+              <div className="flex justify-center mb-3">
+                <CombatSpeedSelector value={replaySpeed} onChange={setReplaySpeed} label="Vitesse des combats" />
+              </div>
               {alreadyDone ? (
                 <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-2">
                   <p className="text-stone-400 text-xs">🪞 Miroir déjà affronté aujourd'hui.</p>
@@ -332,6 +337,9 @@ const MirrorMode = () => {
                 <div className="text-6xl mb-4">⚔️</div>
                 <h3 className="text-xl font-bold text-stone-300 mb-2">Duel contre votre Doppelgänger</h3>
                 <p className="text-stone-500 text-sm mb-6">Stats inversées : Auto ↔ Déf, Cap ↔ ResC</p>
+                <div className="flex justify-center mb-6">
+                  <CombatSpeedSelector value={replaySpeed} onChange={setReplaySpeed} label="Vitesse des combats" />
+                </div>
 
                 {alreadyDone ? (
                   <div className="bg-stone-800/80 border border-stone-600 rounded-lg p-4">

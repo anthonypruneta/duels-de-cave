@@ -21,6 +21,7 @@ import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { isSubclassDungeonVisible } from '../data/featureFlags';
 import { checkAndAwardTitles } from '../services/titleService';
+import CombatSpeedSelector from './CombatSpeedSelector';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
@@ -40,6 +41,7 @@ const SubclassDungeon = () => {
   const [loading, setLoading] = useState(true);
   const [character, setCharacter] = useState(null);
   const [gameState, setGameState] = useState('lobby');
+  const [combatSpeed, setCombatSpeed] = useState('normal'); // normal | fast | turbo
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
@@ -185,7 +187,7 @@ const SubclassDungeon = () => {
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
       existingLogs: logs,
-      speed: 'normal',
+      speed: combatSpeed,
     });
     logs.length = 0;
     logs.push(...finalLogs);
@@ -616,7 +618,8 @@ const SubclassDungeon = () => {
         )}
 
         {/* Boutons */}
-        <div className="flex gap-4 justify-center mb-6">
+        <div className="flex gap-4 justify-center mb-6 flex-wrap">
+          <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartRun}
             disabled={!canAccess}

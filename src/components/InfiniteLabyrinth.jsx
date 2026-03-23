@@ -31,6 +31,7 @@ import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { checkAndAwardTitles } from '../services/titleService';
+import CombatSpeedSelector from './CombatSpeedSelector';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 
@@ -131,6 +132,7 @@ const InfiniteLabyrinth = () => {
   const [error, setError] = useState('');
   const [isAutoRunActive, setIsAutoRunActive] = useState(false);
   const [isAnimatingFight, setIsAnimatingFight] = useState(false);
+  const [replaySpeed, setReplaySpeed] = useState('normal'); // normal | fast | turbo
   const [replayLogs, setReplayLogs] = useState([]);
   const [replayWinner, setReplayWinner] = useState('');
   const [displayEnemyFloor, setDisplayEnemyFloor] = useState(null);
@@ -298,6 +300,11 @@ const InfiniteLabyrinth = () => {
     setReplayP2Status(null);
 
     const steps = data.steps || [];
+    const delays = {
+      normal: { line: 300, turnStart: 800, action: 2000, victory: 300, noStepDash: 450, noStepOther: 250 },
+      fast: { line: 150, turnStart: 400, action: 1000, victory: 150, noStepDash: 225, noStepOther: 125 },
+      turbo: { line: 80, turnStart: 250, action: 430, victory: 100, noStepDash: 120, noStepOther: 60 }
+    }[replaySpeed] || { line: 300, turnStart: 800, action: 2000, victory: 300, noStepDash: 450, noStepOther: 250 };
     if (steps.length > 0) {
       for (const step of steps) {
         if (token.cancelled) return;
@@ -305,7 +312,7 @@ const InfiniteLabyrinth = () => {
         for (const line of (step.logs || [])) {
           if (token.cancelled) return;
           setReplayLogs((prev) => [...prev, line]);
-          await delayReplay(300);
+          await delayReplay(delays.line);
         }
 
         setReplayP1HP(step.p1HP ?? 0);
@@ -319,16 +326,16 @@ const InfiniteLabyrinth = () => {
         setReplayP1Status(step.p1Status ?? null);
         setReplayP2Status(step.p2Status ?? null);
 
-        if (step.phase === 'turnStart') await delayReplay(800);
-        else if (step.phase === 'action') await delayReplay(2000);
-        else if (step.phase === 'victory') await delayReplay(300);
-        else await delayReplay(300);
+        if (step.phase === 'turnStart') await delayReplay(delays.turnStart);
+        else if (step.phase === 'action') await delayReplay(delays.action);
+        else if (step.phase === 'victory') await delayReplay(delays.victory);
+        else await delayReplay(delays.line);
       }
     } else {
       for (const line of (data.combatLog || [])) {
         if (token.cancelled) return;
         setReplayLogs((prev) => [...prev, line]);
-        await delayReplay(line.includes('---') ? 450 : 250);
+        await delayReplay(line.includes('---') ? delays.noStepDash : delays.noStepOther);
       }
     }
 
@@ -475,7 +482,8 @@ const InfiniteLabyrinth = () => {
 
         {error && <p className="text-red-300 text-center mb-4">⚠️ {error}</p>}
 
-        <div className="flex justify-center gap-3 md:gap-4 mb-4">
+        <div className="flex justify-center gap-3 md:gap-4 mb-4 flex-wrap">
+          <CombatSpeedSelector value={replaySpeed} onChange={setReplaySpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartCurrentFloorFight}
             disabled={loading}

@@ -41,6 +41,7 @@ import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
 import { checkAndAwardTitles } from '../services/titleService';
+import CombatSpeedSelector from './CombatSpeedSelector';
 import { db } from '../firebase/config';
 import { doc, increment, setDoc, Timestamp } from 'firebase/firestore';
 
@@ -138,6 +139,7 @@ const ForgeDungeon = () => {
   const [character, setCharacter] = useState(null);
   const [equippedWeapon, setEquippedWeapon] = useState(null);
   const [gameState, setGameState] = useState('lobby'); // lobby, fighting, reward, victory, defeat
+  const [combatSpeed, setCombatSpeed] = useState('normal'); // normal | fast | turbo
   const [player, setPlayer] = useState(null);
   const [boss, setBoss] = useState(null);
   const [playerCombatBase, setPlayerCombatBase] = useState(null);
@@ -337,7 +339,7 @@ const ForgeDungeon = () => {
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? 0 } : null);
       },
       existingLogs: logs,
-      speed: 'normal'
+      speed: combatSpeed
     });
     logs.length = 0;
     logs.push(...finalLogs);
@@ -965,7 +967,8 @@ const ForgeDungeon = () => {
         )}
 
         {/* Boutons */}
-        <div className="flex gap-4 justify-center mb-6">
+        <div className="flex gap-4 justify-center mb-6 flex-wrap">
+          <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartRun}
             disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}

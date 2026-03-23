@@ -69,6 +69,7 @@ import { MiniCard } from './CombatLayout';
 import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
+import CombatSpeedSelector from './CombatSpeedSelector';
 
 // Chargement dynamique des images (ne crash pas si les fichiers n'existent pas)
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
@@ -210,6 +211,8 @@ const Dungeon = () => {
   const [lootWeapons, setLootWeapons] = useState([null, null, null]);
   const [error, setError] = useState(null);
   const [instantMessage, setInstantMessage] = useState(null);
+  // Default maintient le comportement actuel (animation "rapide")
+  const [combatSpeed, setCombatSpeed] = useState('fast'); // normal | fast | turbo
 
   // États de combat (même pattern que Combat.jsx)
   const [player, setPlayer] = useState(null);
@@ -269,6 +272,12 @@ const Dungeon = () => {
   const shouldAutoScrollLog = () => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(min-width: 768px)').matches;
+  };
+
+  const getBetweenBossDelay = (speed) => {
+    if (speed === 'turbo') return 500;
+    if (speed === 'fast') return 1000;
+    return 1500;
   };
 
   useEffect(() => {
@@ -1042,7 +1051,7 @@ const Dungeon = () => {
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 } : null);
       },
       existingLogs: logs,
-      speed: 'fast'
+      speed: combatSpeed
     });
     logs.length = 0;
     logs.push(...finalLogs);
@@ -1059,7 +1068,7 @@ const Dungeon = () => {
 
       if (currentLevel < DUNGEON_CONSTANTS.TOTAL_LEVELS) {
         // Full heal avant le prochain boss
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, getBetweenBossDelay(combatSpeed)));
         setPlayer((prev) => prev ? { ...prev, currentHP: prev.maxHP, undead: false } : null);
         logs.push(``, `💚 ${player.name} récupère tous ses points de vie !`);
 
@@ -1080,7 +1089,7 @@ const Dungeon = () => {
       } else {
         // Full clear!
         stopDungeonMusic();
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, getBetweenBossDelay(combatSpeed)));
         const result = await endDungeonRun(currentUser.uid, newHighest);
         if (result.success) {
           await markDungeonCompleted(currentUser.uid, 'cave');
@@ -1098,7 +1107,7 @@ const Dungeon = () => {
       setCombatResult('defeat');
 
       stopDungeonMusic();
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, getBetweenBossDelay(combatSpeed)));
       const result = await endDungeonRun(currentUser.uid, highestLevelBeaten, currentLevel);
       if (result.success && result.lootWeapons?.[0]) {
         setLootWeapons(result.lootWeapons);
@@ -1404,6 +1413,10 @@ const Dungeon = () => {
             ))}
           </div>
 
+          <div className="mb-3 flex justify-center">
+            <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
+          </div>
+
           {/* Boutons de contrôle (centrés par rapport à l'ensemble) */}
           <div className="flex justify-center gap-3 md:gap-4 mb-3">
             {combatResult === null && (
@@ -1677,6 +1690,7 @@ const Dungeon = () => {
         )}
 
         <div className="flex gap-4 justify-center flex-wrap">
+          <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button onClick={() => navigate('/dungeons')} className="bg-stone-700 hover:bg-stone-600 text-white px-6 py-3 rounded-lg font-bold border border-stone-500 transition">
             ← Retour aux donjons
           </button>
