@@ -161,9 +161,9 @@ const DungeonSelection = () => {
             >
               <DungeonCard
                 icon="🔴"
-                title="Donjon Red (async)"
+                title="L'arène de Red"
                 description="À deux contre Red : liste de salles, prêt des deux joueurs, tirage Pointeau ADN aléatoire."
-                buttonLabel="Ouvrir le donjon"
+                buttonLabel="Défier Red"
                 onClick={() => navigate('/coop-red')}
                 accent="orange"
               />

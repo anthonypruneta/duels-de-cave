@@ -354,7 +354,7 @@ function CoopRedDungeon() {
           }`}
         >
         <div className="text-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">Donjon Red (coop)</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">L'arène de Red</h1>
           <p className="text-stone-400 text-sm">
             Crée une salle ou choisis-en une dans la liste. Une fois à deux, chacun clique sur{' '}
             <span className="text-stone-300">Prêt</span> : le combat se lance quand les deux sont prêts. Même moteur que
