@@ -10,53 +10,34 @@ service cloud.firestore {
 
     // Règles pour la collection 'characters'
     match /characters/{userId} {
-      // Lecture : Tous les utilisateurs connectés peuvent voir les personnages
-      // (nécessaire pour le combat et voir les adversaires)
       allow read: if request.auth != null;
-
-      // Écriture : L'utilisateur peut créer/modifier son propre personnage
       allow write: if request.auth != null && request.auth.uid == userId;
-
-      // Mise à jour image : Seulement les admins
       allow update: if isAdmin();
-
-      // Suppression : Seulement les admins
       allow delete: if isAdmin();
     }
 
     // Règles pour la collection 'dungeonProgress'
     match /dungeonProgress/{userId} {
-      // Lecture : tout utilisateur connecté (pour afficher la progression des autres en taverne / tournoi)
       allow read: if request.auth != null;
-
-      // Écriture : joueur lui-même OU admin
-      // (important pour l'ajout global d'essais)
       allow write: if request.auth != null &&
                       (request.auth.uid == userId || isAdmin());
     }
 
     // Broadcasts admin (pop-up d'annonce globale)
     match /adminBroadcasts/{broadcastId} {
-      // Lecture : tous les utilisateurs connectés (pour afficher la pop-up)
       allow read: if request.auth != null;
-      // Écriture : admin uniquement
       allow write: if isAdmin();
     }
 
     // Configuration globale du jeu (équilibrage persistant)
-    // Ex: gameConfig/balance
     match /gameConfig/{configId} {
-      // Lecture : utilisateurs connectés (chargement au boot de l'app)
       allow read: if request.auth != null;
-      // Écriture : admin uniquement
       allow write: if isAdmin();
     }
 
     // Milestones globaux (premiers kills/clears)
     match /globalMilestones/{milestoneId} {
-      // Lecture : utilisateurs connectés
       allow read: if request.auth != null;
-      // Écriture : utilisateurs connectés (création contrôlée côté transaction)
       allow write: if request.auth != null;
     }
 
@@ -71,14 +52,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if isAdmin();
 
-      // Sous-collection combatLogs
       match /combatLogs/{matchId} {
         allow read: if request.auth != null;
         allow write: if isAdmin();
       }
     }
 
-    // Archives tournoi (arbre + combatLogs pour replay)
+    // Archives tournoi (arbre + combatLogs pour replay Hall of Fame)
     match /tournamentArchives/{archiveId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
@@ -89,13 +69,13 @@ service cloud.firestore {
       }
     }
 
-    // Méta tournoi (ex. qualifié samedi issu du tournoi des anciens)
+    // Méta tournoi (qualifié samedi issu du tournoi des anciens)
     match /tournamentMeta/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
-    // Anciens champions du tournoi legacy : hors pool à vie (id = doc archivedCharacters)
+    // Champions du tournoi des anciens : retraite définitive (id = doc archivedCharacters)
     match /legacyRetiredArchives/{archiveId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
@@ -120,48 +100,29 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Boss Mondial (Cataclysme)
-    match /worldBossEvent/{eventId} {
-      // Lecture : utilisateurs connectés (HP du boss, leaderboard)
-      allow read: if request.auth != null;
-      // Écriture : admin uniquement (démarrer, terminer, reset)
-      allow write: if isAdmin();
-
-      // Sous-collection dégâts par personnage
-      match /damages/{charId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-      }
-    }
-
-    // Labyrinthe infini hebdomadaire (admin only en écriture)
+    // Labyrinthe infini hebdomadaire
     match /weeklyInfiniteLabyrinths/{weekId} {
-      // Lecture: utilisateurs connectés (utile pour affichage admin/test)
       allow read: if request.auth != null;
-      // Écriture: admin uniquement
       allow write: if isAdmin();
     }
 
     // Boss mondial (Cataclysme)
     match /worldBossEvent/{eventId} {
-      // Lecture : utilisateurs connectés (état de l'event, HP restant)
       allow read: if request.auth != null;
-      // Écriture : utilisateurs connectés (batch damage + update HP)
       allow write: if request.auth != null;
 
-      // Sous-collection dégâts par personnage
       match /damages/{characterId} {
         allow read: if request.auth != null;
         allow write: if request.auth != null;
       }
     }
 
-    // Préférences utilisateur (ex: pseudo lié au compte, réutilisé à chaque création)
+    // Préférences utilisateur
     match /userPreferences/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Taverne : présence (position) et chat
+    // Taverne
     match /tavernePresence/{userId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == userId;
@@ -174,9 +135,7 @@ service cloud.firestore {
     }
 
     // Progression Labyrinthe par joueur et par semaine
-    // Structure: userLabyrinthProgress/{userId}/weeks/{weekId}
     match /userLabyrinthProgress/{userId} {
-      // Lecture : tout utilisateur connecté (pour afficher la progression des autres en taverne)
       allow read: if request.auth != null;
       allow write: if request.auth != null &&
                       (request.auth.uid == userId || isAdmin());
@@ -194,10 +153,12 @@ service cloud.firestore {
     // Structure :
     // - rogueLikeRuns/{userId}/runs/{runId}
     // - rogueLikeLeaderboard/{entryId}
+
     match /rogueLikeRuns/{userId} {
-      // Lecture : utilisateurs connectés (utile pour affichage/reprise run)
+      // Lecture : utilisateurs connectés
       allow read: if request.auth != null;
-      // Écriture : propriétaire du run (client)
+
+      // Écriture : propriétaire du run
       match /runs/{runId} {
         allow read: if request.auth != null;
         allow write: if request.auth != null && request.auth.uid == userId;
@@ -205,9 +166,31 @@ service cloud.firestore {
     }
 
     match /rogueLikeLeaderboard/{entryId} {
+      // Lecture : utilisateurs connectés
       allow read: if request.auth != null;
-      // Écriture : le runId est unique ; le client peut écrire son entrée s'il est propriétaire
-      allow write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+      // Écriture : seulement le propriétaire (doit correspondre à payload.userId)
+      allow write: if request.auth != null &&
+                    request.auth.uid == request.resource.data.userId;
+    }
+
+    // Donjon coop « Rouge » (salle + quota journalier)
+    match /coopDungeonRooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+                       request.resource.data.hostId == request.auth.uid;
+      // Hôte ou invité ; première jointure ; invité quitte (guestId → null) ; champs prêt / lobby
+      allow update: if request.auth != null && (
+                       resource.data.hostId == request.auth.uid ||
+                       resource.data.guestId == request.auth.uid ||
+                       (resource.data.guestId == null &&
+                        request.resource.data.guestId == request.auth.uid)
+                     );
+      allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
+    }
+
+    match /coopDungeonDaily/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

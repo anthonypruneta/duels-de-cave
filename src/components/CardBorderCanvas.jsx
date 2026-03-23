@@ -2140,177 +2140,10 @@ function drawGojoInfinity(ctx, state, w, h) {
   }
 }
 
-// ─── Personnage parfait : fusion runique + infini + sable + lune ────────────
-
-function initPerfectCharacter(w, h) {
-  const shards = Array.from({ length: Math.max(26, Math.floor(w / 9)) }, () => {
-    const angle = rand(-Math.PI * 0.95, -Math.PI * 0.05);
-    const dist = rand(12, Math.min(w, h) * 0.45);
-    return {
-      angle,
-      dist,
-      drift: rand(-0.28, 0.28),
-      size: rand(5, 14),
-      spin: rand(-0.04, 0.04),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.22, 0.65),
-      hue: rand(185, 300),
-    };
-  });
-  return {
-    t: rand(0, Math.PI * 2),
-    ringPhase: rand(0, Math.PI * 2),
-    burstPhase: rand(0, Math.PI * 2),
-    glyphs: Array.from({ length: Math.max(15, Math.floor(h / 16)) }, () => ({
-      x: rand(w * 0.05, w * 0.95),
-      y: rand(h * 0.06, h * 0.92),
-      size: rand(10, 18),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.18, 0.36),
-      char: ['ᚠ', 'ᚱ', 'ᚦ', 'ᚨ', 'ᚲ', 'ᛃ', 'ᛟ'][randInt(0, 6)],
-    })),
-    stars: Array.from({ length: Math.max(24, Math.floor(w / 12)) }, () => ({
-      x: rand(0, w),
-      y: rand(0, h * 0.72),
-      r: rand(0.8, 2.1),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.18, 0.42),
-    })),
-    shards,
-  };
-}
-
-function updatePerfectCharacter(state, w, h, dt) {
-  const s = dt / 16;
-  state.t += 0.018 * s;
-  state.ringPhase += 0.02 * s;
-  state.burstPhase += 0.016 * s;
-  for (const g of state.glyphs) g.phase += 0.026 * s;
-  for (const st of state.stars) st.phase += 0.036 * s;
-  for (const sh of state.shards) {
-    sh.phase += sh.spin * s;
-    sh.dist += sh.drift * s;
-    if (sh.dist < 8 || sh.dist > Math.min(w, h) * 0.54) sh.drift *= -1;
-  }
-}
-
-function drawPerfectCharacter(ctx, state, w, h) {
-  const cx = w * 0.5;
-  const cy = h * 0.46;
-  const epicPulse = 0.5 + 0.5 * Math.sin(state.t * 3.2);
-
-  // Noyau épique
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.78);
-  core.addColorStop(0, `rgba(255, 255, 255, ${0.16 + 0.18 * epicPulse})`);
-  core.addColorStop(0.17, `rgba(253, 224, 71, ${0.18 + 0.14 * epicPulse})`);
-  core.addColorStop(0.42, `rgba(56, 189, 248, ${0.13 + 0.10 * epicPulse})`);
-  core.addColorStop(0.70, `rgba(192, 132, 252, ${0.11 + 0.08 * epicPulse})`);
-  core.addColorStop(1, 'rgba(30, 41, 59, 0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(0, 0, w, h);
-
-  // Couronne de rayons
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (let i = 0; i < 22; i++) {
-    const a = (i / 22) * Math.PI * 2 + state.burstPhase * 0.55;
-    const len = Math.min(w, h) * (0.34 + 0.12 * Math.sin(state.burstPhase + i * 0.5));
-    const width = 1.2 + (i % 3) * 0.8;
-    const x2 = Math.cos(a) * len;
-    const y2 = Math.sin(a) * len;
-    const g = ctx.createLinearGradient(0, 0, x2, y2);
-    g.addColorStop(0, `rgba(255,255,255,${0.18 + 0.12 * epicPulse})`);
-    g.addColorStop(0.55, `rgba(250,204,21,${0.10 + 0.12 * epicPulse})`);
-    g.addColorStop(1, 'rgba(250,204,21,0)');
-    ctx.strokeStyle = g;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Anneaux d'infini toniques
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (let i = 0; i < 6; i++) {
-    const rx = w * (0.16 + i * 0.052);
-    const ry = h * (0.07 + i * 0.022);
-    const a = 0.18 + 0.15 * Math.sin(state.ringPhase * 2.6 + i * 0.7);
-    ctx.strokeStyle = `rgba(186, 230, 253, ${a})`;
-    ctx.lineWidth = 1.9 + i * 0.35;
-    ctx.beginPath();
-    for (let p = 0; p <= 100; p++) {
-      const u = (p / 100) * Math.PI * 2;
-      const x = Math.sin(u) * rx;
-      const y = Math.sin(u * 2 + state.ringPhase * 1.4 + i * 0.45) * ry;
-      if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Runes dominantes
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const g of state.glyphs) {
-    const pulse = 0.55 + 0.45 * Math.sin(state.t * 2.5 + g.phase);
-    ctx.font = `${g.size}px serif`;
-    ctx.shadowBlur = 14 + 12 * pulse;
-    ctx.shadowColor = `rgba(251, 191, 36, ${0.45 + 0.30 * pulse})`;
-    ctx.fillStyle = `rgba(255, 251, 235, ${g.alpha * (1 + 0.8 * pulse)})`;
-    ctx.fillText(g.char, g.x, g.y + Math.sin(g.phase) * 2.2);
-  }
-  ctx.restore();
-
-  // Éclats flottants prisme
-  for (const sh of state.shards) {
-    const x = cx + Math.cos(sh.angle + state.burstPhase * 0.22) * sh.dist;
-    const y = cy + Math.sin(sh.angle + state.burstPhase * 0.22) * sh.dist;
-    const rot = sh.phase + state.t * 0.4;
-    const a = sh.alpha * (0.65 + 0.35 * Math.sin(state.t * 2 + sh.phase));
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
-    ctx.fillStyle = hsl(sh.hue, 90, 72, a * 0.85);
-    ctx.beginPath();
-    ctx.moveTo(0, -sh.size * 0.9);
-    ctx.lineTo(sh.size * 0.55, -sh.size * 0.1);
-    ctx.lineTo(sh.size * 0.25, sh.size * 0.95);
-    ctx.lineTo(-sh.size * 0.45, sh.size * 0.2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = `rgba(255,255,255,${a * 0.75})`;
-    ctx.lineWidth = 0.9;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Étoiles renforcées
-  for (const st of state.stars) {
-    const a = st.alpha * (0.65 + 0.35 * Math.sin(st.phase + state.t * 3.2));
-    const gg = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 4);
-    gg.addColorStop(0, `rgba(255,255,255,${a * 0.45})`);
-    gg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gg;
-    ctx.beginPath();
-    ctx.arc(st.x, st.y, st.r * 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = `rgba(226, 232, 240, ${a})`;
-    ctx.beginPath();
-    ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
 // ─── Nuit : rayon de lune en haut + sol fracturé + pierres lévitantes ────
 
 function initNightMoon(w, h) {
-  const groundY = h * 0.78;
-  const epicenterX = w * 0.5;
-  const epicenterY = groundY + h * 0.08;
+  const groundY = h * 0.90;
 
   const fissures = [];
   const fissCount = Math.max(10, Math.floor(w / 35));
@@ -2336,16 +2169,17 @@ function initNightMoon(w, h) {
     }
   }
 
-  const stonesCount = Math.max(20, Math.floor(w / 18));
+  const stonesCount = Math.max(22, Math.floor(w / 15));
   const stones = Array.from({ length: stonesCount }, () => {
-    const angle = rand(-Math.PI * 0.98, -Math.PI * 0.02);
-    const dist = rand(12, Math.min(w, h) * 0.42);
+    const x = rand(8, w - 8);
+    const baseY = rand(groundY - 58, groundY - 10);
     return {
-      angle,
-      dist,
+      x,
+      baseY,
+      y: baseY,
+      floatAmp: rand(8, 24),
+      driftX: rand(-0.45, 0.45),
       drift: rand(-0.32, 0.32),
-      x: epicenterX + Math.cos(angle) * dist,
-      y: epicenterY + Math.sin(angle) * dist,
       spin: rand(-0.06, 0.06),
       phase: rand(0, Math.PI * 2),
       size: rand(4, 16),
@@ -2354,13 +2188,14 @@ function initNightMoon(w, h) {
     };
   });
 
-  const chunks = Array.from({ length: Math.max(10, Math.floor(w / 26)) }, () => {
-    const angle = rand(-Math.PI * 0.96, -Math.PI * 0.04);
-    const dist = rand(8, Math.min(w, h) * 0.24);
+  const chunks = Array.from({ length: Math.max(14, Math.floor(w / 20)) }, () => {
+    const x = rand(10, w - 10);
+    const y = rand(groundY - 34, groundY + 8);
     return {
-      angle,
-      dist,
+      x,
+      y,
       drift: rand(-0.25, 0.25),
+      driftX: rand(-0.38, 0.38),
       spin: rand(-0.03, 0.03),
       phase: rand(0, Math.PI * 2),
       w: rand(12, 30),
@@ -2369,25 +2204,27 @@ function initNightMoon(w, h) {
     };
   });
 
-  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks, epicenterX, epicenterY };
+  return { groundY, moonPhase: rand(0, Math.PI * 2), fissures, stones, chunks };
 }
 
 function updateNightMoon(state, w, h, dt) {
   const s = dt / 16;
   state.moonPhase += 0.01 * s;
 
-  // Débris en suspension (gravité quasi nulle)
+  // Débris en suspension répartis sur toute la largeur du sol
   for (const st of state.stones) {
     st.phase += st.spin * s;
-    st.dist += st.drift * s;
-    if (st.dist < 8 || st.dist > Math.min(w, h) * 0.5) st.drift *= -1;
-    st.x = state.epicenterX + Math.cos(st.angle + state.moonPhase * 0.14) * st.dist;
-    st.y = state.epicenterY + Math.sin(st.angle + state.moonPhase * 0.14) * st.dist;
+    st.y = st.baseY + Math.sin(st.phase) * st.floatAmp;
+    st.x += st.driftX * s + Math.sin(st.phase * 0.7) * 0.12 * s;
+    if (st.x < -20) st.x = w + 20;
+    if (st.x > w + 20) st.x = -20;
   }
   for (const c of state.chunks || []) {
     c.phase += c.spin * s;
-    c.dist += c.drift * s;
-    if (c.dist < 6 || c.dist > Math.min(w, h) * 0.34) c.drift *= -1;
+    c.y += Math.sin(c.phase * 0.9) * 0.12 * s + c.drift * 0.06 * s;
+    c.x += c.driftX * s + Math.cos(c.phase) * 0.08 * s;
+    if (c.x < -30) c.x = w + 30;
+    if (c.x > w + 30) c.x = -30;
   }
 }
 
@@ -2434,7 +2271,7 @@ function drawNightMoon(ctx, state, w, h) {
   }
   ctx.restore();
 
-  // Sol de base
+  // Sol droit de base
   const ridge = state.groundY + Math.sin(state.moonPhase) * 1.2;
   const groundG = ctx.createLinearGradient(0, ridge, 0, h);
   groundG.addColorStop(0, 'rgba(148, 163, 184, 0.14)');
@@ -2444,33 +2281,16 @@ function drawNightMoon(ctx, state, w, h) {
 
   ctx.beginPath();
   ctx.moveTo(0, h);
-  ctx.lineTo(0, ridge + Math.sin(0) * 3);
-  const step = Math.max(5, Math.floor(w / 90));
-  for (let x = 0; x <= w; x += step) {
-    const jag = Math.sin(x * 0.11 + state.moonPhase * 0.9) * 1.4 + Math.sin(x * 0.23 + 0.9) * 0.9;
-    ctx.lineTo(x, ridge + jag);
-  }
+  ctx.lineTo(0, ridge);
+  ctx.lineTo(w, ridge);
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
 
-  // Cratère d'explosion central
-  const craterR = Math.min(w, h) * 0.16;
-  const crater = ctx.createRadialGradient(state.epicenterX, state.epicenterY - 2, craterR * 0.15, state.epicenterX, state.epicenterY, craterR);
-  crater.addColorStop(0, 'rgba(2, 6, 23, 0.85)');
-  crater.addColorStop(0.55, 'rgba(15, 23, 42, 0.45)');
-  crater.addColorStop(1, 'rgba(15, 23, 42, 0)');
-  ctx.fillStyle = crater;
-  ctx.beginPath();
-  ctx.ellipse(state.epicenterX, state.epicenterY, craterR, craterR * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-
   // Blocs de sol arrachés (gros morceaux)
   for (const c of state.chunks || []) {
-    const x = state.epicenterX + Math.cos(c.angle + state.moonPhase * 0.12) * c.dist;
-    const y = state.epicenterY + Math.sin(c.angle + state.moonPhase * 0.12) * c.dist;
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(c.x, c.y);
     ctx.rotate(c.phase);
     ctx.fillStyle = `rgba(71, 85, 105, ${c.alpha})`;
     ctx.beginPath();
@@ -2499,7 +2319,7 @@ function drawNightMoon(ctx, state, w, h) {
     ctx.stroke();
   }
 
-  // Petits débris flottants (style explosion en suspension)
+  // Petits débris flottants (sur toute la distance du sol)
   for (const st of state.stones) {
     const y = st.y;
     const r = st.size;
@@ -2562,7 +2382,7 @@ function makeLightningBolt(w, h, kind) {
   const big = kind === 'big';
   const startX = rand(0, w);
   const startY = rand(h * 0.02, h * 0.18);
-  const endY = big ? rand(h * 0.35, h * 0.8) : rand(h * 0.28, h * 0.62);
+  const endY = big ? rand(h * 0.90, h * 0.99) : rand(h * 0.28, h * 0.62);
   const steps = big ? randInt(7, 11) : randInt(5, 9);
   const thickness = big ? rand(1.8, 3.4) : rand(1.0, 2.2);
   const life = big ? 18 : 12;
@@ -2675,12 +2495,541 @@ function drawStormTempest(ctx, state, w, h) {
         ctx.arc(p.x, p.y, b.thickness * 4.2, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Impact au sol : flash + onde d'explosion
+      const end = b.points[b.points.length - 1];
+      const flash = ctx.createRadialGradient(end.x, end.y, 0, end.x, end.y, w * 0.22);
+      flash.addColorStop(0, `rgba(255,255,255,${0.35 * alpha})`);
+      flash.addColorStop(0.25, `rgba(147,197,253,${0.22 * alpha})`);
+      flash.addColorStop(1, 'rgba(147,197,253,0)');
+      ctx.fillStyle = flash;
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, w * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(191, 219, 254, ${0.55 * alpha})`;
+      ctx.lineWidth = 2.4 + 2 * alpha;
+      ctx.beginPath();
+      ctx.arc(end.x, end.y, w * (0.04 + 0.08 * (1 - alpha)), 0, Math.PI * 2);
+      ctx.stroke();
     }
     ctx.restore();
   }
 }
 
+// ─── Gold Relief (Personnage parfait + ancien gold_relief_test) ──────────────
+
+function buildHeuristicSubjectMask(img, w, h) {
+  const sw = Math.max(92, Math.min(200, Math.round(w * 0.40)));
+  const sh = Math.max(132, Math.min(290, Math.round(h * 0.40)));
+  const sample = document.createElement('canvas');
+  sample.width = sw;
+  sample.height = sh;
+  const sctx = sample.getContext('2d', { willReadFrequently: true });
+  if (!sctx) return null;
+
+  sctx.clearRect(0, 0, sw, sh);
+  const ratio = Math.min(sw / img.width, sh / img.height);
+  const dw = img.width * ratio;
+  const dh = img.height * ratio;
+  const ox = (sw - dw) * 0.5;
+  const oy = (sh - dh) * 0.5;
+  sctx.drawImage(img, ox, oy, dw, dh);
+
+  const data = sctx.getImageData(0, 0, sw, sh);
+  const px = data.data;
+  const lum = new Float32Array(sw * sh);
+  const sat = new Float32Array(sw * sh);
+  const score = new Float32Array(sw * sh);
+
+  const idx = (x, y) => y * sw + x;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const p = i * 4;
+      const r = px[p] / 255;
+      const g = px[p + 1] / 255;
+      const b = px[p + 2] / 255;
+      const maxc = Math.max(r, g, b);
+      const minc = Math.min(r, g, b);
+      lum[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+      sat[i] = maxc > 0 ? (maxc - minc) / maxc : 0;
+    }
+  }
+
+  let sum = 0;
+  let sum2 = 0;
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const lx = x < sw - 1 ? Math.abs(lum[i] - lum[idx(x + 1, y)]) : 0;
+      const ly = y < sh - 1 ? Math.abs(lum[i] - lum[idx(x, y + 1)]) : 0;
+      const edge = Math.min(1, (lx + ly) * 3.2);
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const centerBias = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.24));
+      const detail = 1 - Math.min(1, Math.abs(lum[i] - 0.55) * 1.65);
+      const v = (edge * 0.62 + sat[i] * 0.24 + detail * 0.14) * (0.44 + centerBias * 1.02);
+      score[i] = v;
+      sum += v;
+      sum2 += v * v;
+    }
+  }
+  const count = sw * sh;
+  const mean = sum / Math.max(1, count);
+  const variance = Math.max(0, sum2 / Math.max(1, count) - mean * mean);
+  const std = Math.sqrt(variance);
+  const thr = mean + std * 0.20;
+
+  // Binaire initial
+  const bin = new Uint8Array(sw * sh);
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      const i = idx(x, y);
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const radial = Math.exp(-(nX * nX / 0.26 + nY * nY / 0.38));
+      if (radial < 0.012) continue;
+      const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      if (aRaw > 0.028) bin[i] = 1;
+    }
+  }
+
+  // Fermeture morphologique + double dilatation pour élargir la zone masquée
+  const dilOnce = (src) => {
+    const dst = new Uint8Array(sw * sh);
+    for (let y = 1; y < sh - 1; y++) {
+      for (let x = 1; x < sw - 1; x++) {
+        let on = 0;
+        for (let oy = -1; oy <= 1 && !on; oy++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            if (src[idx(x + ox, y + oy)]) { on = 1; break; }
+          }
+        }
+        dst[idx(x, y)] = on;
+      }
+    }
+    return dst;
+  };
+  let dil = dilOnce(bin);
+  dil = dilOnce(dil);
+  const closed = new Uint8Array(sw * sh);
+  for (let y = 1; y < sh - 1; y++) {
+    for (let x = 1; x < sw - 1; x++) {
+      let on = 1;
+      for (let oy = -1; oy <= 1 && on; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if (!dil[idx(x + ox, y + oy)]) { on = 0; break; }
+        }
+      }
+      closed[idx(x, y)] = on;
+    }
+  }
+
+  // On garde uniquement le composant connecté principal proche du centre (forme du perso)
+  const visited = new Uint8Array(sw * sh);
+  let bestPixels = null;
+  let bestWeight = -1;
+  const cx = Math.round(sw * 0.5);
+  const cy = Math.round(sh * 0.56);
+  const queue = new Int32Array(sw * sh);
+
+  const neighbors = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+  ];
+
+  for (let sy = 0; sy < sh; sy++) {
+    for (let sx = 0; sx < sw; sx++) {
+      const start = idx(sx, sy);
+      if (!closed[start] || visited[start]) continue;
+
+      let head = 0;
+      let tail = 0;
+      queue[tail++] = start;
+      visited[start] = 1;
+
+      const pixels = [];
+      let minX = sx;
+      let maxX = sx;
+      let minY = sy;
+      let maxY = sy;
+      let sumX = 0;
+      let sumY = 0;
+
+      while (head < tail) {
+        const cur = queue[head++];
+        const x = cur % sw;
+        const y = Math.floor(cur / sw);
+        pixels.push(cur);
+        sumX += x;
+        sumY += y;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+
+        for (const [dx, dy] of neighbors) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= sw || ny < 0 || ny >= sh) continue;
+          const ni = idx(nx, ny);
+          if (!closed[ni] || visited[ni]) continue;
+          visited[ni] = 1;
+          queue[tail++] = ni;
+        }
+      }
+
+      const area = pixels.length;
+      const bx = (minX + maxX) * 0.5;
+      const by = (minY + maxY) * 0.5;
+      const dx = (bx - cx) / sw;
+      const dy = (by - cy) / sh;
+      const centerPenalty = Math.sqrt(dx * dx + dy * dy);
+      const heightScore = (maxY - minY + 1) / sh;
+      const widthScore = (maxX - minX + 1) / sw;
+      const sizeGate = (heightScore > 0.24 ? 1 : 0.42) * (widthScore > 0.14 ? 1 : 0.55);
+      const weight = area * sizeGate * (1 - Math.min(0.8, centerPenalty * 1.6)) * (0.85 + heightScore * 0.7);
+
+      if (weight > bestWeight) {
+        bestWeight = weight;
+        bestPixels = pixels;
+      }
+    }
+  }
+
+  const maskSmall = document.createElement('canvas');
+  maskSmall.width = sw;
+  maskSmall.height = sh;
+  const mctx = maskSmall.getContext('2d');
+  if (!mctx) return null;
+  const out = mctx.createImageData(sw, sh);
+  const outPx = out.data;
+
+  // Tout transparent, puis composant conservé en alpha
+  for (let i = 0; i < sw * sh; i++) {
+    const p = i * 4;
+    outPx[p] = 255;
+    outPx[p + 1] = 255;
+    outPx[p + 2] = 255;
+    outPx[p + 3] = 0;
+  }
+  if (bestPixels && bestPixels.length > 0) {
+    // Garde-fou: si le composant est trop grand (attrape presque toute la carte),
+    // on le resserre automatiquement autour de la zone centrale/forte.
+    const coverage = bestPixels.length / Math.max(1, sw * sh);
+    let tighten = false;
+    if (coverage > 0.62) tighten = true;
+
+    const extraThr = thr + std * 0.18;
+    for (const i of bestPixels) {
+      const x = i % sw;
+      const y = Math.floor(i / sw);
+      const nX = (x / Math.max(1, sw - 1)) - 0.5;
+      const nY = (y / Math.max(1, sh - 1)) - 0.56;
+      const radial = Math.exp(-(nX * nX / 0.28 + nY * nY / 0.42));
+      if (tighten) {
+        const tightRadial = Math.exp(-(nX * nX / 0.14 + nY * nY / 0.26));
+        if (tightRadial < 0.06) continue;
+        if (score[i] < extraThr) continue;
+      }
+      const aRaw = Math.max(0, Math.min(1, (score[i] - thr) / Math.max(0.001, 1 - thr)));
+      const a = aRaw * (0.78 + radial * 0.52);
+      const p = i * 4;
+      outPx[p + 3] = Math.round(255 * Math.max(0, Math.min(1, Math.pow(a, 1.2))));
+    }
+  }
+  mctx.putImageData(out, 0, 0);
+  // Lissage léger: léger halo pour étendre visuellement le relief sans trop fondre le décor.
+  mctx.filter = 'blur(1.15px)';
+  mctx.drawImage(maskSmall, 0, 0);
+  mctx.filter = 'none';
+
+  const maskFull = document.createElement('canvas');
+  maskFull.width = w;
+  maskFull.height = h;
+  const fctx = maskFull.getContext('2d');
+  if (!fctx) return null;
+  fctx.imageSmoothingEnabled = true;
+  fctx.clearRect(0, 0, w, h);
+  fctx.drawImage(maskSmall, 0, 0, w, h);
+  return maskFull;
+}
+
+const GOLD_RELIEF_GRAIN_TILE = 96;
+/** Or uni (teinte « centre » de l’ancien dégradé) sur toute la carte. */
+const GOLD_RELIEF_FLAT_GOLD = '#b58e27';
+
+function spawnGoldReliefSparkle(w, h) {
+  return {
+    x: rand(4, Math.max(5, w - 4)),
+    y: rand(4, Math.max(5, h - 4)),
+    life: 0,
+    maxLife: rand(50, 105),
+    size: rand(0.55, 1.65),
+    delay: rand(0, 150),
+    hue: rand(40, 52),
+  };
+}
+
+function updateGoldReliefSparkles(state, w, h, dt) {
+  const list = state.reliefSparkles;
+  if (!list) return;
+  const s = dt / 16;
+  for (const sp of list) {
+    if (sp.delay > 0) { sp.delay -= s; continue; }
+    sp.life += s;
+    if (sp.life > sp.maxLife) Object.assign(sp, spawnGoldReliefSparkle(w, h));
+  }
+}
+
+function drawGoldReliefSparkles(ctx, state, w, h) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  const list = state.reliefSparkles;
+  if (list) {
+    for (const sp of list) {
+      if (sp.delay > 0) continue;
+      const t = sp.life / sp.maxLife;
+      const pulse = t < 0.22 ? t / 0.22 : t < 0.68 ? 1 : (1 - t) / 0.32;
+      const a = pulse * 0.32;
+      drawStar(ctx, sp.x, sp.y, sp.size, 4, hsl(sp.hue, 78, 78, a));
+      const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.size * 3.2);
+      g.addColorStop(0, hsl(sp.hue, 70, 88, a * 0.45));
+      g.addColorStop(1, hsl(sp.hue, 60, 55, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, sp.size * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  drawGoldReliefIridiumSweep(ctx, w, h, state.t);
+  ctx.restore();
+}
+
+/** Tuile répétable pour grain métallique (générée une fois par init). */
+function buildGoldReliefGrainTile(size) {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const nctx = c.getContext('2d');
+  if (!nctx) return c;
+  const d = nctx.createImageData(size, size);
+  const px = d.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const n = Math.random();
+    const speck = n > 0.93 ? 0.55 + Math.random() * 0.28 : n * n * 0.42;
+    const r = 32 + speck * 140;
+    const g = 22 + speck * 118;
+    const b = 6 + speck * 72;
+    px[i] = Math.min(255, r);
+    px[i + 1] = Math.min(255, g);
+    px[i + 2] = Math.min(255, b);
+    px[i + 3] = Math.floor(32 + n * 118);
+  }
+  nctx.putImageData(d, 0, 0);
+  return c;
+}
+
+/** Or métallique + grain sur tout le rectangle (avant découpe masque). */
+function drawGoldReliefMetallicFill(ctx, w, h, state) {
+  const gp = state.grainPhase;
+  const tw = state.grainTile?.width || GOLD_RELIEF_GRAIN_TILE;
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = GOLD_RELIEF_FLAT_GOLD;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.48;
+  if (state.grainTile) {
+    const pat = ctx.createPattern(state.grainTile, 'repeat');
+    if (pat) {
+      const ox = (gp * 1.9) % tw;
+      const oy = (gp * 1.17) % tw;
+      ctx.save();
+      ctx.translate(-ox, -oy);
+      ctx.fillStyle = pat;
+      ctx.fillRect(ox, oy, w + tw * 2, h + tw * 2);
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/** Fine bande diagonale haut-gauche → bas-droite, iridium (même passe que les scintillements). */
+function drawGoldReliefIridiumSweep(ctx, w, h, t) {
+  const ang = Math.atan2(h, w);
+  const diag = Math.hypot(w, h);
+  const band = diag * 0.034;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 0.26;
+
+  ctx.translate(w * 0.5, h * 0.5);
+  ctx.rotate(ang);
+  ctx.translate(-w * 0.5, -h * 0.5);
+
+  const cycle = diag * 1.65;
+  const pos = ((t * 26) % cycle) - cycle * 0.48;
+  const hueBase = (t * 28) % 360;
+
+  const gx0 = pos - band * 0.35;
+  const gx1 = pos + band * 1.45;
+  const g = ctx.createLinearGradient(gx0, 0, gx1, 0);
+  g.addColorStop(0, hsl((hueBase + 268) % 360, 52, 68, 0));
+  g.addColorStop(0.2, hsl((hueBase + 312) % 360, 58, 58, 0.45));
+  g.addColorStop(0.38, hsl((hueBase + 188) % 360, 62, 54, 0.62));
+  g.addColorStop(0.52, hsl((hueBase + 328) % 360, 56, 62, 0.55));
+  g.addColorStop(0.68, hsl((hueBase + 162) % 360, 58, 56, 0.48));
+  g.addColorStop(0.84, hsl((hueBase + 292) % 360, 54, 64, 0.32));
+  g.addColorStop(1, hsl((hueBase + 228) % 360, 48, 70, 0));
+
+  ctx.fillStyle = g;
+  ctx.fillRect(pos - band * 5, -diag * 1.05, band * 18, diag * 2.35);
+
+  ctx.restore();
+}
+
+/** Calque offscreen : silhouette marron avec volume (ombre + modelé + reflet pulsé). */
+function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
+  octx.setTransform(1, 0, 0, 1, 0, 0);
+  octx.clearRect(0, 0, w, h);
+  octx.globalAlpha = 1;
+
+  // 1) Ombre décalée (carte qui se détache du fond doré)
+  octx.save();
+  octx.translate(2.6, 3.4);
+  octx.globalCompositeOperation = 'source-over';
+  octx.filter = 'blur(2.8px)';
+  octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
+  octx.filter = 'none';
+  octx.globalCompositeOperation = 'source-in';
+  octx.fillStyle = 'rgba(18, 7, 3, 0.62)';
+  octx.fillRect(-w, -h, w * 3, h * 3);
+  octx.restore();
+
+  octx.globalCompositeOperation = 'source-over';
+
+  // 2) Corps : masque + dégradé radial (lumière haut-gauche → ombre bas-droite)
+  octx.filter = 'blur(1.05px)';
+  octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
+  octx.filter = 'none';
+  octx.globalCompositeOperation = 'source-in';
+  const mh = Math.max(w, h);
+  const lx0 = w * 0.36;
+  const ly0 = h * 0.32;
+  // Hotspot resserré et moins orangé pour éviter une « grosse » lumière en haut-gauche
+  const bodyGrad = octx.createRadialGradient(lx0, ly0, 0, lx0, ly0, mh * 0.42);
+  bodyGrad.addColorStop(0, 'rgba(152, 88, 40, 0.93)');
+  bodyGrad.addColorStop(0.2, 'rgba(128, 68, 28, 0.95)');
+  bodyGrad.addColorStop(0.52, 'rgba(92, 46, 18, 0.97)');
+  bodyGrad.addColorStop(1, 'rgba(36, 17, 7, 0.99)');
+  octx.fillStyle = bodyGrad;
+  octx.fillRect(0, 0, w, h);
+
+  // 3) Biseau doux sur la silhouette (clair / zone morte / assombrissement)
+  octx.save();
+  octx.globalCompositeOperation = 'source-atop';
+  octx.globalAlpha = 0.38;
+  const bevel = octx.createLinearGradient(0, 0, w * 0.96, h * 0.94);
+  bevel.addColorStop(0, 'rgba(240, 218, 185, 0.2)');
+  bevel.addColorStop(0.18, 'rgba(255, 255, 255, 0)');
+  bevel.addColorStop(0.72, 'rgba(0, 0, 0, 0)');
+  bevel.addColorStop(1, 'rgba(12, 4, 2, 0.38)');
+  octx.fillStyle = bevel;
+  octx.fillRect(0, 0, w, h);
+  octx.restore();
+
+  // 4) Reflet lumineux très discret qui pulse (inchangé d’esprit)
+  const lum = 0.5 + 0.5 * Math.sin(t * 0.72);
+  const drift = 0.5 + 0.5 * Math.sin(t * 0.48 + 0.9);
+  octx.save();
+  octx.globalCompositeOperation = 'source-atop';
+  octx.globalAlpha = 0.012 + 0.028 * lum;
+  const lx = w * (0.5 + 0.11 * Math.sin(t * 0.36));
+  const ly = h * (0.44 + 0.09 * Math.cos(t * 0.31));
+  const r = Math.min(w, h) * (0.19 + 0.05 * drift);
+  const hi = octx.createRadialGradient(lx, ly, 0, lx, ly, r);
+  hi.addColorStop(0, 'rgba(255, 248, 232, 1)');
+  hi.addColorStop(0.42, 'rgba(238, 214, 168, 0.16)');
+  hi.addColorStop(1, 'rgba(200, 168, 118, 0)');
+  octx.fillStyle = hi;
+  octx.fillRect(0, 0, w, h);
+  octx.restore();
+
+  octx.globalCompositeOperation = 'source-over';
+}
+
+function initGoldReliefTest(w, h, imageSrc) {
+  const reliefOverlayCanvas = document.createElement('canvas');
+  reliefOverlayCanvas.width = Math.max(1, w);
+  reliefOverlayCanvas.height = Math.max(1, h);
+
+  const state = {
+    t: rand(0, Math.PI * 2),
+    grainPhase: rand(0, Math.PI * 2),
+    /** Silhouette du sujet (figée au chargement de l’image). */
+    maskShapeCanvas: null,
+    grainTile: buildGoldReliefGrainTile(GOLD_RELIEF_GRAIN_TILE),
+    reliefOverlayCanvas,
+    reliefSparkles: Array.from({ length: 20 }, () => spawnGoldReliefSparkle(w, h)),
+  };
+
+  if (imageSrc) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      state.maskShapeCanvas = buildHeuristicSubjectMask(img, w, h);
+    };
+    img.onerror = () => {};
+    img.src = imageSrc;
+  }
+  return state;
+}
+
+function updateGoldReliefTest(state, w, h, dt) {
+  const s = dt / 16;
+  state.t += 0.02 * s;
+  state.grainPhase += 0.016 * s;
+  updateGoldReliefSparkles(state, w, h, dt);
+}
+
+function drawGoldReliefTest(ctx, state, w, h) {
+  const mask = state.maskShapeCanvas;
+  if (!mask) return;
+
+  let overlay = state.reliefOverlayCanvas;
+  if (!overlay || overlay.width !== w || overlay.height !== h) {
+    overlay = document.createElement('canvas');
+    overlay.width = w;
+    overlay.height = h;
+    state.reliefOverlayCanvas = overlay;
+  }
+
+  const octx = overlay.getContext('2d');
+  if (!octx) return;
+
+  ctx.save();
+
+  // 1) Toute la carte : or uni + grain métallique
+  drawGoldReliefMetallicFill(ctx, w, h, state);
+  drawGoldReliefSparkles(ctx, state, w, h);
+
+  // 2) Par-dessus : masque marron + reflet lumineux très subtil sur le marron
+  renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, state.t);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 0.93;
+  ctx.drawImage(overlay, 0, 0);
+
+  ctx.restore();
+}
+
 // ─── Registre des effets ─────────────────────────────────────────────────────
+
+const GOLD_RELIEF_CANVAS_EFFECT = { init: initGoldReliefTest, update: updateGoldReliefTest, draw: drawGoldReliefTest };
 
 const EFFECTS = {
   lava:           { init: initLava, update: updateLava, draw: drawLava },
@@ -2693,7 +3042,7 @@ const EFFECTS = {
   sable:          { init: initSable, update: updateSable, draw: drawSable },
   ornn_runic:     { init: initOrnnRunic, update: updateOrnnRunic, draw: drawOrnnRunic },
   gojo_infinity:  { init: initGojoInfinity, update: updateGojoInfinity, draw: drawGojoInfinity },
-  perfect_character: { init: initPerfectCharacter, update: updatePerfectCharacter, draw: drawPerfectCharacter },
+  perfect_character: GOLD_RELIEF_CANVAS_EFFECT,
   night_moon:     { init: initNightMoon, update: updateNightMoon, draw: drawNightMoon },
   storm_tempest:  { init: initStormTempest, update: updateStormTempest, draw: drawStormTempest },
   nature:         { init: initNature, update: updateNature, draw: drawNature },
@@ -2706,7 +3055,7 @@ const EFFECTS = {
 
 // ─── Composant React ─────────────────────────────────────────────────────────
 
-const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
+const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId, imageSrc = null }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
@@ -2758,7 +3107,7 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
       canvas.height = h * DPR;
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
-      stateRef.current = effect.init(w, h);
+      stateRef.current = effect.init(w, h, imageSrc);
     };
 
     const ro = new ResizeObserver(resize);
@@ -2777,7 +3126,7 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId }) {
       io.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [effect, animate]);
+  }, [effect, animate, imageSrc]);
 
   if (!effect) return null;
 

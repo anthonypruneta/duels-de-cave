@@ -5,6 +5,8 @@ import { raceConstants, classConstants, getSubclassCapacityConstants } from '../
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
+import { getCoopRaceEchoAwakeningFragment, COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT } from './coopRaceEcho.js';
+import { COOP_RACE_ECHO_POTENCY } from '../data/coopRedDungeon.js';
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
@@ -98,6 +100,30 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
   }
 };
 
+/**
+ * Effet d’éveil fusionné via le Pointeau ADN (donjon Red coop) : même logique que le combat,
+ * valeurs issues de {@link getCoopRaceEchoAwakeningFragment}.
+ */
+export const buildRacePointeauAdnDescription = (raceName) => {
+  const e = getCoopRaceEchoAwakeningFragment(raceName);
+  if (!e) return '—';
+
+  if (raceName === 'Mindflayer') {
+    return `Copie du sort : dégâts et soins à ${pct(COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT, 0)} de la valeur « pleine ». Scaling CAP sur la copie : 0 % (règle Pointeau ADN).`;
+  }
+
+  if (raceName === 'Turtlekin') {
+    const capP = e.turtlekinFirstHitCapPercent ?? 0.2;
+    return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(capP, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50 % PV pour la première fois.`;
+  }
+
+  return buildRaceAwakeningDescription(raceName, e);
+};
+
+/** Intensité affichée (fraction de l’éveil complet) — alignée sur COOP_RACE_ECHO_POTENCY + cas Mindflayer / Sirène / Turtlekin. */
+export const getPointeauAdnIntensityLabel = () =>
+  `~${Math.round(COOP_RACE_ECHO_POTENCY * 100)} % de l’éveil (sauf ajustements Mindflayer / Sirène / Turtlekin)`;
+
 // ============================================================================
 // DESCRIPTIONS DE CLASSES
 // ============================================================================
@@ -116,7 +142,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
-    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques (vs ResC) :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : Auto + ${(c.lifeCapScale || 0) * 100}% CAP\n- Acide : réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
+    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP (vs ResC)\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto vs DEF ennemie + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
     default: return classes[className]?.description || '';
   }
 };
@@ -182,12 +208,12 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi (réduits par la ResC), puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
 
     case 'maitre_alchimiste': {
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère Auto + ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs DEF ennemie) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
     }
 
     case 'alchimiste_metal': {
       const stun = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : régénère Auto + ${pct0(c.lifeCapScale)} CAP\n- Acide : Auto (vs ResC) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs ResC) et étourdit ${stun} tour`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs DEF ennemie) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs DEF ennemie) et étourdit ${stun} tour`;
     }
     default:
       return '';
@@ -287,9 +313,9 @@ export const buildClassDescriptionParts = (className, constants = null) => {
       ];
     case 'Alchimiste':
       return [
-        text('Cycle de '), slot(['cycleLength'], 'raw'), text(' flasques (vs ResC) :\n- Feu : Auto + '),
-        slot(['fireCapScale'], 'percent'), text('% CAP\n- Vie : Auto + '),
-        slot(['lifeCapScale'], 'percent'), text('% CAP\n- Acide : réduit DEF '),
+        text('Cycle de '), slot(['cycleLength'], 'raw'), text(' flasques :\n- Feu : Auto + '),
+        slot(['fireCapScale'], 'percent'), text('% CAP (vs ResC)\n- Vie : soin '),
+        slot(['lifeCapScale'], 'percent'), text('% de votre CAP\n- Acide : Auto vs DEF ennemie, réduit DEF '),
         slot(['acidDefReduction'], 'percent'), text('% / ResC '),
         slot(['acidRescReduction'], 'percent'), text('%')
       ];

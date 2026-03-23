@@ -9,7 +9,9 @@ import {
   query,
   where,
   orderBy,
-  Timestamp
+  Timestamp,
+  runTransaction,
+  deleteField,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, waitForFirestore } from '../firebase/config';
@@ -18,6 +20,7 @@ import { getRaceBonus, getClassBonus } from '../data/combatMechanics';
 import { clearWeaponUpgrade } from './forgeService';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
 import { getEmptyStatBoosts } from '../utils/statPoints';
+import { races } from '../data/races.js';
 
 
 // Helper pour retry automatique en cas d'erreur réseau
@@ -859,6 +862,71 @@ export const migrateHpStat4To6 = async () => {
     return { success: true, migrated, skipped, total: characters.length };
   } catch (error) {
     console.error('Erreur migration HP 4→6:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Mise à jour optionnelle des fragments ADN.
+ * @param {string} userId
+ * @param {{ dnaDelta?: number }} opts
+ */
+export const updateCharacterCoopRedRewards = async (userId, opts = {}) => {
+  const dnaDelta = Number(opts.dnaDelta) || 0;
+
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(characterRef);
+        if (!snap.exists()) throw new Error('Personnage introuvable');
+        const data = snap.data();
+        const prev = Number(data.dnaFragments) || 0;
+        const next = prev + dnaDelta;
+        if (next < 0) throw new Error('Fragments ADN insuffisants');
+        tx.update(characterRef, {
+          dnaFragments: next,
+          updatedAt: Timestamp.now(),
+        });
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('updateCharacterCoopRedRewards:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Donjon Red : après un tirage réussi alors qu’un Pointeau ADN existait déjà, choisir de remplacer ou garder l’actuel.
+ * @param {string} userId
+ * @param {boolean} acceptReplace — true = appliquer la race proposée, false = garder le Pointeau ADN actuel et abandonner la proposition
+ */
+export const resolveCoopRaceEchoOffer = async (userId, acceptReplace) => {
+  try {
+    await retryOperation(async () => {
+      const characterRef = doc(db, 'characters', userId);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(characterRef);
+        if (!snap.exists()) throw new Error('Personnage introuvable');
+        const data = snap.data();
+        const offer = data.coopRaceEchoOffer;
+        if (!offer?.race || !races[offer.race]) {
+          throw new Error('Aucune proposition de Pointeau ADN en attente');
+        }
+        const patch = {
+          updatedAt: Timestamp.now(),
+          coopRaceEchoOffer: deleteField(),
+        };
+        if (acceptReplace) {
+          patch.coopRaceEcho = { race: offer.race };
+        }
+        tx.update(characterRef, patch);
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('resolveCoopRaceEchoOffer:', error);
     return { success: false, error: error.message };
   }
 };

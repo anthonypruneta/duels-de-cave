@@ -167,7 +167,7 @@ export default function CharacterCardContent({
     </>
   );
 
-  const weaponContent = weapon ? (
+  const weaponContent = character?.isBoss ? null : weapon ? (
     (() => {
       const inner = (
         <>
@@ -222,8 +222,20 @@ export default function CharacterCardContent({
 
   const details = (
     <div className="space-y-2">
+      {character?.coopRedMoveDisplay && (
+        <div className="flex items-start gap-2 border border-red-900/45 bg-red-950/25 p-2 text-xs text-stone-300 rounded-md">
+          <span className="text-lg leading-none shrink-0">{character.coopRedBossIcon ?? '✨'}</span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-amber-200">{character.coopRedMoveDisplay.name}</div>
+            {character.coopRedMoveDisplay.cooldownLabel && (
+              <div className="text-stone-500 text-[10px] mt-0.5">{character.coopRedMoveDisplay.cooldownLabel}</div>
+            )}
+            <div className="text-stone-400 text-[11px] mt-1 leading-snug">{character.coopRedMoveDisplay.description}</div>
+          </div>
+        </div>
+      )}
       {weaponContent}
-      {fusedPassiveDisplay ? (
+      {character?.isBoss ? null : fusedPassiveDisplay ? (
         <div className="extension-territory-border extension-territory-glow overflow-visible">
           <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 extension-territory-shine">
             <span className="text-lg">{fusedPassiveDisplay.primaryDetails.icon}</span>

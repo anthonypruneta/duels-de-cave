@@ -126,7 +126,7 @@ const UnifiedCharacterCard = ({
   const glowCls = hasCanvasBorder ? (getBorderGlowClass(resolvedBorder) || '') : '';
   const baseBorder = hasCanvasBorder && !borderOnImageOnly ? '' : 'border border-stone-600';
 
-  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} /> : null;
+  const canvasOverlay = hasCanvasBorder ? <CardBorderCanvas borderId={resolvedBorder} imageSrc={image || null} /> : null;
 
   const wrapperGlow = borderOnImageOnly ? '' : glowCls;
   // Filtre "vieille télé" : contraste fort + très peu de couleur + légère baisse de luminosité
@@ -141,18 +141,19 @@ const UnifiedCharacterCard = ({
       className={`relative bg-stone-900 flex items-center justify-center overflow-hidden ${infoSide ? 'w-[220px] flex-shrink-0' : ''} ${borderOnImageOnly && glowCls ? glowCls : ''}`}
       style={wrapperStyle}
     >
-      {canvasOverlay}
       {image ? (
         <img
           src={image}
           alt={name}
-          className={`w-full h-auto object-contain ${imageClassName || ''}`}
+          className={`relative z-[1] w-full h-auto object-contain ${imageClassName || ''}`}
         />
       ) : (
-        {/* Important : ne pas “créer” une hauteur fixe ici.
-            On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
-            sinon la zone se retrouve trop petite quand l'image n'existe pas. */}
-        <div className="w-full flex items-center justify-center">{fallback}</div>
+        <>
+          {/* Important : ne pas “créer” une hauteur fixe ici.
+              On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
+              sinon la zone se retrouve trop petite quand l'image n'existe pas. */}
+          <div className="w-full flex items-center justify-center">{fallback}</div>
+        </>
       )}
       {realBorderSrc && (
         <img
@@ -162,6 +163,7 @@ const UnifiedCharacterCard = ({
           style={{ zIndex: 2 }}
         />
       )}
+      {canvasOverlay}
       {imageOverlayContent}
       <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`} style={{ zIndex: 4 }}>
         <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>

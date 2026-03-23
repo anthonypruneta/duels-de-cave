@@ -33,6 +33,7 @@ import CharacterCardContent from './CharacterCardContent';
 import { BORDERS } from '../data/borders';
 import { TITLES } from '../data/titles';
 import { getDisplayTitle } from '../services/titleService';
+import AdminCoopRedSimPanel from './AdminCoopRedSimPanel';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -1034,6 +1035,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             { key: 'cataclysme', label: '🌋 Cataclysme' },
             { key: 'tournois', label: '🏆 Tournois' },
             { key: 'equilibrage', label: '⚖️ Équilibrage' },
+            { key: 'red-sim', label: '🔴 Red simu' },
             { key: 'combat-hd2d', label: '⚔️ Combat HD-2D' },
             { key: 'skins', label: '🎨 Skins' },
             { key: 'personnage', label: '👤 Personnage' }
@@ -1469,6 +1471,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             <AdminBalance embedded />
           </div>
         )}
+
+        {adminMainTab === 'red-sim' && <AdminCoopRedSimPanel />}
 
         {adminMainTab === 'combat-hd2d' && (
           <AdminCombatHD2D characters={characters} />

@@ -1415,7 +1415,7 @@ const CharacterCreation = () => {
                       })()}
                       {(() => {
                         const bid = resolveBorderId(existingCharacter.equippedBorder);
-                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} /> : null;
+                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} imageSrc={existingCharacter.characterImage || null} /> : null;
                       })()}
                       <div
                         className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
@@ -1436,7 +1436,7 @@ const CharacterCreation = () => {
 
             {/* Recap Panel */}
             {recapData && (
-              <div className="order-3 w-full lg:w-[240px] lg:flex-shrink-0">
+              <div className="order-4 w-full lg:w-[240px] lg:flex-shrink-0">
                 <RecapPanel data={recapData} />
               </div>
             )}
@@ -1560,7 +1560,7 @@ const CharacterCreation = () => {
                                   }`}
                                 >
                                   {unlocked && border.id !== 'default' && (
-                                    <CardBorderCanvas borderId={border.id} />
+                                    <CardBorderCanvas borderId={border.id} imageSrc={existingCharacter.characterImage || null} />
                                   )}
                                   <div className="relative z-10">
                                     <div className="text-lg mb-1">{border.icon}</div>
@@ -1679,11 +1679,11 @@ const CharacterCreation = () => {
   // Formulaire de création - Étape 1: Roll Race/Classe
   if (step === 1) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-screen flex flex-col p-6">
         <Header />
 
         {renderIntroMusic()}
-        <div className="max-w-4xl w-full pt-24 sm:pt-20">
+        <div className="w-full max-w-4xl mx-auto pt-24 sm:pt-20">
           <div className="text-center mb-8">
             <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
               <h2 className="text-5xl font-bold mb-3 text-amber-400">🎲 Étape 1: Roll ton Personnage</h2>
@@ -1875,12 +1875,12 @@ const CharacterCreation = () => {
 
   // Formulaire de création - Étape 2: Nom/Sexe/Mot-clé
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col p-6">
       <Header />
 
         {renderIntroMusic()}
       {PseudoModal}
-      <div className="max-w-4xl w-full pt-24 sm:pt-20">
+      <div className="w-full max-w-4xl mx-auto pt-24 sm:pt-20">
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h2 className="text-5xl font-bold mb-3 text-amber-400">📝 Étape 2: Personnalise ton Héros</h2>

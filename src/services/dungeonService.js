@@ -2,7 +2,7 @@
  * Service Donjon - Duels de Cave
  *
  * Gère les opérations liées au donjon :
- * - Limite de 10 runs par jour (cumulables)
+ * - Limite 15 runs/jour max cumulés (5 à minuit, 5 à midi, 5 à 18h)
  * - Progression niveau 1 → 2 → 3 à la suite
  * - Loot du dernier étage réussi si mort
  * - Équipement des armes

@@ -22,6 +22,8 @@ import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { isForgeActive } from '../data/featureFlags.js';
 import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
 import { getSubclassStatBonuses } from '../data/subclasses.js';
+import { combatRandom01 } from './combatRngContext.js';
+import { getCoopRaceEchoAwakeningFragment } from './coopRaceEcho.js';
 
 // ============================================================================
 // HELPERS
@@ -80,7 +82,7 @@ function getPassiveDetails(passive) {
 }
 
 /** Liste des passifs d'un combattant (principal + extension) pour appliquer les deux en combat. */
-function getPassiveDetailsList(fighter) {
+export function getPassiveDetailsList(fighter) {
   const primary = getPassiveDetails(fighter?.mageTowerPassive);
   const extension = getPassiveDetails(fighter?.mageTowerExtensionPassive);
   return [primary, extension].filter(Boolean);
@@ -98,7 +100,7 @@ function getUnicornPactTurnData(passiveDetails, turn) {
 }
 
 /** Pacte Licorne : pris sur le premier passif (principal ou extension) qui l'a. */
-function getUnicornPactTurnDataFromList(passiveList, turn) {
+export function getUnicornPactTurnDataFromList(passiveList, turn) {
   if (!passiveList?.length) return null;
   for (const p of passiveList) {
     const data = getUnicornPactTurnData(p, turn);
@@ -144,10 +146,36 @@ function mergeAwakeningEffects(effects = []) {
 
     const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack',
       'mindflayerStealSpellCapDamageScale', 'mindflayerOwnCooldownReductionTurns', 'mindflayerNoCooldownSpellBonus',
-      'sireneStackBonus', 'sireneMaxStacks'];
+      'sireneStackBonus'];
     additiveKeys.forEach((key) => {
       if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
     });
+
+    const speedDuelKeys = [
+      'speedDuelCritHigh', 'speedDuelCritDmgHigh', 'speedDuelCapBonusLow', 'speedDuelDodgeLow',
+      'speedDuelEqualCrit', 'speedDuelEqualCritDmg', 'speedDuelEqualDodge', 'speedDuelEqualCapBonus',
+    ];
+    speedDuelKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
+    });
+
+    if (typeof effect.sireneMaxStacks === 'number') {
+      acc.sireneMaxStacks = Math.max(acc.sireneMaxStacks ?? 0, effect.sireneMaxStacks);
+    }
+
+    if (typeof effect.turtlekinFirstHitCapPercent === 'number' && effect.turtlekinFirstHitCapPercent > 0) {
+      acc.turtlekinFirstHitCapPercent = Math.max(
+        acc.turtlekinFirstHitCapPercent ?? 0,
+        effect.turtlekinFirstHitCapPercent
+      );
+    }
+    if (
+      typeof effect.mindflayerCoopEchoCopyDamageMult === 'number' &&
+      effect.mindflayerCoopEchoCopyDamageMult > 0 &&
+      effect.mindflayerCoopEchoCopyDamageMult < 1
+    ) {
+      acc.mindflayerCoopEchoCopyDamageMult = effect.mindflayerCoopEchoCopyDamageMult;
+    }
 
     const multiplicativeKeys = ['damageTakenMultiplier', 'incomingHitMultiplier'];
     multiplicativeKeys.forEach((key) => {
@@ -179,7 +207,7 @@ function hasMortVivantRevive(fighter) {
   return (fighter.race === 'Mort-vivant' || (fighter.awakening?.revivePercent ?? 0) > 0) && !fighter.undead;
 }
 
-function applyStartOfCombatPassives(attacker, defender, log, label) {
+export function applyStartOfCombatPassives(attacker, defender, log, label) {
   const passives = [attacker.mageTowerPassive, attacker.mageTowerExtensionPassive].filter(Boolean);
   for (const p of passives) {
     const passiveDetails = getPassiveDetails(p);
@@ -235,33 +263,35 @@ function applyStartOfCombatPassives(attacker, defender, log, label) {
 // ============================================================================
 
 export function preparerCombattant(char) {
-  const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-  const effectiveLevel = char.awakeningForced ? 999 : (char.level ?? 1);
-  const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
-  const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
-  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
+  const charForPrep = char;
+  const weaponId = charForPrep?.equippedWeaponId || charForPrep?.equippedWeaponData?.id || null;
+  const effectiveLevel = charForPrep.awakeningForced ? 999 : (charForPrep.level ?? 1);
+  const forestBoosts = { ...getEmptyStatBoosts(), ...(charForPrep.forestBoosts || {}) };
+  const baseWithBoostsRaw = applyStatBoosts(charForPrep.base, forestBoosts);
+  const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, charForPrep.race, effectiveLevel);
   // Boss / NPC avec forge (ex. labyrinthe 100) : même logique que joueur avec forge (skip flat, appliquer %)
-  const hasForgeData = char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-  const skipWeaponFlat = hasForgeData && (isForgeActive() || char.awakeningForced);
-  const passiveList = getPassiveDetailsList(char);
-  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, passiveList, skipWeaponFlat);
-  const additionalAwakeningEffects = (char.additionalAwakeningRaces || [])
+  const hasForgeData = charForPrep.forgeUpgrade && hasAnyForgeUpgrade(charForPrep.forgeUpgrade);
+  const skipWeaponFlat = hasForgeData && (isForgeActive() || charForPrep.awakeningForced);
+  const passiveList = getPassiveDetailsList(charForPrep);
+  const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, charForPrep.class, charForPrep.race, passiveList, skipWeaponFlat);
+  const additionalAwakeningEffects = (charForPrep.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([
-    getAwakeningEffect(char.race, effectiveLevel),
-    ...additionalAwakeningEffects
+    getAwakeningEffect(charForPrep.race, effectiveLevel),
+    ...additionalAwakeningEffects,
+    getCoopRaceEchoAwakeningFragment(charForPrep.coopRaceEcho?.race),
   ]);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   // Forge des Légendes: appliquer les % d'upgrade sur les stats totales
-  const baseWithForge = applyForgeUpgrade(baseWithAwakening, char.forgeUpgrade);
-  const baseWithClassPassive = char.class === 'Bastion'
+  const baseWithForge = applyForgeUpgrade(baseWithAwakening, charForPrep.forgeUpgrade);
+  const baseWithClassPassive = charForPrep.class === 'Bastion'
     ? { ...baseWithForge, def: Math.max(1, Math.round(baseWithForge.def * (1 + classConstants.bastion.defPercentBonus))) }
     : baseWithForge;
   // Bonus de stats des sous-classes (Collège Kunugigaoka)
   let baseFinal = baseWithClassPassive;
-  const subclassBonuses = getSubclassStatBonuses(char.subclass?.id);
-  if (subclassBonuses && typeof char.subclass?.id === 'string') {
+  const subclassBonuses = getSubclassStatBonuses(charForPrep.subclass?.id);
+  if (subclassBonuses && typeof charForPrep.subclass?.id === 'string') {
     baseFinal = { ...baseWithClassPassive };
     for (const [stat, pct] of Object.entries(subclassBonuses)) {
       if (baseFinal[stat] != null && pct) {
@@ -269,12 +299,12 @@ export function preparerCombattant(char) {
       }
     }
   }
-  const weaponState = initWeaponCombatState(char, weaponId);
-  const startHP = (typeof char._bossRushStartHP === 'number' && char._bossRushStartHP > 0)
-    ? Math.min(char._bossRushStartHP, baseFinal.hp)
+  const weaponState = initWeaponCombatState(charForPrep, weaponId);
+  const startHP = (typeof charForPrep._bossRushStartHP === 'number' && charForPrep._bossRushStartHP > 0)
+    ? Math.min(charForPrep._bossRushStartHP, baseFinal.hp)
     : baseFinal.hp;
   return {
-    ...char,
+    ...charForPrep,
     _storedBase: char.base,
     base: baseFinal,
     baseWithoutWeapon,
@@ -419,7 +449,10 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
   // Le Mindflayer copie la capacité uniquement, pas les passifs de la tour. Attaquant = Mindflayer → passifs vides. Défenseur = caster → garde ses passifs défensifs.
   const attackerPassives = [];
   const defenderPassives = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
-  const targetHasMindflayer = target?.race === 'Mindflayer' || target?.awakening?.mindflayerStealSpellCapDamageScale != null;
+  const targetHasMindflayer =
+    target?.race === 'Mindflayer' ||
+    target?.awakening?.mindflayerStealSpellCapDamageScale != null ||
+    target?.awakening?.mindflayerCoopEchoCopyDamageMult != null;
   const casterHasMindflayer = caster?.race === 'Mindflayer' || caster?.awakening?.mindflayerStealSpellCapDamageScale != null;
   if (!targetHasMindflayer) return;
   if (casterHasMindflayer) return; // Ne pas copier si l'adversaire est aussi un Mindflayer
@@ -436,36 +469,52 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
   const capBonus = Math.max(0, Math.round(target.base.cap * capScale));
   const useMagnitude = capacityMagnitude != null && capacityMagnitude > 0;
 
+  const echoCopyMult = targetAwakening.mindflayerCoopEchoCopyDamageMult;
+  const scaleEchoCopyDamage = (v) => {
+    if (echoCopyMult == null || echoCopyMult <= 0 || echoCopyMult >= 1) return v;
+    return Math.max(1, Math.round(v * echoCopyMult));
+  };
+  const scaleEchoCopyHeal = (v) => {
+    if (echoCopyMult == null || echoCopyMult <= 0 || echoCopyMult >= 1) return v;
+    return Math.max(1, Math.round(v * echoCopyMult));
+  };
+  const echoCopyLog = echoCopyMult != null && echoCopyMult > 0 && echoCopyMult < 1
+    ? ` (Pointeau ADN : ${Math.round(echoCopyMult * 100)} % des dégâts du sort copié)`
+    : '';
+
   const copiedClass = caster.class;
 
   switch (copiedClass) {
     case 'Demoniste': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const { capBase, capPerCap, ignoreResist } = classConstants.demoniste;
         const hit = Math.max(1, Math.round((capBase + capPerCap * target.base.cap) * target.base.cap));
         return dmgCap(hit, caster.base.rescap * (1 - ignoreResist)) + capBonus;
       })();
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie le familier de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie le familier de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
     case 'Masochiste': {
       // Soin copié : si healMagnitude fourni (appel depuis le bloc Masochiste), on l'utilise et on ajoute le +10% CAP
-      const healAmount = healMagnitude != null && healMagnitude >= 0
+      let healAmount = healMagnitude != null && healMagnitude >= 0
         ? Math.max(1, Math.round(healMagnitude) + capBonus)
         : (() => {
             const { returnBase, returnPerCap, healPercent } = classConstants.masochiste;
             const masoTaken = caster.maso_taken || 0;
             return Math.max(1, Math.round(masoTaken * healPercent * getAntiHealFactor(caster)) + capBonus);
           })();
+      healAmount = scaleEchoCopyHeal(healAmount);
       if (healAmount > 0) target.currentHP = Math.min(target.maxHP, target.currentHP + healAmount);
-      const dmg = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+      let dmg = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const { returnBase, returnPerCap } = classConstants.masochiste;
         const masoTaken = caster.maso_taken || 0;
         return Math.max(1, Math.round(masoTaken * (returnBase + returnPerCap * target.base.cap))) + capBonus;
       })();
+      dmg = scaleEchoCopyDamage(dmg);
       const inflicted = applyDamage(target, caster, dmg, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie le renvoi de dégâts de ${caster.name}, inflige ${inflicted} dégâts et récupère ${healAmount} PV !${echoCopyLog}`);
       break;
     }
     case 'Paladin': {
@@ -477,22 +526,25 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
     case 'Healer': {
       const miss = target.maxHP - target.currentHP;
       const { missingHpPercent, capScale: healCapScale } = classConstants.healer;
-      const heal = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : Math.max(1, Math.round((missingHpPercent * miss + healCapScale * target.base.cap) * getAntiHealFactor(caster)));
+      let heal = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : Math.max(1, Math.round((missingHpPercent * miss + healCapScale * target.base.cap) * getAntiHealFactor(caster)));
+      heal = scaleEchoCopyHeal(heal);
       target.currentHP = Math.min(target.maxHP, target.currentHP + heal);
-      log.push(`${playerColor} 🦑 ${target.name} copie le soin de ${caster.name} et récupère ${heal} PV !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie le soin de ${caster.name} et récupère ${heal} PV !${echoCopyLog}`);
       break;
     }
     case 'Succube': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.succube.capScale), caster.base.rescap) + capBonus;
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
       caster.succubeWeakenNextAttack = true;
-      log.push(`${playerColor} 🦑 ${target.name} copie le fouet de ${caster.name}, inflige ${inflicted} dégâts et affaiblit sa prochaine attaque !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie le fouet de ${caster.name}, inflige ${inflicted} dégâts et affaiblit sa prochaine attaque !${echoCopyLog}`);
       break;
     }
     case 'Bastion': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : dmgCap(Math.round(target.base.auto + target.base.cap * classConstants.bastion.capScale + target.base.def * classConstants.bastion.defScale), caster.base.rescap) + capBonus;
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie la Charge du Rempart de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie la Charge du Rempart de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
     case 'Voleur':
@@ -500,17 +552,18 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
       log.push(`${playerColor} 🦑 ${target.name} copie l'esquive de ${caster.name} et évitera la prochaine attaque !`);
       break;
     case 'Mage': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const { capBase, capPerCap } = classConstants.mage;
         const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
         return dmgCap(atkSpell, caster.base.rescap) + capBonus;
       })();
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie la capacité magique de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie la capacité magique de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
     case 'Guerrier': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const { ignoreBase, ignorePerCap, autoBonus } = classConstants.guerrier;
         const ignore = ignoreBase + ignorePerCap * target.base.cap;
         const effectiveAuto = Math.round(target.base.auto + autoBonus);
@@ -521,15 +574,17 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
         const effRes = Math.max(0, Math.round(caster.base.rescap * (1 - ignore)));
         return dmgPhys(effectiveAuto, effRes) + capBonus;
       })();
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie la frappe pénétrante de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie la frappe pénétrante de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
     case 'Archer': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : null;
-      if (raw !== null) {
+      const rawMag = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : null;
+      if (rawMag !== null) {
+        const raw = scaleEchoCopyDamage(rawMag);
         const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${inflicted} dégâts !`);
+        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       } else {
         const { hitCount, hit2AutoMultiplier, hit2CapMultiplier } = classConstants.archer;
         let totalDmg = 0;
@@ -541,27 +596,30 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
             const capPart = dmgCap(Math.round(target.base.cap * hit2CapMultiplier), caster.base.rescap);
             r = physPart + capPart + capBonus;
           }
+          r = scaleEchoCopyDamage(r);
           const inflicted = applyDamage(target, caster, r, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
           totalDmg += inflicted;
           if (caster.currentHP <= 0) break;
         }
-        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${totalDmg} dégâts !`);
+        log.push(`${playerColor} 🦑 ${target.name} copie le tir multiple de ${caster.name} et inflige ${totalDmg} dégâts !${echoCopyLog}`);
       }
       break;
     }
     case 'Alchimiste': {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
         const alchC = classConstants.alchimiste;
         return dmgCap(Math.round(target.base.auto + target.base.cap * alchC.fireCapScale), caster.base.rescap) + capBonus;
       })();
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
     default: {
-      const raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : Math.max(1, Math.round(target.base.cap * capScale));
+      let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : Math.max(1, Math.round(target.base.cap * capScale));
+      raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
-      log.push(`${playerColor} 🦑 ${target.name} copie la capacité de ${caster.name} et inflige ${inflicted} dégâts !`);
+      log.push(`${playerColor} 🦑 ${target.name} copie la capacité de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
       break;
     }
   }
@@ -649,6 +707,20 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   }
   adjusted = applyOutgoingAwakeningBonus(att, adjusted);
   adjusted = applyIncomingAwakeningModifiers(def, adjusted);
+  // Donjon Red (Lokhlass) : Onde boréale — alliés boss subissent moins de dégâts pendant N tours
+  if (
+    def.isBoss &&
+    turn != null &&
+    typeof def.coopRedDamageTakenMult === 'number' &&
+    def.coopRedDamageTakenMult > 0 &&
+    def.coopRedDamageTakenMult < 1 &&
+    def.coopRedBorealisFirstTurn != null &&
+    def.coopRedBorealisLastTurn != null &&
+    turn >= def.coopRedBorealisFirstTurn &&
+    turn <= def.coopRedBorealisLastTurn
+  ) {
+    adjusted = Math.max(1, Math.round(adjusted * def.coopRedDamageTakenMult));
+  }
   if (def.arcanisteDamageTakenStack != null && def.arcanisteDamageTakenStack > 0) {
     adjusted = Math.max(1, Math.round(adjusted * (1 + def.arcanisteDamageTakenStack)));
   }
@@ -672,13 +744,17 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     return 0;
   }
   const speedDuel = getSpeedDuelBonuses(def, att);
-  if (speedDuel.dodge > 0 && Math.random() < speedDuel.dodge) {
+  if (speedDuel.dodge > 0 && combatRandom01() < speedDuel.dodge) {
     log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
     return 0;
   }
-  // Turtlekin : cap le premier coup reçu à 10% PV max
+  // Turtlekin / Pointeau ADN : cap le premier coup reçu (% PV max ; éveil = constante globale, Pointeau ADN peut surcharger)
   if ((def.race === 'Turtlekin' || def.awakening?.turtlekinResetAt50) && !def.turtlekinFirstHitUsed && adjusted > 0) {
-    const maxDmg = Math.max(1, Math.round(def.maxHP * raceConstants.turtlekin.firstHitCapPercent));
+    const tkCapPct =
+      typeof def.awakening?.turtlekinFirstHitCapPercent === 'number' && def.awakening.turtlekinFirstHitCapPercent > 0
+        ? def.awakening.turtlekinFirstHitCapPercent
+        : raceConstants.turtlekin.firstHitCapPercent;
+    const maxDmg = Math.max(1, Math.round(def.maxHP * tkCapPct));
     if (adjusted > maxDmg) {
       log.push(`${playerColor} 🐢 Carapace de ${def.name} absorbe le choc ! Dégâts réduits de ${adjusted} à ${maxDmg}.`);
       adjusted = maxDmg;
@@ -815,10 +891,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   return adjusted;
 }
 
-function processPlayerAction(att, def, log, isP1, turn) {
+export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, options = {}) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
-  const playerColor = isP1 ? '[P1]' : '[P2]';
+  const playerColor = logLabel ?? (isP1 ? '[P1]' : '[P2]');
   const attackerPassiveList = getPassiveDetailsList(att);
   const defenderPassiveList = getPassiveDetailsList(def);
   const attackerUnicorn = getUnicornPactTurnDataFromList(attackerPassiveList, turn);
@@ -1142,7 +1218,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     skillUsed = true;
     const spellCapMultSucc = consumeAuraCapacityCapMultiplier();
     const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
-    const isCrit = forceCritAme || Math.random() < calcCritChance(att, def);
+    const isCrit = forceCritAme || combatRandom01() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     if (att.subclass?.id === 'dompteuse_chair') {
       const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
@@ -1179,7 +1255,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
   if (isBastion) {
     skillUsed = true;
     const spellCapMultBast = consumeAuraCapacityCapMultiplier();
-    const isCrit = Math.random() < calcCritChance(att, def);
+    const isCrit = combatRandom01() < calcCritChance(att, def);
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'bast', log, playerColor);
@@ -1219,7 +1295,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     if (phase === 0) {
       // Flasque de feu : dégâts vs ResC
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
       let raw = dmgCap(Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * fireCapScale) * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
@@ -1259,7 +1335,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
     } else if (phase === 1) {
       // Flasque de vie : soin
-      let baseHeal = Math.max(1, Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
+      let baseHeal = Math.max(1, Math.round((getEffectiveCapForSceptre(att) * spellCapMult * lifeCapScale) * getAntiHealFactor(def)));
       // Sirène stacks (boost soins)
       if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
@@ -1296,9 +1372,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       }
 
     } else if (phase === 2) {
-      // Flasque d'acide : dégâts + réduction DEF/ResC
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
-      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      // Flasque d'acide : dégâts physiques (Auto vs DEF ennemie, comme une attaque normale) + réduction DEF/ResC
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1344,9 +1420,9 @@ function processPlayerAction(att, def, log, isP1, turn) {
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
 
     } else if (phase === 3) {
-      // Flasque de métal (sous-classe Alchimiste de Métal uniquement)
-      const isCrit = turnEffects.guaranteedCrit ? true : Math.random() < calcCritChance(att, def);
-      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
+      // Flasque de métal (sous-classe Alchimiste de Métal uniquement) : physique vs DEF ennemie
+      const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1402,7 +1478,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     }
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
-      const stat = stats[Math.floor(Math.random() * stats.length)];
+      const stat = stats[Math.floor(combatRandom01() * stats.length)];
       const stolen = Math.max(0, Math.round(def.base[stat] * 0.06));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
@@ -1418,7 +1494,257 @@ function processPlayerAction(att, def, log, isP1, turn) {
 
   // ===== CAPACITÉS SPÉCIALES DES BOSS =====
   if (att.isBoss && att.ability) {
+    // --- Donjon Red (difficile) : Florizarre — Lance-soleil (décharge avant incrément CD) ---
+    if (att.bossId === 'coop_red_flore' && att.coopRedFlorizarreSolarCharging) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(
+        `${playerColor} ☀️ ${att.name} libère Lance-soleil et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.coopRedFlorizarreSolarCharging = false;
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
     att.cd.boss_ability = (att.cd.boss_ability || 0) + 1;
+
+    // --- Donjon Red (difficile) : Dracaufeu — Déflagration (Auto + % Cap, tous les adversaires) ---
+    if (att.bossId === 'coop_red_dragonnet' && att.cd.boss_ability >= (att.ability.cooldown ?? 4)) {
+      const capScale = att.ability.effect?.capScale ?? 0.3;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const other = options?.coopRedOtherPlayer;
+      const targets = [];
+      if (def?.currentHP > 0) targets.push(def);
+      if (other && other.currentHP > 0 && other !== def) targets.push(other);
+      let weaponConsumed = false;
+      const consumeForTarget = () => {
+        if (!weaponConsumed) {
+          weaponConsumed = true;
+          return consumeWeaponDamageBonus();
+        }
+        return 1;
+      };
+      for (const tDef of targets) {
+        const tPassive = getPassiveDetailsList(tDef);
+        const tUnicorn = getUnicornPactTurnDataFromList(tPassive, turn);
+        const rawOne = dmgCap(spellDmg, tDef.base.rescap);
+        const isCrit = combatRandom01() < calcCritChance(att, tDef);
+        let adj = rawOne;
+        adj = Math.round(adj * consumeForTarget());
+        if (isCrit) {
+          adj = Math.round(adj * getCritMultiplier(att, tDef));
+          adj = modifyCritDamage(att.weaponState, adj);
+        }
+        const inflicted = applyDamage(att, tDef, adj, isCrit, log, playerColor, attackerPassiveList, tPassive, attackerUnicorn, tUnicorn, auraBonus, true, true, turn);
+        log.push(
+          `${playerColor} 🔥 ${att.name} lance Déflagration sur ${tDef.name} : ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+        );
+        triggerMindflayerCapacityCopy(att, tDef, log, playerColor, attackerPassiveList, tPassive, attackerUnicorn, tUnicorn, auraBonus, inflicted, null, turn);
+        if (tDef.currentHP <= 0 && hasMortVivantRevive(tDef)) reviveUndead(tDef, att, log, playerColor);
+      }
+      if (targets.length === 0) {
+        log.push(`${playerColor} 🔥 ${att.name} lance Déflagration, mais aucun adversaire n’est à portée.`);
+      }
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (difficile) : Tortank — Aqua-jet (Auto + % Cap, priorité d’initiative gérée dans coopRedTournamentSim) ---
+    if (att.bossId === 'coop_red_blinde' && att.cd.boss_ability >= (att.ability.cooldown ?? 3)) {
+      const capScale = att.ability.effect?.capScale ?? 0.1;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(
+        `${playerColor} 💧 ${att.name} lance Aqua-jet et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (difficile) : Florizarre — charge Lance-soleil (pas de dégât ce tour) ---
+    if (
+      att.bossId === 'coop_red_flore' &&
+      att.cd.boss_ability >= (att.ability.cooldown ?? 5) &&
+      !att.coopRedFlorizarreSolarCharging
+    ) {
+      att.coopRedFlorizarreSolarCharging = true;
+      att.cd.boss_ability = 0;
+      log.push(
+        `${playerColor} ☀️ ${att.name} absorbe la lumière et charge Lance-soleil (dégâts au prochain tour d’action du boss).`
+      );
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (facile) : attaque remplacée par le sort quand le CD est prêt ---
+    if (att.bossId === 'coop_red_salamandre' && att.cd.boss_ability >= (att.ability.cooldown ?? 0)) {
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, false, turn);
+      log.push(`${playerColor} 🔥 ${att.name} lance Lance-Flammes et inflige ${inflicted} dégâts physiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      const burnMult = att.ability.effect?.burnAutoMult ?? 0.9;
+      const hpDrain = att.ability.effect?.burnHpPerTurnPercent ?? 0.01;
+      if (!def.coopRedBrulureAutoApplied) {
+        def.coopRedBrulureAutoApplied = true;
+        def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * burnMult)) };
+        def.coopRedBrulureDrain = hpDrain;
+        log.push(`${playerColor} 🔥 Brûlure : ${def.name} perd 10% d’Auto et subit ${Math.round(hpDrain * 100)}% PV max en dégâts par tour (permanent).`);
+      } else {
+        log.push(`${playerColor} 🔥 ${def.name} est déjà brûlé ; la brûlure continue de faire des dégâts chaque tour.`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    if (att.bossId === 'coop_red_carapace' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capRatio = att.ability.effect?.capBonusRatio ?? 0.35;
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.auto + att.base.cap * capRatio), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 💧 ${att.name} lance Pistolet à O et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    if (att.bossId === 'coop_red_pousse' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const leechPct = att.ability.effect?.leechMaxHpPercent ?? 0.01;
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let raw = dmgCap(Math.round(att.base.cap * capScale), def.base.rescap);
+      raw = Math.round(raw * consumeWeaponDamageBonus());
+      if (isCrit) {
+        const critDamage = Math.round(raw * getCritMultiplier(att, def));
+        raw = modifyCritDamage(att.weaponState, critDamage);
+      }
+      const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 🌱 ${att.name} lance Vampigraine et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`);
+      if (!def.coopRedVampigraineLeech || def.coopRedVampigraineLeech < leechPct) {
+        def.coopRedVampigraineLeech = leechPct;
+        log.push(`${playerColor} 🌱 ${def.name} est infecté : ${Math.round(leechPct * 100)}% PV max volés au boss actif chaque tour.`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Pikachu — Fatal-foudre (Auto + % Cap, stun 1 tour) ---
+    if (att.bossId === 'coop_red_foudre' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 0.3;
+      const spellDmg = Math.round(att.base.auto + att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      log.push(
+        `${playerColor} ⚡ ${att.name} lance Fatal-foudre et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      if (def.currentHP > 0) {
+        const stunDur = att.ability.effect?.stunDuration ?? 1;
+        def.stunned = true;
+        def.stunnedTurns = stunDur;
+        log.push(`${playerColor} 😵 ${def.name} est étourdi (${stunDur} tour).`);
+      }
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Ronflex — Repos (1× combat : PV max, stun 2 tours sur soi) ---
+    if (
+      att.bossId === 'coop_red_dormeur' &&
+      att.ability?.effect?.oncePerCombat &&
+      !att.coopRedRonflexReposUsed &&
+      att.cd.boss_ability >= att.ability.cooldown
+    ) {
+      att.coopRedRonflexReposUsed = true;
+      att.currentHP = att.maxHP;
+      att.stunned = true;
+      att.stunnedTurns = att.ability.effect?.selfStunTurns ?? 2;
+      log.push(
+        `${playerColor} 😴 ${att.name} utilise Repos et récupère tous ses PV ! Il s’endort profondément (${att.stunnedTurns} tours sans agir).`
+      );
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
+
+    // --- Donjon Red (moyen) : Lokhlass — Onde boréale (dégâts magiques Cap ; alliés -30 % dégâts reçus 2 tours) ---
+    if (att.bossId === 'coop_red_lagon' && att.cd.boss_ability >= att.ability.cooldown) {
+      const capScale = att.ability.effect?.capScale ?? 1;
+      const red = att.ability.effect?.teamDamageReduction ?? 0.3;
+      const allyTurns = att.ability.effect?.teamReductionTurns ?? 2;
+      const spellDmg = Math.round(att.base.cap * capScale);
+      const raw = dmgCap(spellDmg, def.base.rescap);
+      const isCrit = combatRandom01() < calcCritChance(att, def);
+      let adj = raw;
+      adj = Math.round(adj * consumeWeaponDamageBonus());
+      if (isCrit) {
+        adj = Math.round(adj * getCritMultiplier(att, def));
+        adj = modifyCritDamage(att.weaponState, adj);
+      }
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      log.push(
+        `${playerColor} 🌊 ${att.name} lance Onde boréale et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
+      );
+      att.coopRedLokhlassBorealisPending = { reduction: red, turns: allyTurns, castTurn: turn };
+      log.push(
+        `${playerColor} ❄️ Les alliés de ${att.name} sont protégés : -${Math.round(red * 100)} % dégâts reçus pendant ${allyTurns} tours.`
+      );
+      triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, inflicted, null, turn);
+      if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
+      att.cd.boss_ability = 0;
+      flushPendingCombatLogs(att, log);
+      return;
+    }
 
     // Bandit: Saignement tous les N tours
     if (att.bossId === 'bandit' && att.cd.boss_ability >= att.ability.cooldown) {
@@ -1565,7 +1891,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
     const isBonusAttack = i >= baseHits;
     const subclassCritBonus = att.subclass?.id === 'ame_tentatrice' ? 0.15 : (att.subclass?.id === 'chasseur_fantome' ? 0.10 : 0);
     const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
-    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : Math.random() < critChance;
+    const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : combatRandom01() < critChance;
     if (isCrit) wasCrit = true;
     let raw = 0;
     const weaponBonus = i === 0 ? consumeWeaponDamageBonus() : 1;
@@ -1837,7 +2163,7 @@ function processPlayerAction(att, def, log, isP1, turn) {
 // SIMULATION COMPLÈTE (synchrone) — avec steps pour animation
 // ============================================================================
 
-function applyGnomeCapBonus(fighter, opponent) {
+export function applyGnomeCapBonus(fighter, opponent) {
   if (fighter.race !== 'Gnome') return;
   const speedDuel = getSpeedDuelBonuses(fighter, opponent);
   if (speedDuel.capBonus > 0) {

@@ -55,3 +55,45 @@ export async function replayCombatSteps(steps, {
 
   return logs;
 }
+
+/**
+ * Replay des steps donjon Red coop (simulerMatchCoopRed avec recordSteps).
+ * @param {Array} steps
+ * @param {Object} options
+ * @param {Function} options.setCombatLog
+ * @param {Function} options.onCoopStep - (step) => met à jour PV / boss / bases / status affichés
+ * @param {Function} [options.setCoopActor] - (1 | 2 | 3 | null) surlignage hôte / invité / boss actif
+ * @param {Array} [options.existingLogs=[]]
+ * @param {string} [options.speed='fast']
+ */
+export async function replayCoopRedSteps(steps, {
+  setCombatLog,
+  onCoopStep,
+  setCoopActor = null,
+  existingLogs = [],
+  speed = 'fast'
+}) {
+  const delays = SPEEDS[speed] || SPEEDS.normal;
+  const logs = [...existingLogs];
+
+  for (const step of steps) {
+    logs.push(...(step.logs || []));
+    setCombatLog([...logs]);
+    onCoopStep(step);
+
+    if (step.phase === 'intro') {
+      await new Promise((r) => setTimeout(r, delays.intro));
+    } else if (step.phase === 'turn_start') {
+      await new Promise((r) => setTimeout(r, delays.turn_start));
+    } else if (step.phase === 'action') {
+      if (setCoopActor) setCoopActor(step.player ?? null);
+      await new Promise((r) => setTimeout(r, delays.action_pre));
+      await new Promise((r) => setTimeout(r, delays.action_post));
+      if (setCoopActor) setCoopActor(null);
+    } else if (step.phase === 'victory') {
+      await new Promise((r) => setTimeout(r, delays.turn_start));
+    }
+  }
+
+  return logs;
+}

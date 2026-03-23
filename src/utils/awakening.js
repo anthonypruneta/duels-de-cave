@@ -79,10 +79,33 @@ export function mergeAwakeningEffects(effects = []) {
     }
     const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack',
       'mindflayerStealSpellCapDamageScale', 'mindflayerOwnCooldownReductionTurns', 'mindflayerNoCooldownSpellBonus',
-      'sireneStackBonus', 'sireneMaxStacks'];
+      'sireneStackBonus'];
     additiveKeys.forEach((key) => {
       if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
     });
+    const speedDuelKeys = [
+      'speedDuelCritHigh', 'speedDuelCritDmgHigh', 'speedDuelCapBonusLow', 'speedDuelDodgeLow',
+      'speedDuelEqualCrit', 'speedDuelEqualCritDmg', 'speedDuelEqualDodge', 'speedDuelEqualCapBonus',
+    ];
+    speedDuelKeys.forEach((key) => {
+      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
+    });
+    if (typeof effect.sireneMaxStacks === 'number') {
+      acc.sireneMaxStacks = Math.max(acc.sireneMaxStacks ?? 0, effect.sireneMaxStacks);
+    }
+    if (typeof effect.turtlekinFirstHitCapPercent === 'number' && effect.turtlekinFirstHitCapPercent > 0) {
+      acc.turtlekinFirstHitCapPercent = Math.max(
+        acc.turtlekinFirstHitCapPercent ?? 0,
+        effect.turtlekinFirstHitCapPercent
+      );
+    }
+    if (
+      typeof effect.mindflayerCoopEchoCopyDamageMult === 'number' &&
+      effect.mindflayerCoopEchoCopyDamageMult > 0 &&
+      effect.mindflayerCoopEchoCopyDamageMult < 1
+    ) {
+      acc.mindflayerCoopEchoCopyDamageMult = effect.mindflayerCoopEchoCopyDamageMult;
+    }
     const multiplicativeKeys = ['damageTakenMultiplier', 'incomingHitMultiplier'];
     multiplicativeKeys.forEach((key) => {
       if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 1) * effect[key];

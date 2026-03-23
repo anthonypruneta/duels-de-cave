@@ -347,13 +347,20 @@ body.cataclysm-bg::before {
   box-shadow: 0 0 16px rgba(125, 211, 252, 0.36), 0 0 30px rgba(59, 130, 246, 0.18);
 }
 
-/* ===== Bordure Personnage Parfait (perfect_character) — glow seul, effet Canvas ===== */
+/* ===== Bordure Personnage Parfait (perfect_character) — effet Canvas Gold Relief + glow ===== */
 
 .border-perfect-character-glow {
   box-shadow:
     0 0 18px rgba(251, 191, 36, 0.35),
     0 0 30px rgba(125, 211, 252, 0.24),
     0 0 42px rgba(167, 139, 250, 0.18);
+}
+
+.border-gold-relief-glow {
+  box-shadow:
+    0 0 16px rgba(250, 204, 21, 0.40),
+    0 0 30px rgba(202, 138, 4, 0.28),
+    0 0 44px rgba(255, 244, 200, 0.14);
 }
 
 /* ===== Bordure Nuit de Lune (night_moon) — glow seul, effet Canvas ===== */

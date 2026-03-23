@@ -229,8 +229,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
       const fireBonus = Math.round(fireCapScale * cap);
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round(lifeCapScale * cap);
-      const lifeTotal = auto + lifeBonus;
-      const acidDmg = dmgCap(auto, rescap);
+      const lifeTotal = lifeBonus;
       const defRedPct = Math.round((acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((acidRescReduction ?? 0) * 100);
       return (
@@ -244,16 +243,16 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           {' '}dégâts (vs RésCap)
           <br />
           Vie :{' '}
-          <Tooltip content={`Auto (${auto}) + ${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`Soin = ${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
-          {' '}soins (vs RésCap)
+          {' '}soins
           <br />
           Acide : inflige{' '}
-          <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${acidDmg}`}>
-            <span className="text-green-400">{acidDmg}</span>
+          <Tooltip content={`Auto : ${auto}`}>
+            <span className="text-green-400">{auto}</span>
           </Tooltip>
-          {' '}dégâts (vs ResC), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
       );
     }
@@ -682,14 +681,12 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const fireBonus = Math.round((c.fireCapScale ?? 0) * cap);
       const fireTotal = auto + fireBonus;
       const lifeBonus = Math.round((c.lifeCapScale ?? 0) * cap);
-      const lifeTotal = auto + lifeBonus;
-      const acidDmg = dmgCap(auto, rescap);
+      const lifeTotal = lifeBonus;
       const defRedPct = Math.round((c.acidDefReduction ?? 0) * 100);
       const resRedPct = Math.round((c.acidRescReduction ?? 0) * 100);
 
       const hasMetal = cycleLen >= 4;
       const stunDur = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      const metalDmg = dmgCap(auto, rescap);
 
       return (
         <>
@@ -704,24 +701,24 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           {' '}dégâts (vs ResC)
           <br />
           Vie :{' '}
-          <Tooltip content={`Auto (${auto}) + ${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
+          <Tooltip content={`Soin = ${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
             <span className="text-green-400">{lifeTotal}</span>
           </Tooltip>
           {' '}soins
           <br />
           Acide : inflige{' '}
-          <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${acidDmg}`}>
-            <span className="text-green-400">{acidDmg}</span>
+          <Tooltip content={`Auto : ${auto}`}>
+            <span className="text-green-400">{auto}</span>
           </Tooltip>
-          {' '}dégâts (vs ResC), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
           {hasMetal ? (
             <>
               <br />
               Métal : inflige{' '}
-              <Tooltip content={`Auto (${auto}) vs ResC (${rescap}) = ${metalDmg}`}>
-                <span className="text-green-400">{metalDmg}</span>
+              <Tooltip content={`Auto : ${auto}`}>
+                <span className="text-green-400">{auto}</span>
               </Tooltip>
-              {' '}dégâts (vs ResC) et étourdit <span className="text-green-400">{stunDur}</span> tour
+              {' '}dégâts (vs Défense) et étourdit <span className="text-green-400">{stunDur}</span> tour
             </>
           ) : null}
         </>

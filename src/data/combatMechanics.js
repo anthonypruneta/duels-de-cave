@@ -77,7 +77,7 @@ export const classConstants = {
   alchimiste: {
     cycleLength: 3,              // 3 phases : feu, vie, acide
     fireCapScale: 0.10,          // Flasque de feu : Auto + 10% CAP
-    lifeCapScale: 0.10,          // Flasque de vie : Auto + 10% CAP (soin)
+    lifeCapScale: 1.0,           // Flasque de vie (sans sous-classe / pré-éveil) : 100% de la Cap
     acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
     acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
@@ -124,8 +124,8 @@ export const subclassConstants = {
   ecorche_fer: { defRescapStack: 0.03 },               // +7% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
-  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 0.30, acidDefReduction: 0.25, acidRescReduction: 0.25 },
-  alchimiste_metal: { cycleLength: 4 }                 // 4 phases (ajout flasque de métal)
+  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.3, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 130% Cap au soin (Alchimiste de métal : 100%, hérite de la base)
+  alchimiste_metal: { cycleLength: 4 }                 // 4 phases ; soin Vie = 100% Cap (comme la classe de base)
 };
 
 /**
@@ -186,9 +186,15 @@ export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap
 // Calcul du crit chance (identique à Combat.jsx)
 export const getSpeedDuelBonuses = (attacker, defender) => {
   const bonuses = { crit: 0, critDamage: 0, dodge: 0, capBonus: 0 };
-  if (attacker?.race !== 'Gnome' || !defender?.base) return bonuses;
+  if (!defender?.base) return bonuses;
 
   const aw = attacker?.awakening || {};
+  const hasSpeedDuelFromAwakening =
+    aw.speedDuelCritHigh != null ||
+    aw.speedDuelDodgeLow != null ||
+    aw.speedDuelEqualCrit != null;
+  if (attacker?.race !== 'Gnome' && !hasSpeedDuelFromAwakening) return bonuses;
+
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
   const critDmgIfFaster = aw.speedDuelCritDmgHigh ?? raceConstants.gnome.critDmgIfFaster;
   let dodgeIfSlower = aw.speedDuelDodgeLow ?? raceConstants.gnome.dodgeIfSlower;
