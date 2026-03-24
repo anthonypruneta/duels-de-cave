@@ -211,7 +211,9 @@ function CoopRedDungeon() {
           if (gk) localStorage.setItem(gk, roomId);
         }
         if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
-          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid).catch(() => {});
+          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid).catch((err) => {
+            console.warn('coop red historique — écriture impossible', err);
+          });
         }
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
           claimCoopRedRaceEchoIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
@@ -904,6 +906,18 @@ function CoopRedDungeon() {
 
             {room.status === 'completed' && room.combat && (
               <div className="space-y-4 pt-4">
+                <div className="flex justify-center xl:justify-start">
+                  <div className="relative rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full max-w-[300px]">
+                    <img
+                      src={redTrainerPortraitUrl}
+                      alt="Red"
+                      className="w-full h-auto object-cover object-top block max-h-[min(48vh,400px)]"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/55 border-t border-red-900/60 py-1.5 text-center">
+                      <span className="text-red-300 text-lg font-bold tracking-wide">Red</span>
+                    </div>
+                  </div>
+                </div>
                 {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
                   <div className="space-y-3">
                     {displayAnimatedReplay && (
@@ -939,7 +953,7 @@ function CoopRedDungeon() {
 
         </div>
 
-        {!displayAnimatedReplay && (
+        {!isCombatLaunched && (
           <aside className="hidden xl:flex flex-col items-center flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start">
             <div className="relative rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
               <img

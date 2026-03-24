@@ -7,10 +7,7 @@
 import {
   collection,
   doc,
-  limit,
   onSnapshot,
-  orderBy,
-  query,
   setDoc,
   Timestamp,
 } from 'firebase/firestore';
@@ -39,6 +36,12 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
     : (roomData.hostSnapshot?.name ?? 'Hôte');
   const partnerUserId = iWasHost ? roomData.guestId : roomData.hostId;
 
+  const completedAtRaw = roomData.updatedAt ?? roomData.createdAt ?? Timestamp.now();
+  const completedAt =
+    completedAtRaw && typeof completedAtRaw.toMillis === 'function'
+      ? completedAtRaw
+      : Timestamp.now();
+
   const entry = {
     roomId: roomData.id,
     difficulty: roomData.difficulty,
@@ -54,7 +57,7 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
     myEchoRaceGrant: iWasHost
       ? (roomData.hostEchoRaceGrant ?? null)
       : (roomData.guestEchoRaceGrant ?? null),
-    completedAt: roomData.updatedAt ?? roomData.createdAt ?? Timestamp.now(),
+    completedAt,
   };
 
   const ref = doc(db, ROOT, userId, 'matches', roomData.id);
@@ -69,19 +72,31 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
  * @param {number} [maxRows]
  * @returns {() => void} unsubscribe
  */
+function completedAtToMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value === 'number') return value;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+/**
+ * Écoute toute la sous-collection (peu de docs par joueur), tri côté client par date.
+ * Évite les erreurs d’index Firestore sur orderBy('completedAt') et les docs sans champ.
+ */
 export function subscribeCoopRedMatchHistory(userId, onData, onError, maxRows = 50) {
   if (!userId) {
     return () => {};
   }
-  const q = query(
-    collection(db, ROOT, userId, 'matches'),
-    orderBy('completedAt', 'desc'),
-    limit(maxRows)
-  );
+  const ref = collection(db, ROOT, userId, 'matches');
   return onSnapshot(
-    q,
+    ref,
     (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const rows = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => completedAtToMillis(b.completedAt) - completedAtToMillis(a.completedAt))
+        .slice(0, maxRows);
       onData(rows);
     },
     onError || (() => {})
