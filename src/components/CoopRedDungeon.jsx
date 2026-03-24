@@ -393,12 +393,8 @@ function CoopRedDungeon() {
               <span className="text-stone-200 font-semibold">Après une victoire</span> — Chaque joueur a un{' '}
               <span className="text-stone-300">tirage séparé</span> (chance de pointeau). S’il réussit, tu obtiens un{' '}
               <span className="text-stone-300">Pointeau ADN</span> : une{' '}
-              <span className="text-stone-300">race aléatoire</span> (hors la tienne) dont le passif d’éveil est
-              fusionné à environ{' '}
-              <span className="text-stone-300">{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %</span> de sa puissance
-              d’origine en combat (hors donjon Red, tu gardes ta race). Exemples : copie Mindflayer à 50 % des dégâts du
-              sort copié, Sirène +2,5 % par stack max 4, Turtlekin premier coup plafonné à 20 % des PV max, regen
-              Sylvari, etc. Si tu avais déjà un Pointeau ADN, tu choisis de{' '}
+              <span className="text-stone-300">race aléatoire</span> (hors la tienne) ajouté à ton personnage.
+              Ses bonus s’appliquent dans tes combats, sur tout le jeu. Si tu avais déjà un Pointeau ADN, tu choisis de{' '}
               <span className="text-stone-300">remplacer</span> ou de <span className="text-stone-300">garder</span> l’ancien.
             </li>
             <li>
