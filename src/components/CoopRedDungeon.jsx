@@ -425,7 +425,7 @@ function CoopRedDungeon() {
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />
-        <div className="mx-auto max-w-[1900px] px-0 pt-2">
+        <div className="mx-auto max-w-[1900px] px-0 pt-4">
           <button
             type="button"
             onClick={() => navigate('/dungeons')}
