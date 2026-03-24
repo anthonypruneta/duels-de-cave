@@ -458,7 +458,7 @@ function CoopRedDungeon() {
           }`}
         >
         {!isCombatLaunched && (
-        <div className="text-center">
+        <div className="text-center rounded-xl border border-stone-700 bg-stone-900/80 p-4">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">L'arène de Red</h1>
           <p className="text-stone-400 text-sm">
             Crée une salle ou choisis-en une dans la liste. Une fois à deux, chacun clique sur{' '}
