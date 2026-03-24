@@ -8,10 +8,7 @@ import {
   COOP_RED_LEVEL_REQUIRED,
   COOP_RED_MAX_ATTEMPTS_PER_DAY,
   COOP_RED_DROP_RATE,
-  COOP_RACE_ECHO_POTENCY,
   COOP_RED_DIFFICULTY_LABELS,
-  getCoopRedLineup,
-  getCoopRedBossMoveDisplay,
 } from '../data/coopRedDungeon';
 import {
   buildRacePointeauAdnDescription,
@@ -31,8 +28,6 @@ import {
   claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
-import CoopRedCombatLog from './CoopRedCombatLog';
-import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 /** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
 import redTrainerPortraitUrl from '../assets/coop/red.png';
 
@@ -226,7 +221,44 @@ function CoopRedDungeon() {
       ? (localStorage.getItem(coopRedHostRoomStorageKey(currentUser.uid)) || '').trim()
       : '';
 
-  const lineup = useMemo(() => (room ? getCoopRedLineup(room.difficulty) : null), [room]);
+  const replayRewardContent = useMemo(() => {
+    if (!room?.combat) return null;
+    if (room.combat.winner === 'boss') {
+      return <p className="text-red-400 font-bold">Défaite…</p>;
+    }
+    if (room.combat.winner !== 'players') return null;
+
+    const granted = isHost ? room.hostDropGranted : room.guestDropGranted;
+    const grantedRace = isHost ? room.hostEchoRaceGrant : room.guestEchoRaceGrant;
+
+    return (
+      <div className="text-sm space-y-2">
+        <p className="text-emerald-400 font-bold">Victoire !</p>
+        {granted ? (
+          <div className="text-stone-300 space-y-1">
+            <p>
+              Pointeau ADN tiré au sort : <span className="text-emerald-300 font-semibold">{grantedRace ?? '—'}</span>
+            </p>
+            {character?.coopRaceEcho?.race && character?.coopRaceEchoOffer?.roomId === room.id && (
+              <p className="text-amber-200/90 text-xs">
+                Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
+              </p>
+            )}
+            {!!grantedRace && (
+              <div className="mt-2 text-[11px] text-stone-400">
+                <span className="text-stone-300">{getPointeauAdnIntensityLabel()}</span>
+                {splitDescriptionLines(buildRacePointeauAdnDescription(grantedRace)).map((line, idx) => (
+                  <span key={`replay-echo-${idx}`} className="block">• {line}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-stone-400">Pas de pointeau pour toi sur cette salle.</p>
+        )}
+      </div>
+    );
+  }, [room, isHost, character?.coopRaceEcho?.race, character?.coopRaceEchoOffer?.roomId]);
 
   const handleCreate = async () => {
     setError(null);
@@ -365,7 +397,7 @@ function CoopRedDungeon() {
         className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950/70"
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
-        {!isCombatLaunched && <Header />}
+        <Header />
         <div
           className={`mx-auto ${isCombatLaunched ? 'pt-4' : 'pt-20'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
             displayAnimatedReplay ? 'max-w-[1800px]' : 'max-w-6xl'
@@ -714,17 +746,6 @@ function CoopRedDungeon() {
               <div className="space-y-4 border-t border-stone-700 pt-4">
                 {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
                   <div className="space-y-3">
-                    {!isCombatLaunched && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAnimatedReplay((v) => !v)}
-                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
-                      >
-                        {showAnimatedReplay
-                          ? 'Voir le récap rapide'
-                          : 'Voir le déroulé animé (même UI que le combat)'}
-                      </button>
-                    )}
                     {displayAnimatedReplay && (
                       <div className="w-full">
                         <CoopRedAnimatedReplay
@@ -737,178 +758,12 @@ function CoopRedDungeon() {
                           wrapperClassName="mt-0"
                           onReplayError={(msg) => setError(msg)}
                           onReplayFinished={setIsReplayFinished}
+                          rewardContent={isReplayFinished ? replayRewardContent : null}
                         />
                       </div>
                     )}
                   </div>
                 )}
-
-                {(!displayAnimatedReplay || isReplayFinished) && (
-                  <>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-stone-500">{room.hostSnapshot?.name} (hôte)</p>
-                        <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 transition-all"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, (100 * room.combat.hostHP) / (room.combat.hostMaxHP || 1)))}%`,
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs mt-1">
-                          {room.combat.hostHP} / {room.combat.hostMaxHP} PV
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-stone-500">{room.guestSnapshot?.name} (invité)</p>
-                        <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-sky-500 transition-all"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, (100 * room.combat.guestHP) / (room.combat.guestMaxHP || 1)))}%`,
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs mt-1">
-                          {room.combat.guestHP} / {room.combat.guestMaxHP} PV
-                        </p>
-                      </div>
-                    </div>
-
-                    {lineup && (
-                      <div>
-                        <p className="text-xs text-stone-500 mb-1">Adversaires (rotation)</p>
-                        <div className="flex flex-wrap gap-2">
-                          {lineup.map((b, i) => {
-                            const hp = room.combat.bossHP[i] ?? 0;
-                            const maxHp = room.combat.bossMaxHP[i] ?? 1;
-                            const active = i === (room.combat.activeBossIndex % 3);
-                            const sprite = b.imageFile ? getCoopRedSpriteUrl(b.imageFile) : null;
-                            const moveUi = getCoopRedBossMoveDisplay(b);
-                            return (
-                              <div
-                                key={b.id}
-                                className={`px-2 py-1 rounded border text-xs flex items-center gap-2 ${active ? 'border-amber-500 bg-amber-950/40' : 'border-stone-600'}`}
-                              >
-                                {sprite ? (
-                                  <img
-                                    src={sprite}
-                                    alt=""
-                                    className="w-8 h-8 object-contain flex-shrink-0"
-                                    style={{ imageRendering: 'pixelated' }}
-                                  />
-                                ) : (
-                                  <span>{b.icon}</span>
-                                )}
-                                <div className="min-w-0 flex flex-col gap-0.5">
-                                  <span>
-                                    {b.nom} — {hp}/{maxHp}
-                                  </span>
-                                  {moveUi && (
-                                    <span
-                                      className="text-[10px] text-amber-200/85 truncate"
-                                      title={`${moveUi.name} — ${moveUi.description}`}
-                                    >
-                                      Sort : {moveUi.name}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <p className="text-xs text-stone-500">
-                      Résolution : chaque tour, ordre par VIT (même priorités que le tournoi) ; tout le monde vivant joue
-                      une fois — 2 joueurs + chaque boss encore debout. Les joueurs attaquent le boss focal du tour (il
-                      change à chaque tour). Logs = règles PvP habituelles.
-                    </p>
-
-                    <CoopRedCombatLog
-                      lines={room.combat.log || []}
-                      hostName={room.hostSnapshot?.name}
-                      guestName={room.guestSnapshot?.name}
-                      title="⚔️ Red — journal de combat"
-                      containerStyle={{ maxHeight: '24rem', minHeight: '12rem' }}
-                      className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full"
-                    />
-                  </>
-                )}
-
-                {(!displayAnimatedReplay || isReplayFinished) && (
-                <div className="text-sm space-y-1">
-                  {room.combat.winner === 'players' && (
-                    <p className="text-emerald-400 font-bold">Victoire !</p>
-                  )}
-                  {room.combat.winner === 'boss' && (
-                    <p className="text-red-400 font-bold">Défaite…</p>
-                  )}
-                  {room.combat.winner === 'players' && (
-                    <p className="text-stone-400 space-y-1">
-                      {isHost && room.hostDropGranted && (
-                        <>
-                          <span>
-                            Pointeau ADN tiré au sort :{' '}
-                            <span className="text-emerald-300 font-semibold">
-                              {room.hostEchoRaceGrant ?? '—'}
-                            </span>{' '}
-                            (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
-                            {character?.coopRaceEcho?.race &&
-                              character?.coopRaceEchoOffer?.roomId === room.id && (
-                                <span className="block mt-1 text-amber-200/90 text-xs">
-                                  Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
-                                </span>
-                              )}
-                          </span>
-                          {!!room.hostEchoRaceGrant && (
-                            <span className="block mt-2 text-[11px] text-stone-400">
-                              <span className="text-stone-300">{getPointeauAdnIntensityLabel()}</span>
-                              {splitDescriptionLines(buildRacePointeauAdnDescription(room.hostEchoRaceGrant)).map((line, idx) => (
-                                <span key={`host-echo-${idx}`} className="block">• {line}</span>
-                              ))}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {isHost && !room.hostDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
-                      {isGuest && room.guestDropGranted && (
-                        <>
-                          <span>
-                            Pointeau ADN tiré au sort :{' '}
-                            <span className="text-emerald-300 font-semibold">
-                              {room.guestEchoRaceGrant ?? '—'}
-                            </span>{' '}
-                            (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} % du passif d’éveil de cette race).
-                            {character?.coopRaceEcho?.race &&
-                              character?.coopRaceEchoOffer?.roomId === room.id && (
-                                <span className="block mt-1 text-amber-200/90 text-xs">
-                                  Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
-                                </span>
-                              )}
-                          </span>
-                          {!!room.guestEchoRaceGrant && (
-                            <span className="block mt-2 text-[11px] text-stone-400">
-                              <span className="text-stone-300">{getPointeauAdnIntensityLabel()}</span>
-                              {splitDescriptionLines(buildRacePointeauAdnDescription(room.guestEchoRaceGrant)).map((line, idx) => (
-                                <span key={`guest-echo-${idx}`} className="block">• {line}</span>
-                              ))}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {isGuest && !room.guestDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
-                    </p>
-                  )}
-                </div>
-                )}
-
-                <p className="text-[11px] text-stone-500">
-                  Même disposition que l’arène PvP : deux cartes complètes qui changent de côté au tour de chaque
-                  joueur. Recalcul local avec le seed de la salle — résultat identique à celui enregistré.
-                </p>
               </div>
             )}
           </div>

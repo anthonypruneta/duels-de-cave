@@ -18,6 +18,7 @@ export default function CoopRedAnimatedReplay({
   lineup: lineupProp = null,
   logTitle,
   wrapperClassName,
+  rewardContent = null,
   onReplayError,
   onReplayFinished,
 }) {
@@ -204,6 +205,7 @@ export default function CoopRedAnimatedReplay({
       onRelanceReplay={handleRelance}
       logTitle={logTitle}
       wrapperClassName={wrapperClassName}
+      rewardContent={rewardContent}
     />
   );
 }

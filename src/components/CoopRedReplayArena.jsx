@@ -31,6 +31,7 @@ export default function CoopRedReplayArena({
   onRelanceReplay,
   logTitle = '🔴 Red — déroulé',
   wrapperClassName = 'mt-2 p-0',
+  rewardContent = null,
   /** Aligne les PV max affichés sur les stats réelles du combat (multiplicateur par difficulté). */
   difficulty = null,
 }) {
@@ -107,7 +108,7 @@ export default function CoopRedReplayArena({
       </div>
 
       <div className="lg:hidden flex flex-col gap-2">
-        <div className="px-2 py-2 text-[10px] text-stone-300">
+        <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-2 py-2 text-[10px] text-stone-300">
           <p className="text-stone-500 font-bold uppercase text-center mb-1">Équipe</p>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -191,13 +192,18 @@ export default function CoopRedReplayArena({
           guestName={guestF?.name}
           title={logTitle}
           containerStyle={{ height: 'calc(100dvh - 430px)', minHeight: '190px', maxHeight: '300px' }}
-          className="rounded-xl flex flex-col overflow-hidden min-h-0 w-full"
+          className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full"
         />
+        {rewardContent && (
+          <div className="mt-2">
+            {rewardContent}
+          </div>
+        )}
       </div>
 
       <div className="hidden lg:flex gap-4 items-start justify-center text-sm">
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] px-3 py-2 text-[11px] text-stone-300">
+          <div className="w-[340px] rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-1 gap-3">
               <div>
@@ -247,13 +253,18 @@ export default function CoopRedReplayArena({
 
         <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col">
           <CoopRedCombatLog
-            className="rounded-xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
+            className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
             lines={combatLog}
             hostName={hostF?.name}
             guestName={guestF?.name}
             title={logTitle}
             containerStyle={{ height: '500px' }}
           />
+          {rewardContent && (
+            <div className="mt-2">
+              {rewardContent}
+            </div>
+          )}
         </div>
 
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
