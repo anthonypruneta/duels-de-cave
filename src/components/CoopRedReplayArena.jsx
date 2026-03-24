@@ -195,11 +195,11 @@ export default function CoopRedReplayArena({
         />
       </div>
 
-      <div className="hidden lg:block">
-        <div className="w-full mb-3">
+      <div className="hidden lg:flex gap-4 items-stretch justify-center text-sm">
+        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
           <div className="rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-400">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-2">
               <div>
                 <p className="text-violet-300/90 font-semibold truncate flex items-center gap-2">
                   <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
@@ -222,12 +222,43 @@ export default function CoopRedReplayArena({
               </div>
             </div>
           </div>
+          <div
+            key={leftCardKey}
+            className={`rounded-xl transition-all duration-300 ease-out ${
+              leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
+            } ${coopActor === 3 ? 'opacity-90' : ''}`}
+          >
+            <CharacterCardContent
+              character={leftChar}
+              weaponOverride={leftChar?.equippedWeaponData ?? null}
+              showHpBar
+              currentHP={leftChar.currentHP}
+              maxHP={leftChar.maxHP}
+              shield={leftChar.shield ?? 0}
+              combatBaseOverride={leftBase}
+              combatStatus={leftStatus}
+              opponent={bossCharacter ?? leftChar}
+              imageOverride={leftImg}
+              detailsPlacement="left"
+            />
+          </div>
         </div>
 
-        <div className="w-full mb-3">
+        <div className="flex-1 min-w-[400px] flex flex-col">
+          <CoopRedCombatLog
+            lines={combatLog}
+            hostName={hostF?.name}
+            guestName={guestF?.name}
+            title={logTitle}
+            containerStyle={{ height: '420px' }}
+            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
+          />
+        </div>
+
+        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
           <div className="bg-stone-900/90 border border-stone-600 rounded-lg px-3 py-2">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
-            <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="grid grid-cols-1 gap-2 mt-2">
               {(run.lineup || []).map((boss, i) => {
                 const maxH = boss?.baseStats && difficulty
                   ? scaleCoopRedBossBaseStats(boss.baseStats, difficulty).hp
@@ -251,64 +282,29 @@ export default function CoopRedReplayArena({
               })}
             </div>
           </div>
-        </div>
-
-        <div className="flex gap-4 items-stretch justify-center text-sm">
-        <div
-          key={leftCardKey}
-          className={`w-[340px] flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
-          leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-        } ${coopActor === 3 ? 'opacity-90' : ''}`}
-        >
-          <CharacterCardContent
-            character={leftChar}
-            weaponOverride={leftChar?.equippedWeaponData ?? null}
-            showHpBar
-            currentHP={leftChar.currentHP}
-            maxHP={leftChar.maxHP}
-            shield={leftChar.shield ?? 0}
-            combatBaseOverride={leftBase}
-            combatStatus={leftStatus}
-            opponent={bossCharacter ?? leftChar}
-            imageOverride={leftImg}
-            detailsPlacement="left"
-          />
-        </div>
-
-        <div className="flex-1 min-w-[400px] flex flex-col">
-          <CoopRedCombatLog
-            lines={combatLog}
-            hostName={hostF?.name}
-            guestName={guestF?.name}
-            title={logTitle}
-            containerStyle={{ height: '420px' }}
-            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
-          />
-        </div>
-
-        <div className={`w-[340px] flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
-          bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-        } ${coopActor === 3 ? '' : 'opacity-95'}`}>
-          {bossCharacter ? (
-            <CharacterCardContent
-              key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}
-              character={bossCharacter}
-              showHpBar
-              currentHP={bossCurrentHP}
-              maxHP={bossMaxHP}
-              shield={bossShield}
-              combatBaseOverride={bossCombatBase}
-              combatStatus={bossCombatStatus}
-              opponent={leftChar}
-              imageOverride={bossSprite ?? undefined}
-              detailsPlacement={null}
-            />
-          ) : (
-            <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
-              Boss indisponible
-            </div>
-          )}
-        </div>
+          <div className={`rounded-xl transition-all duration-300 ease-out ${
+            bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
+          } ${coopActor === 3 ? '' : 'opacity-95'}`}>
+            {bossCharacter ? (
+              <CharacterCardContent
+                key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}
+                character={bossCharacter}
+                showHpBar
+                currentHP={bossCurrentHP}
+                maxHP={bossMaxHP}
+                shield={bossShield}
+                combatBaseOverride={bossCombatBase}
+                combatStatus={bossCombatStatus}
+                opponent={leftChar}
+                imageOverride={bossSprite ?? undefined}
+                detailsPlacement={null}
+              />
+            ) : (
+              <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
+                Boss indisponible
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
