@@ -35,11 +35,11 @@ export const COOP_RED_DIFFICULTY_LABELS = {
   [COOP_RED_DIFFICULTY.HARD]: 'Difficile',
 };
 
-/** Multiplicateur appliqué aux baseStats des boss Pokémon au moment du combat (valeurs de base = fiche ci-dessous). */
+/** Multiplicateur appliqué aux baseStats des boss Pokémon au moment du combat (valeurs de base = fiche ci-dessous). +10 % vs l’ancien 1.2. */
 export const COOP_RED_BOSS_STAT_MULT = {
-  [COOP_RED_DIFFICULTY.EASY]: 1.2,
-  [COOP_RED_DIFFICULTY.MEDIUM]: 1.2,
-  [COOP_RED_DIFFICULTY.HARD]: 1.2,
+  [COOP_RED_DIFFICULTY.EASY]: 1.32,
+  [COOP_RED_DIFFICULTY.MEDIUM]: 1.32,
+  [COOP_RED_DIFFICULTY.HARD]: 1.32,
 };
 
 /** Stats affichées / combat après multiplicateur de difficulté (+10 % / +5 % / −5 %). */
@@ -58,7 +58,7 @@ export function scaleCoopRedBossBaseStats(baseStats, difficulty) {
 
 /**
  * Lignes de boss par difficulté : ordre de rotation (0 → 1 → 2).
- * baseStats de référence par palier ; au combat, `scaleCoopRedBossBaseStats` applique +10 % / +5 % / −5 % (facile / moyen / difficile).
+ * baseStats de référence par palier ; au combat, `scaleCoopRedBossBaseStats` applique `COOP_RED_BOSS_STAT_MULT`.
  */
 export const coopRedBossLineups = {
   [COOP_RED_DIFFICULTY.EASY]: [

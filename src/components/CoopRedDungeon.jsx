@@ -528,7 +528,7 @@ function CoopRedDungeon() {
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />
-        <div className="mx-auto max-w-[1900px] px-0 pt-6">
+        <div className="mx-auto max-w-[1900px] px-0 pt-14 md:pt-8">
           <button
             type="button"
             onClick={() => navigate('/dungeons')}
@@ -538,7 +538,7 @@ function CoopRedDungeon() {
           </button>
         </div>
         <div
-          className={`mx-auto ${isCombatLaunched ? 'pt-2' : 'pt-8'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
+          className={`mx-auto ${isCombatLaunched ? 'pt-2 md:pt-4' : 'pt-8'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
             displayAnimatedReplay ? 'max-w-[2000px]' : 'max-w-6xl'
           }`}
         >
@@ -1020,7 +1020,7 @@ function CoopRedDungeon() {
           historyReplayRow.guestSnapshot &&
           historyReplayRow.combatSeed != null && (
             <div
-              className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-sm p-3 md:p-6 overflow-y-auto"
+              className="fixed inset-0 z-[220] flex flex-col bg-black/80 backdrop-blur-sm p-3 pt-5 md:p-6 md:pt-8 overflow-y-auto"
               role="dialog"
               aria-modal="true"
               aria-label="Replay historique Red"
