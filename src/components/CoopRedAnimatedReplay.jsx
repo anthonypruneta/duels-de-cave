@@ -8,6 +8,37 @@ import { getUserCharacter } from '../services/characterService';
 import { getWeaponById } from '../data/weapons';
 
 /**
+ * Champs de combat figés depuis le snapshot de salle / historique (état au moment du match).
+ * Ne jamais mélanger avec la fiche perso live (`getUserCharacter`) sinon Pointeau ADN, forge, etc. peuvent
+ * apparaître au replay alors qu’ils n’existaient pas au combat.
+ */
+function pickCombatFieldsFromRoomSnapshot(snap) {
+  if (!snap) return {};
+  return {
+    userId: snap.userId,
+    name: snap.name,
+    gender: snap.gender ?? null,
+    race: snap.race,
+    class: snap.class,
+    level: snap.level ?? 1,
+    base: snap.base ? { ...snap.base } : {},
+    bonuses: snap.bonuses ? JSON.parse(JSON.stringify(snap.bonuses)) : { race: {}, class: {} },
+    forestBoosts: snap.forestBoosts ? { ...snap.forestBoosts } : {},
+    equippedWeaponId: snap.equippedWeaponId ?? null,
+    equippedWeaponData: snap.equippedWeaponData ?? null,
+    forgeUpgrade: snap.forgeUpgrade ?? null,
+    subclass: snap.subclass ?? null,
+    mageTowerPassive: snap.mageTowerPassive ?? null,
+    additionalAwakeningRaces: Array.isArray(snap.additionalAwakeningRaces)
+      ? [...snap.additionalAwakeningRaces]
+      : [],
+    awakeningForced: !!snap.awakeningForced,
+    coopRaceEcho: snap.coopRaceEcho ?? null,
+    coopRaceEchoOffer: snap.coopRaceEchoOffer ?? null,
+  };
+}
+
+/**
  * Replay animé Red (même UI que l’admin) : steps fournis ou recalculés côté client (seed déterministe).
  */
 export default function CoopRedAnimatedReplay({
@@ -81,15 +112,6 @@ export default function CoopRedAnimatedReplay({
 
   const runReplay = useCallback(async () => {
     const gen = ++replayGenRef.current;
-    let steps = stepsProp;
-    if (!Array.isArray(steps) || steps.length === 0) {
-      const combat = simulerMatchCoopRed(hostSnap, guestSnap, difficulty, combatSeed, { recordSteps: true });
-      steps = combat.steps;
-    }
-    if (!Array.isArray(steps) || steps.length === 0) {
-      onReplayError?.('Impossible de rejouer ce combat (pas de steps).');
-      return;
-    }
 
     setReplaying(true);
     onReplayFinished?.(false);
@@ -103,36 +125,57 @@ export default function CoopRedAnimatedReplay({
         || !snap?.equippedRealBorder
         || !snap?.gender
         || (!snap?.equippedWeaponData && !!snap?.equippedWeaponId);
-      if (!needsVisualData) return snap;
-      const res = await getUserCharacter(snap.userId);
-      const fresh = res.success && res.data ? res.data : null;
-      const weaponId = snap.equippedWeaponId ?? fresh?.equippedWeaponId ?? null;
-      const weaponData = snap.equippedWeaponData
-        ?? fresh?.equippedWeaponData
-        ?? (weaponId ? getWeaponById(weaponId) : null);
-      if (!fresh) {
-        return {
-          ...snap,
-          equippedWeaponId: weaponId,
-          equippedWeaponData: weaponData,
-        };
+      let merged = snap;
+      if (needsVisualData) {
+        const res = await getUserCharacter(snap.userId);
+        const fresh = res.success && res.data ? res.data : null;
+        const weaponId = snap.equippedWeaponId ?? fresh?.equippedWeaponId ?? null;
+        const weaponData = snap.equippedWeaponData
+          ?? fresh?.equippedWeaponData
+          ?? (weaponId ? getWeaponById(weaponId) : null);
+        if (!fresh) {
+          merged = {
+            ...snap,
+            equippedWeaponId: weaponId,
+            equippedWeaponData: weaponData,
+          };
+        } else {
+          merged = {
+            ...snap,
+            characterImage: snap.characterImage ?? fresh.characterImage ?? null,
+            equippedTitle: snap.equippedTitle ?? fresh.equippedTitle ?? null,
+            equippedBorder: snap.equippedBorder ?? fresh.equippedBorder ?? null,
+            equippedRealBorder: snap.equippedRealBorder ?? fresh.equippedRealBorder ?? null,
+            gender: snap.gender ?? fresh.gender ?? null,
+            equippedWeaponId: weaponId,
+            equippedWeaponData: weaponData,
+          };
+        }
       }
-      return {
-        ...snap,
-        characterImage: snap.characterImage ?? fresh.characterImage ?? null,
-        equippedTitle: snap.equippedTitle ?? fresh.equippedTitle ?? null,
-        equippedBorder: snap.equippedBorder ?? fresh.equippedBorder ?? null,
-        equippedRealBorder: snap.equippedRealBorder ?? fresh.equippedRealBorder ?? null,
-        gender: snap.gender ?? fresh.gender ?? null,
-        equippedWeaponId: weaponId,
-        equippedWeaponData: weaponData,
-      };
+      // Toujours réappliquer l’état combat depuis le snapshot du match (pas la fiche live).
+      return { ...merged, ...pickCombatFieldsFromRoomSnapshot(snap) };
     };
 
     const [hostSnapResolved, guestSnapResolved] = await Promise.all([
       loadSnapWithVisualFallbacks(hostSnap),
       loadSnapWithVisualFallbacks(guestSnap),
     ]);
+
+    let steps = stepsProp;
+    if (!Array.isArray(steps) || steps.length === 0) {
+      const combat = simulerMatchCoopRed(hostSnapResolved, guestSnapResolved, difficulty, combatSeed, {
+        recordSteps: true,
+      });
+      steps = combat.steps;
+    }
+    if (!Array.isArray(steps) || steps.length === 0) {
+      onReplayError?.('Impossible de rejouer ce combat (pas de steps).');
+      if (replayGenRef.current === gen) {
+        setReplaying(false);
+        onReplayFinished?.(true);
+      }
+      return;
+    }
 
     const prepRng = createCoopSeededRng(combatSeed >>> 0);
     const { host, guest, bosses } = rebuildPreparedCoop(hostSnapResolved, guestSnapResolved, difficulty, {
