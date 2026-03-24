@@ -95,7 +95,7 @@ export default function CoopRedReplayArena({
   const bossHighlight = coopActor === 3 ? 'ring-red-500' : null;
 
   return (
-    <div className={`${wrapperClassName} w-full max-w-[1800px] mx-auto overflow-x-hidden`}>
+    <div className={`${wrapperClassName} w-full max-w-[1900px] mx-auto overflow-x-hidden`}>
       <div className="xl:hidden flex flex-col gap-2">
         <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-2 py-2 text-[10px] text-stone-300">
           <p className="text-stone-500 font-bold uppercase text-center mb-1">Équipe</p>
@@ -190,8 +190,8 @@ export default function CoopRedReplayArena({
 
       <div className="hidden xl:flex flex-col gap-3">
         <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-4 py-3 text-[11px] text-stone-300">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="pr-4 border-r border-stone-700/70">
+          <div className="grid grid-cols-2 divide-x divide-stone-700/70">
+            <div className="px-3">
               <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -216,7 +216,7 @@ export default function CoopRedReplayArena({
                 </div>
               </div>
             </div>
-            <div className="pl-4">
+            <div className="px-3">
               <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center mb-2">Boss (rotation)</p>
               <div className="grid grid-cols-3 gap-2">
                 {(run.lineup || []).map((boss, i) => {
@@ -249,9 +249,7 @@ export default function CoopRedReplayArena({
           <div className="w-[620px] flex-shrink-0">
             <div
               key={leftCardKey}
-              className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
-                leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-              } ${coopActor === 3 ? 'opacity-90' : ''}`}
+              className={`w-[620px] transition-all duration-300 ease-out ${coopActor === 3 ? 'opacity-90' : ''}`}
             >
               <CharacterCardContent
                 character={leftChar}
@@ -286,9 +284,7 @@ export default function CoopRedReplayArena({
           </div>
 
           <div className="w-[620px] flex-shrink-0">
-            <div className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
-              bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-            } ${coopActor === 3 ? '' : 'opacity-95'}`}>
+            <div className={`w-[620px] transition-all duration-300 ease-out ${coopActor === 3 ? '' : 'opacity-95'}`}>
               {bossCharacter ? (
                 <CharacterCardContent
                   key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}

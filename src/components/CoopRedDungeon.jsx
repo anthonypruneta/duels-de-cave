@@ -425,7 +425,7 @@ function CoopRedDungeon() {
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />
-        <div className="mx-auto max-w-[1800px] px-0 pt-16 md:pt-20">
+        <div className="mx-auto max-w-[1900px] px-0 pt-2">
           <button
             type="button"
             onClick={() => navigate('/dungeons')}
@@ -435,8 +435,8 @@ function CoopRedDungeon() {
           </button>
         </div>
         <div
-          className={`mx-auto ${isCombatLaunched ? 'pt-4' : 'pt-20'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
-            displayAnimatedReplay ? 'max-w-[1800px]' : 'max-w-6xl'
+          className={`mx-auto ${isCombatLaunched ? 'pt-2' : 'pt-8'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
+            displayAnimatedReplay ? 'max-w-[1900px]' : 'max-w-6xl'
           }`}
         >
         <div
@@ -742,7 +742,7 @@ function CoopRedDungeon() {
             )}
 
             {room.status === 'completed' && room.combat && (
-              <div className="space-y-4 border-t border-stone-700 pt-4">
+              <div className="space-y-4 pt-4">
                 {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
                   <div className="space-y-3">
                     {displayAnimatedReplay && (
