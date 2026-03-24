@@ -95,7 +95,7 @@ export default function CoopRedReplayArena({
   const bossHighlight = coopActor === 3 ? 'ring-red-500' : null;
 
   return (
-    <div className={`${wrapperClassName} w-full max-w-[1900px] mx-auto overflow-x-hidden`}>
+    <div className={`${wrapperClassName} w-full max-w-[2000px] mx-auto overflow-x-hidden`}>
       <div className="xl:hidden flex flex-col gap-2">
         <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-2 py-2 text-[10px] text-stone-300">
           <p className="text-stone-500 font-bold uppercase text-center mb-1">Équipe</p>
@@ -246,10 +246,10 @@ export default function CoopRedReplayArena({
         </div>
 
         <div className="flex gap-4 items-start justify-center text-sm">
-          <div className="w-[620px] flex-shrink-0">
+          <div className="w-[640px] flex-shrink-0">
             <div
               key={leftCardKey}
-              className={`w-[620px] transition-all duration-300 ease-out ${coopActor === 3 ? 'opacity-90' : ''}`}
+              className={`w-[640px] transition-all duration-300 ease-out ${coopActor === 3 ? 'opacity-90' : ''}`}
             >
               <CharacterCardContent
                 character={leftChar}
@@ -283,8 +283,8 @@ export default function CoopRedReplayArena({
             )}
           </div>
 
-          <div className="w-[620px] flex-shrink-0">
-            <div className={`w-[620px] transition-all duration-300 ease-out ${coopActor === 3 ? '' : 'opacity-95'}`}>
+          <div className="w-[640px] flex-shrink-0">
+            <div className={`w-[640px] transition-all duration-300 ease-out ${coopActor === 3 ? '' : 'opacity-95'}`}>
               {bossCharacter ? (
                 <CharacterCardContent
                   key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}

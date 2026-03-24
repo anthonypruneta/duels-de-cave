@@ -59,6 +59,7 @@ function CoopRedDungeon() {
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
   const [isReplayFinished, setIsReplayFinished] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
+  const [echoOfferDecision, setEchoOfferDecision] = useState(null);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -280,6 +281,11 @@ function CoopRedDungeon() {
         ) : (
           <p className="text-stone-400">Pas de pointeau pour toi sur cette salle.</p>
         )}
+        {echoOfferDecision?.roomId === room.id && echoOfferDecision.accepted === false && (
+          <p className="text-amber-300 text-xs">
+            Pointeau refusé : tu as conservé ton Pointeau ADN actuel.
+          </p>
+        )}
       </div>
     );
   }, [
@@ -289,6 +295,7 @@ function CoopRedDungeon() {
     character?.coopRaceEcho?.race,
     character?.coopRaceEchoOffer?.roomId,
     character?.coopRaceEchoOffer?.race,
+    echoOfferDecision,
   ]);
 
   const handleCreate = async () => {
@@ -356,6 +363,7 @@ function CoopRedDungeon() {
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
+    setEchoOfferDecision(null);
   };
 
   const handleGuestLeaveLobby = async () => {
@@ -381,6 +389,11 @@ function CoopRedDungeon() {
       setError(res.error);
       return;
     }
+    setEchoOfferDecision({
+      roomId: room?.id ?? null,
+      accepted: acceptReplace,
+      race: character?.coopRaceEchoOffer?.race ?? null,
+    });
     await loadCharAndAttempts();
   };
 
@@ -425,7 +438,7 @@ function CoopRedDungeon() {
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />
-        <div className="mx-auto max-w-[1900px] px-0 pt-4">
+        <div className="mx-auto max-w-[1900px] px-0 pt-6">
           <button
             type="button"
             onClick={() => navigate('/dungeons')}
@@ -436,7 +449,7 @@ function CoopRedDungeon() {
         </div>
         <div
           className={`mx-auto ${isCombatLaunched ? 'pt-2' : 'pt-8'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
-            displayAnimatedReplay ? 'max-w-[1900px]' : 'max-w-6xl'
+            displayAnimatedReplay ? 'max-w-[2000px]' : 'max-w-6xl'
           }`}
         >
         <div
