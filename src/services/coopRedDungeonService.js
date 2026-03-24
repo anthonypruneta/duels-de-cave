@@ -18,6 +18,7 @@ import {
 import { db, waitForFirestore } from '../firebase/config';
 import {
   COOP_RED_LEVEL_REQUIRED,
+  COOP_RED_DIFFICULTY_LABELS,
   COOP_RED_MAX_ATTEMPTS_PER_DAY,
   COOP_RED_DROP_RATE,
 } from '../data/coopRedDungeon.js';
@@ -207,6 +208,20 @@ export async function createCoopRedRoom(hostUserId, difficulty) {
   };
 
   await retryOperation(() => setDoc(roomRef, room));
+
+  try {
+    const { envoyerWebhookSalleCoopRedCreee } = await import('./discordService.js');
+    await envoyerWebhookSalleCoopRedCreee({
+      hostName: charRes.data.name,
+      hostLevel: level,
+      difficultyLabel: COOP_RED_DIFFICULTY_LABELS[difficulty] ?? difficulty,
+      minLevelRequired: minLv,
+      roomId,
+    });
+  } catch (discordErr) {
+    console.warn('Annonce Discord (salle Red créée) ignorée:', discordErr?.message || discordErr);
+  }
+
   return { success: true, roomId };
 }
 

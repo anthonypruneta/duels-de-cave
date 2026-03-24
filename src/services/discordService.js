@@ -51,3 +51,34 @@ export async function envoyerAnnonceDiscord({ titre, message, mentionEveryone = 
 
   return true;
 }
+
+/**
+ * Annonce Discord : création d’une salle Donjon Red (coop).
+ * @param {object} opts
+ * @param {string} opts.hostName — nom du personnage hôte
+ * @param {number} opts.hostLevel — niveau du créateur
+ * @param {string} opts.difficultyLabel — ex. Facile / Moyen / Difficile
+ * @param {number} opts.minLevelRequired — niveau minimum pour cette difficulté
+ * @param {string} opts.roomId — id Firestore de la salle
+ */
+export async function envoyerWebhookSalleCoopRedCreee({
+  hostName,
+  hostLevel,
+  difficultyLabel,
+  minLevelRequired,
+  roomId,
+}) {
+  const safeName = typeof hostName === 'string' && hostName.trim() ? hostName.trim() : 'Inconnu';
+  const message = [
+    `**Créateur :** ${safeName}`,
+    `**Niveau du créateur :** ${Number(hostLevel) || 1}`,
+    `**Difficulté :** ${difficultyLabel ?? '—'}`,
+    `**Niveau requis pour jouer :** ${minLevelRequired ?? '—'}`,
+    `**ID salle :** \`${roomId}\``,
+  ].join('\n');
+
+  return envoyerAnnonceDiscord({
+    titre: '🏠 Nouvelle salle Donjon Red',
+    message,
+  });
+}
