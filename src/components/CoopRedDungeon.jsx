@@ -408,6 +408,12 @@ function CoopRedDungeon() {
   const handleJoinListedRoom = async (id) => {
     setError(null);
     setBusy(true);
+    const attemptsCheck = await getCoopRedAttemptsLeft(currentUser.uid);
+    if (!attemptsCheck.success || attemptsCheck.attemptsLeft <= 0) {
+      setBusy(false);
+      setError('Plus d’essais Red disponibles aujourd’hui — impossible de rejoindre un combat.');
+      return;
+    }
     const pk = currentUser?.uid ? coopRedPendingRecapStorageKey(currentUser.uid) : null;
     if (pk) localStorage.removeItem(pk);
     const hkClear = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
@@ -425,6 +431,10 @@ function CoopRedDungeon() {
 
   const handleToggleReady = async (next) => {
     if (!roomId || !currentUser) return;
+    if (next && attemptsLeft <= 0) {
+      setError('Plus d’essais Red disponibles aujourd’hui — impossible de se mettre prêt.');
+      return;
+    }
     setReadyBusy(true);
     setError(null);
     const res = await setCoopRedPlayerReady(roomId, currentUser.uid, next);
@@ -835,6 +845,11 @@ function CoopRedDungeon() {
             {room.status === 'lobby' && room.guestId && (
               <div className="rounded-lg border border-stone-600 bg-stone-800/50 p-4 space-y-3">
                 <p className="text-sm font-bold text-amber-400">Prêt pour le combat</p>
+                {attemptsLeft <= 0 && (
+                  <p className="text-red-300 text-xs font-semibold">
+                    Tu n’as plus d’essais Red aujourd’hui : tu ne peux pas te mettre prêt (l’autre joueur peut l’être s’il lui en reste).
+                  </p>
+                )}
                 <p className="text-xs text-stone-500">
                   Les deux joueurs doivent indiquer qu’ils sont prêts. Le combat démarre automatiquement ensuite.
                 </p>
@@ -847,7 +862,7 @@ function CoopRedDungeon() {
                     {isHost && (
                       <button
                         type="button"
-                        disabled={readyBusy}
+                        disabled={readyBusy || (!room.hostReady && attemptsLeft <= 0)}
                         onClick={() => handleToggleReady(!room.hostReady)}
                         className="mt-2 w-full py-2 rounded-lg bg-red-800 hover:bg-red-700 font-bold text-sm disabled:opacity-40"
                       >
@@ -863,7 +878,7 @@ function CoopRedDungeon() {
                     {isGuest && (
                       <button
                         type="button"
-                        disabled={readyBusy}
+                        disabled={readyBusy || (!room.guestReady && attemptsLeft <= 0)}
                         onClick={() => handleToggleReady(!room.guestReady)}
                         className="mt-2 w-full py-2 rounded-lg bg-amber-800 hover:bg-amber-700 font-bold text-sm disabled:opacity-40"
                       >

@@ -244,6 +244,13 @@ export async function joinCoopRedRoom(guestUserId, roomId) {
       if ((charRes.data.level ?? 1) < minLv) {
         throw new Error(`level_too_low:${minLv}`);
       }
+      const dateKey = getParisDateKey();
+      const guestDailyRef = doc(db, DAILY, guestUserId);
+      const guestDailySnap = await tx.get(guestDailyRef);
+      const guestUsed = getUsedAttemptsForDate(guestDailySnap, dateKey);
+      if (guestUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY) {
+        throw new Error('no_attempts_guest');
+      }
       tx.update(ref, {
         guestId: guestUserId,
         guestSnapshot: snapshotCharacterForCoop(charRes.data),
@@ -265,6 +272,9 @@ export async function joinCoopRedRoom(guestUserId, roomId) {
       const minLv = parts[1] ? parseInt(parts[1], 10) : 0;
       return { success: false, error: `Niveau ${minLv || '?'} requis pour cette difficulté.` };
     }
+    if (msg === 'no_attempts_guest') {
+      return { success: false, error: 'Plus d’essais Red disponibles aujourd’hui — impossible de rejoindre un combat.' };
+    }
     throw e;
   });
 
@@ -281,6 +291,15 @@ export async function setCoopRedPlayerReady(roomId, userId, ready) {
         if (!snap.exists()) throw new Error('missing');
         const r = snap.data();
         if (r.status !== 'lobby') throw new Error('not_lobby');
+        if (ready) {
+          const dateKey = getParisDateKey();
+          const dailyRef = doc(db, DAILY, userId);
+          const dailySnap = await tx.get(dailyRef);
+          const used = getUsedAttemptsForDate(dailySnap, dateKey);
+          if (used >= COOP_RED_MAX_ATTEMPTS_PER_DAY) {
+            throw new Error('no_attempts');
+          }
+        }
         const patch = { updatedAt: Timestamp.now() };
         if (r.hostId === userId) patch.hostReady = !!ready;
         else if (r.guestId === userId) patch.guestReady = !!ready;
@@ -293,6 +312,9 @@ export async function setCoopRedPlayerReady(roomId, userId, ready) {
     const m = e?.message;
     if (m === 'not_lobby') return { success: false, error: 'Impossible de changer le prêt maintenant.' };
     if (m === 'not_member') return { success: false, error: 'Tu n’es pas dans cette salle.' };
+    if (m === 'no_attempts') {
+      return { success: false, error: 'Plus d’essais Red disponibles aujourd’hui — impossible de se mettre prêt.' };
+    }
     return { success: false, error: e.message || 'Erreur' };
   }
 }
