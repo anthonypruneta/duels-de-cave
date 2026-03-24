@@ -196,8 +196,8 @@ export default function CoopRedReplayArena({
       </div>
 
       <div className="hidden lg:flex gap-4 items-start justify-center text-sm">
-        <div className="w-auto flex-shrink-0 flex flex-col gap-3">
-          <div className="rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-3 text-[12px] text-stone-300">
+        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
+          <div className="w-[340px] rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-3 text-[12px] text-stone-300">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-1 gap-2">
               <div>
@@ -224,7 +224,7 @@ export default function CoopRedReplayArena({
           </div>
           <div
             key={leftCardKey}
-            className={`rounded-xl transition-all duration-300 ease-out ${
+            className={`w-[340px] rounded-xl transition-all duration-300 ease-out ${
               leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
             } ${coopActor === 3 ? 'opacity-90' : ''}`}
           >
@@ -243,8 +243,20 @@ export default function CoopRedReplayArena({
             />
           </div>
         </div>
+
+        <div className="flex-1 min-w-[360px] max-w-[520px] flex flex-col">
+          <CoopRedCombatLog
+            lines={combatLog}
+            hostName={hostF?.name}
+            guestName={guestF?.name}
+            title={logTitle}
+            containerStyle={{ height: '320px' }}
+            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
+          />
+        </div>
+
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
-          <div className="bg-stone-900/90 border border-stone-600 rounded-lg px-3 py-2">
+          <div className="w-[340px] bg-stone-900/90 border border-stone-600 rounded-lg px-3 py-2">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid grid-cols-1 gap-2 mt-2">
               {(run.lineup || []).map((boss, i) => {
@@ -270,15 +282,7 @@ export default function CoopRedReplayArena({
               })}
             </div>
           </div>
-          <CoopRedCombatLog
-            lines={combatLog}
-            hostName={hostF?.name}
-            guestName={guestF?.name}
-            title={logTitle}
-            containerStyle={{ height: '280px' }}
-            className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full"
-          />
-          <div className={`rounded-xl transition-all duration-300 ease-out ${
+          <div className={`w-[340px] rounded-xl transition-all duration-300 ease-out ${
             bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
           } ${coopActor === 3 ? '' : 'opacity-95'}`}>
             {bossCharacter ? (
