@@ -224,7 +224,11 @@ function CoopRedDungeon() {
   const replayRewardContent = useMemo(() => {
     if (!room?.combat) return null;
     if (room.combat.winner === 'boss') {
-      return <p className="text-red-400 font-bold">Défaite…</p>;
+      return (
+        <div className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-lg px-4 py-3 text-sm">
+          <p className="text-red-400 font-bold">💀 Défaite…</p>
+        </div>
+      );
     }
     if (room.combat.winner !== 'players') return null;
 
@@ -232,8 +236,8 @@ function CoopRedDungeon() {
     const grantedRace = isHost ? room.hostEchoRaceGrant : room.guestEchoRaceGrant;
 
     return (
-      <div className="text-sm space-y-2">
-        <p className="text-emerald-400 font-bold">Victoire !</p>
+      <div className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-lg px-4 py-3 text-sm space-y-2">
+        <p className="text-emerald-400 font-bold">🏆 Victoire !</p>
         {granted ? (
           <div className="text-stone-300 space-y-1">
             <p>
@@ -391,10 +395,6 @@ function CoopRedDungeon() {
         aria-hidden
         className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${COOP_RED_PAGE_BG})` }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950/70"
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
         <Header />

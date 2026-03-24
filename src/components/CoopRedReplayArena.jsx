@@ -96,18 +96,7 @@ export default function CoopRedReplayArena({
 
   return (
     <div className={`${wrapperClassName} w-full max-w-[1800px] mx-auto overflow-x-hidden`}>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <button
-          type="button"
-          disabled={replaying}
-          onClick={onRelanceReplay}
-          className="text-xs px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-stone-200 disabled:opacity-40"
-        >
-          Relancer le déroulé
-        </button>
-      </div>
-
-      <div className="lg:hidden flex flex-col gap-2">
+      <div className="xl:hidden flex flex-col gap-2">
         <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-2 py-2 text-[10px] text-stone-300">
           <p className="text-stone-500 font-bold uppercase text-center mb-1">Équipe</p>
           <div className="grid grid-cols-2 gap-2">
@@ -170,17 +159,17 @@ export default function CoopRedReplayArena({
               const isActive = activeBossIdx === i;
               const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
               return (
-                <div key={i} className={`rounded px-2 py-1 border ${isActive ? 'border-amber-500 bg-amber-950/30' : 'border-stone-700 bg-stone-900/50'}`}>
-                  <div className="flex justify-between text-[10px] text-stone-300">
-                    <span className="flex items-center gap-2 min-w-0">
-                      {sprite ? <img src={sprite} alt="" className="w-6 h-6 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
+                <div key={i} className={`rounded px-2 py-1 border ${isActive ? 'border-amber-500 bg-amber-950/25' : 'border-stone-700 bg-stone-900/45'}`}>
+                  <div className="text-[10px] text-stone-300">
+                    <p className="font-semibold truncate flex items-center gap-2">
+                      {sprite ? <img src={sprite} alt="" className="w-5 h-5 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
                       <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
-                    </span>
-                    <span>{cur}/{maxH}</span>
+                    </p>
                   </div>
                   <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-1">
-                    <div className="h-full bg-gradient-to-r from-red-800 to-amber-700 transition-all" style={{ width: `${pct}%` }} />
+                    <div className="h-full bg-red-600 transition-all" style={{ width: `${pct}%` }} />
                   </div>
+                  <p className="text-stone-500 mt-0.5 text-[10px]">{cur} / {maxH}</p>
                 </div>
               );
             })}
@@ -201,8 +190,8 @@ export default function CoopRedReplayArena({
         )}
       </div>
 
-      <div className="hidden lg:flex gap-4 items-start justify-center text-sm">
-        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
+      <div className="hidden xl:flex gap-4 items-start justify-center text-sm">
+        <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
           <div className="w-[340px] rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-1 gap-3">
@@ -231,7 +220,7 @@ export default function CoopRedReplayArena({
 
           <div
             key={leftCardKey}
-            className={`w-[340px] rounded-xl transition-all duration-300 ease-out ${
+            className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
               leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
             } ${coopActor === 3 ? 'opacity-90' : ''}`}
           >
@@ -246,7 +235,7 @@ export default function CoopRedReplayArena({
               combatStatus={leftStatus}
               opponent={bossCharacter ?? leftChar}
               imageOverride={leftImg}
-              detailsPlacement={null}
+              detailsPlacement="left"
             />
           </div>
         </div>
@@ -267,7 +256,7 @@ export default function CoopRedReplayArena({
           )}
         </div>
 
-        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
+        <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
           <div className="w-[340px] px-3 py-2">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid grid-cols-1 gap-2 mt-2">
@@ -281,21 +270,21 @@ export default function CoopRedReplayArena({
                 const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
                 return (
                   <div key={i} className={`rounded px-2 py-1 border ${isActive ? 'border-amber-600/80 bg-stone-900/80' : 'border-stone-700 bg-stone-900/40 opacity-80'}`}>
-                    <div className="flex items-center gap-1 min-w-0 text-[10px]">
-                      {sprite ? <img src={sprite} alt="" className="w-6 h-6 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
+                    <p className="text-[11px] font-semibold truncate flex items-center gap-2">
+                      {sprite ? <img src={sprite} alt="" className="w-5 h-5 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
                       <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
-                    </div>
+                    </p>
                     <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-1">
-                      <div className="h-full bg-gradient-to-r from-red-800 to-amber-700 transition-all duration-300" style={{ width: `${pct}%` }} />
+                      <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="text-[10px] text-stone-400 mt-0.5 text-right">{cur}/{maxH}</p>
+                    <p className="text-stone-500 mt-1 text-[11px]">{cur} / {maxH}</p>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className={`w-[340px] rounded-xl transition-all duration-300 ease-out ${
+          <div className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
             bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
           } ${coopActor === 3 ? '' : 'opacity-95'}`}>
             {bossCharacter ? (
@@ -310,7 +299,7 @@ export default function CoopRedReplayArena({
                 combatStatus={bossCombatStatus}
                 opponent={leftChar}
                 imageOverride={bossSprite ?? undefined}
-                detailsPlacement={null}
+                detailsPlacement="right"
               />
             ) : (
               <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
