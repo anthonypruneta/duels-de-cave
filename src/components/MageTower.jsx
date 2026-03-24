@@ -64,6 +64,7 @@ import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
+import CombatSpeedSelector from './CombatSpeedSelector';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
@@ -162,6 +163,7 @@ const MageTower = () => {
   const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [combatSpeed, setCombatSpeed] = useState('fast'); // normal | fast | turbo
   const [combatResult, setCombatResult] = useState(null);
   const [currentAction, setCurrentAction] = useState(null);
   const [rewardSummary, setRewardSummary] = useState(null);
@@ -1047,7 +1049,7 @@ const MageTower = () => {
         setBoss((prev) => prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield ?? prev.shield ?? 0 } : null);
       },
       existingLogs: logs,
-      speed: 'fast'
+      speed: combatSpeed
     });
     logs.length = 0;
     logs.push(...finalLogs);
@@ -1598,6 +1600,10 @@ const MageTower = () => {
         {/* 3 - Carte du personnage */}
         <div className="flex justify-center mb-6">
           <CharacterCardContent character={character} detailsPlacement="right" />
+        </div>
+
+        <div className="flex justify-center mb-6">
+          <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
         </div>
 
         {instantMessage && (
