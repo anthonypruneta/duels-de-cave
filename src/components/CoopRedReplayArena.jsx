@@ -196,9 +196,9 @@ export default function CoopRedReplayArena({
       </div>
 
       <div className="hidden lg:grid grid-cols-[340px_minmax(400px,1fr)_340px] gap-4 items-start text-sm">
-        <div className="col-span-2 rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-300">
+        <div className="col-start-1 rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-300">
           <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <p className="text-violet-300/90 font-semibold truncate flex items-center gap-2">
                 <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
@@ -222,7 +222,7 @@ export default function CoopRedReplayArena({
           </div>
         </div>
 
-        <div className="rounded-lg border border-stone-600 bg-stone-900/90 px-3 py-2">
+        <div className="col-start-3 rounded-lg border border-stone-600 bg-stone-900/90 px-3 py-2">
           <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
           <div className="grid grid-cols-1 gap-2 mt-2">
             {(run.lineup || []).map((boss, i) => {
@@ -250,10 +250,10 @@ export default function CoopRedReplayArena({
         </div>
 
         <div
-          key={leftCardKey}
-          className={`rounded-xl transition-all duration-300 ease-out ${
+          className={`col-start-1 row-start-2 rounded-xl transition-all duration-300 ease-out ${
             leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
           } ${coopActor === 3 ? 'opacity-90' : ''}`}
+          key={leftCardKey}
         >
           <CharacterCardContent
             character={leftChar}
@@ -271,15 +271,15 @@ export default function CoopRedReplayArena({
         </div>
 
         <CoopRedCombatLog
+          className="col-start-2 row-start-2 bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
           lines={combatLog}
           hostName={hostF?.name}
           guestName={guestF?.name}
           title={logTitle}
           containerStyle={{ height: '320px' }}
-          className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
         />
 
-        <div className={`rounded-xl transition-all duration-300 ease-out ${
+        <div className={`col-start-3 row-start-2 rounded-xl transition-all duration-300 ease-out ${
           bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
         } ${coopActor === 3 ? '' : 'opacity-95'}`}>
           {bossCharacter ? (
