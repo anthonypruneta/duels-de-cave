@@ -90,7 +90,11 @@ function snapshotCharacterForCoop(data) {
   return {
     userId: data.userId,
     name: data.name,
+    gender: data.gender ?? null,
     characterImage: data.characterImage ?? null,
+    equippedTitle: data.equippedTitle ?? null,
+    equippedBorder: data.equippedBorder ?? null,
+    equippedRealBorder: data.equippedRealBorder ?? null,
     race: data.race,
     class: data.class,
     level: data.level ?? 1,

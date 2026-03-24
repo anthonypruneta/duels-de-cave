@@ -244,9 +244,29 @@ function CoopRedDungeon() {
               Pointeau ADN tiré au sort : <span className="text-emerald-300 font-semibold">{grantedRace ?? '—'}</span>
             </p>
             {character?.coopRaceEcho?.race && character?.coopRaceEchoOffer?.roomId === room.id && (
-              <p className="text-amber-200/90 text-xs">
-                Tu avais déjà un Pointeau ADN : choisis en haut de page de remplacer ou de le garder.
-              </p>
+              <div className="mt-2 rounded-lg border border-amber-500/50 bg-amber-950/30 p-3 space-y-2">
+                <p className="text-amber-200/90 text-xs">
+                  Tu avais déjà un Pointeau ADN : choisis de remplacer ou de garder l’actuel.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={echoOfferBusy}
+                    onClick={() => handleResolveEchoOffer(true)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-600/60 disabled:opacity-50"
+                  >
+                    Remplacer par {character.coopRaceEchoOffer.race}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={echoOfferBusy}
+                    onClick={() => handleResolveEchoOffer(false)}
+                    className="px-3 py-1.5 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 text-xs font-bold border border-stone-500/60 disabled:opacity-50"
+                  >
+                    Garder le Pointeau ADN actuel
+                  </button>
+                </div>
+              </div>
             )}
             {!!grantedRace && (
               <div className="mt-2 text-[11px] text-stone-400">
@@ -262,7 +282,14 @@ function CoopRedDungeon() {
         )}
       </div>
     );
-  }, [room, isHost, character?.coopRaceEcho?.race, character?.coopRaceEchoOffer?.roomId]);
+  }, [
+    room,
+    isHost,
+    echoOfferBusy,
+    character?.coopRaceEcho?.race,
+    character?.coopRaceEchoOffer?.roomId,
+    character?.coopRaceEchoOffer?.race,
+  ]);
 
   const handleCreate = async () => {
     setError(null);
@@ -464,43 +491,6 @@ function CoopRedDungeon() {
         {error && (
           <div className="bg-red-950/50 border border-red-700/60 text-red-200 text-sm px-4 py-2 rounded-lg">
             {error}
-          </div>
-        )}
-
-        {character?.coopRaceEchoOffer?.race && (
-          <div className="rounded-xl border border-amber-500/50 bg-amber-950/30 p-4 space-y-3">
-            <p className="text-sm text-stone-200">
-              <span className="font-bold text-amber-400">Nouveau Pointeau ADN (Red)</span> — proposition :{' '}
-              <span className="text-emerald-300 font-semibold">{character.coopRaceEchoOffer.race}</span>
-              {character.coopRaceEcho?.race && (
-                <>
-                  {' '}
-                  · Pointeau ADN actuel :{' '}
-                  <span className="text-stone-300">{character.coopRaceEcho.race}</span>
-                </>
-              )}
-            </p>
-            <p className="text-xs text-stone-500">
-              Remplace ton Pointeau ADN actuel par celui-ci, ou garde l’actuel et abandonne la proposition.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={echoOfferBusy}
-                onClick={() => handleResolveEchoOffer(true)}
-                className="px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-sm font-bold border border-emerald-600/60 disabled:opacity-50"
-              >
-                Remplacer par {character.coopRaceEchoOffer.race}
-              </button>
-              <button
-                type="button"
-                disabled={echoOfferBusy}
-                onClick={() => handleResolveEchoOffer(false)}
-                className="px-4 py-2 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 text-sm font-bold border border-stone-500/60 disabled:opacity-50"
-              >
-                Garder le Pointeau ADN actuel
-              </button>
-            </div>
           </div>
         )}
 

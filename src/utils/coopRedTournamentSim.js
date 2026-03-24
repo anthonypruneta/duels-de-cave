@@ -227,19 +227,22 @@ function buildCombatResult(
 /**
  * @param {object} [options]
  * @param {boolean} [options.recordSteps] — si true, ajoute `steps` pour replay UI (ne pas persister tel quel dans Firestore).
+ * @param {boolean} [options.injectSimulationLoot] — active le mode test arme/passif aléatoires.
  */
 export function simulerMatchCoopRed(hostSnap, guestSnap, difficulty, seed, options = {}) {
   const recordSteps = options.recordSteps === true;
+  const injectSimulationLoot = options.injectSimulationLoot === true;
   const seedU = seed >>> 0;
   const rng = createCoopSeededRng(seedU);
   return runWithCombatRandom01(() => rng.next01(), () =>
-    runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps)
+    runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps, injectSimulationLoot)
   );
 }
 
-function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps) {
+function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSteps, injectSimulationLoot = false) {
   const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty, {
     rngNext01: () => rng.next01(),
+    injectSimulationLoot,
   });
   const lineup = getCoopRedLineup(difficulty);
   const steps = [];

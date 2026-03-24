@@ -1,6 +1,6 @@
 /**
  * Préparation des combattants donjon Red (preparerCombattant).
- * Simulation : arme légendaire + passif tour de mage niveau 3 tirés au sort (RNG déterministe si rngNext01 fourni).
+ * Mode test (optionnel) : arme légendaire + passif tour de mage niveau 3 tirés au sort.
  */
 import { RARITY, getWeaponsByRarity, isWaveActive } from '../data/weapons.js';
 import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives.js';
@@ -45,12 +45,13 @@ function injectCoopRedSimulationLoot(hostSnap, guestSnap, rngNext01) {
 
 /**
  * @param {object} [options]
- * @param {() => number} [options.rngNext01] — si défini (même flux que le combat Red), injecte arme légendaire + passif niv. 3 aléatoires pour l’hôte et l’invité.
+ * @param {() => number} [options.rngNext01] — RNG déterministe (utile si mode test activé).
+ * @param {boolean} [options.injectSimulationLoot] — active l’injection aléatoire arme/passif (tests admin uniquement).
  */
 export function rebuildPreparedCoop(hostSnap, guestSnap, difficulty, options = {}) {
   let h = hostSnap;
   let g = guestSnap;
-  if (typeof options.rngNext01 === 'function') {
+  if (options.injectSimulationLoot === true && typeof options.rngNext01 === 'function') {
     ({ hostSnap: h, guestSnap: g } = injectCoopRedSimulationLoot(hostSnap, guestSnap, options.rngNext01));
   }
   const host = preparerCombattant(h);

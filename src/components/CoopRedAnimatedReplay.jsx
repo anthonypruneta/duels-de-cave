@@ -94,16 +94,30 @@ export default function CoopRedAnimatedReplay({
     onReplayFinished?.(false);
     setCoopActor(null);
 
-    const loadSnapWithFallbackImage = async (snap) => {
-      if (!snap?.userId || snap?.characterImage) return snap;
+    const loadSnapWithVisualFallbacks = async (snap) => {
+      if (!snap?.userId) return snap;
+      const needsVisualData = !snap?.characterImage
+        || !snap?.equippedTitle
+        || !snap?.equippedBorder
+        || !snap?.equippedRealBorder
+        || !snap?.gender;
+      if (!needsVisualData) return snap;
       const res = await getUserCharacter(snap.userId);
-      if (!res.success || !res.data?.characterImage) return snap;
-      return { ...snap, characterImage: res.data.characterImage };
+      if (!res.success || !res.data) return snap;
+      const fresh = res.data;
+      return {
+        ...snap,
+        characterImage: snap.characterImage ?? fresh.characterImage ?? null,
+        equippedTitle: snap.equippedTitle ?? fresh.equippedTitle ?? null,
+        equippedBorder: snap.equippedBorder ?? fresh.equippedBorder ?? null,
+        equippedRealBorder: snap.equippedRealBorder ?? fresh.equippedRealBorder ?? null,
+        gender: snap.gender ?? fresh.gender ?? null,
+      };
     };
 
     const [hostSnapResolved, guestSnapResolved] = await Promise.all([
-      loadSnapWithFallbackImage(hostSnap),
-      loadSnapWithFallbackImage(guestSnap),
+      loadSnapWithVisualFallbacks(hostSnap),
+      loadSnapWithVisualFallbacks(guestSnap),
     ]);
 
     const prepRng = createCoopSeededRng(combatSeed >>> 0);

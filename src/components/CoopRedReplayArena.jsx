@@ -147,7 +147,7 @@ export default function CoopRedReplayArena({
             side="right"
           />
         </div>
-        <div className="rounded-xl p-2">
+        <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-2 py-2 text-[10px] text-stone-300">
           <p className="text-stone-500 text-[11px] font-bold uppercase text-center mb-2">Boss (rotation)</p>
           <div className="grid gap-2">
             {(run.lineup || []).map((boss, i) => {
@@ -159,13 +159,11 @@ export default function CoopRedReplayArena({
               const isActive = activeBossIdx === i;
               const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
               return (
-                <div key={i} className={`rounded px-2 py-1 border ${isActive ? 'border-amber-500 bg-amber-950/25' : 'border-stone-700 bg-stone-900/45'}`}>
-                  <div className="text-[10px] text-stone-300">
-                    <p className="font-semibold truncate flex items-center gap-2">
-                      {sprite ? <img src={sprite} alt="" className="w-5 h-5 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
-                      <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
-                    </p>
-                  </div>
+                <div key={i} className={`${isActive ? 'ring-1 ring-amber-500/70 rounded px-1 py-0.5' : ''}`}>
+                  <p className="font-semibold truncate flex items-center gap-1">
+                    {sprite ? <img src={sprite} alt="" className="w-4 h-4 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
+                    <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
+                  </p>
                   <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-1">
                     <div className="h-full bg-red-600 transition-all" style={{ width: `${pct}%` }} />
                   </div>
@@ -257,7 +255,7 @@ export default function CoopRedReplayArena({
         </div>
 
         <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] px-3 py-2">
+          <div className="w-[340px] rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid grid-cols-1 gap-2 mt-2">
               {(run.lineup || []).map((boss, i) => {
@@ -269,7 +267,7 @@ export default function CoopRedReplayArena({
                 const isActive = activeBossIdx === i;
                 const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
                 return (
-                  <div key={i} className={`rounded px-2 py-1 border ${isActive ? 'border-amber-600/80 bg-stone-900/80' : 'border-stone-700 bg-stone-900/40 opacity-80'}`}>
+                  <div key={i} className={`${isActive ? 'ring-1 ring-amber-500/70 rounded px-1 py-0.5' : 'opacity-90'}`}>
                     <p className="text-[11px] font-semibold truncate flex items-center gap-2">
                       {sprite ? <img src={sprite} alt="" className="w-5 h-5 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
                       <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
