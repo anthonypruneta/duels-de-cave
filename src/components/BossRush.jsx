@@ -12,6 +12,7 @@ import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
+import CombatSpeedSelector from './CombatSpeedSelector';
 import { syncUnlockedBorders } from '../data/borders';
 import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -56,6 +57,7 @@ const BossRush = () => {
   const [playerCombatStatus, setPlayerCombatStatus] = useState(null);
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [combatSpeed, setCombatSpeed] = useState('fast'); // normal | fast | turbo
   const [combatResult, setCombatResult] = useState(null);
   const [carriedHP, setCarriedHP] = useState(null);
   const [bossRushCompleted, setBossRushCompleted] = useState(false);
@@ -152,7 +154,11 @@ const BossRush = () => {
     try {
       const bossData = createBossRushCombatant(bossIdx);
 
-      const playerData = { ...character };
+      const playerData = {
+        ...character,
+        // Conserve explicitement le Pointeau ADN dans le payload de simulation Boss Rush.
+        coopRaceEcho: character?.coopRaceEcho ?? null,
+      };
       if (previousHP !== null) {
         playerData._bossRushStartHP = previousHP;
       }
@@ -178,7 +184,7 @@ const BossRush = () => {
           setPlayerCombatModifiers(step.p1Modifiers || null);
           setPlayerCombatStatus(step.p1Status || null);
         },
-        speed: 'fast',
+        speed: combatSpeed,
       });
 
       const lastStep = result.steps[result.steps.length - 1];
@@ -421,6 +427,10 @@ const BossRush = () => {
               <h2 className="text-3xl font-bold text-red-400">💀 Boss Rush</h2>
               <p className="text-red-300 text-sm mt-1">6 boss sans répit. Vos PV persistent entre chaque combat.</p>
             </div>
+          </div>
+
+          <div className="flex justify-center mb-6">
+            <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           </div>
 
           <div className="flex flex-col md:flex-row gap-6 items-start justify-center mb-6">
