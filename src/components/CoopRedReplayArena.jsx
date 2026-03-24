@@ -188,122 +188,127 @@ export default function CoopRedReplayArena({
         )}
       </div>
 
-      <div className="hidden xl:flex gap-4 items-start justify-center text-sm">
-        <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] self-end rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300 text-right">
-            <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <p className="text-violet-300/90 font-semibold truncate flex items-center justify-end gap-2">
-                  <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
-                  <span className="truncate">{hostF.name}</span>
-                </p>
-                <div className="h-2 bg-stone-800 rounded overflow-hidden mt-1">
-                  <div className="h-full bg-violet-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * hostF.currentHP) / (hostF.maxHP || 1)))}%` }} />
-                </div>
-                <p className="text-stone-500 mt-1">{hostF.currentHP} / {hostF.maxHP}</p>
-              </div>
-              <div>
-                <p className="text-red-300/90 font-semibold truncate flex items-center justify-end gap-2">
-                  <img src={guestImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
-                  <span className="truncate">{guestF.name}</span>
-                </p>
-                <div className="h-2 bg-stone-800 rounded overflow-hidden mt-1">
-                  <div className="h-full bg-red-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * guestF.currentHP) / (guestF.maxHP || 1)))}%` }} />
-                </div>
-                <p className="text-stone-500 mt-1">{guestF.currentHP} / {guestF.maxHP}</p>
-              </div>
-            </div>
-          </div>
-
-          <div
-            key={leftCardKey}
-            className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
-              leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-            } ${coopActor === 3 ? 'opacity-90' : ''}`}
-          >
-            <CharacterCardContent
-              character={leftChar}
-              weaponOverride={leftChar?.equippedWeaponData ?? null}
-              showHpBar
-              currentHP={leftChar.currentHP}
-              maxHP={leftChar.maxHP}
-              shield={leftChar.shield ?? 0}
-              combatBaseOverride={leftBase}
-              combatStatus={leftStatus}
-              opponent={bossCharacter ?? leftChar}
-              imageOverride={leftImg}
-              detailsPlacement="left"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col mt-[112px]">
-          <CoopRedCombatLog
-            className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
-            lines={combatLog}
-            hostName={hostF?.name}
-            guestName={guestF?.name}
-            title={logTitle}
-            containerStyle={{ height: '500px' }}
-          />
-          {rewardContent && (
-            <div className="mt-2">
-              {rewardContent}
-            </div>
-          )}
-        </div>
-
-        <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] self-start rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300 text-left">
-            <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
-            <div className="grid grid-cols-1 gap-2 mt-2">
-              {(run.lineup || []).map((boss, i) => {
-                const maxH = boss?.baseStats && difficulty
-                  ? scaleCoopRedBossBaseStats(boss.baseStats, difficulty).hp
-                  : boss?.baseStats?.hp ?? 1;
-                const cur = bossHPs[i] ?? 0;
-                const pct = Math.min(100, Math.max(0, (cur / maxH) * 100));
-                const isActive = activeBossIdx === i;
-                const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
-                return (
-                  <div key={i} className={`${isActive ? 'ring-1 ring-amber-500/70 rounded px-1 py-0.5' : 'opacity-90'}`}>
-                    <p className="text-[11px] font-semibold truncate flex items-center gap-2">
-                      {sprite ? <img src={sprite} alt="" className="w-5 h-5 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
-                      <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
-                    </p>
-                    <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-1">
-                      <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="text-stone-500 mt-1 text-[11px]">{cur} / {maxH}</p>
+      <div className="hidden xl:flex flex-col gap-3">
+        <div className="rounded-lg border border-stone-700/70 bg-stone-950/70 px-4 py-3 text-[11px] text-stone-300">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="pr-4 border-r border-stone-700/70">
+              <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-violet-300/90 font-semibold truncate flex items-center gap-2">
+                    <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
+                    <span className="truncate">{hostF.name}</span>
+                  </p>
+                  <div className="h-2 bg-stone-800 rounded overflow-hidden mt-1">
+                    <div className="h-full bg-violet-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * hostF.currentHP) / (hostF.maxHP || 1)))}%` }} />
                   </div>
-                );
-              })}
+                  <p className="text-stone-500 mt-1">{hostF.currentHP} / {hostF.maxHP}</p>
+                </div>
+                <div>
+                  <p className="text-red-300/90 font-semibold truncate flex items-center gap-2">
+                    <img src={guestImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
+                    <span className="truncate">{guestF.name}</span>
+                  </p>
+                  <div className="h-2 bg-stone-800 rounded overflow-hidden mt-1">
+                    <div className="h-full bg-red-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * guestF.currentHP) / (guestF.maxHP || 1)))}%` }} />
+                  </div>
+                  <p className="text-stone-500 mt-1">{guestF.currentHP} / {guestF.maxHP}</p>
+                </div>
+              </div>
+            </div>
+            <div className="pl-4">
+              <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center mb-2">Boss (rotation)</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(run.lineup || []).map((boss, i) => {
+                  const maxH = boss?.baseStats && difficulty
+                    ? scaleCoopRedBossBaseStats(boss.baseStats, difficulty).hp
+                    : boss?.baseStats?.hp ?? 1;
+                  const cur = bossHPs[i] ?? 0;
+                  const pct = Math.min(100, Math.max(0, (cur / maxH) * 100));
+                  const isActive = activeBossIdx === i;
+                  const sprite = boss.imageFile ? getCoopRedSpriteUrl(boss.imageFile) : null;
+                  return (
+                    <div key={i} className={`${isActive ? 'ring-1 ring-amber-500/70 rounded px-1 py-0.5' : 'opacity-90'}`}>
+                      <p className="text-[11px] font-semibold truncate flex items-center gap-1">
+                        {sprite ? <img src={sprite} alt="" className="w-4 h-4 object-contain flex-shrink-0" style={{ imageRendering: 'pixelated' }} /> : null}
+                        <span className={`truncate ${COOP_RED_BOSS_NAME_COLORS[boss.nom] ?? 'text-stone-300'}`}>{boss.nom}</span>
+                      </p>
+                      <div className="h-2 bg-stone-800 rounded overflow-hidden mt-1">
+                        <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-stone-500 mt-1">{cur} / {maxH}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-4 items-start justify-center text-sm">
+          <div className="w-[620px] flex-shrink-0">
+            <div
+              key={leftCardKey}
+              className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
+                leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
+              } ${coopActor === 3 ? 'opacity-90' : ''}`}
+            >
+              <CharacterCardContent
+                character={leftChar}
+                weaponOverride={leftChar?.equippedWeaponData ?? null}
+                showHpBar
+                currentHP={leftChar.currentHP}
+                maxHP={leftChar.maxHP}
+                shield={leftChar.shield ?? 0}
+                combatBaseOverride={leftBase}
+                combatStatus={leftStatus}
+                opponent={bossCharacter ?? leftChar}
+                imageOverride={leftImg}
+                detailsPlacement="left"
+              />
             </div>
           </div>
 
-          <div className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
-            bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
-          } ${coopActor === 3 ? '' : 'opacity-95'}`}>
-            {bossCharacter ? (
-              <CharacterCardContent
-                key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}
-                character={bossCharacter}
-                showHpBar
-                currentHP={bossCurrentHP}
-                maxHP={bossMaxHP}
-                shield={bossShield}
-                combatBaseOverride={bossCombatBase}
-                combatStatus={bossCombatStatus}
-                opponent={leftChar}
-                imageOverride={bossSprite ?? undefined}
-                detailsPlacement="right"
-              />
-            ) : (
-              <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
-                Boss indisponible
+          <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col">
+            <CoopRedCombatLog
+              className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
+              lines={combatLog}
+              hostName={hostF?.name}
+              guestName={guestF?.name}
+              title={logTitle}
+              containerStyle={{ height: '500px' }}
+            />
+            {rewardContent && (
+              <div className="mt-2">
+                {rewardContent}
               </div>
             )}
+          </div>
+
+          <div className="w-[620px] flex-shrink-0">
+            <div className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
+              bossHighlight ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
+            } ${coopActor === 3 ? '' : 'opacity-95'}`}>
+              {bossCharacter ? (
+                <CharacterCardContent
+                  key={`boss-slot-${activeBossIdx}-${activeBossDef.id}`}
+                  character={bossCharacter}
+                  showHpBar
+                  currentHP={bossCurrentHP}
+                  maxHP={bossMaxHP}
+                  shield={bossShield}
+                  combatBaseOverride={bossCombatBase}
+                  combatStatus={bossCombatStatus}
+                  opponent={leftChar}
+                  imageOverride={bossSprite ?? undefined}
+                  detailsPlacement="right"
+                />
+              ) : (
+                <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
+                  Boss indisponible
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
