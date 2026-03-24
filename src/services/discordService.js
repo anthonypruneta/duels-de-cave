@@ -23,30 +23,49 @@ export async function envoyerAnnonceDiscord({ titre, message, mentionEveryone = 
     embeds: [embed]
   };
 
-  let response;
+  try {
+    let response;
+    if (imageBlob) {
+      // Envoi multipart avec fichier
+      const formData = new FormData();
+      formData.append('payload_json', JSON.stringify(payload));
+      formData.append('files[0]', imageBlob, 'image.png');
 
-  if (imageBlob) {
-    // Envoi multipart avec fichier
-    const formData = new FormData();
-    formData.append('payload_json', JSON.stringify(payload));
-    formData.append('files[0]', imageBlob, 'image.png');
+      response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        body: formData
+      });
+    } else {
+      // Envoi JSON classique
+      response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
 
-    response = await fetch(WEBHOOK_URL, {
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Erreur Discord (${response.status}): ${text}`);
+    }
+  } catch (err) {
+    const isNetworkLikeError =
+      err?.name === 'TypeError' ||
+      String(err?.message || '').toLowerCase().includes('failed to fetch') ||
+      String(err?.message || '').toLowerCase().includes('networkerror');
+
+    if (!isNetworkLikeError) throw err;
+
+    // Fallback navigateur (CORS): envoi no-cors en multipart.
+    const fallbackFormData = new FormData();
+    fallbackFormData.append('payload_json', JSON.stringify(payload));
+    if (imageBlob) fallbackFormData.append('files[0]', imageBlob, 'image.png');
+
+    await fetch(WEBHOOK_URL, {
       method: 'POST',
-      body: formData
+      mode: 'no-cors',
+      body: fallbackFormData
     });
-  } else {
-    // Envoi JSON classique
-    response = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Erreur Discord (${response.status}): ${text}`);
   }
 
   return true;
