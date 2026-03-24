@@ -22,7 +22,6 @@ import {
   getRaceBonusText,
   getClassDescriptionText,
   buildRaceAwakeningDescription,
-  splitDescriptionLines,
   buildRacePointeauAdnDescription,
   getPointeauAdnIntensityLabel,
 } from '../utils/descriptionBuilders';

@@ -345,6 +345,12 @@ function CoopRedDungeon() {
     return openRooms.filter((r) => r.difficulty === listDifficultyFilter);
   }, [openRooms, listDifficultyFilter]);
 
+  const isCombatLaunched =
+    inRoom &&
+    room &&
+    (room.status === 'simulating' || room.status === 'completed');
+  const displayAnimatedReplay = isCombatLaunched ? true : showAnimatedReplay;
+
   return (
     <div className="relative min-h-screen text-stone-100">
       <div
@@ -357,17 +363,18 @@ function CoopRedDungeon() {
         className="pointer-events-none absolute inset-0 z-0 min-h-full bg-stone-950/70"
       />
       <div className="relative z-10 p-4 md:p-6 min-h-screen">
-        <Header />
+        {!isCombatLaunched && <Header />}
         <div
-          className={`mx-auto pt-20 px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
-            showAnimatedReplay ? 'max-w-[1800px]' : 'max-w-6xl'
+          className={`mx-auto ${isCombatLaunched ? 'pt-4' : 'pt-20'} px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
+            displayAnimatedReplay ? 'max-w-[1800px]' : 'max-w-6xl'
           }`}
         >
         <div
           className={`space-y-6 flex-1 min-w-0 w-full ${
-            showAnimatedReplay ? '' : 'max-w-3xl mx-auto xl:mx-0'
+            displayAnimatedReplay ? '' : 'max-w-3xl mx-auto xl:mx-0'
           }`}
         >
+        {!isCombatLaunched && (
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-red-400 mb-1">L'arène de Red</h1>
           <p className="text-stone-400 text-sm">
@@ -376,7 +383,9 @@ function CoopRedDungeon() {
             le tournoi ; seed déterministe. Tu peux quitter la page.
           </p>
         </div>
+        )}
 
+        {!isCombatLaunched && (
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
           <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : Pointeau ADN</h2>
           <ul className="space-y-2 text-stone-400 leading-relaxed">
@@ -399,7 +408,9 @@ function CoopRedDungeon() {
             </li>
           </ul>
         </div>
+        )}
 
+        {!isCombatLaunched && (
         <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 flex flex-wrap justify-between gap-3">
           <div>
             <p className="text-amber-400 text-xs font-bold uppercase">Essais restants</p>
@@ -418,6 +429,7 @@ function CoopRedDungeon() {
             </div>
           )}
         </div>
+        )}
 
         {error && (
           <div className="bg-red-950/50 border border-red-700/60 text-red-200 text-sm px-4 py-2 rounded-lg">
@@ -595,6 +607,7 @@ function CoopRedDungeon() {
 
         {inRoom && room && (
           <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-4">
+            {!isCombatLaunched && (
             <div className="flex flex-wrap justify-between gap-2">
               <p className="text-sm text-stone-400">
                 {COOP_RED_DIFFICULTY_LABELS[room.difficulty]} — hôte :{' '}
@@ -636,6 +649,7 @@ function CoopRedDungeon() {
                 </button>
               </div>
             </div>
+            )}
 
             {room.status === 'waiting' && (
               <p className="text-amber-200 text-sm">
@@ -692,7 +706,7 @@ function CoopRedDungeon() {
               </p>
             )}
 
-            {(room.status === 'simulating' || simRunning) && room.guestId && !room.combat?.winner && (
+            {(room.status === 'simulating' || simRunning) && room.guestId && !room.combat?.winner && !isCombatLaunched && (
               <div className="rounded-lg border border-amber-600/50 bg-amber-950/30 px-3 py-2 text-amber-100 text-sm">
                 Simulation (moteur tournoi) en cours…
               </div>
@@ -702,16 +716,18 @@ function CoopRedDungeon() {
               <div className="space-y-4 border-t border-stone-700 pt-4">
                 {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
                   <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowAnimatedReplay((v) => !v)}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
-                    >
-                      {showAnimatedReplay
-                        ? 'Voir le récap rapide'
-                        : 'Voir le déroulé animé (même UI que le combat)'}
-                    </button>
-                    {showAnimatedReplay && (
+                    {!isCombatLaunched && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAnimatedReplay((v) => !v)}
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
+                      >
+                        {showAnimatedReplay
+                          ? 'Voir le récap rapide'
+                          : 'Voir le déroulé animé (même UI que le combat)'}
+                      </button>
+                    )}
+                    {displayAnimatedReplay && (
                       <div className="w-full bg-black/25 rounded-2xl border border-red-900/40 p-2 md:p-3">
                         <CoopRedAnimatedReplay
                           key={`${room.id}-${room.combatSeed}`}
@@ -729,7 +745,7 @@ function CoopRedDungeon() {
                   </div>
                 )}
 
-                {!showAnimatedReplay && (
+                {!displayAnimatedReplay && (
                   <>
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div>
@@ -824,7 +840,7 @@ function CoopRedDungeon() {
                   </>
                 )}
 
-                {!showAnimatedReplay && (
+                {!displayAnimatedReplay && (
                 <div className="text-sm space-y-1">
                   {room.combat.winner === 'players' && (
                     <p className="text-emerald-400 font-bold">Victoire !</p>
@@ -909,7 +925,7 @@ function CoopRedDungeon() {
         </button>
         </div>
 
-        {!showAnimatedReplay && (
+        {!displayAnimatedReplay && (
           <aside className="hidden xl:flex flex-col items-center flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start">
             <div className="rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
               <img
