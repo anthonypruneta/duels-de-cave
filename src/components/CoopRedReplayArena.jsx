@@ -190,7 +190,7 @@ export default function CoopRedReplayArena({
           hostName={hostF?.name}
           guestName={guestF?.name}
           title={logTitle}
-          containerStyle={{ height: 'calc(100dvh - 380px)', minHeight: '220px', maxHeight: '360px' }}
+          containerStyle={{ height: 'calc(100dvh - 430px)', minHeight: '190px', maxHeight: '300px' }}
           className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full"
         />
       </div>
@@ -281,7 +281,7 @@ export default function CoopRedReplayArena({
             hostName={hostF?.name}
             guestName={guestF?.name}
             title={logTitle}
-            containerStyle={{ height: '500px' }}
+            containerStyle={{ height: '420px' }}
             className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
           />
         </div>
