@@ -18,7 +18,14 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES 
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import SharedTooltip from './SharedTooltip';
 import InteractiveCharacterCard from './InteractiveCharacterCard';
-import { getRaceBonusText, getClassDescriptionText, buildRaceAwakeningDescription } from '../utils/descriptionBuilders';
+import {
+  getRaceBonusText,
+  getClassDescriptionText,
+  buildRaceAwakeningDescription,
+  splitDescriptionLines,
+  buildRacePointeauAdnDescription,
+  getPointeauAdnIntensityLabel,
+} from '../utils/descriptionBuilders';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -1335,6 +1342,26 @@ const CharacterCreation = () => {
                       <div className="flex items-start gap-2 border border-stone-600 bg-stone-900/60 p-2 text-xs text-stone-300">
                         <span className="text-lg">{races[existingCharacter.race].icon}</span>
                         <span className="text-stone-300">{getRaceBonusText(existingCharacter.race)}</span>
+                      </div>
+                    )}
+                    {existingCharacter?.coopRaceEcho?.race && (
+                      <div className="pointeau-adn-border pointeau-adn-glow overflow-visible">
+                        <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 pointeau-adn-shine">
+                          <span className="text-lg">🧬</span>
+                          <div className="flex-1">
+                            <div className="font-semibold pointeau-adn-text">
+                              Pointeau ADN — {existingCharacter.coopRaceEcho.race}
+                            </div>
+                            {getPointeauAdnIntensityLabel() ? (
+                              <div className="text-stone-500 text-[10px] mt-0.5">{getPointeauAdnIntensityLabel()}</div>
+                            ) : null}
+                            <div className="text-stone-400 text-[11px] mt-1 space-y-0.5">
+                              {splitDescriptionLines(buildRacePointeauAdnDescription(existingCharacter.coopRaceEcho.race)).map((line, idx) => (
+                                <div key={`home-echo-${existingCharacter.coopRaceEcho.race}-${idx}`}>• {line}</div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                     {existingCharacter.subclass ? (

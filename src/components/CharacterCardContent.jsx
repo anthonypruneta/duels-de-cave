@@ -227,24 +227,6 @@ export default function CharacterCardContent({
 
   const details = (
     <div className="space-y-2">
-      {character?.coopRaceEcho?.race && (
-        <div className="pointeau-adn-border pointeau-adn-glow overflow-visible">
-          <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 pointeau-adn-shine">
-            <span className="text-lg">🧬</span>
-            <div className="flex-1">
-              <div className="font-semibold pointeau-adn-text">
-                Pointeau ADN — {character.coopRaceEcho.race}
-              </div>
-              <div className="text-stone-500 text-[10px] mt-0.5">{getPointeauAdnIntensityLabel()}</div>
-              <div className="text-stone-400 text-[11px] mt-1 space-y-0.5">
-                {splitDescriptionLines(buildRacePointeauAdnDescription(character.coopRaceEcho.race)).map((line, idx) => (
-                  <div key={`echo-${character.coopRaceEcho.race}-${idx}`}>• {line}</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {character?.coopRedMoveDisplay && (
         <div className="flex items-start gap-2 border border-red-900/45 bg-red-950/25 p-2 text-xs text-stone-300 rounded-md">
           <span className="text-lg leading-none shrink-0">{character.coopRedBossIcon ?? '✨'}</span>
@@ -339,6 +321,26 @@ export default function CharacterCardContent({
             {splitDescriptionLines(getRaceBonusText(character.race)).map((line, idx) => (
               <div key={idx}>{line}</div>
             ))}
+          </div>
+        </div>
+      )}
+      {character?.coopRaceEcho?.race && (
+        <div className="pointeau-adn-border pointeau-adn-glow overflow-visible">
+          <div className="flex items-start gap-2 text-xs text-stone-300 border border-stone-600 bg-stone-900/60 p-2 pointeau-adn-shine">
+            <span className="text-lg">🧬</span>
+            <div className="flex-1">
+              <div className="font-semibold pointeau-adn-text">
+                Pointeau ADN — {character.coopRaceEcho.race}
+              </div>
+              {getPointeauAdnIntensityLabel() ? (
+                <div className="text-stone-500 text-[10px] mt-0.5">{getPointeauAdnIntensityLabel()}</div>
+              ) : null}
+              <div className="text-stone-400 text-[11px] mt-1 space-y-0.5">
+                {splitDescriptionLines(buildRacePointeauAdnDescription(character.coopRaceEcho.race)).map((line, idx) => (
+                  <div key={`echo-${character.coopRaceEcho.race}-${idx}`}>• {line}</div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

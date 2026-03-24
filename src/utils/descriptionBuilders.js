@@ -6,7 +6,6 @@ import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
 import { getCoopRaceEchoAwakeningFragment, COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT } from './coopRaceEcho.js';
-import { COOP_RACE_ECHO_POTENCY } from '../data/coopRedDungeon.js';
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
@@ -120,9 +119,9 @@ export const buildRacePointeauAdnDescription = (raceName) => {
   return buildRaceAwakeningDescription(raceName, e);
 };
 
-/** Intensité affichée (fraction de l’éveil complet) — alignée sur COOP_RACE_ECHO_POTENCY + cas Mindflayer / Sirène / Turtlekin. */
+/** Libellé court d'intensité pour le Pointeau ADN. */
 export const getPointeauAdnIntensityLabel = () =>
-  `~${Math.round(COOP_RACE_ECHO_POTENCY * 100)} % de l’éveil (sauf ajustements Mindflayer / Sirène / Turtlekin)`;
+  `Fragment d’éveil racial`;
 
 // ============================================================================
 // DESCRIPTIONS DE CLASSES
