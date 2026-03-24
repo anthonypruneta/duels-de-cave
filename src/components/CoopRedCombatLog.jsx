@@ -84,7 +84,7 @@ export default function CoopRedCombatLog({
               return (
                 <div key={idx} className="flex justify-start">
                   <div className="max-w-[80%]">
-                    <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-blue-500/70">
+                    <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-violet-500/70">
                       <div className="text-xs md:text-sm leading-snug whitespace-pre-wrap">
                         {formatCoopRedLogRichText(clean, hostName, guestName)}
                       </div>
@@ -98,7 +98,7 @@ export default function CoopRedCombatLog({
               return (
                 <div key={idx} className="flex justify-end">
                   <div className="max-w-[80%]">
-                    <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-purple-500/70">
+                    <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-red-500/70">
                       <div className="text-xs md:text-sm leading-snug whitespace-pre-wrap">
                         {formatCoopRedLogRichText(clean, hostName, guestName)}
                       </div>

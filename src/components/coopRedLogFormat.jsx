@@ -51,17 +51,17 @@ function appendDamageHealHighlights(part, out, keyRef) {
 }
 
 /**
- * Noms en bleu (hôte) / violet (invité) / couleurs boss Red ; chiffres dégâts/soins comme le tournoi.
+ * Noms en violet (hôte) / rouge (invité) / couleurs boss Red ; chiffres dégâts/soins comme le tournoi.
  */
 export function formatCoopRedLogRichText(text, hostName, guestName) {
   if (text == null || text === '') return null;
 
   const entries = [];
   if (hostName) {
-    entries.push({ name: hostName, cls: 'font-bold text-blue-400' });
+    entries.push({ name: hostName, cls: 'font-bold text-violet-300' });
   }
   if (guestName) {
-    entries.push({ name: guestName, cls: 'font-bold text-purple-400' });
+    entries.push({ name: guestName, cls: 'font-bold text-red-300' });
   }
   for (const [bn, tw] of Object.entries(COOP_RED_BOSS_NAME_COLORS)) {
     entries.push({ name: bn, cls: `${tw} font-bold` });
