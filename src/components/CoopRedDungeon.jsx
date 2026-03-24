@@ -55,6 +55,7 @@ function CoopRedDungeon() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [simRunning, setSimRunning] = useState(false);
   const simRunningRef = useRef(false);
+  const autoOpenedReplayRoomRef = useRef('');
   /** Après « Masquer », on n’applique pas tout de suite la restauration auto depuis localStorage (sinon retour instantané dans la salle). */
   const skipAutoResumeRef = useRef(false);
   const audioRef = useRef(null);
@@ -198,6 +199,13 @@ function CoopRedDungeon() {
     room?.hostSnapshot,
     room?.guestSnapshot,
   ]);
+
+  useEffect(() => {
+    if (!room?.id || room?.status !== 'completed' || !room?.combat) return;
+    if (autoOpenedReplayRoomRef.current === room.id) return;
+    autoOpenedReplayRoomRef.current = room.id;
+    setShowAnimatedReplay(true);
+  }, [room?.id, room?.status, room?.combat]);
 
   const isHost = room && currentUser && room.hostId === currentUser.uid;
   const isGuest = room && currentUser && room.guestId === currentUser.uid;
@@ -696,96 +704,126 @@ function CoopRedDungeon() {
 
             {room.status === 'completed' && room.combat && (
               <div className="space-y-4 border-t border-stone-700 pt-4">
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-stone-500">{room.hostSnapshot?.name} (hôte)</p>
-                    <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 transition-all"
-                        style={{
-                          width: `${Math.max(0, Math.min(100, (100 * room.combat.hostHP) / (room.combat.hostMaxHP || 1)))}%`,
-                        }}
+                {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAnimatedReplay((v) => !v)}
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
+                    >
+                      {showAnimatedReplay
+                        ? 'Voir le récap rapide'
+                        : 'Voir le déroulé animé (même UI que le combat)'}
+                    </button>
+                    {showAnimatedReplay && (
+                      <CoopRedAnimatedReplay
+                        key={`${room.id}-${room.combatSeed}`}
+                        hostSnap={room.hostSnapshot}
+                        guestSnap={room.guestSnapshot}
+                        difficulty={room.difficulty}
+                        combatSeed={room.combatSeed}
+                        logTitle="🔴 Red — ton combat"
+                        wrapperClassName="mt-2 border border-amber-900/50 rounded-lg p-3 md:p-4 bg-stone-950/70"
+                        onReplayError={(msg) => setError(msg)}
                       />
-                    </div>
-                    <p className="text-xs mt-1">
-                      {room.combat.hostHP} / {room.combat.hostMaxHP} PV
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-stone-500">{room.guestSnapshot?.name} (invité)</p>
-                    <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-sky-500 transition-all"
-                        style={{
-                          width: `${Math.max(0, Math.min(100, (100 * room.combat.guestHP) / (room.combat.guestMaxHP || 1)))}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs mt-1">
-                      {room.combat.guestHP} / {room.combat.guestMaxHP} PV
-                    </p>
-                  </div>
-                </div>
-
-                {lineup && (
-                  <div>
-                    <p className="text-xs text-stone-500 mb-1">Adversaires (rotation)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {lineup.map((b, i) => {
-                        const hp = room.combat.bossHP[i] ?? 0;
-                        const maxHp = room.combat.bossMaxHP[i] ?? 1;
-                        const active = i === (room.combat.activeBossIndex % 3);
-                        const sprite = b.imageFile ? getCoopRedSpriteUrl(b.imageFile) : null;
-                        const moveUi = getCoopRedBossMoveDisplay(b);
-                        return (
-                          <div
-                            key={b.id}
-                            className={`px-2 py-1 rounded border text-xs flex items-center gap-2 ${active ? 'border-amber-500 bg-amber-950/40' : 'border-stone-600'}`}
-                          >
-                            {sprite ? (
-                              <img
-                                src={sprite}
-                                alt=""
-                                className="w-8 h-8 object-contain flex-shrink-0"
-                                style={{ imageRendering: 'pixelated' }}
-                              />
-                            ) : (
-                              <span>{b.icon}</span>
-                            )}
-                            <div className="min-w-0 flex flex-col gap-0.5">
-                              <span>
-                                {b.nom} — {hp}/{maxHp}
-                              </span>
-                              {moveUi && (
-                                <span
-                                  className="text-[10px] text-amber-200/85 truncate"
-                                  title={`${moveUi.name} — ${moveUi.description}`}
-                                >
-                                  Sort : {moveUi.name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    )}
                   </div>
                 )}
 
-                <p className="text-xs text-stone-500">
-                  Résolution : chaque tour, ordre par VIT (même priorités que le tournoi) ; tout le monde vivant joue
-                  une fois — 2 joueurs + chaque boss encore debout. Les joueurs attaquent le boss focal du tour (il
-                  change à chaque tour). Logs = règles PvP habituelles.
-                </p>
+                {!showAnimatedReplay && (
+                  <>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-stone-500">{room.hostSnapshot?.name} (hôte)</p>
+                        <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 transition-all"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, (100 * room.combat.hostHP) / (room.combat.hostMaxHP || 1)))}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs mt-1">
+                          {room.combat.hostHP} / {room.combat.hostMaxHP} PV
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-stone-500">{room.guestSnapshot?.name} (invité)</p>
+                        <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-sky-500 transition-all"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, (100 * room.combat.guestHP) / (room.combat.guestMaxHP || 1)))}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs mt-1">
+                          {room.combat.guestHP} / {room.combat.guestMaxHP} PV
+                        </p>
+                      </div>
+                    </div>
 
-                <CoopRedCombatLog
-                  lines={room.combat.log || []}
-                  hostName={room.hostSnapshot?.name}
-                  guestName={room.guestSnapshot?.name}
-                  title="⚔️ Red — journal de combat"
-                  containerStyle={{ maxHeight: '24rem', minHeight: '12rem' }}
-                  className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full"
-                />
+                    {lineup && (
+                      <div>
+                        <p className="text-xs text-stone-500 mb-1">Adversaires (rotation)</p>
+                        <div className="flex flex-wrap gap-2">
+                          {lineup.map((b, i) => {
+                            const hp = room.combat.bossHP[i] ?? 0;
+                            const maxHp = room.combat.bossMaxHP[i] ?? 1;
+                            const active = i === (room.combat.activeBossIndex % 3);
+                            const sprite = b.imageFile ? getCoopRedSpriteUrl(b.imageFile) : null;
+                            const moveUi = getCoopRedBossMoveDisplay(b);
+                            return (
+                              <div
+                                key={b.id}
+                                className={`px-2 py-1 rounded border text-xs flex items-center gap-2 ${active ? 'border-amber-500 bg-amber-950/40' : 'border-stone-600'}`}
+                              >
+                                {sprite ? (
+                                  <img
+                                    src={sprite}
+                                    alt=""
+                                    className="w-8 h-8 object-contain flex-shrink-0"
+                                    style={{ imageRendering: 'pixelated' }}
+                                  />
+                                ) : (
+                                  <span>{b.icon}</span>
+                                )}
+                                <div className="min-w-0 flex flex-col gap-0.5">
+                                  <span>
+                                    {b.nom} — {hp}/{maxHp}
+                                  </span>
+                                  {moveUi && (
+                                    <span
+                                      className="text-[10px] text-amber-200/85 truncate"
+                                      title={`${moveUi.name} — ${moveUi.description}`}
+                                    >
+                                      Sort : {moveUi.name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-stone-500">
+                      Résolution : chaque tour, ordre par VIT (même priorités que le tournoi) ; tout le monde vivant joue
+                      une fois — 2 joueurs + chaque boss encore debout. Les joueurs attaquent le boss focal du tour (il
+                      change à chaque tour). Logs = règles PvP habituelles.
+                    </p>
+
+                    <CoopRedCombatLog
+                      lines={room.combat.log || []}
+                      hostName={room.hostSnapshot?.name}
+                      guestName={room.guestSnapshot?.name}
+                      title="⚔️ Red — journal de combat"
+                      containerStyle={{ maxHeight: '24rem', minHeight: '12rem' }}
+                      className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden min-h-0 w-full"
+                    />
+                  </>
+                )}
 
                 <div className="text-sm space-y-1">
                   {room.combat.winner === 'players' && (
@@ -836,35 +874,10 @@ function CoopRedDungeon() {
                   )}
                 </div>
 
-                {room.combatSeed != null && room.hostSnapshot && room.guestSnapshot && (
-                  <div className="border-t border-stone-700 pt-4 space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowAnimatedReplay((v) => !v)}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-amber-800/80 hover:bg-amber-700 text-white text-sm font-bold border border-amber-600/60"
-                    >
-                      {showAnimatedReplay
-                        ? 'Masquer le déroulé animé'
-                        : 'Voir le déroulé animé (même UI que le combat)'}
-                    </button>
-                    <p className="text-[11px] text-stone-500">
-                      Même disposition que l’arène PvP : deux cartes complètes qui changent de côté au tour de chaque
-                      joueur. Recalcul local avec le seed de la salle — résultat identique à celui enregistré.
-                    </p>
-                    {showAnimatedReplay && (
-                      <CoopRedAnimatedReplay
-                        key={`${room.id}-${room.combatSeed}`}
-                        hostSnap={room.hostSnapshot}
-                        guestSnap={room.guestSnapshot}
-                        difficulty={room.difficulty}
-                        combatSeed={room.combatSeed}
-                        logTitle="🔴 Red — ton combat"
-                        wrapperClassName="mt-2 border border-amber-900/50 rounded-lg p-3 md:p-4 bg-stone-950/70"
-                        onReplayError={(msg) => setError(msg)}
-                      />
-                    )}
-                  </div>
-                )}
+                <p className="text-[11px] text-stone-500">
+                  Même disposition que l’arène PvP : deux cartes complètes qui changent de côté au tour de chaque
+                  joueur. Recalcul local avec le seed de la salle — résultat identique à celui enregistré.
+                </p>
               </div>
             )}
           </div>
