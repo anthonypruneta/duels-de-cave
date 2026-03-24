@@ -37,6 +37,26 @@ function coopRedHostRoomStorageKey(uid) {
   return uid ? `coopRedHostRoom:${uid}` : null;
 }
 
+function coopRedGuestRoomStorageKey(uid) {
+  return uid ? `coopRedGuestRoom:${uid}` : null;
+}
+
+/** Salle terminée : récap + récompenses à voir (hôte ou invité), même après reconnexion. */
+function coopRedPendingRecapStorageKey(uid) {
+  return uid ? `coopRedPendingRecap:${uid}` : null;
+}
+
+function clearCoopRedRoomPersistence(uid) {
+  if (!uid) return;
+  sessionStorage.removeItem('coopRedRoomId');
+  const hostKey = coopRedHostRoomStorageKey(uid);
+  if (hostKey) localStorage.removeItem(hostKey);
+  const guestKey = coopRedGuestRoomStorageKey(uid);
+  if (guestKey) localStorage.removeItem(guestKey);
+  const pendingKey = coopRedPendingRecapStorageKey(uid);
+  if (pendingKey) localStorage.removeItem(pendingKey);
+}
+
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -57,7 +77,6 @@ function CoopRedDungeon() {
   const skipAutoResumeRef = useRef(false);
   const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
-  const [isReplayFinished, setIsReplayFinished] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
   const [echoOfferDecision, setEchoOfferDecision] = useState(null);
 
@@ -75,14 +94,18 @@ function CoopRedDungeon() {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
 
-  /** Retrouver l’id de salle (session puis localStorage hôte) si on revient sur la page sans roomId en mémoire. */
+  /** Retrouver l’id de salle : récap en attente (combat fini sans toi), puis session, puis salle hôte. */
   useEffect(() => {
     if (!currentUser?.uid || roomId) return;
     if (skipAutoResumeRef.current) return;
+    const pendingKey = coopRedPendingRecapStorageKey(currentUser.uid);
+    const pending = pendingKey ? localStorage.getItem(pendingKey) : '';
     const sid = sessionStorage.getItem('coopRedRoomId');
     const key = coopRedHostRoomStorageKey(currentUser.uid);
     const lid = key ? localStorage.getItem(key) : '';
-    const raw = (sid || lid || '').trim();
+    const gk = coopRedGuestRoomStorageKey(currentUser.uid);
+    const gid = gk ? localStorage.getItem(gk) : '';
+    const raw = (pending || sid || lid || gid || '').trim();
     if (!raw) return;
     setRoomId(raw);
     sessionStorage.setItem('coopRedRoomId', raw);
@@ -134,22 +157,25 @@ function CoopRedDungeon() {
       (data) => {
         if (!data) {
           setRoom(null);
-          sessionStorage.removeItem('coopRedRoomId');
-          const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
-          if (k) localStorage.removeItem(k);
+          clearCoopRedRoomPersistence(currentUser?.uid);
           setRoomId('');
           return;
         }
         setRoom(data);
-        if (data.status === 'completed') {
-          // On garde l'affichage courant, mais on n'auto-réouvre jamais une salle déjà terminée au prochain passage.
-          sessionStorage.removeItem('coopRedRoomId');
-          const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
-          if (k) localStorage.removeItem(k);
+        if (data.status === 'completed' && currentUser?.uid) {
+          const uid = currentUser.uid;
+          if (data.hostId === uid || data.guestId === uid) {
+            const pk = coopRedPendingRecapStorageKey(uid);
+            if (pk) localStorage.setItem(pk, data.id);
+          }
         }
-        if (currentUser?.uid && data.hostId === currentUser.uid && data.status !== 'completed') {
+        if (currentUser?.uid && data.hostId === currentUser.uid) {
           const k = coopRedHostRoomStorageKey(currentUser.uid);
           if (k) localStorage.setItem(k, roomId);
+        }
+        if (currentUser?.uid && data.guestId === currentUser.uid) {
+          const gk = coopRedGuestRoomStorageKey(currentUser.uid);
+          if (gk) localStorage.setItem(gk, roomId);
         }
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
           claimCoopRedRaceEchoIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
@@ -208,7 +234,6 @@ function CoopRedDungeon() {
     if (!room?.id || room?.status !== 'completed' || !room?.combat) return;
     if (autoOpenedReplayRoomRef.current === room.id) return;
     autoOpenedReplayRoomRef.current = room.id;
-    setIsReplayFinished(false);
     setShowAnimatedReplay(true);
   }, [room?.id, room?.status, room?.combat]);
 
@@ -216,10 +241,15 @@ function CoopRedDungeon() {
   const isGuest = room && currentUser && room.guestId === currentUser.uid;
   const inRoom = isHost || isGuest;
 
-  /** Salle hôte encore enregistrée localement alors qu’on n’a pas d’abonnement actif (masqué ou navigation). */
-  const hostPendingRoomId =
+  /** Id de salle à reprendre (récap terminé, salle hôte ou invité) si pas encore d’abonnement actif. */
+  const resumePendingRoomId =
     currentUser?.uid && !roomId
-      ? (localStorage.getItem(coopRedHostRoomStorageKey(currentUser.uid)) || '').trim()
+      ? (
+          localStorage.getItem(coopRedPendingRecapStorageKey(currentUser.uid))
+          || localStorage.getItem(coopRedHostRoomStorageKey(currentUser.uid))
+          || localStorage.getItem(coopRedGuestRoomStorageKey(currentUser.uid))
+          || ''
+        ).trim()
       : '';
 
   const replayRewardContent = useMemo(() => {
@@ -301,6 +331,10 @@ function CoopRedDungeon() {
   const handleCreate = async () => {
     setError(null);
     setBusy(true);
+    const pk = currentUser?.uid ? coopRedPendingRecapStorageKey(currentUser.uid) : null;
+    if (pk) localStorage.removeItem(pk);
+    const gkClear = currentUser?.uid ? coopRedGuestRoomStorageKey(currentUser.uid) : null;
+    if (gkClear) localStorage.removeItem(gkClear);
     const res = await createCoopRedRoom(currentUser.uid, difficulty);
     setBusy(false);
     if (!res.success) {
@@ -328,15 +362,20 @@ function CoopRedDungeon() {
   /** Affiche la liste / création sans quitter la salle Firestore (ex. annuler / supprimer toujours possibles après). */
   const handleMasquerSalleVoirListe = () => {
     skipAutoResumeRef.current = true;
-    sessionStorage.removeItem('coopRedRoomId');
+    clearCoopRedRoomPersistence(currentUser?.uid);
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
+    autoOpenedReplayRoomRef.current = '';
   };
 
   const handleJoinListedRoom = async (id) => {
     setError(null);
     setBusy(true);
+    const pk = currentUser?.uid ? coopRedPendingRecapStorageKey(currentUser.uid) : null;
+    if (pk) localStorage.removeItem(pk);
+    const hkClear = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
+    if (hkClear) localStorage.removeItem(hkClear);
     const res = await joinCoopRedRoom(currentUser.uid, id);
     setBusy(false);
     if (!res.success) {
@@ -344,6 +383,8 @@ function CoopRedDungeon() {
       return;
     }
     setRoomId(res.roomId);
+    const gk = coopRedGuestRoomStorageKey(currentUser.uid);
+    if (gk) localStorage.setItem(gk, res.roomId);
   };
 
   const handleToggleReady = async (next) => {
@@ -357,13 +398,12 @@ function CoopRedDungeon() {
 
   const handleLeaveRoom = () => {
     skipAutoResumeRef.current = false;
-    sessionStorage.removeItem('coopRedRoomId');
-    const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
-    if (k) localStorage.removeItem(k);
+    clearCoopRedRoomPersistence(currentUser?.uid);
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
     setEchoOfferDecision(null);
+    autoOpenedReplayRoomRef.current = '';
   };
 
   const handleGuestLeaveLobby = async () => {
@@ -518,15 +558,15 @@ function CoopRedDungeon() {
 
         {!inRoom && (
           <>
-            {hostPendingRoomId && (
+            {resumePendingRoomId && (
               <div className="rounded-xl border border-stone-700 bg-stone-900/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-amber-100/95">
-                  Tu as une salle Red en cours (elle n’apparaît pas toujours dans la liste, ex. si un invité a déjà rejoint).
+                  Tu as une salle ou un récap Red en attente (combat peut s’être terminé pendant ton absence — reprends pour voir le déroulé et les récompenses).
                 </p>
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => handleResumeHostRoom(hostPendingRoomId)}
+                  onClick={() => handleResumeHostRoom(resumePendingRoomId)}
                   className="shrink-0 px-4 py-2 rounded-lg bg-red-800 hover:bg-red-700 font-bold text-sm disabled:opacity-40"
                 >
                   Reprendre ma salle
@@ -776,13 +816,21 @@ function CoopRedDungeon() {
                           logTitle="🔴 Red — ton combat"
                           wrapperClassName="mt-0"
                           onReplayError={(msg) => setError(msg)}
-                          onReplayFinished={setIsReplayFinished}
-                          rewardContent={isReplayFinished ? replayRewardContent : null}
+                          rewardContent={replayRewardContent}
                         />
                       </div>
                     )}
                   </div>
                 )}
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleLeaveRoom}
+                    className="px-5 py-2.5 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 text-sm font-bold border border-stone-500"
+                  >
+                    Fermer le récap (retour à la liste)
+                  </button>
+                </div>
               </div>
             )}
           </div>
