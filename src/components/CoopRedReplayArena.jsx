@@ -31,7 +31,7 @@ export default function CoopRedReplayArena({
   replaying,
   onRelanceReplay,
   logTitle = '🔴 Red — déroulé',
-  wrapperClassName = 'mt-4 border border-red-900/60 rounded-lg p-4 bg-black/40',
+  wrapperClassName = 'mt-2 rounded-2xl border border-red-900/45 bg-stone-950/60 backdrop-blur-[1px] p-2 md:p-3',
   /** Aligne les PV max affichés sur les stats réelles du combat (multiplicateur par difficulté). */
   difficulty = null,
 }) {
@@ -92,7 +92,7 @@ export default function CoopRedReplayArena({
   const bossHighlight = coopActor === 3 ? 'ring-red-500' : null;
 
   return (
-    <div className={wrapperClassName}>
+    <div className={`${wrapperClassName} w-full max-w-full overflow-x-hidden`}>
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <label className="text-stone-500 text-xs flex items-center gap-2">
           Vitesse
@@ -117,9 +117,9 @@ export default function CoopRedReplayArena({
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start w-full text-sm md:text-base max-w-[1800px] mx-auto">
+      <div className="flex flex-col xl:flex-row gap-4 items-stretch xl:items-start w-full text-sm md:text-base max-w-[1600px] mx-auto">
         <div
-          className={`order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
+          className={`order-1 xl:order-1 w-full xl:w-[320px] xl:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
             leftHighlight
               ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]`
               : ''
@@ -140,7 +140,7 @@ export default function CoopRedReplayArena({
           />
         </div>
 
-        <div className="order-2 md:order-2 w-full min-w-0 flex-1 md:min-w-[480px] lg:min-w-[620px] flex flex-col gap-3">
+        <div className="order-2 xl:order-2 w-full min-w-0 flex-1 flex flex-col gap-3">
           <div className="rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-2 text-[11px] text-stone-400">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-2 gap-2">
@@ -254,7 +254,7 @@ export default function CoopRedReplayArena({
         </div>
 
         <div
-          className={`order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
+          className={`order-3 xl:order-3 w-full xl:w-[320px] xl:flex-shrink-0 rounded-xl transition-all duration-300 ease-out ${
             bossHighlight
               ? `ring-2 ${bossHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]`
               : ''

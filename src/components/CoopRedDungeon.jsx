@@ -716,16 +716,18 @@ function CoopRedDungeon() {
                         : 'Voir le déroulé animé (même UI que le combat)'}
                     </button>
                     {showAnimatedReplay && (
-                      <CoopRedAnimatedReplay
-                        key={`${room.id}-${room.combatSeed}`}
-                        hostSnap={room.hostSnapshot}
-                        guestSnap={room.guestSnapshot}
-                        difficulty={room.difficulty}
-                        combatSeed={room.combatSeed}
-                        logTitle="🔴 Red — ton combat"
-                        wrapperClassName="mt-2 border border-amber-900/50 rounded-lg p-3 md:p-4 bg-stone-950/70"
-                        onReplayError={(msg) => setError(msg)}
-                      />
+                      <div className="w-full bg-black/25 rounded-2xl border border-red-900/40 p-2 md:p-3">
+                        <CoopRedAnimatedReplay
+                          key={`${room.id}-${room.combatSeed}`}
+                          hostSnap={room.hostSnapshot}
+                          guestSnap={room.guestSnapshot}
+                          difficulty={room.difficulty}
+                          combatSeed={room.combatSeed}
+                          logTitle="🔴 Red — ton combat"
+                          wrapperClassName="mt-0"
+                          onReplayError={(msg) => setError(msg)}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
