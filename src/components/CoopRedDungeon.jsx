@@ -27,6 +27,10 @@ import {
   getCoopRedAttemptsLeft,
   claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
+import {
+  ensureCoopRedHistoryEntryFromRoom,
+  subscribeCoopRedMatchHistory,
+} from '../services/coopRedMatchHistoryService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 /** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
 import redTrainerPortraitUrl from '../assets/coop/red.png';
@@ -57,6 +61,19 @@ function clearCoopRedRoomPersistence(uid) {
   if (pendingKey) localStorage.removeItem(pendingKey);
 }
 
+function formatCoopRedHistoryDate(completedAt) {
+  if (!completedAt) return '—';
+  try {
+    const d = typeof completedAt.toDate === 'function'
+      ? completedAt.toDate()
+      : new Date(completedAt);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return '—';
+  }
+}
+
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -79,6 +96,8 @@ function CoopRedDungeon() {
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
   const [echoOfferDecision, setEchoOfferDecision] = useState(null);
+  const [matchHistory, setMatchHistory] = useState([]);
+  const [historyReplayRow, setHistoryReplayRow] = useState(null);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -93,6 +112,20 @@ function CoopRedDungeon() {
   useEffect(() => {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setMatchHistory([]);
+      return undefined;
+    }
+    const unsub = subscribeCoopRedMatchHistory(
+      currentUser.uid,
+      setMatchHistory,
+      (e) => console.warn('coop red history', e),
+      50
+    );
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   /** Retrouver l’id de salle : récap en attente (combat fini sans toi), puis session, puis salle hôte. */
   useEffect(() => {
@@ -176,6 +209,9 @@ function CoopRedDungeon() {
         if (currentUser?.uid && data.guestId === currentUser.uid) {
           const gk = coopRedGuestRoomStorageKey(currentUser.uid);
           if (gk) localStorage.setItem(gk, roomId);
+        }
+        if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
+          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid).catch(() => {});
         }
         if (data?.status === 'completed' && data?.combat?.winner === 'players' && currentUser) {
           claimCoopRedRaceEchoIfNeeded(roomId, currentUser.uid).then(() => loadCharAndAttempts());
@@ -556,6 +592,56 @@ function CoopRedDungeon() {
           </div>
         )}
 
+        {currentUser && !displayAnimatedReplay && (
+          <div className="rounded-xl border border-stone-700 bg-stone-900/80 p-4 space-y-3">
+            <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Historique des matchs</h2>
+            {matchHistory.length === 0 ? (
+              <p className="text-sm text-stone-500">Aucun match enregistré pour l’instant. Les matchs terminés apparaissent ici (replay conservé).</p>
+            ) : (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm text-left min-w-[520px]">
+                  <thead>
+                    <tr className="text-[11px] uppercase text-stone-500 border-b border-stone-700">
+                      <th className="py-2 pr-2">Date</th>
+                      <th className="py-2 pr-2">Difficulté</th>
+                      <th className="py-2 pr-2">Coéquipier</th>
+                      <th className="py-2 pr-2">Résultat</th>
+                      <th className="py-2 pr-2 text-right">Replay</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchHistory.map((row) => {
+                      const win = row.winner === 'players';
+                      const diffLabel = COOP_RED_DIFFICULTY_LABELS[row.difficulty] ?? row.difficulty ?? '—';
+                      return (
+                        <tr key={row.id || row.roomId} className="border-b border-stone-800/80 text-stone-300">
+                          <td className="py-2 pr-2 whitespace-nowrap">{formatCoopRedHistoryDate(row.completedAt)}</td>
+                          <td className="py-2 pr-2">{diffLabel}</td>
+                          <td className="py-2 pr-2 max-w-[140px] truncate" title={row.partnerName}>
+                            {row.partnerName ?? '—'}
+                          </td>
+                          <td className={`py-2 pr-2 font-semibold ${win ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {win ? 'Victoire' : 'Défaite'}
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setHistoryReplayRow(row)}
+                              className="px-3 py-1 rounded-lg bg-red-900/80 hover:bg-red-800 text-amber-100 text-xs font-bold border border-red-700/60"
+                            >
+                              Voir le replay
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {!inRoom && (
           <>
             {resumePendingRoomId && (
@@ -856,6 +942,64 @@ function CoopRedDungeon() {
         <audio ref={audioRef} id="coop-red-music" loop preload="auto" playsInline>
           <source src="/assets/music/red.mp3" type="audio/mpeg" />
         </audio>
+
+        {historyReplayRow &&
+          historyReplayRow.hostSnapshot &&
+          historyReplayRow.guestSnapshot &&
+          historyReplayRow.combatSeed != null && (
+            <div
+              className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-sm p-3 md:p-6 overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Replay historique Red"
+            >
+              <div className="max-w-[2000px] w-full mx-auto flex flex-col gap-3 flex-1 min-h-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+                  <p className="text-stone-200 text-sm font-semibold">
+                    Replay — {formatCoopRedHistoryDate(historyReplayRow.completedAt)} ·{' '}
+                    {COOP_RED_DIFFICULTY_LABELS[historyReplayRow.difficulty] ?? historyReplayRow.difficulty} · avec{' '}
+                    <span className="text-amber-200">{historyReplayRow.partnerName}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryReplayRow(null)}
+                    className="px-4 py-2 rounded-lg bg-stone-700 hover:bg-stone-600 text-white text-sm font-bold border border-stone-500"
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-stone-600 bg-stone-950/90 p-2">
+                  <CoopRedAnimatedReplay
+                    key={`hist-${historyReplayRow.id}-${historyReplayRow.combatSeed}`}
+                    hostSnap={historyReplayRow.hostSnapshot}
+                    guestSnap={historyReplayRow.guestSnapshot}
+                    difficulty={historyReplayRow.difficulty}
+                    combatSeed={historyReplayRow.combatSeed}
+                    logTitle="🔴 Red — replay (historique)"
+                    wrapperClassName="mt-0"
+                    onReplayError={(msg) => setError(msg)}
+                    rewardContent={
+                      historyReplayRow.winner === 'players' ? (
+                        <div className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-lg px-4 py-3 text-sm space-y-1">
+                          <p className="text-emerald-400 font-bold">Récompenses (à ce match)</p>
+                          {historyReplayRow.myDropGranted ? (
+                            <p className="text-stone-300">
+                              Pointeau ADN :{' '}
+                              <span className="text-emerald-300 font-semibold">
+                                {historyReplayRow.myEchoRaceGrant ?? '—'}
+                              </span>
+                            </p>
+                          ) : (
+                            <p className="text-stone-400">Pas de pointeau pour toi sur ce tirage.</p>
+                          )}
+                        </div>
+                      ) : null
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );
