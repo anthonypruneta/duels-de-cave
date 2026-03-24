@@ -7,13 +7,19 @@
 import {
   collection,
   doc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   setDoc,
   Timestamp,
+  where,
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 
 const ROOT = 'coopRedMatchHistory';
+/** Même collection que `coopRedDungeonService` — salles Red (hôte / invité). */
+const COOP_RED_ROOMS = 'coopDungeonRooms';
 
 /**
  * @param {object} roomData — snapshot salle { id, status, combat, hostId, guestId, ... }
@@ -24,7 +30,7 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
   if (!roomData?.id || !userId) return { success: false };
   if (roomData.status !== 'completed' || !roomData.combat?.winner) return { success: false };
   if (roomData.hostId !== userId && roomData.guestId !== userId) return { success: false };
-  if (roomData.combatSeed == null || !roomData.hostSnapshot || !roomData.guestSnapshot) {
+  if (!roomData.hostSnapshot || !roomData.guestSnapshot) {
     return { success: false };
   }
 
@@ -42,11 +48,16 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
       ? completedAtRaw
       : Timestamp.now();
 
+  /** Ne pas stocker tout l’objet combat (logs énormes) — le replay repose sur seed + snapshots. */
+  const combatMinimal = {
+    winner: roomData.combat.winner,
+  };
+
   const entry = {
     roomId: roomData.id,
     difficulty: roomData.difficulty,
-    combatSeed: roomData.combatSeed,
-    combat: roomData.combat,
+    combatSeed: roomData.combatSeed ?? null,
+    combat: combatMinimal,
     hostSnapshot: roomData.hostSnapshot,
     guestSnapshot: roomData.guestSnapshot,
     winner: roomData.combat.winner,
@@ -101,4 +112,41 @@ export function subscribeCoopRedMatchHistory(userId, onData, onError, maxRows = 
     },
     onError || (() => {})
   );
+}
+
+/**
+ * Rattrapage : écrit les entrées d’historique à partir des salles `coopDungeonRooms` terminées
+ * (au cas où le client n’était pas abonné au moment du « completed » ou si l’écriture avait échoué).
+ */
+export async function backfillCoopRedMatchHistoryFromRooms(userId) {
+  if (!userId) return { success: false, written: 0 };
+  await waitForFirestore();
+  const qHost = query(
+    collection(db, COOP_RED_ROOMS),
+    where('hostId', '==', userId),
+    limit(80)
+  );
+  const qGuest = query(
+    collection(db, COOP_RED_ROOMS),
+    where('guestId', '==', userId),
+    limit(80)
+  );
+  let written = 0;
+  try {
+    const [snapH, snapG] = await Promise.all([getDocs(qHost), getDocs(qGuest)]);
+    const seen = new Set();
+    const docs = [...snapH.docs, ...snapG.docs];
+    for (const s of docs) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      const data = { id: s.id, ...s.data() };
+      if (data.status !== 'completed' || !data.combat?.winner) continue;
+      const res = await ensureCoopRedHistoryEntryFromRoom(data, userId);
+      if (res.success) written += 1;
+    }
+    return { success: true, written };
+  } catch (e) {
+    console.warn('coop red history — backfill', e);
+    return { success: false, written: 0, error: e?.message };
+  }
 }
