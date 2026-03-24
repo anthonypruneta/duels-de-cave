@@ -14,6 +14,11 @@ import {
   getCoopRedBossMoveDisplay,
 } from '../data/coopRedDungeon';
 import {
+  buildRacePointeauAdnDescription,
+  getPointeauAdnIntensityLabel,
+  splitDescriptionLines,
+} from '../utils/descriptionBuilders';
+import {
   createCoopRedRoom,
   joinCoopRedRoom,
   subscribeCoopRedRoom,
@@ -26,9 +31,7 @@ import {
   claimCoopRedRaceEchoIfNeeded,
 } from '../services/coopRedDungeonService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
-import CoopRedOfflineSimPanel from './CoopRedOfflineSimPanel';
 import CoopRedCombatLog from './CoopRedCombatLog';
-import { ADMIN_EMAIL } from './AdminOnlyRoute';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 /** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
 import redTrainerPortraitUrl from '../assets/coop/red.png';
@@ -41,7 +44,6 @@ function coopRedHostRoomStorageKey(uid) {
 
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
-  const isAdmin = currentUser?.email === ADMIN_EMAIL;
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
   const [attemptsLeft, setAttemptsLeft] = useState(COOP_RED_MAX_ATTEMPTS_PER_DAY);
@@ -60,7 +62,6 @@ function CoopRedDungeon() {
   const skipAutoResumeRef = useRef(false);
   const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
-  const [offlineSimWide, setOfflineSimWide] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
@@ -359,12 +360,12 @@ function CoopRedDungeon() {
         <Header />
         <div
           className={`mx-auto pt-20 px-0 flex flex-col xl:flex-row gap-8 xl:items-start xl:justify-center ${
-            showAnimatedReplay || offlineSimWide ? 'max-w-[1800px]' : 'max-w-6xl'
+            showAnimatedReplay ? 'max-w-[1800px]' : 'max-w-6xl'
           }`}
         >
         <div
           className={`space-y-6 flex-1 min-w-0 w-full ${
-            showAnimatedReplay || offlineSimWide ? '' : 'max-w-3xl mx-auto xl:mx-0'
+            showAnimatedReplay ? '' : 'max-w-3xl mx-auto xl:mx-0'
           }`}
         >
         <div className="text-center">
@@ -375,20 +376,6 @@ function CoopRedDungeon() {
             le tournoi ; seed déterministe. Tu peux quitter la page.
           </p>
         </div>
-
-        {isAdmin && (
-          <CoopRedOfflineSimPanel
-            title="Simulation locale (même UI que le combat)"
-            intro={
-              <>
-                Sans salle ni Firestore : trois combats test (niveaux 150 / 250 / 350) avec le moteur tournoi. Ouvre{' '}
-                <span className="text-stone-300">Déroulé animé</span> pour l’arène complète (cartes, barres, log) comme
-                après une vraie partie.
-              </>
-            }
-            onWideLayoutChange={setOfflineSimWide}
-          />
-        )}
 
         <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
           <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : Pointeau ADN</h2>
@@ -422,9 +409,12 @@ function CoopRedDungeon() {
             <div className="text-right text-sm text-stone-400 max-w-sm">
               <p className="text-amber-400 text-xs font-bold uppercase mb-1">Pointeau ADN actif</p>
               <span className="text-emerald-300 font-semibold">{character.coopRaceEcho.race}</span>
-              <p className="text-[11px] text-stone-500 mt-1">
-                Passif d’éveil (~{Math.round(COOP_RACE_ECHO_POTENCY * 100)} %) fusionné au tien en combat.
-              </p>
+              <p className="text-[11px] text-stone-500 mt-1">{getPointeauAdnIntensityLabel()}</p>
+              <div className="mt-2 space-y-1 text-[11px] text-stone-400">
+                {splitDescriptionLines(buildRacePointeauAdnDescription(character.coopRaceEcho.race)).map((line, idx) => (
+                  <p key={`echo-active-${idx}`}>• {line}</p>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -729,6 +719,7 @@ function CoopRedDungeon() {
                           guestSnap={room.guestSnapshot}
                           difficulty={room.difficulty}
                           combatSeed={room.combatSeed}
+                          combatWinner={room.combat?.winner ?? null}
                           logTitle="🔴 Red — ton combat"
                           wrapperClassName="mt-0"
                           onReplayError={(msg) => setError(msg)}
@@ -833,6 +824,7 @@ function CoopRedDungeon() {
                   </>
                 )}
 
+                {!showAnimatedReplay && (
                 <div className="text-sm space-y-1">
                   {room.combat.winner === 'players' && (
                     <p className="text-emerald-400 font-bold">Victoire !</p>
@@ -857,6 +849,14 @@ function CoopRedDungeon() {
                                 </span>
                               )}
                           </span>
+                          {!!room.hostEchoRaceGrant && (
+                            <span className="block mt-2 text-[11px] text-stone-400">
+                              <span className="text-stone-300">{getPointeauAdnIntensityLabel()}</span>
+                              {splitDescriptionLines(buildRacePointeauAdnDescription(room.hostEchoRaceGrant)).map((line, idx) => (
+                                <span key={`host-echo-${idx}`} className="block">• {line}</span>
+                              ))}
+                            </span>
+                          )}
                         </>
                       )}
                       {isHost && !room.hostDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
@@ -875,12 +875,21 @@ function CoopRedDungeon() {
                                 </span>
                               )}
                           </span>
+                          {!!room.guestEchoRaceGrant && (
+                            <span className="block mt-2 text-[11px] text-stone-400">
+                              <span className="text-stone-300">{getPointeauAdnIntensityLabel()}</span>
+                              {splitDescriptionLines(buildRacePointeauAdnDescription(room.guestEchoRaceGrant)).map((line, idx) => (
+                                <span key={`guest-echo-${idx}`} className="block">• {line}</span>
+                              ))}
+                            </span>
+                          )}
                         </>
                       )}
                       {isGuest && !room.guestDropGranted && <>Pas de pointeau pour toi sur cette salle.</>}
                     </p>
                   )}
                 </div>
+                )}
 
                 <p className="text-[11px] text-stone-500">
                   Même disposition que l’arène PvP : deux cartes complètes qui changent de côté au tour de chaque
@@ -900,7 +909,7 @@ function CoopRedDungeon() {
         </button>
         </div>
 
-        {!(showAnimatedReplay || offlineSimWide) && (
+        {!showAnimatedReplay && (
           <aside className="hidden xl:flex flex-col items-center flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start">
             <div className="rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
               <img

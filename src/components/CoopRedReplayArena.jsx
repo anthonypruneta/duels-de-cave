@@ -29,6 +29,7 @@ export default function CoopRedReplayArena({
   focusLeftIsHost,
   replaying,
   onRelanceReplay,
+  combatWinner = null,
   logTitle = '🔴 Red — déroulé',
   wrapperClassName = 'mt-2 rounded-2xl border border-red-900/45 bg-stone-950/60 backdrop-blur-[1px] p-2 md:p-3',
   /** Aligne les PV max affichés sur les stats réelles du combat (multiplicateur par difficulté). */
@@ -245,15 +246,21 @@ export default function CoopRedReplayArena({
           </div>
         </div>
 
-        <div className="flex-1 min-w-[380px] max-w-[520px] flex flex-col">
+        <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col">
           <CoopRedCombatLog
             className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
             lines={combatLog}
             hostName={hostF?.name}
             guestName={guestF?.name}
             title={logTitle}
-            containerStyle={{ height: '380px' }}
+            containerStyle={{ height: '500px' }}
           />
+          {combatWinner === 'players' && (
+            <p className="mt-2 text-emerald-400 font-bold text-center">Victoire !</p>
+          )}
+          {combatWinner === 'boss' && (
+            <p className="mt-2 text-red-400 font-bold text-center">Défaite…</p>
+          )}
         </div>
 
         <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">

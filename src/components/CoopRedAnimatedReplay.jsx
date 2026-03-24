@@ -14,6 +14,7 @@ export default function CoopRedAnimatedReplay({
   guestSnap,
   difficulty,
   combatSeed,
+  combatWinner = null,
   steps: stepsProp = null,
   lineup: lineupProp = null,
   logTitle,
@@ -196,6 +197,7 @@ export default function CoopRedAnimatedReplay({
       focusLeftIsHost={focusLeftIsHost}
       replaying={replaying}
       onRelanceReplay={handleRelance}
+      combatWinner={combatWinner}
       logTitle={logTitle}
       wrapperClassName={wrapperClassName}
     />
