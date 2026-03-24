@@ -4,6 +4,7 @@ import { rebuildPreparedCoop } from '../utils/coopRedCombat';
 import { replayCoopRedSteps } from '../utils/combatReplay';
 import { simulerMatchCoopRed, createCoopSeededRng } from '../utils/coopRedTournamentSim';
 import { getCoopRedLineup } from '../data/coopRedDungeon';
+import { getUserCharacter } from '../services/characterService';
 
 /**
  * Replay animé Red (même UI que l’admin) : steps fournis ou recalculés côté client (seed déterministe).
@@ -90,8 +91,20 @@ export default function CoopRedAnimatedReplay({
     setReplaying(true);
     setCoopActor(null);
 
+    const loadSnapWithFallbackImage = async (snap) => {
+      if (!snap?.userId || snap?.characterImage) return snap;
+      const res = await getUserCharacter(snap.userId);
+      if (!res.success || !res.data?.characterImage) return snap;
+      return { ...snap, characterImage: res.data.characterImage };
+    };
+
+    const [hostSnapResolved, guestSnapResolved] = await Promise.all([
+      loadSnapWithFallbackImage(hostSnap),
+      loadSnapWithFallbackImage(guestSnap),
+    ]);
+
     const prepRng = createCoopSeededRng(combatSeed >>> 0);
-    const { host, guest, bosses } = rebuildPreparedCoop(hostSnap, guestSnap, difficulty, {
+    const { host, guest, bosses } = rebuildPreparedCoop(hostSnapResolved, guestSnapResolved, difficulty, {
       rngNext01: () => prepRng.next01(),
     });
     const s0 = steps[0];

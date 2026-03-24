@@ -39,6 +39,8 @@ export default function CoopRedReplayArena({
   const leftBase = leftIsHost ? hostCombatBase : guestCombatBase;
   const leftStatus = leftIsHost ? hostCombatStatus : guestCombatStatus;
   const leftImg = leftIsHost ? hostF.characterImage ?? testImage1 : guestF.characterImage ?? testImage2;
+  const hostImg = hostF?.characterImage ?? testImage1;
+  const guestImg = guestF?.characterImage ?? testImage2;
 
   const activeBossDef = run.lineup?.[activeBossIdx] ?? null;
   const bossMaxHP =
@@ -161,7 +163,7 @@ export default function CoopRedReplayArena({
           hostName={hostF?.name}
           guestName={guestF?.name}
           title={logTitle}
-          containerStyle={{ height: 'calc(100dvh - 320px)', minHeight: '260px', maxHeight: '480px' }}
+          containerStyle={{ height: 'calc(100dvh - 380px)', minHeight: '220px', maxHeight: '360px' }}
           className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full"
         />
       </div>
@@ -190,14 +192,20 @@ export default function CoopRedReplayArena({
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-violet-300/90 font-semibold truncate">{hostF.name}</p>
+                <p className="text-violet-300/90 font-semibold truncate flex items-center gap-2">
+                  <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
+                  <span className="truncate">{hostF.name}</span>
+                </p>
                 <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
                   <div className="h-full bg-violet-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * hostF.currentHP) / (hostF.maxHP || 1)))}%` }} />
                 </div>
                 <p className="text-stone-500 mt-0.5">{hostF.currentHP} / {hostF.maxHP}</p>
               </div>
               <div>
-                <p className="text-red-300/90 font-semibold truncate">{guestF.name}</p>
+                <p className="text-red-300/90 font-semibold truncate flex items-center gap-2">
+                  <img src={guestImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
+                  <span className="truncate">{guestF.name}</span>
+                </p>
                 <div className="h-1.5 bg-stone-800 rounded overflow-hidden mt-0.5">
                   <div className="h-full bg-red-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, (100 * guestF.currentHP) / (guestF.maxHP || 1)))}%` }} />
                 </div>
@@ -250,7 +258,7 @@ export default function CoopRedReplayArena({
             hostName={hostF?.name}
             guestName={guestF?.name}
             title={logTitle}
-            containerStyle={{ height: '600px' }}
+            containerStyle={{ height: '500px' }}
             className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-2xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
           />
         </div>
@@ -270,7 +278,7 @@ export default function CoopRedReplayArena({
               combatStatus={bossCombatStatus}
               opponent={leftChar}
               imageOverride={bossSprite ?? undefined}
-              detailsPlacement="right"
+              detailsPlacement={null}
             />
           ) : (
             <div className="rounded-xl border border-stone-700 bg-stone-900/60 p-6 text-stone-500 text-sm text-center">
