@@ -469,7 +469,7 @@ function CoopRedDungeon() {
         )}
 
         {!isCombatLaunched && (
-        <div className="rounded-xl border border-amber-900/40 bg-stone-900/60 p-4 text-sm space-y-3">
+        <div className="rounded-xl border border-stone-700 bg-stone-900/80 p-4 text-sm space-y-3">
           <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Récompenses Red : Pointeau ADN</h2>
           <ul className="space-y-2 text-stone-400 leading-relaxed">
             <li>
@@ -519,7 +519,7 @@ function CoopRedDungeon() {
         {!inRoom && (
           <>
             {hostPendingRoomId && (
-              <div className="rounded-xl border border-amber-600/70 bg-amber-950/25 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="rounded-xl border border-stone-700 bg-stone-900/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-amber-100/95">
                   Tu as une salle Red en cours (elle n’apparaît pas toujours dans la liste, ex. si un invité a déjà rejoint).
                 </p>
@@ -533,6 +533,13 @@ function CoopRedDungeon() {
                 </button>
               </div>
             )}
+            <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-2">
+              <h2 className="font-bold text-lg text-red-300">Arène de Red</h2>
+              <p className="text-xs text-stone-400">
+                Donjon coop à 2 joueurs contre une rotation de boss. Les deux joueurs cliquent sur prêt, puis le combat
+                se lance automatiquement avec un replay animé et des récompenses en fin de run.
+              </p>
+            </div>
             <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-3">
               <p className="text-sm font-bold text-amber-400">Difficulté</p>
               <div className="flex flex-wrap gap-2">
@@ -785,14 +792,16 @@ function CoopRedDungeon() {
 
         {!displayAnimatedReplay && (
           <aside className="hidden xl:flex flex-col items-center flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start">
-            <div className="rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
+            <div className="relative rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
               <img
                 src={redTrainerPortraitUrl}
                 alt="Red"
                 className="w-full h-auto object-cover object-top block max-h-[min(72vh,560px)]"
               />
+              <div className="absolute bottom-0 inset-x-0 bg-black/55 border-t border-red-900/60 py-1.5 text-center">
+                <span className="text-red-300 text-lg font-bold tracking-wide">Red</span>
+              </div>
             </div>
-            <p className="text-center text-red-400/95 text-sm font-bold mt-2 tracking-wide drop-shadow-sm">Red</p>
           </aside>
         )}
         </div>
