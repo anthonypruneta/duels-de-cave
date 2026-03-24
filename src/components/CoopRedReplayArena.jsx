@@ -266,6 +266,7 @@ export default function CoopRedReplayArena({
             combatStatus={leftStatus}
             opponent={bossCharacter ?? leftChar}
             imageOverride={leftImg}
+            infoSide="left"
             detailsPlacement={null}
           />
         </div>
@@ -276,7 +277,7 @@ export default function CoopRedReplayArena({
           hostName={hostF?.name}
           guestName={guestF?.name}
           title={logTitle}
-          containerStyle={{ height: '320px' }}
+          containerStyle={{ height: '380px' }}
         />
 
         <div className={`col-start-3 row-start-2 rounded-xl transition-all duration-300 ease-out ${
@@ -294,6 +295,7 @@ export default function CoopRedReplayArena({
               combatStatus={bossCombatStatus}
               opponent={leftChar}
               imageOverride={bossSprite ?? undefined}
+              infoSide="right"
               detailsPlacement={null}
             />
           ) : (
