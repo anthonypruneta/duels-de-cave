@@ -196,8 +196,8 @@ export default function CoopRedReplayArena({
       </div>
 
       <div className="hidden lg:flex gap-4 items-start justify-center text-sm">
-        <div className="w-[340px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-3 text-[12px] text-stone-300">
+        <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
+          <div className="w-[620px] rounded-lg border border-stone-600 bg-stone-900/80 px-3 py-3 text-[12px] text-stone-300">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-1 gap-2">
               <div>
@@ -224,7 +224,7 @@ export default function CoopRedReplayArena({
           </div>
           <div
             key={leftCardKey}
-            className={`w-[340px] rounded-xl transition-all duration-300 ease-out ${
+            className={`w-[620px] rounded-xl transition-all duration-300 ease-out ${
               leftHighlight ? `ring-2 ${leftHighlight} ring-offset-2 ring-offset-stone-950 scale-[1.02] z-[1]` : ''
             } ${coopActor === 3 ? 'opacity-90' : ''}`}
           >
