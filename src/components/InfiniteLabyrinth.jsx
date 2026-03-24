@@ -31,6 +31,7 @@ import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { checkAndAwardTitles } from '../services/titleService';
+import { mergePvpStepsForReplay } from '../utils/combatReplay';
 import CombatSpeedSelector from './CombatSpeedSelector';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -320,7 +321,8 @@ const InfiniteLabyrinth = () => {
       turbo: { line: 80, turnStart: 250, action: 430, victory: 100, noStepDash: 120, noStepOther: 60 }
     }[replaySpeed] || { line: 300, turnStart: 800, action: 2000, victory: 300, noStepDash: 450, noStepOther: 250 };
     if (steps.length > 0) {
-      for (const step of steps) {
+      const mergedSteps = mergePvpStepsForReplay(steps);
+      for (const step of mergedSteps) {
         if (token.cancelled) return;
 
         for (const line of (step.logs || [])) {

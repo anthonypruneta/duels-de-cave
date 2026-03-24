@@ -156,6 +156,64 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         description: `Bonus CAP et soins par stack Sirène (${n} stack(s)).`,
       });
     }
+
+    // Pointeau ADN / Orc : coups subis réduits (incomingHitCountRemaining)
+    const awIncoming = combatStatus.awakening;
+    if (
+      awIncoming &&
+      typeof awIncoming.incomingHitCountRemaining === 'number' &&
+      awIncoming.incomingHitCountRemaining > 0 &&
+      typeof awIncoming.incomingHitMultiplier === 'number'
+    ) {
+      const n = awIncoming.incomingHitCountRemaining;
+      const multPct = Math.round(awIncoming.incomingHitMultiplier * 100);
+      list.push({
+        id: 'orc_incoming_reduction',
+        icon: '🪓',
+        label: `Coups amortis (${n})`,
+        description: `Les ${n} prochain(s) coup(s) subi(s) n'infligent que ${multPct}% des dégâts bruts (Orc / Pointeau ADN).`,
+      });
+    }
+
+    // Pointeau ADN / Mindflayer : vol de sort
+    if (combatStatus.mindflayerCopyState === 'pending') {
+      list.push({
+        id: 'mindflayer_copy_pending',
+        icon: '🦑',
+        label: 'Vol psychique (prêt)',
+        description:
+          'La première capacité ennemie qui vous cible sera copiée et relancée (Mindflayer / Pointeau ADN).',
+      });
+    } else if (combatStatus.mindflayerCopyState === 'used') {
+      list.push({
+        id: 'mindflayer_copy_used',
+        icon: '🦑',
+        label: 'Vol psychique (copié)',
+        description: 'Vous avez déjà copié une capacité adverse ce combat.',
+      });
+    }
+
+    // Pointeau ADN / Turtlekin : plafond du premier coup + réarmement éventuel
+    const tkCap = combatStatus.turtlekinFirstHitCapPercent;
+    if (typeof tkCap === 'number' && tkCap > 0) {
+      if (!combatStatus.turtlekinFirstHitUsed) {
+        list.push({
+          id: 'turtlekin_shell_ready',
+          icon: '🐢',
+          label: `Carapace (1er coup ≤ ${Math.round(tkCap * 100)}%)`,
+          description: `Le premier coup reçu ne peut dépasser ${Math.round(tkCap * 100)}% de vos PV max (Turtlekin / Pointeau ADN).`,
+        });
+      } else if (combatStatus.turtlekinResetAt50 && !combatStatus.turtlekinResetAt50Used) {
+        list.push({
+          id: 'turtlekin_shell_reset_pending',
+          icon: '🐢',
+          label: 'Carapace (réarmement 50% PV)',
+          description:
+            'Votre carapace peut se réinitialiser une fois quand vous passez sous 50% PV pour la première fois.',
+        });
+      }
+    }
+
     if (combatStatus.succubeWeakenNextAttack) {
       list.push({
         id: 'succube_weaken',

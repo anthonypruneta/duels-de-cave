@@ -1,6 +1,65 @@
 // Replay animé des steps de combat retournés par simulerMatch()
 // Utilisé par Combat.jsx, Dungeon.jsx, ForestDungeon.jsx, MageTower.jsx
 
+/** Champs PV / snapshots à conserver quand un step est partiel (ex. EXTINCTION Cataclysme). */
+const PVP_STEP_MERGE_KEYS = [
+  'p1HP',
+  'p2HP',
+  'p1Shield',
+  'p2Shield',
+  'p1Base',
+  'p2Base',
+  'p1Modifiers',
+  'p2Modifiers',
+  'p1Status',
+  'p2Status',
+];
+
+/** Steps coop Red : mêmes idées (éviter d’effacer hostStatus / Sirène si le step n’embarque pas tout). */
+const COOP_STEP_MERGE_KEYS = [
+  'hostHP',
+  'guestHP',
+  'hostShield',
+  'guestShield',
+  'bossHP',
+  'activeBossIndex',
+  'hostBase',
+  'guestBase',
+  'hostStatus',
+  'guestStatus',
+  'bossBase',
+  'bossStatus',
+  'bossShield',
+];
+
+function mergeStepWithPrevious(step, last, keys) {
+  const merged = { ...step };
+  for (const key of keys) {
+    if (!(key in step) && key in last) {
+      merged[key] = last[key];
+    }
+  }
+  const next = { ...last };
+  for (const key of keys) {
+    if (key in merged) next[key] = merged[key];
+  }
+  return { merged, nextLast: next };
+}
+
+/**
+ * Pré-merge des steps (PV, shields, bases, modifiers, statuts combat dont stacks Sirène).
+ * À utiliser pour tout replay qui n’utilise pas replayCombatSteps (ex. Labyrinthe infini).
+ */
+export function mergePvpStepsForReplay(steps) {
+  if (!Array.isArray(steps)) return [];
+  let last = {};
+  return steps.map((step) => {
+    const { merged, nextLast } = mergeStepWithPrevious(step, last, PVP_STEP_MERGE_KEYS);
+    last = nextLast;
+    return merged;
+  });
+}
+
 const SPEEDS = {
   normal: { intro: 800, turn_start: 800, action_pre: 300, action_post: 2000 },
   fast:   { intro: 400, turn_start: 400, action_pre: 150, action_post: 1000 },
@@ -30,19 +89,20 @@ export async function replayCombatSteps(steps, {
 }) {
   const delays = SPEEDS[speed] || SPEEDS.normal;
   const logs = [...existingLogs];
+  const mergedSteps = mergePvpStepsForReplay(steps);
 
-  for (const step of steps) {
-    logs.push(...step.logs);
+  for (const merged of mergedSteps) {
+    logs.push(...(merged.logs || []));
     setCombatLog([...logs]);
-    onStepHP(step);
+    onStepHP(merged);
 
-    if (step.phase === 'intro') {
+    if (merged.phase === 'intro') {
       await new Promise(r => setTimeout(r, delays.intro));
-    } else if (step.phase === 'turn_start') {
+    } else if (merged.phase === 'turn_start') {
       await new Promise(r => setTimeout(r, delays.turn_start));
-    } else if (step.phase === 'action') {
+    } else if (merged.phase === 'action') {
       if (setCurrentAction) {
-        setCurrentAction({ player: step.player, logs: step.logs });
+        setCurrentAction({ player: merged.player, logs: merged.logs });
       }
       await new Promise(r => setTimeout(r, delays.action_pre));
       await new Promise(r => setTimeout(r, delays.action_post));
@@ -75,11 +135,14 @@ export async function replayCoopRedSteps(steps, {
 }) {
   const delays = SPEEDS[speed] || SPEEDS.normal;
   const logs = [...existingLogs];
+  let lastCoop = {};
 
   for (const step of steps) {
     logs.push(...(step.logs || []));
     setCombatLog([...logs]);
-    onCoopStep(step);
+    const { merged, nextLast } = mergeStepWithPrevious(step, lastCoop, COOP_STEP_MERGE_KEYS);
+    lastCoop = nextLast;
+    onCoopStep(merged);
 
     if (step.phase === 'intro') {
       await new Promise((r) => setTimeout(r, delays.intro));

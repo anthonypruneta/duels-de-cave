@@ -14,7 +14,8 @@ import {
 } from './tournamentCombat.js';
 import { rebuildPreparedCoop } from './coopRedPrep.js';
 import { getCoopRedLineup } from '../data/coopRedDungeon.js';
-import { generalConstants, weaponConstants, classConstants } from '../data/combatMechanics.js';
+import { generalConstants, weaponConstants } from '../data/combatMechanics.js';
+import { snapshotCombatantStatusForUi } from './combatStatusSnapshot.js';
 
 const MAX_COOP_TURNS = 400;
 
@@ -136,50 +137,16 @@ function snapshotFighterBase(b) {
   };
 }
 
-/** Aligné sur tournamentCombat (steps / CharacterCardContent). */
+/** Aligné sur tournamentCombat (steps / CharacterCardContent), + champs donjon Red. */
 function snapshotFighterStatus(b) {
-  if (!b) return undefined;
-  const status = {
-    stunned: !!b.stunned,
-    stunnedTurns: b.stunnedTurns ?? 0,
-    bleed_stacks: b.bleed_stacks ?? 0,
-    bleedPercentPerStack: b.bleedPercentPerStack ?? 0,
-    spectralMarked: !!b.spectralMarked,
-    spectralMarkBonus: b.spectralMarkBonus ?? 0,
-    dodge: !!b.dodge,
-    reflect: typeof b.reflect === 'number' ? b.reflect : 0,
-    sorcierNeantBurn: !!b.sorcierNeantBurn,
-    undead: !!b.undead,
-    boneGuardActive: !!b.boneGuardActive,
-    sireneStacks: b.sireneStacks ?? 0,
-    succubeWeakenNextAttack: !!b.succubeWeakenNextAttack,
-    familiarStacks: b.familiarStacks ?? 0,
-    nextSpellReduction: typeof b.nextSpellReduction === 'number' ? b.nextSpellReduction : 0,
-    onctionLastStandUsed: !!b.onctionLastStandUsed,
-    gungnirDebuffed: !!b.base?._gungnirDebuffed,
-    awakening:
-      b.awakening && (b.awakening.damageStackBonus != null || b.awakening.damageTakenStacks != null)
-        ? {
-            damageTakenStacks: b.awakening.damageTakenStacks ?? 0,
-            damageStackBonus: b.awakening.damageStackBonus ?? 0,
-          }
-        : null,
-    pacteSombreCapStolen: b.pacteSombreCapStolen ?? 0,
-    pacteSombreCapLost: b.pacteSombreCapLost ?? 0,
-    suddenDeath: !!b.suddenDeath,
+  const status = snapshotCombatantStatusForUi(b);
+  if (!status) return undefined;
+  return {
+    ...status,
     coopRedBrulureDrain: typeof b.coopRedBrulureDrain === 'number' && b.coopRedBrulureDrain > 0 ? b.coopRedBrulureDrain : null,
     coopRedVampigraineLeech: typeof b.coopRedVampigraineLeech === 'number' && b.coopRedVampigraineLeech > 0 ? b.coopRedVampigraineLeech : null,
     coopRedBrulureAutoApplied: !!b.coopRedBrulureAutoApplied,
   };
-  if (b.class === 'Demoniste' && b.base) {
-    const { capBase, capPerCap, stackPerAuto } = classConstants.demoniste;
-    const cap = b.base.cap;
-    const stacks = b.familiarStacks ?? 0;
-    const familierPct = capBase + capPerCap * cap + stackPerAuto * stacks;
-    status.familiarPercent = familierPct * 100;
-    status.familiarDamage = Math.round(familierPct * cap);
-  }
-  return status;
 }
 
 function buildCombatResult(
