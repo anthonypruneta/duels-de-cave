@@ -14,12 +14,12 @@ export default function CoopRedAnimatedReplay({
   guestSnap,
   difficulty,
   combatSeed,
-  combatWinner = null,
   steps: stepsProp = null,
   lineup: lineupProp = null,
   logTitle,
   wrapperClassName,
   onReplayError,
+  onReplayFinished,
 }) {
   const replaySpeed = 'normal';
 
@@ -90,6 +90,7 @@ export default function CoopRedAnimatedReplay({
     }
 
     setReplaying(true);
+    onReplayFinished?.(false);
     setCoopActor(null);
 
     const loadSnapWithFallbackImage = async (snap) => {
@@ -144,7 +145,10 @@ export default function CoopRedAnimatedReplay({
         onReplayError?.(e?.message || 'Erreur pendant le replay');
       }
     } finally {
-      if (replayGenRef.current === gen) setReplaying(false);
+      if (replayGenRef.current === gen) {
+        setReplaying(false);
+        onReplayFinished?.(true);
+      }
     }
   }, [
     applyStepToArena,
@@ -153,6 +157,7 @@ export default function CoopRedAnimatedReplay({
     guestSnap,
     hostSnap,
     onReplayError,
+    onReplayFinished,
     replaySpeed,
     stepsProp,
   ]);
@@ -197,7 +202,6 @@ export default function CoopRedAnimatedReplay({
       focusLeftIsHost={focusLeftIsHost}
       replaying={replaying}
       onRelanceReplay={handleRelance}
-      combatWinner={combatWinner}
       logTitle={logTitle}
       wrapperClassName={wrapperClassName}
     />

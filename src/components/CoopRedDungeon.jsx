@@ -62,6 +62,7 @@ function CoopRedDungeon() {
   const skipAutoResumeRef = useRef(false);
   const audioRef = useRef(null);
   const [showAnimatedReplay, setShowAnimatedReplay] = useState(false);
+  const [isReplayFinished, setIsReplayFinished] = useState(false);
   const [echoOfferBusy, setEchoOfferBusy] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
@@ -211,6 +212,7 @@ function CoopRedDungeon() {
     if (!room?.id || room?.status !== 'completed' || !room?.combat) return;
     if (autoOpenedReplayRoomRef.current === room.id) return;
     autoOpenedReplayRoomRef.current = room.id;
+    setIsReplayFinished(false);
     setShowAnimatedReplay(true);
   }, [room?.id, room?.status, room?.combat]);
 
@@ -602,7 +604,7 @@ function CoopRedDungeon() {
         )}
 
         {inRoom && room && (
-          <div className="bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-4">
+          <div className={isCombatLaunched ? 'space-y-4' : 'bg-stone-900/80 border border-stone-700 rounded-xl p-4 space-y-4'}>
             {!isCombatLaunched && (
             <div className="flex flex-wrap justify-between gap-2">
               <p className="text-sm text-stone-400">
@@ -724,24 +726,24 @@ function CoopRedDungeon() {
                       </button>
                     )}
                     {displayAnimatedReplay && (
-                      <div className="w-full bg-black/25 rounded-2xl border border-red-900/40 p-2 md:p-3">
+                      <div className="w-full">
                         <CoopRedAnimatedReplay
                           key={`${room.id}-${room.combatSeed}`}
                           hostSnap={room.hostSnapshot}
                           guestSnap={room.guestSnapshot}
                           difficulty={room.difficulty}
                           combatSeed={room.combatSeed}
-                          combatWinner={room.combat?.winner ?? null}
                           logTitle="🔴 Red — ton combat"
                           wrapperClassName="mt-0"
                           onReplayError={(msg) => setError(msg)}
+                          onReplayFinished={setIsReplayFinished}
                         />
                       </div>
                     )}
                   </div>
                 )}
 
-                {!displayAnimatedReplay && (
+                {(!displayAnimatedReplay || isReplayFinished) && (
                   <>
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div>
@@ -836,7 +838,7 @@ function CoopRedDungeon() {
                   </>
                 )}
 
-                {!displayAnimatedReplay && (
+                {(!displayAnimatedReplay || isReplayFinished) && (
                 <div className="text-sm space-y-1">
                   {room.combat.winner === 'players' && (
                     <p className="text-emerald-400 font-bold">Victoire !</p>
