@@ -5,6 +5,7 @@ import { replayCoopRedSteps } from '../utils/combatReplay';
 import { simulerMatchCoopRed, createCoopSeededRng } from '../utils/coopRedTournamentSim';
 import { getCoopRedLineup } from '../data/coopRedDungeon';
 import { getUserCharacter } from '../services/characterService';
+import { getWeaponById } from '../data/weapons';
 
 /**
  * Replay animé Red (même UI que l’admin) : steps fournis ou recalculés côté client (seed déterministe).
@@ -100,11 +101,22 @@ export default function CoopRedAnimatedReplay({
         || !snap?.equippedTitle
         || !snap?.equippedBorder
         || !snap?.equippedRealBorder
-        || !snap?.gender;
+        || !snap?.gender
+        || (!snap?.equippedWeaponData && !!snap?.equippedWeaponId);
       if (!needsVisualData) return snap;
       const res = await getUserCharacter(snap.userId);
-      if (!res.success || !res.data) return snap;
-      const fresh = res.data;
+      const fresh = res.success && res.data ? res.data : null;
+      const weaponId = snap.equippedWeaponId ?? fresh?.equippedWeaponId ?? null;
+      const weaponData = snap.equippedWeaponData
+        ?? fresh?.equippedWeaponData
+        ?? (weaponId ? getWeaponById(weaponId) : null);
+      if (!fresh) {
+        return {
+          ...snap,
+          equippedWeaponId: weaponId,
+          equippedWeaponData: weaponData,
+        };
+      }
       return {
         ...snap,
         characterImage: snap.characterImage ?? fresh.characterImage ?? null,
@@ -112,6 +124,8 @@ export default function CoopRedAnimatedReplay({
         equippedBorder: snap.equippedBorder ?? fresh.equippedBorder ?? null,
         equippedRealBorder: snap.equippedRealBorder ?? fresh.equippedRealBorder ?? null,
         gender: snap.gender ?? fresh.gender ?? null,
+        equippedWeaponId: weaponId,
+        equippedWeaponData: weaponData,
       };
     };
 

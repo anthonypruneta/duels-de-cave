@@ -190,11 +190,11 @@ export default function CoopRedReplayArena({
 
       <div className="hidden xl:flex gap-4 items-start justify-center text-sm">
         <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300">
+          <div className="w-[340px] self-end rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300 text-right">
             <p className="text-stone-500 font-bold uppercase text-center mb-2">Équipe</p>
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <p className="text-violet-300/90 font-semibold truncate flex items-center gap-2">
+                <p className="text-violet-300/90 font-semibold truncate flex items-center justify-end gap-2">
                   <img src={hostImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
                   <span className="truncate">{hostF.name}</span>
                 </p>
@@ -204,7 +204,7 @@ export default function CoopRedReplayArena({
                 <p className="text-stone-500 mt-1">{hostF.currentHP} / {hostF.maxHP}</p>
               </div>
               <div>
-                <p className="text-red-300/90 font-semibold truncate flex items-center gap-2">
+                <p className="text-red-300/90 font-semibold truncate flex items-center justify-end gap-2">
                   <img src={guestImg} alt="" className="w-5 h-5 rounded object-cover border border-stone-600" />
                   <span className="truncate">{guestF.name}</span>
                 </p>
@@ -238,7 +238,7 @@ export default function CoopRedReplayArena({
           </div>
         </div>
 
-        <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col">
+        <div className="flex-1 min-w-[520px] max-w-[760px] flex flex-col mt-[112px]">
           <CoopRedCombatLog
             className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-xl flex flex-col overflow-hidden min-h-0 w-full min-w-0"
             lines={combatLog}
@@ -255,7 +255,7 @@ export default function CoopRedReplayArena({
         </div>
 
         <div className="w-[620px] flex-shrink-0 flex flex-col gap-3">
-          <div className="w-[340px] rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300">
+          <div className="w-[340px] self-start rounded-lg border border-stone-700/70 bg-stone-950/70 px-3 py-2 text-[11px] text-stone-300 text-left">
             <p className="text-stone-500 text-xs font-bold uppercase tracking-wide text-center">Boss (rotation)</p>
             <div className="grid grid-cols-1 gap-2 mt-2">
               {(run.lineup || []).map((boss, i) => {

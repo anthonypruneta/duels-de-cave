@@ -79,7 +79,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Lance-Flammes',
         description:
-          'Attaque physique à chaque action. Inflige une brûlure : perte de PV chaque tour (fraction des PV max).',
+          'À chaque action : inflige des dégâts physiques. Applique Brûlure : la cible perd 1% de ses PV max par tour.',
       },
     },
     {
@@ -95,7 +95,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Pistolet à O',
         description:
-          'Toutes les 2 actions : salve magique avec fort bonus de Cap sur ce tour — dégâts magiques accentués.',
+          'Recharge 2 tours : inflige des dégâts magiques (Auto + 35% CAP).',
       },
     },
     {
@@ -111,7 +111,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Vampigraine',
         description:
-          'Toutes les 3 actions : sort magique avec vol de vie sur une fraction des PV max des cibles (effet Vampigraine).',
+          'Recharge 3 tours : inflige des dégâts magiques (Auto + 100% CAP). Applique Vampigraine : 1% PV max volés chaque tour.',
       },
     },
   ],
@@ -129,7 +129,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Fatal-Foudre',
         description:
-          'Toutes les 5 actions : foudre magique ; peut étourdir un joueur pendant un tour (ne joue pas ce tour-là).',
+          'Recharge 5 tours : inflige des dégâts magiques (Auto + 30% CAP) et étourdit 1 tour.',
       },
     },
     {
@@ -145,7 +145,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Repos',
         description:
-          'Une fois par combat : récupération massive, puis le boss s’endort (ne joue pas pendant 2 tours).',
+          '1 fois par combat : restaure fortement ses PV, puis s’endort pendant 2 tours.',
       },
     },
     {
@@ -165,7 +165,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Voile Aurore',
         description:
-          'Toutes les 5 actions : vague magique puis protection — dégâts subis réduits pendant plusieurs tours (effet « aurore »).',
+          'Recharge 5 tours : inflige des dégâts magiques (Auto + 100% CAP), puis réduit les dégâts subis des autres boss de 30% pendant 2 tours.',
       },
     },
   ],
@@ -183,7 +183,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Déflagration',
         description:
-          'Dégâts magiques (Auto + 30 % Cap) sur tous les adversaires vivants.',
+          'Recharge 4 tours : inflige des dégâts magiques de zone (Auto + 30% CAP) à tous les joueurs vivants.',
       },
     },
     {
@@ -199,7 +199,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Aqua-jet',
         description:
-          'Dégâts magiques (Auto + 10 % Cap). Quand le sort est prêt, Tortank joue en premier ce tour.',
+          'Recharge 3 tours : inflige des dégâts magiques (Auto + 10% CAP). Quand prêt, Tortank joue en premier.',
       },
     },
     {
@@ -215,7 +215,7 @@ export const coopRedBossLineups = {
       moveDisplay: {
         name: 'Lance-soleil',
         description:
-          'Charge pendant 1 action puis, au tour d’action suivant du boss, dégâts magiques (Auto + 100 % Cap).',
+          'Recharge 5 tours : charge 1 action, puis inflige des dégâts magiques (Auto + 100% CAP) à l’action suivante.',
       },
     },
   ],
