@@ -18,6 +18,7 @@ import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageT
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import { races } from '../data/races';
 import { getSubclassStatBonuses } from '../data/subclasses';
+import { getCoopRaceEchoAwakeningFragment } from '../utils/coopRaceEcho';
 
 export function useCharacterStatsDisplay(character, weaponOverride = null) {
   if (!character?.base) {
@@ -79,7 +80,10 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
   const mainAwakeningEffect = getAwakeningEffect(character.race, effectiveLevel);
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
-  const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
+  const coopRaceEchoEffect = getCoopRaceEchoAwakeningFragment(character?.coopRaceEcho?.race);
+  const awakeningEffectWithoutEcho = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects]);
+  const awakeningEffect = mergeAwakeningEffects([mainAwakeningEffect, ...additionalEffects, coopRaceEchoEffect]);
+  const finalStatsBeforeForgeWithoutEcho = applyAwakeningToBase(baseWithClassPassive, awakeningEffectWithoutEcho);
   const finalStatsBeforeForge = applyAwakeningToBase(baseWithClassPassive, awakeningEffect);
   const finalStatsBeforeSubclass = hasForgeUpgrade && forgeUpgrade
     ? applyForgeUpgrade(finalStatsBeforeForge, forgeUpgrade)
@@ -98,6 +102,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     : finalStatsBeforeSubclass;
 
   const subclassDelta = (k) => (finalStats[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
+  const coopRaceEchoDelta = (k) => (finalStatsBeforeForge[k] ?? 0) - (finalStatsBeforeForgeWithoutEcho[k] ?? 0);
 
   const baseWithoutBonus = (k) => (rawBase[k] ?? 0) - totalBonus(k);
 
@@ -122,9 +127,11 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
 
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+` : ''}${raceDisplayBonus}`);
+    const raceEchoDelta = coopRaceEchoDelta(k);
+    if (raceEchoDelta !== 0) parts.push(`Pointeau ADN: ${raceEchoDelta > 0 ? '+' : ''}${raceEchoDelta}`);
     if (hasForgeUpgrade && forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
-      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k);
+      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k) + raceEchoDelta;
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
       if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
     }
@@ -140,14 +147,16 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
   const getStatLineProps = (statKey, label, valueClassName = '') => {
     const displayValue = finalStats[statKey] ?? 0;
     const raceDisplayBonus = getRaceDisplayBonus(statKey);
+    const raceEchoDeltaForStat = coopRaceEchoDelta(statKey);
     const bastionDelta = statKey === 'def' ? bastionDefBonus : 0;
-    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus;
+    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus + raceEchoDeltaForStat;
     const forgeDeltaForStat = (hasForgeUpgrade && forgeUpgrade) ? (() => {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
     })() : 0;
     const subclassDeltaForStat = subclassDelta(statKey);
     const hasBonus = raceDisplayBonus !== 0
+      || raceEchoDeltaForStat !== 0
       || classB[statKey] > 0
       || bastionDelta > 0
       || forestBoosts[statKey] > 0
@@ -156,6 +165,7 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
       || forgeDeltaForStat !== 0
       || subclassDeltaForStat !== 0;
     const totalDelta = raceDisplayBonus
+      + raceEchoDeltaForStat
       + (classB[statKey] || 0)
       + bastionDelta
       + (forestBoosts[statKey] || 0)
