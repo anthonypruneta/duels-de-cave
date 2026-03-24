@@ -424,8 +424,43 @@ export async function runCoopRedAutoSimulation(roomId) {
         if (!lr && !br) return;
         if (!d.guestId || !d.hostSnapshot || !d.guestSnapshot) return;
 
-        await consumeOneAttemptInTransaction(tx, d.hostId);
-        await consumeOneAttemptInTransaction(tx, d.guestId);
+        const dateKey = getParisDateKey();
+        const hostDailyRef = doc(db, DAILY, d.hostId);
+        const guestDailyRef = doc(db, DAILY, d.guestId);
+
+        // Firestore impose "toutes les lectures avant toute écriture" dans une transaction.
+        const hostDailySnap = await tx.get(hostDailyRef);
+        const guestDailySnap = await tx.get(guestDailyRef);
+        const hostUsed = getUsedAttemptsForDate(hostDailySnap, dateKey);
+        const guestUsed = getUsedAttemptsForDate(guestDailySnap, dateKey);
+
+        if (
+          hostUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY ||
+          guestUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY
+        ) {
+          throw new Error('no_attempts');
+        }
+
+        tx.set(
+          hostDailyRef,
+          {
+            userId: d.hostId,
+            attemptsDate: dateKey,
+            attemptsUsed: hostUsed + 1,
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
+        tx.set(
+          guestDailyRef,
+          {
+            userId: d.guestId,
+            attemptsDate: dateKey,
+            attemptsUsed: guestUsed + 1,
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
 
         const payload = buildCoopRedCombatFirestorePayload(finalCombat, d);
         tx.update(ref, {
@@ -553,29 +588,9 @@ function buildCoopRedCombatFirestorePayload(finalCombat, roomData) {
   };
 }
 
-async function consumeOneAttemptInTransaction(tx, userId) {
-  const dateKey = getParisDateKey();
-  const dRef = doc(db, DAILY, userId);
-  const snap = await tx.get(dRef);
-  let used = 0;
-  let storedDate = null;
-  if (snap.exists()) {
-    const d = snap.data();
-    storedDate = d.attemptsDate;
-    if (d.attemptsDate === dateKey) used = Number(d.attemptsUsed) || 0;
-  }
-  if (storedDate !== dateKey) used = 0;
-  if (used >= COOP_RED_MAX_ATTEMPTS_PER_DAY) {
-    throw new Error('no_attempts');
-  }
-  tx.set(
-    dRef,
-    {
-      userId,
-      attemptsDate: dateKey,
-      attemptsUsed: used + 1,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
+function getUsedAttemptsForDate(snap, dateKey) {
+  if (!snap.exists()) return 0;
+  const data = snap.data();
+  if (data?.attemptsDate !== dateKey) return 0;
+  return Number(data?.attemptsUsed) || 0;
 }
