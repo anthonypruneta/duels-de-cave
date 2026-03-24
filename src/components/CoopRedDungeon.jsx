@@ -75,6 +75,12 @@ function formatCoopRedHistoryDate(completedAt) {
   }
 }
 
+/** Libellé Pointeau ADN pour une ligne d’historique (myDropGranted / myEchoRaceGrant). */
+function formatCoopRedPointeauLabel(row) {
+  if (!row?.myDropGranted) return 'Non';
+  return row.myEchoRaceGrant ? `Oui — ${row.myEchoRaceGrant}` : 'Oui';
+}
+
 function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -607,37 +613,47 @@ function CoopRedDungeon() {
         )}
 
         {currentUser && !displayAnimatedReplay && (
-          <div className="xl:hidden rounded-xl border border-stone-700 bg-stone-900/80 p-4 space-y-3">
+          <div className="xl:hidden rounded-xl border border-stone-700 bg-stone-900/80 p-4 space-y-3 w-full max-w-none">
             <h2 className="font-bold text-amber-400 text-xs uppercase tracking-wide">Historique des matchs</h2>
             {matchHistory.length === 0 ? (
               <p className="text-sm text-stone-500">Aucun match enregistré pour l’instant. Les matchs terminés apparaissent ici (replay conservé).</p>
             ) : (
               <div className="overflow-x-auto -mx-1">
-                <table className="w-full text-sm text-left min-w-[520px]">
+                <table className="w-full text-sm text-left min-w-[880px]">
                   <thead>
                     <tr className="text-[11px] uppercase text-stone-500 border-b border-stone-700">
-                      <th className="py-2 pr-2">Date</th>
-                      <th className="py-2 pr-2">Difficulté</th>
-                      <th className="py-2 pr-2">Coéquipier</th>
-                      <th className="py-2 pr-2">Résultat</th>
-                      <th className="py-2 pr-2 text-right">Replay</th>
+                      <th className="py-2 pr-3 whitespace-nowrap">Date</th>
+                      <th className="py-2 pr-3">Difficulté</th>
+                      <th className="py-2 pr-3 min-w-[120px]">Allié</th>
+                      <th className="py-2 pr-3">Résultat</th>
+                      <th className="py-2 pr-3 min-w-[160px]">Pointeau ADN</th>
+                      <th className="py-2 pr-2 text-right whitespace-nowrap">Replay</th>
                     </tr>
                   </thead>
                   <tbody>
                     {matchHistory.map((row) => {
                       const win = row.winner === 'players';
                       const diffLabel = COOP_RED_DIFFICULTY_LABELS[row.difficulty] ?? row.difficulty ?? '—';
+                      const pointeau = formatCoopRedPointeauLabel(row);
                       return (
                         <tr key={row.id || row.roomId} className="border-b border-stone-800/80 text-stone-300">
-                          <td className="py-2 pr-2 whitespace-nowrap">{formatCoopRedHistoryDate(row.completedAt)}</td>
-                          <td className="py-2 pr-2">{diffLabel}</td>
-                          <td className="py-2 pr-2 max-w-[140px] truncate" title={row.partnerName}>
-                            {row.partnerName ?? '—'}
+                          <td className="py-2 pr-3 whitespace-nowrap align-top">{formatCoopRedHistoryDate(row.completedAt)}</td>
+                          <td className="py-2 pr-3 align-top">{diffLabel}</td>
+                          <td className="py-2 pr-3 align-top max-w-[200px]">
+                            <span className="line-clamp-2 break-words" title={row.partnerName ?? ''}>
+                              {row.partnerName ?? '—'}
+                            </span>
                           </td>
-                          <td className={`py-2 pr-2 font-semibold ${win ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <td className={`py-2 pr-3 font-semibold align-top ${win ? 'text-emerald-400' : 'text-red-400'}`}>
                             {win ? 'Victoire' : 'Défaite'}
                           </td>
-                          <td className="py-2 text-right">
+                          <td
+                            className={`py-2 pr-3 align-top text-[13px] ${row.myDropGranted ? 'text-emerald-300' : 'text-stone-500'}`}
+                            title={pointeau}
+                          >
+                            {pointeau}
+                          </td>
+                          <td className="py-2 text-right align-top">
                             <button
                               type="button"
                               onClick={() => setHistoryReplayRow(row)}
@@ -944,7 +960,7 @@ function CoopRedDungeon() {
         </div>
 
         {!isCombatLaunched && (
-          <aside className="hidden xl:flex flex-col items-stretch flex-shrink-0 w-[min(100%,300px)] sticky top-24 self-start gap-4">
+          <aside className="hidden xl:flex flex-col items-stretch flex-shrink-0 w-[min(100%,min(480px,44vw))] min-w-[380px] sticky top-24 self-start gap-4">
             <div className="relative rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
               <img
                 src={redTrainerPortraitUrl}
@@ -956,41 +972,54 @@ function CoopRedDungeon() {
               </div>
             </div>
             {currentUser && (
-              <div className="w-full rounded-xl border border-stone-700 bg-stone-900/80 p-3 space-y-2">
+              <div className="w-full rounded-xl border border-stone-700 bg-stone-900/80 p-3 space-y-2 min-w-0">
                 <h2 className="font-bold text-amber-400 text-[10px] uppercase tracking-wide">Historique des matchs</h2>
                 {matchHistory.length === 0 ? (
                   <p className="text-xs text-stone-500 leading-snug">
                     Aucun match enregistré. Les matchs terminés apparaissent ici.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto -mx-0.5 max-h-[min(40vh,320px)] overflow-y-auto pr-0.5">
-                    <table className="w-full text-[11px] text-left min-w-[260px]">
+                  <div className="overflow-x-auto -mx-0.5 max-h-[min(44vh,380px)] overflow-y-auto pr-0.5">
+                    <table className="w-full text-[11px] text-left min-w-[340px]">
                       <thead>
                         <tr className="uppercase text-stone-500 border-b border-stone-700">
-                          <th className="py-1 pr-1">Date</th>
-                          <th className="py-1 pr-1">Diff.</th>
-                          <th className="py-1 pr-1">Rés.</th>
-                          <th className="py-1 text-right">Replay</th>
+                          <th className="py-1.5 pr-1.5 whitespace-nowrap">Date</th>
+                          <th className="py-1.5 pr-1.5">Diff.</th>
+                          <th className="py-1.5 pr-1.5 min-w-[4.5rem]">Allié</th>
+                          <th className="py-1.5 pr-1.5">Rés.</th>
+                          <th className="py-1.5 pr-1.5 min-w-[5.5rem]">Pointeau</th>
+                          <th className="py-1.5 pr-0 text-right whitespace-nowrap">Replay</th>
                         </tr>
                       </thead>
                       <tbody>
                         {matchHistory.map((row) => {
                           const win = row.winner === 'players';
                           const diffLabel = COOP_RED_DIFFICULTY_LABELS[row.difficulty] ?? row.difficulty ?? '—';
+                          const pointeau = formatCoopRedPointeauLabel(row);
                           return (
                             <tr
                               key={row.id || row.roomId}
                               className="border-b border-stone-800/80 text-stone-300"
-                              title={row.partnerName ? `Avec ${row.partnerName}` : undefined}
                             >
-                              <td className="py-1 pr-1 whitespace-nowrap align-top">
+                              <td className="py-1.5 pr-1.5 whitespace-nowrap align-top text-[10px]">
                                 {formatCoopRedHistoryDate(row.completedAt)}
                               </td>
-                              <td className="py-1 pr-1 align-top">{diffLabel}</td>
-                              <td className={`py-1 pr-1 font-semibold align-top ${win ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <td className="py-1.5 pr-1.5 align-top">{diffLabel}</td>
+                              <td className="py-1.5 pr-1.5 align-top max-w-[100px]">
+                                <span className="line-clamp-2 break-words" title={row.partnerName ?? ''}>
+                                  {row.partnerName ?? '—'}
+                                </span>
+                              </td>
+                              <td className={`py-1.5 pr-1.5 font-semibold align-top ${win ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {win ? 'V' : 'D'}
                               </td>
-                              <td className="py-1 text-right align-top">
+                              <td
+                                className={`py-1.5 pr-1.5 align-top leading-snug ${row.myDropGranted ? 'text-emerald-300' : 'text-stone-500'}`}
+                                title={pointeau}
+                              >
+                                {pointeau}
+                              </td>
+                              <td className="py-1.5 text-right align-top">
                                 <button
                                   type="button"
                                   onClick={() => setHistoryReplayRow(row)}
