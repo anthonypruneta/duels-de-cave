@@ -143,7 +143,13 @@ function CoopRedDungeon() {
           return;
         }
         setRoom(data);
-        if (currentUser?.uid && data.hostId === currentUser.uid) {
+        if (data.status === 'completed') {
+          // On garde l'affichage courant, mais on n'auto-réouvre jamais une salle déjà terminée au prochain passage.
+          sessionStorage.removeItem('coopRedRoomId');
+          const k = currentUser?.uid ? coopRedHostRoomStorageKey(currentUser.uid) : null;
+          if (k) localStorage.removeItem(k);
+        }
+        if (currentUser?.uid && data.hostId === currentUser.uid && data.status !== 'completed') {
           const k = coopRedHostRoomStorageKey(currentUser.uid);
           if (k) localStorage.setItem(k, roomId);
         }

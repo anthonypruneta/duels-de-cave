@@ -15,15 +15,11 @@ export default function CoopRedAnimatedReplay({
   combatSeed,
   steps: stepsProp = null,
   lineup: lineupProp = null,
-  replaySpeed: replaySpeedProp,
-  setReplaySpeed: setReplaySpeedProp,
   logTitle,
   wrapperClassName,
   onReplayError,
 }) {
-  const [internalSpeed, setInternalSpeed] = useState('fast');
-  const replaySpeed = replaySpeedProp ?? internalSpeed;
-  const setReplaySpeed = setReplaySpeedProp ?? setInternalSpeed;
+  const replaySpeed = 'normal';
 
   const [replaying, setReplaying] = useState(false);
   const [hostF, setHostF] = useState(null);
@@ -185,8 +181,6 @@ export default function CoopRedAnimatedReplay({
       combatLog={combatLog}
       coopActor={coopActor}
       focusLeftIsHost={focusLeftIsHost}
-      replaySpeed={replaySpeed}
-      setReplaySpeed={setReplaySpeed}
       replaying={replaying}
       onRelanceReplay={handleRelance}
       logTitle={logTitle}
