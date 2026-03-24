@@ -1681,7 +1681,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         adj = Math.round(adj * getCritMultiplier(att, def));
         adj = modifyCritDamage(att.weaponState, adj);
       }
-      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       log.push(
         `${playerColor} ⚡ ${att.name} lance Fatal-foudre et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
       );
@@ -1731,7 +1731,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         adj = Math.round(adj * getCritMultiplier(att, def));
         adj = modifyCritDamage(att.weaponState, adj);
       }
-      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBoost, true, true, turn);
+      const inflicted = applyDamage(att, def, adj, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       log.push(
         `${playerColor} 🌊 ${att.name} lance Onde boréale et inflige ${inflicted} dégâts magiques${isCrit ? ' CRITIQUE !' : ''}.`
       );
