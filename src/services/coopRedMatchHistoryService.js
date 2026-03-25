@@ -7,12 +7,14 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
   query,
   setDoc,
   Timestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
@@ -68,12 +70,42 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
     myEchoRaceGrant: iWasHost
       ? (roomData.hostEchoRaceGrant ?? null)
       : (roomData.guestEchoRaceGrant ?? null),
+    myEchoDelivered: iWasHost ? !!roomData.hostEchoDelivered : !!roomData.guestEchoDelivered,
     completedAt,
   };
 
   const ref = doc(db, ROOT, userId, 'matches', roomData.id);
+  // Ne jamais écraser viewedAt (si déjà vu) : on ne le set qu'à la création.
+  const existing = await getDoc(ref);
+  if (!existing.exists()) {
+    entry.viewedAt = null;
+  }
   await setDoc(ref, entry, { merge: true });
   return { success: true };
+}
+
+export async function markCoopRedHistoryMatchViewed(userId, roomId) {
+  if (!userId || !roomId) return { success: false };
+  await waitForFirestore();
+  try {
+    const ref = doc(db, ROOT, userId, 'matches', String(roomId));
+    await updateDoc(ref, { viewedAt: Timestamp.now() });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e?.message || 'Erreur' };
+  }
+}
+
+export async function setCoopRedHistoryEchoDelivered(userId, roomId, delivered) {
+  if (!userId || !roomId) return { success: false };
+  await waitForFirestore();
+  try {
+    const ref = doc(db, ROOT, userId, 'matches', String(roomId));
+    await updateDoc(ref, { myEchoDelivered: !!delivered });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e?.message || 'Erreur' };
+  }
 }
 
 /**

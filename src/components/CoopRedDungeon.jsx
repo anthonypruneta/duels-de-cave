@@ -31,6 +31,8 @@ import {
   backfillCoopRedMatchHistoryFromRooms,
   ensureCoopRedHistoryEntryFromRoom,
   subscribeCoopRedMatchHistory,
+  markCoopRedHistoryMatchViewed,
+  setCoopRedHistoryEchoDelivered,
 } from '../services/coopRedMatchHistoryService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 /** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
@@ -105,6 +107,7 @@ function CoopRedDungeon() {
   const [echoOfferDecision, setEchoOfferDecision] = useState(null);
   const [matchHistory, setMatchHistory] = useState([]);
   const [historyReplayRow, setHistoryReplayRow] = useState(null);
+  const [historyClaimBusy, setHistoryClaimBusy] = useState(false);
 
   const loadCharAndAttempts = useCallback(async () => {
     if (!currentUser) return;
@@ -441,6 +444,30 @@ function CoopRedDungeon() {
     if (gk) localStorage.setItem(gk, res.roomId);
   };
 
+  const handleOpenHistoryReplay = useCallback(async (row) => {
+    setHistoryReplayRow(row);
+    if (!currentUser?.uid) return;
+    const rid = row?.roomId || row?.id;
+    if (!rid) return;
+    await markCoopRedHistoryMatchViewed(currentUser.uid, rid);
+  }, [currentUser?.uid]);
+
+  const handleClaimHistoryEcho = useCallback(async (row) => {
+    if (!currentUser?.uid) return;
+    const rid = row?.roomId || row?.id;
+    if (!rid) return;
+    setError(null);
+    setHistoryClaimBusy(true);
+    const res = await claimCoopRedRaceEchoIfNeeded(rid, currentUser.uid);
+    setHistoryClaimBusy(false);
+    if (!res?.success) {
+      setError(res?.error || 'Impossible de récupérer la récompense.');
+      return;
+    }
+    await setCoopRedHistoryEchoDelivered(currentUser.uid, rid, true);
+    await loadCharAndAttempts();
+  }, [currentUser?.uid, loadCharAndAttempts]);
+
   const handleToggleReady = async (next) => {
     if (!roomId || !currentUser) return;
     if (next && attemptsLeft <= 0) {
@@ -638,7 +665,10 @@ function CoopRedDungeon() {
                       const diffLabel = COOP_RED_DIFFICULTY_LABELS[row.difficulty] ?? row.difficulty ?? '—';
                       const pointeau = formatCoopRedPointeauLabel(row);
                       return (
-                        <tr key={row.id || row.roomId} className="border-b border-stone-800/80 text-stone-300">
+                        <tr
+                          key={row.id || row.roomId}
+                          className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold'}`}
+                        >
                           <td className="py-2 pr-3 whitespace-nowrap align-top">{formatCoopRedHistoryDate(row.completedAt)}</td>
                           <td className="py-2 pr-3 align-top">{diffLabel}</td>
                           <td className="py-2 pr-3 align-top max-w-[200px]">
@@ -655,14 +685,27 @@ function CoopRedDungeon() {
                           >
                             {pointeau}
                           </td>
-                          <td className="py-2 text-right align-top">
-                            <button
-                              type="button"
-                              onClick={() => setHistoryReplayRow(row)}
-                              className="px-3 py-1 rounded-lg bg-red-900/80 hover:bg-red-800 text-amber-100 text-xs font-bold border border-red-700/60"
-                            >
-                              Voir le replay
-                            </button>
+                          <td className="py-2 text-right align-top whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              {row.winner === 'players' && row.myDropGranted && !row.myEchoDelivered && (
+                                <button
+                                  type="button"
+                                  disabled={historyClaimBusy}
+                                  onClick={() => handleClaimHistoryEcho(row)}
+                                  className="px-3 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-600/60 disabled:opacity-50"
+                                  title="Récupérer le Pointeau ADN (1 fois)"
+                                >
+                                  Récupérer
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenHistoryReplay(row)}
+                                className="px-3 py-1 rounded-lg bg-red-900/80 hover:bg-red-800 text-amber-100 text-xs font-bold border border-red-700/60"
+                              >
+                                Voir le replay
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1001,7 +1044,7 @@ function CoopRedDungeon() {
                           return (
                             <tr
                               key={row.id || row.roomId}
-                              className="border-b border-stone-800/80 text-stone-300"
+                              className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold'}`}
                             >
                               <td className="py-1.5 pr-1.5 whitespace-nowrap align-top text-[10px]">
                                 {formatCoopRedHistoryDate(row.completedAt)}
@@ -1021,14 +1064,27 @@ function CoopRedDungeon() {
                               >
                                 {pointeau}
                               </td>
-                              <td className="py-1.5 text-right align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => setHistoryReplayRow(row)}
-                                  className="px-1.5 py-0.5 rounded bg-red-900/80 hover:bg-red-800 text-amber-100 text-[10px] font-bold border border-red-700/60"
-                                >
-                                  Voir
-                                </button>
+                              <td className="py-1.5 text-right align-top whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end gap-1">
+                                  {row.winner === 'players' && row.myDropGranted && !row.myEchoDelivered && (
+                                    <button
+                                      type="button"
+                                      disabled={historyClaimBusy}
+                                      onClick={() => handleClaimHistoryEcho(row)}
+                                      className="px-1.5 py-0.5 rounded bg-emerald-900/80 hover:bg-emerald-800 text-emerald-100 text-[10px] font-bold border border-emerald-700/60 disabled:opacity-50"
+                                      title="Récupérer le Pointeau ADN (1 fois)"
+                                    >
+                                      Récup.
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenHistoryReplay(row)}
+                                    className="px-1.5 py-0.5 rounded bg-red-900/80 hover:bg-red-800 text-amber-100 text-[10px] font-bold border border-red-700/60"
+                                  >
+                                    Voir
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1086,12 +1142,24 @@ function CoopRedDungeon() {
                         <div className="bg-stone-950/75 border border-stone-700/80 rounded-xl shadow-lg px-4 py-3 text-sm space-y-1">
                           <p className="text-emerald-400 font-bold">Récompenses (à ce match)</p>
                           {historyReplayRow.myDropGranted ? (
-                            <p className="text-stone-300">
-                              Pointeau ADN :{' '}
-                              <span className="text-emerald-300 font-semibold">
-                                {historyReplayRow.myEchoRaceGrant ?? '—'}
-                              </span>
-                            </p>
+                                  <div className="space-y-2">
+                                    <p className="text-stone-300">
+                                      Pointeau ADN :{' '}
+                                      <span className="text-emerald-300 font-semibold">
+                                        {historyReplayRow.myEchoRaceGrant ?? '—'}
+                                      </span>
+                                    </p>
+                                    {!historyReplayRow.myEchoDelivered && (
+                                      <button
+                                        type="button"
+                                        disabled={historyClaimBusy}
+                                        onClick={() => handleClaimHistoryEcho(historyReplayRow)}
+                                        className="px-3 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-600/60 disabled:opacity-50"
+                                      >
+                                        Récupérer la récompense (1 fois)
+                                      </button>
+                                    )}
+                                  </div>
                           ) : (
                             <p className="text-stone-400">Pas de pointeau pour toi sur ce tirage.</p>
                           )}
