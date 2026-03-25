@@ -1338,7 +1338,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       log.push(`${playerColor} 🧪🔥 ${att.name} lance une flasque de feu sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}`);
       // onAttack pour les armes (Option B : flasques offensives déclenchent les hooks)
       if (inflicted > 0) {
-        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
         if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
         if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
@@ -1435,7 +1435,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       log.push(`${playerColor} 🧪🟢 ${att.name} lance une flasque d'acide sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${acidDebuffText}`);
       // onAttack pour les armes
       if (inflicted > 0) {
-        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
         if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
         if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
@@ -1489,7 +1489,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       log.push(`${playerColor} 🧪⚙️ ${att.name} lance une flasque de métal sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${metalStunText}`);
       // onAttack pour les armes
       if (inflicted > 0) {
-        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
         if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
         if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
@@ -2130,7 +2130,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
 
     if (!isMage && inflicted > 0) {
-      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+      const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
       if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
       if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);

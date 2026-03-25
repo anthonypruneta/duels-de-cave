@@ -862,8 +862,8 @@ const MageTower = () => {
       }
 
       // Les effets "malus/débuff" sur la cible (armes légendaires) sont protégés par bouclier
-      if (!isMage && inflicted > 0) {
-        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+      if (!isMage) {
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) {
           Object.assign(def, applyMjollnirStun(def));
         }

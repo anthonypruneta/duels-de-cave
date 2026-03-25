@@ -206,7 +206,8 @@ export function onTurnStart(weaponState, combatant, turn) {
 /**
  * Hook appelé après chaque attaque physique
  */
-export function onAttack(weaponState, attacker, defender, damage) {
+export function onAttack(weaponState, attacker, defender, damage, options = {}) {
+  const connected = options.connected !== undefined ? options.connected : damage > 0;
   const effects = {
     stunTarget: false,
     stunDuration: 0,
@@ -221,6 +222,7 @@ export function onAttack(weaponState, attacker, defender, damage) {
   if (!weaponState.isLegendary) return effects;
 
   weaponState.counters.attackCount++;
+  if (!connected) return effects;
 
   switch (weaponState.weaponId) {
     case 'marteau_legendaire': {
