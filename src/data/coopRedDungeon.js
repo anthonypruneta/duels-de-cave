@@ -175,7 +175,8 @@ export const coopRedBossLineups = {
       nom: 'Dracaufeu',
       icon: '🐉',
       imageFile: 'dracaufeu.png',
-      baseStats: { hp: 638, auto: 85, def: 68, cap: 77, rescap: 60, spd: 77 },
+      // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
+      baseStats: { hp: 574, auto: 77, def: 61, cap: 69, rescap: 54, spd: 69 },
       ability: {
         cooldown: 4,
         effect: { capScale: 0.3 },
@@ -191,7 +192,8 @@ export const coopRedBossLineups = {
       nom: 'Tortank',
       icon: '🛡️',
       imageFile: 'tortank.png',
-      baseStats: { hp: 680, auto: 94, def: 85, cap: 60, rescap: 68, spd: 55 },
+      // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
+      baseStats: { hp: 612, auto: 85, def: 77, cap: 54, rescap: 61, spd: 50 },
       ability: {
         cooldown: 3,
         effect: { capScale: 0.1 },
@@ -207,7 +209,8 @@ export const coopRedBossLineups = {
       nom: 'Florizarre',
       icon: '🌸',
       imageFile: 'florizarre.png',
-      baseStats: { hp: 765, auto: 72, def: 94, cap: 85, rescap: 85, spd: 43 },
+      // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
+      baseStats: { hp: 689, auto: 65, def: 85, cap: 77, rescap: 77, spd: 39 },
       ability: {
         cooldown: 5,
         effect: { capScale: 1 },
