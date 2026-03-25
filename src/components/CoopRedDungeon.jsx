@@ -667,7 +667,7 @@ function CoopRedDungeon() {
                       return (
                         <tr
                           key={row.id || row.roomId}
-                          className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold'}`}
+                          className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold text-amber-200/95'}`}
                         >
                           <td className="py-2 pr-3 whitespace-nowrap align-top">{formatCoopRedHistoryDate(row.completedAt)}</td>
                           <td className="py-2 pr-3 align-top">{diffLabel}</td>
@@ -1044,7 +1044,7 @@ function CoopRedDungeon() {
                           return (
                             <tr
                               key={row.id || row.roomId}
-                              className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold'}`}
+                              className={`border-b border-stone-800/80 text-stone-300 ${row.viewedAt ? '' : 'font-bold text-amber-200/95'}`}
                             >
                               <td className="py-1.5 pr-1.5 whitespace-nowrap align-top text-[10px]">
                                 {formatCoopRedHistoryDate(row.completedAt)}
