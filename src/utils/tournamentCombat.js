@@ -659,6 +659,20 @@ function flushPendingCombatLogs(fighter, log) {
   fighter._pendingCombatLogs = [];
 }
 
+function tryProcEchoGuerre(att, attackerPassiveList, log, playerColor) {
+  const echoPassive = getPassiveById(attackerPassiveList, 'echo_guerre');
+  if (!echoPassive) return;
+  att._echoStacks = (att._echoStacks || 0);
+  const maxStacks = echoPassive.levelData?.maxStacks ?? 5;
+  if (att._echoStacks >= maxStacks) return;
+
+  att._echoStacks++;
+  const stackPct = echoPassive.levelData?.autoStackPercent ?? 0.02;
+  const bonus = Math.max(1, Math.round(att.base.auto * stackPct));
+  att.base = { ...att.base, auto: att.base.auto + bonus };
+  log.push(`${playerColor} ⚔️ Écho de Guerre: Auto de ${att.name} +${bonus} (stack ${att._echoStacks}/${maxStacks})`);
+}
+
 function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isCapacityDamage = false, turn = null) {
   const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
   const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
@@ -1221,13 +1235,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
     const isCrit = forceCritAme || combatRandom01() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
-    if (att.subclass?.id === 'dompteuse_chair') {
-      const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-      const stack = succubeC.autoReductionStack ?? 0.06;
-      def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + stack;
-      def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
-      log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
-    }
+    const shouldApplyDompteuseChairDebuff = att.subclass?.id === 'dompteuse_chair';
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'succ', log, playerColor);
@@ -1242,8 +1250,18 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       verdictBonusSucc.log.forEach(l => log.push(`${playerColor} ${l}`));
     }
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
-    def.succubeWeakenNextAttack = true;
-    log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. La prochaine attaque de ${def.name} est affaiblie.`);
+    if (inflicted > 0) {
+      def.succubeWeakenNextAttack = true;
+      if (shouldApplyDompteuseChairDebuff) {
+        const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const stack = succubeC.autoReductionStack ?? 0.06;
+        def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + stack;
+        def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
+        log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
+      }
+    }
+    const weakenText = inflicted > 0 ? `. La prochaine attaque de ${def.name} est affaiblie.` : '';
+    log.push(`${playerColor} 💋 ${att.name} fouette ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${weakenText}`);
     const succSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'succ');
     applySceptreCapBuff(att, succSpellEffects, log, playerColor);
     if (succSpellEffects.doubleCast && succSpellEffects.secondCastDamage > 0) {
@@ -1314,17 +1332,26 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
       }
+      const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
       log.push(`${playerColor} 🧪🔥 ${att.name} lance une flasque de feu sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}`);
       // onAttack pour les armes (Option B : flasques offensives déclenchent les hooks)
-      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
-      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
-      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
-      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      if (inflicted > 0) {
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+        if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      }
+
+      // Self-boosts "sur attaque" : proc même si l'attaque est absorbée par un bouclier
+      if (inflicted > 0 || shieldHit) {
+        tryProcEchoGuerre(att, attackerPassiveList, log, playerColor);
+      }
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
       applySceptreCapBuff(att, spellEffects, log, playerColor);
@@ -1392,25 +1419,35 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
       }
+      const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
-      // Réduction DEF/ResC
-      const defBefore = def.base.def;
-      const rescBefore = def.base.rescap;
-      def.base = {
-        ...def.base,
-        def: Math.max(1, Math.round(def.base.def * (1 - acidDefRed))),
-        rescap: Math.max(1, Math.round(def.base.rescap * (1 - acidRescRed)))
-      };
-      log.push(`${playerColor} 🧪🟢 ${att.name} lance une flasque d'acide sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. DEF -${Math.round(acidDefRed * 100)}% (${defBefore}→${def.base.def}), ResC -${Math.round(acidRescRed * 100)}% (${rescBefore}→${def.base.rescap}).`);
+      const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+      // Réduction DEF/ResC (protégée par bouclier : uniquement si des PV sont perdus)
+      let acidDebuffText = '';
+      if (inflicted > 0) {
+        const defBefore = def.base.def;
+        const rescBefore = def.base.rescap;
+        const defAfter = Math.max(1, Math.round(def.base.def * (1 - acidDefRed)));
+        const rescAfter = Math.max(1, Math.round(def.base.rescap * (1 - acidRescRed)));
+        def.base = { ...def.base, def: defAfter, rescap: rescAfter };
+        acidDebuffText = `. DEF -${Math.round(acidDefRed * 100)}% (${defBefore}→${defAfter}), ResC -${Math.round(acidRescRed * 100)}% (${rescBefore}→${rescAfter}).`;
+      }
+      log.push(`${playerColor} 🧪🟢 ${att.name} lance une flasque d'acide sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${acidDebuffText}`);
       // onAttack pour les armes
-      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
-      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
-      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
-      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      if (inflicted > 0) {
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+        if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      }
+
+      if (inflicted > 0 || shieldHit) {
+        tryProcEchoGuerre(att, attackerPassiveList, log, playerColor);
+      }
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
       applySceptreCapBuff(att, spellEffects, log, playerColor);
@@ -1440,22 +1477,31 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
       }
+      const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
+      const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
       const stunDur = alchC.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      if (def.currentHP > 0) {
+      if (inflicted > 0 && def.currentHP > 0) {
         def.stunned = true;
         def.stunnedTurns = stunDur;
       }
-      log.push(`${playerColor} 🧪⚙️ ${att.name} lance une flasque de métal sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}. ${def.name} est étourdi ${stunDur} tour !`);
+      const metalStunText = (inflicted > 0 && def.currentHP > 0) ? `. ${def.name} est étourdi ${stunDur} tour !` : '';
+      log.push(`${playerColor} 🧪⚙️ ${att.name} lance une flasque de métal sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${metalStunText}`);
       // onAttack pour les armes
-      const attackEffects = onAttack(att.weaponState, att, def, inflicted);
-      if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
-      if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
-      if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
-      if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      if (inflicted > 0) {
+        const attackEffects = onAttack(att.weaponState, att, def, inflicted);
+        if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
+        if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
+        if (attackEffects.log.length > 0) log.push(`${playerColor} ${attackEffects.log.join(' ')}`);
+      }
+
+      if (inflicted > 0 || shieldHit) {
+        tryProcEchoGuerre(att, attackerPassiveList, log, playerColor);
+      }
       // Codex Archon
       const spellEffects = onCapacityCast(att.weaponState, att, def, raw, 'alch');
       applySceptreCapBuff(att, spellEffects, log, playerColor);
@@ -2076,12 +2122,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
     }
 
+    const shieldBefore = def.shield || 0;
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)), turn);
-    if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
+    const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+    if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack && (inflicted > 0 || shieldHit)) {
       att.familiarStacks = (att.familiarStacks || 0) + 1;
     }
 
-    if (!isMage) {
+    if (!isMage && inflicted > 0) {
       const attackEffects = onAttack(att.weaponState, att, def, inflicted);
       if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
@@ -2095,19 +2143,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     // Écho de Guerre : +X% Auto par attaque (stackable)
     // - Autos classiques : proc sur chaque attaque non-Mage/non-Guerrier
     // - Archer : proc sur le premier tir de Double tir uniquement
-    if (!isMage && !isWar && inflicted > 0 && (!isArcher || i === 0)) {
-      const echoPassive = getPassiveById(attackerPassiveList, 'echo_guerre');
-      if (echoPassive) {
-        att._echoStacks = (att._echoStacks || 0);
-        const maxStacks = echoPassive.levelData?.maxStacks ?? 5;
-        if (att._echoStacks < maxStacks) {
-          att._echoStacks++;
-          const stackPct = echoPassive.levelData?.autoStackPercent ?? 0.02;
-          const bonus = Math.max(1, Math.round(att.base.auto * stackPct));
-          att.base = { ...att.base, auto: att.base.auto + bonus };
-          log.push(`${playerColor} ⚔️ Écho de Guerre: Auto de ${att.name} +${bonus} (stack ${att._echoStacks}/${maxStacks})`);
-        }
-      }
+    if (!isMage && !isWar && (inflicted > 0 || shieldHit) && (!isArcher || i === 0)) {
+      tryProcEchoGuerre(att, attackerPassiveList, log, playerColor);
     }
 
     // Log du tir / attaque bonus avant le test de mort : si le second tir est létal, on doit quand même afficher ses dégâts

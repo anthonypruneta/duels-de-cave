@@ -891,12 +891,15 @@ const ForestDungeon = () => {
 
       raw = applyBossOutgoingModifier(att, raw, turn);
       raw = applyBossIncomingModifier(def, raw, turn);
+      const shieldBefore = def.shield || 0;
       const inflicted = applyMageTowerDamage(raw, isCrit);
-      if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack) {
+      const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+      if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack && (inflicted > 0 || shieldHit)) {
         att.familiarStacks = (att.familiarStacks || 0) + 1;
       }
 
-      if (!isMage) {
+      // Les effets "malus/débuff" sur la cible (armes légendaires) sont protégés par bouclier
+      if (!isMage && inflicted > 0) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted);
         if (attackEffects.stunTarget) {
           Object.assign(def, applyMjollnirStun(def));
