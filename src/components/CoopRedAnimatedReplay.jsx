@@ -59,6 +59,8 @@ export default function CoopRedAnimatedReplay({
   const [replaying, setReplaying] = useState(false);
   const [hostF, setHostF] = useState(null);
   const [guestF, setGuestF] = useState(null);
+  const [hostWeaponOverride, setHostWeaponOverride] = useState(null);
+  const [guestWeaponOverride, setGuestWeaponOverride] = useState(null);
   const [bossHPs, setBossHPs] = useState([0, 0, 0]);
   const [activeBossIdx, setActiveBossIdx] = useState(0);
   const [hostCombatBase, setHostCombatBase] = useState(null);
@@ -161,6 +163,10 @@ export default function CoopRedAnimatedReplay({
       loadSnapWithVisualFallbacks(guestSnap),
     ]);
 
+    // Les combattants "préparés" peuvent ne pas transporter l’arme ; on la conserve depuis le snapshot du match.
+    setHostWeaponOverride(hostSnapResolved?.equippedWeaponData ?? null);
+    setGuestWeaponOverride(guestSnapResolved?.equippedWeaponData ?? null);
+
     let steps = stepsProp;
     if (!Array.isArray(steps) || steps.length === 0) {
       const combat = simulerMatchCoopRed(hostSnapResolved, guestSnapResolved, difficulty, combatSeed, {
@@ -186,11 +192,15 @@ export default function CoopRedAnimatedReplay({
       ...host,
       currentHP: s0.hostHP,
       shield: s0.hostShield ?? 0,
+      equippedWeaponId: hostSnapResolved?.equippedWeaponId ?? host?.equippedWeaponId ?? null,
+      equippedWeaponData: hostSnapResolved?.equippedWeaponData ?? host?.equippedWeaponData ?? null,
     });
     setGuestF({
       ...guest,
       currentHP: s0.guestHP,
       shield: s0.guestShield ?? 0,
+      equippedWeaponId: guestSnapResolved?.equippedWeaponId ?? guest?.equippedWeaponId ?? null,
+      equippedWeaponData: guestSnapResolved?.equippedWeaponData ?? guest?.equippedWeaponData ?? null,
     });
     setBossHPs(s0.bossHP ?? bosses.map((b) => Math.max(0, b.currentHP)));
     setActiveBossIdx(s0.activeBossIndex ?? 0);
@@ -260,6 +270,8 @@ export default function CoopRedAnimatedReplay({
       difficulty={difficulty}
       hostF={hostF}
       guestF={guestF}
+      hostWeaponOverride={hostWeaponOverride}
+      guestWeaponOverride={guestWeaponOverride}
       hostCombatBase={hostCombatBase}
       guestCombatBase={guestCombatBase}
       hostCombatStatus={hostCombatStatus}

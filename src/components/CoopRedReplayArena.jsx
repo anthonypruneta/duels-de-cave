@@ -15,6 +15,8 @@ export default function CoopRedReplayArena({
   run,
   hostF,
   guestF,
+  hostWeaponOverride = null,
+  guestWeaponOverride = null,
   hostCombatBase,
   guestCombatBase,
   hostCombatStatus,
@@ -41,6 +43,7 @@ export default function CoopRedReplayArena({
   const leftBase = leftIsHost ? hostCombatBase : guestCombatBase;
   const leftStatus = leftIsHost ? hostCombatStatus : guestCombatStatus;
   const leftImg = leftIsHost ? hostF.characterImage ?? testImage1 : guestF.characterImage ?? testImage2;
+  const leftWeaponOverride = leftIsHost ? hostWeaponOverride : guestWeaponOverride;
   const hostImg = hostF?.characterImage ?? testImage1;
   const guestImg = guestF?.characterImage ?? testImage2;
 
@@ -253,7 +256,7 @@ export default function CoopRedReplayArena({
             >
               <CharacterCardContent
                 character={leftChar}
-                weaponOverride={leftChar?.equippedWeaponData ?? null}
+                weaponOverride={leftWeaponOverride ?? leftChar?.equippedWeaponData ?? null}
                 showHpBar
                 currentHP={leftChar.currentHP}
                 maxHP={leftChar.maxHP}
