@@ -1332,6 +1332,19 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
       }
+      // Les flasques offensives de l'Alchimiste comptent comme des autos pour Rituel de Fracture.
+      const fracturePassive = getPassiveById(attackerPassiveList, 'rituel_fracture');
+      if (fracturePassive && !fractureUsedThisTurn && def.shield > 0) {
+        fractureUsedThisTurn = true;
+        const shieldValue = def.shield;
+        const fractureDmg = Math.max(1, Math.round(shieldValue * (fracturePassive.levelData?.shieldExplosionPercent ?? 0)));
+        def.shield = 0;
+        def.currentHP -= fractureDmg;
+        tryTriggerOnctionLastStand(def, log, playerColor);
+        def.maso_taken = (def.maso_taken || 0) + fractureDmg;
+        if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+        log.push(`${playerColor} 💥 Rituel de Fracture: ${att.name} brise le bouclier de ${def.name} (${shieldValue}) et inflige ${fractureDmg} dégâts bruts !`);
+      }
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
@@ -1419,6 +1432,19 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
       }
+      // Les flasques offensives de l'Alchimiste comptent comme des autos pour Rituel de Fracture.
+      const fracturePassive = getPassiveById(attackerPassiveList, 'rituel_fracture');
+      if (fracturePassive && !fractureUsedThisTurn && def.shield > 0) {
+        fractureUsedThisTurn = true;
+        const shieldValue = def.shield;
+        const fractureDmg = Math.max(1, Math.round(shieldValue * (fracturePassive.levelData?.shieldExplosionPercent ?? 0)));
+        def.shield = 0;
+        def.currentHP -= fractureDmg;
+        tryTriggerOnctionLastStand(def, log, playerColor);
+        def.maso_taken = (def.maso_taken || 0) + fractureDmg;
+        if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+        log.push(`${playerColor} 💥 Rituel de Fracture: ${att.name} brise le bouclier de ${def.name} (${shieldValue}) et inflige ${fractureDmg} dégâts bruts !`);
+      }
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
@@ -1476,6 +1502,19 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if ((att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
         const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
         raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
+      }
+      // Les flasques offensives de l'Alchimiste comptent comme des autos pour Rituel de Fracture.
+      const fracturePassive = getPassiveById(attackerPassiveList, 'rituel_fracture');
+      if (fracturePassive && !fractureUsedThisTurn && def.shield > 0) {
+        fractureUsedThisTurn = true;
+        const shieldValue = def.shield;
+        const fractureDmg = Math.max(1, Math.round(shieldValue * (fracturePassive.levelData?.shieldExplosionPercent ?? 0)));
+        def.shield = 0;
+        def.currentHP -= fractureDmg;
+        tryTriggerOnctionLastStand(def, log, playerColor);
+        def.maso_taken = (def.maso_taken || 0) + fractureDmg;
+        if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+        log.push(`${playerColor} 💥 Rituel de Fracture: ${att.name} brise le bouclier de ${def.name} (${shieldValue}) et inflige ${fractureDmg} dégâts bruts !`);
       }
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
