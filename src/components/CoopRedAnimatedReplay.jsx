@@ -14,7 +14,7 @@ import { getWeaponById } from '../data/weapons';
  */
 function pickCombatFieldsFromRoomSnapshot(snap) {
   if (!snap) return {};
-  return {
+  const fields = {
     userId: snap.userId,
     name: snap.name,
     gender: snap.gender ?? null,
@@ -24,8 +24,6 @@ function pickCombatFieldsFromRoomSnapshot(snap) {
     base: snap.base ? { ...snap.base } : {},
     bonuses: snap.bonuses ? JSON.parse(JSON.stringify(snap.bonuses)) : { race: {}, class: {} },
     forestBoosts: snap.forestBoosts ? { ...snap.forestBoosts } : {},
-    equippedWeaponId: snap.equippedWeaponId ?? null,
-    equippedWeaponData: snap.equippedWeaponData ?? null,
     forgeUpgrade: snap.forgeUpgrade ?? null,
     subclass: snap.subclass ?? null,
     mageTowerPassive: snap.mageTowerPassive ?? null,
@@ -36,6 +34,10 @@ function pickCombatFieldsFromRoomSnapshot(snap) {
     coopRaceEcho: snap.coopRaceEcho ?? null,
     coopRaceEchoOffer: snap.coopRaceEchoOffer ?? null,
   };
+  // L’arme est surtout une donnée visuelle : si elle manque dans le snapshot, on autorise un fallback.
+  if (snap.equippedWeaponId != null) fields.equippedWeaponId = snap.equippedWeaponId;
+  if (snap.equippedWeaponData != null) fields.equippedWeaponData = snap.equippedWeaponData;
+  return fields;
 }
 
 /**
@@ -57,6 +59,7 @@ export default function CoopRedAnimatedReplay({
   const replaySpeed = 'normal';
 
   const [replaying, setReplaying] = useState(false);
+  const [replayFinished, setReplayFinished] = useState(false);
   const [hostF, setHostF] = useState(null);
   const [guestF, setGuestF] = useState(null);
   const [hostWeaponOverride, setHostWeaponOverride] = useState(null);
@@ -116,6 +119,7 @@ export default function CoopRedAnimatedReplay({
     const gen = ++replayGenRef.current;
 
     setReplaying(true);
+    setReplayFinished(false);
     onReplayFinished?.(false);
     setCoopActor(null);
 
@@ -229,6 +233,7 @@ export default function CoopRedAnimatedReplay({
     } finally {
       if (replayGenRef.current === gen) {
         setReplaying(false);
+        setReplayFinished(true);
         onReplayFinished?.(true);
       }
     }
@@ -288,7 +293,7 @@ export default function CoopRedAnimatedReplay({
       onRelanceReplay={handleRelance}
       logTitle={logTitle}
       wrapperClassName={wrapperClassName}
-      rewardContent={rewardContent}
+      rewardContent={replayFinished ? rewardContent : null}
     />
   );
 }
