@@ -194,7 +194,7 @@ export async function createCoopRedRoom(hostUserId, difficulty) {
     status: 'waiting',
     hostSnapshot: snapshotCharacterForCoop(charRes.data),
     guestSnapshot: null,
-    hostReady: false,
+    hostReady: true,
     guestReady: false,
     combat: null,
     attemptsConsumed: false,
@@ -270,7 +270,7 @@ export async function joinCoopRedRoom(guestUserId, roomId) {
         guestId: guestUserId,
         guestSnapshot: snapshotCharacterForCoop(charRes.data),
         status: 'lobby',
-        hostReady: false,
+        hostReady: r.hostReady === true,
         guestReady: false,
         updatedAt: Timestamp.now(),
       });
