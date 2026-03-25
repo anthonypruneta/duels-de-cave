@@ -408,7 +408,9 @@ function CoopRedDungeon() {
   /** Affiche la liste / création sans quitter la salle Firestore (ex. annuler / supprimer toujours possibles après). */
   const handleMasquerSalleVoirListe = () => {
     skipAutoResumeRef.current = true;
-    clearCoopRedRoomPersistence(currentUser?.uid);
+    // Masquage UI uniquement : on ne “quitte” pas la salle côté Firestore.
+    // On conserve donc les clés localStorage pour permettre "Reprendre ma salle".
+    sessionStorage.removeItem('coopRedRoomId');
     setRoomId('');
     setRoom(null);
     setShowAnimatedReplay(false);
