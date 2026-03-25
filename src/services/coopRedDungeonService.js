@@ -260,9 +260,15 @@ export async function joinCoopRedRoom(guestUserId, roomId) {
         throw new Error(`level_too_low:${minLv}`);
       }
       const dateKey = getParisDateKey();
+      const hostDailyRef = doc(db, DAILY, r.hostId);
       const guestDailyRef = doc(db, DAILY, guestUserId);
+      const hostDailySnap = await tx.get(hostDailyRef);
       const guestDailySnap = await tx.get(guestDailyRef);
+      const hostUsed = getUsedAttemptsForDate(hostDailySnap, dateKey);
       const guestUsed = getUsedAttemptsForDate(guestDailySnap, dateKey);
+      if (hostUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY) {
+        throw new Error('no_attempts_host');
+      }
       if (guestUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY) {
         throw new Error('no_attempts_guest');
       }
@@ -286,6 +292,9 @@ export async function joinCoopRedRoom(guestUserId, roomId) {
       const parts = msg.split(':');
       const minLv = parts[1] ? parseInt(parts[1], 10) : 0;
       return { success: false, error: `Niveau ${minLv || '?'} requis pour cette difficulté.` };
+    }
+    if (msg === 'no_attempts_host') {
+      return { success: false, error: 'L’hôte n’a plus d’essais Red aujourd’hui — salle indisponible.' };
     }
     if (msg === 'no_attempts_guest') {
       return { success: false, error: 'Plus d’essais Red disponibles aujourd’hui — impossible de rejoindre un combat.' };
@@ -394,6 +403,7 @@ export async function runCoopRedAutoSimulation(roomId) {
   const r = snap.data();
 
   if (r.status === 'completed' && r.combat?.winner) return { success: true };
+  // Ce status ne devrait plus exister (on repasse en lobby + décheck prêt), mais on gère rétrocompat.
   if (r.status === 'failed_no_attempts') {
     return { success: false, error: 'Essais insuffisants pour lancer la simulation.' };
   }
@@ -520,12 +530,28 @@ export async function runCoopRedAutoSimulation(roomId) {
     });
   } catch (e) {
     if (e.message === 'no_attempts') {
-      await retryOperation(() =>
-        updateDoc(ref, {
-          status: 'failed_no_attempts',
-          updatedAt: Timestamp.now(),
-        })
-      ).catch(() => {});
+      // Au lieu de bloquer la salle, on revient en lobby et on force "pas prêt" pour le(s) joueur(s) sans essais.
+      await retryOperation(async () => {
+        await runTransaction(db, async (tx) => {
+          const s3 = await tx.get(ref);
+          if (!s3.exists()) return;
+          const d = s3.data();
+          if (d.status !== 'lobby') return;
+          if (!d.hostId || !d.guestId) return;
+          const dateKey = getParisDateKey();
+          const hostDailyRef = doc(db, DAILY, d.hostId);
+          const guestDailyRef = doc(db, DAILY, d.guestId);
+          const hostDailySnap = await tx.get(hostDailyRef);
+          const guestDailySnap = await tx.get(guestDailyRef);
+          const hostUsed = getUsedAttemptsForDate(hostDailySnap, dateKey);
+          const guestUsed = getUsedAttemptsForDate(guestDailySnap, dateKey);
+          tx.update(ref, {
+            hostReady: hostUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY ? false : d.hostReady === true,
+            guestReady: guestUsed >= COOP_RED_MAX_ATTEMPTS_PER_DAY ? false : d.guestReady === true,
+            updatedAt: Timestamp.now(),
+          });
+        });
+      }).catch(() => {});
       return { success: false, error: 'Un joueur n’a plus d’essais aujourd’hui.' };
     }
     return { success: false, error: e.message || 'Erreur' };
