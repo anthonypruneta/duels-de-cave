@@ -1300,6 +1300,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
 
   // ===== ALCHIMISTE : Cycle de flasques =====
   const isAlchimiste = !capacityStolen && att.class === 'Alchimiste';
+  // Rituel de Fracture est limité à 1 proc par tour/action : partagé entre flasques (Alchimiste) et autos.
+  let fractureUsedThisTurn = false;
   const alchVerdictSkip = isAlchimiste && shouldSkipVerdictDemonFamiliar(att.weaponState, turn);
   if (isAlchimiste && !alchVerdictSkip) {
     skillUsed = true;
@@ -1971,7 +1973,6 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
 
   const obsidianPassive = getPassiveById(attackerPassiveList, 'obsidian_skin');
   const forceCrit = obsidianPassive && att.currentHP <= att.maxHP * (obsidianPassive.levelData?.critThreshold ?? 0);
-  let fractureUsedThisTurn = false;
 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
