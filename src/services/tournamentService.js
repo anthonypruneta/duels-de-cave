@@ -1086,6 +1086,7 @@ export async function terminerTournoi(docId = 'current') {
       tripleRoll: true,
       tournamentWins: increment(1),
       lastTournamentDate: serverTimestamp(),
+      lastTournamentWeekId: getCurrentWeekId(),
       source: 'tournoi'
     }, { merge: true });
 
@@ -1242,8 +1243,29 @@ export async function checkTripleRoll(userId) {
     if (!rewardDoc.exists()) return false;
     
     const data = rewardDoc.data();
-    // Un joueur a des rerolls s'il a tripleRoll à true (peu importe la source)
-    return data.tripleRoll === true;
+    if (data.tripleRoll !== true) return false;
+
+    // IMPORTANT: les rerolls ne sont valables que pour la SEMAINE en cours
+    // (cataclysme + tournoi du samedi de la semaine), pas indéfiniment.
+    const currentWeekId = getCurrentWeekId();
+    const toDateSafe = (ts) => {
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (typeof ts.toMillis === 'function') return new Date(ts.toMillis());
+      if (typeof ts.seconds === 'number') return new Date(ts.seconds * 1000);
+      const parsed = new Date(ts);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const tournamentWeekId =
+      data.lastTournamentWeekId ||
+      (toDateSafe(data.lastTournamentDate) ? getCurrentWeekId(toDateSafe(data.lastTournamentDate)) : null);
+    const cataclysmeWeekId =
+      data.lastCataclysmeWeekId ||
+      (toDateSafe(data.lastCataclysmeDate) ? getCurrentWeekId(toDateSafe(data.lastCataclysmeDate)) : null) ||
+      (toDateSafe(data.date) ? getCurrentWeekId(toDateSafe(data.date)) : null); // legacy checkAutoEnd
+
+    return tournamentWeekId === currentWeekId || cataclysmeWeekId === currentWeekId;
   } catch {
     return false;
   }
@@ -1256,18 +1278,34 @@ export async function getTripleRollCount(userId) {
     
     const data = rewardDoc.data();
     if (data.tripleRoll !== true) return 0;
+
+    const currentWeekId = getCurrentWeekId();
+    const toDateSafe = (ts) => {
+      if (!ts) return null;
+      if (typeof ts.toDate === 'function') return ts.toDate();
+      if (typeof ts.toMillis === 'function') return new Date(ts.toMillis());
+      if (typeof ts.seconds === 'number') return new Date(ts.seconds * 1000);
+      const parsed = new Date(ts);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const tournamentWeekId =
+      data.lastTournamentWeekId ||
+      (toDateSafe(data.lastTournamentDate) ? getCurrentWeekId(toDateSafe(data.lastTournamentDate)) : null);
+    const cataclysmeWeekId =
+      data.lastCataclysmeWeekId ||
+      (toDateSafe(data.lastCataclysmeDate) ? getCurrentWeekId(toDateSafe(data.lastCataclysmeDate)) : null) ||
+      (toDateSafe(data.date) ? getCurrentWeekId(toDateSafe(data.date)) : null);
+
+    const hasTournamentThisWeek = tournamentWeekId === currentWeekId;
+    const hasCataclysmeThisWeek = cataclysmeWeekId === currentWeekId;
+    if (!hasTournamentThisWeek && !hasCataclysmeThisWeek) return 0;
     
-    // Pour les nouveaux documents avec compteurs
-    if (data.tournamentWins !== undefined || data.cataclysmeWins !== undefined) {
-      let totalRerolls = 0;
-      if (data.tournamentWins > 0) totalRerolls += 3;
-      if (data.cataclysmeWins > 0) totalRerolls += 3;
-      return totalRerolls;
-    }
-    
-    // Pour les anciens documents (avant la mise à jour) : on donne 3 rerolls par défaut
-    // car ils ont forcément tripleRoll: true d'une source (tournoi ou cataclysme)
-    return 3;
+    // Comptage strict "semaine en cours" (stack possible: 3 + 3 = 6).
+    let totalRerolls = 0;
+    if (hasTournamentThisWeek) totalRerolls += 3;
+    if (hasCataclysmeThisWeek) totalRerolls += 3;
+    return totalRerolls;
   } catch {
     return 0;
   }

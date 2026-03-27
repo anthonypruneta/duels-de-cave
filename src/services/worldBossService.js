@@ -30,6 +30,7 @@ import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { getWeeklyChampionBoss, getCurrentWeekNumber } from '../data/championBosses.js';
 import { getHallOfFame } from './tournamentService.js';
+import { getCurrentWeekId } from './infiniteLabyrinthService.js';
 import { applyStatBoosts } from '../utils/statPoints.js';
 
 // ============================================================================
@@ -491,6 +492,7 @@ const onBossDefeated = async (killerName) => {
           tripleRoll: true,
           cataclysmeWins: increment(1),
           lastCataclysmeDate: Timestamp.now(),
+          lastCataclysmeWeekId: getCurrentWeekId(),
           source: 'cataclysme'
         }, { merge: true });
         participantNames.push(data.characterName);
@@ -564,11 +566,14 @@ export const checkAutoEnd = async () => {
     damagesSnap.docs.forEach(d => {
       const dData = d.data();
       if (dData.characterId && (dData.totalDamage || 0) > 0) {
+        // Merge + weekId : ne pas écraser et ne pas récompenser hors semaine
         rewardBatch.set(doc(db, 'tournamentRewards', dData.characterId), {
           tripleRoll: true,
-          date: Timestamp.now(),
+          cataclysmeWins: increment(1),
+          lastCataclysmeDate: Timestamp.now(),
+          lastCataclysmeWeekId: getCurrentWeekId(),
           source: 'cataclysme'
-        });
+        }, { merge: true });
         participantNames.push(dData.characterName);
       }
     });
