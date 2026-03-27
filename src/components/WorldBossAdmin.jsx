@@ -314,12 +314,14 @@ const WorldBossAdmin = ({ characters }) => {
     try {
       const { db } = await import('../firebase/config');
       const { doc, collection, getDocs, writeBatch, increment, Timestamp } = await import('firebase/firestore');
+      const { getCurrentWeekId } = await import('../services/infiniteLabyrinthService');
       
       const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
       const damagesSnap = await getDocs(damagesRef);
       
       const rewardBatch = writeBatch(db);
       const participantsList = [];
+      const weekId = getCurrentWeekId();
 
       damagesSnap.docs.forEach(d => {
         const data = d.data();
@@ -329,6 +331,7 @@ const WorldBossAdmin = ({ characters }) => {
             tripleRoll: true,
             cataclysmeWins: increment(1),
             lastCataclysmeDate: Timestamp.now(),
+            lastCataclysmeWeekId: weekId,
             source: 'cataclysme'
           }, { merge: true });
           participantsList.push(data.characterName);

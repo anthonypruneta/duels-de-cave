@@ -1336,6 +1336,14 @@ export async function resetAllRerollGains() {
     const snapshot = await getDocs(collection(db, 'tournamentRewards'));
     const updates = snapshot.docs.map((d) => setDoc(doc(db, 'tournamentRewards', d.id), {
       tripleRoll: false,
+      // Reset "semaine en cours" : sinon un ancien gain (tournoi/cataclysme) peut rester compté
+      // comme actif pour la semaine et re-stack après une redistribution.
+      lastTournamentWeekId: null,
+      lastCataclysmeWeekId: null,
+      // Fallback legacy (certaines vues déduisent via dates)
+      lastTournamentDate: null,
+      lastCataclysmeDate: null,
+      date: null,
       updatedAt: serverTimestamp()
     }, { merge: true }));
     await Promise.all(updates);
