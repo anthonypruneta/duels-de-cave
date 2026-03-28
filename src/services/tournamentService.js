@@ -188,6 +188,7 @@ function buildParticipantsMapForTournoi(participants) {
       equippedBorder: p.equippedBorder || null,
       equippedTitle: p.equippedTitle || null,
       gender: p.gender || null,
+      coopRaceEcho: p.coopRaceEcho || null,
     };
   }
   return participantsMap;
@@ -653,6 +654,7 @@ export async function lancerTournoi(docId = 'current') {
           equippedBorder: p.equippedBorder || null,
           equippedTitle: p.equippedTitle || null,
           gender: p.gender || null,
+          coopRaceEcho: p.coopRaceEcho ?? null,
         };
       }
     }
@@ -1393,6 +1395,7 @@ export async function simulerTournoiTest() {
         equippedBorder: p.equippedBorder || null,
         equippedTitle: p.equippedTitle || null,
         gender: p.gender || null,
+        coopRaceEcho: p.coopRaceEcho || null,
       };
     }
 
