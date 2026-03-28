@@ -286,8 +286,10 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
 /**
  * Tournoi secondaire : persos archivés (niveau ≤ 400, archivés sur les 2 dernières semaines jeu).
  * Le gagnant est enregistré pour le prochain tournoi du samedi (voir creerTournoi current).
+ * @param {{ announceDiscord?: boolean }} [options] — si `announceDiscord === false`, pas d’annonce Discord du tirage (tournoi Firestore inchangé).
  */
-export async function creerTournoiLegacy() {
+export async function creerTournoiLegacy(options = {}) {
+  const { announceDiscord = true } = options;
   try {
     // Ne jamais écraser un tournoi legacy déjà existant.
     // On crée un nouveau document à chaque événement.
@@ -339,13 +341,15 @@ export async function creerTournoiLegacy() {
     };
 
     await setDoc(doc(db, 'tournaments', tournamentDocId), tournoi);
-    annoncerTirageDiscord(
-      matches,
-      matchOrder,
-      participantsMap,
-      participants.length,
-      tournamentDocId
-    ).catch(() => {});
+    if (announceDiscord) {
+      annoncerTirageDiscord(
+        matches,
+        matchOrder,
+        participantsMap,
+        participants.length,
+        tournamentDocId
+      ).catch(() => {});
+    }
 
     return {
       success: true,
@@ -353,6 +357,7 @@ export async function creerTournoiLegacy() {
       retiredExclusionsCount: retiredCount,
       dedupeDroppedCount: dedupeDropped,
       tournamentDocId,
+      discordAnnounceSkipped: !announceDiscord,
     };
   } catch (error) {
     console.error('Erreur création tournoi legacy:', error);

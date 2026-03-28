@@ -551,6 +551,36 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     setLegacyTournamentLoading(false);
   };
 
+  const handleCreerTournoiLegacySansDiscord = async () => {
+    if (
+      !window.confirm(
+        'Créer le tirage du tournoi des anciens dans Firestore sans publication Discord (pas de message @everyone pour le tirage) ? Même bracket sauvegardé que le bouton « Créer uniquement le tirage ».'
+      )
+    ) {
+      return;
+    }
+    setLegacyTournamentLoading(true);
+    const createResult = await creerTournoiLegacy({ announceDiscord: false });
+    if (!createResult.success) {
+      alert('❌ ' + createResult.error);
+      setLegacyTournamentLoading(false);
+      return;
+    }
+    if (createResult.tournamentDocId) setLegacyTournamentDocId(createResult.tournamentDocId);
+    const excl =
+      typeof createResult.retiredExclusionsCount === 'number'
+        ? ` • ${createResult.retiredExclusionsCount} fiche(s) à la retraite (ex-tchampions legacy)`
+        : '';
+    const dedupe =
+      typeof createResult.dedupeDroppedCount === 'number' && createResult.dedupeDroppedCount > 0
+        ? ` • ${createResult.dedupeDroppedCount} doublon(s) retiré(s) (même compte + même nom)`
+        : '';
+    alert(
+      `✅ ${createResult.nbParticipants} combattants${excl}${dedupe} • annonce Discord du tirage ignorée — ouvrez la page legacy puis lancez le 1er combat.`
+    );
+    setLegacyTournamentLoading(false);
+  };
+
   const handleDemarrerTournoiLegacy = async () => {
     if (
       !window.confirm(
@@ -1401,9 +1431,9 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-violet-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-violet-300 mb-2">📜 Tournoi des anciens</h2>
           <p className="text-stone-400 text-sm mb-3">
-            <strong>Fiches archivées</strong> éligibles : archivées sur les <strong>2 dernières semaines</strong> (même découpage que la semaine jeu / récompenses), niveau ≤ 400, hors ex-champions legacy. Plusieurs persos par compte OK ; même nom + même compte = une entrée (la plus récente). Le gagnant
+            <strong>Fiches archivées</strong> éligibles : archivées sur les <strong>2 dernières semaines</strong> (même découpage que la semaine jeu / récompenses), niveau ≤ 400, hors ex-champions legacy. Plusieurs persos par compte OK ; même nom + même compte = une entrée (la plus récente).             Le gagnant
             est inscrit au <strong>prochain</strong> tournoi du samedi (création du tournoi principal). Discord comme
-            le samedi. N&apos;archive pas les persos actifs.
+            le samedi pour le tirage « officiel » ; le bouton <strong>sans Discord</strong> enregistre le même bracket dans Firestore sans message sur le serveur. N&apos;archive pas les persos actifs.
           </p>
           {legacyQualifier?.display?.nom && (
             <div className="mb-4 p-3 rounded-lg bg-violet-950/40 border border-violet-600/40 text-sm">
@@ -1426,6 +1456,14 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               className="w-full bg-violet-700 hover:bg-violet-600 disabled:bg-stone-700 text-white py-2.5 rounded-lg font-bold transition text-sm"
             >
               {legacyTournamentLoading ? '⏳...' : '📋 Créer uniquement le tirage (legacy)'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCreerTournoiLegacySansDiscord}
+              disabled={legacyTournamentLoading}
+              className="w-full bg-stone-800 hover:bg-stone-700 disabled:bg-stone-700 text-violet-200 border border-violet-600/50 py-2.5 rounded-lg font-bold transition text-sm"
+            >
+              {legacyTournamentLoading ? '⏳...' : '🧪 Tirage sans annonce Discord'}
             </button>
             <button
               type="button"
