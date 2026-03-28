@@ -526,7 +526,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
   const handleCreerTournoiLegacy = async () => {
     if (
       !window.confirm(
-        'Créer le tournoi des anciens (archivés, niveau ≤ 400) ? Un tournoi legacy en cours sera écrasé.'
+        'Créer le tournoi des anciens (archivés sur les 2 dernières semaines, niveau ≤ 400) ? Un tournoi legacy en cours sera écrasé.'
       )
     ) {
       return;
@@ -1401,7 +1401,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
         <div className="bg-stone-900/70 border-2 border-violet-500 rounded-xl p-6 mb-8">
           <h2 className="text-2xl font-bold text-violet-300 mb-2">📜 Tournoi des anciens</h2>
           <p className="text-stone-400 text-sm mb-3">
-            <strong>Fiches archivées</strong> éligibles (niveau ≤ 400), hors ex-champions legacy. Plusieurs persos par compte OK ; même nom + même compte = une entrée (la plus récente). Le gagnant
+            <strong>Fiches archivées</strong> éligibles : archivées sur les <strong>2 dernières semaines</strong> (même découpage que la semaine jeu / récompenses), niveau ≤ 400, hors ex-champions legacy. Plusieurs persos par compte OK ; même nom + même compte = une entrée (la plus récente). Le gagnant
             est inscrit au <strong>prochain</strong> tournoi du samedi (création du tournoi principal). Discord comme
             le samedi. N&apos;archive pas les persos actifs.
           </p>

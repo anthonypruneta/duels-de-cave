@@ -20,8 +20,10 @@ import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteL
 import { checkAndAwardTitles, trackTournamentFirstRoundResult, checkCrossWeekTitles } from './titleService';
 import { MAX_LEVEL } from '../data/featureFlags';
 
-/** Document Firestore du tournoi « des anciens » (archivedCharacters, niveau ≤ 400) */
+/** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
 export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
+/** Fenêtre d’éligibilité : semaine courante + semaine précédente (getCurrentWeekId), même repère que les récompenses hebdo */
+const LEGACY_ARCHIVE_WEEK_WINDOW = 2;
 const TOURNAMENT_META_QUALIFIER = 'legacyQualifierNextSaturday';
 const LEGACY_RETIRED_COLLECTION = 'legacyRetiredArchives';
 
@@ -196,6 +198,7 @@ function buildParticipantsMapForTournoi(participants) {
 
 async function chargerParticipantsArchives(retiredIdsOverride = null) {
   const retiredIds = retiredIdsOverride ?? (await getLegacyRetiredArchiveIdSet());
+  const eligibleWeekIds = getEligibleWeekIdsForLegacyArchive();
   const snapshot = await getDocs(collection(db, 'archivedCharacters'));
   /** id doc Firestore — ne jamais utiliser data().id (souvent userId), sinon tous les arch_xxx collent */
   const rows = snapshot.docs
@@ -204,7 +207,8 @@ async function chargerParticipantsArchives(retiredIdsOverride = null) {
       const firestoreDocId = d.id;
       return { ...data, id: firestoreDocId, _firestoreArchiveId: firestoreDocId };
     })
-    .filter((char) => !retiredIds.has(char._firestoreArchiveId));
+    .filter((char) => !retiredIds.has(char._firestoreArchiveId))
+    .filter((char) => isArchivedWithinLegacyTournamentWeeks(char.archivedAt, eligibleWeekIds));
   return Promise.all(
     rows
       .filter((char) => (char.level ?? 1) <= MAX_LEVEL)
@@ -239,6 +243,23 @@ function archivedAtToMillis(ts) {
   return 0;
 }
 
+/** Semaines éligibles pour le tournoi des anciens (fenêtre glissante en « semaines jeu »). */
+function getEligibleWeekIdsForLegacyArchive(now = new Date()) {
+  const ids = new Set();
+  const d = new Date(now.getTime());
+  for (let i = 0; i < LEGACY_ARCHIVE_WEEK_WINDOW; i++) {
+    ids.add(getCurrentWeekId(d));
+    d.setDate(d.getDate() - 7);
+  }
+  return ids;
+}
+
+function isArchivedWithinLegacyTournamentWeeks(archivedAt, eligibleWeekIds) {
+  const ms = archivedAtToMillis(archivedAt);
+  if (ms <= 0) return false;
+  return eligibleWeekIds.has(getCurrentWeekId(new Date(ms)));
+}
+
 /**
  * Même joueur + même nom de perso : une seule entrée (archive la plus récente).
  * Plusieurs persos différents par compte restent tous inscrits.
@@ -263,7 +284,7 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
 }
 
 /**
- * Tournoi secondaire : persos archivés, niveau ≤ 400.
+ * Tournoi secondaire : persos archivés (niveau ≤ 400, archivés sur les 2 dernières semaines jeu).
  * Le gagnant est enregistré pour le prochain tournoi du samedi (voir creerTournoi current).
  */
 export async function creerTournoiLegacy() {
@@ -287,7 +308,7 @@ export async function creerTournoiLegacy() {
       return {
         success: false,
         error:
-          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, retraités exclus). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
+          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, archivés sur les 2 dernières semaines, retraités exclus). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
       };
     }
 
