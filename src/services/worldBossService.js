@@ -24,7 +24,8 @@ import {
   writeBatch,
   onSnapshot,
   query,
-  where
+  where,
+  runTransaction
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { WORLD_BOSS, EVENT_STATUS, WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
@@ -421,7 +422,7 @@ export const recordAttemptDamage = async (characterId, characterName, damage) =>
     if (eventSnap.exists()) {
       const eventState = eventSnap.data();
       if (eventState.hpRemaining <= 0 && eventState.status === EVENT_STATUS.ACTIVE) {
-        await onBossDefeated(characterName);
+        await onBossDefeated(characterName, characterId);
       }
     }
 
@@ -460,12 +461,71 @@ export const getLeaderboard = async () => {
 // ============================================================================
 
 /**
+ * Réclame la récompense Cataclysme (tripleRoll + compteur) pour l'utilisateur courant,
+ * si l'event est terminé, qu'il a participé (dégâts > 0) et pas déjà réclamé pour cet endedAt.
+ * Les règles Firestore n'autorisent pas un client à écrire dans le doc d'un autre joueur :
+ * chaque participant doit exécuter cette fonction (ex. en ouvrant l'accueil ou le Cataclysme).
+ */
+export const claimCataclysmeRewardsIfEligible = async (userId) => {
+  if (!userId) return { success: false, error: 'Utilisateur manquant' };
+  try {
+    const claimed = await retryOperation(async () => runTransaction(db, async (transaction) => {
+      const eventSnap = await transaction.get(EVENT_DOC_REF());
+      if (!eventSnap.exists()) return false;
+      const event = eventSnap.data();
+      if (event.status !== EVENT_STATUS.FINISHED || !event.endedAt) return false;
+
+      const damageRef = doc(db, 'worldBossEvent', 'current', 'damages', userId);
+      const damageSnap = await transaction.get(damageRef);
+      if (!damageSnap.exists()) return false;
+      const dData = damageSnap.data();
+      if ((dData.totalDamage || 0) <= 0) return false;
+
+      const rewardRef = doc(db, 'tournamentRewards', userId);
+      const rewardSnap = await transaction.get(rewardRef);
+      const reward = rewardSnap.data() || {};
+      const prevClaimed = reward.cataclysmeClaimedForEndedAt;
+      const endedMs = event.endedAt?.toMillis?.() ?? null;
+      const prevMs = prevClaimed?.toMillis?.() ?? null;
+      if (endedMs != null && prevMs != null && prevMs === endedMs) return false;
+
+      const now = Timestamp.now();
+      const weekId = getCurrentWeekId();
+      if (rewardSnap.exists()) {
+        transaction.update(rewardRef, {
+          tripleRoll: true,
+          cataclysmeWins: increment(1),
+          lastCataclysmeDate: now,
+          lastCataclysmeWeekId: weekId,
+          cataclysmeClaimedForEndedAt: event.endedAt,
+          source: 'cataclysme'
+        });
+      } else {
+        transaction.set(rewardRef, {
+          tripleRoll: true,
+          cataclysmeWins: 1,
+          lastCataclysmeDate: now,
+          lastCataclysmeWeekId: weekId,
+          cataclysmeClaimedForEndedAt: event.endedAt,
+          source: 'cataclysme'
+        });
+      }
+      return true;
+    }));
+    return { success: true, claimed: !!claimed };
+  } catch (error) {
+    console.error('claimCataclysmeRewardsIfEligible:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Appelé quand le boss tombe à 0 HP
  * - Termine l'event
- * - Donne 3 rerolls (tripleRoll) à tous les participants
  * - Annonce Discord de victoire
+ * - Réclame tout de suite la récompense pour le tueur ; les autres via claimCataclysmeRewardsIfEligible
  */
-const onBossDefeated = async (killerName) => {
+const onBossDefeated = async (killerName, killerCharacterId) => {
   try {
     // 1. Terminer l'event
     await retryOperation(async () => {
@@ -477,29 +537,17 @@ const onBossDefeated = async (killerName) => {
       });
     });
 
-    // 2. Donner tripleRoll à tous les participants
+    // 2. Noms pour Discord (les récompenses Firestore sont réclamées par joueur)
     const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
     const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
-    const rewardBatch = writeBatch(db);
     const participantNames = [];
 
     damagesSnap.docs.forEach(d => {
       const data = d.data();
       if (data.characterId && (data.totalDamage || 0) > 0) {
-        // Utiliser merge pour ne pas écraser les rewards existants
-        const rewardRef = doc(db, 'tournamentRewards', data.characterId);
-        rewardBatch.set(rewardRef, {
-          tripleRoll: true,
-          cataclysmeWins: increment(1),
-          lastCataclysmeDate: Timestamp.now(),
-          lastCataclysmeWeekId: getCurrentWeekId(),
-          source: 'cataclysme'
-        }, { merge: true });
         participantNames.push(data.characterName);
       }
     });
-
-    await retryOperation(async () => rewardBatch.commit());
 
     // 3. Annonce Discord
     try {
@@ -523,7 +571,10 @@ const onBossDefeated = async (killerName) => {
       console.error('❌ ERREUR ANNONCE DISCORD VICTOIRE:', discordError);
       console.error('Message d\'erreur:', discordError.message);
       console.error('Stack:', discordError.stack);
-      // On ne throw pas pour ne pas bloquer les rewards
+    }
+
+    if (killerCharacterId) {
+      await claimCataclysmeRewardsIfEligible(killerCharacterId);
     }
   } catch (error) {
     console.error('Erreur onBossDefeated:', error);
@@ -557,30 +608,16 @@ export const checkAutoEnd = async () => {
       });
     });
 
-    // Donner les récompenses même si le boss n'est pas mort
     const damagesRef = collection(db, 'worldBossEvent', 'current', 'damages');
     const damagesSnap = await retryOperation(async () => getDocs(damagesRef));
-    const rewardBatch = writeBatch(db);
     const participantNames = [];
 
     damagesSnap.docs.forEach(d => {
       const dData = d.data();
       if (dData.characterId && (dData.totalDamage || 0) > 0) {
-        // Merge + weekId : ne pas écraser et ne pas récompenser hors semaine
-        rewardBatch.set(doc(db, 'tournamentRewards', dData.characterId), {
-          tripleRoll: true,
-          cataclysmeWins: increment(1),
-          lastCataclysmeDate: Timestamp.now(),
-          lastCataclysmeWeekId: getCurrentWeekId(),
-          source: 'cataclysme'
-        }, { merge: true });
         participantNames.push(dData.characterName);
       }
     });
-
-    if (participantNames.length > 0) {
-      await retryOperation(async () => rewardBatch.commit());
-    }
 
     // Annonce Discord
     try {

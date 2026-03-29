@@ -5,7 +5,7 @@ import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLev
 import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
-import { getWorldBossEvent } from '../services/worldBossService';
+import { getWorldBossEvent, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
@@ -637,6 +637,7 @@ const CharacterCreation = () => {
       if (!currentUser) return;
 
       setLoading(true);
+      await claimCataclysmeRewardsIfEligible(currentUser.uid);
       const { success, data } = await getUserCharacter(currentUser.uid);
       const accountPseudoResult = await getOwnerPseudoFromAccount(currentUser.uid);
       const accountPseudo = accountPseudoResult.success ? (accountPseudoResult.ownerPseudo || '') : '';

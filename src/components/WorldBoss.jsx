@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd, getChampionBossStatsByUserId } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd, getChampionBossStatsByUserId, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -267,6 +267,7 @@ const WorldBoss = () => {
       await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       // Auto-end si c'est samedi >= 12h
       await checkAutoEnd();
+      await claimCataclysmeRewardsIfEligible(currentUser.uid);
 
       setLoading(false);
     };
@@ -278,12 +279,15 @@ const WorldBoss = () => {
     const runChecks = async () => {
       await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       await checkAutoEnd();
+      if (currentUser?.uid) {
+        await claimCataclysmeRewardsIfEligible(currentUser.uid);
+      }
     };
 
     runChecks();
     const interval = setInterval(runChecks, 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUser?.uid]);
 
   // Listeners temps réel : HP du boss + leaderboard (se mettent à jour en live)
   useEffect(() => {

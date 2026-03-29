@@ -216,8 +216,6 @@ const BossRush = () => {
           setGameState('victory');
           const firstCompletion = !bossRushCompleted;
 
-          // On compte uniquement lors de la complétion qui donne la récompense
-          // (évite d'incrémenter en cas de spam sur la même période).
           const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
           const progressSnap = await getDoc(progressRef);
           const prevCompletions = progressSnap.exists()
@@ -225,7 +223,7 @@ const BossRush = () => {
               ? progressSnap.data().bossRushCompletions
               : (progressSnap.data()?.bossRushCompleted ? 1 : 0))
             : 0;
-          const newCompletions = firstCompletion ? (prevCompletions + 1) : prevCompletions;
+          const newCompletions = prevCompletions + 1;
 
           if (firstCompletion) {
             await grantRunsToPlayer(currentUser.uid, 10);
@@ -238,13 +236,10 @@ const BossRush = () => {
             updatedAt: Timestamp.now(),
           }, { merge: true });
 
-          // Persistance compte: on incrémente seulement quand la récompense est réellement obtenue.
-          if (firstCompletion) {
-            await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
-              bossRushCompletions: increment(1),
-              updatedAt: Timestamp.now(),
-            }, { merge: true });
-          }
+          await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
+            bossRushCompletions: increment(1),
+            updatedAt: Timestamp.now(),
+          }, { merge: true });
 
           setBossRushCompleted(true);
           setBossRushCompletions(newCompletions);

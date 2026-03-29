@@ -93,11 +93,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Règles pour les récompenses de tournoi
+    // Récompenses compte (rerolls, boss rush, cataclysme, labyrinthe étage 90, forge, extension, tournoi…)
+    // Le client écrit avec merge + increment() et des transactions : pas de hasOnly sur le doc entier.
+    // Restriction stricte par liste de clés est incompatible avec merge sans Cloud Functions.
     match /tournamentRewards/{userId} {
       allow read: if request.auth != null &&
                      (request.auth.uid == userId || isAdmin());
+
       allow write: if isAdmin();
+
+      allow create, update: if request.auth != null &&
+                               (request.auth.uid == userId || isAdmin());
+
+      allow delete: if isAdmin();
     }
 
     // Labyrinthe infini hebdomadaire
