@@ -5,7 +5,8 @@ service cloud.firestore {
     // Helper admin
     function isAdmin() {
       return request.auth != null &&
-             request.auth.token.email == 'antho.pruneta@gmail.com';
+             request.auth.token.email != null &&
+             request.auth.token.email.lower() == 'antho.pruneta@gmail.com';
     }
 
     // Règles pour la collection 'characters'
