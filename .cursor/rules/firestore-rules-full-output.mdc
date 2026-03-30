@@ -1,0 +1,13 @@
+---
+description: Toujours recoller les règles Firestore complètes quand modifiées
+alwaysApply: true
+---
+
+# Firestore rules — sortie complète copiable
+
+Quand une tâche implique de **modifier les règles Firestore** (ex: `firestore.rules`, ou tout fichier/section de règles de sécurité Firestore), tu dois :
+
+- **Toujours recoller dans le chat la version complète finale des règles**, en **un seul bloc copiable**.
+- Ne pas fournir seulement un diff / extrait : fournir **le fichier entier** tel qu’il doit être déployé.
+- Si plusieurs fichiers de règles existent, recoller **chaque fichier complet** concerné (ex: `firestore.rules`, `storage.rules`, etc.).
+

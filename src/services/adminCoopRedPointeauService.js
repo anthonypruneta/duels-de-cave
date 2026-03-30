@@ -8,14 +8,15 @@
 import { db, waitForFirestore } from '../firebase/config';
 import {
   collection,
-  deleteDoc,
   deleteField,
   doc,
   getDocs,
+  collectionGroup,
   writeBatch,
 } from 'firebase/firestore';
 
 const HISTORY_ROOT = 'coopRedMatchHistory';
+const MATCHES_SUBCOLLECTION = 'matches';
 
 async function commitInChunks(ops, chunkSize = 450) {
   let committed = 0;
@@ -35,14 +36,14 @@ export async function adminCleanCoopRedPointeauAndHistory() {
   const ops = [];
   let charactersPatched = 0;
   let historyMatchesDeleted = 0;
-  let historyUsersDeleted = 0;
 
   // 1) Nettoyer les pointeaux obtenus (characters/*)
   const charsSnap = await getDocs(collection(db, 'characters'));
   for (const d of charsSnap.docs) {
     const data = d.data() || {};
-    const hasEcho = Boolean(data.coopRaceEcho?.race);
-    const hasOffer = Boolean(data.coopRaceEchoOffer?.race || data.coopRaceEchoOffer?.roomId);
+    // Le champ peut exister sans .race (null / format legacy). On regarde la présence de la clé.
+    const hasEcho = Object.prototype.hasOwnProperty.call(data, 'coopRaceEcho');
+    const hasOffer = Object.prototype.hasOwnProperty.call(data, 'coopRaceEchoOffer');
     if (!hasEcho && !hasOffer) continue;
 
     const ref = doc(db, 'characters', d.id);
@@ -55,21 +56,19 @@ export async function adminCleanCoopRedPointeauAndHistory() {
     charactersPatched += 1;
   }
 
-  // 2) Supprimer l’historique (coopRedMatchHistory/*/matches/*)
-  const usersSnap = await getDocs(collection(db, HISTORY_ROOT));
-  for (const userDoc of usersSnap.docs) {
-    const userId = userDoc.id;
-    const matchesSnap = await getDocs(collection(db, HISTORY_ROOT, userId, 'matches'));
-    for (const matchDoc of matchesSnap.docs) {
-      const ref = doc(db, HISTORY_ROOT, userId, 'matches', matchDoc.id);
-      ops.push((batch) => batch.delete(ref));
-      historyMatchesDeleted += 1;
-    }
-
-    // Supprimer le doc parent (souvent vide) pour éviter d'accumuler du bruit.
-    const parentRef = doc(db, HISTORY_ROOT, userId);
-    ops.push((batch) => batch.delete(parentRef));
-    historyUsersDeleted += 1;
+  // 2) Supprimer l’historique
+  //
+  // IMPORTANT: les docs /coopRedMatchHistory/{userId} peuvent ne PAS exister,
+  // même si /coopRedMatchHistory/{userId}/matches/{roomId} existe.
+  // Donc on purge via collectionGroup('matches') puis on filtre au chemin.
+  const matchesSnap = await getDocs(collectionGroup(db, MATCHES_SUBCOLLECTION));
+  for (const matchDoc of matchesSnap.docs) {
+    const path = matchDoc.ref.path || '';
+    // Format attendu: coopRedMatchHistory/{userId}/matches/{roomId}
+    if (!path.startsWith(`${HISTORY_ROOT}/`)) continue;
+    if (!path.includes(`/${MATCHES_SUBCOLLECTION}/`)) continue;
+    ops.push((batch) => batch.delete(matchDoc.ref));
+    historyMatchesDeleted += 1;
   }
 
   const committedOps = await commitInChunks(ops);
@@ -79,7 +78,6 @@ export async function adminCleanCoopRedPointeauAndHistory() {
     committedOps,
     charactersPatched,
     historyMatchesDeleted,
-    historyUsersDeleted,
   };
 }
 

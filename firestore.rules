@@ -203,8 +203,12 @@ service cloud.firestore {
 
     // Historique des matchs Red coop (un doc par salle pour chaque joueur)
     match /coopRedMatchHistory/{userId} {
+      // Doc parent (souvent vide) : l’admin peut nettoyer, le joueur peut lire sa racine si besoin.
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
       match /matches/{matchId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Le joueur écrit uniquement dans son propre chemin ; l’admin doit pouvoir purge hebdo.
+        allow read, write, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
       }
     }
   }
