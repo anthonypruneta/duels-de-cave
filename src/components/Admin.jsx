@@ -34,6 +34,7 @@ import { BORDERS } from '../data/borders';
 import { TITLES } from '../data/titles';
 import { getDisplayTitle } from '../services/titleService';
 import AdminCoopRedSimPanel from './AdminCoopRedSimPanel';
+import { adminCleanCoopRedPointeauAndHistory } from '../services/adminCoopRedPointeauService';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -92,6 +93,9 @@ const Admin = () => {
 
   // État pour le tirage manuel du tournoi
   const [tirageLoading, setTirageLoading] = useState(false);
+
+  // Admin: nettoyage Pointeau ADN (Red)
+  const [cleanPointeauLoading, setCleanPointeauLoading] = useState(false);
 
   // Personnages archivés
   const [archivedCharacters, setArchivedCharacters] = useState([]);
@@ -624,6 +628,37 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     const r = await nettoyerTournoiLegacy();
     if (r.success) alert('✅ Nettoyé');
     else alert('❌ ' + (r.error || 'Erreur'));
+  };
+
+  const handleCleanPointeauAdn = async () => {
+    const msg1 =
+      "Nettoyer les POINTEAUX ADN (Red) maintenant ?\n\n" +
+      "- Supprime les pointeaux obtenus (champs coopRaceEcho / coopRaceEchoOffer) sur tous les personnages\n" +
+      "- Supprime tout l'historique Red (coopRedMatchHistory/*)\n\n" +
+      'Action irréversible.';
+    if (!window.confirm(msg1)) return;
+    if (!window.confirm('Dernière confirmation : tu veux vraiment tout nettoyer ?')) return;
+
+    setCleanPointeauLoading(true);
+    try {
+      const res = await adminCleanCoopRedPointeauAndHistory();
+      if (res.success) {
+        alert(
+          `✅ Pointeaux nettoyés.\n\n` +
+          `- Persos mis à jour : ${res.charactersPatched}\n` +
+          `- Lignes historique supprimées : ${res.historyMatchesDeleted}\n` +
+          `- Dossiers (users) historique supprimés : ${res.historyUsersDeleted}\n` +
+          `- Ops batch : ${res.committedOps}`
+        );
+        loadCharacters();
+      } else {
+        alert('❌ ' + (res.error || 'Erreur nettoyage pointeaux'));
+      }
+    } catch (e) {
+      alert('❌ ' + (e?.message || 'Erreur nettoyage pointeaux'));
+    } finally {
+      setCleanPointeauLoading(false);
+    }
   };
 
   const loadRerollsData = async () => {
@@ -1306,6 +1341,22 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             className="w-full bg-red-600 hover:bg-red-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
           >
             {tirageLoading ? '⏳ Lancement de l\'event...' : '🚀 Démarrer l\'event'}
+          </button>
+        </div>
+
+        {/* Section Nettoyage Pointeau ADN (Red coop) */}
+        <div className="bg-stone-900/70 border-2 border-emerald-600 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-emerald-300 mb-2">🧬 Pointeau ADN (Red)</h2>
+          <p className="text-stone-400 text-sm mb-4">
+            Nettoyage hebdo manuel après le tournoi : supprime les pointeaux obtenus et l’historique associé.
+          </p>
+          <button
+            type="button"
+            onClick={handleCleanPointeauAdn}
+            disabled={cleanPointeauLoading}
+            className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
+          >
+            {cleanPointeauLoading ? '⏳ Nettoyage en cours...' : '🗑️ Nettoyer pointeaux (obtenus + historique)'}
           </button>
         </div>
 
