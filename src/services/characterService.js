@@ -114,6 +114,9 @@ export const saveCharacter = async (userId, characterData) => {
         ...characterData,
         ...persistedCosmetics,
         userId,
+        // Identifiant d'instance de personnage : change à chaque nouveau perso.
+        // Sert à lier des historiques (ex. Red coop) au perso "actuel".
+        characterInstanceId: `char_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       };

@@ -90,6 +90,7 @@ function snapshotCharacterForCoop(data) {
   if (!data) return null;
   return {
     userId: data.userId,
+    characterInstanceId: data.characterInstanceId ?? null,
     name: data.name,
     gender: data.gender ?? null,
     characterImage: data.characterImage ?? null,

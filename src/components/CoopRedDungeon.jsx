@@ -124,19 +124,21 @@ function CoopRedDungeon() {
   }, [loadCharAndAttempts]);
 
   useEffect(() => {
-    if (!currentUser?.uid) {
+    const cid = character?.characterInstanceId || null;
+    if (!currentUser?.uid || !cid) {
       setMatchHistory([]);
       return undefined;
     }
     const unsub = subscribeCoopRedMatchHistory(
       currentUser.uid,
+      cid,
       setMatchHistory,
       (e) => console.warn('coop red history', e),
       50
     );
-    backfillCoopRedMatchHistoryFromRooms(currentUser.uid).catch(() => {});
+    backfillCoopRedMatchHistoryFromRooms(currentUser.uid, cid).catch(() => {});
     return () => unsub();
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, character?.characterInstanceId]);
 
   /** Retrouver l’id de salle : récap en attente (combat fini sans toi), puis session, puis salle hôte. */
   useEffect(() => {
@@ -222,7 +224,11 @@ function CoopRedDungeon() {
           if (gk) localStorage.setItem(gk, roomId);
         }
         if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
-          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid).catch((err) => {
+          ensureCoopRedHistoryEntryFromRoom(
+            data,
+            currentUser.uid,
+            character?.characterInstanceId || null
+          ).catch((err) => {
             console.warn('coop red historique — écriture impossible', err);
           });
         }
@@ -447,13 +453,17 @@ function CoopRedDungeon() {
   const handleOpenHistoryReplay = useCallback(async (row) => {
     setHistoryReplayRow(row);
     if (!currentUser?.uid) return;
+    const cid = character?.characterInstanceId || null;
+    if (!cid) return;
     const rid = row?.roomId || row?.id;
     if (!rid) return;
-    await markCoopRedHistoryMatchViewed(currentUser.uid, rid);
-  }, [currentUser?.uid]);
+    await markCoopRedHistoryMatchViewed(currentUser.uid, cid, rid);
+  }, [currentUser?.uid, character?.characterInstanceId]);
 
   const handleClaimHistoryEcho = useCallback(async (row) => {
     if (!currentUser?.uid) return;
+    const cid = character?.characterInstanceId || null;
+    if (!cid) return;
     const rid = row?.roomId || row?.id;
     if (!rid) return;
     setError(null);
@@ -464,7 +474,7 @@ function CoopRedDungeon() {
       setError(res?.error || 'Impossible de récupérer la récompense.');
       return;
     }
-    await setCoopRedHistoryEchoDelivered(currentUser.uid, rid, true);
+    await setCoopRedHistoryEchoDelivered(currentUser.uid, cid, rid, true);
     await loadCharAndAttempts();
   }, [currentUser?.uid, loadCharAndAttempts]);
 
