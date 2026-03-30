@@ -1,7 +1,7 @@
 /**
  * Admin — Nettoyage manuel "Pointeau ADN" (Red coop)
  * - Supprime l'obtention (champ `coopRaceEcho` + `coopRaceEchoOffer`) sur tous les personnages
- * - Supprime l'historique (collection `coopRedMatchHistory/{userId}/matches/{roomId}`)
+ * - Supprime l'historique (collection `coopRedMatchHistory/.../matches/{roomId}`)
  *
  * IMPORTANT: ces opérations supposent que les règles Firestore autorisent l'admin.
  */
@@ -58,13 +58,13 @@ export async function adminCleanCoopRedPointeauAndHistory() {
 
   // 2) Supprimer l’historique
   //
-  // IMPORTANT: les docs /coopRedMatchHistory/{userId} peuvent ne PAS exister,
-  // même si /coopRedMatchHistory/{userId}/matches/{roomId} existe.
-  // Donc on purge via collectionGroup('matches') puis on filtre au chemin.
+  // On purge via collectionGroup('matches') puis on filtre au chemin.
   const matchesSnap = await getDocs(collectionGroup(db, MATCHES_SUBCOLLECTION));
   for (const matchDoc of matchesSnap.docs) {
     const path = matchDoc.ref.path || '';
-    // Format attendu: coopRedMatchHistory/{userId}/matches/{roomId}
+    // Formats attendus (legacy + nouveau):
+    // - coopRedMatchHistory/{userId}/matches/{roomId}
+    // - coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}
     if (!path.startsWith(`${HISTORY_ROOT}/`)) continue;
     if (!path.includes(`/${MATCHES_SUBCOLLECTION}/`)) continue;
     ops.push((batch) => batch.delete(matchDoc.ref));

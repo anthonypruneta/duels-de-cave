@@ -1,7 +1,7 @@
 /**
  * Historique des matchs Red coop : un document par joueur et par salle
- * L'historique est lié au personnage ACTUEL via `characterInstanceId` :
- * (coopRedMatchHistory/{userId}/characters/{characterInstanceId}/matches/{roomId}).
+ * Lié au personnage via un pseudo normalisé (stable, sans accents/espaces/casse) :
+ * (coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}).
  * Écriture côté client au moment où le joueur reçoit la salle en « completed »
  * (chaque joueur écrit uniquement son propre chemin — règles Firestore).
  */
@@ -21,17 +21,30 @@ import {
 import { db, waitForFirestore } from '../firebase/config';
 
 const ROOT = 'coopRedMatchHistory';
-const CHAR_SUB = 'characters';
+const CHAR_SUB = 'charactersByName';
 const MATCHES = 'matches';
 /** Même collection que `coopRedDungeonService` — salles Red (hôte / invité). */
 const COOP_RED_ROOMS = 'coopDungeonRooms';
+
+function normalizePseudoKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // accents
+    .replace(/\s+/g, ' ') // espaces multiples
+    .replace(/[^a-z0-9 _-]+/g, '') // chars exotiques
+    .replace(/[ _]+/g, '_') // espaces -> _
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
 
 /**
  * @param {object} roomData — snapshot salle { id, status, combat, hostId, guestId, ... }
  * @param {string} userId
  * @returns {Promise<{ success: boolean }>}
  */
-export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, characterInstanceId) {
+export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, pseudoKey) {
   if (!roomData?.id || !userId) return { success: false };
   if (roomData.status !== 'completed' || !roomData.combat?.winner) return { success: false };
   if (roomData.hostId !== userId && roomData.guestId !== userId) return { success: false };
@@ -43,16 +56,13 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, charac
 
   const iWasHost = roomData.hostId === userId;
   const mySnap = iWasHost ? roomData.hostSnapshot : roomData.guestSnapshot;
-  const myRoomCharacterInstanceId = mySnap?.characterInstanceId ?? null;
-  // Si un characterInstanceId est fourni, on filtre strictement "perso actuel".
-  // Si non fourni, on se base sur l'id stocké dans la room (utile quand l'UI n'est pas encore prête).
-  if (characterInstanceId) {
-    if (!myRoomCharacterInstanceId || myRoomCharacterInstanceId !== characterInstanceId) {
-      return { success: false };
-    }
-  }
-  const targetCharacterInstanceId = characterInstanceId || myRoomCharacterInstanceId;
-  if (!targetCharacterInstanceId) return { success: false };
+  const myRoomPseudoKey =
+    mySnap?.characterPseudoKey || mySnap?.pseudoKey || normalizePseudoKey(mySnap?.name);
+  const uiPseudoKey = pseudoKey || null;
+  // Si l'UI fournit une clé, on filtre "perso actuel".
+  if (uiPseudoKey && myRoomPseudoKey !== uiPseudoKey) return { success: false };
+  const targetKey = uiPseudoKey || myRoomPseudoKey;
+  if (!targetKey) return { success: false };
   const partnerName = iWasHost
     ? (roomData.guestSnapshot?.name ?? 'Invité')
     : (roomData.hostSnapshot?.name ?? 'Hôte');
@@ -88,7 +98,7 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, charac
     completedAt,
   };
 
-  const ref = doc(db, ROOT, userId, CHAR_SUB, String(targetCharacterInstanceId), MATCHES, roomData.id);
+  const ref = doc(db, ROOT, userId, CHAR_SUB, String(targetKey), MATCHES, roomData.id);
   // Ne jamais écraser viewedAt (si déjà vu) : on ne le set qu'à la création.
   const existing = await getDoc(ref);
   if (!existing.exists()) {
@@ -98,11 +108,11 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, charac
   return { success: true };
 }
 
-export async function markCoopRedHistoryMatchViewed(userId, characterInstanceId, roomId) {
-  if (!userId || !characterInstanceId || !roomId) return { success: false };
+export async function markCoopRedHistoryMatchViewed(userId, pseudoKey, roomId) {
+  if (!userId || !pseudoKey || !roomId) return { success: false };
   await waitForFirestore();
   try {
-    const ref = doc(db, ROOT, userId, CHAR_SUB, String(characterInstanceId), MATCHES, String(roomId));
+    const ref = doc(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES, String(roomId));
     await updateDoc(ref, { viewedAt: Timestamp.now() });
     return { success: true };
   } catch (e) {
@@ -110,11 +120,11 @@ export async function markCoopRedHistoryMatchViewed(userId, characterInstanceId,
   }
 }
 
-export async function setCoopRedHistoryEchoDelivered(userId, characterInstanceId, roomId, delivered) {
-  if (!userId || !characterInstanceId || !roomId) return { success: false };
+export async function setCoopRedHistoryEchoDelivered(userId, pseudoKey, roomId, delivered) {
+  if (!userId || !pseudoKey || !roomId) return { success: false };
   await waitForFirestore();
   try {
-    const ref = doc(db, ROOT, userId, CHAR_SUB, String(characterInstanceId), MATCHES, String(roomId));
+    const ref = doc(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES, String(roomId));
     await updateDoc(ref, { myEchoDelivered: !!delivered });
     return { success: true };
   } catch (e) {
@@ -142,11 +152,11 @@ function completedAtToMillis(value) {
  * Écoute toute la sous-collection (peu de docs par joueur), tri côté client par date.
  * Évite les erreurs d’index Firestore sur orderBy('completedAt') et les docs sans champ.
  */
-export function subscribeCoopRedMatchHistory(userId, characterInstanceId, onData, onError, maxRows = 50) {
-  if (!userId || !characterInstanceId) {
+export function subscribeCoopRedMatchHistory(userId, pseudoKey, onData, onError, maxRows = 50) {
+  if (!userId || !pseudoKey) {
     return () => {};
   }
-  const ref = collection(db, ROOT, userId, CHAR_SUB, String(characterInstanceId), MATCHES);
+  const ref = collection(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES);
   return onSnapshot(
     ref,
     (snap) => {
@@ -164,8 +174,8 @@ export function subscribeCoopRedMatchHistory(userId, characterInstanceId, onData
  * Rattrapage : écrit les entrées d’historique à partir des salles `coopDungeonRooms` terminées
  * (au cas où le client n’était pas abonné au moment du « completed » ou si l’écriture avait échoué).
  */
-export async function backfillCoopRedMatchHistoryFromRooms(userId, characterInstanceId) {
-  if (!userId || !characterInstanceId) return { success: false, written: 0 };
+export async function backfillCoopRedMatchHistoryFromRooms(userId, pseudoKey) {
+  if (!userId || !pseudoKey) return { success: false, written: 0 };
   await waitForFirestore();
   const qHost = query(
     collection(db, COOP_RED_ROOMS),
@@ -187,7 +197,7 @@ export async function backfillCoopRedMatchHistoryFromRooms(userId, characterInst
       seen.add(s.id);
       const data = { id: s.id, ...s.data() };
       if (data.status !== 'completed' || !data.combat?.winner) continue;
-      const res = await ensureCoopRedHistoryEntryFromRoom(data, userId, characterInstanceId);
+      const res = await ensureCoopRedHistoryEntryFromRoom(data, userId, pseudoKey);
       if (res.success) written += 1;
     }
     return { success: true, written };
