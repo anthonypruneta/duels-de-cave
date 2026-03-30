@@ -32,7 +32,7 @@ const COOP_RED_ROOMS = 'coopDungeonRooms';
  * @returns {Promise<{ success: boolean }>}
  */
 export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, characterInstanceId) {
-  if (!roomData?.id || !userId || !characterInstanceId) return { success: false };
+  if (!roomData?.id || !userId) return { success: false };
   if (roomData.status !== 'completed' || !roomData.combat?.winner) return { success: false };
   if (roomData.hostId !== userId && roomData.guestId !== userId) return { success: false };
   if (!roomData.hostSnapshot || !roomData.guestSnapshot) {
@@ -43,10 +43,16 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, charac
 
   const iWasHost = roomData.hostId === userId;
   const mySnap = iWasHost ? roomData.hostSnapshot : roomData.guestSnapshot;
-  // L'historique doit correspondre au perso actuel : ignore les salles d'un ancien perso.
-  if (!mySnap?.characterInstanceId || mySnap.characterInstanceId !== characterInstanceId) {
-    return { success: false };
+  const myRoomCharacterInstanceId = mySnap?.characterInstanceId ?? null;
+  // Si un characterInstanceId est fourni, on filtre strictement "perso actuel".
+  // Si non fourni, on se base sur l'id stocké dans la room (utile quand l'UI n'est pas encore prête).
+  if (characterInstanceId) {
+    if (!myRoomCharacterInstanceId || myRoomCharacterInstanceId !== characterInstanceId) {
+      return { success: false };
+    }
   }
+  const targetCharacterInstanceId = characterInstanceId || myRoomCharacterInstanceId;
+  if (!targetCharacterInstanceId) return { success: false };
   const partnerName = iWasHost
     ? (roomData.guestSnapshot?.name ?? 'Invité')
     : (roomData.hostSnapshot?.name ?? 'Hôte');
@@ -82,7 +88,7 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, charac
     completedAt,
   };
 
-  const ref = doc(db, ROOT, userId, CHAR_SUB, String(characterInstanceId), MATCHES, roomData.id);
+  const ref = doc(db, ROOT, userId, CHAR_SUB, String(targetCharacterInstanceId), MATCHES, roomData.id);
   // Ne jamais écraser viewedAt (si déjà vu) : on ne le set qu'à la création.
   const existing = await getDoc(ref);
   if (!existing.exists()) {
