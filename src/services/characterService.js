@@ -161,6 +161,17 @@ export const getUserCharacter = async (userId) => {
       // Niveau plafonné à la lecture (rétroactivité : persos > 400 avant activation du cap)
       const rawLevel = migratedData.level ?? 1;
       migratedData = { ...migratedData, level: clampLevel(rawLevel) };
+
+      // Rétroactivité : lier le perso actuel à une instance (ex. historique Red)
+      // Si absent, on le crée une fois et on le persiste.
+      if (!migratedData.characterInstanceId) {
+        const newId = `char_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        await setDoc(characterRef, {
+          characterInstanceId: newId,
+          updatedAt: Timestamp.now(),
+        }, { merge: true });
+        migratedData = { ...migratedData, characterInstanceId: newId };
+      }
       return { success: true, data: migratedData };
     } else {
       console.log('ℹ️ Aucun personnage trouvé pour cet utilisateur');
