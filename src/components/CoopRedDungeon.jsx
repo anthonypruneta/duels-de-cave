@@ -87,6 +87,7 @@ function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
+  const characterInstanceIdRef = useRef(null);
   const [attemptsLeft, setAttemptsLeft] = useState(COOP_RED_MAX_ATTEMPTS_PER_DAY);
   const [difficulty, setDifficulty] = useState(COOP_RED_DIFFICULTY.EASY);
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem('coopRedRoomId') || '');
@@ -122,6 +123,10 @@ function CoopRedDungeon() {
   useEffect(() => {
     loadCharAndAttempts();
   }, [loadCharAndAttempts]);
+
+  useEffect(() => {
+    characterInstanceIdRef.current = character?.characterInstanceId || null;
+  }, [character?.characterInstanceId]);
 
   useEffect(() => {
     const cid = character?.characterInstanceId || null;
@@ -224,11 +229,8 @@ function CoopRedDungeon() {
           if (gk) localStorage.setItem(gk, roomId);
         }
         if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
-          ensureCoopRedHistoryEntryFromRoom(
-            data,
-            currentUser.uid,
-            character?.characterInstanceId || null
-          ).catch((err) => {
+          const cid = characterInstanceIdRef.current;
+          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid, cid).catch((err) => {
             console.warn('coop red historique — écriture impossible', err);
           });
         }
@@ -385,6 +387,15 @@ function CoopRedDungeon() {
 
   const handleCreate = async () => {
     setError(null);
+    // On doit avoir un characterInstanceId AVANT de snapshotter le perso dans la salle,
+    // sinon l'historique ne pourra pas être lié au perso actuel.
+    if (!character?.characterInstanceId) {
+      await loadCharAndAttempts();
+    }
+    if (!characterInstanceIdRef.current) {
+      setError("Ton personnage n'est pas encore prêt (instanceId manquant). Recharge la page puis réessaie.");
+      return;
+    }
     setBusy(true);
     const pk = currentUser?.uid ? coopRedPendingRecapStorageKey(currentUser.uid) : null;
     if (pk) localStorage.removeItem(pk);
@@ -428,6 +439,13 @@ function CoopRedDungeon() {
 
   const handleJoinListedRoom = async (id) => {
     setError(null);
+    if (!character?.characterInstanceId) {
+      await loadCharAndAttempts();
+    }
+    if (!characterInstanceIdRef.current) {
+      setError("Ton personnage n'est pas encore prêt (instanceId manquant). Recharge la page puis réessaie.");
+      return;
+    }
     setBusy(true);
     const attemptsCheck = await getCoopRedAttemptsLeft(currentUser.uid);
     if (!attemptsCheck.success || attemptsCheck.attemptsLeft <= 0) {
