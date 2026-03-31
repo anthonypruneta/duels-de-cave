@@ -88,8 +88,19 @@ export function subscribeOpenCoopRedRooms(onData, onError) {
 
 function snapshotCharacterForCoop(data) {
   if (!data) return null;
+  const normalizePseudoKey = (name) => String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9 _-]+/g, '')
+    .replace(/[ _]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
   return {
     userId: data.userId,
+    characterPseudoKey: normalizePseudoKey(data.name),
     name: data.name,
     gender: data.gender ?? null,
     characterImage: data.characterImage ?? null,

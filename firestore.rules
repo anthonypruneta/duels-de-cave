@@ -5,6 +5,7 @@ service cloud.firestore {
     // Helper admin
     function isAdmin() {
       return request.auth != null &&
+             request.auth.token.email != null &&
              request.auth.token.email == 'antho.pruneta@gmail.com';
     }
 
@@ -201,10 +202,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Historique des matchs Red coop (un doc par salle pour chaque joueur)
+    // Historique des matchs Red coop (lié au personnage via pseudo normalisé)
+    // Chemin: coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}
     match /coopRedMatchHistory/{userId} {
-      match /matches/{matchId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+
+      match /charactersByName/{nameKey} {
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow delete: if isAdmin();
+
+        match /matches/{matchId} {
+          allow read, write, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        }
       }
     }
   }

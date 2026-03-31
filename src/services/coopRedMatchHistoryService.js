@@ -1,6 +1,7 @@
 /**
  * Historique des matchs Red coop : un document par joueur et par salle
- * (coopRedMatchHistory/{userId}/matches/{roomId}).
+ * Lié au personnage via un pseudo normalisé (stable, sans accents/espaces/casse) :
+ * (coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}).
  * Écriture côté client au moment où le joueur reçoit la salle en « completed »
  * (chaque joueur écrit uniquement son propre chemin — règles Firestore).
  */
@@ -20,15 +21,30 @@ import {
 import { db, waitForFirestore } from '../firebase/config';
 
 const ROOT = 'coopRedMatchHistory';
+const CHAR_SUB = 'charactersByName';
+const MATCHES = 'matches';
 /** Même collection que `coopRedDungeonService` — salles Red (hôte / invité). */
 const COOP_RED_ROOMS = 'coopDungeonRooms';
+
+function normalizePseudoKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // accents
+    .replace(/\s+/g, ' ') // espaces multiples
+    .replace(/[^a-z0-9 _-]+/g, '') // chars exotiques
+    .replace(/[ _]+/g, '_') // espaces -> _
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
 
 /**
  * @param {object} roomData — snapshot salle { id, status, combat, hostId, guestId, ... }
  * @param {string} userId
  * @returns {Promise<{ success: boolean }>}
  */
-export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
+export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId, pseudoKey) {
   if (!roomData?.id || !userId) return { success: false };
   if (roomData.status !== 'completed' || !roomData.combat?.winner) return { success: false };
   if (roomData.hostId !== userId && roomData.guestId !== userId) return { success: false };
@@ -39,6 +55,14 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
   await waitForFirestore();
 
   const iWasHost = roomData.hostId === userId;
+  const mySnap = iWasHost ? roomData.hostSnapshot : roomData.guestSnapshot;
+  const myRoomPseudoKey =
+    mySnap?.characterPseudoKey || mySnap?.pseudoKey || normalizePseudoKey(mySnap?.name);
+  const uiPseudoKey = pseudoKey || null;
+  // Si l'UI fournit une clé, on filtre "perso actuel".
+  if (uiPseudoKey && myRoomPseudoKey !== uiPseudoKey) return { success: false };
+  const targetKey = uiPseudoKey || myRoomPseudoKey;
+  if (!targetKey) return { success: false };
   const partnerName = iWasHost
     ? (roomData.guestSnapshot?.name ?? 'Invité')
     : (roomData.hostSnapshot?.name ?? 'Hôte');
@@ -74,7 +98,7 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
     completedAt,
   };
 
-  const ref = doc(db, ROOT, userId, 'matches', roomData.id);
+  const ref = doc(db, ROOT, userId, CHAR_SUB, String(targetKey), MATCHES, roomData.id);
   // Ne jamais écraser viewedAt (si déjà vu) : on ne le set qu'à la création.
   const existing = await getDoc(ref);
   if (!existing.exists()) {
@@ -84,11 +108,11 @@ export async function ensureCoopRedHistoryEntryFromRoom(roomData, userId) {
   return { success: true };
 }
 
-export async function markCoopRedHistoryMatchViewed(userId, roomId) {
-  if (!userId || !roomId) return { success: false };
+export async function markCoopRedHistoryMatchViewed(userId, pseudoKey, roomId) {
+  if (!userId || !pseudoKey || !roomId) return { success: false };
   await waitForFirestore();
   try {
-    const ref = doc(db, ROOT, userId, 'matches', String(roomId));
+    const ref = doc(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES, String(roomId));
     await updateDoc(ref, { viewedAt: Timestamp.now() });
     return { success: true };
   } catch (e) {
@@ -96,11 +120,11 @@ export async function markCoopRedHistoryMatchViewed(userId, roomId) {
   }
 }
 
-export async function setCoopRedHistoryEchoDelivered(userId, roomId, delivered) {
-  if (!userId || !roomId) return { success: false };
+export async function setCoopRedHistoryEchoDelivered(userId, pseudoKey, roomId, delivered) {
+  if (!userId || !pseudoKey || !roomId) return { success: false };
   await waitForFirestore();
   try {
-    const ref = doc(db, ROOT, userId, 'matches', String(roomId));
+    const ref = doc(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES, String(roomId));
     await updateDoc(ref, { myEchoDelivered: !!delivered });
     return { success: true };
   } catch (e) {
@@ -128,11 +152,11 @@ function completedAtToMillis(value) {
  * Écoute toute la sous-collection (peu de docs par joueur), tri côté client par date.
  * Évite les erreurs d’index Firestore sur orderBy('completedAt') et les docs sans champ.
  */
-export function subscribeCoopRedMatchHistory(userId, onData, onError, maxRows = 50) {
-  if (!userId) {
+export function subscribeCoopRedMatchHistory(userId, pseudoKey, onData, onError, maxRows = 50) {
+  if (!userId || !pseudoKey) {
     return () => {};
   }
-  const ref = collection(db, ROOT, userId, 'matches');
+  const ref = collection(db, ROOT, userId, CHAR_SUB, String(pseudoKey), MATCHES);
   return onSnapshot(
     ref,
     (snap) => {
@@ -150,8 +174,8 @@ export function subscribeCoopRedMatchHistory(userId, onData, onError, maxRows = 
  * Rattrapage : écrit les entrées d’historique à partir des salles `coopDungeonRooms` terminées
  * (au cas où le client n’était pas abonné au moment du « completed » ou si l’écriture avait échoué).
  */
-export async function backfillCoopRedMatchHistoryFromRooms(userId) {
-  if (!userId) return { success: false, written: 0 };
+export async function backfillCoopRedMatchHistoryFromRooms(userId, pseudoKey) {
+  if (!userId || !pseudoKey) return { success: false, written: 0 };
   await waitForFirestore();
   const qHost = query(
     collection(db, COOP_RED_ROOMS),
@@ -173,7 +197,7 @@ export async function backfillCoopRedMatchHistoryFromRooms(userId) {
       seen.add(s.id);
       const data = { id: s.id, ...s.data() };
       if (data.status !== 'completed' || !data.combat?.winner) continue;
-      const res = await ensureCoopRedHistoryEntryFromRoom(data, userId);
+      const res = await ensureCoopRedHistoryEntryFromRoom(data, userId, pseudoKey);
       if (res.success) written += 1;
     }
     return { success: true, written };

@@ -87,6 +87,8 @@ function CoopRedDungeon() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
+  const characterInstanceIdRef = useRef(null);
+  const pseudoKeyRef = useRef(null);
   const [attemptsLeft, setAttemptsLeft] = useState(COOP_RED_MAX_ATTEMPTS_PER_DAY);
   const [difficulty, setDifficulty] = useState(COOP_RED_DIFFICULTY.EASY);
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem('coopRedRoomId') || '');
@@ -124,19 +126,39 @@ function CoopRedDungeon() {
   }, [loadCharAndAttempts]);
 
   useEffect(() => {
-    if (!currentUser?.uid) {
+    characterInstanceIdRef.current = character?.characterInstanceId || null;
+  }, [character?.characterInstanceId]);
+
+  useEffect(() => {
+    const normalizePseudoKey = (name) => String(name || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/[^a-z0-9 _-]+/g, '')
+      .replace(/[ _]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    pseudoKeyRef.current = character?.name ? normalizePseudoKey(character.name) : null;
+  }, [character?.name]);
+
+  useEffect(() => {
+    const key = pseudoKeyRef.current;
+    if (!currentUser?.uid || !key) {
       setMatchHistory([]);
       return undefined;
     }
     const unsub = subscribeCoopRedMatchHistory(
       currentUser.uid,
+      key,
       setMatchHistory,
       (e) => console.warn('coop red history', e),
       50
     );
-    backfillCoopRedMatchHistoryFromRooms(currentUser.uid).catch(() => {});
+    backfillCoopRedMatchHistoryFromRooms(currentUser.uid, key).catch(() => {});
     return () => unsub();
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, character?.name]);
 
   /** Retrouver l’id de salle : récap en attente (combat fini sans toi), puis session, puis salle hôte. */
   useEffect(() => {
@@ -222,7 +244,8 @@ function CoopRedDungeon() {
           if (gk) localStorage.setItem(gk, roomId);
         }
         if (data?.status === 'completed' && data?.combat?.winner && currentUser) {
-          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid).catch((err) => {
+          const key = pseudoKeyRef.current;
+          ensureCoopRedHistoryEntryFromRoom(data, currentUser.uid, key).catch((err) => {
             console.warn('coop red historique — écriture impossible', err);
           });
         }
@@ -379,6 +402,14 @@ function CoopRedDungeon() {
 
   const handleCreate = async () => {
     setError(null);
+    // On doit avoir un nom (clé pseudo) AVANT de snapshotter le perso dans la salle.
+    if (!character?.name) {
+      await loadCharAndAttempts();
+    }
+    if (!pseudoKeyRef.current) {
+      setError("Ton personnage n'est pas encore prêt (nom manquant). Recharge la page puis réessaie.");
+      return;
+    }
     setBusy(true);
     const pk = currentUser?.uid ? coopRedPendingRecapStorageKey(currentUser.uid) : null;
     if (pk) localStorage.removeItem(pk);
@@ -422,6 +453,13 @@ function CoopRedDungeon() {
 
   const handleJoinListedRoom = async (id) => {
     setError(null);
+    if (!character?.name) {
+      await loadCharAndAttempts();
+    }
+    if (!pseudoKeyRef.current) {
+      setError("Ton personnage n'est pas encore prêt (nom manquant). Recharge la page puis réessaie.");
+      return;
+    }
     setBusy(true);
     const attemptsCheck = await getCoopRedAttemptsLeft(currentUser.uid);
     if (!attemptsCheck.success || attemptsCheck.attemptsLeft <= 0) {
@@ -447,13 +485,17 @@ function CoopRedDungeon() {
   const handleOpenHistoryReplay = useCallback(async (row) => {
     setHistoryReplayRow(row);
     if (!currentUser?.uid) return;
+    const key = pseudoKeyRef.current;
+    if (!key) return;
     const rid = row?.roomId || row?.id;
     if (!rid) return;
-    await markCoopRedHistoryMatchViewed(currentUser.uid, rid);
+    await markCoopRedHistoryMatchViewed(currentUser.uid, key, rid);
   }, [currentUser?.uid]);
 
   const handleClaimHistoryEcho = useCallback(async (row) => {
     if (!currentUser?.uid) return;
+    const key = pseudoKeyRef.current;
+    if (!key) return;
     const rid = row?.roomId || row?.id;
     if (!rid) return;
     setError(null);
@@ -464,7 +506,7 @@ function CoopRedDungeon() {
       setError(res?.error || 'Impossible de récupérer la récompense.');
       return;
     }
-    await setCoopRedHistoryEchoDelivered(currentUser.uid, rid, true);
+    await setCoopRedHistoryEchoDelivered(currentUser.uid, key, rid, true);
     await loadCharAndAttempts();
   }, [currentUser?.uid, loadCharAndAttempts]);
 
