@@ -22,7 +22,7 @@ import { MAX_LEVEL } from '../data/featureFlags';
 
 /** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
 export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
-/** Fenêtre d’éligibilité : semaine courante + semaine précédente (getCurrentWeekId), même repère que les récompenses hebdo */
+/** Fenêtre d’éligibilité : semaine -1 et semaine -2 (getCurrentWeekId), même repère que les récompenses hebdo */
 const LEGACY_ARCHIVE_WEEK_WINDOW = 2;
 const TOURNAMENT_META_QUALIFIER = 'legacyQualifierNextSaturday';
 const LEGACY_RETIRED_COLLECTION = 'legacyRetiredArchives';
@@ -247,6 +247,9 @@ function archivedAtToMillis(ts) {
 function getEligibleWeekIdsForLegacyArchive(now = new Date()) {
   const ids = new Set();
   const d = new Date(now.getTime());
+  // Important: on exclut volontairement la semaine courante.
+  // On veut les persos archivés sur les 2 semaines précédentes (semaine -1 et semaine -2).
+  d.setDate(d.getDate() - 7);
   for (let i = 0; i < LEGACY_ARCHIVE_WEEK_WINDOW; i++) {
     ids.add(getCurrentWeekId(d));
     d.setDate(d.getDate() - 7);
@@ -284,7 +287,7 @@ function dedupeLegacyParticipantsByOwnerAndName(rows, tournamentDocId) {
 }
 
 /**
- * Tournoi secondaire : persos archivés (niveau ≤ 400, archivés sur les 2 dernières semaines jeu).
+ * Tournoi secondaire : persos archivés (niveau ≤ 400, archivés sur semaine -1 et semaine -2).
  * Le gagnant est enregistré pour le prochain tournoi du samedi (voir creerTournoi current).
  * @param {{ announceDiscord?: boolean }} [options] — si `announceDiscord === false`, pas d’annonce Discord du tirage (tournoi Firestore inchangé).
  */
@@ -310,7 +313,7 @@ export async function creerTournoiLegacy(options = {}) {
       return {
         success: false,
         error:
-          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, archivés sur les 2 dernières semaines, retraités exclus). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
+          `Il faut au moins 2 personnages archivés éligibles (niveau ≤ 400, archivés sur la semaine dernière et celle d’avant, retraités exclus). Éligibles : ${participants.length}. À la retraite : ${retiredCount}.`,
       };
     }
 

@@ -78,6 +78,15 @@ const TAVERN_SLOTS = [
   { id: 'cheminee', x: 77, y: 60, label: 'Cheminée' },
   { id: 'escalier', x: 43, y: 46, label: 'Escalier' },
   { id: 'tonneaux', x: 87, y: 71, label: 'Tonneaux' },
+  // Slots additionnels (la taverne peut dépasser 12 persos certains semaines)
+  { id: 'bar-3', x: 18, y: 72, label: 'Comptoir' },
+  { id: 'bar-4', x: 44, y: 74, label: 'Comptoir' },
+  { id: 'table1-4', x: 18, y: 98, label: 'Table gauche' },
+  { id: 'table2-4', x: 72, y: 82, label: 'Table droite' },
+  { id: 'table2-5', x: 84, y: 100, label: 'Table droite' },
+  { id: 'fond-1', x: 55, y: 58, label: 'Fond salle' },
+  { id: 'fond-2', x: 66, y: 56, label: 'Fond salle' },
+  { id: 'fond-3', x: 32, y: 56, label: 'Fond salle' },
 ];
 
 export default function Taverne() {
@@ -403,7 +412,7 @@ export default function Taverne() {
                     relative transition-all duration-200
                     ${isHovered ? 'scale-125 z-20' : ''}
                   `}
-                  style={{ width: 'clamp(150px, 25vw, 270px)', height: 'clamp(150px, 25vw, 270px)' }}
+                  style={{ width: 'clamp(120px, 18vw, 210px)', height: 'clamp(120px, 18vw, 210px)' }}
                 >
                   {imgSrc ? (
                     <img
