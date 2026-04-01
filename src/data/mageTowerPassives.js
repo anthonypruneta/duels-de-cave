@@ -312,6 +312,11 @@ export const MAGE_TOWER_PASSIVES = [
 export const getMageTowerPassiveById = (passiveId) =>
   MAGE_TOWER_PASSIVES.find(passive => passive.id === passiveId) || null;
 
+export const getMageTowerPassiveByName = (passiveName) => {
+  if (!passiveName) return null;
+  return MAGE_TOWER_PASSIVES.find(passive => passive.name === passiveName) || null;
+};
+
 export const getMageTowerPassiveLevel = (passiveId, level) => {
   const passive = getMageTowerPassiveById(passiveId);
   if (!passive) return null;

@@ -4,7 +4,7 @@
  * Retourne des "steps" avec snapshots HP pour l'animation client
  */
 
-import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
+import { getMageTowerPassiveById, getMageTowerPassiveByName, getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
 import { applyStatBoosts, getEmptyStatBoosts } from './statPoints.js';
 import {
   applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
@@ -76,8 +76,14 @@ function applySceptreCapBuff(att, spellEffects, log, playerColor) {
 
 function getPassiveDetails(passive) {
   if (!passive) return null;
-  const base = getMageTowerPassiveById(passive.id);
-  const levelData = getMageTowerPassiveLevel(passive.id, passive.level);
+  const resolvedId =
+    passive.id ||
+    passive.passiveId ||
+    getMageTowerPassiveByName(passive.name)?.id ||
+    null;
+  if (!resolvedId) return null;
+  const base = getMageTowerPassiveById(resolvedId);
+  const levelData = getMageTowerPassiveLevel(resolvedId, passive.level);
   if (!base || !levelData) return null;
   return { ...base, level: passive.level, levelData };
 }
