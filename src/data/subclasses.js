@@ -28,7 +28,7 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'pacte_sombre', name: 'Pacte Sombre', bonus: '+10% CAP', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 50% Cap et ignore 45% RésCap. Chaque auto +0,8% Cap (cumulable) et vole 6% de la CAP ennemi.' },
   ],
   'Briseur de Sort': [
-    { id: 'stratege_arcanique', name: 'Stratège Arcanique', bonus: '+10% CAP', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 50% dégâts + 30% CAP, réduit les dégâts du prochain sort de 40%. Réduit les soins adverses de 20%. Auto + 15% CAP.' },
+    { id: 'stratege_arcanique', name: 'Stratège Arcanique', bonus: '+10% CAP', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 50% dégâts + 30% CAP. Réduction des dégâts du prochain sort de 40% (un sort sur deux : pas de cumul tant que la réduction n\'a pas été consommée). Réduit les soins adverses de 20%. Auto + 15% CAP.' },
     { id: 'mentaliste', name: 'Mentaliste', bonus: '+12% ResC', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 40% dégâts + 25% CAP, augmente votre DEF de 8% (stackable). Réduit les soins adverses de 20%. Auto + 10% CAP.' },
   ],
   'Masochiste': [

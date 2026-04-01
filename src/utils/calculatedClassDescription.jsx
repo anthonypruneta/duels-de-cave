@@ -462,7 +462,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${shieldDmgPct}% dégâts + ${formatPercent(c.shieldFromCap)}% × Cap (${cap})`}>
             <span className="text-green-400">{shieldDmgPct}% + {shieldCapVal}</span>
           </Tooltip>
-          , réduit les dégâts du prochain sort de <span className="text-green-400">{nextSpellPct}%</span>.
+          , réduit les dégâts d&apos;un sort sur deux de <span className="text-green-400">{nextSpellPct}%</span> (pas de cumul).
           {' '}Réduit les soins adverses de <span className="text-green-400">{antiHealPct}%</span>.
           {' '}Auto ={' '}
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.autoCapBonus)}% × Cap (${cap}) = ${autoBonusVal}`}>

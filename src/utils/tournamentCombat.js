@@ -644,9 +644,13 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
     def.shield = (def.shield || 0) + shield;
     log.push(`${playerColor} 🧱 ${def.name} convertit la capacité en bouclier (+${shield}).`);
     if (def.subclass?.id === 'stratege_arcanique') {
-      const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
-      def.nextSpellReduction = briseurC.nextSpellReduction ?? 0.30;
-      log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de ${Math.round((def.nextSpellReduction ?? 0) * 100)}%.`);
+      if (def._strategeArcaniqueSkipNextReductionGrant) {
+        def._strategeArcaniqueSkipNextReductionGrant = false;
+      } else {
+        const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
+        def.nextSpellReduction = briseurC.nextSpellReduction ?? 0.30;
+        log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de ${Math.round((def.nextSpellReduction ?? 0) * 100)}%.`);
+      }
     }
     if (def.subclass?.id === 'mentaliste') {
       const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
@@ -753,6 +757,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     adjusted = Math.max(1, Math.round(adjusted * (1 - def.nextSpellReduction)));
     log.push(`${playerColor} 📐 Stratège Arcanique: le sort inflige -${Math.round(def.nextSpellReduction * 100)}% de dégâts.`);
     def.nextSpellReduction = undefined;
+    // Un sort sur deux : ne pas réarmer le débuff sur ce même coup (sinon chaque sort après le 1er reste à -40%).
+    if (def.subclass?.id === 'stratege_arcanique') {
+      def._strategeArcaniqueSkipNextReductionGrant = true;
+    }
   }
 
   if (att.suddenDeath) {

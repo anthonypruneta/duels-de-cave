@@ -182,7 +182,7 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'pacte_sombre':
       return `Chaque tour, familier inflige ${pct0(c.capBase)} Cap et ignore ${pct0(c.ignoreResist)} RésCap. Chaque auto +${pct1(c.stackPerAuto)} Cap (cumulable) et vole ${pct0(c.capStealPercent)} de la CAP ennemi.`;
     case 'stratege_arcanique':
-      return `Après une capacité subie : bouclier ${pct0(c.shieldFromSpellDamage)} dégâts + ${pct0(c.shieldFromCap)} CAP, réduit les dégâts du prochain sort de ${pct0(c.nextSpellReduction)}. Réduit les soins adverses de ${pct0(c.antiHealReduction)}. Auto + ${pct0(c.autoCapBonus)} CAP.`;
+      return `Après une capacité subie : bouclier ${pct0(c.shieldFromSpellDamage)} dégâts + ${pct0(c.shieldFromCap)} CAP. Réduction des dégâts du prochain sort de ${pct0(c.nextSpellReduction)} (un sort sur deux, sans cumul). Réduit les soins adverses de ${pct0(c.antiHealReduction)}. Auto + ${pct0(c.autoCapBonus)} CAP.`;
     case 'mentaliste':
       return `Après une capacité subie : bouclier ${pct0(c.shieldFromSpellDamage)} dégâts + ${pct0(c.shieldFromCap)} CAP, augmente votre DEF de ${pct0(c.defBonusStack)} (stackable). Réduit les soins adverses de ${pct0(c.antiHealReduction)}. Auto + ${pct0(c.autoCapBonus)} CAP.`;
     case 'dompteuse_chair':

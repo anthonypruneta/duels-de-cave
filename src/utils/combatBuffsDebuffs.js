@@ -268,7 +268,7 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         id: 'next_spell_reduction',
         icon: '📐',
         label: `Prochain sort -${pct}%`,
-        description: `Stratège Arcanique : les dégâts du prochain sort que vous subissez sont réduits de ${pct}%.`,
+        description: `Stratège Arcanique : les dégâts du prochain sort que vous subissez sont réduits de ${pct}% (puis pas de nouvelle réduction avant le sort suivant).`,
       });
     }
     if (combatStatus.onctionLastStandUsed) {
