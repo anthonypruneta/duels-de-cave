@@ -1972,7 +1972,22 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     att._entraveFirstCapUsed = true;
   }
 
-  const baseHits = (isAlchimiste && !alchVerdictSkip) ? 0 : isBastion ? 0 : isArcher ? classConstants.archer.hitCount : 1;
+  // Capacités hors Mage / Guerrier / Archer : une fois la compétence lancée ce tour, pas d’auto en plus
+  // (Sinon ex. Succube : fouet + attaque physique dans le même passage — bug signalé en PvP.)
+  // Paladin (riposte) et Voleur (esquive) restent avec auto : ce sont des préparations, pas un remplacement d’action.
+  const skipAutoAfterStandaloneSkill =
+    skillUsed &&
+    !isMage &&
+    !isWar &&
+    !isArcher &&
+    (att.class === 'Succube' || att.class === 'Healer' || att.class === 'Masochiste');
+
+  const baseHits =
+    (isAlchimiste && !alchVerdictSkip) ? 0
+      : isBastion ? 0
+        : skipAutoAfterStandaloneSkill ? 0
+          : isArcher ? classConstants.archer.hitCount
+            : 1;
   const totalHits = baseHits + (turnEffects.bonusAttacks || 0);
   let total = 0;
   let wasCrit = false;
