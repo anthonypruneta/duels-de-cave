@@ -912,6 +912,21 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   return adjusted;
 }
 
+/**
+ * Un tour d’un combattant : CD, passifs début de tour, puis capacités de classe et coups.
+ *
+ * Structure (héritée du développement du moteur, pas une obligation technique) :
+ * - Mage / Guerrier / Archer : quand la capacité est prête, le dégât principal du tour passe par les
+ *   branches isMage / isWar / isArcher dans la boucle des coups (pas un bloc séparé puis une auto).
+ * - Autres classes : blocs if (class === …) pour la capacité, puis boucle des coups avec baseHits.
+ *
+ * Auto après capacité (même passage) :
+ * - Succube, Healer, Masochiste : skipAutoAfterStandaloneSkill → pas d’auto en plus le même tour que
+ *   leur sort offensif / soin / renvoi (évite ex. fouet + auto).
+ * - Paladin (riposte), Voleur (esquive) : la capacité est une préparation ; l’auto du tour reste.
+ * - Démoniste (familier) et Alchimiste (cycle flasque) : mécaniques « chaque tour » en plus du reste.
+ * - Bastion : baseHits = 0 le tour de la charge ; Alchimiste : 0 sur la phase flasque (voir isAlchimiste).
+ */
 export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, options = {}) {
   if (att.currentHP <= 0 || def.currentHP <= 0) return;
 
