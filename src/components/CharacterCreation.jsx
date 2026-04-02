@@ -1442,13 +1442,17 @@ const CharacterCreation = () => {
                         <img
                           src={existingCharacter.characterImage}
                           alt={existingCharacter.name}
-                          className="w-full h-auto object-contain"
+                          className="relative z-[1] w-full h-auto object-contain"
                         />
                       ) : (
-                        <div className="h-96 w-full flex items-center justify-center">
+                        <div className="relative z-[1] h-96 w-full flex items-center justify-center">
                           <div className="text-9xl opacity-20">{races[existingCharacter.race].icon}</div>
                         </div>
                       )}
+                      {(() => {
+                        const bid = resolveBorderId(existingCharacter.equippedBorder);
+                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} imageSrc={existingCharacter.characterImage || null} /> : null;
+                      })()}
                       {(() => {
                         const src = getRealBorderImageSrc(existingCharacter.equippedRealBorder);
                         if (!src) return null;
@@ -1456,18 +1460,13 @@ const CharacterCreation = () => {
                           <img
                             src={src}
                             alt=""
-                            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                            style={{ zIndex: 2 }}
+                            className="absolute inset-0 z-[5] w-full h-full object-contain pointer-events-none"
                           />
                         );
                       })()}
-                      {(() => {
-                        const bid = resolveBorderId(existingCharacter.equippedBorder);
-                        return bid !== 'default' ? <CardBorderCanvas borderId={bid} imageSrc={existingCharacter.characterImage || null} /> : null;
-                      })()}
                       <div
-                        className={`absolute ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
-                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000', zIndex: 4 }}
+                        className={`absolute z-[10] ${existingCharacter.equippedTitle ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`}
+                        style={{ color: 'rgb(254 243 199)', textShadow: '0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}
                       >
                         <div className="character-card-name font-bold text-lg leading-tight">{existingCharacter.name}</div>
                         {existingCharacter.equippedTitle && (

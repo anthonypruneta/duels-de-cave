@@ -2790,7 +2790,7 @@ function drawGoldReliefSparkles(ctx, state, w, h) {
       if (sp.delay > 0) continue;
       const t = sp.life / sp.maxLife;
       const pulse = t < 0.22 ? t / 0.22 : t < 0.68 ? 1 : (1 - t) / 0.32;
-      const a = pulse * 0.4;
+      const a = pulse * 0.28;
       const sat = sp.hue >= 35 && sp.hue <= 58 ? 82 : 88;
       drawStar(ctx, sp.x, sp.y, sp.size, 4, hsl(sp.hue, sat, 82, a));
       const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, sp.size * 3.6);
@@ -2834,7 +2834,7 @@ function buildGoldReliefGrainTile(size) {
 function drawGoldReliefBrushedSheen(ctx, w, h, t) {
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.11;
+  ctx.globalAlpha = 0.075;
   const phase = (t * 18) % (w * 0.09);
   for (let i = -6; i < 22; i++) {
     const x0 = i * (w * 0.065) + phase;
@@ -2856,7 +2856,7 @@ function drawGoldReliefBrushedSheen(ctx, w, h, t) {
 }
 
 /** Voile holo diagonal sur toute la carte (type Secret Rare / Hyper Rare). */
-function drawGoldReliefHoloVeil(ctx, w, h, t) {
+function drawGoldReliefHoloVeil(ctx, w, h, t, alphaMul = 1) {
   ctx.save();
   const cx = w * 0.5;
   const cy = h * 0.48;
@@ -2865,15 +2865,15 @@ function drawGoldReliefHoloVeil(ctx, w, h, t) {
   ctx.translate(cx, cy);
   ctx.rotate(angle);
   ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = 0.38;
+  ctx.globalAlpha = 0.22 * alphaMul;
   const g = ctx.createLinearGradient(-len, 0, len, 0);
   const base = (t * 48) % 360;
   g.addColorStop(0, hsl(base, 72, 58, 0));
-  g.addColorStop(0.12, hsl((base + 42) % 360, 78, 56, 0.85));
-  g.addColorStop(0.28, hsl((base + 118) % 360, 82, 54, 0.95));
-  g.addColorStop(0.45, hsl((base + 200) % 360, 76, 58, 0.88));
-  g.addColorStop(0.62, hsl((base + 275) % 360, 80, 56, 0.9));
-  g.addColorStop(0.78, hsl((base + 330) % 360, 74, 60, 0.72));
+  g.addColorStop(0.12, hsl((base + 42) % 360, 78, 56, 0.55));
+  g.addColorStop(0.28, hsl((base + 118) % 360, 82, 54, 0.62));
+  g.addColorStop(0.45, hsl((base + 200) % 360, 76, 58, 0.58));
+  g.addColorStop(0.62, hsl((base + 275) % 360, 80, 56, 0.6));
+  g.addColorStop(0.78, hsl((base + 330) % 360, 74, 60, 0.48));
   g.addColorStop(1, hsl((base + 380) % 360, 68, 62, 0));
   ctx.fillStyle = g;
   ctx.fillRect(-len * 1.35, -h * 1.1, len * 2.7, h * 2.2);
@@ -2892,7 +2892,7 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   baseGrad.addColorStop(0, '#6b4e14');
   baseGrad.addColorStop(0.22, '#9a741f');
   baseGrad.addColorStop(0.42, '#c9a227');
-  baseGrad.addColorStop(0.52, '#e8cf5c');
+  baseGrad.addColorStop(0.52, '#d4b84a');
   baseGrad.addColorStop(0.68, '#b8892a');
   baseGrad.addColorStop(0.88, '#8f6a1c');
   baseGrad.addColorStop(1, '#5c4210');
@@ -2905,15 +2905,15 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
     w * 0.28, h * 0.14, 0,
     w * 0.42, h * 0.38, Math.max(w, h) * 0.92
   );
-  sheen.addColorStop(0, 'rgba(255, 252, 235, 0.72)');
-  sheen.addColorStop(0.28, 'rgba(255, 214, 130, 0.22)');
-  sheen.addColorStop(0.55, 'rgba(180, 140, 60, 0.08)');
-  sheen.addColorStop(1, 'rgba(35, 22, 6, 0.38)');
+  sheen.addColorStop(0, 'rgba(255, 252, 235, 0.48)');
+  sheen.addColorStop(0.28, 'rgba(255, 214, 130, 0.16)');
+  sheen.addColorStop(0.55, 'rgba(180, 140, 60, 0.06)');
+  sheen.addColorStop(1, 'rgba(35, 22, 6, 0.32)');
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, w, h);
 
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.52;
+  ctx.globalAlpha = 0.4;
   if (state.grainTile) {
     const pat = ctx.createPattern(state.grainTile, 'repeat');
     if (pat) {
@@ -2936,11 +2936,11 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
 function drawGoldReliefIridiumSweep(ctx, w, h, t) {
   const ang = Math.atan2(h, w);
   const diag = Math.hypot(w, h);
-  const band = diag * 0.055;
+  const band = diag * 0.042;
 
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = 0.34;
+  ctx.globalAlpha = 0.18;
 
   ctx.translate(w * 0.5, h * 0.5);
   ctx.rotate(ang);
@@ -2954,17 +2954,32 @@ function drawGoldReliefIridiumSweep(ctx, w, h, t) {
   const gx1 = pos + band * 1.55;
   const g = ctx.createLinearGradient(gx0, 0, gx1, 0);
   g.addColorStop(0, hsl((hueBase + 255) % 360, 68, 62, 0));
-  g.addColorStop(0.14, hsl((hueBase + 300) % 360, 82, 58, 0.55));
-  g.addColorStop(0.3, hsl((hueBase + 175) % 360, 85, 54, 0.75));
-  g.addColorStop(0.46, hsl((hueBase + 55) % 360, 78, 60, 0.7));
-  g.addColorStop(0.6, hsl((hueBase + 320) % 360, 80, 58, 0.68));
-  g.addColorStop(0.76, hsl((hueBase + 140) % 360, 84, 56, 0.62));
-  g.addColorStop(0.9, hsl((hueBase + 285) % 360, 72, 64, 0.4));
+  g.addColorStop(0.14, hsl((hueBase + 300) % 360, 82, 58, 0.38));
+  g.addColorStop(0.3, hsl((hueBase + 175) % 360, 85, 54, 0.48));
+  g.addColorStop(0.46, hsl((hueBase + 55) % 360, 78, 60, 0.45));
+  g.addColorStop(0.6, hsl((hueBase + 320) % 360, 80, 58, 0.42));
+  g.addColorStop(0.76, hsl((hueBase + 140) % 360, 84, 56, 0.38));
+  g.addColorStop(0.9, hsl((hueBase + 285) % 360, 72, 64, 0.28));
   g.addColorStop(1, hsl((hueBase + 210) % 360, 65, 68, 0));
 
   ctx.fillStyle = g;
   ctx.fillRect(pos - band * 6, -diag * 1.08, band * 22, diag * 2.4);
 
+  ctx.restore();
+}
+
+/**
+ * Réduit l’opacité de l’or sur la zone du personnage (masque) pour laisser transparaître
+ * l’image réelle sous le canvas, sans retirer l’effet sur les bords de la carte.
+ */
+function drawGoldReliefSubjectReveal(ctx, w, h, mask) {
+  if (!mask) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 0.5;
+  ctx.filter = 'blur(5px)';
+  ctx.drawImage(mask, -2, -2, w + 4, h + 4);
+  ctx.filter = 'none';
   ctx.restore();
 }
 
@@ -2988,7 +3003,7 @@ function drawGoldReliefSilhouetteGlowBehind(octx, w, h, mask) {
   t.fillRect(0, 0, w, h);
   octx.save();
   octx.globalCompositeOperation = 'destination-over';
-  octx.globalAlpha = 0.5;
+  octx.globalAlpha = 0.34;
   octx.drawImage(tmp, 0, 0);
   octx.restore();
 }
@@ -2997,7 +3012,7 @@ function drawGoldReliefSilhouetteGlowBehind(octx, w, h, mask) {
 function drawGoldReliefPrismaticFill(octx, w, h, t) {
   octx.save();
   octx.globalCompositeOperation = 'source-atop';
-  octx.globalAlpha = 0.34;
+  octx.globalAlpha = 0.18;
   const shift = (t * 38) % 360;
   const pr = octx.createLinearGradient(
     w * (0.1 + 0.04 * Math.sin(t * 0.31)),
@@ -3020,7 +3035,7 @@ function drawGoldReliefPrismaticFill(octx, w, h, t) {
 function drawGoldReliefEtchedHighlights(octx, w, h, mask, t) {
   octx.save();
   octx.globalCompositeOperation = 'source-atop';
-  octx.globalAlpha = 0.14 + 0.06 * Math.sin(t * 0.55);
+  octx.globalAlpha = 0.09 + 0.04 * Math.sin(t * 0.55);
   octx.filter = 'blur(0.85px)';
   octx.drawImage(mask, -0.8, -0.8, w + 1.6, h + 1.6);
   octx.filter = 'none';
@@ -3049,7 +3064,7 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   octx.drawImage(mask, -1.2, -1.2, w + 2.4, h + 2.4);
   octx.filter = 'none';
   octx.globalCompositeOperation = 'source-in';
-  octx.fillStyle = 'rgba(12, 5, 2, 0.68)';
+  octx.fillStyle = 'rgba(12, 5, 2, 0.48)';
   octx.fillRect(-w, -h, w * 3, h * 3);
   octx.restore();
 
@@ -3064,10 +3079,10 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   const lx0 = w * 0.36;
   const ly0 = h * 0.32;
   const bodyGrad = octx.createRadialGradient(lx0, ly0, 0, lx0, ly0, mh * 0.44);
-  bodyGrad.addColorStop(0, 'rgba(118, 72, 38, 0.94)');
-  bodyGrad.addColorStop(0.22, 'rgba(98, 58, 28, 0.96)');
-  bodyGrad.addColorStop(0.5, 'rgba(72, 40, 18, 0.98)');
-  bodyGrad.addColorStop(1, 'rgba(28, 12, 5, 0.995)');
+  bodyGrad.addColorStop(0, 'rgba(118, 72, 38, 0.62)');
+  bodyGrad.addColorStop(0.22, 'rgba(98, 58, 28, 0.68)');
+  bodyGrad.addColorStop(0.5, 'rgba(72, 40, 18, 0.74)');
+  bodyGrad.addColorStop(1, 'rgba(28, 12, 5, 0.78)');
   octx.fillStyle = bodyGrad;
   octx.fillRect(0, 0, w, h);
 
@@ -3077,9 +3092,9 @@ function renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, t = 0) {
   // 5) Biseau
   octx.save();
   octx.globalCompositeOperation = 'source-atop';
-  octx.globalAlpha = 0.4;
+  octx.globalAlpha = 0.28;
   const bevel = octx.createLinearGradient(0, 0, w * 0.96, h * 0.94);
-  bevel.addColorStop(0, 'rgba(255, 232, 200, 0.28)');
+  bevel.addColorStop(0, 'rgba(255, 232, 200, 0.2)');
   bevel.addColorStop(0.18, 'rgba(255, 255, 255, 0)');
   bevel.addColorStop(0.72, 'rgba(0, 0, 0, 0)');
   bevel.addColorStop(1, 'rgba(8, 3, 1, 0.42)');
@@ -3166,21 +3181,24 @@ function drawGoldReliefTest(ctx, state, w, h) {
 
   // 1) Or métallique + grain + stries
   drawGoldReliefMetallicFill(ctx, w, h, state);
-  // 2) Voile holo sur toute la surface
+  // 2) Voile holo (atténué pour ne pas cramer le sujet)
   drawGoldReliefHoloVeil(ctx, w, h, state.t);
   drawGoldReliefSparkles(ctx, state, w, h);
 
-  // 3) Silhouette bronze + prismatique + gravure
+  // 3) Zone personnage plus transparente → l’image sous le canvas ressort
+  drawGoldReliefSubjectReveal(ctx, w, h, mask);
+
+  // 4) Silhouette bronze légère + prismatique discret
   renderGoldReliefDarkSilhouetteLayer(octx, w, h, mask, state.t);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 0.94;
+  ctx.globalAlpha = 0.4;
   ctx.drawImage(overlay, 0, 0);
 
-  // 4) Léger renfort holo par-dessus (fusion avec le personnage)
+  // 5) Très léger holo final
   ctx.save();
   ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = 0.22;
-  drawGoldReliefHoloVeil(ctx, w, h, state.t + 1.7);
+  ctx.globalAlpha = 0.1;
+  drawGoldReliefHoloVeil(ctx, w, h, state.t + 1.7, 0.85);
   ctx.restore();
 
   ctx.restore();

@@ -152,20 +152,23 @@ const UnifiedCharacterCard = ({
           {/* Important : ne pas “créer” une hauteur fixe ici.
               On laisse la taille du contenu `fallback` déterminer la hauteur de la zone image,
               sinon la zone se retrouve trop petite quand l'image n'existe pas. */}
-          <div className="w-full flex items-center justify-center">{fallback}</div>
+          <div className="relative z-[1] w-full flex items-center justify-center">{fallback}</div>
         </>
       )}
+      {imageOverlayContent && (
+        <div className="absolute inset-0 z-[2] pointer-events-none flex items-center justify-center overflow-hidden">
+          {imageOverlayContent}
+        </div>
+      )}
+      {canvasOverlay}
       {realBorderSrc && (
         <img
           src={realBorderSrc}
           alt=""
-          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-          style={{ zIndex: 2 }}
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[5]"
         />
       )}
-      {canvasOverlay}
-      {imageOverlayContent}
-      <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center`} style={{ zIndex: 4 }}>
+      <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center z-[10]`}>
         <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
         {title && (
           <div className="character-card-name text-sm leading-tight mt-0.5" style={nameStyle}>{title}</div>
