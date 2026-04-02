@@ -2830,31 +2830,6 @@ function buildGoldReliefGrainTile(size) {
   return c;
 }
 
-/** Fines stries brossées (effet foil gravé). */
-function drawGoldReliefBrushedSheen(ctx, w, h, t) {
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.075;
-  const phase = (t * 18) % (w * 0.09);
-  for (let i = -6; i < 22; i++) {
-    const x0 = i * (w * 0.065) + phase;
-    const grd = ctx.createLinearGradient(x0, 0, x0 + w * 0.11, h);
-    grd.addColorStop(0, 'rgba(255, 255, 255, 0)');
-    grd.addColorStop(0.45, 'rgba(255, 236, 200, 0.55)');
-    grd.addColorStop(0.55, 'rgba(40, 28, 8, 0.35)');
-    grd.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.moveTo(x0, -12);
-    ctx.lineTo(x0 + w * 0.035, h + 12);
-    ctx.lineTo(x0 + w * 0.095, h + 12);
-    ctx.lineTo(x0 + w * 0.06, -12);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 /** Voile holo diagonal sur toute la carte (type Secret Rare / Hyper Rare). */
 function drawGoldReliefHoloVeil(ctx, w, h, t, alphaMul = 1) {
   ctx.save();
@@ -2880,11 +2855,10 @@ function drawGoldReliefHoloVeil(ctx, w, h, t, alphaMul = 1) {
   ctx.restore();
 }
 
-/** Or métallique + grain + stries sur tout le rectangle (avant découpe masque). */
+/** Or métallique + grain sur tout le rectangle (avant découpe masque). */
 function drawGoldReliefMetallicFill(ctx, w, h, state) {
   const gp = state.grainPhase;
   const tw = state.grainTile?.width || GOLD_RELIEF_GRAIN_TILE;
-  const t = state.t;
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -2928,8 +2902,6 @@ function drawGoldReliefMetallicFill(ctx, w, h, state) {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-
-  drawGoldReliefBrushedSheen(ctx, w, h, t);
 }
 
 /** Bande holo mobile plus large (reflet type carte premium). */
