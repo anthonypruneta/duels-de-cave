@@ -64,10 +64,37 @@ const retryOperation = async (operation, maxRetries = 3, delayMs = 1000) => {
   throw lastError;
 };
 
+const normalizeCharacterNameForUniqueness = (rawName) => {
+  if (typeof rawName !== 'string') return '';
+  return rawName
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+};
+
 // Sauvegarder un personnage
 export const saveCharacter = async (userId, characterData) => {
   try {
     const result = await retryOperation(async () => {
+      const desiredName = normalizeCharacterNameForUniqueness(characterData?.name);
+      if (desiredName) {
+        // Empêcher de réutiliser le même nom qu'un autre personnage du compte (disabled + archivés tournoi).
+        // On normalise pour couvrir les variantes d'espaces/casse.
+        const oldCharactersResult = await getDisabledCharacters(userId);
+        if (oldCharactersResult.success) {
+          const hasConflict = (oldCharactersResult.data || []).some((c) => {
+            if (!c || c.disabled !== true && c.tournamentArchived !== true) {
+              // Certains docs archivedCharacters n'ont pas forcément "disabled".
+              // On compare quand même: le but est l'unicité sur l'historique du compte.
+            }
+            return normalizeCharacterNameForUniqueness(c?.name) === desiredName;
+          });
+          if (hasConflict) {
+            throw new Error('Ce nom est déjà utilisé par un de tes anciens personnages. Choisis un autre nom.');
+          }
+        }
+      }
+
       const characterRef = doc(db, 'characters', userId);
       const existingSnap = await getDoc(characterRef);
       if (existingSnap.exists()) {
