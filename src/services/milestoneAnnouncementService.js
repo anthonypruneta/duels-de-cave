@@ -97,7 +97,7 @@ export async function announceFirstDungeonFinalBossKill({ userId, dungeonKey, ch
 
 export async function announceFirstLabyrinthFloorClear({ userId, weekId, floorNumber, character, enemyName = null }) {
   try {
-    if (!userId || !weekId || ![80, 90, 100].includes(Number(floorNumber))) {
+    if (!userId || !weekId || ![80, 90, 100, 110, 120].includes(Number(floorNumber))) {
       return { success: false, skipped: true, reason: 'invalid_params' };
     }
 

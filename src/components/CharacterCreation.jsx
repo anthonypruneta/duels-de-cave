@@ -38,6 +38,8 @@ import { TITLES, getFormattedTitle } from '../data/titles';
 import { BORDERS, checkBorderUnlocks, equipBorder, syncUnlockedBorders, resolveBorderId, getBorderGlowClass } from '../data/borders';
 import CardBorderCanvas from './CardBorderCanvas';
 import { db } from '../firebase/config';
+import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
+import { announceFirstLabyrinthFloorClear } from '../services/milestoneAnnouncementService';
 import { doc, getDoc } from 'firebase/firestore';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
@@ -750,6 +752,25 @@ const CharacterCreation = () => {
             cataclysmeWins: cataclysmeWinsRaw,
             labyrinthFloor90Wins,
           };
+
+          // Rétroactivité (semaine en cours) : si un joueur a déjà clear 110/120,
+          // on tente de créer les milestones manquants pour déclencher l'annonce Discord.
+          // La transaction Firestore garantit qu'un seul joueur peut claim chaque "premier clear".
+          try {
+            const weekId = getCurrentWeekId();
+            const milestoneFloors = [80, 90, 100, 110, 120];
+            milestoneFloors
+              .filter((f) => labFloor >= f)
+              .forEach((f) => {
+                announceFirstLabyrinthFloorClear({
+                  userId: currentUser.uid,
+                  weekId,
+                  floorNumber: f,
+                  character: charData,
+                  enemyName: null
+                });
+              });
+          } catch (_) { /* ignore */ }
 
           syncUnlockedBorders(currentUser.uid, charData, extras).then(borders => {
             if (borders && borders.length > (charData.unlockedBorders?.length || 0)) {

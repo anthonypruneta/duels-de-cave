@@ -42,9 +42,9 @@ export const TITLES = {
   },
   fleau_labyrinthe: {
     id: 'fleau_labyrinthe',
-    male: 'Fléau du Labyrinthe',
-    female: 'Fléau du Labyrinthe',
-    description: 'Atteindre l\'étage 120 du Labyrinthe Infini',
+    male: 'Dieu du Labyrinthe',
+    female: 'Déesse du Labyrinthe',
+    description: 'Vaincre l\'étage 120 du Labyrinthe Infini',
     icon: '🌀',
     category: 'general',
   },
