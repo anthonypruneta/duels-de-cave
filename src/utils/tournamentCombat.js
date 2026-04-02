@@ -1262,7 +1262,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     skillUsed = true;
     const spellCapMultSucc = consumeAuraCapacityCapMultiplier();
     const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
-    const isCrit = forceCritAme || combatRandom01() < calcCritChance(att, def);
+    const isCrit = turnEffects.guaranteedCrit ? true : forceCritAme || combatRandom01() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     const shouldApplyDompteuseChairDebuff = att.subclass?.id === 'dompteuse_chair';
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
@@ -1303,7 +1303,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   if (isBastion) {
     skillUsed = true;
     const spellCapMultBast = consumeAuraCapacityCapMultiplier();
-    const isCrit = combatRandom01() < calcCritChance(att, def);
+    const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultBast * classConstants.bastion.capScale + att.base.def * classConstants.bastion.defScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'bast', log, playerColor);
