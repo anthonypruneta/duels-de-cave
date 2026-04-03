@@ -159,17 +159,30 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
       }
     }
 
-    // --- colosse_mille : plus de 1000 PV totaux (même calcul que la fiche perso) — rétroactif au chargement ---
-    if (!earnedTitles.includes('colosse_mille')) {
+    // --- Stats totales (même calcul que la fiche perso) : 1000+ PV, puis 200+ par stat — rétroactif au chargement ---
+    {
       const normalized = normalizeCharacterBonuses({
         ...charData,
         level: charData.level ?? 1,
       });
       const weapon = charData.equippedWeaponId ? getWeaponById(charData.equippedWeaponId) : null;
       const { finalStats } = computeCharacterStatsDisplay(normalized, weapon || null);
-      const totalHp = finalStats?.hp ?? 0;
-      if (totalHp > 1000) {
+      const fs = finalStats || {};
+      if (!earnedTitles.includes('colosse_mille') && (fs.hp ?? 0) > 1000) {
         newTitles.push('colosse_mille');
+      }
+      const stat200Titles = [
+        { key: 'hp', id: 'sommet_hp' },
+        { key: 'auto', id: 'sommet_auto' },
+        { key: 'def', id: 'sommet_def' },
+        { key: 'cap', id: 'sommet_cap' },
+        { key: 'rescap', id: 'sommet_rescap' },
+        { key: 'spd', id: 'sommet_spd' },
+      ];
+      for (const { key, id } of stat200Titles) {
+        if (!earnedTitles.includes(id) && !newTitles.includes(id) && (fs[key] ?? 0) > 200) {
+          newTitles.push(id);
+        }
       }
     }
 
