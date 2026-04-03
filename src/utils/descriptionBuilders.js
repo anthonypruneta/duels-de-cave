@@ -2,6 +2,7 @@
 // basée sur les constantes de combatMechanics.js (modifiables via /admin/balance)
 
 import { raceConstants, classConstants, getSubclassCapacityConstants } from '../data/combatMechanics';
+import { COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT, COOP_ECAILLEUX_ECHO_STAT_LINK_DIVISOR } from '../data/coopRedDungeon.js';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
@@ -9,6 +10,14 @@ import { getCoopRaceEchoAwakeningFragment, COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
+
+/** Pour % de stats de référence (souvent moins de 1 % avec le Pointeau) : évite « 0 % » à tort (ex. 0,25 %). */
+function formatRefStatPercentForPointeau(fraction) {
+  const n = Number(fraction || 0) * 100;
+  if (n <= 0) return '0%';
+  if (n < 1) return `${n.toFixed(2).replace('.', ',')}%`;
+  return `${Math.round(n)}%`;
+}
 
 /** Découpe une description en lignes (un effet par ligne). Gère \n, " - ", ", ", " & ". */
 export const splitDescriptionLines = (text) => {
@@ -79,8 +88,8 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
     case 'Turtlekin': return `Le premier coup reçu ne peut dépasser ${pct(c.firstHitCapPercent, 0)} de vos PV max`;
-    case 'Écailleux': return `+${c.spd || 0} VIT, +${c.rescap || 0} ResC\nChaque ${c.statLinkDivisor || 6} VIT : +1 ResC ; chaque ${c.statLinkDivisor || 6} ResC : +1 VIT (une fois au calcul des stats)`;
-    case 'Cendrés': return `+${c.spd || 0} VIT, +${c.rescap || 0} ResC`;
+    case 'Écailleux': return races['Écailleux']?.bonus || '';
+    case 'Cendrés': return races['Cendrés']?.bonus || '';
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -101,8 +110,14 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
-    case 'Écailleux': return `Chaque dégât de capacité sur les PV : +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} VIT et +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} ResC (réf. début de combat), cumul combat.`;
-    case 'Cendrés': return `Cumul PV perdus (toutes sources) : 1 braise par ${pct(e?.cendresHpDamageThreshold ?? raceConstants.cendres.hpDamageThreshold, 0)} de PV max. Début de tour d'action : pool = ${e?.cendresBraiseGuaranteedEachTurn ?? 1} + braises non dépensées. Premier sort (dégâts ou soin) : +${pct(e?.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraise, 0)} par braise, puis consommation. Les soins ne réduisent pas le cumul.`;
+    case 'Écailleux': return `Chaque capacité qui vous inflige des dégâts sur les PV : +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} VIT et +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} ResC (réf. début de combat), cumul tout le combat.`;
+    case 'Cendrés': {
+      const defAw = races['Cendrés']?.awakening?.effect;
+      const th = e?.cendresHpDamageThreshold ?? defAw?.cendresHpDamageThreshold ?? raceConstants.cendres.hpDamageThreshold;
+      const gu = e?.cendresBraiseGuaranteedEachTurn ?? defAw?.cendresBraiseGuaranteedEachTurn ?? 2;
+      const mu = e?.cendresBraiseSpellMult ?? defAw?.cendresBraiseSpellMult ?? 0.15;
+      return `Chaque ${pct(th, 0)} de PV max perdus (cumul combat) ajoute 1 braise. Au début de votre tour d'action : pool = ${gu} braises + braises non dépensées. Premier sort (dégâts ou soin) : +${pct(mu, 0)} par braise, puis consommation. Les soins ne retirent pas le cumul de dégâts subis.`;
+    }
     default: return races[raceName]?.awakening?.description || '';
   }
 };
@@ -129,6 +144,12 @@ export const buildRacePointeauAdnDescription = (raceName) => {
     const m = e.cendresBraiseSpellMult ?? 0.05;
     const g = e.cendresBraiseGuaranteedEachTurn ?? 0;
     return `1 braise par ${pct(th, 0)} de PV max perdus (cumul combat) ; +${pct(m, 0)} par braise sur le premier sort du tour ; ${g === 0 ? 'aucune braise garantie' : `${g} braise(s) garantie(s)`} au début du tour d'action.`;
+  }
+
+  if (raceName === 'Écailleux') {
+    const pctStr = formatRefStatPercentForPointeau(e?.ecailleuxCapacityRefStatPercent ?? COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT);
+    const dLink = e?.ecailleuxStatLinkDivisorPointeau ?? COOP_ECAILLEUX_ECHO_STAT_LINK_DIVISOR;
+    return `Chaque capacité qui vous inflige des dégâts sur les PV : +${pctStr} VIT et +${pctStr} ResC (réf. début de combat), cumul tout le combat.\nLien de stats du fragment : chaque ${dLink} VIT : +1 ResC ; chaque ${dLink} ResC : +1 VIT (une fois au calcul des stats).`;
   }
 
   return buildRaceAwakeningDescription(raceName, e);
@@ -418,12 +439,12 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
       ];
     case 'Écailleux':
       return [
-        text('+'), slot(['spd'], 'raw'), text(' VIT, +'), slot(['rescap'], 'raw'),
-        text(' ResC\nChaque '), slot(['statLinkDivisor'], 'raw'), text(' VIT : +1 ResC ; chaque '),
-        slot(['statLinkDivisor'], 'raw'), text(' ResC : +1 VIT (une fois au calcul des stats)')
+        text('Chaque '), slot(['statLinkDivisorRacial'], 'raw'),
+        text(' VIT : +1 ResC ; chaque '), slot(['statLinkDivisorRacial'], 'raw'),
+        text(' ResC : +1 VIT (une fois au calcul des stats)')
       ];
     case 'Cendrés':
-      return [text('+'), slot(['spd'], 'raw'), text(' VIT, +'), slot(['rescap'], 'raw'), text(' ResC')];
+      return [{ type: 'text', value: buildRaceBonusDescription(raceName, c) }];
     default:
       return [{ type: 'text', value: buildRaceBonusDescription(raceName, c) }];
   }
@@ -503,14 +524,16 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
       ];
     case 'Écailleux':
       return [
-        text('Chaque dégât de capacité sur les PV : +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'),
-        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul combat.')
+        text('Chaque capacité qui vous inflige des dégâts sur les PV : +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'),
+        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul tout le combat.')
       ];
     case 'Cendrés':
       return [
-        text('Cumul PV perdus (toutes sources) : 1 braise par '), slot(['cendresHpDamageThreshold'], 'percent'),
-        text(" de PV max. Début de tour d'action : pool = "), slot(['cendresBraiseGuaranteedEachTurn'], 'raw'),
-        text(' + braises non dépensées. Premier sort : +'), slot(['cendresBraiseSpellMult'], 'percent'), text(' par braise.')
+        text('Chaque '), slot(['cendresHpDamageThreshold'], 'percent'),
+        text(' de PV max perdus (cumul combat) ajoute 1 braise. Au début de votre tour d\'action : pool = '),
+        slot(['cendresBraiseGuaranteedEachTurn'], 'raw'),
+        text(' braises + braises non dépensées. Premier sort (dégâts ou soin) : +'), slot(['cendresBraiseSpellMult'], 'percent'),
+        text(' par braise, puis consommation. Les soins ne retirent pas le cumul de dégâts subis.')
       ];
     default:
       return [{ type: 'text', value: buildRaceAwakeningDescription(raceName, e) }];

@@ -185,19 +185,28 @@ export const raceConstants = {
     rescap: 8
   },
   ecailleux: {
-    spd: 5,
-    rescap: 5,
-    statLinkDivisor: 6,
-    capacityRefStatPercent: 0.01
+    capacityRefStatPercent: 0.03,
+    /** Lien VIT ↔ ResC une fois au calcul des stats (race Écailleux). */
+    statLinkDivisorRacial: 3,
+    /** Lien VIT/ResC du Pointeau ADN quand la race du fragment est Écailleux (1 pour 6). */
+    statLinkDivisorPointeau: 6
   },
+  /** Braises Cendrés : règles du bonus racial (sans éveil niveau 100). L’éveil surcharge via races.js. */
   cendres: {
-    spd: 3,
-    rescap: 3,
     hpDamageThreshold: 0.10,
-    braisMultPerBraise: 0.10,
-    guaranteedBraisesPerTurn: 1
+    braisMultPerBraiseRacial: 0.10,
+    guaranteedBraisesPerTurnRacial: 1
   }
 };
+
+/** Fragment d’éveil fusionné : mécanique « braises » de base (hors éveil). */
+export function getCendresRacialAwakeningFragment() {
+  return {
+    cendresHpDamageThreshold: raceConstants.cendres.hpDamageThreshold,
+    cendresBraiseGuaranteedEachTurn: raceConstants.cendres.guaranteedBraisesPerTurnRacial,
+    cendresBraiseSpellMult: raceConstants.cendres.braisMultPerBraiseRacial
+  };
+}
 
 // Constantes générales
 export const generalConstants = {
@@ -312,14 +321,6 @@ export const getRaceBonus = (race) => {
     case 'Turtlekin':
       b.def = raceConstants.turtlekin.def;
       b.rescap = raceConstants.turtlekin.rescap;
-      break;
-    case 'Écailleux':
-      b.spd = raceConstants.ecailleux.spd;
-      b.rescap = raceConstants.ecailleux.rescap;
-      break;
-    case 'Cendrés':
-      b.spd = raceConstants.cendres.spd;
-      b.rescap = raceConstants.cendres.rescap;
       break;
   }
   return b;

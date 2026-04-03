@@ -117,7 +117,9 @@ function Encyclopedia() {
               <div className="space-y-6">
                 {Object.entries(races).map(([name, info]) => {
                   const bonusLines = splitDescriptionLines(getRaceBonusText(name));
-                  const awakeningLines = splitDescriptionLines(buildRaceAwakeningDescription(name));
+                  const awakeningLines = splitDescriptionLines(
+                    info.awakening?.description || buildRaceAwakeningDescription(name)
+                  );
                   const pointeauLines = splitDescriptionLines(buildRacePointeauAdnDescription(name));
                   return (
                     <div key={name} className="bg-stone-800/80 border border-stone-700 rounded-lg overflow-hidden">

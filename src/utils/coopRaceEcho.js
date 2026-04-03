@@ -8,7 +8,8 @@ import {
   COOP_RACE_ECHO_POTENCY,
   COOP_CENDRES_ECHO_HP_THRESHOLD,
   COOP_CENDRES_ECHO_BRAISE_MULT,
-  COOP_CENDRES_ECHO_GUARANTEED
+  COOP_CENDRES_ECHO_GUARANTEED,
+  COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT
 } from '../data/coopRedDungeon.js';
 
 /** Copie Mindflayer (Pointeau ADN / coop Red uniquement) : dégâts/soins de la copie = ce % de la valeur « pleine ». */
@@ -176,9 +177,10 @@ export function getCoopRaceEchoAwakeningFragment(echoRaceName) {
     };
   }
 
-  if (echoRaceName === 'Écailleux' && typeof full?.ecailleuxCapacityRefStatPercent === 'number') {
+  if (echoRaceName === 'Écailleux') {
     return {
-      ecailleuxCapacityRefStatPercent: full.ecailleuxCapacityRefStatPercent * COOP_RACE_ECHO_POTENCY
+      ecailleuxCapacityRefStatPercent: COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT,
+      ecailleuxStatLinkDivisorPointeau: COOP_ECAILLEUX_ECHO_STAT_LINK_DIVISOR
     };
   }
 

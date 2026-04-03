@@ -127,7 +127,12 @@ export function mergeAwakeningEffects(effects = []) {
     if (typeof effect.cendresHpDamageThreshold === 'number') acc.cendresHpDamageThreshold = effect.cendresHpDamageThreshold;
     if (typeof effect.cendresBraiseSpellMult === 'number') acc.cendresBraiseSpellMult = effect.cendresBraiseSpellMult;
     if (typeof effect.cendresBraiseGuaranteedEachTurn === 'number') acc.cendresBraiseGuaranteedEachTurn = effect.cendresBraiseGuaranteedEachTurn;
-    if (typeof effect.ecailleuxCapacityRefStatPercent === 'number') acc.ecailleuxCapacityRefStatPercent = effect.ecailleuxCapacityRefStatPercent;
+    if (typeof effect.ecailleuxCapacityRefStatPercent === 'number') {
+      acc.ecailleuxCapacityRefStatPercent = Math.max(
+        acc.ecailleuxCapacityRefStatPercent ?? 0,
+        effect.ecailleuxCapacityRefStatPercent
+      );
+    }
     return acc;
   }, {});
 }

@@ -15,7 +15,8 @@ import {
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses,
-  getSubclassCapacityConstants
+  getSubclassCapacityConstants,
+  getCendresRacialAwakeningFragment
 } from '../data/combatMechanics.js';
 import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from './awakening.js';
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
@@ -324,6 +325,7 @@ export function preparerCombattant(char) {
   const additionalAwakeningEffects = (charForPrep.additionalAwakeningRaces || [])
     .map((race) => getAwakeningEffect(race, effectiveLevel));
   const awakeningEffect = mergeAwakeningEffects([
+    charForPrep.race === 'Cendrés' ? getCendresRacialAwakeningFragment() : null,
     getAwakeningEffect(charForPrep.race, effectiveLevel),
     ...additionalAwakeningEffects,
     getCoopRaceEchoAwakeningFragment(charForPrep.coopRaceEcho?.race),
@@ -346,11 +348,17 @@ export function preparerCombattant(char) {
       }
     }
   }
-  // Écailleux : +1 ResC par 6 VIT et +1 VIT par 6 ResC (une fois, sans boucle)
+  // Écailleux : lien VIT ↔ ResC (1 pour 3) une fois, sans boucle
   if (charForPrep.race === 'Écailleux') {
+    const div = raceConstants.ecailleux.statLinkDivisorRacial;
     const s0 = baseFinal.spd;
     const r0 = baseFinal.rescap;
-    const div = raceConstants.ecailleux.statLinkDivisor;
+    baseFinal = { ...baseFinal, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
+  } else if (charForPrep.coopRaceEcho?.race === 'Écailleux') {
+    // Pointeau ADN (race du fragment = Écailleux) : lien VIT/ResC à 1 pour 6
+    const div = raceConstants.ecailleux.statLinkDivisorPointeau;
+    const s0 = baseFinal.spd;
+    const r0 = baseFinal.rescap;
     baseFinal = { ...baseFinal, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
   }
   const weaponState = initWeaponCombatState(charForPrep, weaponId);
@@ -802,7 +810,7 @@ function refreshCendresPoolAtActionTurnStart(fighter) {
   const braisesFromHp = Math.floor(cum / (th * maxHP));
   const used = fighter.cendresBraisesHpConsumed || 0;
   const avail = Math.max(0, braisesFromHp - used);
-  const g = fighter.awakening.cendresBraiseGuaranteedEachTurn ?? 1;
+  const g = fighter.awakening.cendresBraiseGuaranteedEachTurn ?? raceConstants.cendres.guaranteedBraisesPerTurnRacial;
   fighter.cendresPool = g + avail;
   fighter.cendresFirstSpellThisTurn = true;
 }
@@ -817,10 +825,10 @@ function applyCendresBraiseToOutgoing(att, amount, log, playerColor) {
   if (!att.cendresFirstSpellThisTurn) return amount;
   const pool = att.cendresPool ?? 0;
   if (pool <= 0) return amount;
-  const m = att.awakening.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraise;
+  const m = att.awakening.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraiseRacial;
   const factor = 1 + m * pool;
   const out = Math.max(1, Math.round(amount * factor));
-  const g = att.awakening.cendresBraiseGuaranteedEachTurn ?? raceConstants.cendres.guaranteedBraisesPerTurn;
+  const g = att.awakening.cendresBraiseGuaranteedEachTurn ?? raceConstants.cendres.guaranteedBraisesPerTurnRacial;
   const fromHp = Math.max(0, pool - g);
   att.cendresBraisesHpConsumed = (att.cendresBraisesHpConsumed || 0) + fromHp;
   att.cendresPool = 0;
@@ -980,8 +988,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     }
     // Écailleux : +% VIT/ResC (réf. début de combat) par dégât de capacité sur les PV
     if (isCapacityDamage) {
-      const pct = def.awakening?.ecailleuxCapacityRefStatPercent
-        ?? (def.race === 'Écailleux' ? raceConstants.ecailleux.capacityRefStatPercent : 0);
+      const pct = def.awakening?.ecailleuxCapacityRefStatPercent ?? 0;
       if (pct > 0 && def.combatStatBaseline) {
         const bs = def.combatStatBaseline;
         const dSpd = Math.round(bs.spd * pct);
