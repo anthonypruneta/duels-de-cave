@@ -110,7 +110,11 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
-    case 'Écailleux': return `Chaque capacité qui vous inflige des dégâts sur les PV : +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} VIT et +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} ResC (réf. début de combat), cumul tout le combat.`;
+    case 'Écailleux': {
+      const d = raceConstants.ecailleux.statLinkDivisorRacial;
+      const p = pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0);
+      return `Chaque capacité qui vous inflige des dégâts sur les PV : +${p} VIT et +${p} ResC (réf. début de combat), cumul tout le combat.\nChaque ${d} VIT : +1 ResC ; chaque ${d} ResC : +1 VIT (une fois au calcul des stats).`;
+    }
     case 'Cendrés': {
       const defAw = races['Cendrés']?.awakening?.effect;
       const th = e?.cendresHpDamageThreshold ?? defAw?.cendresHpDamageThreshold ?? raceConstants.cendres.hpDamageThreshold;
@@ -525,7 +529,10 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
     case 'Écailleux':
       return [
         text('Chaque capacité qui vous inflige des dégâts sur les PV : +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'),
-        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul tout le combat.')
+        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul tout le combat.\n'),
+        text('Chaque '), { type: 'slot', path: ['_bonus', 'ecailleux', 'statLinkDivisorRacial'], format: 'raw' },
+        text(' VIT : +1 ResC ; chaque '), { type: 'slot', path: ['_bonus', 'ecailleux', 'statLinkDivisorRacial'], format: 'raw' },
+        text(' ResC : +1 VIT (une fois au calcul des stats).')
       ];
     case 'Cendrés':
       return [

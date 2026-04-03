@@ -17,7 +17,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * BALANCE_CONFIG_VERSION : à incrémenter quand tu modifies les données d'équilibrage dans le code.
  * Si version code > version Storage, le code est appliqué et poussé vers Storage (écrase le fichier).
  */
-export const BALANCE_CONFIG_VERSION = 62;
+export const BALANCE_CONFIG_VERSION = 64;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {

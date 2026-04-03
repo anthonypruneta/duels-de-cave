@@ -191,7 +191,8 @@ export const races = {
     awakening: {
       levelRequired: 100,
       description:
-        'Chaque capacité qui vous inflige des dégâts sur les PV : +3% VIT et +3% ResC (réf. début de combat), cumul tout le combat.',
+        'Chaque capacité qui vous inflige des dégâts sur les PV : +3% VIT et +3% ResC (réf. début de combat), cumul tout le combat.\n' +
+        'Chaque 3 VIT : +1 ResC ; chaque 3 ResC : +1 VIT (une fois au calcul des stats).',
       effect: {
         ecailleuxCapacityRefStatPercent: 0.03
       }
