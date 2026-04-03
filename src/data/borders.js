@@ -452,31 +452,36 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     }
   } catch (_) { /* ignore clamp errors */ }
 
-  if (extras.labyrinthFloor90Wins === undefined) {
-    let floor90Wins = 0;
-    try {
-      const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
-      rewardReadOk = true;
-      if (rewardSnap.exists()) {
-        const data = rewardSnap.data() || {};
-        rewardSnapshotData = data;
-        floor90Wins = Number.isFinite(data.labyrinthFloor90Wins) ? data.labyrinthFloor90Wins : 0;
-      }
-    } catch (_) { /* ignore */ }
+  {
+    let floor90Wins = Number.isFinite(extras.labyrinthFloor90Wins)
+      ? extras.labyrinthFloor90Wins
+      : undefined;
 
-    // Rétro-compat : approximation basée sur les semaines où l'étage 90+ a été atteint.
-    // (1 victoire max comptée par semaine historique)
-    if (floor90Wins < 5) {
+    if (floor90Wins === undefined) {
       try {
-        const weeksSnap = await getDocs(collection(db, 'userLabyrinthProgress', userId, 'weeks'));
-        let retroCount = 0;
-        weeksSnap.forEach((docSnap) => {
-          const d = docSnap.data() || {};
-          if ((d.highestClearedFloor ?? 0) >= 90) retroCount += 1;
-        });
-        floor90Wins = Math.max(floor90Wins, retroCount);
+        const rewardSnap = await getDoc(doc(db, 'tournamentRewards', userId));
+        rewardReadOk = true;
+        if (rewardSnap.exists()) {
+          const data = rewardSnap.data() || {};
+          rewardSnapshotData = data;
+          floor90Wins = Number.isFinite(data.labyrinthFloor90Wins) ? data.labyrinthFloor90Wins : 0;
+        }
       } catch (_) { /* ignore */ }
     }
+
+    if (!Number.isFinite(floor90Wins)) floor90Wins = 0;
+
+    // Rétro Sable : décompte des semaines où highestClearedFloor ≥ 90 (userLabyrinthProgress/…/weeks).
+    // Important : l’accueil passait déjà un nombre dans extras, ce qui sautait tout le bloc avant — le scan ne tournait jamais.
+    try {
+      const weeksSnap = await getDocs(collection(db, 'userLabyrinthProgress', userId, 'weeks'));
+      let retroCount = 0;
+      weeksSnap.forEach((docSnap) => {
+        const d = docSnap.data() || {};
+        if ((d.highestClearedFloor ?? 0) >= 90) retroCount += 1;
+      });
+      floor90Wins = Math.max(floor90Wins, retroCount);
+    } catch (_) { /* ignore */ }
 
     extras = { ...extras, labyrinthFloor90Wins: floor90Wins };
   }
