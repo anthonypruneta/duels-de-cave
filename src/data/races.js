@@ -187,7 +187,7 @@ export const races = {
   'Écailleux': {
     bonus:
       'Chaque 3 VIT : +1 ResC ; chaque 3 ResC : +1 VIT (une fois au calcul des stats)',
-    icon: '🐲',
+    icon: '🐍',
     awakening: {
       levelRequired: 100,
       description:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllCharacters, deleteCharacter, updateCharacterImage, updateArchivedCharacterImage, toggleCharacterDisabled, updateCharacterForestBoosts, updateCharacterMageTowerPassive, updateCharacterEquippedWeapon, updateCharacterLevel, migrateHpStat4To6, clampCharacterLevelInDb, clampAllCharactersLevelInDb, reduceCharacterForestStats, reduceAllCharactersForestStats } from '../services/characterService';
@@ -35,6 +35,7 @@ import { TITLES } from '../data/titles';
 import { getDisplayTitle } from '../services/titleService';
 import AdminCoopRedSimPanel from './AdminCoopRedSimPanel';
 import { adminCleanCoopRedPointeauAndHistory } from '../services/adminCoopRedPointeauService';
+import { htmlToDiscordMarkdown } from '../utils/htmlToDiscordMarkdown';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -52,6 +53,8 @@ const Admin = () => {
   const labyrinthAudioRef = useRef(null);
   const labyrinthReplayTokenRef = useRef(null);
   const labyrinthReplayTimeoutRef = useRef(null);
+  const annonceMessageTextareaRef = useRef(null);
+  const annonceCursorAfterPasteRef = useRef(null);
 
   // États pour les annonces Discord
   const [annonceTitre, setAnnonceTitre] = useState('');
@@ -435,6 +438,48 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
       }
     }
   };
+
+  /** Coller du texte riche (Word, Discord, etc.) → Markdown Discord ; images inchangées. */
+  const handlePasteAnnonceMessage = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          handlePasteImage(e);
+          return;
+        }
+      }
+    }
+    const html = e.clipboardData?.getData('text/html');
+    if (!html || !html.trim()) return;
+
+    let md = htmlToDiscordMarkdown(html);
+    if (!md) {
+      const plain = e.clipboardData.getData('text/plain') || '';
+      if (!plain) return;
+      md = plain;
+    }
+
+    e.preventDefault();
+    const ta = e.target;
+    const start = typeof ta.selectionStart === 'number' ? ta.selectionStart : 0;
+    const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start;
+    const before = annonceMessage.slice(0, start);
+    const after = annonceMessage.slice(end);
+    const maxInsert = Math.max(0, 4096 - before.length - after.length);
+    const inserted = md.slice(0, maxInsert);
+    const next = before + inserted + after;
+    annonceCursorAfterPasteRef.current = before.length + inserted.length;
+    setAnnonceMessage(next);
+  };
+
+  useLayoutEffect(() => {
+    const pos = annonceCursorAfterPasteRef.current;
+    const el = annonceMessageTextareaRef.current;
+    if (pos == null || el == null) return;
+    el.selectionStart = el.selectionEnd = pos;
+    annonceCursorAfterPasteRef.current = null;
+  }, [annonceMessage]);
 
   const handleDropImage = (e) => {
     e.preventDefault();
@@ -1141,14 +1186,18 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             <div>
               <label className="text-stone-400 text-sm block mb-1">Message</label>
               <textarea
+                ref={annonceMessageTextareaRef}
                 value={annonceMessage}
                 onChange={(e) => setAnnonceMessage(e.target.value)}
-                onPaste={handlePasteImage}
-                placeholder="Contenu de l'annonce... (Ctrl+V pour coller une image)"
+                onPaste={handlePasteAnnonceMessage}
+                placeholder="Contenu de l'annonce... (gras / italique conservés au collage depuis Discord ou Word)"
                 rows={4}
                 className="w-full bg-stone-800 border border-stone-600 text-white px-4 py-2 rounded-lg focus:border-indigo-400 focus:outline-none resize-none"
                 maxLength={4096}
               />
+              <p className="text-stone-500 text-xs mt-1">
+                Collage depuis une source mise en forme : conversion automatique vers le Markdown Discord (**gras**, *italique*, listes). Les images se collent toujours dans la zone en dessous.
+              </p>
             </div>
 
             {/* Zone image : collage, drag & drop, ou preview */}

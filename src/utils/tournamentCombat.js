@@ -994,7 +994,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         const dSpd = Math.round(bs.spd * pct);
         const dRes = Math.round(bs.rescap * pct);
         def.base = { ...def.base, spd: def.base.spd + dSpd, rescap: def.base.rescap + dRes };
-        log.push(`${playerColor} 🐲 Écailleux : ${def.name} +${dSpd} VIT, +${dRes} ResC.`);
+        log.push(`${playerColor} 🐍 Écailleux : ${def.name} +${dSpd} VIT, +${dRes} ResC.`);
       }
     }
 
