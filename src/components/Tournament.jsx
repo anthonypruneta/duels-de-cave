@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
+import TournamentChat from './TournamentChat';
 import CharacterCardContent from './CharacterCardContent';
 import {
   onTournoiUpdate, getCombatLog, getCombatLogArchive, getTournamentArchive,
@@ -1242,59 +1243,67 @@ const Tournament = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="max-w-5xl mx-auto pt-20">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold text-amber-400">
-              {isSimulation
-                ? '🎲 Simulation — Les duels sont prêts !'
-                : isLegacyMode
-                  ? '📜 Tournoi des anciens — Les duels sont prêts !'
-                  : '🏟️ Les duels sont annoncés !'}
-            </h1>
-            <p className="text-stone-400 mt-2 text-sm">
-              {tournoi.participantsList?.length || 0} combattants
-              {isSimulation || isLegacyMode ? '' : ' • Début à 19h'}
-            </p>
-          </div>
-
-          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6 overflow-x-auto">
-            <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">📊 Arbre du tournoi</h2>
-            {renderBracket()}
-          </div>
-
-          <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6">
-            <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">👥 Participants</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {tournoi.participantsList?.map(p => (
-                <div key={p.participantId || p.userId} className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3 text-center">
-                  {p.characterImage && (
-                    <img src={p.characterImage} alt={p.nom} className="w-14 h-auto mx-auto mb-2 object-contain rounded" />
-                  )}
-                  <p className="text-white font-bold text-xs truncate">{p.nom}</p>
-                  <p className="text-stone-500 text-[10px]">{p.race} • {p.classe}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {isAdmin && !isHistoryMode && (
-            <div className="text-center bg-stone-950/85 border border-red-800/50 rounded-xl p-6">
-              <p className="text-stone-500 text-xs mb-4">
-                {isLegacyMode
-                  ? 'Lancez le premier combat quand vous êtes prêt.'
-                  : 'Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.'}
+        <div className="max-w-[1800px] mx-auto pt-20 flex flex-col xl:flex-row gap-6 items-start">
+          <div className="flex-1 min-w-0 w-full max-w-5xl xl:max-w-none">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-amber-400">
+                {isSimulation
+                  ? '🎲 Simulation — Les duels sont prêts !'
+                  : isLegacyMode
+                    ? '📜 Tournoi des anciens — Les duels sont prêts !'
+                    : '🏟️ Les duels sont annoncés !'}
+              </h1>
+              <p className="text-stone-400 mt-2 text-sm">
+                {tournoi.participantsList?.length || 0} combattants
+                {isSimulation || isLegacyMode ? '' : ' • Début à 19h'}
               </p>
-              <button
-                onClick={async () => {
-                  setActionLoading(true);
-                  await lancerTournoi(docId);
-                  setActionLoading(false);
-                }}
-                disabled={actionLoading}
-                className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-10 py-3 font-bold text-lg rounded-lg transition"
-              >
-                {actionLoading ? '⏳ Lancement...' : '🚀 Lancer manuellement'}
-              </button>
+            </div>
+
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6 overflow-x-auto">
+              <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">📊 Arbre du tournoi</h2>
+              {renderBracket()}
+            </div>
+
+            <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">👥 Participants</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {tournoi.participantsList?.map(p => (
+                  <div key={p.participantId || p.userId} className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3 text-center">
+                    {p.characterImage && (
+                      <img src={p.characterImage} alt={p.nom} className="w-14 h-auto mx-auto mb-2 object-contain rounded" />
+                    )}
+                    <p className="text-white font-bold text-xs truncate">{p.nom}</p>
+                    <p className="text-stone-500 text-[10px]">{p.race} • {p.classe}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {isAdmin && !isHistoryMode && (
+              <div className="text-center bg-stone-950/85 border border-red-800/50 rounded-xl p-6">
+                <p className="text-stone-500 text-xs mb-4">
+                  {isLegacyMode
+                    ? 'Lancez le premier combat quand vous êtes prêt.'
+                    : 'Le tirage se lance automatiquement à 18h, puis le premier combat à 19h.'}
+                </p>
+                <button
+                  onClick={async () => {
+                    setActionLoading(true);
+                    await lancerTournoi(docId);
+                    setActionLoading(false);
+                  }}
+                  disabled={actionLoading}
+                  className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 text-white px-10 py-3 font-bold text-lg rounded-lg transition"
+                >
+                  {actionLoading ? '⏳ Lancement...' : '🚀 Lancer manuellement'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!isHistoryMode && (
+            <div className="w-full xl:w-80 flex-shrink-0 xl:sticky xl:top-24">
+              <TournamentChat tournamentDocId={docId} className="max-h-[min(420px,55dvh)]" />
             </div>
           )}
         </div>
@@ -1322,7 +1331,8 @@ const Tournament = () => {
         <source src="/assets/music/victory.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto pt-20">
+      <div className="max-w-[1800px] mx-auto pt-20 flex flex-col xl:flex-row gap-5 items-start">
+        <div className="flex-1 min-w-0 w-full">
         {/* Header */}
         <div className="text-center mb-5">
           {isHistoryMode && (
@@ -1464,6 +1474,13 @@ const Tournament = () => {
             {isHistoryMode ? '← Hall of Fame' : isSimulation || isLegacyMode ? '← Admin' : '← Retour'}
           </button>
         </div>
+        </div>
+
+        {!isHistoryMode && (
+          <div className="w-full xl:w-80 flex-shrink-0 xl:sticky xl:top-24 z-10">
+            <TournamentChat tournamentDocId={docId} className="max-h-[min(480px,65dvh)]" />
+          </div>
+        )}
       </div>
     </div>
   );

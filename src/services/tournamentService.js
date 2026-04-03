@@ -19,6 +19,7 @@ import { envoyerAnnonceDiscord } from './discordService';
 import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteLabyrinthEnemyPool } from './infiniteLabyrinthService';
 import { checkAndAwardTitles, trackTournamentFirstRoundResult } from './titleService';
 import { MAX_LEVEL } from '../data/featureFlags';
+import { supprimerMessagesChatTournoi } from './tournamentChatService';
 
 /** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
 export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
@@ -107,6 +108,11 @@ function annoncerChampionDiscord(champion, docId = 'current') {
 async function supprimerCombatLogsTournoi(tournamentDocId) {
   const logsSnapshot = await getDocs(collection(db, 'tournaments', tournamentDocId, 'combatLogs'));
   await Promise.all(logsSnapshot.docs.map((d) => deleteDoc(d.ref)));
+}
+
+async function supprimerChatEtLogsTournoi(tournamentDocId) {
+  await supprimerMessagesChatTournoi(tournamentDocId);
+  await supprimerCombatLogsTournoi(tournamentDocId);
 }
 
 // ============================================================================
@@ -978,10 +984,7 @@ export async function supprimerTournoiTermine(docId = 'current') {
       }
     }
 
-    const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
-    for (const logDoc of logsSnapshot.docs) {
-      await deleteDoc(logDoc.ref);
-    }
+    await supprimerChatEtLogsTournoi(docId);
     await deleteDoc(doc(db, 'tournaments', docId));
     return { success: true };
   } catch (error) {
@@ -1076,12 +1079,9 @@ function buildHallOfFameEntryId(tournoi) {
 
 export async function terminerTournoi(docId = 'current') {
   try {
-    // Pour les simulations, juste supprimer le document et les logs
+    // Pour les simulations / legacy : supprimer chat, logs et document tournoi
     if (docId !== 'current') {
-      const logsSnapshot = await getDocs(collection(db, 'tournaments', docId, 'combatLogs'));
-      for (const logDoc of logsSnapshot.docs) {
-        await deleteDoc(logDoc.ref);
-      }
+      await supprimerChatEtLogsTournoi(docId);
       await deleteDoc(doc(db, 'tournaments', docId));
       return { success: true };
     }
@@ -1158,6 +1158,8 @@ export async function terminerTournoi(docId = 'current') {
       archivedAt: serverTimestamp(),
       hallOfFameEntryId,
     });
+
+    await supprimerMessagesChatTournoi(docId);
 
     await generateWeeklyInfiniteLabyrinth(getCurrentWeekId());
 

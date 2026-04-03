@@ -256,6 +256,10 @@ export function applyStartOfCombatPassives(attacker, defender, log, label) {
     if (passiveDetails?.id === 'entrave_arcanique') {
       defender._entraveCdDelay = passiveDetails.levelData.enemyCdDelay || 1;
       defender._entraveFirstCapUsed = false;
+      // L'Alchimiste n'utilise pas cd.alch pour le cycle (flasque chaque tour) : retard explicite des flasques.
+      if (defender.class === 'Alchimiste') {
+        defender._entraveAlchemistFlaskDelaysRemaining = defender._entraveCdDelay;
+      }
       const entraveBonus = passiveDetails.levelData.damageBonus || 0;
       if (entraveBonus > 0) attacker._entraveDamageBonus = entraveBonus;
       log.push(`${label} ⛓️ Entrave Arcanique: la première capacité de ${defender.name} est retardée de ${defender._entraveCdDelay} tour(s) !`);
@@ -1513,7 +1517,17 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   // Rituel de Fracture est limité à 1 proc par tour/action : partagé entre flasques (Alchimiste) et autos.
   let fractureUsedThisTurn = false;
   const alchVerdictSkip = isAlchimiste && shouldSkipVerdictDemonFamiliar(att.weaponState, turn);
+  const skipAlchFlaskForEntrave =
+    isAlchimiste &&
+    !alchVerdictSkip &&
+    (att._entraveAlchemistFlaskDelaysRemaining ?? 0) > 0;
   if (isAlchimiste && !alchVerdictSkip) {
+    if (skipAlchFlaskForEntrave) {
+      att._entraveAlchemistFlaskDelaysRemaining = Math.max(0, (att._entraveAlchemistFlaskDelaysRemaining ?? 0) - 1);
+      log.push(
+        `${playerColor} ⛓️ Entrave Arcanique: ${att.name} ne lance pas de flasque ce tour et attaque normalement.`
+      );
+    } else {
     skillUsed = true;
     const alchC = getSubclassCapacityConstants(att.class, att.subclass?.id);
     const cycleLen = alchC.cycleLength ?? classConstants.alchimiste.cycleLength;
@@ -1767,6 +1781,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
 
     att.alchPhase = (att.alchPhase + 1) % cycleLen;
+    }
   }
 
   if (att.class === 'Voleur' && att.cd.rog === getMindflayerCapacityCooldown(att, def, 'rog') && !capacityStolen) {
@@ -2198,7 +2213,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     (att.class === 'Succube' || att.class === 'Healer' || att.class === 'Masochiste');
 
   const baseHits =
-    (isAlchimiste && !alchVerdictSkip) ? 0
+    (isAlchimiste && !alchVerdictSkip && !skipAlchFlaskForEntrave) ? 0
       : isBastion ? 0
         : skipAutoAfterStandaloneSkill ? 0
           : isArcher ? classConstants.archer.hitCount
