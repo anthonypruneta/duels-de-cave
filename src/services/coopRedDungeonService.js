@@ -118,6 +118,7 @@ function snapshotCharacterForCoop(data) {
     forgeUpgrade: data.forgeUpgrade ?? null,
     subclass: data.subclass ?? null,
     mageTowerPassive: data.mageTowerPassive ?? null,
+    mageTowerExtensionPassive: data.mageTowerExtensionPassive ?? null,
     additionalAwakeningRaces: Array.isArray(data.additionalAwakeningRaces)
       ? [...data.additionalAwakeningRaces]
       : [],

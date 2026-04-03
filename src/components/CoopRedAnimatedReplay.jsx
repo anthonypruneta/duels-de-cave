@@ -27,6 +27,7 @@ function pickCombatFieldsFromRoomSnapshot(snap) {
     forgeUpgrade: snap.forgeUpgrade ?? null,
     subclass: snap.subclass ?? null,
     mageTowerPassive: snap.mageTowerPassive ?? null,
+    mageTowerExtensionPassive: snap.mageTowerExtensionPassive ?? null,
     additionalAwakeningRaces: Array.isArray(snap.additionalAwakeningRaces)
       ? [...snap.additionalAwakeningRaces]
       : [],
