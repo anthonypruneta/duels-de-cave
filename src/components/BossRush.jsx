@@ -14,6 +14,7 @@ import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CombatSpeedSelector from './CombatSpeedSelector';
 import { syncUnlockedBorders } from '../data/borders';
+import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
@@ -214,18 +215,31 @@ const BossRush = () => {
 
         if (isFinalBoss) {
           setGameState('victory');
-          const firstCompletion = !bossRushCompleted;
 
           const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
           const progressSnap = await getDoc(progressRef);
-          const prevCompletions = progressSnap.exists()
-            ? (Number.isFinite(progressSnap.data()?.bossRushCompletions)
-              ? progressSnap.data().bossRushCompletions
-              : (progressSnap.data()?.bossRushCompleted ? 1 : 0))
-            : 0;
-          const newCompletions = prevCompletions + 1;
+          const progressData = progressSnap.exists() ? (progressSnap.data() || {}) : {};
+          const prevCompletions = Number.isFinite(progressData.bossRushCompletions)
+            ? progressData.bossRushCompletions
+            : (progressData.bossRushCompleted ? 1 : 0);
 
-          if (firstCompletion) {
+          // 1 perso / semaine : le Rush est rejouable à l’infini, mais compteur bordure + récompense runs
+          // ne s’appliquent qu’au premier succès complet de la semaine (même repère ISO que le labyrinthe).
+          const currentWeekId = getCurrentWeekId();
+          const lastCountedWeekId = progressData.bossRushLastCountedWeekId ?? null;
+          let shouldCountThisWeek;
+          if (lastCountedWeekId == null && prevCompletions > 0) {
+            // Anciens compteurs sans ancrage semaine : on fige la semaine courante sans +1 (évite de récompenser le spam passé).
+            shouldCountThisWeek = false;
+          } else {
+            shouldCountThisWeek = lastCountedWeekId !== currentWeekId;
+          }
+          const newCompletions = shouldCountThisWeek ? prevCompletions + 1 : prevCompletions;
+          const newLastCountedWeekId = (shouldCountThisWeek || lastCountedWeekId == null)
+            ? currentWeekId
+            : lastCountedWeekId;
+
+          if (shouldCountThisWeek) {
             await grantRunsToPlayer(currentUser.uid, 10);
             setRewardGiven(true);
           }
@@ -233,13 +247,16 @@ const BossRush = () => {
           await setDoc(progressRef, {
             bossRushCompleted: true,
             bossRushCompletions: newCompletions,
+            bossRushLastCountedWeekId: newLastCountedWeekId,
             updatedAt: Timestamp.now(),
           }, { merge: true });
 
-          await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
-            bossRushCompletions: increment(1),
-            updatedAt: Timestamp.now(),
-          }, { merge: true });
+          if (shouldCountThisWeek) {
+            await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
+              bossRushCompletions: increment(1),
+              updatedAt: Timestamp.now(),
+            }, { merge: true });
+          }
 
           setBossRushCompleted(true);
           setBossRushCompletions(newCompletions);

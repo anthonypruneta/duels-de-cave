@@ -778,11 +778,12 @@ const CharacterCreation = () => {
             }
           });
 
-          checkCrossWeekTitles(currentUser.uid, extras).then(newTitles => {
-            if (newTitles?.length > 0) {
+          checkCrossWeekTitles(currentUser.uid, extras).then((res) => {
+            if (res?.mergedEarnedTitles) {
               setExistingCharacter(prev => ({
                 ...prev,
-                earnedTitles: [...(prev?.earnedTitles || []), ...newTitles],
+                earnedTitles: res.mergedEarnedTitles,
+                ...(res.equippedTitleCleared ? { equippedTitle: null } : {}),
               }));
             }
           });

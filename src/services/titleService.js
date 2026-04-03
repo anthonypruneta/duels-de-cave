@@ -15,6 +15,9 @@ import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getWeaponById } from '../data/weapons';
 import { computeCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay';
 
+/** Titres retirés du jeu : enlevés des listes au prochain chargement. */
+const OBSOLETE_EARNED_TITLE_IDS = new Set(['sommet_hp']);
+
 /**
  * Vérifie si de nouveaux titres ont été obtenus après un combat et les enregistre.
  *
@@ -64,10 +67,10 @@ export async function checkAndAwardTitles(userId, steps, result, playerChar, con
  * @param {number} [extras.labyrinthHighestFloor] - Meilleur étage du labyrinthe
  * @param {boolean} [extras.bossRushCompleted]
  * @param {Object} [extras.dungeonCompletions] - { dungeon, forest, mageTower }
- * @returns {string[]} Nouveaux titres attribués
+ * @returns {Promise<{ added: string[], mergedEarnedTitles?: string[], equippedTitleCleared?: boolean }>}
  */
 export async function checkCrossWeekTitles(userId, extras = {}) {
-  if (!userId) return [];
+  if (!userId) return { added: [] };
 
   try {
     await waitForFirestore();
@@ -77,9 +80,11 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
       getDoc(doc(db, 'tournamentRewards', userId)),
     ]);
 
-    if (!charSnap.exists()) return [];
+    if (!charSnap.exists()) return { added: [] };
     const charData = charSnap.data();
-    const earnedTitles = charData.earnedTitles || [];
+    const rawEarned = charData.earnedTitles || [];
+    const earnedTitles = rawEarned.filter((id) => !OBSOLETE_EARNED_TITLE_IDS.has(id));
+    const strippedObsolete = earnedTitles.length !== rawEarned.length;
     const rewardData = rewardSnap.exists() ? rewardSnap.data() : {};
 
     let tournamentWins = rewardData.tournamentWins ?? 0;
@@ -172,7 +177,6 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
         newTitles.push('colosse_mille');
       }
       const stat200Titles = [
-        { key: 'hp', id: 'sommet_hp' },
         { key: 'auto', id: 'sommet_auto' },
         { key: 'def', id: 'sommet_def' },
         { key: 'cap', id: 'sommet_cap' },
@@ -186,19 +190,33 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
       }
     }
 
-    if (newTitles.length === 0) return [];
+    const equippedWasObsolete = charData.equippedTitle && OBSOLETE_EARNED_TITLE_IDS.has(charData.equippedTitle);
+    const needsWrite = newTitles.length > 0 || strippedObsolete || equippedWasObsolete;
 
-    const updatedEarned = [...earnedTitles, ...newTitles];
-    await setDoc(doc(db, 'characters', userId), {
+    if (!needsWrite) return { added: [] };
+
+    const updatedEarned = [...new Set([...earnedTitles, ...newTitles])];
+    const patch = {
       earnedTitles: updatedEarned,
       updatedAt: Timestamp.now(),
-    }, { merge: true });
-    saveAccountTitles(userId, updatedEarned, charData.equippedTitle);
+    };
+    if (equippedWasObsolete) patch.equippedTitle = null;
 
-    return newTitles;
+    await setDoc(doc(db, 'characters', userId), patch, { merge: true });
+    saveAccountTitles(
+      userId,
+      updatedEarned,
+      equippedWasObsolete ? null : charData.equippedTitle
+    );
+
+    return {
+      added: newTitles,
+      mergedEarnedTitles: updatedEarned,
+      equippedTitleCleared: equippedWasObsolete,
+    };
   } catch (err) {
     console.error('Erreur vérification titres cross-semaines:', err);
-    return [];
+    return { added: [] };
   }
 }
 

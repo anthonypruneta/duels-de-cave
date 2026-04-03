@@ -7,6 +7,7 @@
 
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { getBossRushCompletionBounds } from '../services/dungeonService';
 import { TITLES } from './titles';
 import { isForgeRollHighPerfection } from './forgeDungeon';
 
@@ -423,6 +424,34 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     extras = { ...extras, bossRushCompletions: completions };
   }
 
+  // Rétroactif : Survivant = preuve de BR sur une vie ; plafond = 1 semaine / perso (archives + perso actuel).
+  try {
+    const rawBr = Number.isFinite(extras.bossRushCompletions) ? extras.bossRushCompletions : 0;
+    const { ceiling, survivantEvidence } = await getBossRushCompletionBounds(userId, character);
+    const afterEvidence = Math.max(rawBr, survivantEvidence);
+    const correctedBr = Math.min(afterEvidence, ceiling);
+    if (correctedBr !== rawBr) {
+      await setDoc(doc(db, 'tournamentRewards', userId), {
+        bossRushCompletions: correctedBr,
+        updatedAt: Timestamp.now(),
+      }, { merge: true });
+      if (rewardSnapshotData && typeof rewardSnapshotData === 'object') {
+        rewardSnapshotData.bossRushCompletions = correctedBr;
+      }
+      try {
+        const progressRef = doc(db, 'dungeonProgress', userId);
+        const progressSnap = await getDoc(progressRef);
+        if (progressSnap.exists()) {
+          await setDoc(progressRef, {
+            bossRushCompletions: correctedBr,
+            updatedAt: Timestamp.now(),
+          }, { merge: true });
+        }
+      } catch (_) { /* ignore */ }
+      extras = { ...extras, bossRushCompletions: correctedBr };
+    }
+  } catch (_) { /* ignore clamp errors */ }
+
   if (extras.labyrinthFloor90Wins === undefined) {
     let floor90Wins = 0;
     try {
@@ -614,11 +643,14 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   const newUnlocked = checkBorderUnlocks(character, extras);
   const currentUnlocked = character.unlockedBorders || [];
 
-  // Anti-régression : si "ancient" a été débloqué à tort dans le passé,
-  // on le retire si la condition n'est plus valide.
+  // Anti-régression : retirer une bordure déjà en base si la condition n’est plus remplie
+  // (ex. ancient, ou Tempête après recalage bossRushCompletions < 5).
   let adjustedCurrentUnlocked = currentUnlocked;
   if (!newUnlocked.includes('ancient') && currentUnlocked.includes('ancient')) {
-    adjustedCurrentUnlocked = currentUnlocked.filter(id => id !== 'ancient');
+    adjustedCurrentUnlocked = adjustedCurrentUnlocked.filter(id => id !== 'ancient');
+  }
+  if (!newUnlocked.includes('storm_tempest') && adjustedCurrentUnlocked.includes('storm_tempest')) {
+    adjustedCurrentUnlocked = adjustedCurrentUnlocked.filter(id => id !== 'storm_tempest');
   }
 
   const normalizeBorderId = (id) => (id === 'gold_relief_test' ? 'perfect_character' : id);
@@ -628,6 +660,7 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
     merged.length !== currentUnlocked.length ||
     merged.some(id => !currentUnlocked.includes(id)) ||
     currentUnlocked.some(id => id === 'ancient' && !merged.includes('ancient')) ||
+    currentUnlocked.some(id => id === 'storm_tempest' && !merged.includes('storm_tempest')) ||
     currentUnlocked.some(id => id === 'gold_relief_test') ||
     equippedNeedsMigrate
   );
@@ -642,7 +675,10 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
       unlockedBorders: merged,
       // Si l'effet "ancient" n'est plus débloqué mais qu'il était équipé,
       // on le déséquipe pour éviter un affichage incorrect.
-      equippedBorder: (!merged.includes('ancient') && nextEquipped === 'ancient') ? null : nextEquipped,
+      equippedBorder: (
+        (!merged.includes('ancient') && nextEquipped === 'ancient') ||
+        (!merged.includes('storm_tempest') && nextEquipped === 'storm_tempest')
+      ) ? null : nextEquipped,
       updatedAt: Timestamp.now(),
     }, { merge: true });
   } catch (err) {
@@ -651,24 +687,22 @@ export async function syncUnlockedBorders(userId, character, extras = {}) {
   
   // Sauvegarder les bordures de type 'account' dans userPreferences pour persistance
   const accountBordersUnlocked = merged.filter(id => ACCOUNT_BORDER_IDS.has(id));
-  if (accountBordersUnlocked.length > 0) {
-    try {
-      const prefsRef = doc(db, 'userPreferences', userId);
-      const prefsSnap = await getDoc(prefsRef);
-      let existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
-      existingAccountBorders = existingAccountBorders.map(normalizeBorderId);
-      // Si "ancient" n'est plus débloqué, on le retire aussi des prefs.
-      if (!merged.includes('ancient') && existingAccountBorders.includes('ancient')) {
-        existingAccountBorders = existingAccountBorders.filter(id => id !== 'ancient');
-      }
-      const mergedAccountBorders = [...new Set([...existingAccountBorders, ...accountBordersUnlocked])];
-      await setDoc(prefsRef, {
-        unlockedAccountBorders: mergedAccountBorders,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
-    } catch (err) {
-      console.error('Erreur sync bordures compte:', err);
-    }
+  try {
+    const prefsRef = doc(db, 'userPreferences', userId);
+    const prefsSnap = await getDoc(prefsRef);
+    let existingAccountBorders = prefsSnap.exists() ? (prefsSnap.data().unlockedAccountBorders || []) : [];
+    existingAccountBorders = existingAccountBorders.map(normalizeBorderId);
+    // Bordures compte : ne garder que celles encore présentes dans merged (retrait Tempête, ancient, etc.)
+    existingAccountBorders = existingAccountBorders.filter(
+      (id) => !ACCOUNT_BORDER_IDS.has(id) || merged.includes(id)
+    );
+    const mergedAccountBorders = [...new Set([...existingAccountBorders, ...accountBordersUnlocked])];
+    await setDoc(prefsRef, {
+      unlockedAccountBorders: mergedAccountBorders,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+  } catch (err) {
+    console.error('Erreur sync bordures compte:', err);
   }
   
   return merged;

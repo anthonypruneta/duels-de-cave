@@ -14,11 +14,13 @@ import {
   getDoc,
   getDocs,
   increment,
+  query,
   runTransaction,
   setDoc,
   updateDoc,
   deleteDoc,
   Timestamp,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
@@ -37,6 +39,37 @@ import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
 import { getUserCharacter, updateCharacterEquippedWeapon } from './characterService';
 import { clearWeaponUpgrade } from './forgeService';
 import { announceFirstDungeonFinalBossKill } from './milestoneAnnouncementService';
+
+/**
+ * Bornes pour recaler bossRushCompletions (rétroactif + anti-spam) :
+ * - ceiling : un perso actif = au plus une semaine de jeu ; chaque archive = une semaine passée.
+ *   Donc au plus (archives + 1) complétions « légitimes » une par semaine.
+ * - survivantEvidence : archives + perso actuel avec le titre Survivant (preuve d’au moins un BR sur cette vie).
+ */
+export async function getBossRushCompletionBounds(userId, character) {
+  if (!userId) return { ceiling: 999, survivantEvidence: 0 };
+  let archivedCount = 0;
+  let survivantLives = 0;
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'archivedCharacters'), where('userId', '==', userId))
+    );
+    archivedCount = snap.size;
+    snap.forEach((d) => {
+      const t = d.data()?.earnedTitles;
+      if (Array.isArray(t) && t.includes('survivant')) survivantLives += 1;
+    });
+  } catch (_) {
+    /* ignore */
+  }
+
+  const ceiling = Math.max(1, archivedCount + 1);
+  const curTitles = character?.earnedTitles;
+  const curSurvivant = Array.isArray(curTitles) && curTitles.includes('survivant') ? 1 : 0;
+  const survivantEvidence = survivantLives + curSurvivant;
+
+  return { ceiling, survivantEvidence };
+}
 
 // ============================================================================
 // HELPER RETRY (même pattern que characterService)

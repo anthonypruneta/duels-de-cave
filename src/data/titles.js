@@ -370,14 +370,6 @@ export const TITLES = {
     icon: '❤️',
     category: 'general',
   },
-  sommet_hp: {
-    id: 'sommet_hp',
-    male: 'le Géant',
-    female: 'la Géante',
-    description: 'Dépasser 200 en PV (stat totale)',
-    icon: '🫀',
-    category: 'general',
-  },
   sommet_auto: {
     id: 'sommet_auto',
     male: 'le Destructeur',

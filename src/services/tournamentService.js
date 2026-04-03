@@ -17,7 +17,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { annonceDebutTournoi, annonceDebutMatch, annonceFinMatch, annonceChampion } from '../utils/dbzAnnouncer';
 import { envoyerAnnonceDiscord } from './discordService';
 import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteLabyrinthEnemyPool } from './infiniteLabyrinthService';
-import { checkAndAwardTitles, trackTournamentFirstRoundResult, checkCrossWeekTitles } from './titleService';
+import { checkAndAwardTitles, trackTournamentFirstRoundResult } from './titleService';
 import { MAX_LEVEL } from '../data/featureFlags';
 
 /** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
