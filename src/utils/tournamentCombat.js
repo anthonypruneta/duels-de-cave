@@ -986,13 +986,14 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     if (def.awakening?.cendresHpDamageThreshold) {
       def.cendresCumulativeHpDamage = (def.cendresCumulativeHpDamage || 0) + adjusted;
     }
-    // Écailleux : +% VIT/ResC (réf. début de combat) par dégât de capacité sur les PV
+    // Écailleux : +% des VIT/ResC actuels au moment où la capacité touche (cumulable)
     if (isCapacityDamage) {
       const pct = def.awakening?.ecailleuxCapacityRefStatPercent ?? 0;
-      if (pct > 0 && def.combatStatBaseline) {
-        const bs = def.combatStatBaseline;
-        const dSpd = Math.round(bs.spd * pct);
-        const dRes = Math.round(bs.rescap * pct);
+      if (pct > 0 && def.base) {
+        const spdNow = def.base.spd ?? 0;
+        const resNow = def.base.rescap ?? 0;
+        const dSpd = Math.round(spdNow * pct);
+        const dRes = Math.round(resNow * pct);
         def.base = { ...def.base, spd: def.base.spd + dSpd, rescap: def.base.rescap + dRes };
         log.push(`${playerColor} 🐍 Écailleux : ${def.name} +${dSpd} VIT, +${dRes} ResC.`);
       }

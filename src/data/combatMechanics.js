@@ -185,6 +185,7 @@ export const raceConstants = {
     rescap: 8
   },
   ecailleux: {
+    /** % des VIT/ResC actuels à chaque dégât de capacité sur les PV (cumulable). */
     capacityRefStatPercent: 0.03,
     /** Lien VIT ↔ ResC une fois au calcul des stats (race Écailleux). */
     statLinkDivisorRacial: 3,

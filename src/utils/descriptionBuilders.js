@@ -113,7 +113,7 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Écailleux': {
       const d = raceConstants.ecailleux.statLinkDivisorRacial;
       const p = pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0);
-      return `Chaque capacité qui vous inflige des dégâts sur les PV : +${p} VIT et +${p} ResC (réf. début de combat), cumul tout le combat.\nChaque ${d} VIT : +1 ResC ; chaque ${d} ResC : +1 VIT (une fois au calcul des stats).`;
+      return `Chaque capacité qui vous inflige des dégâts sur les PV : +${p} VIT et +${p} ResC (cumulable).\nChaque ${d} VIT : +1 ResC ; chaque ${d} ResC : +1 VIT (une fois au calcul des stats).`;
     }
     case 'Cendrés': {
       const defAw = races['Cendrés']?.awakening?.effect;
@@ -153,7 +153,7 @@ export const buildRacePointeauAdnDescription = (raceName) => {
   if (raceName === 'Écailleux') {
     const pctStr = formatRefStatPercentForPointeau(e?.ecailleuxCapacityRefStatPercent ?? COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT);
     const dLink = e?.ecailleuxStatLinkDivisorPointeau ?? COOP_ECAILLEUX_ECHO_STAT_LINK_DIVISOR;
-    return `Chaque capacité qui vous inflige des dégâts sur les PV : +${pctStr} VIT et +${pctStr} ResC (réf. début de combat), cumul tout le combat.\nLien de stats du fragment : chaque ${dLink} VIT : +1 ResC ; chaque ${dLink} ResC : +1 VIT (une fois au calcul des stats).`;
+    return `Chaque capacité qui vous inflige des dégâts sur les PV : +${pctStr} VIT et +${pctStr} ResC (cumulable).\nLien de stats du fragment : chaque ${dLink} VIT : +1 ResC ; chaque ${dLink} ResC : +1 VIT (une fois au calcul des stats).`;
   }
 
   return buildRaceAwakeningDescription(raceName, e);
@@ -529,7 +529,7 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
     case 'Écailleux':
       return [
         text('Chaque capacité qui vous inflige des dégâts sur les PV : +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'),
-        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul tout le combat.\n'),
+        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (cumulable).\n'),
         text('Chaque '), { type: 'slot', path: ['_bonus', 'ecailleux', 'statLinkDivisorRacial'], format: 'raw' },
         text(' VIT : +1 ResC ; chaque '), { type: 'slot', path: ['_bonus', 'ecailleux', 'statLinkDivisorRacial'], format: 'raw' },
         text(' ResC : +1 VIT (une fois au calcul des stats).')

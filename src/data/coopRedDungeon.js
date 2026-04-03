@@ -34,7 +34,7 @@ export const COOP_CENDRES_ECHO_HP_THRESHOLD = 0.20;
 export const COOP_CENDRES_ECHO_BRAISE_MULT = 0.05;
 export const COOP_CENDRES_ECHO_GUARANTEED = 0;
 
-/** Pointeau ADN — Écailleux : +1 % VIT / +1 % ResC (réf. début de combat) par dégât de capacité sur les PV (pas de scaling % de l’éveil). */
+/** Pointeau ADN — Écailleux : +1 % VIT / +1 % ResC des valeurs actuelles au moment du coup, par dégât de capacité sur les PV (pas de scaling % de l’éveil). */
 export const COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT = 0.01;
 
 /** Pointeau ADN — Écailleux : lien VIT ↔ ResC à 1 pour 6. */
