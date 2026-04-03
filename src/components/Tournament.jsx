@@ -765,24 +765,25 @@ const Tournament = () => {
           : 'bg-stone-900/50';
 
     const renderPlayer = (pData, pId, won, lost) => {
+      const imgSize = isGrandFinale ? 'w-9 h-9' : 'w-7 h-7';
       const textSize = isGrandFinale ? 'text-sm' : 'text-xs';
       const isEmpty = !pData && (!pId || pId === 'BYE');
-      const portraitSize = isGrandFinale ? 'sm' : 'xs';
       return (
         <div className={`flex items-center gap-2.5 px-3 py-2 transition-colors ${
           won ? 'bg-emerald-500/10' : lost ? 'bg-red-950/20' : ''
         }`}>
-          {!isEmpty ? (
-            <TournamentParticipantPortrait
-              imageUrl={pData?.characterImage}
-              equippedBorder={pData?.equippedBorder}
-              equippedRealBorder={pData?.equippedRealBorder}
-              size={portraitSize}
-              lost={lost}
+          {pData?.characterImage ? (
+            <img
+              src={pData.characterImage}
               alt=""
+              className={`${imgSize} rounded-md object-cover flex-shrink-0 ${
+                lost ? 'opacity-30 grayscale' : ''
+              }`}
             />
+          ) : !isEmpty ? (
+            <div className={`${imgSize} rounded-md bg-stone-800/80 flex-shrink-0 flex items-center justify-center text-stone-600 text-[10px]`}>?</div>
           ) : (
-            <div className={`${isGrandFinale ? 'w-9 h-9' : 'w-7 h-7'} flex-shrink-0`} />
+            <div className={`${imgSize} flex-shrink-0`} />
           )}
           <span className={`${textSize} truncate flex-1 font-medium ${
             won ? 'text-emerald-300 font-bold'
