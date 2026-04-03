@@ -1,34 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CardBorderCanvas from './CardBorderCanvas';
 import { resolveBorderId, getBorderGlowClass } from '../data/borders';
+import { getRealBorderImageSrc } from '../utils/realBorderImageSrc';
 
 const BAR_ANIMATION_MS = 500;
-
-const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
-
-function normalizePngName(name) {
-  return String(name || '').trim();
-}
-
-function isOldAsset(baseName) {
-  return /Old$/i.test(baseName);
-}
-
-function getRealBorderImageSrc(borderIdOrFile) {
-  const raw = normalizePngName(borderIdOrFile);
-  if (!raw) return null;
-
-  const wantsPng = raw.toLowerCase().endsWith('.png');
-  const fileName = wantsPng ? raw : `${raw}.png`;
-  const base = fileName.replace(/\.png$/i, '');
-
-  // Exclusions: BG = arrière-plan, *Old = ignorés
-  if (/^BG$/i.test(base)) return null;
-  if (isOldAsset(base)) return null;
-
-  const key = `../assets/backgrounds/${fileName}`;
-  return realBorderPngModules[key] || null;
-}
 
 function easeOutCubic(t) {
   return 1 - (1 - t) ** 3;

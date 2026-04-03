@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import TournamentChat from './TournamentChat';
+import TournamentParticipantPortrait from './TournamentParticipantPortrait';
 import CharacterCardContent from './CharacterCardContent';
 import {
   onTournoiUpdate, getCombatLog, getCombatLogArchive, getTournamentArchive,
@@ -764,21 +765,24 @@ const Tournament = () => {
           : 'bg-stone-900/50';
 
     const renderPlayer = (pData, pId, won, lost) => {
-      const imgSize = isGrandFinale ? 'w-9 h-9' : 'w-7 h-7';
       const textSize = isGrandFinale ? 'text-sm' : 'text-xs';
       const isEmpty = !pData && (!pId || pId === 'BYE');
+      const portraitSize = isGrandFinale ? 'sm' : 'xs';
       return (
         <div className={`flex items-center gap-2.5 px-3 py-2 transition-colors ${
           won ? 'bg-emerald-500/10' : lost ? 'bg-red-950/20' : ''
         }`}>
-          {pData?.characterImage ? (
-            <img src={pData.characterImage} alt="" className={`${imgSize} rounded-md object-cover flex-shrink-0 ${
-              lost ? 'opacity-30 grayscale' : ''
-            }`} />
-          ) : !isEmpty ? (
-            <div className={`${imgSize} rounded-md bg-stone-800/80 flex-shrink-0 flex items-center justify-center text-stone-600 text-[10px]`}>?</div>
+          {!isEmpty ? (
+            <TournamentParticipantPortrait
+              imageUrl={pData?.characterImage}
+              equippedBorder={pData?.equippedBorder}
+              equippedRealBorder={pData?.equippedRealBorder}
+              size={portraitSize}
+              lost={lost}
+              alt=""
+            />
           ) : (
-            <div className={`${imgSize} flex-shrink-0`} />
+            <div className={`${isGrandFinale ? 'w-9 h-9' : 'w-7 h-7'} flex-shrink-0`} />
           )}
           <span className={`${textSize} truncate flex-1 font-medium ${
             won ? 'text-emerald-300 font-bold'
@@ -1267,15 +1271,24 @@ const Tournament = () => {
             <div className="bg-stone-950/85 border border-stone-700/80 rounded-xl p-4 mb-6">
               <h2 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">👥 Participants</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {tournoi.participantsList?.map(p => (
-                  <div key={p.participantId || p.userId} className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3 text-center">
-                    {p.characterImage && (
-                      <img src={p.characterImage} alt={p.nom} className="w-14 h-auto mx-auto mb-2 object-contain rounded" />
-                    )}
+                {tournoi.participantsList?.map(p => {
+                  const pid = p.participantId || p.userId;
+                  const full = (pid && tournoi.participants?.[pid]) || {};
+                  return (
+                  <div key={pid} className="bg-stone-900/80 border border-stone-700/60 rounded-lg p-3 text-center">
+                    <TournamentParticipantPortrait
+                      imageUrl={p.characterImage}
+                      equippedBorder={full.equippedBorder ?? p.equippedBorder}
+                      equippedRealBorder={full.equippedRealBorder ?? p.equippedRealBorder}
+                      size="md"
+                      className="mx-auto mb-2"
+                      alt={p.nom || ''}
+                    />
                     <p className="text-white font-bold text-xs truncate">{p.nom}</p>
                     <p className="text-stone-500 text-[10px]">{p.race} • {p.classe}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -1359,7 +1372,14 @@ const Tournament = () => {
           <div className="mb-5 bg-stone-950/85 border border-amber-600/50 rounded-xl p-6 text-center">
             <div className="text-5xl mb-3">👑</div>
             {tournoi.champion.characterImage && (
-              <img src={tournoi.champion.characterImage} alt={tournoi.champion.nom} className="w-28 h-auto mx-auto mb-3 object-contain rounded-lg" />
+              <TournamentParticipantPortrait
+                imageUrl={tournoi.champion.characterImage}
+                equippedBorder={tournoi.champion.equippedBorder}
+                equippedRealBorder={tournoi.champion.equippedRealBorder}
+                size="lg"
+                className="mx-auto mb-3 rounded-lg"
+                alt={tournoi.champion.nom || ''}
+              />
             )}
             <h2 className="text-2xl font-bold text-amber-300">{tournoi.champion.nom}</h2>
             <p className="text-stone-400 text-sm mt-1">{tournoi.champion.race} • {tournoi.champion.classe}</p>

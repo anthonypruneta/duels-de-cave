@@ -194,6 +194,7 @@ function buildParticipantsMapForTournoi(participants) {
       class: p.class,
       ownerPseudo: p.ownerPseudo || null,
       equippedBorder: p.equippedBorder || null,
+      equippedRealBorder: p.equippedRealBorder || null,
       equippedTitle: p.equippedTitle || null,
       gender: p.gender || null,
       coopRaceEcho: p.coopRaceEcho || null,
@@ -341,6 +342,8 @@ export async function creerTournoiLegacy(options = {}) {
         classe: p.class,
         characterImage: p.characterImage || null,
         ownerPseudo: p.ownerPseudo || null,
+        equippedBorder: p.equippedBorder || null,
+        equippedRealBorder: p.equippedRealBorder || null,
       })),
       matches,
       matchOrder,
@@ -470,6 +473,8 @@ export async function creerTournoi(docId = 'current') {
         classe: p.class,
         characterImage: p.characterImage || null,
         ownerPseudo: p.ownerPseudo || null,
+        equippedBorder: p.equippedBorder || null,
+        equippedRealBorder: p.equippedRealBorder || null,
       };
       if (p.archiveDocId) row.archiveFirestoreId = p.archiveDocId;
       return row;
@@ -687,6 +692,7 @@ export async function lancerTournoi(docId = 'current') {
           forgeUpgrade: p.forgeUpgrade || null,
           subclass: p.subclass || null,
           equippedBorder: p.equippedBorder || null,
+          equippedRealBorder: p.equippedRealBorder || null,
           equippedTitle: p.equippedTitle || null,
           gender: p.gender || null,
           coopRaceEcho: p.coopRaceEcho ?? null,
@@ -779,13 +785,16 @@ export async function avancerMatch(docId = 'current') {
       const championData = participantsList.find(
         p => p.participantId === championId || p.userId === championId
       );
+      const championSnap = championId ? participants[championId] : null;
       const champion = championData ? {
         userId: championData.userId || championData.participantId,
         nom: championData.nom,
         race: championData.race,
         classe: championData.classe,
         characterImage: championData.characterImage,
-        ownerPseudo: championData.ownerPseudo || null
+        ownerPseudo: championData.ownerPseudo || null,
+        equippedBorder: championSnap?.equippedBorder ?? championData.equippedBorder ?? null,
+        equippedRealBorder: championSnap?.equippedRealBorder ?? championData.equippedRealBorder ?? null,
       } : null;
 
       await updateDoc(doc(db, 'tournaments', docId), {
@@ -1424,6 +1433,7 @@ export async function simulerTournoiTest() {
         class: p.class,
         ownerPseudo: p.ownerPseudo || null,
         equippedBorder: p.equippedBorder || null,
+        equippedRealBorder: p.equippedRealBorder || null,
         equippedTitle: p.equippedTitle || null,
         gender: p.gender || null,
         coopRaceEcho: p.coopRaceEcho || null,

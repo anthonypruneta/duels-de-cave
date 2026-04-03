@@ -8,6 +8,26 @@ import {
 
 const STORAGE_KEY = 'tournamentChatPosition';
 
+const MIN_WIDTH = 260;
+const MIN_HEIGHT = 200;
+const DEFAULT_WIDTH = 320;
+const DEFAULT_HEIGHT = 400;
+
+function clampSize(width, height) {
+  if (typeof window === 'undefined') {
+    return {
+      width: Math.max(MIN_WIDTH, width),
+      height: Math.max(MIN_HEIGHT, height),
+    };
+  }
+  const maxW = Math.max(MIN_WIDTH, window.innerWidth - 16);
+  const maxH = Math.max(MIN_HEIGHT, window.innerHeight - 24);
+  return {
+    width: Math.min(Math.max(MIN_WIDTH, width), maxW),
+    height: Math.min(Math.max(MIN_HEIGHT, height), maxH),
+  };
+}
+
 function clampPosition(left, top, panelW, panelH) {
   if (typeof window === 'undefined') return { left, top };
   const margin = 8;
@@ -20,20 +40,36 @@ function clampPosition(left, top, panelW, panelH) {
   };
 }
 
-function loadStoredPosition(panelW, panelH) {
+function loadStoredLayout() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw);
     if (typeof p.left !== 'number' || typeof p.top !== 'number') return null;
-    return clampPosition(p.left, p.top, panelW, panelH);
+    const width = typeof p.width === 'number' ? p.width : DEFAULT_WIDTH;
+    const height = typeof p.height === 'number' ? p.height : DEFAULT_HEIGHT;
+    const { width: cw, height: ch } = clampSize(width, height);
+    const { left, top } = clampPosition(p.left, p.top, cw, ch);
+    return { left, top, width: cw, height: ch };
   } catch {
     return null;
   }
 }
 
+function defaultLayout() {
+  if (typeof window === 'undefined') {
+    return { left: 16, top: 96, width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+  }
+  const h = Math.min(480, Math.max(MIN_HEIGHT, Math.round(window.innerHeight * 0.65)));
+  const w = DEFAULT_WIDTH;
+  const stored = loadStoredLayout();
+  if (stored) return stored;
+  const pos = clampPosition(window.innerWidth - w - 16, 96, w, h);
+  return { ...pos, width: w, height: h };
+}
+
 /**
- * Chat public pendant un tournoi — fenêtre flottante déplaçable (poignée sur l’en-tête).
+ * Chat public pendant un tournoi — fenêtre flottante déplaçable et redimensionnable.
  */
 export default function TournamentChat({ tournamentDocId }) {
   const { currentUser } = useAuth();
@@ -41,22 +77,22 @@ export default function TournamentChat({ tournamentDocId }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [displayName, setDisplayName] = useState('');
-  const [position, setPosition] = useState(() => {
-    if (typeof window === 'undefined') return { left: 16, top: 96 };
-    const w = 320;
-    const h = 380;
-    const stored = loadStoredPosition(w, h);
-    if (stored) return stored;
-    return clampPosition(window.innerWidth - w - 16, 96, w, h);
-  });
+  const [layout, setLayout] = useState(defaultLayout);
   const [dragging, setDragging] = useState(false);
+  const [resizing, setResizing] = useState(false);
   const bottomRef = useRef(null);
   const panelRef = useRef(null);
   const dragPointerOffset = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef(null);
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
 
-  const savePosition = useCallback((left, top) => {
+  const saveLayout = useCallback((L) => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ left, top }));
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ left: L.left, top: L.top, width: L.width, height: L.height })
+      );
     } catch {
       /* ignore */
     }
@@ -116,6 +152,7 @@ export default function TournamentChat({ tournamentDocId }) {
 
   const handleDragStart = useCallback((e) => {
     if (e.button !== undefined && e.button !== 0) return;
+    if (resizing) return;
     const el = panelRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -125,29 +162,26 @@ export default function TournamentChat({ tournamentDocId }) {
     };
     setDragging(true);
     e.preventDefault();
-  }, []);
+  }, [resizing]);
 
   useEffect(() => {
     if (!dragging) return undefined;
 
     const onMove = (e) => {
-      const el = panelRef.current;
-      const w = el?.offsetWidth ?? 320;
-      const h = el?.offsetHeight ?? 400;
+      const { width: w, height: h } = layoutRef.current;
       const nextLeft = e.clientX - dragPointerOffset.current.x;
       const nextTop = e.clientY - dragPointerOffset.current.y;
-      setPosition(clampPosition(nextLeft, nextTop, w, h));
+      const pos = clampPosition(nextLeft, nextTop, w, h);
+      setLayout((prev) => ({ ...prev, ...pos }));
     };
 
     const onUp = () => {
       setDragging(false);
-      setPosition((p) => {
-        const el = panelRef.current;
-        const w = el?.offsetWidth ?? 320;
-        const h = el?.offsetHeight ?? 400;
-        const c = clampPosition(p.left, p.top, w, h);
-        savePosition(c.left, c.top);
-        return c;
+      setLayout((prev) => {
+        const pos = clampPosition(prev.left, prev.top, prev.width, prev.height);
+        const next = { ...prev, ...pos };
+        saveLayout(next);
+        return next;
       });
     };
 
@@ -159,18 +193,68 @@ export default function TournamentChat({ tournamentDocId }) {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [dragging, savePosition]);
+  }, [dragging, saveLayout]);
 
   useEffect(() => {
-    const onResize = () => {
-      const el = panelRef.current;
-      if (!el) return;
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      setPosition((p) => clampPosition(p.left, p.top, w, h));
+    if (!resizing) return undefined;
+
+    const onMove = (e) => {
+      const s = resizeStartRef.current;
+      if (!s) return;
+      const dw = e.clientX - s.mouseX;
+      const dh = e.clientY - s.mouseY;
+      const { width, height } = clampSize(s.width + dw, s.height + dh);
+      setLayout((prev) => ({ ...prev, width, height }));
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+
+    const onUp = () => {
+      setResizing(false);
+      resizeStartRef.current = null;
+      setLayout((prev) => {
+        const sized = clampSize(prev.width, prev.height);
+        const pos = clampPosition(prev.left, prev.top, sized.width, sized.height);
+        const next = { ...prev, ...sized, ...pos };
+        saveLayout(next);
+        return next;
+      });
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [resizing, saveLayout]);
+
+  const handleResizeStart = useCallback(
+    (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      resizeStartRef.current = {
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        width: layout.width,
+        height: layout.height,
+      };
+      setResizing(true);
+    },
+    [layout.width, layout.height]
+  );
+
+  useEffect(() => {
+    const onWinResize = () => {
+      setLayout((prev) => {
+        const sized = clampSize(prev.width, prev.height);
+        const pos = clampPosition(prev.left, prev.top, sized.width, sized.height);
+        return { ...prev, ...sized, ...pos };
+      });
+    };
+    window.addEventListener('resize', onWinResize);
+    return () => window.removeEventListener('resize', onWinResize);
   }, []);
 
   if (!tournamentDocId) return null;
@@ -178,14 +262,19 @@ export default function TournamentChat({ tournamentDocId }) {
   return (
     <div
       ref={panelRef}
-      className={`fixed z-[100] w-[min(calc(100vw-1rem),320px)] bg-stone-950/95 border border-stone-700/80 rounded-xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden max-h-[min(480px,70dvh)] backdrop-blur-sm ${
-        dragging ? 'select-none' : ''
+      className={`fixed z-[100] bg-stone-950/95 border border-stone-700/80 rounded-xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden backdrop-blur-sm ${
+        dragging || resizing ? 'select-none' : ''
       }`}
-      style={{ left: position.left, top: position.top }}
+      style={{
+        left: layout.left,
+        top: layout.top,
+        width: layout.width,
+        height: layout.height,
+      }}
     >
       <div
         onPointerDown={handleDragStart}
-        className={`px-3 py-2 border-b border-stone-700/60 bg-stone-900/80 rounded-t-xl ${
+        className={`shrink-0 px-3 py-2 border-b border-stone-700/60 bg-stone-900/80 rounded-t-xl ${
           dragging ? 'cursor-grabbing' : 'cursor-grab'
         } active:cursor-grabbing touch-none`}
         title="Glisser pour déplacer la fenêtre"
@@ -199,7 +288,7 @@ export default function TournamentChat({ tournamentDocId }) {
               💬 Chat du tournoi
             </h3>
             <p className="text-[10px] text-stone-500 mt-0.5">
-              Glisser l&apos;en-tête pour déplacer · effacé à la fin
+              En-tête : déplacer · coin bas-droite : taille · effacé à la fin
             </p>
           </div>
           <span className="text-stone-500 text-sm leading-none" aria-hidden>
@@ -208,7 +297,7 @@ export default function TournamentChat({ tournamentDocId }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent min-h-[100px]">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent">
         {messages.length === 0 ? (
           <p className="text-stone-600 italic text-center text-xs py-6">
             Aucun message pour l&apos;instant…
@@ -234,7 +323,7 @@ export default function TournamentChat({ tournamentDocId }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-2 border-t border-stone-700/60 flex gap-2 shrink-0">
+      <div className="shrink-0 p-2 border-t border-stone-700/60 flex gap-2">
         <input
           type="text"
           value={input}
@@ -248,7 +337,7 @@ export default function TournamentChat({ tournamentDocId }) {
           placeholder="Écrire un message…"
           maxLength={400}
           disabled={!currentUser}
-          className="flex-1 bg-stone-900 border border-stone-600 rounded-lg px-2 py-1.5 text-stone-200 text-xs placeholder:text-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50"
+          className="flex-1 min-w-0 bg-stone-900 border border-stone-600 rounded-lg px-2 py-1.5 text-stone-200 text-xs placeholder:text-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50"
         />
         <button
           type="button"
@@ -258,6 +347,24 @@ export default function TournamentChat({ tournamentDocId }) {
         >
           {sending ? '…' : 'Envoyer'}
         </button>
+      </div>
+
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-label="Redimensionner la fenêtre du chat"
+        onPointerDown={handleResizeStart}
+        className={`absolute bottom-0 right-0 z-[110] w-7 h-7 cursor-nwse-resize touch-none flex items-end justify-end rounded-br-xl ${
+          resizing ? 'bg-amber-900/30' : 'hover:bg-stone-800/80'
+        }`}
+        title="Tirer pour agrandir ou réduire"
+      >
+        <span
+          className="text-stone-500 text-xs leading-none pr-1 pb-1 select-none pointer-events-none"
+          aria-hidden
+        >
+          ◢
+        </span>
       </div>
     </div>
   );
