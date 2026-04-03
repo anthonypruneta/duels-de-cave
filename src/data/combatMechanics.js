@@ -111,11 +111,11 @@ const CLASS_NAME_TO_KEY = {
  */
 export const subclassConstants = {
   maitre_armes: { capScale: 0.10 },                    // Auto + 10% CAP (ignore def/resC)
-  duracier: { shieldAutoPercent: 0.25, shieldCapPercent: 0.008 }, // Bouclier 15% Auto + 0,5% CAP
-  croise_lumineux: { nextAttackReduction: 0.30 },      // -20% dégâts prochaine attaque
-  juge_implacable: { defReductionStack: 0.015 },        // -3% DEF ennemi (stackable)
-  sniper: { hit2AutoMultiplier: 1.40 },                // 2e tir 150% Auto
-  chasseur_fantome: { ghostHunterCapBonus: 0.40 },     // +20% CAP après crit
+  duracier: { shieldAutoPercent: 0.25, shieldCapPercent: 0.008 }, // Bouclier 25% Auto + 0,8% CAP
+  croise_lumineux: { nextAttackReduction: 0.30 },      // -30% dégâts prochaine attaque
+  juge_implacable: { defReductionStack: 0.03 },        // -3% DEF ennemi par proc (stackable)
+  sniper: { hit2AutoMultiplier: 1.40 },                // 2e tir 140% Auto
+  chasseur_fantome: { ghostHunterCapBonus: 0.40 },     // +40% CAP après crit sur la capacité
   arcaniste_instable: { damageTakenStack: 0.06 },     // +5% dégâts subis (stackable)
   sorcier_neant: {},                                  // Brûlure (pas de ratio CAP overridable ici)
   maitre_invocateur: { capBase: 0.50, ignoreResist: 0.50, stackPerAuto: 0.008 },  // 50% Cap, 50% ignore, +1% Cap/auto
@@ -132,8 +132,8 @@ export const subclassConstants = {
   },
   luxum: { capShieldPercent: 0.25 },                   // Bouclier 10% CAP au soin
   latum: { missingHpDamagePercent: 0.15 },             // 20% PV manquants en dégâts
-  flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.12 }, // -20% DEF, +16% Auto
-  ecorche_fer: { defRescapStack: 0.03 },               // +7% DEF et ResC par Purge
+  flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.12 }, // -20% DEF, +12% Auto
+  ecorche_fer: { defRescapStack: 0.03 },               // +3% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
   maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.3, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 130% Cap au soin (Alchimiste de métal : 100%, hérite de la base)

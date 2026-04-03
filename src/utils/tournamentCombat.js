@@ -1262,15 +1262,17 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         att.flagellantApplied = true;
         const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const defMult = masoC.defMultiplier ?? 0.80;
-        const autoMult = masoC.autoMultiplier ?? 1.16;
+        const autoMult = masoC.autoMultiplier ?? 1.12;
         att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * defMult)), auto: Math.round(att.base.auto * autoMult) };
-        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -20% DEF, +16% Auto pour le reste du combat.`);
+        const defLossPct = Math.round((1 - defMult) * 100);
+        const autoGainPct = Math.round((autoMult - 1) * 100);
+        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -${defLossPct}% DEF, +${autoGainPct}% Auto pour le reste du combat.`);
       }
       if (att.subclass?.id === 'ecorche_fer') {
         const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-        const stack = masoC.defRescapStack ?? 0.07;
+        const stack = masoC.defRescapStack ?? 0.03;
         att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * (1 + stack))), rescap: Math.max(1, Math.round(att.base.rescap * (1 + stack))) };
-        log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +7% DEF et ResC.`);
+        log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +${Math.round(stack * 100)}% DEF et ResC.`);
       }
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
       if (masoHealEffects.bonusDamage > 0) {
@@ -1351,15 +1353,16 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
     if (att.subclass?.id === 'croise_lumineux') {
       const paladinC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-      def.paladinNextAttackReduction = paladinC.nextAttackReduction ?? 0.20;
-      log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -20% de dégâts.`);
+      const red = paladinC.nextAttackReduction ?? 0.20;
+      def.paladinNextAttackReduction = red;
+      log.push(`${playerColor} ✨ Croisé lumineux: la prochaine attaque de ${def.name} infligera -${Math.round(red * 100)}% de dégâts.`);
     }
     if (att.subclass?.id === 'juge_implacable') {
       const paladinC = getSubclassCapacityConstants(att.class, att.subclass?.id);
       const stack = paladinC.defReductionStack ?? 0.03;
       def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + stack;
-      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * 0.97)) };
-      log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de 3% (stackable).`);
+      def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * (1 - stack))) };
+      log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de ${(stack * 100).toFixed(1)}% (stackable).`);
     }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
     applySceptreCapBuff(att, paladinSpellEffects, log, playerColor);
@@ -2317,7 +2320,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
           const shieldCap = guerrierC.shieldCapPercent ?? 0.005;
           const duracierShield = Math.max(1, Math.round(att.base.auto * shieldAuto + getEffectiveCapForSceptre(att) * shieldCap));
           att.shield = (att.shield || 0) + duracierShield;
-          log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto + 0,5% CAP).`);
+          log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (${Math.round(shieldAuto * 100)}% Auto + ${(shieldCap * 100).toFixed(1)}% CAP).`);
         }
       }
     } else if (isBerz) {

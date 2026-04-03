@@ -87,7 +87,8 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Sirène': return `+${c.cap || 0} CAP, subit une capacité: +${pct(c.stackBonus, 0)} dégâts/soins de vos compétences (max ${c.maxStacks || 0} stacks)`;
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
-    case 'Turtlekin': return `Le premier coup reçu ne peut dépasser ${pct(c.firstHitCapPercent, 0)} de vos PV max`;
+    case 'Turtlekin':
+      return `+${c.def ?? 0} DEF\n+${c.rescap ?? 0} ResC\nLe premier coup reçu ne peut dépasser ${pct(c.firstHitCapPercent, 0)} de vos PV max`;
     case 'Écailleux': return races['Écailleux']?.bonus || '';
     case 'Cendrés': return races['Cendrés']?.bonus || '';
     default: return races[raceName]?.bonus || '';
@@ -210,7 +211,7 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'croise_lumineux':
       return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit les dégâts de la prochaine attaque ennemie de ${pct0(c.nextAttackReduction)}.`;
     case 'juge_implacable':
-      return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit de ${pct0(c.defReductionStack)} la DEF ennemie (stackable).`;
+      return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit la DEF ennemie de ${pct1(c.defReductionStack)} (stackable).`;
     case 'sniper':
       return `Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'chasseur_fantome':
@@ -242,7 +243,7 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'assassin':
       return `Esquive la prochaine attaque. Gagne +${c.spdBonus ?? 0} VIT et +${pct1(c.critPerCap)} Cap en chance de critique. Prochaine attaque critique garantie.`;
     case 'roublard':
-      return `Esquive la prochaine attaque. Gagne +${c.spdBonus ?? 0} VIT et +${pct1(c.critPerCap)} Cap en critique. Vole 8% d'une stat ennemie aléatoire (jusqu'au prochain proc, pas stackable).`;
+      return `Esquive la prochaine attaque. Gagne +${c.spdBonus ?? 0} VIT et +${pct1(c.critPerCap)} Cap en critique. Vole 6% d'une stat ennemie aléatoire (jusqu'au prochain proc, pas stackable).`;
     case 'luxum':
       return `Soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap. À chaque lancement : gain d'un bouclier égal à ${pct0(c.capShieldPercent)} de votre CAP. Convertit l'overheal en bouclier.`;
     case 'latum':
