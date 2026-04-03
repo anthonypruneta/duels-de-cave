@@ -362,6 +362,14 @@ export const TITLES = {
     icon: '🗺️',
     category: 'general',
   },
+  colosse_mille: {
+    id: 'colosse_mille',
+    male: 'le Colosse',
+    female: 'la Colosse',
+    description: 'Dépasser 1000 PV sur le personnage (PV totaux)',
+    icon: '❤️',
+    category: 'general',
+  },
 };
 
 /**

@@ -20,30 +20,37 @@ import { races } from '../data/races';
 import { getSubclassStatBonuses } from '../data/subclasses';
 import { getCoopRaceEchoAwakeningFragment } from '../utils/coopRaceEcho';
 
-export function useCharacterStatsDisplay(character, weaponOverride = null) {
+const emptyStatsDisplay = {
+  finalStats: {},
+  finalStatsBeforeForge: {},
+  tooltipContent: () => '',
+  getRaceDisplayBonus: () => 0,
+  getStatLineProps: () => ({}),
+  weaponStatValue: () => 0,
+  skipWeaponFlat: false,
+  hasForgeUpgrade: false,
+  forgeUpgrade: null,
+  forgeLabel: () => '',
+  passiveAutoBonus: 0,
+  passiveDetails: null,
+  fusedPassiveDisplay: null,
+  awakeningInfo: null,
+  isAwakeningActive: false,
+  weapon: null,
+  baseWithoutBonus: () => 0,
+  raceB: {},
+  classB: {},
+  forestBoosts: {},
+};
+
+/**
+ * Calcul pur des stats finales (même logique que le hook). Pour titres / checks hors React.
+ * @param {Object} character
+ * @param {Object|null} [weaponOverride]
+ */
+export function computeCharacterStatsDisplay(character, weaponOverride = null) {
   if (!character?.base) {
-    return {
-      finalStats: {},
-      finalStatsBeforeForge: {},
-      tooltipContent: () => '',
-      getRaceDisplayBonus: () => 0,
-      getStatLineProps: () => ({}),
-      weaponStatValue: () => 0,
-      skipWeaponFlat: false,
-      hasForgeUpgrade: false,
-      forgeUpgrade: null,
-      forgeLabel: () => '',
-      passiveAutoBonus: 0,
-      passiveDetails: null,
-      fusedPassiveDisplay: null,
-      awakeningInfo: null,
-      isAwakeningActive: false,
-      weapon: null,
-      baseWithoutBonus: () => 0,
-      raceB: {},
-      classB: {},
-      forestBoosts: {},
-    };
+    return emptyStatsDisplay;
   }
 
   const raceB = getRaceBonus(character.race);
@@ -206,4 +213,8 @@ export function useCharacterStatsDisplay(character, weaponOverride = null) {
     classB,
     forestBoosts,
   };
+}
+
+export function useCharacterStatsDisplay(character, weaponOverride = null) {
+  return computeCharacterStatsDisplay(character, weaponOverride);
 }

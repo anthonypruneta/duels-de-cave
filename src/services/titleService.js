@@ -11,6 +11,9 @@ import { doc, getDoc, setDoc, getDocs, collection, query, where, Timestamp, incr
 import { db, waitForFirestore } from '../firebase/config';
 import { detectTitlesFromCombat, getFormattedTitle } from '../data/titles';
 import { saveAccountTitles } from './characterService';
+import { normalizeCharacterBonuses } from '../utils/characterBonuses';
+import { getWeaponById } from '../data/weapons';
+import { computeCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay';
 
 /**
  * Vérifie si de nouveaux titres ont été obtenus après un combat et les enregistre.
@@ -153,6 +156,20 @@ export async function checkCrossWeekTitles(userId, extras = {}) {
       const completions = extras.dungeonCompletions || {};
       if (completions.dungeon && completions.forest && completions.mageTower) {
         newTitles.push('explorateur');
+      }
+    }
+
+    // --- colosse_mille : plus de 1000 PV totaux (même calcul que la fiche perso) — rétroactif au chargement ---
+    if (!earnedTitles.includes('colosse_mille')) {
+      const normalized = normalizeCharacterBonuses({
+        ...charData,
+        level: charData.level ?? 1,
+      });
+      const weapon = charData.equippedWeaponId ? getWeaponById(charData.equippedWeaponId) : null;
+      const { finalStats } = computeCharacterStatsDisplay(normalized, weapon || null);
+      const totalHp = finalStats?.hp ?? 0;
+      if (totalHp > 1000) {
+        newTitles.push('colosse_mille');
       }
     }
 
