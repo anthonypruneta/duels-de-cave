@@ -117,8 +117,10 @@ function Encyclopedia() {
               <div className="space-y-6">
                 {Object.entries(races).map(([name, info]) => {
                   const bonusLines = splitDescriptionLines(getRaceBonusText(name));
+                  // Toujours préférer le texte calculé (aligné sur combatMechanics / combat) :
+                  // la description dans `races` peut être écrasée par l’ancienne config Storage (applyBalanceConfig).
                   const awakeningLines = splitDescriptionLines(
-                    info.awakening?.description || buildRaceAwakeningDescription(name)
+                    buildRaceAwakeningDescription(name) || info.awakening?.description || ''
                   );
                   const pointeauLines = splitDescriptionLines(buildRacePointeauAdnDescription(name));
                   return (
