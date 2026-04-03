@@ -1243,8 +1243,8 @@ const Tournament = () => {
     return (
       <div className="min-h-screen p-6">
         <Header />
-        <div className="max-w-[1800px] mx-auto pt-20 flex flex-col xl:flex-row gap-6 items-start">
-          <div className="flex-1 min-w-0 w-full max-w-5xl xl:max-w-none">
+        <div className="max-w-5xl mx-auto pt-20">
+          <div className="w-full">
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-amber-400">
                 {isSimulation
@@ -1300,13 +1300,8 @@ const Tournament = () => {
               </div>
             )}
           </div>
-
-          {!isHistoryMode && (
-            <div className="w-full xl:w-80 flex-shrink-0 xl:sticky xl:top-24">
-              <TournamentChat tournamentDocId={docId} className="max-h-[min(420px,55dvh)]" />
-            </div>
-          )}
         </div>
+        {!isHistoryMode && <TournamentChat tournamentDocId={docId} />}
       </div>
     );
   }
@@ -1331,8 +1326,7 @@ const Tournament = () => {
         <source src="/assets/music/victory.mp3" type="audio/mpeg" />
       </audio>
 
-      <div className="max-w-[1800px] mx-auto pt-20 flex flex-col xl:flex-row gap-5 items-start">
-        <div className="flex-1 min-w-0 w-full">
+      <div className="max-w-[1800px] mx-auto pt-20">
         {/* Header */}
         <div className="text-center mb-5">
           {isHistoryMode && (
@@ -1474,14 +1468,8 @@ const Tournament = () => {
             {isHistoryMode ? '← Hall of Fame' : isSimulation || isLegacyMode ? '← Admin' : '← Retour'}
           </button>
         </div>
-        </div>
-
-        {!isHistoryMode && (
-          <div className="w-full xl:w-80 flex-shrink-0 xl:sticky xl:top-24 z-10">
-            <TournamentChat tournamentDocId={docId} className="max-h-[min(480px,65dvh)]" />
-          </div>
-        )}
       </div>
+      {!isHistoryMode && <TournamentChat tournamentDocId={docId} />}
     </div>
   );
 };
