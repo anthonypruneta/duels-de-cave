@@ -183,6 +183,19 @@ export const raceConstants = {
     firstHitCapPercent: 0.10,            // Premier coup reçu capé à 10% PV max
     def: 8,
     rescap: 8
+  },
+  ecailleux: {
+    spd: 5,
+    rescap: 5,
+    statLinkDivisor: 6,
+    capacityRefStatPercent: 0.01
+  },
+  cendres: {
+    spd: 3,
+    rescap: 3,
+    hpDamageThreshold: 0.10,
+    braisMultPerBraise: 0.10,
+    guaranteedBraisesPerTurn: 1
   }
 };
 
@@ -299,6 +312,14 @@ export const getRaceBonus = (race) => {
     case 'Turtlekin':
       b.def = raceConstants.turtlekin.def;
       b.rescap = raceConstants.turtlekin.rescap;
+      break;
+    case 'Écailleux':
+      b.spd = raceConstants.ecailleux.spd;
+      b.rescap = raceConstants.ecailleux.rescap;
+      break;
+    case 'Cendrés':
+      b.spd = raceConstants.cendres.spd;
+      b.rescap = raceConstants.cendres.rescap;
       break;
   }
   return b;

@@ -29,6 +29,11 @@ export const COOP_RED_DROP_RATE = {
 /** Intensité du Pointeau ADN : fraction de l’éveil de la race tirée (passifs numériques). */
 export const COOP_RACE_ECHO_POTENCY = 0.25;
 
+/** Pointeau ADN — Cendrés : 1 braise / 20% PV max cumulés ; +5% par braise ; pas de braise garantie au tour. */
+export const COOP_CENDRES_ECHO_HP_THRESHOLD = 0.20;
+export const COOP_CENDRES_ECHO_BRAISE_MULT = 0.05;
+export const COOP_CENDRES_ECHO_GUARANTEED = 0;
+
 export const COOP_RED_DIFFICULTY_LABELS = {
   [COOP_RED_DIFFICULTY.EASY]: 'Facile',
   [COOP_RED_DIFFICULTY.MEDIUM]: 'Moyen',

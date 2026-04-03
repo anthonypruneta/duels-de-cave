@@ -36,7 +36,9 @@ export const RACE_TO_CONSTANT_KEY = {
   'Sirène': 'sirene',
   'Gnome': 'gnome',
   'Mindflayer': 'mindflayer',
-  'Turtlekin': 'turtlekin'
+  'Turtlekin': 'turtlekin',
+  'Écailleux': 'ecailleux',
+  'Cendrés': 'cendres'
 };
 
 export const CLASS_TO_CONSTANT_KEY = {
@@ -77,6 +79,8 @@ export const buildRaceBonusDescription = (raceName, constants = null) => {
     case 'Gnome': return `+${c.spd || 0} VIT, +${c.cap || 0} CAP\nVIT > cible: +${pct(c.critIfFaster, 0)} crit, +${pct(c.critDmgIfFaster, 0)} dégâts crit\nVIT < cible: +${pct(c.dodgeIfSlower, 0)} esquive, +${pct(c.capBonusIfSlower, 0)} CAP\nÉgalité: +${pct(c.critIfEqual, 0)} crit/dégâts crit, +${pct(c.dodgeIfEqual, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(c.stealSpellCapDamageScale, 0)} de votre CAP aux dégâts`;
     case 'Turtlekin': return `Le premier coup reçu ne peut dépasser ${pct(c.firstHitCapPercent, 0)} de vos PV max`;
+    case 'Écailleux': return `+${c.spd || 0} VIT, +${c.rescap || 0} ResC\nChaque ${c.statLinkDivisor || 6} VIT : +1 ResC ; chaque ${c.statLinkDivisor || 6} ResC : +1 VIT (une fois au calcul des stats)`;
+    case 'Cendrés': return `+${c.spd || 0} VIT, +${c.rescap || 0} ResC`;
     default: return races[raceName]?.bonus || '';
   }
 };
@@ -97,6 +101,8 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
     case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
+    case 'Écailleux': return `Chaque dégât de capacité sur les PV : +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} VIT et +${pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0)} ResC (réf. début de combat), cumul combat.`;
+    case 'Cendrés': return `Cumul PV perdus (toutes sources) : 1 braise par ${pct(e?.cendresHpDamageThreshold ?? raceConstants.cendres.hpDamageThreshold, 0)} de PV max. Début de tour d'action : pool = ${e?.cendresBraiseGuaranteedEachTurn ?? 1} + braises non dépensées. Premier sort (dégâts ou soin) : +${pct(e?.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraise, 0)} par braise, puis consommation. Les soins ne réduisent pas le cumul.`;
     default: return races[raceName]?.awakening?.description || '';
   }
 };
@@ -116,6 +122,13 @@ export const buildRacePointeauAdnDescription = (raceName) => {
   if (raceName === 'Turtlekin') {
     const capP = e.turtlekinFirstHitCapPercent ?? 0.2;
     return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(capP, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50 % PV pour la première fois.`;
+  }
+
+  if (raceName === 'Cendrés') {
+    const th = e.cendresHpDamageThreshold ?? 0.20;
+    const m = e.cendresBraiseSpellMult ?? 0.05;
+    const g = e.cendresBraiseGuaranteedEachTurn ?? 0;
+    return `1 braise par ${pct(th, 0)} de PV max perdus (cumul combat) ; +${pct(m, 0)} par braise sur le premier sort du tour ; ${g === 0 ? 'aucune braise garantie' : `${g} braise(s) garantie(s)`} au début du tour d'action.`;
   }
 
   return buildRaceAwakeningDescription(raceName, e);
@@ -403,6 +416,14 @@ export const buildRaceBonusDescriptionParts = (raceName, constants = null) => {
         text('Le premier coup reçu ne peut dépasser '), slot(['firstHitCapPercent'], 'percent'),
         text(' de vos PV max')
       ];
+    case 'Écailleux':
+      return [
+        text('+'), slot(['spd'], 'raw'), text(' VIT, +'), slot(['rescap'], 'raw'),
+        text(' ResC\nChaque '), slot(['statLinkDivisor'], 'raw'), text(' VIT : +1 ResC ; chaque '),
+        slot(['statLinkDivisor'], 'raw'), text(' ResC : +1 VIT (une fois au calcul des stats)')
+      ];
+    case 'Cendrés':
+      return [text('+'), slot(['spd'], 'raw'), text(' VIT, +'), slot(['rescap'], 'raw'), text(' ResC')];
     default:
       return [{ type: 'text', value: buildRaceBonusDescription(raceName, c) }];
   }
@@ -479,6 +500,17 @@ export const buildRaceAwakeningDescriptionParts = (raceName, effect = null) => {
         slot(['statMultipliers', 'rescap'], 'percentMinus1'), text(' ResC\nLe premier coup reçu ne peut dépasser '),
         { type: 'slot', path: ['_bonus', 'turtlekin', 'firstHitCapPercent'], format: 'percent' },
         text(' de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.')
+      ];
+    case 'Écailleux':
+      return [
+        text('Chaque dégât de capacité sur les PV : +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'),
+        text(' VIT et +'), slot(['ecailleuxCapacityRefStatPercent'], 'percent'), text(' ResC (réf. début de combat), cumul combat.')
+      ];
+    case 'Cendrés':
+      return [
+        text('Cumul PV perdus (toutes sources) : 1 braise par '), slot(['cendresHpDamageThreshold'], 'percent'),
+        text(" de PV max. Début de tour d'action : pool = "), slot(['cendresBraiseGuaranteedEachTurn'], 'raw'),
+        text(' + braises non dépensées. Premier sort : +'), slot(['cendresBraiseSpellMult'], 'percent'), text(' par braise.')
       ];
     default:
       return [{ type: 'text', value: buildRaceAwakeningDescription(raceName, e) }];

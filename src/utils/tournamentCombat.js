@@ -346,6 +346,13 @@ export function preparerCombattant(char) {
       }
     }
   }
+  // Écailleux : +1 ResC par 6 VIT et +1 VIT par 6 ResC (une fois, sans boucle)
+  if (charForPrep.race === 'Écailleux') {
+    const s0 = baseFinal.spd;
+    const r0 = baseFinal.rescap;
+    const div = raceConstants.ecailleux.statLinkDivisor;
+    baseFinal = { ...baseFinal, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
+  }
   const weaponState = initWeaponCombatState(charForPrep, weaponId);
   const startHP = (typeof charForPrep._bossRushStartHP === 'number' && charForPrep._bossRushStartHP > 0)
     ? Math.min(charForPrep._bossRushStartHP, baseFinal.hp)
@@ -392,7 +399,12 @@ export function preparerCombattant(char) {
       rescap: baseFinal.rescap,
       spd: baseFinal.spd
     },
-    berserkNextAutoMul: 1
+    berserkNextAutoMul: 1,
+    cendresCumulativeHpDamage: 0,
+    cendresBraisesHpConsumed: 0,
+    _cendresMaxHpRef: baseFinal.hp,
+    cendresPool: 0,
+    cendresFirstSpellThisTurn: true
   };
 }
 
@@ -781,6 +793,42 @@ function tryProcEchoGuerre(att, attackerPassiveList, log, playerColor) {
   log.push(`${playerColor} ⚔️ Écho de Guerre: Auto de ${att.name} +${bonus} (stack ${att._echoStacks}/${maxStacks})`);
 }
 
+/** Cendrés / Pointeau ADN : recharge le pool de braises au début du tour d'action du combattant. */
+function refreshCendresPoolAtActionTurnStart(fighter) {
+  if (!fighter?.awakening?.cendresHpDamageThreshold) return;
+  const maxHP = fighter._cendresMaxHpRef ?? fighter.maxHP;
+  const cum = fighter.cendresCumulativeHpDamage || 0;
+  const th = fighter.awakening.cendresHpDamageThreshold;
+  const braisesFromHp = Math.floor(cum / (th * maxHP));
+  const used = fighter.cendresBraisesHpConsumed || 0;
+  const avail = Math.max(0, braisesFromHp - used);
+  const g = fighter.awakening.cendresBraiseGuaranteedEachTurn ?? 1;
+  fighter.cendresPool = g + avail;
+  fighter.cendresFirstSpellThisTurn = true;
+}
+
+/**
+ * Cendrés : premier sort du tour — multiplie dégâts ou soins, consomme le pool.
+ * @param {number} amount
+ * @returns {number}
+ */
+function applyCendresBraiseToOutgoing(att, amount, log, playerColor) {
+  if (!att?.awakening?.cendresHpDamageThreshold) return amount;
+  if (!att.cendresFirstSpellThisTurn) return amount;
+  const pool = att.cendresPool ?? 0;
+  if (pool <= 0) return amount;
+  const m = att.awakening.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraise;
+  const factor = 1 + m * pool;
+  const out = Math.max(1, Math.round(amount * factor));
+  const g = att.awakening.cendresBraiseGuaranteedEachTurn ?? raceConstants.cendres.guaranteedBraisesPerTurn;
+  const fromHp = Math.max(0, pool - g);
+  att.cendresBraisesHpConsumed = (att.cendresBraisesHpConsumed || 0) + fromHp;
+  att.cendresPool = 0;
+  att.cendresFirstSpellThisTurn = false;
+  log.push(`${playerColor} 🔥 Braises : ${att.name} inflige/soigne avec +${Math.round((factor - 1) * 100)}% (${pool} braise${pool > 1 ? 's' : ''}).`);
+  return out;
+}
+
 function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isCapacityDamage = false, turn = null) {
   const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
   const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
@@ -816,6 +864,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   if (isCapacityDamage) {
     const penduleBonus = getPenduleSpellBonus(att.weaponState);
     if (penduleBonus > 0) adjusted = Math.round(adjusted * (1 + penduleBonus));
+  }
+  // Cendrés : braises sur le montant de sort (après Pendule, comme les soins)
+  if (isCapacityDamage && att?.awakening?.cendresHpDamageThreshold) {
+    adjusted = applyCendresBraiseToOutgoing(att, adjusted, log, playerColor);
   }
   if (def.spectralMarked && def.spectralMarkBonus) adjusted = Math.round(adjusted * (1 + def.spectralMarkBonus));
   if (defUnicorn) adjusted = Math.round(adjusted * (1 + defUnicorn.incoming));
@@ -921,6 +973,23 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     tryTriggerOnctionLastStand(def, log, playerColor);
     def.maso_taken = (def.maso_taken || 0) + adjusted;
     if (def.awakening?.damageStackBonus) def.awakening.damageTakenStacks += 1;
+
+    // Cendrés : cumul PV perdus (soins ne réduisent pas ce total)
+    if (def.awakening?.cendresHpDamageThreshold) {
+      def.cendresCumulativeHpDamage = (def.cendresCumulativeHpDamage || 0) + adjusted;
+    }
+    // Écailleux : +% VIT/ResC (réf. début de combat) par dégât de capacité sur les PV
+    if (isCapacityDamage) {
+      const pct = def.awakening?.ecailleuxCapacityRefStatPercent
+        ?? (def.race === 'Écailleux' ? raceConstants.ecailleux.capacityRefStatPercent : 0);
+      if (pct > 0 && def.combatStatBaseline) {
+        const bs = def.combatStatBaseline;
+        const dSpd = Math.round(bs.spd * pct);
+        const dRes = Math.round(bs.rescap * pct);
+        def.base = { ...def.base, spd: def.base.spd + dSpd, rescap: def.base.rescap + dRes };
+        log.push(`${playerColor} 🐲 Écailleux : ${def.name} +${dSpd} VIT, +${dRes} ResC.`);
+      }
+    }
 
     // Turtlekin éveillé : réinitialise le passif quand il atteint 50% PV pour la première fois
     if (def.awakening?.turtlekinResetAt50 && def.turtlekinFirstHitUsed && !def.turtlekinResetAt50Used && def.currentHP > 0 && def.currentHP <= def.maxHP * 0.5) {
@@ -1319,6 +1388,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
     const penduleBonusHeal = getPenduleSpellBonus(att.weaponState);
     if (penduleBonusHeal > 0) baseHeal = Math.max(1, Math.round(baseHeal * (1 + penduleBonusHeal)));
+    if (att.awakening?.cendresHpDamageThreshold) {
+      baseHeal = applyCendresBraiseToOutgoing(att, baseHeal, log, playerColor);
+    }
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
@@ -1518,6 +1590,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
       const penduleBonusAlchHeal = getPenduleSpellBonus(att.weaponState);
       if (penduleBonusAlchHeal > 0) baseHeal = Math.max(1, Math.round(baseHeal * (1 + penduleBonusAlchHeal)));
+      if (att.awakening?.cendresHpDamageThreshold) {
+        baseHeal = applyCendresBraiseToOutgoing(att, baseHeal, log, playerColor);
+      }
       const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
       const heal = healCritResult.amount;
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -2594,6 +2669,7 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
 
     // First player action
     const firstActionLogs = [];
+    refreshCendresPoolAtActionTurnStart(first);
     processPlayerAction(first, second, firstActionLogs, firstIsP1, turn);
     allLogs.push(...firstActionLogs);
     p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
@@ -2603,6 +2679,7 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
     // Second player action
     if (p1.currentHP > 0 && p2.currentHP > 0) {
       const secondActionLogs = [];
+      refreshCendresPoolAtActionTurnStart(second);
       processPlayerAction(second, first, secondActionLogs, !firstIsP1, turn);
       allLogs.push(...secondActionLogs);
       p1.currentHP = Math.min(p1.maxHP, p1.currentHP);

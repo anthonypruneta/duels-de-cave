@@ -4,7 +4,12 @@
  */
 import { races } from '../data/races.js';
 import { getAwakeningEffect } from './awakening.js';
-import { COOP_RACE_ECHO_POTENCY } from '../data/coopRedDungeon.js';
+import {
+  COOP_RACE_ECHO_POTENCY,
+  COOP_CENDRES_ECHO_HP_THRESHOLD,
+  COOP_CENDRES_ECHO_BRAISE_MULT,
+  COOP_CENDRES_ECHO_GUARANTEED
+} from '../data/coopRedDungeon.js';
 
 /** Copie Mindflayer (Pointeau ADN / coop Red uniquement) : dégâts/soins de la copie = ce % de la valeur « pleine ». */
 export const COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT = 0.5;
@@ -160,6 +165,20 @@ export function getCoopRaceEchoAwakeningFragment(echoRaceName) {
     return {
       ...base,
       turtlekinFirstHitCapPercent: COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP,
+    };
+  }
+
+  if (echoRaceName === 'Cendrés') {
+    return {
+      cendresHpDamageThreshold: COOP_CENDRES_ECHO_HP_THRESHOLD,
+      cendresBraiseSpellMult: COOP_CENDRES_ECHO_BRAISE_MULT,
+      cendresBraiseGuaranteedEachTurn: COOP_CENDRES_ECHO_GUARANTEED
+    };
+  }
+
+  if (echoRaceName === 'Écailleux' && typeof full?.ecailleuxCapacityRefStatPercent === 'number') {
+    return {
+      ecailleuxCapacityRefStatPercent: full.ecailleuxCapacityRefStatPercent * COOP_RACE_ECHO_POTENCY
     };
   }
 

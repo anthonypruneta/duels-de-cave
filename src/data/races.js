@@ -183,5 +183,29 @@ export const races = {
         }
       }
     }
+  },
+  'Écailleux': {
+    bonus: '+5 VIT\n+5 ResC\nChaque 6 VIT : +1 ResC ; chaque 6 ResC : +1 VIT (une fois au calcul des stats)',
+    icon: '🐲',
+    awakening: {
+      levelRequired: 100,
+      description: 'Chaque capacité qui vous inflige des dégâts sur les PV : +1% VIT et +1% ResC (réf. début de combat), cumul tout le combat.',
+      effect: {
+        ecailleuxCapacityRefStatPercent: 0.01
+      }
+    }
+  },
+  'Cendrés': {
+    bonus: '+3 VIT\n+3 ResC',
+    icon: '🔥',
+    awakening: {
+      levelRequired: 100,
+      description: 'Chaque 10% de PV max perdus (cumul combat) ajoute 1 braise. Au début de votre tour d\'action : pool = 1 braise + braises non dépensées. Premier sort (dégâts ou soin) : +10% par braise, puis consommation. Les soins ne retirent pas le cumul de dégâts subis.',
+      effect: {
+        cendresHpDamageThreshold: 0.10,
+        cendresBraiseSpellMult: 0.10,
+        cendresBraiseGuaranteedEachTurn: 1
+      }
+    }
   }
 };
