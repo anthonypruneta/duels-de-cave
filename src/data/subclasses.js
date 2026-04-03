@@ -16,12 +16,12 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'juge_implacable', name: 'Juge implacable', bonus: '+7% Auto', abilityLabel: 'Riposte (CD: 2 tours)', description: 'Renvoie 45% des dégâts reçus + 0,6% de votre Cap. Réduit de 1,5% la DEF ennemie (stackable).' },
   ],
   'Archer': [
-    { id: 'chasseur_fantome', name: 'Chasseur Fantôme', bonus: '+10% chance de critique', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Après un crit, les prochains dégâts gagnent +40% CAP. Deux tirs : 100% Auto puis 130% Auto + 20% Cap (vs RésCap).' },
-    { id: 'sniper', name: 'Sniper', bonus: '+8% Auto', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Deux tirs : 100% Auto puis 140% Auto + 20% Cap (vs RésCap).' },
+    { id: 'chasseur_fantome', name: 'Chasseur Fantôme', bonus: '+10% chance de critique', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Après un crit, les prochains dégâts gagnent +40% CAP. Deux tirs : 100% Auto puis 130% Auto + 20% Cap.' },
+    { id: 'sniper', name: 'Sniper', bonus: '+8% Auto', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Deux tirs : 100% Auto puis 140% Auto + 20% Cap.' },
   ],
   'Mage': [
-    { id: 'arcaniste_instable', name: 'Arcaniste Instable', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 80% Cap (vs RésCap). Applique débuff : +5% dégâts subis par l\'ennemi (stackable).' },
-    { id: 'sorcier_neant', name: 'Sorcier du Néant', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 80% Cap (vs RésCap). Brûlure du Néant : l\'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.' },
+    { id: 'arcaniste_instable', name: 'Arcaniste Instable', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 80% Cap. Applique débuff : +5% dégâts subis par l\'ennemi (stackable).' },
+    { id: 'sorcier_neant', name: 'Sorcier du Néant', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 80% Cap. Brûlure du Néant : l\'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.' },
   ],
   'Demoniste': [
     { id: 'maitre_invocateur', name: 'Maître invocateur', bonus: '+10% Auto', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 50% Cap et ignore 50% RésCap. Chaque auto augmente ces dégâts de 0,8% Cap (cumulable).' },
@@ -49,11 +49,19 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Healer': [
     { id: 'luxum', name: 'Luxum', bonus: '+10% CAP', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Soigne 25% des PV manquants + 40% Cap. À chaque lancement : gain d\'un bouclier égal à 25% de votre CAP. Convertit l\'overheal en bouclier.' },
-    { id: 'latum', name: 'Latum', bonus: '+8% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 15% des PV manquants en dégâts à l\'ennemi (réduits par la ResC), puis soigne 25% des PV manquants + 40% Cap.' },
+    { id: 'latum', name: 'Latum', bonus: '+8% Auto', abilityLabel: 'Soin puissant (CD: 4 tours)', description: 'Inflige 15% des PV manquants en dégâts à l\'ennemi, puis soigne 25% des PV manquants + 40% Cap.' },
   ],
   'Alchimiste': [
-    { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + 30% CAP (vs ResC)\n- Vie : soigne 130% de votre Cap\n- Acide : Auto (vs DEF ennemie) et réduit DEF/ResC de 25%' },
-    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP (vs ResC)\n- Vie : soigne 100% de votre Cap\n- Acide : Auto (vs DEF ennemie) et réduit DEF/ResC de 10%\n- Métal : Auto (vs DEF ennemie) et étourdit 1 tour' },
+    { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + 30% CAP\n- Vie : soigne 130% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 25%' },
+    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP\n- Vie : soigne 100% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 10%\n- Métal : Auto et étourdit 1 tour' },
+  ],
+  'Sorcière': [
+    { id: 'hexe_noire', name: 'Hexe Noire', bonus: '+5% VIT, +5% Auto, +5% CAP', abilityLabel: 'Malédiction (CD: 3 tours)', description: 'Au début du combat : −10% sur une stat adverse aléatoire (permanent). Malédiction : −10% sur une stat aléatoire (cumulable) ; dégâts = Auto + % Cap + points de stats retirés (toutes sources).' },
+    { id: 'enchanteresse', name: 'Enchanteresse', bonus: '+10% CAP', abilityLabel: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −15% sur une stat aléatoire (cumulable) ; dégâts = Auto + % Cap + points de stats retirés (toutes sources).' },
+  ],
+  'Berserk': [
+    { id: 'boucher', name: 'Boucher', bonus: '+20% HP', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 80% des PV manquants (après le coût).' },
+    { id: 'brise_caves', name: 'Brise-Caves', bonus: '+10% Auto', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 50% des PV manquants (après le coût). La prochaine auto inflige +20% de dégâts.' },
   ],
 };
 
@@ -84,6 +92,10 @@ export const SUBCLASS_STAT_BONUSES = {
   ecorche_fer: { hp: 0.07 },
   maitre_alchimiste: { cap: 0.10 },
   alchimiste_metal: { auto: 0.05 },
+  hexe_noire: { spd: 0.05, auto: 0.05, cap: 0.05 },
+  enchanteresse: { cap: 0.10 },
+  boucher: { hp: 0.20 },
+  brise_caves: { auto: 0.10 },
 };
 
 /**

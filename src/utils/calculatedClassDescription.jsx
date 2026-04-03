@@ -94,7 +94,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
       return (
         <>
           2 attaques: 1 tir normal +{' '}
-          <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap}) vs ResC`}>
+          <Tooltip content={`Hit2 = ${hit2AutoMultiplier.toFixed(2)}×Auto (${auto}) + ${hit2CapMultiplier.toFixed(2)}×Cap (${cap})`}>
             <span className="text-green-400">{hit2Auto}+{hit2Cap}</span>
           </Tooltip>
         </>
@@ -112,7 +112,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           <Tooltip content={`Auto (${auto}) + ${formatPercent(magicPct)}% × Cap (${cap}) = ${magicDmgTotal}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}dégâts magiques (vs ResC)
+          {' '}dégâts magiques
         </>
       );
     }
@@ -186,7 +186,6 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           <Tooltip content={`Auto (${auto}) + ${formatPercent(capScale)}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap)
           <br />
           Attaque adverse -{reductionPct}%
         </>
@@ -240,7 +239,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           <Tooltip content={`Auto (${auto}) + ${formatPercent(fireCapScale)}% × Cap (${cap}) = ${fireBonus}`}>
             <span className="text-green-400">{fireTotal}</span>
           </Tooltip>
-          {' '}dégâts (vs RésCap)
+          {' '}dégâts
           <br />
           Vie :{' '}
           <Tooltip content={`Soin = ${formatPercent(lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
@@ -252,7 +251,7 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           <Tooltip content={`Auto : ${auto}`}>
             <span className="text-green-400">{auto}</span>
           </Tooltip>
-          {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          {' '}dégâts, réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
       );
     }
@@ -366,7 +365,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${formatPercent(c.hit2AutoMultiplier)}% × Auto (${auto}) = ${hit2Auto} + ${formatPercent(c.hit2CapMultiplier)}% × Cap (${cap}) = ${hit2Cap}`}>
             <span className="text-green-400">{hit2Total}</span>
           </Tooltip>
-          {' '}(vs RésCap).
+          .
         </>
       );
     }
@@ -382,7 +381,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`${formatPercent(c.hit2AutoMultiplier)}% × Auto (${auto}) = ${hit2Auto} + ${formatPercent(c.hit2CapMultiplier)}% × Cap (${cap}) = ${hit2Cap}`}>
             <span className="text-green-400">{hit2Total}</span>
           </Tooltip>
-          {' '}(vs RésCap).
+          .
         </>
       );
     }
@@ -396,7 +395,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.capBase)}% × Cap (${cap}) = ${spellDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). Débuff: +<span className="text-green-400">{stackPct}%</span> dégâts subis (cumulable).
+          . Débuff: +<span className="text-green-400">{stackPct}%</span> dégâts subis (cumulable).
         </>
       );
     }
@@ -409,7 +408,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.capBase)}% × Cap (${cap}) = ${spellDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap).{' '}
+          .{' '}
           <Tooltip content="Effet permanent appliqué à chaque lancement de la capacité.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Brûlure du Néant</span>
           </Tooltip>
@@ -506,7 +505,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.capScale)}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). La prochaine attaque adverse inflige{' '}
+          . La prochaine attaque adverse inflige{' '}
           <span className="text-red-400">-{nextPct}%</span> dégâts et réduit l'Auto ennemi de{' '}
           <span className="text-green-400">{autoRedPct}%</span> (cumulable).
         </>
@@ -522,7 +521,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.capScale)}% × Cap (${cap}) = ${capDmg}`}>
             <span className="text-green-400">{total}</span>
           </Tooltip>
-          {' '}(vs RésCap). La prochaine attaque adverse inflige{' '}
+          . La prochaine attaque adverse inflige{' '}
           <span className="text-red-400">-{nextPct}%</span> dégâts.{' '}
           <Tooltip content="Si le dernier sort n'était pas critique, le prochain est garanti crit. +10% crit sur les autos.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Crit alterné</span>
@@ -601,7 +600,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
       const missingHealPct = Math.round((c.missingHpPercent ?? 0) * 100);
       return (
         <>
-          Inflige <span className="text-green-400">{missingDmgPct}%</span> PV manquants (dégâts vs ResC), puis soigne {missingHealPct}% PV manquants +{' '}
+          Inflige <span className="text-green-400">{missingDmgPct}%</span> PV manquants en dégâts, puis soigne {missingHealPct}% PV manquants +{' '}
           <Tooltip content={`${formatPercent(c.capScale)}% × Cap (${cap})`}>
             <span className="text-green-400">{healCap}</span>
           </Tooltip>
@@ -698,7 +697,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto (${auto}) + ${formatPercent(c.fireCapScale)}% × Cap (${cap}) = ${fireBonus}`}>
             <span className="text-green-400">{fireTotal}</span>
           </Tooltip>
-          {' '}dégâts (vs ResC)
+          {' '}dégâts
           <br />
           Vie :{' '}
           <Tooltip content={`Soin = ${formatPercent(c.lifeCapScale)}% × Cap (${cap}) = ${lifeBonus}`}>
@@ -710,7 +709,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content={`Auto : ${auto}`}>
             <span className="text-green-400">{auto}</span>
           </Tooltip>
-          {' '}dégâts (vs Défense), réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
+          {' '}dégâts, réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
           {hasMetal ? (
             <>
               <br />
@@ -718,7 +717,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
               <Tooltip content={`Auto : ${auto}`}>
                 <span className="text-green-400">{auto}</span>
               </Tooltip>
-              {' '}dégâts (vs Défense) et étourdit <span className="text-green-400">{stunDur}</span> tour
+              {' '}dégâts et étourdit <span className="text-green-400">{stunDur}</span> tour
             </>
           ) : null}
         </>

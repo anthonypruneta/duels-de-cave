@@ -191,7 +191,7 @@ export function createExtensionBossCombatant() {
     maxHP: EXTENSION_BOSS.stats.hp,
     ability: { type: 'gojo_turn_spells', spells: EXTENSION_BOSS.spells },
     imageFile: EXTENSION_BOSS.imageFile,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, sorc: 0, berz: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,

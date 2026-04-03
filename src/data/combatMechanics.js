@@ -14,7 +14,9 @@ export const cooldowns = {
   maso: 4,  // Masochiste - Renvoi dégâts
   succ: 4,  // Succube - Coup de fouet
   bast: 4,  // Bastion - Charge du rempart
-  alch: 1   // Alchimiste - Cycle de flasques (chaque tour)
+  alch: 1,  // Alchimiste - Cycle de flasques (chaque tour)
+  sorc: 4,  // Sorcière - Malédiction (Hexe Noire : 3 via getMindflayerCapacityCooldown)
+  berz: 4   // Berserk - Rage
 };
 
 // Constantes des classes (valeurs réelles utilisées dans le combat)
@@ -40,11 +42,11 @@ export const classConstants = {
     hitCount: 2,
     hit1AutoMultiplier: 1.0,  // Premier tir: 100% Auto
     hit2AutoMultiplier: 1.3,  // Second tir: 130% Auto
-    hit2CapMultiplier: 0.2    // Second tir: +20% Cap (vs ResC)
+    hit2CapMultiplier: 0.2    // Second tir: +20% Cap
   },
   mage: {
     autoBase: 1.0,         // 100% de l'attaque de base
-    capBase: 0.90,         // +90% de Cap (vs ResC)
+    capBase: 0.90,         // +90% de Cap
     capPerCap: 0           // Pas de scaling supplémentaire
   },
   demoniste: {
@@ -81,6 +83,16 @@ export const classConstants = {
     acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
     acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
+  },
+  sorciere: {
+    curseStatReduction: 0.10,    // Malédiction : -10% de la stat courante (15% Enchanteresse)
+    capBase: 0.80,               // Portion Cap dans la formule (comme le Mage)
+    capPerCap: 0
+  },
+  berserk: {
+    rageHpCostPercent: 0.10,     // Coût PV max par Rage
+    rageMissingHpDamageScale: 0.50, // Bonus dégâts = scale × PV manquants (après coût)
+    nextAutoDamageBonus: 0.20    // Brise-Caves : +20% sur la prochaine auto
   }
 };
 
@@ -89,7 +101,7 @@ const CLASS_NAME_TO_KEY = {
   'Guerrier': 'guerrier', 'Voleur': 'voleur', 'Paladin': 'paladin', 'Healer': 'healer',
   'Archer': 'archer', 'Mage': 'mage', 'Demoniste': 'demoniste', 'Masochiste': 'masochiste',
   'Briseur de Sort': 'briseurSort', 'Succube': 'succube', 'Bastion': 'bastion',
-  'Alchimiste': 'alchimiste'
+  'Alchimiste': 'alchimiste', 'Sorcière': 'sorciere', 'Berserk': 'berserk'
 };
 
 /**
@@ -125,7 +137,11 @@ export const subclassConstants = {
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
   maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.3, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 130% Cap au soin (Alchimiste de métal : 100%, hérite de la base)
-  alchimiste_metal: { cycleLength: 4 }                 // 4 phases ; soin Vie = 100% Cap (comme la classe de base)
+  alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = 100% Cap (comme la classe de base)
+  hexe_noire: { sorcEffectiveCooldown: 3 },             // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
+  enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
+  boucher: { rageMissingHpDamageScale: 0.80 },
+  brise_caves: {}                                       // +20% prochaine auto : constante classe berserk.nextAutoDamageBonus
 };
 
 /**

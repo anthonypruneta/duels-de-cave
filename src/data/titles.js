@@ -591,7 +591,7 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
     });
     if (deathStep) {
       const hasAbilityKill = deathStep.logs?.some(l =>
-        l.includes(playerPrefix) && (l.includes('capacité') || l.includes('sort') || l.includes('Explosion') || l.includes('Souffle') || l.includes('tir') || l.includes('Tir') || l.includes('riposte') || l.includes('purge') || l.includes('fouet') || l.includes('Charge') || l.includes('flasque'))
+        l.includes(playerPrefix) && (l.includes('capacité') || l.includes('sort') || l.includes('Explosion') || l.includes('Souffle') || l.includes('tir') || l.includes('Tir') || l.includes('riposte') || l.includes('purge') || l.includes('fouet') || l.includes('Charge') || l.includes('flasque') || l.includes('Malédiction') || l.includes('Rage'))
       );
       if (hasAbilityKill) detected.push('executeur');
     }

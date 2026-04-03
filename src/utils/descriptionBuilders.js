@@ -51,7 +51,9 @@ export const CLASS_TO_CONSTANT_KEY = {
   'Briseur de Sort': 'briseurSort',
   'Succube': 'succube',
   'Bastion': 'bastion',
-  'Alchimiste': 'alchimiste'
+  'Alchimiste': 'alchimiste',
+  'Sorcière': 'sorciere',
+  'Berserk': 'berserk'
 };
 
 // ============================================================================
@@ -134,14 +136,16 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Voleur': return `Esquive la prochaine attaque. Gagne +${c.spdBonus || 0} VIT et +${((c.critPerCap || 0) * 100).toFixed(1)}% de votre Cap en chance de critique.`;
     case 'Paladin': return `Renvoie ${(c.reflectBase || 0) * 100}% des dégâts reçus + ${(c.reflectPerCap || 0) * 100}% de votre Cap.`;
     case 'Healer': return `Soigne ${(c.missingHpPercent || 0) * 100}% des PV manquants + ${(c.capScale || 0) * 100}% de votre Cap.`;
-    case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(c.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(c.hit2CapMultiplier || 0) * 100}% de votre Cap (opposé à la RésCap).`;
-    case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap (vs RésCap).`;
+    case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(c.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(c.hit2CapMultiplier || 0) * 100}% de votre Cap.`;
+    case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap.`;
     case 'Demoniste': return `Chaque tour, votre familier inflige ${(c.capBase || 0) * 100}% de votre Cap et ignore ${(c.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(c.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
     case 'Masochiste': return `Renvoie ${(c.returnBase || 0) * 100}% des dégâts accumulés + ${(c.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(c.healPercent || 0) * 100}% des dégâts accumulés.`;
     case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
-    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP (vs ResC)\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto vs DEF ennemie + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
+    case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
+    case 'Sorcière': return `Malédiction : −${(c.curseStatReduction || 0) * 100}% d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : attaque de base + ${(c.capBase || 0) * 100}% Cap + points de stats retirés à l'ennemi (toutes sources).`;
+    case 'Berserk': return `Rage : consomme ${(c.rageHpCostPercent || 0) * 100}% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + ${(c.rageMissingHpDamageScale || 0) * 100}% des PV manquants (après ce coût).`;
     default: return classes[className]?.description || '';
   }
 };
@@ -170,13 +174,13 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'juge_implacable':
       return `Renvoie ${pct0(c.reflectBase)} des dégâts reçus + ${pct1(c.reflectPerCap)} de votre Cap. Réduit de ${pct0(c.defReductionStack)} la DEF ennemie (stackable).`;
     case 'sniper':
-      return `Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap (vs RésCap).`;
+      return `Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'chasseur_fantome':
-      return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap (vs RésCap).`;
+      return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'arcaniste_instable':
-      return `Inflige Auto + ${pct0(c.capBase)} Cap (vs RésCap). Applique débuff : +${pct0(c.damageTakenStack)} dégâts subis par l'ennemi (stackable).`;
+      return `Inflige Auto + ${pct0(c.capBase)} Cap. Applique débuff : +${pct0(c.damageTakenStack)} dégâts subis par l'ennemi (stackable).`;
     case 'sorcier_neant':
-      return `Inflige Auto + ${pct0(c.capBase)} Cap (vs RésCap). Brûlure du Néant : l'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.`;
+      return `Inflige Auto + ${pct0(c.capBase)} Cap. Brûlure du Néant : l'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.`;
     case 'maitre_invocateur':
       return `Chaque tour, familier inflige ${pct0(c.capBase)} Cap et ignore ${pct0(c.ignoreResist)} RésCap. Chaque auto augmente ces dégâts de ${pct1(c.stackPerAuto)} Cap (cumulable).`;
     case 'pacte_sombre':
@@ -204,16 +208,24 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'luxum':
       return `Soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap. À chaque lancement : gain d'un bouclier égal à ${pct0(c.capShieldPercent)} de votre CAP. Convertit l'overheal en bouclier.`;
     case 'latum':
-      return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi (réduits par la ResC), puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
+      return `Inflige ${pct0(c.missingHpDamagePercent)} des PV manquants en dégâts à l'ennemi, puis soigne ${pct0(c.missingHpPercent)} des PV manquants + ${pct0(c.capScale)} Cap.`;
 
     case 'maitre_alchimiste': {
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs DEF ennemie) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}`;
     }
 
     case 'alchimiste_metal': {
       const stun = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
-      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP (vs ResC)\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto (vs DEF ennemie) et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto (vs DEF ennemie) et étourdit ${stun} tour`;
+      return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto et étourdit ${stun} tour`;
     }
+    case 'hexe_noire':
+      return `Début de combat : −${pct0(c.curseStatReduction ?? classConstants.sorciere.curseStatReduction)} sur une stat adverse aléatoire. Malédiction (CD 3) : −${pct0(c.curseStatReduction ?? classConstants.sorciere.curseStatReduction)} ; total dégâts (Auto + ${pct0(c.capBase ?? classConstants.sorciere.capBase)} Cap + points de stats retirés).`;
+    case 'enchanteresse':
+      return `Malédiction : −${pct0(c.curseStatReduction)} ; total dégâts (Auto + ${pct0(c.capBase)} Cap + points de stats retirés).`;
+    case 'boucher':
+      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale)} des PV manquants (après coût).`;
+    case 'brise_caves':
+      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale)} des PV manquants. Prochaine auto +${pct0(classConstants.berserk.nextAutoDamageBonus)} dégâts.`;
     default:
       return '';
   }
@@ -269,12 +281,12 @@ export const buildClassDescriptionParts = (className, constants = null) => {
       return [
         text('Deux tirs : le premier inflige 100% de votre attaque. Le second inflige '),
         slot(['hit2AutoMultiplier'], 'percent'), text('% de votre attaque + '),
-        slot(['hit2CapMultiplier'], 'percent'), text('% de votre Cap (opposé à la RésCap).')
+        slot(['hit2CapMultiplier'], 'percent'), text('% de votre Cap.')
       ];
     case 'Mage':
       return [
         text('Inflige votre attaque de base + '), slot(['capBase'], 'percent'),
-        text('% de votre Cap (vs RésCap).')
+        text('% de votre Cap.')
       ];
     case 'Demoniste':
       return [
@@ -313,10 +325,22 @@ export const buildClassDescriptionParts = (className, constants = null) => {
     case 'Alchimiste':
       return [
         text('Cycle de '), slot(['cycleLength'], 'raw'), text(' flasques :\n- Feu : Auto + '),
-        slot(['fireCapScale'], 'percent'), text('% CAP (vs ResC)\n- Vie : soin '),
-        slot(['lifeCapScale'], 'percent'), text('% de votre CAP\n- Acide : Auto vs DEF ennemie, réduit DEF '),
+        slot(['fireCapScale'], 'percent'), text('% CAP\n- Vie : soin '),
+        slot(['lifeCapScale'], 'percent'), text('% de votre CAP\n- Acide : Auto, réduit DEF '),
         slot(['acidDefReduction'], 'percent'), text('% / ResC '),
         slot(['acidRescReduction'], 'percent'), text('%')
+      ];
+    case 'Sorcière':
+      return [
+        text('Malédiction : −'), slot(['curseStatReduction'], 'percent'),
+        text('% stat aléatoire (cumul). Attaque de base + '), slot(['capBase'], 'percent'),
+        text('% Cap + points de stats retirés à l’ennemi.')
+      ];
+    case 'Berserk':
+      return [
+        text('Rage : '), slot(['rageHpCostPercent'], 'percent'),
+        text('% PV max (ne peut pas tuer). Auto + '), slot(['rageMissingHpDamageScale'], 'percent'),
+        text('% des PV manquants après le coût.')
       ];
     default:
       return [{ type: 'text', value: buildClassDescription(className, c) }];

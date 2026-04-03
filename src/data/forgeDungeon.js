@@ -193,7 +193,7 @@ export function createForgeBossCombatant() {
     maxHP: FORGE_BOSS.stats.hp,
     ability: FORGE_BOSS.ability,
     imageFile: FORGE_BOSS.imageFile,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, boss_ability: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, sorc: 0, berz: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,

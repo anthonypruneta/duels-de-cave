@@ -263,6 +263,46 @@ export function applyStartOfCombatPassives(attacker, defender, log, label) {
 
   defender.spectralMarked = false;
   defender.spectralMarkBonus = 0;
+
+  // Hexe Noire : malédiction initiale sur une stat adverse (début de combat)
+  if (attacker.class === 'Sorcière' && attacker.subclass?.id === 'hexe_noire' && !defender.isWorldBoss) {
+    const sorC = getSubclassCapacityConstants('Sorcière', attacker.subclass?.id);
+    const pct = sorC.curseStatReduction ?? classConstants.sorciere.curseStatReduction;
+    applySorciereCurseRandomStat(defender, pct, log, label, '🕯️ Hexe Noire (début de combat)');
+  }
+}
+
+/** Stats visées par Malédiction / malus Sorcière */
+const SORCIERE_CURSE_STAT_KEYS = ['auto', 'def', 'cap', 'rescap', 'spd'];
+
+function pickSorciereCurseStatKey() {
+  return SORCIERE_CURSE_STAT_KEYS[Math.floor(combatRandom01() * SORCIERE_CURSE_STAT_KEYS.length)];
+}
+
+/**
+ * Réduit une stat au hasard de `percent` sur la valeur courante (min 1).
+ * @param {string} [effectLabel] — préfixe log (ex. emoji + nom d'effet)
+ */
+function applySorciereCurseRandomStat(target, percent, log, label, effectLabel) {
+  const stat = pickSorciereCurseStatKey();
+  const before = target.base[stat];
+  const after = Math.max(1, Math.round(before * (1 - percent)));
+  target.base = { ...target.base, [stat]: after };
+  if (log && label != null && effectLabel) {
+    log.push(`${label} ${effectLabel}: ${target.name} — ${stat.toUpperCase()} ${before}→${after} (−${Math.round(percent * 100)}%).`);
+  }
+  return { stat, before, after };
+}
+
+/** Somme des points perdus sur auto/def/cap/rescap/spd depuis le snapshot de début de combat. */
+function getTotalSorciereStatPointsReduced(fighter) {
+  const b = fighter.combatStatBaseline;
+  if (!b || !fighter.base) return 0;
+  let sum = 0;
+  for (const k of SORCIERE_CURSE_STAT_KEYS) {
+    sum += Math.max(0, (b[k] ?? 0) - (fighter.base[k] ?? 0));
+  }
+  return sum;
 }
 
 // ============================================================================
@@ -318,7 +358,7 @@ export function preparerCombattant(char) {
     baseWithBoosts,
     currentHP: startHP,
     maxHP: baseFinal.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, boss_ability: 0 },
+    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
     undead: false,
     dodge: false,
     reflect: false,
@@ -344,7 +384,15 @@ export function preparerCombattant(char) {
     turtlekinResetAt50Used: false,
     alchPhase: 0,
     weaponState,
-    awakening: buildAwakeningState(awakeningEffect)
+    awakening: buildAwakeningState(awakeningEffect),
+    combatStatBaseline: {
+      auto: baseFinal.auto,
+      def: baseFinal.def,
+      cap: baseFinal.cap,
+      rescap: baseFinal.rescap,
+      spd: baseFinal.spd
+    },
+    berserkNextAutoMul: 1
   };
 }
 
@@ -410,7 +458,13 @@ function applyOutgoingAwakeningBonus(attacker, damage) {
 
 
 function getMindflayerCapacityCooldown(caster, _target, capacityId) {
-  const baseCooldown = cooldowns[capacityId] ?? 1;
+  let baseCooldown = cooldowns[capacityId] ?? 1;
+  if (capacityId === 'sorc' && caster?.class === 'Sorcière') {
+    const subC = getSubclassCapacityConstants('Sorcière', caster?.subclass?.id);
+    if (typeof subC.sorcEffectiveCooldown === 'number' && subC.sorcEffectiveCooldown >= 1) {
+      baseCooldown = subC.sorcEffectiveCooldown;
+    }
+  }
   let adjustedCooldown = baseCooldown;
 
   // Arbalète du Verdict: +1 CD sur toutes les capacités
@@ -620,6 +674,50 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
       raw = scaleEchoCopyDamage(raw);
       const inflicted = applyDamage(target, caster, raw, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
       log.push(`${playerColor} 🦑 ${target.name} copie la flasque de ${caster.name} et inflige ${inflicted} dégâts !${echoCopyLog}`);
+      break;
+    }
+    case 'Sorcière': {
+      let rawS;
+      if (useMagnitude) {
+        rawS = Math.max(1, capacityMagnitude + capBonus);
+      } else {
+        const occC = getSubclassCapacityConstants(caster.class, caster.subclass?.id);
+        const cursePct = occC.curseStatReduction ?? classConstants.sorciere.curseStatReduction;
+        const capBase = occC.capBase ?? classConstants.sorciere.capBase;
+        const capPerCap = occC.capPerCap ?? classConstants.sorciere.capPerCap;
+        applySorciereCurseRandomStat(caster, cursePct, log, playerColor, '🦑 Malédiction copiée');
+        const flatBonus = getTotalSorciereStatPointsReduced(caster);
+        const scaledCap = target.base.cap;
+        const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * scaledCap) * scaledCap);
+        rawS = dmgCap(atkSpell + flatBonus, caster.base.rescap) + capBonus;
+      }
+      rawS = scaleEchoCopyDamage(rawS);
+      const inflictedS = applyDamage(target, caster, rawS, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 🦑 ${target.name} copie la Malédiction de ${caster.name} et inflige ${inflictedS} dégâts !${echoCopyLog}`);
+      break;
+    }
+    case 'Berserk': {
+      let rawB;
+      if (useMagnitude) {
+        rawB = Math.max(1, capacityMagnitude + capBonus);
+      } else {
+        const occC = getSubclassCapacityConstants(caster.class, caster.subclass?.id);
+        const hpCostPct = occC.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent;
+        const scale = occC.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale;
+        const cost = Math.max(0, Math.round(target.maxHP * hpCostPct));
+        target.currentHP = Math.max(1, target.currentHP - cost);
+        tryTriggerOnctionLastStand(target, log, playerColor);
+        const missingHp = target.maxHP - target.currentHP;
+        const bonusFromMissing = Math.round(missingHp * scale);
+        rawB = dmgCap(Math.round(target.base.auto + bonusFromMissing), caster.base.rescap) + capBonus;
+        if (caster.subclass?.id === 'brise_caves') {
+          const mul = classConstants.berserk.nextAutoDamageBonus ?? 0.2;
+          target.berserkNextAutoMul = 1 + mul;
+        }
+      }
+      rawB = scaleEchoCopyDamage(rawB);
+      const inflictedB = applyDamage(target, caster, rawB, false, log, playerColor, attackerPassives, defenderPassives, defUnicorn, atkUnicorn, auraBonus, true, true, turn);
+      log.push(`${playerColor} 🦑 ${target.name} copie la Rage de ${caster.name} et inflige ${inflictedB} dégâts !${echoCopyLog}`);
       break;
     }
     default: {
@@ -1208,7 +1306,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const latumRaw = Math.max(1, Math.round(miss * pct));
       const latumDmg = dmgCap(latumRaw, def.base.rescap);
       const inflicted = applyDamage(att, def, latumDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, true, turn);
-      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (20% PV manquants, vs ResC) à ${def.name}.`);
+      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (20% PV manquants) à ${def.name}.`);
     }
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
@@ -1344,7 +1442,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const acidRescRed = alchC.acidRescReduction ?? classConstants.alchimiste.acidRescReduction;
 
     if (phase === 0) {
-      // Flasque de feu : dégâts vs ResC
+      // Flasque de feu : dégâts magiques (RésCap)
       const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
       let raw = dmgCap(Math.round((att.base.auto + getEffectiveCapForSceptre(att) * spellCapMult * fireCapScale) * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
@@ -1444,9 +1542,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
 
     } else if (phase === 2) {
-      // Flasque d'acide : dégâts physiques (Auto vs DEF ennemie, comme une attaque normale) + réduction DEF/ResC
+      // Flasque d'acide : Auto (RésCap) + réduction DEF/ResC sur le debuff
       const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
-      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1515,9 +1613,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
 
     } else if (phase === 3) {
-      // Flasque de métal (sous-classe Alchimiste de Métal uniquement) : physique vs DEF ennemie
+      // Flasque de métal (sous-classe Alchimiste de Métal uniquement) : Auto (RésCap)
       const isCrit = turnEffects.guaranteedCrit ? true : combatRandom01() < calcCritChance(att, def);
-      let raw = dmgPhys(Math.round(att.base.auto * mult), def.base.def);
+      let raw = dmgCap(Math.round(att.base.auto * mult), def.base.rescap);
       raw = Math.round(raw * consumeWeaponDamageBonus());
       raw = applyMindflayerCapacityMod(att, def, raw, 'alch', log, playerColor);
       if (isCrit) {
@@ -1952,7 +2050,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   const isMage = !capacityStolen && att.class === 'Mage' && att.cd.mag === getMindflayerCapacityCooldown(att, def, 'mag');
   const isWar = !capacityStolen && att.class === 'Guerrier' && att.cd.war === getMindflayerCapacityCooldown(att, def, 'war');
   const isArcher = !capacityStolen && att.class === 'Archer' && att.cd.arc === getMindflayerCapacityCooldown(att, def, 'arc');
-  skillUsed = skillUsed || isMage || isWar || isArcher;
+  const isSorc = !capacityStolen && att.class === 'Sorcière' && att.cd.sorc === getMindflayerCapacityCooldown(att, def, 'sorc');
+  const isBerz = !capacityStolen && att.class === 'Berserk' && att.cd.berz === getMindflayerCapacityCooldown(att, def, 'berz');
+  skillUsed = skillUsed || isMage || isWar || isArcher || isSorc || isBerz;
 
   // Mindflayer éveillé: -1 CD uniquement sur la première capacité avec CD > 1 (réinitialiser le CD utilisé).
   // Pour capacité à 0/1 CD (ex. Demoniste familier), seul le buff de dégâts (mindflayerNoCooldownSpellBonus) s'applique, dans applyMindflayerCapacityMod.
@@ -1970,6 +2070,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       else if (isMage) { att.cd.mag = 0; didResetCd = true; }
       else if (isWar) { att.cd.war = 0; didResetCd = true; }
       else if (isArcher) { att.cd.arc = 0; didResetCd = true; }
+      else if (isSorc) { att.cd.sorc = 0; didResetCd = true; }
+      else if (isBerz) { att.cd.berz = 0; didResetCd = true; }
       if (didResetCd) att.mindflayerFirstCDUsed = true;
     }
   }
@@ -1988,6 +2090,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     else if (att.class === 'Mage') att.cd.mag = 0;
     else if (att.class === 'Guerrier') att.cd.war = 0;
     else if (att.class === 'Archer') att.cd.arc = 0;
+    else if (att.class === 'Sorcière') att.cd.sorc = 0;
+    else if (att.class === 'Berserk') att.cd.berz = 0;
   }
 
   // Entrave Arcanique : marquer que la première capacité a été utilisée (pour stopper le bonus de dégâts)
@@ -2003,6 +2107,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     !isMage &&
     !isWar &&
     !isArcher &&
+    !isSorc &&
+    !isBerz &&
     (att.class === 'Succube' || att.class === 'Healer' || att.class === 'Masochiste');
 
   const baseHits =
@@ -2059,6 +2165,33 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} utilise sa capacité magique et inflige ${inflictedCodex} points de dégâts`);
       }
+    } else if (isSorc) {
+      const sorC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const cursePct = sorC.curseStatReduction ?? classConstants.sorciere.curseStatReduction;
+      const capBase = sorC.capBase ?? classConstants.sorciere.capBase;
+      const capPerCap = sorC.capPerCap ?? classConstants.sorciere.capPerCap;
+      if (i === 0) {
+        applySorciereCurseRandomStat(def, cursePct, log, playerColor, '🔮 Malédiction');
+      }
+      const flatBonus = getTotalSorciereStatPointsReduced(def);
+      const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
+      const effectiveCap = getEffectiveCapForSceptre(att);
+      const scaledCap = effectiveCap * spellCapMultiplier;
+      const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);
+      raw = dmgCap(atkSpell + flatBonus, def.base.rescap);
+      if (i === 0) log.push(`${playerColor} 🕯️ ${att.name} lance Malédiction sur ${def.name}`);
+      raw = applyMindflayerCapacityMod(att, def, raw, 'sorc', log, playerColor);
+      const verdictBonusSorc = getVerdictCapacityBonus(att.weaponState);
+      if (verdictBonusSorc.damageMultiplier !== 1) {
+        raw = Math.round(raw * verdictBonusSorc.damageMultiplier);
+        verdictBonusSorc.log.forEach((l) => log.push(`${playerColor} ${l}`));
+      }
+      const sorcSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'sorc');
+      applySceptreCapBuff(att, sorcSpellEffects, log, playerColor);
+      if (sorcSpellEffects.doubleCast && sorcSpellEffects.secondCastDamage > 0) {
+        const inflictedCodex = applyDamage(att, def, sorcSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        log.push(`${playerColor} 📜 Codex Archon : Malédiction de ${att.name} inflige ${inflictedCodex} points de dégâts`);
+      }
     } else if (isWar) {
       // Maître d'armes (sous-classe) : ignore 100% def/resC, inflige Auto + X% CAP
       if (att.subclass?.id === 'maitre_armes') {
@@ -2104,6 +2237,39 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
           log.push(`${playerColor} 🛡️ Duracier: ${att.name} gagne un bouclier de ${duracierShield} PV (15% Auto + 0,5% CAP).`);
         }
       }
+    } else if (isBerz) {
+      const berC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const hpCostPct = berC.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent;
+      const scale = berC.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale;
+      if (i === 0) {
+        const cost = Math.max(0, Math.round(att.maxHP * hpCostPct));
+        att.currentHP = Math.max(1, att.currentHP - cost);
+        tryTriggerOnctionLastStand(att, log, playerColor);
+        if (cost > 0) {
+          log.push(`${playerColor} 🪓 ${att.name} sacrifie ${cost} PV pour la Rage.`);
+        }
+        const missingHp = att.maxHP - att.currentHP;
+        const bonusFromMissing = Math.round(missingHp * scale);
+        raw = dmgCap(Math.round(att.base.auto * attackMultiplier + bonusFromMissing), def.base.rescap);
+        raw = applyMindflayerCapacityMod(att, def, raw, 'berz', log, playerColor);
+        const verdictBonusBerz = getVerdictCapacityBonus(att.weaponState);
+        if (verdictBonusBerz.damageMultiplier !== 1) {
+          raw = Math.round(raw * verdictBonusBerz.damageMultiplier);
+          verdictBonusBerz.log.forEach((l) => log.push(`${playerColor} ${l}`));
+        }
+        log.push(`${playerColor} 🪓 ${att.name} frappe en Rage !`);
+        const berSpellEffects = onCapacityCast(att.weaponState, att, def, raw, 'berz');
+        applySceptreCapBuff(att, berSpellEffects, log, playerColor);
+        if (berSpellEffects.doubleCast && berSpellEffects.secondCastDamage > 0) {
+          const inflictedCodex = applyDamage(att, def, berSpellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+          log.push(`${playerColor} 📜 Codex Archon : Rage de ${att.name} inflige ${inflictedCodex} points de dégâts`);
+        }
+        if (att.subclass?.id === 'brise_caves') {
+          const mul = classConstants.berserk.nextAutoDamageBonus ?? 0.2;
+          att.berserkNextAutoMul = 1 + mul;
+          log.push(`${playerColor} 🪓 Brise-Caves : prochaine auto +${Math.round(mul * 100)}% dégâts.`);
+        }
+      }
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
         raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
@@ -2144,7 +2310,12 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
     } else {
       const autoCapBonus = getBriseurAutoBonus(att);
-      raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier), def.base.def);
+      let berserkPhysMul = 1;
+      if (att.class === 'Berserk' && (att.berserkNextAutoMul ?? 1) > 1) {
+        berserkPhysMul = att.berserkNextAutoMul;
+        att.berserkNextAutoMul = 1;
+      }
+      raw = dmgPhys(Math.round((att.base.auto + autoCapBonus) * attackMultiplier * berserkPhysMul), def.base.def);
       // Orbe du Sacrifice Sanguin: +Y% dégâts autos, -X% HP max
       const orbePassive = getPassiveById(attackerPassiveList, 'orbe_sacrifice');
       if (orbePassive) {
@@ -2164,7 +2335,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
     }
 
-    if ((isMage || isWar || (isArcher && !isBonusAttack)) && (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
+    if ((isMage || isSorc || isWar || isBerz || (isArcher && !isBonusAttack)) && (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
       const stackBonus = att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
       raw = Math.max(1, Math.round(raw * (1 + stackBonus * att.sireneStacks)));
     }
@@ -2184,7 +2355,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
 
     // Rituel de Fracture: explose le bouclier ennemi sur auto (1 fois par tour)
     const fracturePassive = getPassiveById(attackerPassiveList, 'rituel_fracture');
-    if (fracturePassive && !fractureUsedThisTurn && !isMage && !isWar && def.shield > 0) {
+    if (fracturePassive && !fractureUsedThisTurn && !isMage && !isSorc && !isWar && def.shield > 0) {
       fractureUsedThisTurn = true;
       const shieldValue = def.shield;
       const fractureDmg = Math.max(1, Math.round(shieldValue * (fracturePassive.levelData?.shieldExplosionPercent ?? 0)));
@@ -2207,13 +2378,13 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
 
     const shieldBefore = def.shield || 0;
-    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isWar || (isArcher && !isBonusAttack)), turn);
+    const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, (isMage || isSorc || isWar || isBerz || (isArcher && !isBonusAttack)), turn);
     const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
-    if (att.class === 'Demoniste' && !isMage && !isWar && !isArcher && !isBonusAttack && (inflicted > 0 || shieldHit)) {
+    if (att.class === 'Demoniste' && !isMage && !isSorc && !isWar && !isBerz && !isArcher && !isBonusAttack && (inflicted > 0 || shieldHit)) {
       att.familiarStacks = (att.familiarStacks || 0) + 1;
     }
 
-    if (!isMage && inflicted > 0) {
+    if (!isMage && !isSorc && !isBerz && inflicted > 0) {
       const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
       if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
       if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
@@ -2227,7 +2398,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     // Écho de Guerre : +X% Auto par attaque (stackable)
     // - Autos classiques : proc sur chaque attaque non-Mage/non-Guerrier
     // - Archer : proc sur le premier tir de Double tir uniquement
-    if (!isMage && !isWar && (inflicted > 0 || shieldHit) && (!isArcher || i === 0)) {
+    if (!isMage && !isSorc && !isWar && !isBerz && (inflicted > 0 || shieldHit) && (!isArcher || i === 0)) {
       tryProcEchoGuerre(att, attackerPassiveList, log, playerColor);
     }
 
@@ -2269,8 +2440,8 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
 
   if (!isArcher && total > 0) {
     const critText = wasCrit ? ' CRITIQUE !' : '';
-    if (isMage) {
-      log.push(`${playerColor} ${att.name} inflige ${total} points de dégâts magiques à ${def.name}${critText}`);
+    if (isMage || isSorc || isBerz) {
+      log.push(`${playerColor} ${att.name} inflige ${total} points de dégâts à ${def.name} avec sa capacité${critText}`);
     } else if (isWar) {
       log.push(`${playerColor} ${att.name} transperce les défenses de ${def.name} et inflige ${total} points de dégâts${critText}`);
     } else {
