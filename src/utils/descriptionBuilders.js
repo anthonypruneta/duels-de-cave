@@ -178,7 +178,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
-    case 'Sorcière': return `Malédiction : −${(c.curseStatReduction || 0) * 100}% d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : attaque de base + ${(c.capBase || 0) * 100}% Cap + points de stats retirés à l'ennemi (toutes sources).`;
+    case 'Sorcière': return `Malédiction : −${(c.curseStatReduction || 0) * 100}% d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + ${(c.capBase || 0) * 100}% CAP + points de stats retirés à l'ennemi (toutes sources).`;
     case 'Berserk': return `Rage : consomme ${(c.rageHpCostPercent || 0) * 100}% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + ${(c.rageMissingHpDamageScale || 0) * 100}% des PV manquants (après ce coût).`;
     default: return classes[className]?.description || '';
   }
@@ -253,9 +253,9 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto et étourdit ${stun} tour`;
     }
     case 'hexe_noire':
-      return `Début de combat : −${pct0(c.curseStatReduction ?? classConstants.sorciere.curseStatReduction)} sur une stat adverse aléatoire. Malédiction (CD 3) : −${pct0(c.curseStatReduction ?? classConstants.sorciere.curseStatReduction)} ; total dégâts (Auto + ${pct0(c.capBase ?? classConstants.sorciere.capBase)} Cap + points de stats retirés).`;
+      return `Début de combat : Malédiction −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (permanent). Malédiction (CD 3) : −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase ?? classConstants.sorciere.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
     case 'enchanteresse':
-      return `Malédiction : −${pct0(c.curseStatReduction)} ; total dégâts (Auto + ${pct0(c.capBase)} Cap + points de stats retirés).`;
+      return `Malédiction : −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
     case 'boucher':
       return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale)} des PV manquants (après coût).`;
     case 'brise_caves':
@@ -367,8 +367,8 @@ export const buildClassDescriptionParts = (className, constants = null) => {
     case 'Sorcière':
       return [
         text('Malédiction : −'), slot(['curseStatReduction'], 'percent'),
-        text('% stat aléatoire (cumul). Attaque de base + '), slot(['capBase'], 'percent'),
-        text('% Cap + points de stats retirés à l’ennemi.')
+        text("% d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + "), slot(['capBase'], 'percent'),
+        text('% CAP + points de stats retirés à l’ennemi (toutes sources).')
       ];
     case 'Berserk':
       return [

@@ -85,7 +85,7 @@ export const classConstants = {
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
   },
   sorciere: {
-    curseStatReduction: 0.10,    // Malédiction : -10% de la stat courante (15% Enchanteresse)
+    curseStatReduction: 0.10,    // Malédiction : -10% (Enchanteresse : 15% via sous-classe)
     capBase: 0.80,               // Portion Cap dans la formule (comme le Mage)
     capPerCap: 0
   },

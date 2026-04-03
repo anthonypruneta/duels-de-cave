@@ -56,8 +56,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP\n- Vie : soigne 100% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 10%\n- Métal : Auto et étourdit 1 tour' },
   ],
   'Sorcière': [
-    { id: 'hexe_noire', name: 'Hexe Noire', bonus: '+5% VIT, +5% Auto, +5% CAP', abilityLabel: 'Malédiction (CD: 3 tours)', description: 'Au début du combat : −10% sur une stat adverse aléatoire (permanent). Malédiction : −10% sur une stat aléatoire (cumulable) ; dégâts = Auto + % Cap + points de stats retirés (toutes sources).' },
-    { id: 'enchanteresse', name: 'Enchanteresse', bonus: '+10% CAP', abilityLabel: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −15% sur une stat aléatoire (cumulable) ; dégâts = Auto + % Cap + points de stats retirés (toutes sources).' },
+    { id: 'hexe_noire', name: 'Hexe Noire', bonus: '+5% VIT, +5% Auto, +5% CAP', abilityLabel: 'Malédiction (CD: 3 tours)', description: 'Début de combat : Malédiction −10% d\'une stat adverse au hasard (permanent). Malédiction (CD 3) : −10% d\'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + 80% CAP + points de stats retirés (toutes sources).' },
+    { id: 'enchanteresse', name: 'Enchanteresse', bonus: '+10% CAP', abilityLabel: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −15% d\'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + 100% CAP + points de stats retirés (toutes sources).' },
   ],
   'Berserk': [
     { id: 'boucher', name: 'Boucher', bonus: '+20% HP', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 80% des PV manquants (après le coût).' },

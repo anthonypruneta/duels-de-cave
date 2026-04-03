@@ -14,6 +14,6 @@ export const classes = {
   'Succube': { ability: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige auto + 35% CAP. La prochaine attaque adverse inflige -50% dégâts.', icon: '💋' },
   'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +8% DEF. Inflige auto + 50% CAP + 50% DEF.', icon: '🏰' },
   'Alchimiste': { ability: 'Cycle de flasques (Passif)', description: 'Pas d\'auto classique. Cycle de 3 flasques :\n- Feu : inflige Auto + 10% CAP\n- Vie : soigne 100% de votre Cap (130% en Maître alchimiste)\n- Acide : inflige Auto et réduit DEF/ResC de 10%', icon: '🧪' },
-  'Sorcière': { ability: 'Malédiction (CD: 4 tours)', description: 'Réduit 10% d\'une stat adverse au hasard (cumulable sur la valeur courante). Les dégâts = attaque de base + % Cap + points de stats retirés à l\'ennemi (toutes sources).', icon: '🕯️' },
+  'Sorcière': { ability: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −10% d\'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + 80% CAP + points de stats retirés à l\'ennemi (toutes sources).', icon: '🕯️' },
   'Berserk': { ability: 'Rage (CD: 4 tours)', description: 'Consomme 10% de vos PV max (ne peut pas vous tuer). Inflige vos dégâts Auto + 50% des PV manquants (après ce coût).', icon: '🪓' }
 };

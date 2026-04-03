@@ -9,7 +9,8 @@ import {
   COOP_CENDRES_ECHO_HP_THRESHOLD,
   COOP_CENDRES_ECHO_BRAISE_MULT,
   COOP_CENDRES_ECHO_GUARANTEED,
-  COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT
+  COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT,
+  COOP_ECAILLEUX_ECHO_STAT_LINK_DIVISOR
 } from '../data/coopRedDungeon.js';
 
 /** Copie Mindflayer (Pointeau ADN / coop Red uniquement) : dégâts/soins de la copie = ce % de la valeur « pleine ». */
