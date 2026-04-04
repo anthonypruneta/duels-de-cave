@@ -63,27 +63,28 @@ export async function updateTavernePosition(userId, x, y) {
   }, { merge: true });
 }
 
-const MAX_ACCOUNT_NAME_LEN = 80;
+/** Aligné sur saveOwnerPseudoToAccount (characterService). */
+const MAX_OWNER_PSEUDO_LEN = 24;
 
 /**
  * Envoyer un message dans le chat taverne et enregistrer la dernière bulle sur la présence.
- * @param {string} accountName - libellé compte (ex. pseudo Firebase ou partie locale de l’e-mail), affiché entre parenthèses
+ * @param {string|null} ownerPseudo - pseudo public choisi par le joueur (userPreferences / perso)
  */
-export async function sendTaverneMessage(userId, characterName, text, accountName = null) {
+export async function sendTaverneMessage(userId, characterName, text, ownerPseudo = null) {
   await waitForFirestore();
   const trimmed = (text || '').trim();
   if (!trimmed) return;
 
-  const compte =
-    accountName && String(accountName).trim()
-      ? String(accountName).trim().slice(0, MAX_ACCOUNT_NAME_LEN)
+  const pseudo =
+    ownerPseudo && String(ownerPseudo).trim()
+      ? String(ownerPseudo).trim().slice(0, MAX_OWNER_PSEUDO_LEN)
       : null;
 
   const chatRef = collection(db, CHAT_COLLECTION);
   await addDoc(chatRef, {
     userId,
     characterName: characterName || 'Inconnu',
-    ...(compte ? { accountName: compte } : {}),
+    ...(pseudo ? { ownerPseudo: pseudo } : {}),
     text: trimmed.slice(0, 300),
     createdAt: Timestamp.now(),
   });
@@ -124,7 +125,7 @@ export function subscribeTavernePresence(callback) {
 
 /**
  * S'abonner aux messages du chat taverne.
- * @param {(messages: Array<{ id, userId, characterName, accountName?, text, createdAt }>) => void} callback
+ * @param {(messages: Array<{ id, userId, characterName, ownerPseudo?, text, createdAt }>) => void} callback
  * @returns {() => void} unsubscribe
  */
 export function subscribeTaverneChat(callback) {
@@ -137,11 +138,15 @@ export function subscribeTaverneChat(callback) {
   const unsub = onSnapshot(q, (snapshot) => {
     const messages = snapshot.docs.map((d) => {
       const data = d.data();
+      const legacyAccountName =
+        typeof data.accountName === 'string' && data.accountName.trim() ? data.accountName.trim() : '';
+      const pseudoDoc =
+        typeof data.ownerPseudo === 'string' && data.ownerPseudo.trim() ? data.ownerPseudo.trim() : '';
       return {
         id: d.id,
         userId: data.userId,
         characterName: data.characterName || 'Inconnu',
-        accountName: typeof data.accountName === 'string' && data.accountName.trim() ? data.accountName.trim() : null,
+        ownerPseudo: pseudoDoc || legacyAccountName || null,
         text: data.text || '',
         createdAt: data.createdAt,
       };

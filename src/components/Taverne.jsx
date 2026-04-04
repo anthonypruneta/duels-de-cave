@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
-import { getUserCharacter, getAllCharacters } from '../services/characterService';
+import { getUserCharacter, getAllCharacters, getOwnerPseudoFromAccount } from '../services/characterService';
 import { getWeaponById } from '../data/weapons';
 import { getDungeonProgress } from '../services/dungeonService';
 import { getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
@@ -45,14 +45,11 @@ function getTaverneCharacterImage(character) {
 
 const BUBBLE_DURATION_MS = 12000;
 
-/** Libellé « nom de compte » pour le chat (sans exposer l’e-mail complet si possible). */
-function libelleCompteUtilisateur(user) {
-  if (!user) return null;
-  const dn = user.displayName?.trim();
-  if (dn) return dn;
-  const email = user.email?.trim();
-  if (email?.includes('@')) return email.split('@')[0];
-  return null;
+/** Pseudo affiché : celui du perso chargé (prioritaire) puis celui stocké sur le message. */
+function pseudoTavernePourMessage(msg, charactersByUserId) {
+  const depuisPerso = charactersByUserId[msg.userId]?.ownerPseudo?.trim();
+  if (depuisPerso) return depuisPerso;
+  return msg.ownerPseudo?.trim() || null;
 }
 
 const CHAT_STORAGE_KEY = 'taverne-chat-layout';
@@ -112,6 +109,7 @@ export default function Taverne() {
   const [allowedInTaverne, setAllowedInTaverne] = useState(false);
   const [noCharacterReason, setNoCharacterReason] = useState(null);
   const [hoveredSlotId, setHoveredSlotId] = useState(null);
+  const [ownerPseudoCompte, setOwnerPseudoCompte] = useState('');
   const chatEndRef = useRef(null);
   const hasEnteredRef = useRef(false);
 
@@ -236,6 +234,17 @@ export default function Taverne() {
   }, [currentUser?.uid]);
 
   useEffect(() => {
+    if (!allowedInTaverne || !currentUser?.uid) return;
+    let cancelled = false;
+    getOwnerPseudoFromAccount(currentUser.uid).then((res) => {
+      if (!cancelled && res.success && res.ownerPseudo?.trim()) {
+        setOwnerPseudoCompte(res.ownerPseudo.trim());
+      }
+    });
+    return () => { cancelled = true; };
+  }, [allowedInTaverne, currentUser?.uid]);
+
+  useEffect(() => {
     const unsubPresence = subscribeTavernePresence(setPresences);
     const unsubChat = subscribeTaverneChat(setMessages);
     return () => {
@@ -296,11 +305,12 @@ export default function Taverne() {
       if (!currentUser?.uid || !chatInput.trim()) return;
       const character = charactersByUserId[currentUser.uid];
       const name = character?.name || currentUser.email?.split('@')[0] || 'Inconnu';
-      const compte = libelleCompteUtilisateur(currentUser);
-      await sendTaverneMessage(currentUser.uid, name, chatInput.trim(), compte);
+      const pseudo =
+        (character?.ownerPseudo || ownerPseudoCompte || '').trim().slice(0, 24) || null;
+      await sendTaverneMessage(currentUser.uid, name, chatInput.trim(), pseudo);
       setChatInput('');
     },
-    [currentUser?.uid, chatInput, charactersByUserId]
+    [currentUser?.uid, chatInput, charactersByUserId, ownerPseudoCompte]
   );
 
   const isBubbleVisible = (lastChatAt) => {
@@ -499,18 +509,21 @@ export default function Taverne() {
             {messages.length === 0 && (
               <p className="text-stone-500 text-sm text-center py-4">Aucun message.</p>
             )}
-            {messages.map((m) => (
-              <div key={m.id} className="text-sm">
-                <span className="font-semibold text-amber-300">
-                  {m.characterName}
-                  {m.accountName ? (
-                    <span className="font-normal text-stone-400"> ({m.accountName})</span>
-                  ) : null}
-                </span>
-                <span className="text-stone-500 mx-1">:</span>
-                <span className="text-stone-200 break-words">{m.text}</span>
-              </div>
-            ))}
+            {messages.map((m) => {
+              const pseudoAffiche = pseudoTavernePourMessage(m, charactersByUserId);
+              return (
+                <div key={m.id} className="text-sm">
+                  <span className="font-semibold text-amber-300">
+                    {m.characterName}
+                    {pseudoAffiche ? (
+                      <span className="font-normal text-stone-400"> ({pseudoAffiche})</span>
+                    ) : null}
+                  </span>
+                  <span className="text-stone-500 mx-1">:</span>
+                  <span className="text-stone-200 break-words">{m.text}</span>
+                </div>
+              );
+            })}
             <div ref={chatEndRef} />
           </div>
           <form onSubmit={handleSendMessage} className="p-3 flex gap-2 border-t border-stone-700 shrink-0">
