@@ -191,7 +191,8 @@ export async function fetchPvpDuelLeaderboard(maxRows = LEADERBOARD_DEFAULT_LIMI
     return { success: true, data: rows };
   } catch (e) {
     console.warn('fetchPvpDuelLeaderboard', e);
-    return { success: false, data: [], error: e.message };
+    const code = e?.code ? ` [${e.code}]` : '';
+    return { success: false, data: [], error: `${e.message || 'Erreur Firestore'}${code}` };
   }
 }
 

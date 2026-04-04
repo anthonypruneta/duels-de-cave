@@ -231,20 +231,18 @@ service cloud.firestore {
     }
 
     // Stats victoires/défaites duels PvP lobby (par perso archivé)
-    match /pvpDuelStatsByUser/{userId} {
-      // Docs classement (collectionGroup) : lecture pour tout joueur connecté
-      match /pvpDuelCharStats/{charId} {
-        allow read: if request.auth != null;
-        allow create, update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if isAdmin();
-      }
-      // Ancienne sous-collection (migration / rétrocompat)
-      match /characters/{charId} {
-        allow read: if request.auth != null &&
-                       (request.auth.uid == userId || isAdmin());
-        allow create, update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if isAdmin();
-      }
+    // Chemin plat : requis pour que les requêtes collectionGroup('pvpDuelCharStats') passent les règles.
+    match /pvpDuelStatsByUser/{userId}/pvpDuelCharStats/{charId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+    // Ancienne sous-collection (migration / rétrocompat)
+    match /pvpDuelStatsByUser/{userId}/characters/{charId} {
+      allow read: if request.auth != null &&
+                     (request.auth.uid == userId || isAdmin());
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if isAdmin();
     }
 
     // Historique des matchs Red coop (lié au personnage via pseudo normalisé)
