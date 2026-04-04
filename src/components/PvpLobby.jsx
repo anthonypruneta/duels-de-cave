@@ -24,6 +24,8 @@ import {
   fetchPvpDuelStatsForUserCharacters,
   applyMyPvpDuelStatsFromRoom,
   migrateLegacyPvpStatsToLeaderboardDocs,
+  isCharacterEligibleForPvpLobby,
+  getPvpLobbyMaxLevel,
 } from '../services/pvpLobbyService';
 
 const SESSION_KEY = 'pvpLobbyRoomId';
@@ -31,6 +33,8 @@ const SESSION_KEY = 'pvpLobbyRoomId';
 function PvpLobby() {
   const { currentUser } = useAuth();
   const [archivedChars, setArchivedChars] = useState([]);
+  /** Nombre d’archivés chargés avant filtre niveau PvP (message si tous exclus). */
+  const [totalArchivedCount, setTotalArchivedCount] = useState(0);
   const [loadingArchived, setLoadingArchived] = useState(true);
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem(SESSION_KEY) || '');
   const [room, setRoom] = useState(null);
@@ -89,14 +93,15 @@ function PvpLobby() {
       const ids = enriched.map((c) => c.id).filter(Boolean);
       const statsRes = await fetchPvpDuelStatsForUserCharacters(currentUser.uid, ids);
       const statsMap = statsRes.success ? statsRes.data : {};
-      setArchivedChars(
-        enriched.map((c) => ({
-          ...c,
-          pvpDuelStats: statsMap[c.id] || { wins: 0, losses: 0 },
-        }))
-      );
+      const withStats = enriched.map((c) => ({
+        ...c,
+        pvpDuelStats: statsMap[c.id] || { wins: 0, losses: 0 },
+      }));
+      setTotalArchivedCount(withStats.length);
+      setArchivedChars(withStats.filter(isCharacterEligibleForPvpLobby));
     } else {
       setArchivedChars([]);
+      setTotalArchivedCount(0);
     }
     setLoadingArchived(false);
   }, [currentUser]);
@@ -385,7 +390,17 @@ function PvpLobby() {
         <p className="text-stone-400">Chargement…</p>
       ) : archivedChars.length === 0 ? (
         <p className="text-stone-400 text-sm">
-          Aucun personnage archivé (tournoi). Les anciens persos apparaissent après archivage tournoi.
+          {totalArchivedCount > 0 ? (
+            <>
+              Tes archivés sont tous au-delà du niveau {getPvpLobbyMaxLevel()} : ils ne sont pas
+              utilisables en PvP lobby.
+            </>
+          ) : (
+            <>
+              Aucun personnage archivé (tournoi). Les anciens persos apparaissent après archivage
+              tournoi.
+            </>
+          )}
         </p>
       ) : (
         <div className="max-h-56 overflow-y-auto space-y-2">
@@ -530,7 +545,8 @@ function PvpLobby() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-amber-400">⚔️ PvP — Lobby</h1>
           <p className="text-stone-400 mt-2 text-sm">
-            Uniquement des personnages archivés (tournoi), pas ton personnage actif.
+            Uniquement des personnages archivés (tournoi), pas ton personnage actif. Niveau max
+            en PvP : {getPvpLobbyMaxLevel()}.
           </p>
           <Link
             to="/pvp-classement"

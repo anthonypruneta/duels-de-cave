@@ -23,6 +23,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { runWithCombatRandom01 } from '../utils/combatRngContext';
 import { createCoopSeededRng } from '../utils/coopRedTournamentSim';
 import { getOwnerPseudoFromAccount } from './characterService';
+import { MAX_LEVEL } from '../data/featureFlags';
 
 const ROOMS = 'pvpLobbyRooms';
 const PVP_STATS = 'pvpDuelStatsByUser';
@@ -31,6 +32,18 @@ const PVP_CHAR_STATS_SUB = 'pvpDuelCharStats';
 const PVP_CHAR_STATS_LEGACY_SUB = 'characters';
 
 const LEADERBOARD_DEFAULT_LIMIT = 200;
+
+/** Niveau max autorisé en lobby PvP (= MAX_LEVEL du jeu). */
+export function isCharacterEligibleForPvpLobby(character) {
+  if (!character || typeof character !== 'object') return false;
+  const lv = Number(character.level ?? 1);
+  if (!Number.isFinite(lv)) return false;
+  return lv <= MAX_LEVEL;
+}
+
+export function getPvpLobbyMaxLevel() {
+  return MAX_LEVEL;
+}
 
 /** Copie profonde « brute » pour simulerMatch / Firestore (aligné sur le donjon Red). */
 export function snapshotCharacterForPvp(data) {
@@ -303,7 +316,12 @@ export function subscribeOpenPvpLobbyRooms(onData, onError) {
     (snap) => {
       const rows = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((r) => !r.guestId && r.isOpenLobby === true);
+        .filter(
+          (r) =>
+            !r.guestId &&
+            r.isOpenLobby === true &&
+            isCharacterEligibleForPvpLobby(r.hostSnapshot)
+        );
       rows.sort((a, b) => {
         const ta = a.createdAt?.toMillis?.() ?? a.createdAt?.seconds * 1000 ?? 0;
         const tb = b.createdAt?.toMillis?.() ?? b.createdAt?.seconds * 1000 ?? 0;
@@ -335,6 +353,12 @@ export function subscribePvpLobbyRoom(roomId, onData, onError) {
  * @param {{ password?: string, character: object }} opts
  */
 export async function createPvpLobbyRoom(hostUserId, { password = '', character }) {
+  if (!isCharacterEligibleForPvpLobby(character)) {
+    return {
+      success: false,
+      error: `Les personnages au-delà du niveau ${MAX_LEVEL} ne peuvent pas combattre en PvP lobby.`,
+    };
+  }
   const snap = snapshotCharacterForPvp(character);
   if (!snap?.name || !snap.race) {
     return { success: false, error: 'Personnage invalide.' };
@@ -370,6 +394,12 @@ export async function joinPvpLobbyRoomAsGuest(guestUserId, roomId, passwordPlain
   const id = String(roomId || '').trim();
   if (!id) return { success: false, error: 'Identifiant de salle invalide.' };
 
+  if (!isCharacterEligibleForPvpLobby(guestCharacter)) {
+    return {
+      success: false,
+      error: `Les personnages au-delà du niveau ${MAX_LEVEL} ne peuvent pas combattre en PvP lobby.`,
+    };
+  }
   const guestSnap = snapshotCharacterForPvp(guestCharacter);
   if (!guestSnap?.name) {
     return { success: false, error: 'Personnage invité invalide.' };
@@ -381,6 +411,12 @@ export async function joinPvpLobbyRoomAsGuest(guestUserId, roomId, passwordPlain
   const pre = preSnap.data();
   if (pre.hostId === guestUserId) {
     return { success: false, error: 'Tu es déjà l’hôte de cette salle.' };
+  }
+  if (!isCharacterEligibleForPvpLobby(pre.hostSnapshot)) {
+    return {
+      success: false,
+      error: `Cette salle n’est pas valide : l’hôte a un personnage au-delà du niveau ${MAX_LEVEL} (non autorisé en PvP).`,
+    };
   }
   const needHash = String(pre.passwordHash || '').trim();
   if (needHash) {
@@ -503,6 +539,13 @@ export async function runPvpLobbySimulation(roomId) {
 
   if (!canKickOff) {
     return { success: true };
+  }
+
+  if (!isCharacterEligibleForPvpLobby(r.hostSnapshot) || !isCharacterEligibleForPvpLobby(r.guestSnapshot)) {
+    return {
+      success: false,
+      error: `Au moins un combattant dépasse le niveau ${MAX_LEVEL} autorisé en PvP lobby.`,
+    };
   }
 
   if (r.combat?.steps?.length) {

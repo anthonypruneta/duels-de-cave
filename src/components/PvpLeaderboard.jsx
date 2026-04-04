@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Header from './Header';
-import { fetchPvpDuelLeaderboard } from '../services/pvpLobbyService';
+import { fetchPvpDuelLeaderboard, getPvpLobbyMaxLevel } from '../services/pvpLobbyService';
 
 function PvpLeaderboard() {
   const [rows, setRows] = useState([]);
@@ -32,7 +32,8 @@ function PvpLeaderboard() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-amber-400">🏆 Classement duels PvP</h1>
           <p className="text-stone-400 text-sm max-w-xl mx-auto">
-            Victoires et défaites uniquement pour les duels du lobby PvP (personnages archivés).
+            Victoires et défaites uniquement pour les duels du lobby PvP (personnages archivés, niveau
+            max {getPvpLobbyMaxLevel()}).
             Pseudo compte et nom du perso affichés tels qu’au dernier duel enregistré.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
