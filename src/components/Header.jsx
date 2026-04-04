@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ADMIN_EMAIL } from './AdminOnlyRoute';
+import { isAdminEmail } from './AdminOnlyRoute';
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
@@ -14,7 +14,7 @@ function Header() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const isAdmin = currentUser?.email === ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(currentUser?.email);
 
   // Mobile: menu repliable pour éviter les soucis d'affichage/recouvrement.
   const [isMobile, setIsMobile] = useState(false);

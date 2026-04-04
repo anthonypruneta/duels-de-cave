@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { shouldLockPveModes } from '../services/gameAvailabilityService';
-import { ADMIN_EMAIL } from './AdminOnlyRoute';
+import { isAdminEmail } from './AdminOnlyRoute';
 
 function ModeAvailabilityRoute({ children }) {
   const { currentUser, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
 
-  const isAdmin = currentUser?.email === ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(currentUser?.email);
 
   useEffect(() => {
     if (authLoading) return;

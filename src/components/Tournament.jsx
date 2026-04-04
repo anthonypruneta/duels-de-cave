@@ -24,8 +24,7 @@ import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAw
 import { classConstants } from '../data/combatMechanics';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import { formatCombatLogMessage } from '../utils/combatLogFormat';
-
-const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
+import { isAdminEmail } from './AdminOnlyRoute';
 
 // ============================================================================
 // UTILS HORAIRES PARIS
@@ -173,7 +172,7 @@ const Tournament = () => {
     : isLegacyMode
       ? (legacyDocIdParam || LEGACY_TOURNAMENT_DOC_ID)
       : 'current';
-  const isAdmin = currentUser?.email === ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(currentUser?.email);
 
   // Tournoi state
   const [tournoi, setTournoi] = useState(null);

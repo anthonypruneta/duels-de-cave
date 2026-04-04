@@ -1,20 +1,25 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isAdminEmail() {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             (request.auth.token.email == 'antho.pruneta@gmail.com' ||
+              request.auth.token.email == 'cronos2a@hotmail.fr');
+    }
+
     match /characters/{userId}/{allPaths=**} {
       // Lecture : tout le monde peut voir les images
       allow read: if true;
 
       // Écriture : seulement l'admin
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
+      allow write: if isAdminEmail();
     }
 
     // Config d'équilibrage (page Admin) : lecture pour tous (chargement de l'app), écriture admin uniquement
     match /gameConfig/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null &&
-                      request.auth.token.email == 'antho.pruneta@gmail.com';
+      allow write: if isAdminEmail();
     }
   }
 }

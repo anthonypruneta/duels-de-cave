@@ -2,7 +2,15 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-export const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
+/** Comptes autorisés sur /admin, uploads Storage, règles Firestore (isAdmin). */
+export const ADMIN_EMAILS = [
+  'antho.pruneta@gmail.com',
+  'cronos2a@hotmail.fr'
+];
+
+export function isAdminEmail(email) {
+  return typeof email === 'string' && ADMIN_EMAILS.includes(email);
+}
 
 function AdminOnlyRoute({ children }) {
   const { currentUser, loading } = useAuth();
@@ -16,7 +24,7 @@ function AdminOnlyRoute({ children }) {
   }
 
   if (!currentUser) return <Navigate to="/auth" replace />;
-  if (currentUser.email !== ADMIN_EMAIL) return <Navigate to="/" replace />;
+  if (!isAdminEmail(currentUser.email)) return <Navigate to="/" replace />;
 
   return children;
 }
