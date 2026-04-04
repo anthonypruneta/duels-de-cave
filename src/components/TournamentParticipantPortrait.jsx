@@ -11,7 +11,9 @@ const SIZE_MAP = {
 };
 
 /**
- * Portrait participant tournoi (arbre, liste, champion) avec bordures Canvas + PNG comme en combat.
+ * Portrait participant tournoi.
+ * Par défaut : image seule (grille participants, miniatures).
+ * Avec showBorderEffects : bordures Canvas + PNG comme en combat (ex. champion).
  */
 export default function TournamentParticipantPortrait({
   imageUrl,
@@ -21,11 +23,13 @@ export default function TournamentParticipantPortrait({
   className = '',
   lost = false,
   alt = '',
+  /** Bordures / halo décoratifs (désactivés pour la grille « Participants »). */
+  showBorderEffects = false,
 }) {
-  const resolved = resolveBorderId(equippedBorder);
-  const hasCanvas = resolved && resolved !== 'default';
+  const resolved = showBorderEffects ? resolveBorderId(equippedBorder) : null;
+  const hasCanvas = showBorderEffects && resolved && resolved !== 'default';
   const glowCls = hasCanvas ? (getBorderGlowClass(resolved) || '') : '';
-  const realSrc = getRealBorderImageSrc(equippedRealBorder);
+  const realSrc = showBorderEffects ? getRealBorderImageSrc(equippedRealBorder) : null;
   const box = SIZE_MAP[size] || SIZE_MAP.xs;
   const imgFit = size === 'lg' ? 'object-contain' : 'object-cover';
 

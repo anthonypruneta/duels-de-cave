@@ -991,12 +991,30 @@ const Tournament = () => {
     const match = tournoi.matches[matchEnCours];
     if (!match) return null;
 
-    const p1Data = tournoi.participants[match.p1];
-    const p2Data = tournoi.participants[match.p2];
+    const p1Raw = tournoi.participants[match.p1];
+    const p2Raw = tournoi.participants[match.p2];
+
+    /** Cosmétiques (bordures, titre) : priorité à la carte participant, repli sur la ligne liste (vieux docs Firestore). */
+    const mergeListCosmetics = (participantId, data) => {
+      if (!data) return data;
+      const row = tournoi.participantsList?.find(
+        (p) => String(p.participantId || p.userId) === String(participantId)
+      );
+      if (!row) return data;
+      return {
+        ...data,
+        equippedBorder: data.equippedBorder ?? row.equippedBorder ?? null,
+        equippedRealBorder: data.equippedRealBorder ?? row.equippedRealBorder ?? null,
+        equippedTitle: data.equippedTitle ?? row.equippedTitle ?? null,
+      };
+    };
+
+    const p1Data = mergeListCosmetics(match.p1, p1Raw);
+    const p2Data = mergeListCosmetics(match.p2, p2Raw);
 
     return (
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
-        {/* Carte joueur 1 */}
+        {/* Carte joueur 1 — même rendu bordures / halo / PNG que Combat.jsx (CharacterCardContent + UnifiedCharacterCard) */}
         <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
           <CharacterCardContent
             character={p1Data}
@@ -1010,6 +1028,7 @@ const Tournament = () => {
             opponent={p2Data}
             combatStatus={p1CombatStatus}
             detailsPlacement="left"
+            borderId={p1Data?.equippedBorder ?? null}
           />
         </div>
 
@@ -1115,6 +1134,7 @@ const Tournament = () => {
             opponent={p1Data}
             combatStatus={p2CombatStatus}
             detailsPlacement="right"
+            borderId={p2Data?.equippedBorder ?? null}
           />
         </div>
       </div>
@@ -1378,6 +1398,7 @@ const Tournament = () => {
                 equippedBorder={tournoi.champion.equippedBorder}
                 equippedRealBorder={tournoi.champion.equippedRealBorder}
                 size="lg"
+                showBorderEffects
                 className="mx-auto mb-3 rounded-lg"
                 alt={tournoi.champion.nom || ''}
               />
