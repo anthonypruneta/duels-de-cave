@@ -436,6 +436,8 @@ function buildBossEnemy({ floorNumber, runSeed, enemyIndex = 0 }) {
     { id: 'bast', class: 'Bastion', name: 'Charge du Rempart' },
     { id: 'succ', class: 'Succube', name: 'Coup de Fouet' },
     { id: 'briseurSort', class: 'Briseur de Sort', name: 'Égide fractale' },
+    { id: 'sorc', class: 'Sorcière', name: 'Malédiction' },
+    { id: 'berz', class: 'Berserk', name: 'Rage' },
   ];
 
   const spell = phase === 1 ? null : pickSeeded(SPELL_POOL, rng);

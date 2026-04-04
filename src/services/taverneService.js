@@ -63,18 +63,27 @@ export async function updateTavernePosition(userId, x, y) {
   }, { merge: true });
 }
 
+const MAX_ACCOUNT_NAME_LEN = 80;
+
 /**
  * Envoyer un message dans le chat taverne et enregistrer la dernière bulle sur la présence.
+ * @param {string} accountName - libellé compte (ex. pseudo Firebase ou partie locale de l’e-mail), affiché entre parenthèses
  */
-export async function sendTaverneMessage(userId, characterName, text) {
+export async function sendTaverneMessage(userId, characterName, text, accountName = null) {
   await waitForFirestore();
   const trimmed = (text || '').trim();
   if (!trimmed) return;
+
+  const compte =
+    accountName && String(accountName).trim()
+      ? String(accountName).trim().slice(0, MAX_ACCOUNT_NAME_LEN)
+      : null;
 
   const chatRef = collection(db, CHAT_COLLECTION);
   await addDoc(chatRef, {
     userId,
     characterName: characterName || 'Inconnu',
+    ...(compte ? { accountName: compte } : {}),
     text: trimmed.slice(0, 300),
     createdAt: Timestamp.now(),
   });
@@ -115,7 +124,7 @@ export function subscribeTavernePresence(callback) {
 
 /**
  * S'abonner aux messages du chat taverne.
- * @param {(messages: Array<{ id, userId, characterName, text, createdAt }>) => void} callback
+ * @param {(messages: Array<{ id, userId, characterName, accountName?, text, createdAt }>) => void} callback
  * @returns {() => void} unsubscribe
  */
 export function subscribeTaverneChat(callback) {
@@ -132,6 +141,7 @@ export function subscribeTaverneChat(callback) {
         id: d.id,
         userId: data.userId,
         characterName: data.characterName || 'Inconnu',
+        accountName: typeof data.accountName === 'string' && data.accountName.trim() ? data.accountName.trim() : null,
         text: data.text || '',
         createdAt: data.createdAt,
       };

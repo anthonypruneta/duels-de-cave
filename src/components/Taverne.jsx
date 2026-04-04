@@ -45,6 +45,16 @@ function getTaverneCharacterImage(character) {
 
 const BUBBLE_DURATION_MS = 12000;
 
+/** Libellé « nom de compte » pour le chat (sans exposer l’e-mail complet si possible). */
+function libelleCompteUtilisateur(user) {
+  if (!user) return null;
+  const dn = user.displayName?.trim();
+  if (dn) return dn;
+  const email = user.email?.trim();
+  if (email?.includes('@')) return email.split('@')[0];
+  return null;
+}
+
 const CHAT_STORAGE_KEY = 'taverne-chat-layout';
 const DEFAULT_CHAT_WIDTH = 420;
 const DEFAULT_CHAT_HEIGHT = 400;
@@ -286,7 +296,8 @@ export default function Taverne() {
       if (!currentUser?.uid || !chatInput.trim()) return;
       const character = charactersByUserId[currentUser.uid];
       const name = character?.name || currentUser.email?.split('@')[0] || 'Inconnu';
-      await sendTaverneMessage(currentUser.uid, name, chatInput.trim());
+      const compte = libelleCompteUtilisateur(currentUser);
+      await sendTaverneMessage(currentUser.uid, name, chatInput.trim(), compte);
       setChatInput('');
     },
     [currentUser?.uid, chatInput, charactersByUserId]
@@ -490,7 +501,12 @@ export default function Taverne() {
             )}
             {messages.map((m) => (
               <div key={m.id} className="text-sm">
-                <span className="font-semibold text-amber-300">{m.characterName}</span>
+                <span className="font-semibold text-amber-300">
+                  {m.characterName}
+                  {m.accountName ? (
+                    <span className="font-normal text-stone-400"> ({m.accountName})</span>
+                  ) : null}
+                </span>
                 <span className="text-stone-500 mx-1">:</span>
                 <span className="text-stone-200 break-words">{m.text}</span>
               </div>
