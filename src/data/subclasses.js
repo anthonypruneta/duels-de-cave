@@ -61,8 +61,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'enchanteresse', name: 'Enchanteresse', bonus: '+10% CAP', abilityLabel: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −15% d\'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + 100% CAP + points de stats retirés (toutes sources).' },
   ],
   'Berserk': [
-    { id: 'boucher', name: 'Boucher', bonus: '+20% HP', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 80% des PV manquants (après le coût).' },
-    { id: 'brise_caves', name: 'Brise-Caves', bonus: '+10% Auto', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 50% des PV manquants (après le coût). La prochaine auto inflige +20% de dégâts.' },
+    { id: 'boucher', name: 'Boucher', bonus: '+20% HP', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 50% des PV manquants (après le coût).' },
+    { id: 'brise_caves', name: 'Brise-Caves', bonus: '+10% Auto', abilityLabel: 'Rage (CD: 4 tours)', description: 'Consomme 10% PV max (ne peut pas mourir). Inflige Auto + 35% des PV manquants (après le coût). La prochaine auto inflige +20% de dégâts.' },
   ],
 };
 

@@ -91,7 +91,7 @@ export const classConstants = {
   },
   berserk: {
     rageHpCostPercent: 0.10,     // Coût PV max par Rage
-    rageMissingHpDamageScale: 0.50, // Bonus dégâts = scale × PV manquants (après coût)
+    rageMissingHpDamageScale: 0.35, // Bonus dégâts = scale × PV manquants (après coût)
     nextAutoDamageBonus: 0.20    // Brise-Caves : +20% sur la prochaine auto
   }
 };
@@ -140,8 +140,8 @@ export const subclassConstants = {
   alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = 100% Cap (comme la classe de base)
   hexe_noire: { sorcEffectiveCooldown: 3 },             // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
   enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
-  boucher: { rageMissingHpDamageScale: 0.80 },
-  brise_caves: {}                                       // +20% prochaine auto : constante classe berserk.nextAutoDamageBonus
+  boucher: { rageMissingHpDamageScale: 0.50 },
+  brise_caves: { rageMissingHpDamageScale: 0.35 }       // +20% prochaine auto : berserk.nextAutoDamageBonus
 };
 
 /**
