@@ -10,8 +10,7 @@ import CharacterCardContent from './CharacterCardContent';
 import { preparerCombattant } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { races } from '../data/races';
-import testImage1 from '../assets/characters/test.png';
-import testImage2 from '../assets/characters/test2.png';
+import { formatCombatLogMessage } from '../utils/combatLogFormat';
 import {
   createPvpLobbyRoom,
   joinPvpLobbyRoomAsGuest,
@@ -61,10 +60,10 @@ function PvpLobby() {
   const [combatLog, setCombatLog] = useState([]);
   const [winner, setWinner] = useState(null);
   const [replayPhase, setReplayPhase] = useState(false);
-  const [currentAction, setCurrentAction] = useState(null);
 
   const simRunningRef = useRef(false);
   const logContainerRef = useRef(null);
+  const logEndRef = useRef(null);
   const replayGuardRef = useRef({ roomId: null, done: false });
 
   const loadArchived = useCallback(async () => {
@@ -215,7 +214,6 @@ function PvpLobby() {
       setCombatLog([]);
       setWinner(null);
       setReplayPhase(true);
-      setCurrentAction(null);
 
       const combatMusic = document.getElementById('pvp-combat-music');
       const victoryMusic = document.getElementById('pvp-victory-music');
@@ -240,7 +238,6 @@ function PvpLobby() {
             prev ? { ...prev, currentHP: step.p2HP, shield: step.p2Shield || 0 } : prev
           );
         },
-        setCurrentAction,
         speed: 'normal',
       });
 
@@ -442,6 +439,9 @@ function PvpLobby() {
   );
 
   if (replayPhase && player1 && player2 && room?.combat) {
+    const p1Name = player1?.name ?? '';
+    const p2Name = player2?.name ?? '';
+
     return (
       <div className="min-h-screen p-4 md:p-6">
         <Header />
@@ -451,87 +451,145 @@ function PvpLobby() {
         <audio id="pvp-victory-music">
           <source src="/assets/music/victory.mp3" type="audio/mpeg" />
         </audio>
+
         <div className="max-w-[1800px] mx-auto pt-20">
-          <div className="flex flex-col md:flex-row gap-4 items-stretch justify-center">
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
+          <div className="text-center mb-5">
+            <h1 className="text-2xl md:text-3xl font-bold text-amber-400">⚔️ Duel PvP</h1>
+          </div>
+
+          {/* Même grille que Tournament.jsx → renderCombatUI */}
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-center text-sm md:text-base">
+            <div className="order-1 md:order-1 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
               <CharacterCardContent
                 character={player1}
                 showHpBar
-                imageOverride={player1?.characterImage ?? testImage1}
+                currentHP={player1.currentHP}
+                maxHP={player1.maxHP}
+                shield={player1.shield ?? 0}
+                nameOverride={p1Name}
                 combatBaseOverride={p1CombatBase}
                 combatModifiers={p1CombatModifiers}
                 opponent={player2}
                 combatStatus={p1CombatStatus}
                 detailsPlacement="left"
+                borderId={player1?.equippedBorder ?? null}
               />
             </div>
-            <div className="w-full md:w-[600px] lg:flex-1 flex flex-col">
+
+            <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
               {winner && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-stone-100 text-stone-900 px-6 py-3 font-bold text-lg border-2 border-stone-400">
+                <div className="flex justify-center mb-3">
+                  <div className="bg-amber-500/10 border border-amber-500/60 text-amber-200 px-6 py-2.5 font-bold text-lg rounded-lg animate-pulse">
                     🏆 {winner} remporte le combat !
                   </div>
                 </div>
               )}
-              <div className="bg-stone-800 border-2 border-stone-600 flex flex-col h-[420px] md:h-[560px]">
-                <div className="bg-stone-900 p-3 border-b border-stone-600">
-                  <h2 className="text-lg font-bold text-stone-200 text-center">Combat PvP</h2>
+
+              <div
+                className="bg-stone-950/85 border border-stone-700/80 rounded-xl shadow-lg flex flex-col overflow-hidden"
+                style={{ height: 'clamp(260px, 55dvh, 600px)' }}
+              >
+                <div className="p-3 border-b border-stone-700/60">
+                  <h2 className="text-sm font-bold text-stone-300 text-center uppercase tracking-wider">
+                    ⚔️ Replay
+                  </h2>
                 </div>
                 <div
                   ref={logContainerRef}
-                  className="flex-1 overflow-y-auto p-4 space-y-2 text-sm"
+                  className="flex-1 overflow-y-auto p-4 space-y-2.5 scrollbar-thin scrollbar-thumb-stone-700 scrollbar-track-transparent"
                 >
-                  {combatLog.map((log, idx) => {
-                    const isP1 = log.startsWith('[P1]');
-                    const isP2 = log.startsWith('[P2]');
-                    const clean = log.replace(/^\[P[12]\]\s*/, '');
-                    if (!isP1 && !isP2) {
-                      return (
-                        <div key={idx} className="text-center text-stone-400 text-xs">
-                          {clean}
-                        </div>
-                      );
-                    }
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex ${isP1 ? 'justify-start' : 'justify-end'}`}
-                      >
-                        <div
-                          className={`max-w-[85%] px-3 py-2 rounded border ${
-                            isP1 ? 'border-blue-500 bg-stone-700' : 'border-purple-500 bg-stone-700'
-                          }`}
-                        >
-                          {clean}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {combatLog.length === 0 && !winner ? (
+                    <p className="text-stone-600 italic text-center py-8 text-sm">
+                      En attente du combat...
+                    </p>
+                  ) : (
+                    <>
+                      {combatLog.map((log, idx) => {
+                        const isP1 = log.startsWith('[P1]');
+                        const isP2 = log.startsWith('[P2]');
+                        const cleanLog = log.replace(/^\[P[12]\]\s*/, '');
+
+                        if (!isP1 && !isP2) {
+                          if (log.includes('🏆')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-3">
+                                <div className="bg-amber-500/10 border border-amber-500/50 text-amber-200 px-5 py-2 font-bold text-sm rounded-lg">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (log.includes('---')) {
+                            return (
+                              <div key={idx} className="flex justify-center my-2">
+                                <div className="bg-stone-800/80 text-stone-400 px-4 py-1 text-xs font-bold rounded-md border border-stone-700/50">
+                                  {cleanLog}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={idx} className="flex justify-center">
+                              <div className="text-stone-500 text-xs italic">{cleanLog}</div>
+                            </div>
+                          );
+                        }
+
+                        if (isP1) {
+                          return (
+                            <div key={idx} className="flex justify-start">
+                              <div className="max-w-[80%]">
+                                <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-r-lg rounded-tl-lg border-l-2 border-blue-500/70">
+                                  <div className="text-xs md:text-sm">
+                                    {formatCombatLogMessage(cleanLog, p1Name, p2Name)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={idx} className="flex justify-end">
+                            <div className="max-w-[80%]">
+                              <div className="bg-stone-800/80 text-stone-200 px-3 py-2 rounded-l-lg rounded-tr-lg border-r-2 border-purple-500/70">
+                                <div className="text-xs md:text-sm">
+                                  {formatCombatLogMessage(cleanLog, p1Name, p2Name)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={logEndRef} />
+                    </>
+                  )}
                 </div>
               </div>
-              {currentAction && (
-                <div className="mt-2 text-center text-amber-200 text-xs">
-                  Action en cours…
-                </div>
-              )}
+
               <button
                 type="button"
                 onClick={handleQuitAfterReplay}
-                className="mt-4 mx-auto block bg-stone-700 hover:bg-stone-600 text-white px-6 py-2 rounded-lg border border-stone-500"
+                className="mt-6 mx-auto block bg-stone-800 hover:bg-stone-700 text-stone-200 px-6 py-2 rounded-lg transition border border-stone-600"
               >
                 Retour au menu PvP
               </button>
             </div>
-            <div className="w-full md:w-[340px] md:flex-shrink-0">
+
+            <div className="order-3 md:order-3 w-full md:w-[340px] lg:w-auto md:flex-shrink-0">
               <CharacterCardContent
                 character={player2}
                 showHpBar
-                imageOverride={player2?.characterImage ?? testImage2}
+                currentHP={player2.currentHP}
+                maxHP={player2.maxHP}
+                shield={player2.shield ?? 0}
+                nameOverride={p2Name}
                 combatBaseOverride={p2CombatBase}
                 combatModifiers={p2CombatModifiers}
                 opponent={player1}
                 combatStatus={p2CombatStatus}
                 detailsPlacement="right"
+                borderId={player2?.equippedBorder ?? null}
               />
             </div>
           </div>

@@ -23,6 +23,7 @@ import { applyPassiveWeaponStats } from '../utils/weaponEffects';
 import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { classConstants } from '../data/combatMechanics';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
+import { formatCombatLogMessage } from '../utils/combatLogFormat';
 
 const ADMIN_EMAIL = 'antho.pruneta@gmail.com';
 
@@ -84,10 +85,6 @@ function formatCountdown(targetDate) {
 
 function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
-}
-
-function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ============================================================================
@@ -651,54 +648,10 @@ const Tournament = () => {
     if (!matchEnCours || !tournoi) return text;
     const match = tournoi.matches[matchEnCours];
     if (!match) return text;
-
     const p1Data = tournoi.participants[match.p1];
     const p2Data = tournoi.participants[match.p2];
     if (!p1Data || !p2Data) return text;
-
-    const p1Name = p1Data.nom;
-    const p2Name = p2Data.nom;
-
-    const parts = [];
-    const nameRegex = new RegExp(`(${escapeRegex(p1Name)}|${escapeRegex(p2Name)})`, 'g');
-    const nameParts = text.split(nameRegex);
-    let key = 0;
-
-    nameParts.forEach((part) => {
-      if (part === p1Name) {
-        parts.push(<span key={key++} className="font-bold text-blue-400">{part}</span>);
-      } else if (part === p2Name) {
-        parts.push(<span key={key++} className="font-bold text-purple-400">{part}</span>);
-      } else if (part) {
-        const numRegex = /(\d+)\s*(points?\s*de\s*(?:vie|dégâts?|dommages?)|PV(?:\s*max)?|dégâts?(?:\s*(?:magiques?|physiques?|bruts?))?)/gi;
-        const critRegex = /(CRITIQUE\s*!?)/gi;
-        let lastIndex = 0;
-        let numMatch;
-        const pushWithCritHighlight = (chunk) => {
-          if (!chunk) return;
-          const critParts = chunk.split(critRegex);
-          critParts.forEach((critPart) => {
-            if (!critPart) return;
-            if (/^CRITIQUE\s*!?$/i.test(critPart)) {
-              parts.push(<span key={key++} className="font-bold text-yellow-300">{critPart}</span>);
-            } else {
-              parts.push(critPart);
-            }
-          });
-        };
-        while ((numMatch = numRegex.exec(part)) !== null) {
-          if (numMatch.index > lastIndex) pushWithCritHighlight(part.slice(lastIndex, numMatch.index));
-          const token = numMatch[2].toLowerCase();
-          const isHeal = token.includes('vie') || token.includes('pv');
-          parts.push(<span key={key++} className={isHeal ? 'font-bold text-green-400' : 'font-bold text-red-400'}>{numMatch[1]}</span>);
-          parts.push(` ${numMatch[2]}`);
-          lastIndex = numMatch.index + numMatch[0].length;
-        }
-        if (lastIndex < part.length) pushWithCritHighlight(part.slice(lastIndex));
-      }
-    });
-
-    return parts;
+    return formatCombatLogMessage(text, p1Data.nom, p2Data.nom);
   };
 
   // ============================================================================
