@@ -273,17 +273,22 @@ const ExtensionDungeon = () => {
       logs.push(`🏆 ${player?.name ?? p.name} terrasse ${boss?.name ?? b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
-      const rolled = rollExtensionPassive(character.mageTowerPassive?.id);
+      const rolled = rollExtensionPassive(
+        character.mageTowerPassive?.id,
+        character.mageTowerExtensionPassive?.id
+      );
       setRolledExtensionPassive(rolled);
       if (rolled) {
         const newExtension = { id: rolled.id, level: rolled.level ?? 1 };
         setPreviousExtensionPassive(character.mageTowerExtensionPassive || null);
-        updateCharacterMageTowerExtensionPassive(currentUser.uid, newExtension)
-          .then(result => {
-            if (result.success) {
-              setCharacter(prev => prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev);
-            }
-          });
+        // Persistance tout de suite : sinon un refresh avant le choix garderait l’ancien passif
+        // sans payer la run « Conserver l’ancienne combinaison ». L’affichage carte utilise
+        // `characterForCard` (override) tant que le joueur n’a pas validé.
+        updateCharacterMageTowerExtensionPassive(currentUser.uid, newExtension).then((result) => {
+          if (result.success) {
+            setCharacter((prev) => (prev ? { ...prev, mageTowerExtensionPassive: newExtension } : prev));
+          }
+        });
       }
       setGameState('reward');
     } else {
@@ -298,8 +303,10 @@ const ExtensionDungeon = () => {
 
   const handleAcceptNewPassive = async () => {
     if (!rolledExtensionPassive) return;
+    setError(null);
     setSavingChoice(true);
     const newExtension = { id: rolledExtensionPassive.id, level: rolledExtensionPassive.level ?? 1 };
+    // Déjà enregistré à la victoire (voir simulateCombat) — pas de second write ici.
     setExtensionChoice('new');
     setShowUpgradeAnimation(true);
     if (newExtension.level === 3) {
@@ -332,7 +339,7 @@ const ExtensionDungeon = () => {
     }
     const revertResult = await updateCharacterMageTowerExtensionPassive(currentUser.uid, previousExtensionPassive);
     if (revertResult.success) {
-      setCharacter(prev => prev ? { ...prev, mageTowerExtensionPassive: previousExtensionPassive } : prev);
+      setCharacter((prev) => (prev ? { ...prev, mageTowerExtensionPassive: previousExtensionPassive } : prev));
     }
     const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
     if (summaryResult.success) setDungeonSummary(summaryResult.data);
@@ -492,6 +499,14 @@ const ExtensionDungeon = () => {
       ? `${baseMixedName}, niveau ${rolledExtensionPassive.level}`
       : baseMixedName;
 
+    // Tant que le choix n’est pas fait et qu’il y avait déjà une extension : la BDD a déjà le nouveau
+    // (anti-abus refresh), mais on affiche sur la carte l’ancienne combinaison pour rester cohérent
+    // avec les blocs « Ancien / Nouveau ».
+    const characterForCard =
+      !alreadyChose && rolledExtensionPassive && previousExtensionPassive
+        ? { ...character, mageTowerExtensionPassive: previousExtensionPassive }
+        : character;
+
     return (
       <div className="min-h-screen p-6">
         <Header />
@@ -499,8 +514,13 @@ const ExtensionDungeon = () => {
           <source src="/assets/music/extension.mp3" type="audio/mpeg" />
         </audio>
         <div className="max-w-5xl mx-auto pt-20 sm:pt-16 text-center">
+          {error && (
+            <div className="bg-red-900/50 border border-red-600 rounded-xl p-4 mb-6 text-center shadow-lg max-w-xl mx-auto">
+              <p className="text-red-300">{error}</p>
+            </div>
+          )}
           <div className="flex justify-center mb-8">
-            <CharacterCardContent character={character} detailsPlacement="left" />
+            <CharacterCardContent character={characterForCard} detailsPlacement="left" />
           </div>
 
           <div className="inline-block bg-stone-950/85 border border-violet-600/80 rounded-lg px-6 py-3 shadow-lg mb-6">

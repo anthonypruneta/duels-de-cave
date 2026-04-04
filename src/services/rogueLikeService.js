@@ -194,8 +194,8 @@ function rollExtensionPassiveLevelSeeded(rng) {
   return 1;
 }
 
-function rollExtensionPassiveSeeded(currentPassiveId, rng) {
-  const options = getExtensionPassiveOptions(currentPassiveId);
+function rollExtensionPassiveSeeded(currentPassiveId, rng, extensionPassiveId = null) {
+  const options = getExtensionPassiveOptions(currentPassiveId, extensionPassiveId);
   if (!options || options.length === 0) return null;
   const chosen = pickSeeded(options, rng);
   const level = rollExtensionPassiveLevelSeeded(rng);
@@ -558,7 +558,7 @@ function buildPendingActionExtensionChoice({ runSeed, floorNumber, runCharacter 
   }
 
   const rngNew = createSeededRng(`${runSeed}|extension|${floorNumber}|new`);
-  const rolled = rollExtensionPassiveSeeded(current?.id, rngNew);
+  const rolled = rollExtensionPassiveSeeded(current?.id, rngNew, runCharacter.mageTowerExtensionPassive?.id);
 
   // Si aucune extension possible, retour keep-only.
   return {
@@ -716,7 +716,7 @@ function buildPendingActionSpecial150({ runSeed, floorNumber, runCharacter }) {
   const canExt = canAccessExtensionDungeon(currentPrimary);
   let passiveOption = null;
   if (canExt) {
-    const ext = rollExtensionPassiveSeeded(currentPrimary?.id, rngPassive);
+    const ext = rollExtensionPassiveSeeded(currentPrimary?.id, rngPassive, runCharacter.mageTowerExtensionPassive?.id);
     passiveOption = ext ? { kind: 'extension', value: ext } : { kind: 'extension', value: null };
   } else {
     const rolled = rollMageTowerPassivePairSeeded(getLabyrinthPhase(floorNumber), rngPassive);

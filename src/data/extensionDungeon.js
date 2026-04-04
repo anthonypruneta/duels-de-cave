@@ -147,12 +147,15 @@ const EXTENSION_LEVEL_DROP_RATES = [
 export const EXTENSION_LEVEL_DROP_LABEL = '90% niv.1, 9% niv.2, 1% niv.3';
 
 /**
- * Retourne les passifs éligibles comme secondaire : tous sauf le passif actuel.
+ * Retourne les passifs éligibles comme secondaire : tous sauf le passif principal
+ * et, si présent, le passif d'extension déjà équipé (évite un doublon inutile).
+ * @param {string} primaryPassiveId - Passif Tour du Mage (niv. 3)
+ * @param {string|null|undefined} extensionPassiveId - Passif extension actuel, à exclure du pool
  */
-export function getExtensionPassiveOptions(currentPassiveId) {
+export function getExtensionPassiveOptions(primaryPassiveId, extensionPassiveId = null) {
   const available = getAvailablePassives();
   return available
-    .filter((p) => p.id !== currentPassiveId)
+    .filter((p) => p.id !== primaryPassiveId && (extensionPassiveId == null || p.id !== extensionPassiveId))
     .map((p) => ({ id: p.id, name: p.name, icon: p.icon }));
 }
 
@@ -169,9 +172,11 @@ export function rollExtensionPassiveLevel() {
 
 /**
  * Tire un passif d'extension aléatoire parmi les éligibles, avec un niveau tiré (90% niv.1, 9% niv.2, 1% niv.3).
+ * @param {string} primaryPassiveId
+ * @param {string|null|undefined} extensionPassiveId - Exclu du tirage s'il existe déjà une extension
  */
-export function rollExtensionPassive(currentPassiveId) {
-  const options = getExtensionPassiveOptions(currentPassiveId);
+export function rollExtensionPassive(primaryPassiveId, extensionPassiveId = null) {
+  const options = getExtensionPassiveOptions(primaryPassiveId, extensionPassiveId);
   if (options.length === 0) return null;
   const picked = options[Math.floor(Math.random() * options.length)];
   const level = rollExtensionPassiveLevel();
