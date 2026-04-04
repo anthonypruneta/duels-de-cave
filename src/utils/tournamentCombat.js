@@ -952,6 +952,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     }
     def.turtlekinFirstHitUsed = true;
   }
+  const preShieldAdjustedForCapacity = isCapacityDamage ? adjusted : 0;
   if (def.shield > 0 && adjusted > 0) {
     const absorbed = Math.min(def.shield, adjusted);
     def.shield -= absorbed;
@@ -978,6 +979,11 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         }
       }
     }
+  }
+  if (isCapacityDamage && preShieldAdjustedForCapacity > 0) {
+    const grantAmount =
+      adjusted > 0 ? adjusted : preShieldAdjustedForCapacity;
+    grantOnCapacityHitDefenderEffects(def, grantAmount, log, playerColor);
   }
   if (adjusted > 0) {
     const hadReflectBeforeHit = Boolean(def.reflect);
@@ -1030,7 +1036,6 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     }
 
     if (isCapacityDamage) {
-      grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor);
       // Masochiste : la copie (dégâts + soin avec +10%) est déclenchée depuis le bloc capacité, pas ici
       if (att.class !== 'Masochiste') {
         triggerMindflayerCapacityCopy(att, def, log, playerColor, atkList, defList, atkUnicorn, defUnicorn, auraBoost, adjusted, null, turn);

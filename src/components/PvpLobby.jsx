@@ -382,6 +382,23 @@ function PvpLobby() {
     navigator.clipboard?.writeText(roomId).catch(() => {});
   };
 
+  const renderLeaderboardEncadre = () => (
+    <div className="rounded-xl border-2 border-amber-600/55 bg-stone-950/90 p-4 shadow-lg ring-1 ring-amber-900/30">
+      <p className="text-center text-amber-200/90 text-xs font-bold uppercase tracking-widest mb-3">
+        🏆 Classement duels PvP
+      </p>
+      <Link
+        to="/pvp-classement"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-500/60 bg-amber-500/15 px-4 py-3 text-center text-sm font-bold text-amber-100 transition hover:bg-amber-500/25 hover:border-amber-400"
+      >
+        Ouvrir le classement
+      </Link>
+      <p className="mt-2 text-center text-[11px] text-stone-500">
+        Victoires / défaites lobby · archivés niveau ≤ {getPvpLobbyMaxLevel()}
+      </p>
+    </div>
+  );
+
   const renderCharPicker = (selected, onSelect, label) => (
     <div className="bg-stone-800/90 border border-stone-600 rounded-xl p-4">
       <h3 className="text-lg font-bold text-amber-300 mb-3">{label}</h3>
@@ -598,22 +615,20 @@ function PvpLobby() {
     );
   }
 
+  const mainMaxWidth =
+    inRoom && room && !replayPhase ? 'max-w-[min(90rem,calc(100vw-1.5rem))]' : 'max-w-4xl';
+
   return (
     <div className="min-h-screen p-4 md:p-6">
       <Header />
-      <div className="max-w-4xl mx-auto pt-20 space-y-6">
-        <div className="text-center">
+      <div className={`${mainMaxWidth} mx-auto pt-20 space-y-6`}>
+        <div className="text-center space-y-4">
           <h1 className="text-3xl font-bold text-amber-400">⚔️ PvP — Lobby</h1>
-          <p className="text-stone-400 mt-2 text-sm">
+          <p className="text-stone-400 text-sm max-w-xl mx-auto">
             Uniquement des personnages archivés (tournoi), pas ton personnage actif. Niveau max
             en PvP : {getPvpLobbyMaxLevel()}.
           </p>
-          <Link
-            to="/pvp-classement"
-            className="inline-block mt-3 text-amber-300 hover:text-amber-200 text-sm font-semibold underline"
-          >
-            🏆 Voir le classement des duels
-          </Link>
+          {!inRoom && <div className="max-w-md mx-auto">{renderLeaderboardEncadre()}</div>}
         </div>
 
         {error && (
@@ -718,6 +733,7 @@ function PvpLobby() {
           <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4">
             <h2 className="text-xl font-bold text-stone-200">Salle</h2>
             <p className="text-stone-400 text-sm font-mono break-all">ID : {room.id}</p>
+            <div className="max-w-md">{renderLeaderboardEncadre()}</div>
             {isHost && (
               <div className="flex flex-wrap gap-2">
                 <button
@@ -747,8 +763,8 @@ function PvpLobby() {
                 <p className="text-stone-300 text-sm">
                   Les deux joueurs sont dans le lobby. L’invité doit confirmer son personnage et se déclarer prêt.
                 </p>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="border border-stone-600 rounded-lg p-3 bg-stone-950/40">
+                <div className="grid md:grid-cols-2 gap-y-8 gap-x-6 md:gap-x-12 lg:gap-x-16 xl:gap-x-24 items-start">
+                  <div className="min-w-0 border border-stone-600 rounded-lg p-3 md:p-4 bg-stone-950/40 md:mr-1 lg:mr-2">
                     <div className="text-blue-400 font-bold text-sm mb-2">Hôte</div>
                     {room.hostSnapshot && (
                       <CharacterCardContent
@@ -772,7 +788,7 @@ function PvpLobby() {
                       </p>
                     )}
                   </div>
-                  <div className="border border-stone-600 rounded-lg p-3 bg-stone-950/40">
+                  <div className="min-w-0 border border-stone-600 rounded-lg p-3 md:p-4 bg-stone-950/40 md:ml-1 lg:ml-2">
                     <div className="text-purple-400 font-bold text-sm mb-2">Invité</div>
                     {room.guestSnapshot && (
                       <CharacterCardContent
