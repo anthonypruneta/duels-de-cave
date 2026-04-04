@@ -146,8 +146,10 @@ function Header() {
     { path: '/encyclopedie', label: '📚 Encyclopédie' },
     { path: '/hall-of-fame', label: '👑 Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
+    { path: '/pvp', label: '⚔️ PvP' },
+    { path: '/pvp-classement', label: '🏆 Classement PvP' },
     ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
-    ...(isAdmin ? [{ path: '/combat', label: '⚔️ PvP' }] : []),
+    ...(isAdmin ? [{ path: '/combat', label: '🛠️ PvP admin' }] : []),
   ];
 
   return (

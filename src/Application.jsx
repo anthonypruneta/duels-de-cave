@@ -28,6 +28,8 @@ import SubclassDungeon from './components/SubclassDungeon';
 import Encyclopedia from './components/Encyclopedia';
 import BossRush from './components/BossRush';
 import MirrorMode from './components/MirrorMode';
+import PvpLobby from './components/PvpLobby';
+import PvpLeaderboard from './components/PvpLeaderboard';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 
 function Application() {
@@ -55,6 +57,24 @@ function Application() {
                 <AdminOnlyRoute>
                   <Combat />
                 </AdminOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pvp"
+            element={
+              <ProtectedRoute>
+                <ModeAvailabilityRoute>
+                  <PvpLobby />
+                </ModeAvailabilityRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pvp-classement"
+            element={
+              <ProtectedRoute>
+                <PvpLeaderboard />
               </ProtectedRoute>
             }
           />

@@ -4,6 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { getArchivedCharacters } from '../services/tournamentService';
+import {
+  fetchPvpDuelStatsForUserCharacters,
+  migrateLegacyPvpStatsToLeaderboardDocs,
+} from '../services/pvpLobbyService';
+import { getOwnerPseudoFromAccount } from '../services/characterService';
 import { getWeaponById } from '../data/weapons';
 import { races } from '../data/gameData';
 import { db } from '../firebase/config';
@@ -49,7 +54,24 @@ const MesAnciensPersonnages = () => {
           }
           return copy;
         });
-        setCharacters(enriched);
+        const pseudoRes = await getOwnerPseudoFromAccount(currentUser.uid);
+        const ownerPseudo = pseudoRes.success ? pseudoRes.ownerPseudo || 'Joueur' : 'Joueur';
+        await migrateLegacyPvpStatsToLeaderboardDocs(
+          currentUser.uid,
+          enriched.map((c) => ({ id: c.id, name: c.name })),
+          ownerPseudo
+        );
+        const statsRes = await fetchPvpDuelStatsForUserCharacters(
+          currentUser.uid,
+          enriched.map((c) => c.id)
+        );
+        const statsMap = statsRes.success ? statsRes.data : {};
+        setCharacters(
+          enriched.map((c) => ({
+            ...c,
+            pvpDuelStats: statsMap[c.id] || { wins: 0, losses: 0 },
+          }))
+        );
       } else {
         setCharacters([]);
       }
@@ -75,7 +97,9 @@ const MesAnciensPersonnages = () => {
         <div className="text-center mb-8">
           <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl px-6 py-4 shadow-xl inline-block">
             <h1 className="text-4xl font-bold text-amber-400">📜 Mes Anciens Personnages</h1>
-            <p className="text-stone-400 mt-1">Les héros qui ont participé aux tournois</p>
+            <p className="text-stone-400 mt-1">
+              Les héros qui ont participé aux tournois — record duels PvP lobby affiché par perso.
+            </p>
           </div>
         </div>
 
@@ -98,6 +122,12 @@ const MesAnciensPersonnages = () => {
                   borderId={legacyChampionArchiveIds.has(char.id) ? 'ancient' : null}
                   detailsPlacement="left"
                 />
+                <div className="text-stone-500 text-xs mt-2 text-center">
+                  Duels PvP :{' '}
+                  <span className="text-emerald-400 font-semibold">{char.pvpDuelStats?.wins ?? 0}V</span>
+                  {' · '}
+                  <span className="text-rose-400 font-semibold">{char.pvpDuelStats?.losses ?? 0}D</span>
+                </div>
                 {char.archivedAt && (
                   <div className="text-stone-600 text-xs mt-1">
                     Archivé le {char.archivedAt.toDate?.().toLocaleDateString('fr-FR') || ''}
