@@ -3,11 +3,11 @@
  */
 import {
   collection,
-  collectionGroup,
   doc,
   getDoc,
   getDocs,
   setDoc,
+  writeBatch,
   deleteDoc,
   onSnapshot,
   query,
@@ -30,6 +30,14 @@ const PVP_STATS = 'pvpDuelStatsByUser';
 /** Sous-collection dédiée (évite collectionGroup sur « characters », en conflit avec la collection racine). */
 const PVP_CHAR_STATS_SUB = 'pvpDuelCharStats';
 const PVP_CHAR_STATS_LEGACY_SUB = 'characters';
+/** Collection racine pour le classement (query simple + règles fiables ; pas de collectionGroup). */
+const PVP_LEADERBOARD_ENTRIES = 'pvpDuelLeaderboardEntries';
+
+export function pvpLeaderboardEntryDocId(userId, characterId) {
+  const u = String(userId || '');
+  const c = String(characterId || '');
+  return `${u}__${c}`;
+}
 
 const LEADERBOARD_DEFAULT_LIMIT = 200;
 
@@ -130,16 +138,29 @@ export async function migrateLegacyPvpStatsToLeaderboardDocs(userId, entries, ow
         const w = Number(o.wins) || 0;
         const l = Number(o.losses) || 0;
         if (w === 0 && l === 0) return;
+        const updatedAt = Timestamp.now();
+        const payload = {
+          wins: w,
+          losses: l,
+          characterName: String(name || '—').slice(0, 40),
+          ownerUserId: userId,
+          ownerPseudo: pseudo,
+          characterId: String(id),
+          migratedFromLegacy: true,
+          updatedAt,
+        };
+        await setDoc(refNew, payload, { merge: true });
+        const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, id));
         await setDoc(
-          refNew,
+          boardRef,
           {
             wins: w,
             losses: l,
-            characterName: String(name || '—').slice(0, 40),
+            characterName: payload.characterName,
             ownerUserId: userId,
             ownerPseudo: pseudo,
-            migratedFromLegacy: true,
-            updatedAt: Timestamp.now(),
+            characterId: String(id),
+            updatedAt,
           },
           { merge: true }
         );
@@ -153,29 +174,75 @@ export async function migrateLegacyPvpStatsToLeaderboardDocs(userId, entries, ow
 }
 
 /**
+ * Recopie les docs `pvpDuelCharStats` du joueur vers la collection racine du classement
+ * (utile après déploiement des règles ou pour réparer d’anciennes données).
+ */
+export async function syncPvpLeaderboardEntriesForUser(userId) {
+  if (!userId) return { success: true };
+  try {
+    await waitForFirestore();
+    const subRef = collection(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB);
+    const snap = await getDocs(subRef);
+    if (snap.empty) return { success: true };
+    const pseudoRes = await getOwnerPseudoFromAccount(userId);
+    const ownerPseudo =
+      String(pseudoRes.ownerPseudo || 'Joueur').trim().slice(0, 40) || 'Joueur';
+    let batch = writeBatch(db);
+    let n = 0;
+    for (const d of snap.docs) {
+      const data = d.data();
+      const charId = d.id;
+      const wins = Number(data.wins) || 0;
+      const losses = Number(data.losses) || 0;
+      if (wins === 0 && losses === 0) continue;
+      const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
+      batch.set(
+        boardRef,
+        {
+          wins,
+          losses,
+          characterName: String(data.characterName || '—').slice(0, 40),
+          ownerUserId: userId,
+          ownerPseudo: String(data.ownerPseudo || ownerPseudo).slice(0, 40),
+          characterId: String(charId),
+          updatedAt: data.updatedAt || Timestamp.now(),
+        },
+        { merge: true }
+      );
+      n += 1;
+      if (n % 400 === 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+      }
+    }
+    if (n % 400 !== 0) await batch.commit();
+    return { success: true };
+  } catch (e) {
+    console.warn('syncPvpLeaderboardEntriesForUser', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * Classement global : victoires / défaites par perso archivé (nom perso + pseudo compte).
+ * Lit la collection racine `pvpDuelLeaderboardEntries` (évite collectionGroup / règles capricieuses).
  */
 export async function fetchPvpDuelLeaderboard(maxRows = LEADERBOARD_DEFAULT_LIMIT) {
   const cap = Math.min(500, Math.max(1, Number(maxRows) || LEADERBOARD_DEFAULT_LIMIT));
   try {
     await waitForFirestore();
     const q = query(
-      collectionGroup(db, PVP_CHAR_STATS_SUB),
+      collection(db, PVP_LEADERBOARD_ENTRIES),
       orderBy('wins', 'desc'),
       limit(cap)
     );
     const snap = await getDocs(q);
     const rows = snap.docs.map((d) => {
       const data = d.data();
-      const parts = d.ref.path.split('/');
-      let ownerFromPath = '';
-      const i = parts.indexOf(PVP_STATS);
-      if (i >= 0 && parts[i + 2] === PVP_CHAR_STATS_SUB) {
-        ownerFromPath = parts[i + 1] || '';
-      }
+      const charId = String(data.characterId || '').trim() || d.id.split('__').slice(1).join('__');
       return {
-        id: d.id,
-        ownerUserId: data.ownerUserId || ownerFromPath,
+        id: charId || d.id,
+        ownerUserId: data.ownerUserId || '',
         ownerPseudo: String(data.ownerPseudo || '—').slice(0, 40),
         characterName: String(data.characterName || '—').slice(0, 40),
         wins: Number(data.wins) || 0,
@@ -250,16 +317,20 @@ export async function applyMyPvpDuelStatsFromRoom(roomId, userId) {
           const won = slot === 1;
           const charName = String(d.hostSnapshot?.name || '—').slice(0, 40);
           const statsRef = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, String(charId));
+          const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
           const meta = {
             characterName: charName,
             ownerUserId: userId,
             ownerPseudo,
+            characterId: String(charId),
             updatedAt: Timestamp.now(),
           };
           if (won) {
             tx.set(statsRef, { wins: increment(1), ...meta }, { merge: true });
+            tx.set(boardRef, { wins: increment(1), ...meta }, { merge: true });
           } else {
             tx.set(statsRef, { losses: increment(1), ...meta }, { merge: true });
+            tx.set(boardRef, { losses: increment(1), ...meta }, { merge: true });
           }
           tx.update(ref, { hostDuelStatsApplied: true, updatedAt: Timestamp.now() });
         } else if (d.guestId === userId) {
@@ -272,16 +343,20 @@ export async function applyMyPvpDuelStatsFromRoom(roomId, userId) {
           const won = slot === 2;
           const charName = String(d.guestSnapshot?.name || '—').slice(0, 40);
           const statsRef = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, String(charId));
+          const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
           const meta = {
             characterName: charName,
             ownerUserId: userId,
             ownerPseudo,
+            characterId: String(charId),
             updatedAt: Timestamp.now(),
           };
           if (won) {
             tx.set(statsRef, { wins: increment(1), ...meta }, { merge: true });
+            tx.set(boardRef, { wins: increment(1), ...meta }, { merge: true });
           } else {
             tx.set(statsRef, { losses: increment(1), ...meta }, { merge: true });
+            tx.set(boardRef, { losses: increment(1), ...meta }, { merge: true });
           }
           tx.update(ref, { guestDuelStatsApplied: true, updatedAt: Timestamp.now() });
         }

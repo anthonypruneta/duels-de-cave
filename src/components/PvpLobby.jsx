@@ -24,6 +24,7 @@ import {
   fetchPvpDuelStatsForUserCharacters,
   applyMyPvpDuelStatsFromRoom,
   migrateLegacyPvpStatsToLeaderboardDocs,
+  syncPvpLeaderboardEntriesForUser,
   isCharacterEligibleForPvpLobby,
   getPvpLobbyMaxLevel,
 } from '../services/pvpLobbyService';
@@ -90,6 +91,7 @@ function PvpLobby() {
         enriched.map((c) => ({ id: c.id, name: c.name })),
         ownerPseudo
       );
+      await syncPvpLeaderboardEntriesForUser(currentUser.uid);
       const ids = enriched.map((c) => c.id).filter(Boolean);
       const statsRes = await fetchPvpDuelStatsForUserCharacters(currentUser.uid, ids);
       const statsMap = statsRes.success ? statsRes.data : {};

@@ -6,6 +6,13 @@
       "fields": [
         { "fieldPath": "wins", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pvpDuelLeaderboardEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "wins", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

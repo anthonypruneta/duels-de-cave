@@ -7,6 +7,7 @@ import { getArchivedCharacters } from '../services/tournamentService';
 import {
   fetchPvpDuelStatsForUserCharacters,
   migrateLegacyPvpStatsToLeaderboardDocs,
+  syncPvpLeaderboardEntriesForUser,
 } from '../services/pvpLobbyService';
 import { getOwnerPseudoFromAccount } from '../services/characterService';
 import { getWeaponById } from '../data/weapons';
@@ -61,6 +62,7 @@ const MesAnciensPersonnages = () => {
           enriched.map((c) => ({ id: c.id, name: c.name })),
           ownerPseudo
         );
+        await syncPvpLeaderboardEntriesForUser(currentUser.uid);
         const statsRes = await fetchPvpDuelStatsForUserCharacters(
           currentUser.uid,
           enriched.map((c) => c.id)

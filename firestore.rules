@@ -230,8 +230,24 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
     }
 
+    // Classement PvP (collection racine — requête orderBy wins sans collectionGroup)
+    match /pvpDuelLeaderboardEntries/{entryId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+                       request.resource.data.ownerUserId == request.auth.uid &&
+                       request.resource.data.characterId is string &&
+                       request.resource.data.characterId.size() > 0 &&
+                       entryId == request.auth.uid + '__' + request.resource.data.characterId;
+      allow update: if request.auth != null &&
+                       resource.data.ownerUserId == request.auth.uid &&
+                       request.resource.data.ownerUserId == resource.data.ownerUserId &&
+                       request.resource.data.characterId == resource.data.characterId &&
+                       entryId == request.auth.uid + '__' + request.resource.data.characterId;
+      allow delete: if isAdmin();
+    }
+
     // Stats victoires/défaites duels PvP lobby (par perso archivé)
-    // Chemin plat : requis pour que les requêtes collectionGroup('pvpDuelCharStats') passent les règles.
+    // Sous-collection + synchro vers pvpDuelLeaderboardEntries pour le classement global.
     match /pvpDuelStatsByUser/{userId}/pvpDuelCharStats/{charId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == userId;
