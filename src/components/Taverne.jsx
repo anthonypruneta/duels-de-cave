@@ -414,8 +414,9 @@ export default function Taverne() {
           <div
             className={`absolute z-[15] flex flex-col items-center justify-center pointer-events-auto cursor-pointer transition-transform duration-200 ${hoveredBettingBoard ? 'scale-[1.06]' : ''}`}
             style={{
-              left: '50%',
-              top: '36%',
+              // Mur du fond, à droite (évite tables / persos au centre)
+              left: '66%',
+              top: '22%',
               transform: 'translate(-50%, -50%)',
               width: 'clamp(104px, 15vw, 168px)',
               height: 'clamp(86px, 12.5vw, 138px)',
