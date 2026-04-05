@@ -188,7 +188,10 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
     case 'Sorcière': return `Malédiction : −${pct(c.curseStatReduction, 0)} d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + ${pct(c.capBase, 0)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
-    case 'Berserk': return `Rage : consomme ${(c.rageHpCostPercent || 0) * 100}% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + ${(c.rageMissingHpDamageScale || 0) * 100}% des PV manquants (après ce coût) + ${(c.rageMissingHpCapScale ?? classConstants.berserk.rageMissingHpCapScale ?? 0) * 100}% de votre Cap.`;
+    case 'Berserk': {
+      const perCap = c.rageMissingHpScalePerCap ?? classConstants.berserk.rageMissingHpScalePerCap ?? 0;
+      return `Rage : consomme ${(c.rageHpCostPercent || 0) * 100}% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + ${(c.rageMissingHpDamageScale || 0) * 100}% des PV manquants (après ce coût). Ce pourcentage augmente de +${(perCap * 100).toFixed(1)}% par point de Cap.`;
+    }
     default: return classes[className]?.description || '';
   }
 };
@@ -273,10 +276,14 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     }
     case 'enchanteresse':
       return `Malédiction : −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
-    case 'boucher':
-      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale)} des PV manquants (après coût) + ${pct0(c.rageMissingHpCapScale ?? classConstants.berserk.rageMissingHpCapScale)} Cap.`;
-    case 'brise_caves':
-      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale)} des PV manquants + ${pct0(c.rageMissingHpCapScale ?? classConstants.berserk.rageMissingHpCapScale)} Cap. Prochaine auto +${pct0(classConstants.berserk.nextAutoDamageBonus)} dégâts.`;
+    case 'boucher': {
+      const perCapB = c.rageMissingHpScalePerCap ?? classConstants.berserk.rageMissingHpScalePerCap ?? 0;
+      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale)} des PV manquants (après coût). +${pct1(perCapB)} par point de Cap sur ce pourcentage.`;
+    }
+    case 'brise_caves': {
+      const perCapBr = c.rageMissingHpScalePerCap ?? classConstants.berserk.rageMissingHpScalePerCap ?? 0;
+      return `Rage : coût ${pct0(c.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent)} PV max. Auto + ${pct0(c.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale)} des PV manquants (après coût). +${pct1(perCapBr)} par point de Cap sur ce pourcentage. Prochaine auto +${pct0(classConstants.berserk.nextAutoDamageBonus)} dégâts.`;
+    }
     default:
       return '';
   }
@@ -391,8 +398,8 @@ export const buildClassDescriptionParts = (className, constants = null) => {
       return [
         text('Rage : '), slot(['rageHpCostPercent'], 'percent'),
         text('% PV max (ne peut pas tuer). Auto + '), slot(['rageMissingHpDamageScale'], 'percent'),
-        text('% des PV manquants après le coût + '), slot(['rageMissingHpCapScale'], 'percent'),
-        text('% de votre Cap.')
+        text('% des PV manquants après le coût. +'), slot(['rageMissingHpScalePerCap'], 'percent1dec'),
+        text(' par point de Cap sur ce pourcentage.')
       ];
     default:
       return [{ type: 'text', value: buildClassDescription(className, c) }];

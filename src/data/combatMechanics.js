@@ -92,7 +92,7 @@ export const classConstants = {
   berserk: {
     rageHpCostPercent: 0.10,     // Coût PV max par Rage
     rageMissingHpDamageScale: 0.35, // Bonus dégâts = scale × PV manquants (après coût)
-    rageMissingHpCapScale: 0.30,    // + ce ratio × CAP sur le bonus PV manquants (comme le soin Healer)
+    rageMissingHpScalePerCap: 0.003, // +0,3% au ratio PV manquants par point de Cap (comme critPerCap Voleur)
     nextAutoDamageBonus: 0.20    // Brise-Caves : +20% sur la prochaine auto
   }
 };
