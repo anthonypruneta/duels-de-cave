@@ -321,10 +321,16 @@ service cloud.firestore {
     }
 
     // Historique des matchs Red coop (lié au personnage via pseudo normalisé)
-    // Chemin: coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}
+    // Chemins :
+    // - coopRedMatchHistory/{userId}/charactersByName/{nameKey}/matches/{roomId}
+    // - coopRedMatchHistory/{userId}/matches/{roomId} (legacy)
     match /coopRedMatchHistory/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
+
+      match /matches/{matchId} {
+        allow read, write, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      }
 
       match /charactersByName/{nameKey} {
         allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
@@ -334,6 +340,18 @@ service cloud.firestore {
           allow read, write, delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
         }
       }
+    }
+
+    // Requêtes collectionGroup('matches') — nécessaire pour l’admin (nettoyage pointeaux) et cohérent avec l’historique Red
+    match /{path=**}/matches/{matchId} {
+      allow read: if request.auth != null &&
+                     path.matches('^coopRedMatchHistory/.*') &&
+                     (isAdmin() ||
+                      path.matches('^coopRedMatchHistory/' + request.auth.uid + '(/.*)?$'));
+      allow create, update, delete: if request.auth != null &&
+                                        path.matches('^coopRedMatchHistory/.*') &&
+                                        (isAdmin() ||
+                                         path.matches('^coopRedMatchHistory/' + request.auth.uid + '(/.*)?$'));
     }
   }
 }
