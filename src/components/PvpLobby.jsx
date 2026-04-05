@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
@@ -27,6 +27,7 @@ import {
   syncPvpLeaderboardEntriesForUser,
   isCharacterEligibleForPvpLobby,
   getPvpLobbyMaxLevel,
+  isPvpOpenLobbyPublicListRoom,
 } from '../services/pvpLobbyService';
 
 const SESSION_KEY = 'pvpLobbyRoomId';
@@ -119,6 +120,11 @@ function PvpLobby() {
     );
     return () => unsub();
   }, []);
+
+  const publicOpenRooms = useMemo(
+    () => openRooms.filter((r) => isPvpOpenLobbyPublicListRoom(r)),
+    [openRooms]
+  );
 
   useEffect(() => {
     if (!roomId.trim()) {
@@ -662,8 +668,9 @@ function PvpLobby() {
               <div className="bg-stone-900/80 border border-cyan-700/50 rounded-xl p-5 space-y-4 ring-1 ring-cyan-900/20">
                 <h2 className="text-xl font-bold text-cyan-200">Matchmaking</h2>
                 <p className="text-stone-400 text-sm">
-                  Cherche une salle d’attente existante ou en crée une. Dès qu’un adversaire rejoint, vous
-                  passez en lobby comme d’habitude.
+                  Le premier joueur ouvre une salle d’attente ; le second rejoint celle qui attend déjà. Si personne
+                  n’attend, une nouvelle salle est créée pour toi. Les salles ouvertes sans mot de passe (colonne du
+                  milieu) comptent aussi comme salles rejoignables.
                 </p>
                 {renderCharPicker(
                   matchmakingSelected,
@@ -739,11 +746,14 @@ function PvpLobby() {
 
             <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5">
               <h2 className="text-lg font-bold text-stone-200 mb-3">Salles ouvertes (sans mot de passe)</h2>
-              {openRooms.length === 0 ? (
+              <p className="text-stone-500 text-xs mb-2">
+                Uniquement les salles créées via « Créer une salle » sans mot de passe — pas les files matchmaking.
+              </p>
+              {publicOpenRooms.length === 0 ? (
                 <p className="text-stone-500 text-sm">Aucune salle ouverte pour le moment.</p>
               ) : (
                 <ul className="space-y-2">
-                  {openRooms.map((r) => (
+                  {publicOpenRooms.map((r) => (
                     <li
                       key={r.id}
                       className="flex flex-wrap items-center justify-between gap-2 bg-stone-800/80 p-3 rounded-lg border border-stone-700"

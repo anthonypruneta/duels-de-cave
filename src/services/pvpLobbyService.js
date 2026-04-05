@@ -385,20 +385,28 @@ function combatResultForFirestore(result) {
   };
 }
 
+/**
+ * Salles affichées dans « Salles ouvertes » sous le lobby : pas les files matchmaking
+ * (elles ont isOpenLobby: false et isMatchmakingQueue: true).
+ */
+export function isPvpOpenLobbyPublicListRoom(r) {
+  if (!r || r.status !== 'waiting') return false;
+  if (r.guestId) return false;
+  if (r.isMatchmakingQueue === true) return false;
+  if (r.isOpenLobby !== true) return false;
+  if (String(r.passwordHash || '').trim()) return false;
+  if (!isCharacterEligibleForPvpLobby(r.hostSnapshot)) return false;
+  return true;
+}
+
 export function subscribeOpenPvpLobbyRooms(onData, onError) {
-  const q = query(collection(db, ROOMS), where('status', '==', 'waiting'), limit(50));
+  const q = query(collection(db, ROOMS), where('status', '==', 'waiting'), limit(80));
   return onSnapshot(
     q,
     (snap) => {
       const rows = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
-        .filter(
-          (r) =>
-            !r.guestId &&
-            r.isOpenLobby === true &&
-            !r.isMatchmakingQueue &&
-            isCharacterEligibleForPvpLobby(r.hostSnapshot)
-        );
+        .filter((r) => isPvpOpenLobbyPublicListRoom(r));
       rows.sort((a, b) => {
         const ta = a.createdAt?.toMillis?.() ?? a.createdAt?.seconds * 1000 ?? 0;
         const tb = b.createdAt?.toMillis?.() ?? b.createdAt?.seconds * 1000 ?? 0;
@@ -472,9 +480,53 @@ export async function createPvpLobbyRoom(hostUserId, { password = '', character,
   return { success: true, roomId };
 }
 
+function roomCreatedAtMs(r) {
+  const t = r?.createdAt;
+  return t?.toMillis?.() ?? (t?.seconds != null ? t.seconds * 1000 : 0);
+}
+
 /**
- * Matchmaking : tente de rejoindre la salle d’attente la plus ancienne, sinon crée une salle dédiée.
- * Les salles matchmaking n’apparaissent pas dans la liste « salles ouvertes ».
+ * Salles rejoignables sans mot de passe (matchmaking ou lobby ouvert).
+ * On accepte aussi les docs sans drapeaux explicites tant qu’il n’y a pas de MDP (évite les faux négatifs si un champ manque en base).
+ */
+function isJoinableViaMatchmaking(r, userId) {
+  if (!r || r.status !== 'waiting') return false;
+  if (r.guestId) return false;
+  if (!r.hostId || r.hostId === userId) return false;
+  if (String(r.passwordHash || '').trim()) return false;
+  if (!isCharacterEligibleForPvpLobby(r.hostSnapshot)) return false;
+  if (r.isMatchmakingQueue === true) return true;
+  if (r.isOpenLobby === true) return true;
+  if (r.isMatchmakingQueue !== true && r.isOpenLobby !== true) return true;
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function tryJoinAnyWaitingRoom(userId, character) {
+  const q = query(collection(db, ROOMS), where('status', '==', 'waiting'));
+  const snap = await retryOperation(() => getDocs(q));
+
+  const candidates = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((r) => isJoinableViaMatchmaking(r, userId))
+    .sort((a, b) => roomCreatedAtMs(a) - roomCreatedAtMs(b));
+
+  for (const row of candidates) {
+    const joinRes = await joinPvpLobbyRoomAsGuest(userId, row.id, '', character);
+    if (joinRes.success) {
+      return { success: true, roomId: joinRes.roomId, mode: 'joined' };
+    }
+  }
+  return null;
+}
+
+/**
+ * Matchmaking : joueur A attend, joueur B doit rejoindre sa salle — pas en créer une autre.
+ * On liste toutes les salles `waiting` (pas de limit arbitraire : un limit sans orderBy peut exclure la salle de l’ami).
+ * Court délai + 2e tentative pour le léger décalage réseau / propagation.
  */
 export async function enterPvpMatchmaking(userId, character) {
   if (!userId) return { success: false, error: 'Non connecté.' };
@@ -487,25 +539,13 @@ export async function enterPvpMatchmaking(userId, character) {
 
   try {
     await waitForFirestore();
-    const q = query(
-      collection(db, ROOMS),
-      where('status', '==', 'waiting'),
-      where('isMatchmakingQueue', '==', true),
-      orderBy('createdAt', 'asc'),
-      limit(25)
-    );
-    const snap = await retryOperation(() => getDocs(q));
 
-    const candidates = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((r) => !r.guestId && r.hostId && r.hostId !== userId && isCharacterEligibleForPvpLobby(r.hostSnapshot));
-
-    for (const row of candidates) {
-      const joinRes = await joinPvpLobbyRoomAsGuest(userId, row.id, '', character);
-      if (joinRes.success) {
-        return { success: true, roomId: joinRes.roomId, mode: 'joined' };
-      }
+    let joined = await tryJoinAnyWaitingRoom(userId, character);
+    if (!joined) {
+      await sleep(400);
+      joined = await tryJoinAnyWaitingRoom(userId, character);
     }
+    if (joined) return joined;
 
     const createRes = await createPvpLobbyRoom(userId, {
       password: '',
