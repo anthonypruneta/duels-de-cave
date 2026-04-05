@@ -28,6 +28,7 @@ import {
   isCharacterEligibleForPvpLobby,
   getPvpLobbyMaxLevel,
   isPvpOpenLobbyPublicListRoom,
+  fetchMyPvpHostWaitingRoomId,
 } from '../services/pvpLobbyService';
 
 const SESSION_KEY = 'pvpLobbyRoomId';
@@ -78,11 +79,15 @@ function PvpLobby() {
     currentUserIdRef.current = currentUser?.uid ?? null;
   }, [currentUser?.uid]);
 
-  /** Mémorise la salle sur l’appareil (localStorage par compte) : file matchmaking, hôte ou invité survive à la fermeture. */
+  /**
+   * Restaure la salle : 1) localStorage (même appareil) 2) sinon Firestore — hôte en attente seul
+   * (matchmaking / création salle), pour retrouver la file depuis un autre appareil.
+   */
   useEffect(() => {
     const uid = currentUser?.uid;
     if (!uid) return;
 
+    let cancelled = false;
     const key = pvpRoomStorageKey(uid);
     let saved = localStorage.getItem(key);
     if (!saved) {
@@ -93,7 +98,21 @@ function PvpLobby() {
         saved = legacy;
       }
     }
-    if (saved) setRoomId(String(saved).trim());
+    if (saved) {
+      setRoomId(String(saved).trim());
+      return undefined;
+    }
+
+    (async () => {
+      const res = await fetchMyPvpHostWaitingRoomId(uid);
+      if (cancelled || !res.roomId) return;
+      localStorage.setItem(key, res.roomId);
+      setRoomId(res.roomId);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser?.uid]);
 
   const loadArchived = useCallback(async () => {

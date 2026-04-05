@@ -400,6 +400,41 @@ export function isPvpOpenLobbyPublicListRoom(r) {
   return true;
 }
 
+function roomUpdatedMs(r) {
+  const u = r?.updatedAt;
+  const c = r?.createdAt;
+  const um = u?.toMillis?.() ?? (u?.seconds != null ? u.seconds * 1000 : 0);
+  const cm = c?.toMillis?.() ?? (c?.seconds != null ? c.seconds * 1000 : 0);
+  return Math.max(um || 0, cm || 0);
+}
+
+/**
+ * Salle où ce compte est hôte, en attente d’un invité (file matchmaking ou « créer une salle »).
+ * Permet de retrouver la même file depuis un autre appareil (localStorage est local au navigateur).
+ */
+export async function fetchMyPvpHostWaitingRoomId(userId) {
+  if (!userId) return { success: true, roomId: null };
+  try {
+    await waitForFirestore();
+    const q = query(
+      collection(db, ROOMS),
+      where('hostId', '==', userId),
+      where('status', '==', 'waiting'),
+      limit(25)
+    );
+    const snap = await getDocs(q);
+    const rows = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((r) => !r.guestId);
+    rows.sort((a, b) => roomUpdatedMs(b) - roomUpdatedMs(a));
+    const top = rows[0];
+    return { success: true, roomId: top?.id ?? null };
+  } catch (e) {
+    console.warn('fetchMyPvpHostWaitingRoomId', e);
+    return { success: false, roomId: null, error: e.message };
+  }
+}
+
 export function subscribeOpenPvpLobbyRooms(onData, onError) {
   const q = query(collection(db, ROOMS), where('status', '==', 'waiting'), limit(80));
   return onSnapshot(
