@@ -1,10 +1,10 @@
 // Script de simulation pour tester l'équilibrage du jeu
-// Utilise exactement le moteur partagé de tournoi (simulerMatch)
+// Utilise simulerMatch → preparerCombattant (même chemin que le tournoi).
+// Les combattants générés doivent avoir un base « brut » (roll + bonus race/classe), sans applyAwakeningToBase ici.
 
 import { races } from '../data/races.js';
 import { classes } from '../data/classes.js';
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics.js';
-import { getAwakeningEffect, applyAwakeningToBase } from './awakening.js';
 import { simulerMatch } from './tournamentCombat.js';
 import { getStatPointValue } from './statPoints.js';
 
@@ -39,14 +39,16 @@ const makeCharacter = (id, level = 1) => {
   const classBonus = getClassBonus(className);
   const levelBoosts = genLevelBoosts(level);
 
-  const base = applyAwakeningToBase({
+  // Aligné sur un perso Firestore : base = roll + bonus race/classe (sans éveil).
+  // simulerMatch → preparerCombattant applique éveil, forêt, arme, etc.
+  const base = {
     hp: raw.hp + raceBonus.hp + classBonus.hp,
     auto: raw.auto + raceBonus.auto + classBonus.auto,
     def: raw.def + raceBonus.def + classBonus.def,
     cap: raw.cap + raceBonus.cap + classBonus.cap,
     rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
     spd: raw.spd + raceBonus.spd + classBonus.spd
-  }, getAwakeningEffect(race, level));
+  };
 
   return {
     id,

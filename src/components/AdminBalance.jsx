@@ -10,7 +10,6 @@ import { MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { SUBCLASSES_BY_CLASS, getSubclassesForClass } from '../data/subclasses';
 import { applyBalanceConfig, loadPersistedBalanceConfig, savePersistedBalanceConfig, syncWeaponConstantsToCombat, forceSyncFromCode } from '../services/balanceConfigService';
 import { buildRaceBonusDescription, buildRaceAwakeningDescription, buildClassDescription, RACE_TO_CONSTANT_KEY, CLASS_TO_CONSTANT_KEY } from '../utils/descriptionBuilders';
-import { getAwakeningEffect, applyAwakeningToBase } from '../utils/awakening';
 import { getStatPointValue } from '../utils/statPoints';
 
 import { deepClone, applyNumericOverrides } from './balance/balanceUtils';
@@ -89,14 +88,16 @@ const makeCharacter = (id, level, availableWeaponIds, availablePassiveIds) => {
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
   const levelBoosts = genLevelBoosts(level);
-  const base = applyAwakeningToBase({
+  // Même forme que Firestore / roll perso : stats + bonus race/classe uniquement.
+  // L'éveil et la forge sont appliqués par preparerCombattant dans simulerMatch (pas de double éveil).
+  const base = {
     hp: raw.hp + raceBonus.hp + classBonus.hp,
     auto: raw.auto + raceBonus.auto + classBonus.auto,
     def: raw.def + raceBonus.def + classBonus.def,
     cap: raw.cap + raceBonus.cap + classBonus.cap,
     rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
     spd: raw.spd + raceBonus.spd + classBonus.spd
-  }, getAwakeningEffect(raceName, level));
+  };
   return {
     id, userId: id, name: id,
     race: raceName, class: className,
@@ -114,14 +115,14 @@ const makeCustomCharacter = (id, raceName, className, level, weaponId, passiveId
   const raceBonus = getRaceBonus(raceName);
   const classBonus = getClassBonus(className);
   const levelBoosts = genLevelBoosts(level);
-  const base = applyAwakeningToBase({
+  const base = {
     hp: raw.hp + raceBonus.hp + classBonus.hp,
     auto: raw.auto + raceBonus.auto + classBonus.auto,
     def: raw.def + raceBonus.def + classBonus.def,
     cap: raw.cap + raceBonus.cap + classBonus.cap,
     rescap: raw.rescap + raceBonus.rescap + classBonus.rescap,
     spd: raw.spd + raceBonus.spd + classBonus.spd
-  }, getAwakeningEffect(raceName, level));
+  };
   return {
     id, userId: id,
     name: `${races[raceName]?.icon || ''} ${raceName} ${classes[className]?.icon || ''} ${className}`,
