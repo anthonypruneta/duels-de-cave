@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getPlayerDungeonSummary } from '../services/dungeonService';
+import { getAllCharacters } from '../services/characterService';
 import {
   subscribeCurrentTournamentForBetting,
   subscribeBettingPool,
@@ -12,8 +13,44 @@ import {
   MIN_RUNS_PER_BET,
 } from '../services/tournamentBettingService';
 
+/** Même périmètre que chargerParticipants() côté tournoi : persos actifs, non archivés / désactivés. */
+function mapCharactersToBettingRows(characters) {
+  return characters
+    .filter((c) => c && !c.archived && !c.disabled)
+    .map((c) => {
+      const uid = c.id || c.userId;
+      return {
+        userId: uid,
+        participantId: uid,
+        nom: c.name || '???',
+        race: c.race,
+        classe: c.class,
+        characterImage: c.characterImage || null,
+        ownerPseudo: c.ownerPseudo || null,
+      };
+    });
+}
+
+function mergeParticipantRows(fromCharacters, tournamentList) {
+  const byPid = new Map();
+  for (const row of fromCharacters) {
+    if (row?.participantId) byPid.set(row.participantId, row);
+  }
+  if (Array.isArray(tournamentList)) {
+    for (const row of tournamentList) {
+      if (row?.participantId && !byPid.has(row.participantId)) {
+        byPid.set(row.participantId, row);
+      }
+    }
+  }
+  return Array.from(byPid.values());
+}
+
 export default function TournamentBettingModal({ open, onClose, userId }) {
   const [tournament, setTournament] = useState(null);
+  const [characterRows, setCharacterRows] = useState([]);
+  const [charactersLoading, setCharactersLoading] = useState(false);
+  const [firestoreError, setFirestoreError] = useState(null);
   const [bets, setBets] = useState([]);
   const [myBet, setMyBet] = useState(null);
   const [runsRemaining, setRunsRemaining] = useState(0);
@@ -24,6 +61,11 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
 
   const stakesByPid = useMemo(() => aggregateStakesByParticipant(bets), [bets]);
   const totalPool = useMemo(() => Object.values(stakesByPid).reduce((a, b) => a + b, 0), [stakesByPid]);
+
+  const participantsList = useMemo(
+    () => mergeParticipantRows(characterRows, tournament?.participantsList),
+    [characterRows, tournament?.participantsList]
+  );
 
   const refreshRuns = useCallback(async () => {
     if (!userId) return;
@@ -39,29 +81,62 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
     refreshRuns();
   }, [open, refreshRuns]);
 
+  const handleFirestoreListenError = useCallback((err) => {
+    console.error('TournamentBettingModal Firestore:', err);
+    setFirestoreError(
+      'Impossible de joindre la base de données. Si la console affiche « ERR_BLOCKED_BY_CLIENT » sur firestore.googleapis.com, désactivez temporairement le bloqueur de pubs / le bouclier du navigateur pour ce site.'
+    );
+  }, []);
+
   useEffect(() => {
-    if (!open) return undefined;
-    const unsubT = subscribeCurrentTournamentForBetting(setTournament, () => {});
-    const unsubB = subscribeBettingPool(setBets, () => {});
+    if (!open) {
+      setCharacterRows([]);
+      setCharactersLoading(false);
+      setFirestoreError(null);
+      setTournament(null);
+      return;
+    }
+    let cancelled = false;
+    setCharactersLoading(true);
+    setFirestoreError(null);
+    (async () => {
+      const res = await getAllCharacters();
+      if (cancelled) return;
+      setCharactersLoading(false);
+      if (!res.success) {
+        setFirestoreError(res.error || 'Impossible de charger les personnages actifs.');
+        setCharacterRows([]);
+        return;
+      }
+      setCharacterRows(mapCharactersToBettingRows(res.data || []));
+    })();
     return () => {
-      unsubT();
-      unsubB();
+      cancelled = true;
     };
   }, [open]);
 
   useEffect(() => {
+    if (!open) return undefined;
+    const unsubT = subscribeCurrentTournamentForBetting(setTournament, handleFirestoreListenError);
+    const unsubB = subscribeBettingPool(setBets, handleFirestoreListenError);
+    return () => {
+      unsubT();
+      unsubB();
+    };
+  }, [open, handleFirestoreListenError]);
+
+  useEffect(() => {
     if (!open || !userId) return undefined;
-    return subscribeMyBet(userId, setMyBet, () => {});
-  }, [open, userId]);
+    return subscribeMyBet(userId, setMyBet, handleFirestoreListenError);
+  }, [open, userId, handleFirestoreListenError]);
 
   useEffect(() => {
     if (!open || !myBet?.participantId) return;
     setSelectedParticipantId((prev) => prev || myBet.participantId);
   }, [open, myBet?.participantId]);
 
-  const participantsList = tournament?.participantsList || [];
   const statut = tournament?.statut;
-  const bettingOpen = statut === 'preparation' && tournament;
+  const bettingOpen = statut === 'preparation' && Boolean(tournament);
 
   const isOwnParticipant = useCallback(
     (p) => p && userId && String(p.userId ?? '') === String(userId),
@@ -149,8 +224,17 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
         </div>
 
         <div className="p-4 space-y-4 text-stone-200">
-          {!tournament && (
-            <p className="text-stone-400 text-sm">Chargement du tournoi…</p>
+          {firestoreError && (
+            <p className="text-red-400 text-sm border border-red-900/50 rounded-lg p-3 bg-red-950/20">{firestoreError}</p>
+          )}
+          {charactersLoading && !firestoreError && (
+            <p className="text-stone-400 text-sm">Chargement des personnages actifs…</p>
+          )}
+          {!charactersLoading && !firestoreError && !tournament && (
+            <p className="text-stone-400 text-sm">
+              Aucun document tournoi « current » pour le moment (pas encore créé ou lecture impossible). Les paris
+              nécessitent un tournoi en phase préparation.
+            </p>
           )}
 
           {tournament && !bettingOpen && (
@@ -175,6 +259,33 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
               >
                 Voir le tournoi
               </Link>
+            </div>
+          )}
+
+          {!charactersLoading && !firestoreError && participantsList.length > 0 && !bettingOpen && (
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">
+                Personnages actifs (éligibles au tournoi)
+              </p>
+              <ul className="max-h-48 overflow-y-auto space-y-1 border border-stone-600 rounded-lg p-2 bg-stone-950/40">
+                {participantsList.map((p) => {
+                  const pid = p.participantId;
+                  const poolOn = stakesByPid[pid] || 0;
+                  const own = isOwnParticipant(p);
+                  return (
+                    <li
+                      key={pid}
+                      className="w-full text-left px-2 py-1.5 rounded text-sm flex justify-between gap-2 text-stone-100"
+                    >
+                      <span className="truncate font-medium">
+                        {p.nom || '???'}
+                        {own ? <span className="text-stone-500 font-normal"> (vous)</span> : null}
+                      </span>
+                      <span className="shrink-0 text-stone-500 text-xs">{poolOn} en jeu</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
@@ -203,7 +314,9 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
               )}
 
               <div>
-                <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">Combattants</p>
+                <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">
+                  Personnages actifs — choisissez votre pari
+                </p>
                 <ul className="max-h-48 overflow-y-auto space-y-1 border border-stone-600 rounded-lg p-2 bg-stone-950/40">
                   {participantsList.length === 0 && (
                     <li className="text-stone-500 text-sm">Aucun participant listé.</li>
