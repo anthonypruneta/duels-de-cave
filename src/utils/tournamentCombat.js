@@ -638,7 +638,9 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
       break;
     case 'Mage': {
       let raw = useMagnitude ? Math.max(1, capacityMagnitude + capBonus) : (() => {
-        const { capBase, capPerCap } = classConstants.mage;
+        const mageC = getSubclassCapacityConstants(caster.class, caster.subclass?.id);
+        const capBase = mageC.capBase ?? classConstants.mage.capBase;
+        const capPerCap = mageC.capPerCap ?? classConstants.mage.capPerCap;
         const atkSpell = Math.round(target.base.auto + (capBase + capPerCap * target.base.cap) * target.base.cap);
         return dmgCap(atkSpell, caster.base.rescap) + capBonus;
       })();
@@ -2241,7 +2243,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const attackMultiplier = mult * weaponBonus * (isBonusAttack ? (turnEffects.bonusAttackDamage || 1) : 1);
 
     if (isMage) {
-      const { capBase, capPerCap } = classConstants.mage;
+      const mageC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const capBase = mageC.capBase ?? classConstants.mage.capBase;
+      const capPerCap = mageC.capPerCap ?? classConstants.mage.capPerCap;
       const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
       const effectiveCap = getEffectiveCapForSceptre(att);
       const scaledCap = effectiveCap * spellCapMultiplier;

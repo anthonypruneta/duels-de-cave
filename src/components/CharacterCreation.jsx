@@ -1408,7 +1408,8 @@ const CharacterCreation = () => {
                               finalStats.cap ?? 0,
                               finalStats.auto ?? 0,
                               finalStats.def ?? 0,
-                              finalStats.rescap ?? 0
+                              finalStats.rescap ?? 0,
+                              existingCharacter.subclass?.id ?? null
                             )}
                           </div>
                         </div>
@@ -1899,7 +1900,7 @@ const CharacterCreation = () => {
                     <span className="text-purple-300 font-bold text-lg">Classe: {rolledCharacter.class}</span>
                   </div>
                   <div className="text-sm mb-1 text-amber-300">{classes[rolledCharacter.class].ability}</div>
-                  <div className="text-gray-300 text-xs">{getCalculatedDescription(rolledCharacter.class, rolledCharacter.base.cap, rolledCharacter.base.auto, rolledCharacter.base.def, rolledCharacter.base.rescap)}</div>
+                  <div className="text-gray-300 text-xs">{getCalculatedDescription(rolledCharacter.class, rolledCharacter.base.cap, rolledCharacter.base.auto, rolledCharacter.base.def, rolledCharacter.base.rescap, rolledCharacter.subclass?.id ?? null)}</div>
                 </div>
 
                 {/* Bouton */}

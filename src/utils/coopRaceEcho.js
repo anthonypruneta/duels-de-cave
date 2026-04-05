@@ -21,7 +21,7 @@ export const COOP_SIRENE_ECHO_STACK_BONUS = 0.025;
 export const COOP_SIRENE_ECHO_MAX_STACKS = 4;
 
 /** Turtlekin (Pointeau ADN coop) : plafond du 1er coup reçu (% PV max). */
-export const COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP = 0.2;
+export const COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP = 0.3;
 
 const SPEED_DUEL_KEYS = [
   'speedDuelCritHigh',
@@ -148,6 +148,26 @@ export function getCoopRaceEchoAwakeningFragment(echoRaceName) {
     };
   }
 
+  if (echoRaceName === 'Humain') {
+    return {
+      statMultipliers: {
+        auto: 1.02,
+        def: 1.02,
+        rescap: 1.02,
+        spd: 1.02,
+        cap: 1.02,
+        hp: 1.02
+      }
+    };
+  }
+
+  if (echoRaceName === 'Lycan') {
+    return {
+      bleedStacksPerHit: 1,
+      bleedPercentPerStack: 0.002
+    };
+  }
+
   const full = getAwakeningEffect(echoRaceName, 999);
   if (!full) return null;
 
@@ -158,6 +178,25 @@ export function getCoopRaceEchoAwakeningFragment(echoRaceName) {
       ...base,
       sireneStackBonus: COOP_SIRENE_ECHO_STACK_BONUS,
       sireneMaxStacks: COOP_SIRENE_ECHO_MAX_STACKS,
+    };
+  }
+
+  if (echoRaceName === 'Orc') {
+    const scaled = scaleRaceEchoEffect(full, COOP_RACE_ECHO_POTENCY);
+    return {
+      ...scaled,
+      incomingHitCount: 3
+    };
+  }
+
+  if (echoRaceName === 'Nain') {
+    const scaled = scaleRaceEchoEffect(full, COOP_RACE_ECHO_POTENCY);
+    return {
+      ...scaled,
+      statMultipliers: {
+        ...(scaled?.statMultipliers || {}),
+        def: 1.03
+      }
     };
   }
 

@@ -21,8 +21,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'sniper', name: 'Sniper', bonus: '+8% Auto', abilityLabel: 'Double tir (CD: 3 tours)', description: 'Deux tirs : 100% Auto puis 140% Auto + 20% Cap.' },
   ],
   'Mage': [
-    { id: 'arcaniste_instable', name: 'Arcaniste Instable', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 90% Cap. Applique débuff : +6% dégâts subis par l\'ennemi (stackable).' },
-    { id: 'sorcier_neant', name: 'Sorcier du Néant', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 90% Cap. Brûlure du Néant : l\'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.' },
+    { id: 'arcaniste_instable', name: 'Arcaniste Instable', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 100% Cap. Applique débuff : +6% dégâts subis par l\'ennemi (stackable).' },
+    { id: 'sorcier_neant', name: 'Sorcier du Néant', bonus: '+10% CAP', abilityLabel: 'Explosion arcanique (CD: 3 tours)', description: 'Inflige Auto + 100% Cap. Brûlure du Néant : l\'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.' },
   ],
   'Demoniste': [
     { id: 'maitre_invocateur', name: 'Maître invocateur', bonus: '+10% Auto', abilityLabel: 'Attaque du familier (Passif)', description: 'Chaque tour, familier inflige 50% Cap et ignore 50% RésCap. Chaque auto augmente ces dégâts de 0,8% Cap (cumulable).' },

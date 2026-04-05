@@ -17,7 +17,7 @@ const BALANCE_STORAGE_PATH = 'gameConfig/balance.json';
  * BALANCE_CONFIG_VERSION : à incrémenter quand tu modifies les données d'équilibrage dans le code.
  * Si version code > version Storage, le code est appliqué et poussé vers Storage (écrase le fichier).
  */
-export const BALANCE_CONFIG_VERSION = 67;
+export const BALANCE_CONFIG_VERSION = 69;
 
 // Mapping nom de classe → clé dans cooldowns
 const CLASS_TO_CD_KEY = {
@@ -117,11 +117,15 @@ const normalizeGnomeConfig = (config) => {
   if (gnome && gnome.critDmgIfFaster == null) {
     config.raceConstants.gnome = {
       critIfFaster: 0.20, critDmgIfFaster: 0.10,
-      dodgeIfSlower: 0.20, capBonusIfSlower: 0.20,
+      dodgeIfSlower: 0.15, capBonusIfSlower: 0.15,
       critIfEqual: 0.05, critDmgIfEqual: 0.05,
       dodgeIfEqual: 0.05, capBonusIfEqual: 0.05,
       spd: 5, cap: 5
     };
+  }
+  if (gnome) {
+    if (gnome.dodgeIfSlower === 0.20) gnome.dodgeIfSlower = 0.15;
+    if (gnome.capBonusIfSlower === 0.20) gnome.capBonusIfSlower = 0.15;
   }
 
   const awakeningGnome = config?.raceAwakenings?.Gnome;
@@ -139,11 +143,17 @@ const normalizeGnomeConfig = (config) => {
     awakeningGnome.speedDuelCapBonusLow = awakeningGnome.speedDuelCapBonusHigh;
   }
 
-  // Aligner l’esquive (et CAP) éveillé sur la description : 30 % (pas 20 %)
+  // Gnome éveillé : esquive / CAP si VIT < cible → 25 % (rattrapage 20 % / 30 %)
   if (awakeningGnome) {
-    if (awakeningGnome.speedDuelDodgeLow === 0.20) awakeningGnome.speedDuelDodgeLow = 0.30;
-    if (awakeningGnome.speedDuelCapBonusLow === 0.20) awakeningGnome.speedDuelCapBonusLow = 0.30;
-    if (awakeningGnome.speedDuelCapBonusHigh === 0.20) awakeningGnome.speedDuelCapBonusHigh = 0.30;
+    if (awakeningGnome.speedDuelDodgeLow === 0.20 || awakeningGnome.speedDuelDodgeLow === 0.30) {
+      awakeningGnome.speedDuelDodgeLow = 0.25;
+    }
+    if (awakeningGnome.speedDuelCapBonusLow === 0.20 || awakeningGnome.speedDuelCapBonusLow === 0.30) {
+      awakeningGnome.speedDuelCapBonusLow = 0.25;
+    }
+    if (awakeningGnome.speedDuelCapBonusHigh === 0.20 || awakeningGnome.speedDuelCapBonusHigh === 0.30) {
+      awakeningGnome.speedDuelCapBonusHigh = 0.25;
+    }
   }
 
   if (config.raceTexts?.Gnome && (gnome && gnome.critDmgIfFaster == null || awakeningGnome && awakeningGnome.speedDuelCritDmgHigh == null)) {

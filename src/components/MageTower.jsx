@@ -767,7 +767,9 @@ const MageTower = () => {
       wasCrit = wasCrit || isCrit;
 
       if (isMage) {
-        const { capBase, capPerCap } = classConstants.mage;
+        const mageC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const capBase = mageC.capBase ?? classConstants.mage.capBase;
+        const capPerCap = mageC.capPerCap ?? classConstants.mage.capPerCap;
         const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
         const scaledCap = att.base.cap * spellCapMultiplier;
         const atkSpell = Math.round(att.base.auto * attackMultiplier + (capBase + capPerCap * scaledCap) * scaledCap * attackMultiplier);

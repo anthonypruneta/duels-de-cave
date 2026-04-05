@@ -6,7 +6,11 @@ import { COOP_ECAILLEUX_ECHO_REF_STAT_PERCENT, COOP_ECAILLEUX_ECHO_STAT_LINK_DIV
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getAwakeningEffect } from './awakening';
-import { getCoopRaceEchoAwakeningFragment, COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT } from './coopRaceEcho.js';
+import {
+  getCoopRaceEchoAwakeningFragment,
+  COOP_MINDFLAYER_ECHO_COPY_DAMAGE_MULT,
+  COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP
+} from './coopRaceEcho.js';
 
 const pct = (v, digits = 0) => `${(Number(v || 0) * 100).toFixed(digits)}%`;
 const pct1 = (v) => `${(Number(v || 0) * 100).toFixed(1).replace('.', ',')}%`;
@@ -140,7 +144,7 @@ export const buildRacePointeauAdnDescription = (raceName) => {
   }
 
   if (raceName === 'Turtlekin') {
-    const capP = e.turtlekinFirstHitCapPercent ?? 0.2;
+    const capP = e.turtlekinFirstHitCapPercent ?? COOP_TURTLEKIN_ECHO_FIRST_HIT_CAP;
     return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(capP, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50 % PV pour la première fois.`;
   }
 

@@ -116,8 +116,8 @@ export const subclassConstants = {
   juge_implacable: { defReductionStack: 0.03 },        // -3% DEF ennemi par proc (stackable)
   sniper: { hit2AutoMultiplier: 1.40 },                // 2e tir 140% Auto
   chasseur_fantome: { ghostHunterCapBonus: 0.40 },     // +40% CAP après crit sur la capacité
-  arcaniste_instable: { damageTakenStack: 0.06 },     // +5% dégâts subis (stackable)
-  sorcier_neant: {},                                  // Brûlure (pas de ratio CAP overridable ici)
+  arcaniste_instable: { damageTakenStack: 0.06, capBase: 1.0 }, // 100% Cap au sort
+  sorcier_neant: { capBase: 1.0 },                     // 100% Cap au sort ; Brûlure du Néant
   maitre_invocateur: { capBase: 0.50, ignoreResist: 0.50, stackPerAuto: 0.008 },  // 50% Cap, 50% ignore, +1% Cap/auto
   pacte_sombre: { capBase: 0.50, ignoreResist: 0.45, stackPerAuto: 0.008, capStealPercent: 0.06 }, // 45% + vol 3% CAP
   stratege_arcanique: { nextSpellReduction: 0.40 },    // -30% dégâts prochain sort
@@ -161,7 +161,7 @@ export const raceConstants = {
   humain: { hp: 10, auto: 1, def: 1, cap: 1, rescap: 1, spd: 1 },
   elfe: { auto: 1, cap: 1, spd: 5, critBonus: 0.20 },
   orc: { lowHpThreshold: 0.50, damageBonus: 1.20 },  // +20% sous 50% PV (base)
-  nain: { hp: 10, def: 4 },
+  nain: { hp: 10, def: 7 },
   dragonkin: { hp: 15, rescap: 15 },
   mortVivant: { revivePercent: 0.20 },
   lycan: { bleedPerHit: 1, bleedDivisor: 5, bleedPercentPerStack: 0.005 }, // 0.5% PV max par stack par tour (base)
@@ -169,7 +169,7 @@ export const raceConstants = {
   sirene: { cap: 10, stackBonus: 0.10, maxStacks: 3 },  // +10 CAP base
   gnome: { 
     critIfFaster: 0.20, critDmgIfFaster: 0.10,   // 10% dégâts crit (était 20%)
-    dodgeIfSlower: 0.20, capBonusIfSlower: 0.20, 
+    dodgeIfSlower: 0.15, capBonusIfSlower: 0.15,
     critIfEqual: 0.05, critDmgIfEqual: 0.05,     // égalité inchangé
     dodgeIfEqual: 0.05, capBonusIfEqual: 0.05, 
     spd: 5, cap: 5 
@@ -243,11 +243,11 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
   let dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
   let capBonusIfEqual = aw.speedDuelEqualCapBonus ?? raceConstants.gnome.capBonusIfEqual;
 
-  // Gnome éveillé : aligner sur la description (30 % / 10 %) si la config a encore les valeurs de base (20 % / 5 %)
+  // Gnome éveillé : rattrapage si la config a d’anciennes valeurs (20 % / 30 % → 25 % ; égalité 5 % → 10 %)
   const hasAwakeningValues = aw.speedDuelCritHigh != null || aw.speedDuelDodgeLow != null;
   if (hasAwakeningValues) {
-    if (dodgeIfSlower === 0.20) dodgeIfSlower = 0.30;
-    if (capBonusIfSlower === 0.20) capBonusIfSlower = 0.30;
+    if (dodgeIfSlower === 0.20 || dodgeIfSlower === 0.30) dodgeIfSlower = 0.25;
+    if (capBonusIfSlower === 0.20 || capBonusIfSlower === 0.30) capBonusIfSlower = 0.25;
     if (dodgeIfEqual === 0.05) dodgeIfEqual = 0.10;
     if (capBonusIfEqual === 0.05) capBonusIfEqual = 0.10;
   }

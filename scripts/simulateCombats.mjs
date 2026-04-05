@@ -18,6 +18,7 @@ import {
   calcCritChance,
   getRaceBonus,
   getClassBonus,
+  getSubclassCapacityConstants,
   weaponConstants,
   healingClasses
 } from '../src/data/combatMechanics.js';
@@ -515,7 +516,9 @@ const applyClassEffects = (attacker, defender) => {
 
   if (isMage) {
     skillUsed = true;
-    const { capBase, capPerCap } = classConstants.mage;
+    const mageC = getSubclassCapacityConstants(attacker.class, attacker.subclass?.id);
+    const capBase = mageC.capBase ?? classConstants.mage.capBase;
+    const capPerCap = mageC.capPerCap ?? classConstants.mage.capPerCap;
     const atkSpell = Math.round(attacker.stats.auto + (capBase + capPerCap * attacker.stats.cap) * attacker.stats.cap);
     const raw = applyMindflayerSpellReduction(attacker, defender, dmgCap(atkSpell, defender.stats.rescap), 'mag');
     damageInstances.push({ raw, isSpell: true, isBonusAttack: false });

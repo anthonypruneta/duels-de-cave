@@ -6,15 +6,15 @@ export const races = {
     icon: '👥',
     awakening: {
       levelRequired: 100,
-      description: '+5% à toutes les stats',
+      description: '+7% à toutes les stats',
       effect: {
         statMultipliers: {
-          auto: 1.05,
-          def: 1.05,
-          rescap: 1.05,
-          spd: 1.05,
-          cap: 1.05,
-          hp: 1.05
+          auto: 1.07,
+          def: 1.07,
+          rescap: 1.07,
+          spd: 1.07,
+          cap: 1.07,
+          hp: 1.07
         }
       }
     }
@@ -52,15 +52,15 @@ export const races = {
     }
   },
   'Nain': {
-    bonus: '+10 PV & +4 Déf',
+    bonus: '+10 PV & +7 Déf',
     icon: '⛏️',
     awakening: {
       levelRequired: 100,
-      description: '+10% PV max\n+4% Déf\nSubit -10% de dégâts',
+      description: '+10% PV max\n+7% Déf\nSubit -10% de dégâts',
       effect: {
         statMultipliers: {
           hp: 1.10,
-          def: 1.04
+          def: 1.07
         },
         damageTakenMultiplier: 0.9
       }
@@ -120,16 +120,16 @@ export const races = {
     }
   },
   'Gnome': {
-    bonus: '+5 VIT\n+5 CAP\nVIT > cible: +20% crit, +10% dégâts crit\nVIT < cible: +20% esquive, +20% CAP\nÉgalité: +5% crit/dégâts crit/esquive/CAP',
+    bonus: '+5 VIT\n+5 CAP\nVIT > cible: +20% crit, +10% dégâts crit\nVIT < cible: +15% esquive, +15% CAP\nÉgalité: +5% crit/dégâts crit/esquive/CAP',
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n+10% CAP\nVIT > cible: +30% crit, +20% dégâts crit\nVIT < cible: +30% esquive, +30% CAP\nÉgalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n+10% CAP\nVIT > cible: +30% crit, +20% dégâts crit\nVIT < cible: +25% esquive, +25% CAP\nÉgalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
         speedDuelCritHigh: 0.30,
         speedDuelCritDmgHigh: 0.20,   // 20% (était 30%)
-        speedDuelCapBonusLow: 0.30,
-        speedDuelDodgeLow: 0.30,
+        speedDuelCapBonusLow: 0.25,
+        speedDuelDodgeLow: 0.25,
         speedDuelEqualCrit: 0.10,
         speedDuelEqualCritDmg: 0.10,  // égalité inchangé
         speedDuelEqualDodge: 0.10,

@@ -21,7 +21,7 @@ function formatPercent(value) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
 }
 
-export function getCalculatedClassDescription(className, cap, auto, def = 0, rescap = 0) {
+export function getCalculatedClassDescription(className, cap, auto, def = 0, rescap = 0, subclassId = null) {
   const Tooltip = SharedTooltip;
   switch (className) {
     case 'Guerrier': {
@@ -102,7 +102,9 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
     }
 
     case 'Mage': {
-      const { capBase, capPerCap } = classConstants.mage;
+      const mageC = getSubclassCapacityConstants('Mage', subclassId);
+      const capBase = mageC.capBase ?? classConstants.mage.capBase;
+      const capPerCap = mageC.capPerCap ?? classConstants.mage.capPerCap;
       const magicPct = capBase + capPerCap * cap;
       const magicDmgTotal = Math.round(magicPct * cap);
       const total = auto + magicDmgTotal;

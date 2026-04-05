@@ -362,7 +362,7 @@ export default function CharacterCardContent({
             <div className="flex-1">
               <div className="font-semibold text-amber-200">{classes[character.class].ability}</div>
               <div className="text-stone-400 text-[11px]">
-                {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0, finalStats.def ?? 0, finalStats.rescap ?? 0)}
+                {getCalculatedClassDescription(character.class, finalStats.cap ?? 0, finalStats.auto ?? 0, finalStats.def ?? 0, finalStats.rescap ?? 0, character.subclass?.id ?? null)}
               </div>
             </div>
           </div>
