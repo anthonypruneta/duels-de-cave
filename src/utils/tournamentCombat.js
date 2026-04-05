@@ -735,11 +735,12 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
         const occC = getSubclassCapacityConstants(caster.class, caster.subclass?.id);
         const hpCostPct = occC.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent;
         const scale = occC.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale;
+        const capScaleHp = occC.rageMissingHpCapScale ?? classConstants.berserk.rageMissingHpCapScale ?? 0;
         const cost = Math.max(0, Math.round(target.maxHP * hpCostPct));
         target.currentHP = Math.max(1, target.currentHP - cost);
         tryTriggerOnctionLastStand(target, log, playerColor);
         const missingHp = target.maxHP - target.currentHP;
-        const bonusFromMissing = Math.round(missingHp * scale);
+        const bonusFromMissing = Math.round(missingHp * scale + getEffectiveCapForSceptre(target) * capScaleHp);
         rawB = dmgCap(Math.round(target.base.auto + bonusFromMissing), caster.base.rescap) + capBonus;
         if (caster.subclass?.id === 'brise_caves') {
           const mul = classConstants.berserk.nextAutoDamageBonus ?? 0.2;
@@ -2388,6 +2389,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const berC = getSubclassCapacityConstants(att.class, att.subclass?.id);
       const hpCostPct = berC.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent;
       const scale = berC.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale;
+      const capScaleHp = berC.rageMissingHpCapScale ?? classConstants.berserk.rageMissingHpCapScale ?? 0;
       if (i === 0) {
         const cost = Math.max(0, Math.round(att.maxHP * hpCostPct));
         att.currentHP = Math.max(1, att.currentHP - cost);
@@ -2396,7 +2398,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
           log.push(`${playerColor} 🪓 ${att.name} sacrifie ${cost} PV pour la Rage.`);
         }
         const missingHp = att.maxHP - att.currentHP;
-        const bonusFromMissing = Math.round(missingHp * scale);
+        const bonusFromMissing = Math.round(missingHp * scale + getEffectiveCapForSceptre(att) * capScaleHp);
         raw = dmgCap(Math.round(att.base.auto * attackMultiplier + bonusFromMissing), def.base.rescap);
         raw = applyMindflayerCapacityMod(att, def, raw, 'berz', log, playerColor);
         const verdictBonusBerz = getVerdictCapacityBonus(att.weaponState);
