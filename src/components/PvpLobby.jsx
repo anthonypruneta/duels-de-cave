@@ -668,9 +668,9 @@ function PvpLobby() {
               <div className="bg-stone-900/80 border border-cyan-700/50 rounded-xl p-5 space-y-4 ring-1 ring-cyan-900/20">
                 <h2 className="text-xl font-bold text-cyan-200">Matchmaking</h2>
                 <p className="text-stone-400 text-sm">
-                  Le premier joueur ouvre une salle d’attente ; le second rejoint celle qui attend déjà. Si personne
-                  n’attend, une nouvelle salle est créée pour toi. Les salles ouvertes sans mot de passe (colonne du
-                  milieu) comptent aussi comme salles rejoignables.
+                  Le premier joueur ouvre une salle d’attente ; le second rejoint celle qui attend déjà. Dès que les
+                  deux sont là, le combat se résout tout seul (pas d’étape « prêt »). Les salles ouvertes sans mot de
+                  passe (colonne du milieu) peuvent aussi être rejointes depuis ici.
                 </p>
                 {renderCharPicker(
                   matchmakingSelected,
@@ -815,7 +815,9 @@ function PvpLobby() {
             {room.status === 'lobby' && (
               <div className="space-y-4">
                 <p className="text-stone-300 text-sm">
-                  Les deux joueurs sont dans le lobby. L’invité doit confirmer son personnage et se déclarer prêt.
+                  {room.isMatchmakingQueue
+                    ? 'Matchmaking : pas d’étape « prêt » — le combat se résout tout seul dès que les deux archivés sont en place.'
+                    : 'Les deux joueurs sont dans le lobby. L’invité doit confirmer son personnage et se déclarer prêt.'}
                 </p>
                 <div className="grid md:grid-cols-2 gap-y-8 gap-x-6 md:gap-x-12 lg:gap-x-16 xl:gap-x-24 items-start">
                   <div className="min-w-0 border border-stone-600 rounded-lg p-3 md:p-4 bg-stone-950/40 md:mr-1 lg:mr-2">
@@ -868,23 +870,32 @@ function PvpLobby() {
                   </div>
                 </div>
                 {isGuest && (
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      disabled={readyBusy}
-                      onClick={() => handleGuestReady(true)}
-                      className="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold disabled:opacity-50"
-                    >
-                      Je suis prêt
-                    </button>
-                    <button
-                      type="button"
-                      disabled={readyBusy}
-                      onClick={() => handleGuestReady(false)}
-                      className="bg-stone-700 text-stone-200 px-4 py-2 rounded-lg border border-stone-500 disabled:opacity-50"
-                    >
-                      Pas prêt
-                    </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {!room.isMatchmakingQueue && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={readyBusy}
+                          onClick={() => handleGuestReady(true)}
+                          className="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold disabled:opacity-50"
+                        >
+                          Je suis prêt
+                        </button>
+                        <button
+                          type="button"
+                          disabled={readyBusy}
+                          onClick={() => handleGuestReady(false)}
+                          className="bg-stone-700 text-stone-200 px-4 py-2 rounded-lg border border-stone-500 disabled:opacity-50"
+                        >
+                          Pas prêt
+                        </button>
+                      </>
+                    )}
+                    {room.isMatchmakingQueue && (
+                      <span className="text-cyan-300/90 text-sm font-medium">
+                        Lancement du combat…
+                      </span>
+                    )}
                     <button
                       type="button"
                       disabled={busy}
@@ -897,7 +908,9 @@ function PvpLobby() {
                 )}
                 {isHost && (
                   <p className="text-stone-400 text-sm">
-                    Dès que l’invité est prêt, le combat se lance automatiquement.
+                    {room.isMatchmakingQueue
+                      ? 'Matchmaking : le combat se lance tout seul une fois l’adversaire arrivé.'
+                      : 'Dès que l’invité est prêt, le combat se lance automatiquement.'}
                   </p>
                 )}
               </div>

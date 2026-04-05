@@ -606,11 +606,12 @@ export async function joinPvpLobbyRoomAsGuest(guestUserId, roomId, passwordPlain
         if (r.status !== 'waiting') throw new Error('room_closed');
         if (r.hostId === guestUserId) throw new Error('self_join');
         if (r.guestId && r.guestId !== guestUserId) throw new Error('room_full');
+        const autoReady = r.isMatchmakingQueue === true;
         tx.update(ref, {
           guestId: guestUserId,
           guestSnapshot: guestSnap,
           status: 'lobby',
-          guestReady: false,
+          guestReady: autoReady,
           updatedAt: Timestamp.now(),
         });
       });
