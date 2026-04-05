@@ -13,6 +13,15 @@
       "fields": [
         { "fieldPath": "wins", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pvpLobbyRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "isMatchmakingQueue", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

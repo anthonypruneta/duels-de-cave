@@ -396,6 +396,7 @@ export function subscribeOpenPvpLobbyRooms(onData, onError) {
           (r) =>
             !r.guestId &&
             r.isOpenLobby === true &&
+            !r.isMatchmakingQueue &&
             isCharacterEligibleForPvpLobby(r.hostSnapshot)
         );
       rows.sort((a, b) => {
@@ -426,9 +427,9 @@ export function subscribePvpLobbyRoom(roomId, onData, onError) {
 
 /**
  * @param {string} hostUserId
- * @param {{ password?: string, character: object }} opts
+ * @param {{ password?: string, character: object, matchmakingQueue?: boolean }} opts
  */
-export async function createPvpLobbyRoom(hostUserId, { password = '', character }) {
+export async function createPvpLobbyRoom(hostUserId, { password = '', character, matchmakingQueue = false }) {
   if (!isCharacterEligibleForPvpLobby(character)) {
     return {
       success: false,
@@ -441,7 +442,11 @@ export async function createPvpLobbyRoom(hostUserId, { password = '', character 
   }
   const pwd = String(password || '').trim();
   const passwordHash = pwd ? await hashPvpLobbyPassword(pwd) : '';
-  const isOpenLobby = !passwordHash;
+  const isMm = !!matchmakingQueue;
+  if (isMm && passwordHash) {
+    return { success: false, error: 'Le matchmaking ne supporte pas le mot de passe.' };
+  }
+  const isOpenLobby = !passwordHash && !isMm;
 
   const roomRef = doc(collection(db, ROOMS));
   const roomId = roomRef.id;
@@ -451,6 +456,7 @@ export async function createPvpLobbyRoom(hostUserId, { password = '', character 
     guestId: null,
     status: 'waiting',
     isOpenLobby,
+    isMatchmakingQueue: isMm,
     passwordHash: passwordHash || '',
     hostSnapshot: snap,
     guestSnapshot: null,
@@ -464,6 +470,55 @@ export async function createPvpLobbyRoom(hostUserId, { password = '', character 
 
   await retryOperation(() => setDoc(roomRef, room));
   return { success: true, roomId };
+}
+
+/**
+ * Matchmaking : tente de rejoindre la salle d’attente la plus ancienne, sinon crée une salle dédiée.
+ * Les salles matchmaking n’apparaissent pas dans la liste « salles ouvertes ».
+ */
+export async function enterPvpMatchmaking(userId, character) {
+  if (!userId) return { success: false, error: 'Non connecté.' };
+  if (!isCharacterEligibleForPvpLobby(character)) {
+    return {
+      success: false,
+      error: `Les personnages au-delà du niveau ${MAX_LEVEL} ne peuvent pas combattre en PvP lobby.`,
+    };
+  }
+
+  try {
+    await waitForFirestore();
+    const q = query(
+      collection(db, ROOMS),
+      where('status', '==', 'waiting'),
+      where('isMatchmakingQueue', '==', true),
+      orderBy('createdAt', 'asc'),
+      limit(25)
+    );
+    const snap = await retryOperation(() => getDocs(q));
+
+    const candidates = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((r) => !r.guestId && r.hostId && r.hostId !== userId && isCharacterEligibleForPvpLobby(r.hostSnapshot));
+
+    for (const row of candidates) {
+      const joinRes = await joinPvpLobbyRoomAsGuest(userId, row.id, '', character);
+      if (joinRes.success) {
+        return { success: true, roomId: joinRes.roomId, mode: 'joined' };
+      }
+    }
+
+    const createRes = await createPvpLobbyRoom(userId, {
+      password: '',
+      character,
+      matchmakingQueue: true,
+    });
+    if (!createRes.success) return createRes;
+    return { success: true, roomId: createRes.roomId, mode: 'created' };
+  } catch (e) {
+    console.warn('enterPvpMatchmaking', e);
+    const code = e?.code ? ` [${e.code}]` : '';
+    return { success: false, error: `${e.message || 'Erreur matchmaking'}${code}` };
+  }
 }
 
 export async function joinPvpLobbyRoomAsGuest(guestUserId, roomId, passwordPlaintext, guestCharacter) {

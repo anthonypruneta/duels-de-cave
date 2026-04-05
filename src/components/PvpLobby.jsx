@@ -13,6 +13,7 @@ import { races } from '../data/races';
 import { formatCombatLogMessage } from '../utils/combatLogFormat';
 import {
   createPvpLobbyRoom,
+  enterPvpMatchmaking,
   joinPvpLobbyRoomAsGuest,
   subscribePvpLobbyRoom,
   subscribeOpenPvpLobbyRooms,
@@ -45,6 +46,7 @@ function PvpLobby() {
 
   const [createPassword, setCreatePassword] = useState('');
   const [createSelected, setCreateSelected] = useState(null);
+  const [matchmakingSelected, setMatchmakingSelected] = useState(null);
   const [joinRoomIdInput, setJoinRoomIdInput] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
   const [joinSelected, setJoinSelected] = useState(null);
@@ -291,6 +293,23 @@ function PvpLobby() {
     persistRoom(res.roomId);
     setCreatePassword('');
     setCreateSelected(null);
+  };
+
+  const handleMatchmaking = async () => {
+    setError(null);
+    if (!matchmakingSelected) {
+      setError('Choisis un personnage archivé pour le matchmaking.');
+      return;
+    }
+    setBusy(true);
+    const res = await enterPvpMatchmaking(currentUser.uid, matchmakingSelected);
+    setBusy(false);
+    if (!res.success) {
+      setError(res.error || 'Erreur matchmaking');
+      return;
+    }
+    persistRoom(res.roomId);
+    setMatchmakingSelected(null);
   };
 
   const handleJoinRoom = async () => {
@@ -616,7 +635,7 @@ function PvpLobby() {
   }
 
   const mainMaxWidth =
-    inRoom && room && !replayPhase ? 'max-w-[min(90rem,calc(100vw-1.5rem))]' : 'max-w-4xl';
+    inRoom && room && !replayPhase ? 'max-w-[min(90rem,calc(100vw-1.5rem))]' : 'max-w-6xl';
 
   return (
     <div className="min-h-screen p-4 md:p-6">
@@ -639,7 +658,28 @@ function PvpLobby() {
 
         {!inRoom && (
           <>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-stone-900/80 border border-cyan-700/50 rounded-xl p-5 space-y-4 ring-1 ring-cyan-900/20">
+                <h2 className="text-xl font-bold text-cyan-200">Matchmaking</h2>
+                <p className="text-stone-400 text-sm">
+                  Cherche une salle d’attente existante ou en crée une. Dès qu’un adversaire rejoint, vous
+                  passez en lobby comme d’habitude.
+                </p>
+                {renderCharPicker(
+                  matchmakingSelected,
+                  setMatchmakingSelected,
+                  'Ton combattant archivé'
+                )}
+                <button
+                  type="button"
+                  disabled={busy || !matchmakingSelected}
+                  onClick={handleMatchmaking}
+                  className="w-full bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 text-white font-bold py-3 rounded-lg border border-cyan-500/60"
+                >
+                  {busy ? 'Recherche…' : 'Lancer le matchmaking'}
+                </button>
+              </div>
+
               <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4">
                 <h2 className="text-xl font-bold text-stone-200">Créer une salle</h2>
                 <label className="block text-sm text-stone-400">
@@ -755,7 +795,11 @@ function PvpLobby() {
             )}
 
             {room.status === 'waiting' && isHost && (
-              <p className="text-amber-200">En attente d’un adversaire… Tu es prêt avec ton archivé.</p>
+              <p className="text-amber-200">
+                {room.isMatchmakingQueue
+                  ? 'Matchmaking : en attente d’un adversaire… Dès qu’un joueur lance le matchmaking avec un archivé, il te rejoindra ici.'
+                  : 'En attente d’un adversaire… Tu es prêt avec ton archivé.'}
+              </p>
             )}
 
             {room.status === 'lobby' && (
