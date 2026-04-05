@@ -52,7 +52,7 @@ function ModeAvailabilityRoute({ children }) {
         <div className="text-6xl mb-4">🔒</div>
         <h2 className="text-3xl text-amber-300 font-bold mb-3">Modes temporairement bloqués</h2>
         <p className="text-stone-200 mb-6">
-          Après le tournoi, les donjons, le PvP et le labyrinthe sont fermés jusqu'à lundi.
+          Après le tournoi, les donjons et le labyrinthe sont fermés jusqu'à lundi.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link to="/" className="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 font-semibold rounded">

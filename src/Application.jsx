@@ -64,9 +64,7 @@ function Application() {
             path="/pvp"
             element={
               <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <PvpLobby />
-                </ModeAvailabilityRoute>
+                <PvpLobby />
               </ProtectedRoute>
             }
           />

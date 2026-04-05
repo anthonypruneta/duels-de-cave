@@ -6,7 +6,6 @@ import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } 
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
 import { getWorldBossEvent, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
-import { shouldLockPveModes } from '../services/gameAvailabilityService';
 import Header from './Header';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
@@ -386,7 +385,6 @@ const CharacterCreation = () => {
   const [allRolls, setAllRolls] = useState([]);
   const [dungeonGrantPopup, setDungeonGrantPopup] = useState(null);
   const [lastWeekRestrictions, setLastWeekRestrictions] = useState({ race: null, class: null });
-  const [isDowntimeLocked, setIsDowntimeLocked] = useState(false);
   const [obtentionStats, setObtentionStats] = useState(null);
   const [recapData, setRecapData] = useState(null);
   const [isTitlesOpen, setIsTitlesOpen] = useState(true);
@@ -892,15 +890,6 @@ const CharacterCreation = () => {
 
     loadCharacter();
   }, [currentUser]);
-
-  useEffect(() => {
-    const checkDowntime = async () => {
-      const result = await shouldLockPveModes();
-      setIsDowntimeLocked(!!result.locked);
-    };
-
-    checkDowntime();
-  }, []);
 
   useEffect(() => {
     const loadDungeonGrantPopup = async () => {
