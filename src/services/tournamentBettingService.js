@@ -1,6 +1,7 @@
 /**
  * Paris sur le vainqueur du tournoi (samedi) en runs (dungeonProgress.runsAvailable).
- * Cible uniquement tournaments/current en phase preparation pour miser / annuler.
+ * Mise / annulation : tant qu’il n’y a pas de doc tournoi « current » OU que statut === preparation.
+ * Une fois le tournoi lancé (en_cours) ou terminé, paris figés côté client + transaction.
  * Les gains (pool) sont versés sur tournamentRewards.pendingTournamentBettingRuns pour le prochain perso.
  */
 
@@ -38,6 +39,10 @@ function tournamentRef() {
 
 function dungeonProgressRef(userId) {
   return doc(db, 'dungeonProgress', userId);
+}
+
+function characterRef(participantId) {
+  return doc(db, 'characters', participantId);
 }
 
 function runsAvailableFromProgress(data) {
@@ -131,20 +136,46 @@ export async function placeBet({ userId, participantId, amount }) {
   const tRef = tournamentRef();
   const bRef = betDocRef(userId);
   const dRef = dungeonProgressRef(userId);
+  const cRef = characterRef(participantId);
 
   try {
     await runTransaction(db, async (transaction) => {
       const tSnap = await transaction.get(tRef);
-      if (!tSnap.exists()) throw new Error('Aucun tournoi en cours.');
-      const tData = tSnap.data();
-      if (tData.statut !== 'preparation') {
-        throw new Error('Les paris sont fermés (tournoi lancé ou terminé).');
-      }
-
-      const target = tData.participants?.[participantId];
-      const ownerUid = target?.ownerUserId != null ? String(target.ownerUserId) : null;
-      if (ownerUid && ownerUid === String(userId)) {
-        throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
+      if (tSnap.exists()) {
+        const tData = tSnap.data();
+        if (tData.statut !== 'preparation') {
+          throw new Error('Les paris sont fermés (tournoi lancé ou terminé).');
+        }
+        const target = tData.participants?.[participantId];
+        if (target && target.ownerUserId != null) {
+          if (String(target.ownerUserId) === String(userId)) {
+            throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
+          }
+        } else {
+          const cSnap = await transaction.get(cRef);
+          if (!cSnap.exists()) {
+            throw new Error('Combattant inconnu ou non éligible.');
+          }
+          const c = cSnap.data();
+          if (c.archived || c.disabled) {
+            throw new Error('Ce personnage ne participe pas au tournoi.');
+          }
+          if (String(participantId) === String(userId)) {
+            throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
+          }
+        }
+      } else {
+        const cSnap = await transaction.get(cRef);
+        if (!cSnap.exists()) {
+          throw new Error('Combattant inconnu ou non éligible.');
+        }
+        const c = cSnap.data();
+        if (c.archived || c.disabled) {
+          throw new Error('Ce personnage ne participe pas au tournoi.');
+        }
+        if (String(participantId) === String(userId)) {
+          throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
+        }
       }
 
       const dSnap = await transaction.get(dRef);
@@ -202,8 +233,7 @@ export async function cancelBet(userId) {
   try {
     await runTransaction(db, async (transaction) => {
       const tSnap = await transaction.get(tRef);
-      if (!tSnap.exists()) throw new Error('Aucun tournoi.');
-      if (tSnap.data().statut !== 'preparation') {
+      if (tSnap.exists() && tSnap.data().statut !== 'preparation') {
         throw new Error('Impossible d’annuler : le tournoi a déjà commencé.');
       }
 

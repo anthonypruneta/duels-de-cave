@@ -73,14 +73,17 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
-      // Paris tournoi (runs) — uniquement tournoi du samedi + phase préparation
+      // Paris tournoi (runs) — tournoi « current » : paris autorisés sans doc tournoi ou en phase preparation uniquement
       match /userBets/{userId} {
         function tournamentCurrent() {
           return tournamentId == 'current';
         }
-        function tournamentPreparation() {
-          let d = get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
-          return d != null && d.statut == 'preparation';
+        function tournamentTPath() {
+          return /databases/$(database)/documents/tournaments/$(tournamentId);
+        }
+        function tournamentAllowsUserBetWrites() {
+          return !exists(tournamentTPath()) ||
+                 get(tournamentTPath()).data.statut == 'preparation';
         }
         function validParticipantId(pid) {
           return pid is string && pid.size() > 0 && pid.size() <= 128;
@@ -89,18 +92,26 @@ service cloud.firestore {
         function validRunsStakedNumber(n) {
           return n is number && n >= 1 && n <= 500000;
         }
-        function tournoiDoc() {
-          return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+        // Pas de blocs if/let sur chemins : le parseur Firestore ne les accepte pas dans les fonctions.
+        function inTournamentParticipantsMap(participantId) {
+          return exists(tournamentTPath()) &&
+            get(tournamentTPath()).data.participants is map &&
+            get(tournamentTPath()).data.participants.keys().hasAny([participantId]);
+        }
+        function betTargetOkFromTournamentMap(participantId) {
+          return get(tournamentTPath()).data.participants[participantId] is map &&
+            get(tournamentTPath()).data.participants[participantId].keys().hasAll(['ownerUserId']) &&
+            string(get(tournamentTPath()).data.participants[participantId].ownerUserId) != string(request.auth.uid);
+        }
+        function betTargetOkFromCharacterDoc(participantId) {
+          return exists(/databases/$(database)/documents/characters/$(participantId)) &&
+            get(/databases/$(database)/documents/characters/$(participantId)).data.archived != true &&
+            get(/databases/$(database)/documents/characters/$(participantId)).data.disabled != true &&
+            string(participantId) != string(request.auth.uid);
         }
         function betTargetIsNotOwnCharacter(participantId) {
-          let docData = tournoiDoc();
-          return docData != null &&
-                 participantId is string &&
-                 docData.participants is map &&
-                 docData.participants.keys().hasAny([participantId]) &&
-                 docData.participants[participantId] is map &&
-                 docData.participants[participantId].keys().hasAll(['ownerUserId']) &&
-                 string(docData.participants[participantId].ownerUserId) != string(request.auth.uid);
+          return (inTournamentParticipantsMap(participantId) && betTargetOkFromTournamentMap(participantId)) ||
+            (!inTournamentParticipantsMap(participantId) && betTargetOkFromCharacterDoc(participantId));
         }
         function validUserBetCreate() {
           return validParticipantId(request.resource.data.participantId) &&
@@ -124,19 +135,19 @@ service cloud.firestore {
         allow create: if request.auth != null &&
                          request.auth.uid == userId &&
                          tournamentCurrent() &&
-                         tournamentPreparation() &&
+                         tournamentAllowsUserBetWrites() &&
                          validUserBetCreate();
 
         allow update: if request.auth != null &&
                          request.auth.uid == userId &&
                          tournamentCurrent() &&
-                         tournamentPreparation() &&
+                         tournamentAllowsUserBetWrites() &&
                          validUserBetUpdate();
 
-        // Joueur : annulation en préparation uniquement. Admin : nettoyage sous-collection au nouveau tournoi.
+        // Joueur : annulation tant que pas de tournoi ou phase preparation. Admin : nettoyage sous-collection au nouveau tournoi.
         allow delete: if request.auth != null &&
                          tournamentCurrent() &&
-                         ((request.auth.uid == userId && tournamentPreparation()) || isAdmin());
+                         ((request.auth.uid == userId && tournamentAllowsUserBetWrites()) || isAdmin());
       }
     }
 

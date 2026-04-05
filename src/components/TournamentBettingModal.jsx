@@ -136,7 +136,9 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
   }, [open, myBet?.participantId]);
 
   const statut = tournament?.statut;
-  const bettingOpen = statut === 'preparation' && Boolean(tournament);
+  /** Paris autorisés : pas de doc tournoi, ou tournoi encore en préparation (avant le premier combat). */
+  const bettingLocked = Boolean(tournament && statut !== 'preparation');
+  const canPlaceBets = !bettingLocked;
 
   const isOwnParticipant = useCallback(
     (p) => p && userId && String(p.userId ?? '') === String(userId),
@@ -146,7 +148,7 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
   const handlePlaceBet = async (e) => {
     e.preventDefault();
     setMessage(null);
-    if (!userId || !bettingOpen) return;
+    if (!userId || !canPlaceBets) return;
     const amount = parseInt(amountStr, 10);
     if (!Number.isFinite(amount) || amount < MIN_RUNS_PER_BET) {
       setMessage(`Indiquez au moins ${MIN_RUNS_PER_BET} run(s).`);
@@ -183,7 +185,7 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
 
   const handleCancel = async () => {
     setMessage(null);
-    if (!userId || !bettingOpen) return;
+    if (!userId || !canPlaceBets) return;
     setBusy(true);
     const res = await cancelBet(userId);
     setBusy(false);
@@ -230,21 +232,15 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
           {charactersLoading && !firestoreError && (
             <p className="text-stone-400 text-sm">Chargement des personnages actifs…</p>
           )}
-          {!charactersLoading && !firestoreError && !tournament && (
-            <p className="text-stone-400 text-sm">
-              Aucun document tournoi « current » pour le moment (pas encore créé ou lecture impossible). Les paris
-              nécessitent un tournoi en phase préparation.
-            </p>
-          )}
 
-          {tournament && !bettingOpen && (
+          {bettingLocked && (
             <div className="space-y-2 text-sm">
               <p className="text-amber-200/90">
                 {statut === 'en_cours'
                   ? 'Le tournoi a commencé : plus aucun pari ni modification (y compris annulation).'
                   : statut === 'termine'
                     ? 'Tournoi terminé — paris clos.'
-                    : 'Paris non disponibles pour cet état du tournoi.'}
+                    : 'Paris fermés pour cet état du tournoi.'}
               </p>
               {statut === 'en_cours' && myBet && (
                 <p className="text-stone-400 text-xs border border-stone-600 rounded-lg p-2 bg-stone-950/40">
@@ -259,38 +255,46 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
               >
                 Voir le tournoi
               </Link>
+              {!charactersLoading && !firestoreError && participantsList.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">Combattants (lecture seule)</p>
+                  <ul className="max-h-40 overflow-y-auto space-y-1 border border-stone-600 rounded-lg p-2 bg-stone-950/40">
+                    {participantsList.map((p) => {
+                      const pid = p.participantId;
+                      const poolOn = stakesByPid[pid] || 0;
+                      const own = isOwnParticipant(p);
+                      return (
+                        <li
+                          key={pid}
+                          className="w-full text-left px-2 py-1.5 rounded text-sm flex justify-between gap-2 text-stone-100"
+                        >
+                          <span className="truncate font-medium">
+                            {p.nom || '???'}
+                            {own ? <span className="text-stone-500 font-normal"> (vous)</span> : null}
+                          </span>
+                          <span className="shrink-0 text-stone-500 text-xs">{poolOn} en jeu</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
-          {!charactersLoading && !firestoreError && participantsList.length > 0 && !bettingOpen && (
-            <div>
-              <p className="text-xs text-stone-500 uppercase tracking-wide mb-2">
-                Personnages actifs (éligibles au tournoi)
-              </p>
-              <ul className="max-h-48 overflow-y-auto space-y-1 border border-stone-600 rounded-lg p-2 bg-stone-950/40">
-                {participantsList.map((p) => {
-                  const pid = p.participantId;
-                  const poolOn = stakesByPid[pid] || 0;
-                  const own = isOwnParticipant(p);
-                  return (
-                    <li
-                      key={pid}
-                      className="w-full text-left px-2 py-1.5 rounded text-sm flex justify-between gap-2 text-stone-100"
-                    >
-                      <span className="truncate font-medium">
-                        {p.nom || '???'}
-                        {own ? <span className="text-stone-500 font-normal"> (vous)</span> : null}
-                      </span>
-                      <span className="shrink-0 text-stone-500 text-xs">{poolOn} en jeu</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {bettingOpen && (
+          {canPlaceBets && !charactersLoading && !firestoreError && (
             <>
+              {!tournament && (
+                <p className="text-emerald-200/90 text-sm border border-emerald-900/40 rounded-lg p-2 bg-emerald-950/20">
+                  Paris ouverts : le document tournoi n’existe pas encore ou le tirage n’a pas été créé — vous pouvez miser
+                  sur un personnage actif. Les mises restent valides jusqu’au lancement des combats.
+                </p>
+              )}
+              {tournament && statut === 'preparation' && (
+                <p className="text-stone-400 text-sm">
+                  Phase préparation : vous pouvez encore miser ou annuler jusqu’au premier combat.
+                </p>
+              )}
               <div className="flex flex-wrap justify-between gap-2 text-sm border border-stone-600 rounded-lg p-3 bg-stone-800/50">
                 <div>
                   <span className="text-stone-500">Vos runs disponibles</span>
@@ -386,10 +390,10 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
 
               <p className="text-xs text-stone-500 leading-relaxed">
                 Pas de pari sur votre propre personnage. Un seul combattant par compte ; vous pouvez augmenter votre
-                mise ou annuler tant que le tournoi est en préparation. Dès le lancement du tournoi, aucune
-                modification n’est possible. Les gains (si vous avez parié sur le champion) sont ajoutés à vos runs
-                lorsque vous créez votre prochain personnage après la fin de saison. Si personne n’a parié sur le
-                champion, les mises sont remboursées sur votre personnage actuel.
+                mise ou annuler tant que le tournoi n’a pas commencé (y compris avant la création du document tournoi).
+                Dès le lancement des matchs, aucune modification n’est possible. Les gains (si vous avez parié sur le
+                champion) sont ajoutés à vos runs lorsque vous créez votre prochain personnage après la fin de saison.
+                Si personne n’a parié sur le champion, les mises sont remboursées sur votre personnage actuel.
               </p>
             </>
           )}
