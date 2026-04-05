@@ -266,8 +266,11 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       const stun = c.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
       return `Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + ${pct0(c.fireCapScale)} CAP\n- Vie : soin ${pct0(c.lifeCapScale)} de votre CAP\n- Acide : Auto et réduit DEF de ${pct0(c.acidDefReduction)} / ResC de ${pct0(c.acidRescReduction)}\n- Métal : Auto et étourdit ${stun} tour`;
     }
-    case 'hexe_noire':
-      return `Début de combat : Malédiction −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (permanent). Malédiction (CD 3) : −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase ?? classConstants.sorciere.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
+    case 'hexe_noire': {
+      const pctDebut = c.curseStatReductionStartOfCombat ?? c.curseStatReduction;
+      const pctSort = c.curseStatReduction;
+      return `Début de combat : Malédiction −${pct0(pctDebut)} d'une stat adverse au hasard (permanent). Malédiction (CD 3) : −${pct0(pctSort)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase ?? classConstants.sorciere.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
+    }
     case 'enchanteresse':
       return `Malédiction : −${pct0(c.curseStatReduction)} d'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + ${pct0(c.capBase)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
     case 'boucher':

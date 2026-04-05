@@ -85,7 +85,7 @@ export const classConstants = {
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
   },
   sorciere: {
-    curseStatReduction: 0.05,    // Malédiction : -5% (Enchanteresse : 15% via sous-classe)
+    curseStatReduction: 0.10,    // Malédiction (sort) : -10% (Enchanteresse : 15% via sous-classe)
     capBase: 0.70,               // Portion Cap (Hexe Noire ; Enchanteresse : 1.0 via sous-classe)
     capPerCap: 0
   },
@@ -142,7 +142,10 @@ export const subclassConstants = {
   roublard: {},                                        // Vol stat (pas de ratio)
   maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.08, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 108% Cap au soin (base classe 82%)
   alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = même ratio que la classe de base (82% Cap)
-  hexe_noire: { sorcEffectiveCooldown: 3 },             // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
+  hexe_noire: {
+    sorcEffectiveCooldown: 3,                          // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
+    curseStatReductionStartOfCombat: 0.05,              // Malédiction début de combat seulement (−5% ; sort = curseStatReduction classe)
+  },
   enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
   boucher: { rageMissingHpDamageScale: 0.44 },
   brise_caves: { rageMissingHpDamageScale: 0.35 }       // +20% prochaine auto : berserk.nextAutoDamageBonus

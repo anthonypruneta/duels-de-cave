@@ -198,7 +198,10 @@ export function applyStartOfCombatPassives(attacker, defender, log, label) {
   // Hexe Noire : malédiction initiale sur une stat adverse (début de combat)
   if (attacker.class === 'Sorcière' && attacker.subclass?.id === 'hexe_noire' && !defender.isWorldBoss) {
     const sorC = getSubclassCapacityConstants('Sorcière', attacker.subclass?.id);
-    const pct = sorC.curseStatReduction ?? classConstants.sorciere.curseStatReduction;
+    const pct =
+      sorC.curseStatReductionStartOfCombat ??
+      sorC.curseStatReduction ??
+      classConstants.sorciere.curseStatReduction;
     applySorciereCurseRandomStat(defender, pct, log, label, '🕯️ Hexe Noire (début de combat)');
   }
 }
