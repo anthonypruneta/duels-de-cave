@@ -15,7 +15,8 @@ import {
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses,
-  getSubclassCapacityConstants
+  getSubclassCapacityConstants,
+  subclassConstants
 } from '../data/combatMechanics.js';
 import {
   applyAwakeningToBase,
@@ -773,7 +774,7 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
         def._strategeArcaniqueSkipNextReductionGrant = false;
       } else {
         const briseurC = getSubclassCapacityConstants(def.class, def.subclass?.id);
-        def.nextSpellReduction = briseurC.nextSpellReduction ?? 0.30;
+        def.nextSpellReduction = briseurC.nextSpellReduction ?? 0.33;
         log.push(`${playerColor} 📐 Stratège Arcanique: les dégâts du prochain sort subi sont réduits de ${Math.round((def.nextSpellReduction ?? 0) * 100)}%.`);
       }
     }
@@ -915,8 +916,10 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     adjusted = Math.max(1, Math.round(adjusted * (1 + def.arcanisteDamageTakenStack)));
   }
   if (att.sorcierNeantBurn) {
-    adjusted = Math.max(1, Math.round(adjusted * 0.90));
-    log.push(`${playerColor} 🌑 Brûlure du Néant: ${att.name} inflige -10% dégâts.`);
+    const neantMult = subclassConstants.sorcier_neant?.neantBurnAutoMultiplier ?? 0.92;
+    adjusted = Math.max(1, Math.round(adjusted * neantMult));
+    const neantPct = Math.round((1 - neantMult) * 100);
+    log.push(`${playerColor} 🌑 Brûlure du Néant: ${att.name} inflige -${neantPct}% dégâts.`);
   }
   if (def.nextSpellReduction != null && def.nextSpellReduction > 0 && isCapacityDamage) {
     adjusted = Math.max(1, Math.round(adjusted * (1 - def.nextSpellReduction)));
@@ -1408,14 +1411,15 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   if (att.class === 'Healer' && att.cd.heal === getMindflayerCapacityCooldown(att, def, 'heal') && !capacityStolen) {
     skillUsed = true;
     const miss = att.maxHP - att.currentHP;
-    const { missingHpPercent, capScale } = classConstants.healer;
+    const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+    const missingHpPercent = healerC.missingHpPercent ?? classConstants.healer.missingHpPercent;
+    const capScale = healerC.capScale ?? classConstants.healer.capScale;
     if (att.subclass?.id === 'latum') {
-      const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
       const pct = healerC.missingHpDamagePercent ?? 0.20;
       const latumRaw = Math.max(1, Math.round(miss * pct));
       const latumDmg = dmgCap(latumRaw, def.base.rescap);
       const inflicted = applyDamage(att, def, latumDmg, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, true, turn);
-      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (20% PV manquants) à ${def.name}.`);
+      log.push(`${playerColor} ✚ Latum: ${att.name} inflige ${inflicted} dégâts (${Math.round(pct * 100)}% PV manquants) à ${def.name}.`);
     }
     const spellCapMultiplier = consumeAuraCapacityCapMultiplier();
     const sireneBoost = (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) ? ((att.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus) * (att.sireneStacks || 0)) : 0;
@@ -1434,17 +1438,18 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const healCritResult = rollHealCrit(att.weaponState, att, baseHeal);
     const heal = healCritResult.amount;
     if (att.subclass?.id === 'luxum') {
-      const healerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-      const capShieldPct = healerC.capShieldPercent ?? 0.10;
+      const healerLuxum = getSubclassCapacityConstants(att.class, att.subclass?.id);
+      const capShieldPct = healerLuxum.capShieldPercent ?? 0.10;
+      const capShieldPctLabel = Math.round(capShieldPct * 100);
       const capShield = Math.max(1, Math.round(getEffectiveCapForSceptre(att) * capShieldPct));
       att.shield = (att.shield || 0) + capShield;
       const overflow = Math.max(0, (att.currentHP + heal) - att.maxHP);
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
       if (overflow > 0) {
         att.shield = (att.shield || 0) + overflow;
-        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (10% CAP); ${overflow} en bouclier (overheal).`);
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin et récupère ${heal} PV${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (${capShieldPctLabel}% CAP); ${overflow} en bouclier (overheal).`);
       } else {
-        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (10% CAP).`);
+        log.push(`${playerColor} ✚ ${att.name} lance sa capacité de soin puissante et récupère ${heal} points de vie${healCritResult.isCrit ? ' CRITIQUE !' : ''}; +${capShield} bouclier (${capShieldPctLabel}% CAP).`);
       }
     } else {
       att.currentHP = Math.min(att.maxHP, att.currentHP + heal);
@@ -1475,7 +1480,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const isCrit = turnEffects.guaranteedCrit ? true : forceCritAme || combatRandom01() < calcCritChance(att, def);
     if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     const shouldApplyDompteuseChairDebuff = att.subclass?.id === 'dompteuse_chair';
-    let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * classConstants.succube.capScale), def.base.rescap);
+    const succC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+    const succCapScale = succC.capScale ?? classConstants.succube.capScale;
+    let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * succCapScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'succ', log, playerColor);
     if (isCrit) {
@@ -1495,8 +1502,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const stack = succubeC.autoReductionStack ?? 0.06;
         def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + stack;
-        def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * 0.94)) };
-        log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de 6% (stackable).`);
+        const autoMult = Math.max(0.1, 1 - stack);
+        def.base = { ...def.base, auto: Math.max(1, Math.round(def.base.auto * autoMult)) };
+        log.push(`${playerColor} 💋 Dompteuse de Chair: l'Auto de ${def.name} est réduite de ${Math.round(stack * 100)}% (stackable).`);
       }
     }
     const weakenText = inflicted > 0 ? `. La prochaine attaque de ${def.name} est affaiblie.` : '';
@@ -2283,7 +2291,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
       if (att.subclass?.id === 'sorcier_neant' && i === 0) {
         def.sorcierNeantBurn = true;
-        log.push(`${playerColor} 🌑 Brûlure du Néant: ${def.name} infligera -10% dégâts Auto et perd 2% PV/tour.`);
+        const nm = subclassConstants.sorcier_neant?.neantBurnAutoMultiplier ?? 0.92;
+        const hpPct = subclassConstants.sorcier_neant?.neantBurnHpPercentPerTurn ?? 0.015;
+        log.push(`${playerColor} 🌑 Brûlure du Néant: ${def.name} infligera -${Math.round((1 - nm) * 100)}% dégâts Auto et perd ${Math.round(hpPct * 1000) / 10}% PV/tour.`);
       }
       if (i === 0) log.push(`${playerColor} 🔮 ${att.name} utilise sa capacité magique`);
       raw = applyMindflayerCapacityMod(att, def, raw, 'mag', log, playerColor);
@@ -2662,15 +2672,16 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
     if (p1.ability?.type === 'unicorn_cycle' || p2.ability?.type === 'unicorn_cycle') {
       turnStartLogs.push(`🦄 Alternance mystique: dégâts infligés et reçus ${turn % 2 === 1 ? '+15%' : '-15%'} ce tour.`);
     }
+    const neantBurnHpPct = subclassConstants.sorcier_neant?.neantBurnHpPercentPerTurn ?? 0.015;
     if (p1.sorcierNeantBurn && p1.currentHP > 0) {
-      const burn = Math.max(1, Math.round(p1.currentHP * 0.02));
+      const burn = Math.max(1, Math.round(p1.currentHP * neantBurnHpPct));
       p1.currentHP -= burn;
-      turnStartLogs.push(`🌑 Brûlure du Néant: ${p1.name} perd ${burn} PV (2%).`);
+      turnStartLogs.push(`🌑 Brûlure du Néant: ${p1.name} perd ${burn} PV (${Math.round(neantBurnHpPct * 1000) / 10}%).`);
     }
     if (p2.sorcierNeantBurn && p2.currentHP > 0) {
-      const burn = Math.max(1, Math.round(p2.currentHP * 0.02));
+      const burn = Math.max(1, Math.round(p2.currentHP * neantBurnHpPct));
       p2.currentHP -= burn;
-      turnStartLogs.push(`🌑 Brûlure du Néant: ${p2.name} perd ${burn} PV (2%).`);
+      turnStartLogs.push(`🌑 Brûlure du Néant: ${p2.name} perd ${burn} PV (${Math.round(neantBurnHpPct * 1000) / 10}%).`);
     }
 
     allLogs.push(...turnStartLogs);

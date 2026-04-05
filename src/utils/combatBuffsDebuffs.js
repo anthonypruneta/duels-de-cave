@@ -130,7 +130,7 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         id: 'sorcier_neant_burn',
         icon: '🌑',
         label: 'Brûlure du Néant',
-        description: 'Vous perdez 2% de vos PV max au début de chaque tour.',
+        description: 'Vous perdez 1,5% de vos PV actuels au début de chaque tour et infligez moins de dégâts avec vos attaques.',
       });
     }
     if (combatStatus.undead) {

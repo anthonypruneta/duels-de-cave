@@ -182,12 +182,12 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(c.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(c.hit2CapMultiplier || 0) * 100}% de votre Cap.`;
     case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap.`;
     case 'Demoniste': return `Chaque tour, votre familier inflige ${(c.capBase || 0) * 100}% de votre Cap et ignore ${(c.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(c.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
-    case 'Masochiste': return `Renvoie ${(c.returnBase || 0) * 100}% des dégâts accumulés + ${(c.returnPerCap || 0) * 100}% de votre Cap. Se soigne de ${(c.healPercent || 0) * 100}% des dégâts accumulés.`;
+    case 'Masochiste': return `Renvoie ${pct(c.returnBase, 0)} des dégâts accumulés + ${pct(c.returnPerCap, 1)} de votre Cap. Se soigne de ${pct(c.healPercent, 0)} des dégâts accumulés.`;
     case 'Briseur de Sort': return `Après avoir subi une capacité, gagne un bouclier égal à ${(c.shieldFromSpellDamage || 0) * 100}% des dégâts reçus + ${(c.shieldFromCap || 0) * 100}% de votre CAP. Réduit les soins adverses de ${(c.antiHealReduction || 0) * 100}%. Auto + ${(c.autoCapBonus || 0) * 100}% CAP.`;
     case 'Succube': return `Inflige auto + ${(c.capScale || 0) * 100}% CAP. La prochaine attaque adverse inflige -${(c.nextAttackReduction || 0) * 100}% dégâts.`;
     case 'Bastion': return `Début du combat: bouclier = ${(c.startShieldFromDef || 0) * 100}% DEF. Passif: +${(c.defPercentBonus || 0) * 100}% DEF. Inflige auto + ${(c.capScale || 0) * 100}% CAP + ${(c.defScale || 0) * 100}% DEF.`;
     case 'Alchimiste': return `Cycle de ${c.cycleLength || 3} flasques :\n- Feu : Auto + ${(c.fireCapScale || 0) * 100}% CAP\n- Vie : soin ${(c.lifeCapScale || 0) * 100}% de votre CAP\n- Acide : Auto + réduit DEF ${(c.acidDefReduction || 0) * 100}% / ResC ${(c.acidRescReduction || 0) * 100}%`;
-    case 'Sorcière': return `Malédiction : −${(c.curseStatReduction || 0) * 100}% d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + ${(c.capBase || 0) * 100}% CAP + points de stats retirés à l'ennemi (toutes sources).`;
+    case 'Sorcière': return `Malédiction : −${pct(c.curseStatReduction, 0)} d'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + ${pct(c.capBase, 0)} CAP + points de stats retirés à l'ennemi (toutes sources).`;
     case 'Berserk': return `Rage : consomme ${(c.rageHpCostPercent || 0) * 100}% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + ${(c.rageMissingHpDamageScale || 0) * 100}% des PV manquants (après ce coût).`;
     default: return classes[className]?.description || '';
   }
@@ -222,8 +222,13 @@ export const buildSubclassDescription = (className, subclassId, constants = null
       return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'arcaniste_instable':
       return `Inflige Auto + ${pct0(c.capBase)} Cap. Applique débuff : +${pct0(c.damageTakenStack)} dégâts subis par l'ennemi (stackable).`;
-    case 'sorcier_neant':
-      return `Inflige Auto + ${pct0(c.capBase)} Cap. Brûlure du Néant : l'ennemi inflige -10% dégâts Auto et perd 2% de ses PV actuels par tour.`;
+    case 'sorcier_neant': {
+      const mult = c.neantBurnAutoMultiplier ?? 0.92;
+      const autoReduct = Math.round((1 - mult) * 100);
+      const burnHp = (c.neantBurnHpPercentPerTurn ?? 0.015) * 100;
+      const burnHpStr = Number.isInteger(burnHp) ? String(burnHp) : String(burnHp).replace('.', ',');
+      return `Inflige Auto + ${pct0(c.capBase)} Cap. Brûlure du Néant : l'ennemi inflige -${autoReduct}% dégâts Auto et perd ${burnHpStr}% de ses PV actuels par tour.`;
+    }
     case 'maitre_invocateur':
       return `Chaque tour, familier inflige ${pct0(c.capBase)} Cap et ignore ${pct0(c.ignoreResist)} RésCap. Chaque auto augmente ces dégâts de ${pct1(c.stackPerAuto)} Cap (cumulable).`;
     case 'pacte_sombre':

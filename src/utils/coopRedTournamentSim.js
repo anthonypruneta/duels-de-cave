@@ -14,7 +14,7 @@ import {
 } from './tournamentCombat.js';
 import { rebuildPreparedCoop } from './coopRedPrep.js';
 import { getCoopRedLineup } from '../data/coopRedDungeon.js';
-import { generalConstants, weaponConstants } from '../data/combatMechanics.js';
+import { generalConstants, weaponConstants, subclassConstants } from '../data/combatMechanics.js';
 import { snapshotCombatantStatusForUi } from './combatStatusSnapshot.js';
 
 const MAX_COOP_TURNS = 400;
@@ -331,9 +331,10 @@ function runCoopRedEngine(hostSnap, guestSnap, difficulty, seedU, rng, recordSte
       );
     }
 
+    const neantBurnHpPct = subclassConstants.sorcier_neant?.neantBurnHpPercentPerTurn ?? 0.015;
     for (const f of [host, guest, ...bosses]) {
       if (f.sorcierNeantBurn && f.currentHP > 0) {
-        const burn = Math.max(1, Math.round(f.currentHP * 0.02));
+        const burn = Math.max(1, Math.round(f.currentHP * neantBurnHpPct));
         f.currentHP -= burn;
         turnStartLogs.push(`🌑 Brûlure du Néant: ${f.name} perd ${burn} PV.`);
       }

@@ -404,6 +404,10 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
     case 'sorcier_neant': {
       const spellDmg = Math.round((c.capBase ?? 0) * cap);
       const total = auto + spellDmg;
+      const neantMult = c.neantBurnAutoMultiplier ?? 0.92;
+      const autoReduct = Math.round((1 - neantMult) * 100);
+      const burnHp = (c.neantBurnHpPercentPerTurn ?? 0.015) * 100;
+      const burnHpLabel = burnHp % 1 === 0 ? `${burnHp}` : `${burnHp.toFixed(1).replace('.', ',')}`;
       return (
         <>
           Inflige{' '}
@@ -414,7 +418,7 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           <Tooltip content="Effet permanent appliqué à chaque lancement de la capacité.">
             <span className="text-purple-400 underline decoration-dotted cursor-help">Brûlure du Néant</span>
           </Tooltip>
-          {' '}: ennemi perd <span className="text-green-400">2%</span> PV actuels/tour, <span className="text-red-400">-10%</span> dégâts auto.
+          {' '}: ennemi perd <span className="text-green-400">{burnHpLabel}%</span> PV actuels/tour, <span className="text-red-400">-{autoReduct}%</span> dégâts auto.
         </>
       );
     }

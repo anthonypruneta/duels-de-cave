@@ -56,9 +56,9 @@ export const classConstants = {
     stackPerAuto: 0.008    // +0,8% de Cap par auto (cumulable)
   },
   masochiste: {
-    returnBase: 0.06,      // 6% des dégâts accumulés
+    returnBase: 0.07,      // 7% des dégâts accumulés
     returnPerCap: 0.005,   // +0.5% par point de Cap
-    healPercent: 0.10      // Heal 10% des dégâts accumulés
+    healPercent: 0.12      // Heal 12% des dégâts accumulés
   },
   briseurSort: {
     shieldFromSpellDamage: 0.50,  // 50% des dégâts reçus en bouclier
@@ -86,7 +86,7 @@ export const classConstants = {
   },
   sorciere: {
     curseStatReduction: 0.10,    // Malédiction : -10% (Enchanteresse : 15% via sous-classe)
-    capBase: 0.80,               // Portion Cap dans la formule (comme le Mage)
+    capBase: 0.75,               // Portion Cap (Hexe Noire ; Enchanteresse : 1.0 via sous-classe)
     capPerCap: 0
   },
   berserk: {
@@ -117,30 +117,34 @@ export const subclassConstants = {
   sniper: { hit2AutoMultiplier: 1.40 },                // 2e tir 140% Auto
   chasseur_fantome: { ghostHunterCapBonus: 0.40 },     // +40% CAP après crit sur la capacité
   arcaniste_instable: { damageTakenStack: 0.06, capBase: 1.0 }, // 100% Cap au sort
-  sorcier_neant: { capBase: 1.0 },                     // 100% Cap au sort ; Brûlure du Néant
+  sorcier_neant: {
+    capBase: 0.93,
+    neantBurnAutoMultiplier: 0.92,
+    neantBurnHpPercentPerTurn: 0.015
+  },
   maitre_invocateur: { capBase: 0.50, ignoreResist: 0.50, stackPerAuto: 0.008 },  // 50% Cap, 50% ignore, +1% Cap/auto
   pacte_sombre: { capBase: 0.50, ignoreResist: 0.45, stackPerAuto: 0.008, capStealPercent: 0.06 }, // 45% + vol 3% CAP
-  stratege_arcanique: { nextSpellReduction: 0.40 },    // -30% dégâts prochain sort
+  stratege_arcanique: { nextSpellReduction: 0.33 },
   mentaliste: { defBonusStack: 0.08 },                 // +8% DEF (stackable)
-  dompteuse_chair: { autoReductionStack: 0.09 },       // -6% Auto ennemi (stackable)
-  ame_tentatrice: {},                                  // Crit alterné (pas de ratio)
+  dompteuse_chair: { capScale: 0.48, autoReductionStack: 0.11 },
+  ame_tentatrice: { capScale: 0.47 },
   rempart_fer: { startShieldFromDef: 0.55 },           // Bouclier 55% DEF
   mur_implacable: {
     startShieldFromDef: 0.35,                          // Bouclier 35% DEF
     capScale: 0.55,                                    // Charge du Rempart: +55% CAP
     defScale: 0.55                                     // Charge du Rempart: +55% DEF
   },
-  luxum: { capShieldPercent: 0.25 },                   // Bouclier 10% CAP au soin
-  latum: { missingHpDamagePercent: 0.15 },             // 20% PV manquants en dégâts
-  flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.12 }, // -20% DEF, +12% Auto
-  ecorche_fer: { defRescapStack: 0.03 },               // +3% DEF et ResC par Purge
+  luxum: { missingHpPercent: 0.30, capScale: 0.45, capShieldPercent: 0.28 },
+  latum: { missingHpDamagePercent: 0.18, missingHpPercent: 0.30, capScale: 0.45 },
+  flagellant_sanglant: { defMultiplier: 0.80, autoMultiplier: 1.13 },
+  ecorche_fer: { defRescapStack: 0.035 },
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
   maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.08, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 108% Cap au soin (base classe 82%)
   alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = même ratio que la classe de base (82% Cap)
   hexe_noire: { sorcEffectiveCooldown: 3 },             // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
   enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
-  boucher: { rageMissingHpDamageScale: 0.50 },
+  boucher: { rageMissingHpDamageScale: 0.44 },
   brise_caves: { rageMissingHpDamageScale: 0.35 }       // +20% prochaine auto : berserk.nextAutoDamageBonus
 };
 
