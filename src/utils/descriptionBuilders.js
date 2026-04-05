@@ -178,7 +178,7 @@ export const buildClassDescription = (className, constants = null) => {
     case 'Guerrier': return `Frappe la résistance la plus faible. Ignore ${(c.ignoreBase || 0) * 100}% de la résistance ennemie + ${(c.ignorePerCap || 0) * 100}% de votre Cap. Gagne +${c.autoBonus || 0} Auto.`;
     case 'Voleur': return `Esquive la prochaine attaque. Gagne +${c.spdBonus || 0} VIT et +${((c.critPerCap || 0) * 100).toFixed(1)}% de votre Cap en chance de critique.`;
     case 'Paladin': return `Renvoie ${(c.reflectBase || 0) * 100}% des dégâts reçus + ${(c.reflectPerCap || 0) * 100}% de votre Cap.`;
-    case 'Healer': return `Soigne ${(c.missingHpPercent || 0) * 100}% des PV manquants + ${(c.capScale || 0) * 100}% de votre Cap.`;
+    case 'Healer': return `Soigne ${pct(c.missingHpPercent, 0)} des PV manquants + ${pct(c.capScale, 0)} de votre Cap.`;
     case 'Archer': return `Deux tirs : le premier inflige 100% de votre attaque. Le second inflige ${(c.hit2AutoMultiplier || 0) * 100}% de votre attaque + ${(c.hit2CapMultiplier || 0) * 100}% de votre Cap.`;
     case 'Mage': return `Inflige votre attaque de base + ${(c.capBase || 0) * 100}% de votre Cap.`;
     case 'Demoniste': return `Chaque tour, votre familier inflige ${(c.capBase || 0) * 100}% de votre Cap et ignore ${(c.ignoreResist || 0) * 100}% de la RésCap ennemie. Chaque auto augmente ces dégâts de ${(c.stackPerAuto || 0) * 100}% de Cap (cumulable).`;
