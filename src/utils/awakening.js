@@ -1,5 +1,6 @@
 import { races } from '../data/races.js';
-import { getRaceBonus } from '../data/combatMechanics.js';
+import { getRaceBonus, getCendresRacialAwakeningFragment } from '../data/combatMechanics.js';
+import { getCoopRaceEchoAwakeningFragment } from './coopRaceEcho.js';
 
 export const getAwakeningEffect = (race, level = 1) => {
   const awakening = races[race]?.awakening;
@@ -135,4 +136,19 @@ export function mergeAwakeningEffects(effects = []) {
     }
     return acc;
   }, {});
+}
+
+/**
+ * Même fusion que preparerCombattant : fragment racial Cendrés, éveil niveau, races additionnelles, Pointeau ADN coop.
+ */
+export function getMergedAwakeningEffectForPrep(char) {
+  const effectiveLevel = char?.awakeningForced ? 999 : (char?.level ?? 1);
+  const additionalAwakeningEffects = (char?.additionalAwakeningRaces || [])
+    .map((race) => getAwakeningEffect(race, effectiveLevel));
+  return mergeAwakeningEffects([
+    char?.race === 'Cendrés' ? getCendresRacialAwakeningFragment() : null,
+    getAwakeningEffect(char?.race, effectiveLevel),
+    ...additionalAwakeningEffects,
+    getCoopRaceEchoAwakeningFragment(char?.coopRaceEcho?.race),
+  ]);
 }

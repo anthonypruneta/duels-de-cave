@@ -28,7 +28,12 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
+import {
+  applyAwakeningToBase,
+  buildAwakeningState,
+  getMergedAwakeningEffectForPrep,
+  removeBaseRaceFlatBonusesIfAwakened
+} from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
@@ -278,7 +283,7 @@ const MageTower = () => {
     const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
     const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
     const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
-    const awakeningEffect = getAwakeningEffect(char.race, effectiveLevel);
+    const awakeningEffect = getMergedAwakeningEffectForPrep(char);
     const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
     const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
     const weaponState = initWeaponCombatState(char, weaponId);
@@ -290,7 +295,7 @@ const MageTower = () => {
       baseWithBoosts,
       currentHP: baseWithAwakening.hp,
       maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, sorc: 0, berz: 0 },
+      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
       undead: false,
       dodge: false,
       reflect: false,
@@ -302,9 +307,29 @@ const MageTower = () => {
       shieldExploded: false,
       spectralMarked: false,
       boneGuardActive: false,
+      mindflayerCapacityCopyUsed: false,
+      mindflayerNoCooldownBonusUsed: false,
+      turtlekinFirstHitUsed: false,
+      turtlekinResetAt50Used: false,
+      alchPhase: 0,
       firstCapacityCapBoostUsed: false,
       stunned: false,
       stunnedTurns: 0,
+      onctionLastStandUsed: false,
+      _labrysBleedPercent: 0,
+      berserkNextAutoMul: 1,
+      combatStatBaseline: {
+        auto: baseWithAwakening.auto,
+        def: baseWithAwakening.def,
+        cap: baseWithAwakening.cap,
+        rescap: baseWithAwakening.rescap,
+        spd: baseWithAwakening.spd
+      },
+      cendresCumulativeHpDamage: 0,
+      cendresBraisesHpConsumed: 0,
+      _cendresMaxHpRef: baseWithAwakening.hp,
+      cendresPool: 0,
+      cendresFirstSpellThisTurn: true,
       weaponState,
       awakening: buildAwakeningState(awakeningEffect)
     };

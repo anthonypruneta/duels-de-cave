@@ -15,16 +15,19 @@ import {
 import {
   cooldowns, classConstants, raceConstants, generalConstants, weaponConstants,
   dmgPhys, dmgCap, calcCritChance, getCritMultiplier, getSpeedDuelBonuses,
-  getSubclassCapacityConstants,
-  getCendresRacialAwakeningFragment
+  getSubclassCapacityConstants
 } from '../data/combatMechanics.js';
-import { applyAwakeningToBase, buildAwakeningState, getAwakeningEffect, removeBaseRaceFlatBonusesIfAwakened } from './awakening.js';
+import {
+  applyAwakeningToBase,
+  buildAwakeningState,
+  getMergedAwakeningEffectForPrep,
+  removeBaseRaceFlatBonusesIfAwakened
+} from './awakening.js';
 import { WORLD_BOSS_CONSTANTS } from '../data/worldBoss.js';
 import { isForgeActive } from '../data/featureFlags.js';
 import { hasAnyForgeUpgrade } from '../data/forgeDungeon.js';
 import { getSubclassStatBonuses } from '../data/subclasses.js';
 import { combatRandom01 } from './combatRngContext.js';
-import { getCoopRaceEchoAwakeningFragment } from './coopRaceEcho.js';
 import { snapshotCombatantStatusForUi } from './combatStatusSnapshot.js';
 
 // ============================================================================
@@ -131,84 +134,6 @@ function getAuraBonusFromList(passiveList, turn) {
 /** Boss Licorne (forêt) : Alternance mystique — tour impair +15%, tour pair -15% dégâts infligés/reçus */
 function getUnicornCycleMultiplier(turn) {
   return turn % 2 === 1 ? 1.15 : 0.85;
-}
-
-function mergeAwakeningEffects(effects = []) {
-  const validEffects = effects.filter(Boolean);
-  if (validEffects.length === 0) return null;
-
-  return validEffects.reduce((acc, effect) => {
-    if (effect.statMultipliers) {
-      acc.statMultipliers = acc.statMultipliers || {};
-      Object.entries(effect.statMultipliers).forEach(([stat, value]) => {
-        acc.statMultipliers[stat] = (acc.statMultipliers[stat] ?? 1) * value;
-      });
-    }
-
-    if (effect.statBonuses) {
-      acc.statBonuses = acc.statBonuses || {};
-      Object.entries(effect.statBonuses).forEach(([stat, value]) => {
-        acc.statBonuses[stat] = (acc.statBonuses[stat] ?? 0) + value;
-      });
-    }
-
-    const additiveKeys = ['critChanceBonus', 'critDamageBonus', 'damageStackBonus', 'explosionPercent', 'regenPercent', 'bleedPercentPerStack',
-      'mindflayerStealSpellCapDamageScale', 'mindflayerOwnCooldownReductionTurns', 'mindflayerNoCooldownSpellBonus',
-      'sireneStackBonus'];
-    additiveKeys.forEach((key) => {
-      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
-    });
-
-    const speedDuelKeys = [
-      'speedDuelCritHigh', 'speedDuelCritDmgHigh', 'speedDuelCapBonusLow', 'speedDuelDodgeLow',
-      'speedDuelEqualCrit', 'speedDuelEqualCritDmg', 'speedDuelEqualDodge', 'speedDuelEqualCapBonus',
-    ];
-    speedDuelKeys.forEach((key) => {
-      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 0) + effect[key];
-    });
-
-    if (typeof effect.sireneMaxStacks === 'number') {
-      acc.sireneMaxStacks = Math.max(acc.sireneMaxStacks ?? 0, effect.sireneMaxStacks);
-    }
-
-    if (typeof effect.turtlekinFirstHitCapPercent === 'number' && effect.turtlekinFirstHitCapPercent > 0) {
-      acc.turtlekinFirstHitCapPercent = Math.max(
-        acc.turtlekinFirstHitCapPercent ?? 0,
-        effect.turtlekinFirstHitCapPercent
-      );
-    }
-    if (
-      typeof effect.mindflayerCoopEchoCopyDamageMult === 'number' &&
-      effect.mindflayerCoopEchoCopyDamageMult > 0 &&
-      effect.mindflayerCoopEchoCopyDamageMult < 1
-    ) {
-      acc.mindflayerCoopEchoCopyDamageMult = effect.mindflayerCoopEchoCopyDamageMult;
-    }
-
-    const multiplicativeKeys = ['damageTakenMultiplier', 'incomingHitMultiplier'];
-    multiplicativeKeys.forEach((key) => {
-      if (typeof effect[key] === 'number') acc[key] = (acc[key] ?? 1) * effect[key];
-    });
-
-    if (typeof effect.highHpThreshold === 'number') {
-      acc.highHpThreshold = typeof acc.highHpThreshold === 'number'
-        ? Math.min(acc.highHpThreshold, effect.highHpThreshold)
-        : effect.highHpThreshold;
-    }
-    if (typeof effect.highHpDamageBonus === 'number') {
-      acc.highHpDamageBonus = (acc.highHpDamageBonus ?? 0) + effect.highHpDamageBonus;
-    }
-
-    if (typeof effect.incomingHitCount === 'number') acc.incomingHitCount = (acc.incomingHitCount ?? 0) + effect.incomingHitCount;
-    if (typeof effect.revivePercent === 'number') acc.revivePercent = Math.max(acc.revivePercent ?? 0, effect.revivePercent);
-    if (typeof effect.bleedStacksPerHit === 'number') acc.bleedStacksPerHit = (acc.bleedStacksPerHit ?? 0) + effect.bleedStacksPerHit;
-
-    if (effect.reviveOnce) acc.reviveOnce = true;
-    if (effect.turtlekinResetAt50) acc.turtlekinResetAt50 = true;
-    if (typeof effect.damageBonus === 'number') acc.damageBonus = effect.damageBonus;
-
-    return acc;
-  }, {});
 }
 
 function hasMortVivantRevive(fighter) {
@@ -326,14 +251,7 @@ export function preparerCombattant(char) {
   const skipWeaponFlat = hasForgeData && (isForgeActive() || charForPrep.awakeningForced);
   const passiveList = getPassiveDetailsList(charForPrep);
   const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, charForPrep.class, charForPrep.race, passiveList, skipWeaponFlat);
-  const additionalAwakeningEffects = (charForPrep.additionalAwakeningRaces || [])
-    .map((race) => getAwakeningEffect(race, effectiveLevel));
-  const awakeningEffect = mergeAwakeningEffects([
-    charForPrep.race === 'Cendrés' ? getCendresRacialAwakeningFragment() : null,
-    getAwakeningEffect(charForPrep.race, effectiveLevel),
-    ...additionalAwakeningEffects,
-    getCoopRaceEchoAwakeningFragment(charForPrep.coopRaceEcho?.race),
-  ]);
+  const awakeningEffect = getMergedAwakeningEffectForPrep(charForPrep);
   const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
   const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
   // Forge des Légendes: appliquer les % d'upgrade sur les stats totales

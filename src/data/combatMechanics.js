@@ -35,8 +35,8 @@ export const classConstants = {
     reflectPerCap: 0.006   // +0.6% par point de Cap
   },
   healer: {
-    missingHpPercent: 0.25, // 25% des PV manquants
-    capScale: 0.40          // 40% de la Cap
+    missingHpPercent: 0.28, // 28% des PV manquants
+    capScale: 0.43          // 43% de la Cap
   },
   archer: {
     hitCount: 2,
@@ -79,7 +79,7 @@ export const classConstants = {
   alchimiste: {
     cycleLength: 3,              // 3 phases : feu, vie, acide
     fireCapScale: 0.10,          // Flasque de feu : Auto + 10% CAP
-    lifeCapScale: 1.0,           // Flasque de vie (sans sous-classe / pré-éveil) : 100% de la Cap
+    lifeCapScale: 0.82,          // Flasque de vie : 82% de la Cap (classe de base)
     acidDefReduction: 0.10,      // Flasque d'acide : -10% DEF ennemi
     acidRescReduction: 0.10,     // Flasque d'acide : -10% ResC ennemi
     metalStunDuration: 1         // Flasque de métal (sous-classe) : stun 1 tour
@@ -136,8 +136,8 @@ export const subclassConstants = {
   ecorche_fer: { defRescapStack: 0.03 },               // +3% DEF et ResC par Purge
   assassin: {},                                        // Crit garanti (pas de ratio)
   roublard: {},                                        // Vol stat (pas de ratio)
-  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.3, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 130% Cap au soin (Alchimiste de métal : 100%, hérite de la base)
-  alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = 100% Cap (comme la classe de base)
+  maitre_alchimiste: { fireCapScale: 0.30, lifeCapScale: 1.08, acidDefReduction: 0.25, acidRescReduction: 0.25 }, // Maître : 108% Cap au soin (base classe 82%)
+  alchimiste_metal: { cycleLength: 4 },                // 4 phases ; soin Vie = même ratio que la classe de base (82% Cap)
   hexe_noire: { sorcEffectiveCooldown: 3 },             // Malédiction CD 3 (override dans getMindflayerCapacityCooldown)
   enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
   boucher: { rageMissingHpDamageScale: 0.50 },
