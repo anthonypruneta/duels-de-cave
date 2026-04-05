@@ -648,7 +648,7 @@ function PvpLobby() {
       <Header />
       <div className={`${mainMaxWidth} mx-auto pt-20 space-y-6`}>
         <div className="space-y-4">
-          <div className="mx-auto max-w-2xl rounded-xl border-2 border-amber-600/55 bg-stone-950/92 px-5 py-4 shadow-lg ring-1 ring-amber-900/35 text-center space-y-3">
+          <div className="mx-auto max-w-2xl rounded-xl border-2 border-amber-600/55 bg-stone-950/90 p-4 shadow-lg ring-1 ring-amber-900/30 text-center space-y-3">
             <h1 className="text-3xl font-bold text-amber-400">⚔️ PvP — Lobby</h1>
             <p className="text-stone-300 text-sm leading-relaxed">
               Uniquement des personnages archivés (tournoi), pas ton personnage actif. Niveau max
@@ -784,7 +784,11 @@ function PvpLobby() {
         {inRoom && room && !replayPhase && (
           <>
             <div className="max-w-md mx-auto">{renderLeaderboardEncadre()}</div>
-            <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4">
+            <div
+              className={`bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4 mx-auto w-full ${
+                room.status === 'lobby' ? 'max-w-6xl' : 'max-w-xl'
+              }`}
+            >
               <h2 className="text-xl font-bold text-stone-200">Salle</h2>
               {!room.isMatchmakingQueue && (
                 <p className="text-stone-400 text-sm font-mono break-all">ID : {room.id}</p>
