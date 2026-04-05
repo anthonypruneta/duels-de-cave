@@ -21,6 +21,40 @@ function formatPercent(value) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.?0+$/, '');
 }
 
+/** Rage Berserk : Auto + % PV manquants (scaling Cap), comme Voleur (vert + tooltip). */
+function BerserkRageCalculatedBlock({ cap, auto, Tooltip, berC, briseCavesNextAuto = false }) {
+  const scale = berC.rageMissingHpDamageScale ?? classConstants.berserk.rageMissingHpDamageScale;
+  const scalePerCap = berC.rageMissingHpScalePerCap ?? classConstants.berserk.rageMissingHpScalePerCap ?? 0;
+  const hpCostPct = berC.rageHpCostPercent ?? classConstants.berserk.rageHpCostPercent;
+  const basePct = Math.round(scale * 100);
+  const capBonusPct = Math.round(scalePerCap * cap * 100);
+  const totalMissingHpPct = basePct + capBonusPct;
+  const hpCostDisplay = Math.round(hpCostPct * 100);
+  const nextAutoPct = Math.round((classConstants.berserk.nextAutoDamageBonus ?? 0.2) * 100);
+
+  return (
+    <>
+      Consomme {hpCostDisplay}% PV max (ne peut pas tuer).
+      <br />
+      Inflige{' '}
+      <Tooltip content={`Auto (${auto})`}>
+        <span className="text-green-400">{auto}</span>
+      </Tooltip>
+      {' '}+{' '}
+      <Tooltip content={`Base: ${basePct}%\n+ ${formatPercent(scalePerCap)}% × Cap (${cap}) = +${capBonusPct}%`}>
+        <span className="text-green-400">{totalMissingHpPct}%</span>
+      </Tooltip>
+      {' '}des PV manquants (après coût)
+      {briseCavesNextAuto ? (
+        <>
+          . Prochaine auto +<span className="text-green-400">{nextAutoPct}%</span> dégâts
+        </>
+      ) : null}
+      .
+    </>
+  );
+}
+
 export function getCalculatedClassDescription(className, cap, auto, def = 0, rescap = 0, subclassId = null) {
   const Tooltip = SharedTooltip;
   switch (className) {
@@ -255,6 +289,19 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           </Tooltip>
           {' '}dégâts, réduit DEF de <span className="text-green-400">{defRedPct}%</span> et ResC de <span className="text-green-400">{resRedPct}%</span>
         </>
+      );
+    }
+
+    case 'Berserk': {
+      const berC = getSubclassCapacityConstants('Berserk', subclassId);
+      return (
+        <BerserkRageCalculatedBlock
+          cap={cap}
+          auto={auto}
+          Tooltip={Tooltip}
+          berC={berC}
+          briseCavesNextAuto={subclassId === 'brise_caves'}
+        />
       );
     }
 
@@ -679,6 +726,15 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
         </>
       );
     }
+
+    case 'boucher':
+      return (
+        <BerserkRageCalculatedBlock cap={cap} auto={auto} Tooltip={Tooltip} berC={c} briseCavesNextAuto={false} />
+      );
+    case 'brise_caves':
+      return (
+        <BerserkRageCalculatedBlock cap={cap} auto={auto} Tooltip={Tooltip} berC={c} briseCavesNextAuto />
+      );
 
     case 'maitre_alchimiste':
     case 'alchimiste_metal': {
