@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { classConstants, getSubclassCapacityConstants, dmgCap } from '../data/combatMechanics';
+import { classConstants, getSubclassCapacityConstants } from '../data/combatMechanics';
 import { getSubclassStatBonuses } from '../data/subclasses';
 import { getClassDescriptionText, buildSubclassDescription } from './descriptionBuilders';
 import SharedTooltip from '../components/SharedTooltip';
@@ -51,6 +51,55 @@ function BerserkRageCalculatedBlock({ cap, auto, Tooltip, berC, briseCavesNextAu
         </>
       ) : null}
       .
+    </>
+  );
+}
+
+/** Malédiction Sorcière : % malus + dégâts Auto + (capBase + capPerCap×Cap)×Cap, comme Mage (vert + tooltip). */
+function SorciereMaledictionCalculatedBlock({ cap, auto, Tooltip, sorC, subclassId }) {
+  const cursePctSort = sorC.curseStatReduction ?? classConstants.sorciere.curseStatReduction;
+  const curseSortDisplay = Math.round(cursePctSort * 100);
+  const capBase = sorC.capBase ?? classConstants.sorciere.capBase;
+  const capPerCap = sorC.capPerCap ?? classConstants.sorciere.capPerCap;
+  const magicPct = capBase + capPerCap * cap;
+  const magicDmgTotal = Math.round(magicPct * cap);
+  const total = auto + magicDmgTotal;
+
+  const pctDebutHexe =
+    subclassId === 'hexe_noire'
+      ? Math.round((sorC.curseStatReductionStartOfCombat ?? sorC.curseStatReduction ?? 0) * 100)
+      : null;
+
+  return (
+    <>
+      {subclassId === 'hexe_noire' ? (
+        <>
+          Début de combat : Malédiction{' '}
+          <Tooltip content="Une fois au début du combat, permanent sur la cible">
+            <span className="text-green-400">−{pctDebutHexe}%</span>
+          </Tooltip>
+          {' '}d&apos;une stat adverse au hasard.
+          <br />
+          Malédiction (CD 3) :{' '}
+        </>
+      ) : (
+        <>Malédiction : </>
+      )}
+      <Tooltip content={`−${curseSortDisplay}% d'une stat adverse au hasard (cumul sur la valeur courante)`}>
+        <span className="text-green-400">−{curseSortDisplay}%</span>
+      </Tooltip>
+      {' '}d&apos;une stat adverse (cumul).
+      <br />
+      Dégâts (hors vol de stats) :{' '}
+      <Tooltip
+        content={`Auto (${auto}) + ${formatPercent(magicPct)}% × Cap (${cap}) = ${magicDmgTotal}\n+ points de stats retirés à l'ennemi (toutes sources, avant ResC)`}
+      >
+        <span className="text-green-400">{total}</span>
+      </Tooltip>
+      {' '}
+      <Tooltip content="Chaque Malédiction retire un % de la stat courante de la cible ; la somme des points perdus s'ajoute aux dégâts du sort.">
+        <span className="text-purple-400 underline decoration-dotted cursor-help">+ vol de stats</span>
+      </Tooltip>
     </>
   );
 }
@@ -150,6 +199,19 @@ export function getCalculatedClassDescription(className, cap, auto, def = 0, res
           </Tooltip>
           {' '}dégâts magiques
         </>
+      );
+    }
+
+    case 'Sorcière': {
+      const sorC = getSubclassCapacityConstants('Sorcière', subclassId);
+      return (
+        <SorciereMaledictionCalculatedBlock
+          cap={cap}
+          auto={auto}
+          Tooltip={Tooltip}
+          sorC={sorC}
+          subclassId={subclassId}
+        />
       );
     }
 
@@ -726,6 +788,12 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
         </>
       );
     }
+
+    case 'hexe_noire':
+    case 'enchanteresse':
+      return (
+        <SorciereMaledictionCalculatedBlock cap={cap} auto={auto} Tooltip={Tooltip} sorC={c} subclassId={subclassId} />
+      );
 
     case 'boucher':
       return (
