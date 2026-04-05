@@ -239,6 +239,89 @@ function getTotalSorciereStatPointsReduced(fighter) {
 // PRÉPARATION COMBATTANT
 // ============================================================================
 
+/**
+ * Cooldowns initiaux (identique à l'objet `cd` de preparerCombattant).
+ * Centralisé pour que les resets entre combats restent alignés avec le moteur.
+ */
+export function getInitialCombatCooldowns() {
+  return {
+    war: 0,
+    rog: 0,
+    pal: 0,
+    heal: 0,
+    arc: 0,
+    mag: 0,
+    dem: 0,
+    maso: 0,
+    succ: 0,
+    bast: 0,
+    alch: 0,
+    sorc: 0,
+    berz: 0,
+    boss_ability: 0
+  };
+}
+
+/**
+ * PV au max + remise à zéro des états éphémères entre deux combats de donjon.
+ * À utiliser sur un combattant déjà issu de preparerCombattant.
+ */
+export function resetTransientCombatFieldsBetweenFights(p) {
+  if (!p) return;
+  p.currentHP = p.maxHP;
+  p.undead = false;
+  p.dodge = false;
+  p.reflect = false;
+  p.bleed_stacks = 0;
+  p.bleedPercentPerStack = 0;
+  p.maso_taken = 0;
+  p.familiarStacks = 0;
+  p.shield = 0;
+  p.shieldExploded = false;
+  p.sireneStacks = 0;
+  p.succubeWeakenNextAttack = false;
+  p.spectralMarked = false;
+  p.spectralMarkBonus = 0;
+  p.mindflayerCapacityCopyUsed = false;
+  p.mindflayerNoCooldownBonusUsed = false;
+  p.firstCapacityCapBoostUsed = false;
+  p.stunned = false;
+  p.stunnedTurns = 0;
+  p.boneGuardActive = false;
+  p._labrysBleedPercent = 0;
+  p.onctionLastStandUsed = false;
+  p.turtlekinFirstHitUsed = false;
+  p.turtlekinResetAt50Used = false;
+  p.alchPhase = 0;
+  if (p.awakening) {
+    p.awakening.incomingHitCountRemaining = p.awakening.incomingHitCount ?? 0;
+    p.awakening.damageTakenStacks = 0;
+  }
+  p.cd = getInitialCombatCooldowns();
+  p.berserkNextAutoMul = 1;
+  p.cendresCumulativeHpDamage = 0;
+  p.cendresBraisesHpConsumed = 0;
+  p._cendresMaxHpRef = p.base?.hp ?? p.maxHP;
+  p.cendresPool = 0;
+  p.cendresFirstSpellThisTurn = true;
+  if (p.weaponState?.counters) {
+    p.weaponState.counters.turnCount = 0;
+    p.weaponState.counters.attackCount = 0;
+    p.weaponState.counters.capacityCount = 0;
+    p.weaponState.counters.firstHitDone = false;
+    p.weaponState.counters.gungnirApplied = false;
+  }
+}
+
+/**
+ * Construit l'état combat complet à partir d'un personnage ou NPC brut (Firestore, fabrique de boss, etc.).
+ * Utiliser pour l'affichage (cartes, barres PV) et tout snapshot aligné sur le moteur.
+ *
+ * Ne pas passer le retour à simulerMatch : le moteur rappelle preparerCombattant sur les données brutes
+ * (double préparation si on repasse un objet déjà préparé).
+ *
+ * @param {Object} char - Données brutes (race, class, base, forestBoosts, équipement, passifs, etc.)
+ */
 export function preparerCombattant(char) {
   const charForPrep = char;
   const weaponId = charForPrep?.equippedWeaponId || charForPrep?.equippedWeaponData?.id || null;
@@ -295,7 +378,7 @@ export function preparerCombattant(char) {
     baseWithBoosts,
     currentHP: startHP,
     maxHP: baseFinal.hp,
-    cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
+    cd: getInitialCombatCooldowns(),
     undead: false,
     dodge: false,
     reflect: false,
@@ -2512,8 +2595,9 @@ export function applyGnomeCapBonus(fighter, opponent) {
  * Simule un combat entre deux combattants.
  * IMPORTANT: char1 et char2 doivent être des données BRUTES (personnage / boss non préparés).
  * simulerMatch appelle preparerCombattant() sur les deux arguments. Ne jamais passer
- * un objet déjà passé par prepareForCombat ou preparerCombattant (sinon forêt/arme/passif
+ * un objet déjà passé par preparerCombattant (sinon forêt/arme/passif
  * sont appliqués deux fois → bug "double préparation" dans les donjons).
+ * Pour l'UI (cartes, barres PV), utiliser preparerCombattant(brut) séparément — pas comme argument de simulerMatch.
  * @param {Object} char1 - Personnage ou NPC brut (ex. character depuis Firestore, createBossCombatant(), buildFloorEnemy())
  * @param {Object} char2 - Idem
  */

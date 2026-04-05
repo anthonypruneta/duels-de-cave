@@ -28,12 +28,6 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import {
-  applyAwakeningToBase,
-  buildAwakeningState,
-  getMergedAwakeningEffectForPrep,
-  removeBaseRaceFlatBonusesIfAwakened
-} from '../utils/awakening';
 import { getWeaponById, RARITY_COLORS } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import { isForgeActive } from '../data/featureFlags';
@@ -70,7 +64,7 @@ import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CombatSpeedSelector from './CombatSpeedSelector';
-import { simulerMatch } from '../utils/tournamentCombat';
+import { preparerCombattant, resetTransientCombatFieldsBetweenFights, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
 
@@ -275,86 +269,7 @@ const MageTower = () => {
 
   const getCalculatedDescription = getCalculatedClassDescription;
 
-  const prepareForCombat = (char) => {
-    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const effectiveLevel = char.level ?? 1;
-    const forestBoosts = { ...getEmptyStatBoosts(), ...(char.forestBoosts || {}) };
-    const baseWithBoostsRaw = applyStatBoosts(char.base, forestBoosts);
-    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
-    const awakeningEffect = getMergedAwakeningEffectForPrep(char);
-    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-    const weaponState = initWeaponCombatState(char, weaponId);
-    return {
-      ...char,
-      _storedBase: char.base,
-      base: baseWithAwakening,
-      baseWithoutWeapon,
-      baseWithBoosts,
-      currentHP: baseWithAwakening.hp,
-      maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
-      undead: false,
-      dodge: false,
-      reflect: false,
-      bleed_stacks: 0,
-      bleedPercentPerStack: 0,
-      maso_taken: 0,
-      familiarStacks: 0,
-      shield: 0,
-      shieldExploded: false,
-      spectralMarked: false,
-      boneGuardActive: false,
-      mindflayerCapacityCopyUsed: false,
-      mindflayerNoCooldownBonusUsed: false,
-      turtlekinFirstHitUsed: false,
-      turtlekinResetAt50Used: false,
-      alchPhase: 0,
-      firstCapacityCapBoostUsed: false,
-      stunned: false,
-      stunnedTurns: 0,
-      onctionLastStandUsed: false,
-      _labrysBleedPercent: 0,
-      berserkNextAutoMul: 1,
-      combatStatBaseline: {
-        auto: baseWithAwakening.auto,
-        def: baseWithAwakening.def,
-        cap: baseWithAwakening.cap,
-        rescap: baseWithAwakening.rescap,
-        spd: baseWithAwakening.spd
-      },
-      cendresCumulativeHpDamage: 0,
-      cendresBraisesHpConsumed: 0,
-      _cendresMaxHpRef: baseWithAwakening.hp,
-      cendresPool: 0,
-      cendresFirstSpellThisTurn: true,
-      weaponState,
-      awakening: buildAwakeningState(awakeningEffect)
-    };
-  };
-
-  const fullHealPlayer = (p) => {
-    p.currentHP = p.maxHP;
-    p.undead = false;
-    p.dodge = false;
-    p.reflect = false;
-    p.bleed_stacks = 0;
-    p.bleedPercentPerStack = 0;
-    p.maso_taken = 0;
-    p.familiarStacks = 0;
-    p.shield = 0;
-    p.shieldExploded = false;
-    p.firstCapacityCapBoostUsed = false;
-    p.stunned = false;
-    p.stunnedTurns = 0;
-    if (p.awakening) {
-      p.awakening.incomingHitCountRemaining = p.awakening.incomingHitCount ?? 0;
-      p.awakening.damageTakenStacks = 0;
-    }
-    p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
-  };
+  const fullHealPlayer = (p) => resetTransientCombatFieldsBetweenFights(p);
 
   const getAntiHealFactor = (opponent) => {
     let factor = 1;
@@ -994,7 +909,7 @@ const MageTower = () => {
     ensureTowerMusic();
 
     const levelData = getMageTowerLevelByNumber(1);
-    const playerReady = prepareForCombat({
+    const playerReady = preparerCombattant({
       ...character,
       mageTowerPassive: equippedPassive,
       equippedWeaponData: equippedWeapon,
@@ -1117,7 +1032,7 @@ const MageTower = () => {
     if (!rewardSummary) return;
     if (rewardSummary.hasNextLevel) {
       const nextLevelData = getMageTowerLevelByNumber(rewardSummary.nextLevel);
-      const refreshedPlayer = prepareForCombat({
+      const refreshedPlayer = preparerCombattant({
         ...character,
         mageTowerPassive: passiveOverride,
         equippedWeaponData: equippedWeapon,

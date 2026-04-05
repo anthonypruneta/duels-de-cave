@@ -5,10 +5,6 @@ import { getUserCharacter, updateCharacterLevel } from '../services/characterSer
 import { getPlayerDungeonSummary } from '../services/dungeonService';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, getAvailablePassives } from '../data/mageTowerPassives';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
-import {
-  applyPassiveWeaponStats,
-  initWeaponCombatState,
-} from '../utils/weaponEffects';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { getRaceBonusText } from '../utils/descriptionBuilders';
@@ -26,14 +22,7 @@ import {
   getWeaponFamilyInfo,
 } from '../data/weapons';
 import WeaponNameWithForge from './WeaponWithForgeDisplay';
-import { isForgeActive } from '../data/featureFlags';
-import { extractForgeUpgrade, computeForgeStatDelta, hasAnyForgeUpgrade, generateForgeUpgradeRoll } from '../data/forgeDungeon';
-import {
-  applyAwakeningToBase,
-  buildAwakeningState,
-  getMergedAwakeningEffectForPrep,
-  removeBaseRaceFlatBonusesIfAwakened
-} from '../utils/awakening';
+import { generateForgeUpgradeRoll } from '../data/forgeDungeon';
 import { getExtensionPassiveOptions } from '../data/extensionDungeon';
 import { getSubclassesForClass, getSubclassById } from '../data/subclasses';
 import Header from './Header';
@@ -327,69 +316,6 @@ const Training = () => {
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [combatLog]);
 
-  // Préparer le joueur pour le combat (même pattern que Dungeon.jsx)
-  const prepareForCombat = (char) => {
-    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const effectiveLevel = char.level ?? 1;
-    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
-    const awakeningEffect = getMergedAwakeningEffectForPrep(char);
-    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-    const weaponState = initWeaponCombatState(char, weaponId);
-    return {
-      ...char,
-      _storedBase: char.base,
-      base: baseWithAwakening,
-      baseWithoutWeapon,
-    baseWithBoosts,
-      currentHP: baseWithAwakening.hp,
-      maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
-      undead: false,
-      dodge: false,
-      reflect: false,
-      bleed_stacks: 0,
-      bleedPercentPerStack: 0,
-      maso_taken: 0,
-      familiarStacks: 0,
-      shield: 0,
-      shieldExploded: false,
-      sireneStacks: 0,
-      succubeWeakenNextAttack: false,
-      spectralMarked: false,
-      spectralMarkBonus: 0,
-      firstCapacityCapBoostUsed: false,
-      stunned: false,
-      stunnedTurns: 0,
-      boneGuardActive: false,
-      mindflayerCapacityCopyUsed: false,
-      mindflayerNoCooldownBonusUsed: false,
-      turtlekinFirstHitUsed: false,
-      turtlekinResetAt50Used: false,
-      alchPhase: 0,
-      onctionLastStandUsed: false,
-      _labrysBleedPercent: 0,
-      berserkNextAutoMul: 1,
-      combatStatBaseline: {
-        auto: baseWithAwakening.auto,
-        def: baseWithAwakening.def,
-        cap: baseWithAwakening.cap,
-        rescap: baseWithAwakening.rescap,
-        spd: baseWithAwakening.spd
-      },
-      cendresCumulativeHpDamage: 0,
-      cendresBraisesHpConsumed: 0,
-      _cendresMaxHpRef: baseWithAwakening.hp,
-      cendresPool: 0,
-      cendresFirstSpellThisTurn: true,
-      weaponState,
-      awakening: buildAwakeningState(awakeningEffect)
-    };
-  };
-
   const currentDummyRaw = buildConfiguredDummy(dummyConfig);
 
   const handleStart = () => {
@@ -397,7 +323,7 @@ const Training = () => {
     setCombatResult(null);
     setDpsStats(null);
 
-    const playerReady = prepareForCombat(character);
+    const playerReady = preparerCombattant(character);
     const dummyReady = preparerCombattant(currentDummyRaw);
 
     setPlayer(playerReady);

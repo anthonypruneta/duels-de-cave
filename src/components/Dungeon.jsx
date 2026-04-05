@@ -61,17 +61,11 @@ import {
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
-import {
-  applyAwakeningToBase,
-  buildAwakeningState,
-  getMergedAwakeningEffectForPrep,
-  removeBaseRaceFlatBonusesIfAwakened
-} from '../utils/awakening';
 import Header from './Header';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
-import { simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
+import { preparerCombattant, resetTransientCombatFieldsBetweenFights, simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { checkAndAwardTitles } from '../services/titleService';
 import CombatSpeedSelector from './CombatSpeedSelector';
@@ -333,98 +327,8 @@ const Dungeon = () => {
 
   const getCalculatedDescription = getCalculatedClassDescription;
 
-  // Préparer un personnage pour le combat
-  const prepareForCombat = (char) => {
-    const weaponId = char?.equippedWeaponId || char?.equippedWeaponData?.id || null;
-    const effectiveLevel = char.level ?? 1;
-    const baseWithBoostsRaw = applyStatBoosts(char.base, char.forestBoosts);
-    const baseWithBoosts = removeBaseRaceFlatBonusesIfAwakened(baseWithBoostsRaw, char.race, effectiveLevel);
-    const skipWeaponFlat = isForgeActive() && char.forgeUpgrade && hasAnyForgeUpgrade(char.forgeUpgrade);
-    const baseWithWeapon = applyPassiveWeaponStats(baseWithBoosts, weaponId, char.class, char.race, char.mageTowerPassive, skipWeaponFlat);
-    const awakeningEffect = getMergedAwakeningEffectForPrep(char);
-    const baseWithAwakening = applyAwakeningToBase(baseWithWeapon, awakeningEffect);
-    const baseWithoutWeapon = applyAwakeningToBase(baseWithBoosts, awakeningEffect);
-    const weaponState = initWeaponCombatState(char, weaponId);
-    return {
-      ...char,
-      _storedBase: { ...char.base },
-      base: baseWithAwakening,
-      baseWithoutWeapon,
-      baseWithBoosts,
-      currentHP: baseWithAwakening.hp,
-      maxHP: baseWithAwakening.hp,
-      cd: { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0, succ: 0, bast: 0, alch: 0, sorc: 0, berz: 0, boss_ability: 0 },
-      undead: false,
-      dodge: false,
-      reflect: false,
-      bleed_stacks: 0,
-      bleedPercentPerStack: 0,
-      maso_taken: 0,
-      familiarStacks: 0,
-      shield: 0,
-      shieldExploded: false,
-      sireneStacks: 0,
-      succubeWeakenNextAttack: false,
-      spectralMarked: false,
-      spectralMarkBonus: 0,
-      firstCapacityCapBoostUsed: false,
-      stunned: false,
-      stunnedTurns: 0,
-      boneGuardActive: false,
-      mindflayerCapacityCopyUsed: false,
-      mindflayerNoCooldownBonusUsed: false,
-      turtlekinFirstHitUsed: false,
-      turtlekinResetAt50Used: false,
-      alchPhase: 0,
-      onctionLastStandUsed: false,
-      _labrysBleedPercent: 0,
-      berserkNextAutoMul: 1,
-      combatStatBaseline: {
-        auto: baseWithAwakening.auto,
-        def: baseWithAwakening.def,
-        cap: baseWithAwakening.cap,
-        rescap: baseWithAwakening.rescap,
-        spd: baseWithAwakening.spd
-      },
-      cendresCumulativeHpDamage: 0,
-      cendresBraisesHpConsumed: 0,
-      _cendresMaxHpRef: baseWithAwakening.hp,
-      cendresPool: 0,
-      cendresFirstSpellThisTurn: true,
-      weaponState,
-      awakening: buildAwakeningState(awakeningEffect)
-    };
-  };
-
-  // Full heal du joueur (entre les boss)
-  const fullHealPlayer = (p) => {
-    p.currentHP = p.maxHP;
-    p.undead = false;
-    p.dodge = false;
-    p.reflect = false;
-    p.bleed_stacks = 0;
-    p.bleedPercentPerStack = 0;
-    p.maso_taken = 0;
-    p.familiarStacks = 0;
-    p.shield = 0;
-    p.spectralMarked = false;
-    p.spectralMarkBonus = 0;
-    p.firstCapacityCapBoostUsed = false;
-    p.stunned = false;
-    p.stunnedTurns = 0;
-    if (p.awakening) {
-      p.awakening.incomingHitCountRemaining = p.awakening.incomingHitCount ?? 0;
-      p.awakening.damageTakenStacks = 0;
-    }
-    p.cd = { war: 0, rog: 0, pal: 0, heal: 0, arc: 0, mag: 0, dem: 0, maso: 0 };
-    if (p.weaponState?.counters) {
-      p.weaponState.counters.turnCount = 0;
-      p.weaponState.counters.attackCount = 0;
-      p.weaponState.counters.capacityCount = 0;
-      p.weaponState.counters.firstHitDone = false;
-      p.weaponState.counters.gungnirApplied = false;
-    }
-  };
+  // Full heal du joueur (entre les boss) — aligné sur preparerCombattant / moteur
+  const fullHealPlayer = (p) => resetTransientCombatFieldsBetweenFights(p);
 
   // Fonction de résurrection mort-vivant
   const getAntiHealFactor = (opponent) => {
@@ -1010,7 +914,7 @@ const Dungeon = () => {
 
     // Préparer le premier combat
     const levelData = getDungeonLevelByNumber(1);
-    const playerReady = prepareForCombat(character);
+    const playerReady = preparerCombattant(character);
     const bossReady = createBossCombatant(levelData.bossId);
     if (bossReady) {
       bossReady.weaponState = initWeaponCombatState(bossReady, null);

@@ -6,6 +6,7 @@ import { getUserCharacter } from '../services/characterService';
 import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd, getChampionBossStatsByUserId, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
+import { preparerCombattant } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { WORLD_BOSS, EVENT_STATUS } from '../data/worldBoss';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -580,8 +581,9 @@ const WorldBoss = () => {
     setBossCombatBase(null);
     setPlayerCombatModifiers(null);
     setPlayerCombatStatus(null);
+    const playerPrepared = preparerCombattant(character);
     setPlayerState({
-      ...character,
+      ...playerPrepared,
       currentHP: result.p1MaxHP,
       maxHP: result.p1MaxHP,
       shield: 0

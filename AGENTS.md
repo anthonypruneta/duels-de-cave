@@ -12,3 +12,9 @@ Les constantes d’équilibrage (races, classes, armes, passifs, bosses) sont au
 - Exemple : `export const BALANCE_CONFIG_VERSION = 1;` → passer à `2` après une modif d’équilibrage.
 
 Sans cela, les changements dans le code seront ignorés au profit de l’ancienne config Firestore.
+
+## Préparation combattant (`preparerCombattant`)
+
+- **Affichage** (cartes, PV, état synchronisé avec le moteur) : `preparerCombattant(donnéesBrutes)` depuis `src/utils/tournamentCombat.js`.
+- **Simulation** : `simulerMatch(brut1, brut2)` — ne jamais y passer le retour de `preparerCombattant` (double application forêt / arme / passifs).
+- **Nouveaux champs** de combat côté moteur : les ajouter dans `preparerCombattant` et, si besoin entre deux salles, dans `resetTransientCombatFieldsBetweenFights` — pas une copie locale dans un composant.
