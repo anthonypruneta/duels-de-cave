@@ -14,6 +14,7 @@ import {
   subscribeTaverneChat,
 } from '../services/taverneService';
 import TournamentBettingModal from './TournamentBettingModal';
+import TavernBettingBoardVisual from './TavernBettingBoardVisual';
 
 const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
 
@@ -409,15 +410,15 @@ export default function Taverne() {
             draggable={false}
           />
 
-          {/* Tableau des paris (tournoi) */}
+          {/* Tableau des paris (tournoi) — illustration type affichage taverne */}
           <div
-            className={`absolute z-[15] flex flex-col items-center justify-center pointer-events-auto cursor-pointer transition-transform duration-200 ${hoveredBettingBoard ? 'scale-105' : ''}`}
+            className={`absolute z-[15] flex flex-col items-center justify-center pointer-events-auto cursor-pointer transition-transform duration-200 ${hoveredBettingBoard ? 'scale-[1.06]' : ''}`}
             style={{
               left: '50%',
               top: '36%',
               transform: 'translate(-50%, -50%)',
-              width: 'clamp(72px, 11vw, 120px)',
-              height: 'clamp(56px, 9vw, 96px)',
+              width: 'clamp(104px, 15vw, 168px)',
+              height: 'clamp(86px, 12.5vw, 138px)',
             }}
             onMouseEnter={() => setHoveredBettingBoard(true)}
             onMouseLeave={() => setHoveredBettingBoard(false)}
@@ -432,15 +433,7 @@ export default function Taverne() {
             }}
             title="Ouvrir les paris du tournoi"
           >
-            <div
-              className={`w-full h-full rounded-lg border-2 border-dashed flex items-center justify-center text-center px-1 shadow-lg ${
-                hoveredBettingBoard ? 'border-amber-400 bg-amber-950/55' : 'border-amber-700/55 bg-stone-950/40'
-              }`}
-            >
-              <span className="text-[clamp(8px,1.2vw,11px)] font-bold text-amber-200/95 leading-tight select-none">
-                Paris tournoi
-              </span>
-            </div>
+            <TavernBettingBoardVisual hovered={hoveredBettingBoard} />
           </div>
 
           {/* Slots des personnages */}
