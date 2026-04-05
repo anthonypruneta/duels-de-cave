@@ -79,31 +79,39 @@ service cloud.firestore {
           return tournamentId == 'current';
         }
         function tournamentPreparation() {
-          return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.statut == 'preparation';
+          let d = get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+          return d != null && d.statut == 'preparation';
         }
         function validParticipantId(pid) {
           return pid is string && pid.size() > 0 && pid.size() <= 128;
         }
-        function validRunsStaked(n) {
-          return n is int && n >= 1 && n <= 500000;
+        // Le SDK envoie souvent des nombres en double : « is int » refuse et provoque permission-denied.
+        function validRunsStakedNumber(n) {
+          return n is number && n >= 1 && n <= 500000;
         }
         function tournoiDoc() {
           return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
         }
         function betTargetIsNotOwnCharacter(participantId) {
-          let p = tournoiDoc().participants[participantId];
-          return p != null && p.ownerUserId != request.auth.uid;
+          let docData = tournoiDoc();
+          return docData != null &&
+                 participantId is string &&
+                 docData.participants is map &&
+                 docData.participants.keys().hasAny([participantId]) &&
+                 docData.participants[participantId] is map &&
+                 docData.participants[participantId].keys().hasAll(['ownerUserId']) &&
+                 string(docData.participants[participantId].ownerUserId) != string(request.auth.uid);
         }
         function validUserBetCreate() {
           return validParticipantId(request.resource.data.participantId) &&
-                 validRunsStaked(request.resource.data.runsStaked) &&
+                 validRunsStakedNumber(request.resource.data.runsStaked) &&
                  request.resource.data.updatedAt == request.time &&
                  betTargetIsNotOwnCharacter(request.resource.data.participantId);
         }
         function validUserBetUpdate() {
           return request.resource.data.participantId == resource.data.participantId &&
                  validParticipantId(request.resource.data.participantId) &&
-                 request.resource.data.runsStaked is int &&
+                 validRunsStakedNumber(request.resource.data.runsStaked) &&
                  request.resource.data.runsStaked > resource.data.runsStaked &&
                  request.resource.data.runsStaked <= resource.data.runsStaked + 50000 &&
                  request.resource.data.runsStaked <= 500000 &&
