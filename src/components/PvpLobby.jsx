@@ -647,12 +647,14 @@ function PvpLobby() {
     <div className="min-h-screen p-4 md:p-6">
       <Header />
       <div className={`${mainMaxWidth} mx-auto pt-20 space-y-6`}>
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-amber-400">⚔️ PvP — Lobby</h1>
-          <p className="text-stone-400 text-sm max-w-xl mx-auto">
-            Uniquement des personnages archivés (tournoi), pas ton personnage actif. Niveau max
-            en PvP : {getPvpLobbyMaxLevel()}.
-          </p>
+        <div className="space-y-4">
+          <div className="mx-auto max-w-2xl rounded-xl border-2 border-amber-600/55 bg-stone-950/92 px-5 py-4 shadow-lg ring-1 ring-amber-900/35 text-center space-y-3">
+            <h1 className="text-3xl font-bold text-amber-400">⚔️ PvP — Lobby</h1>
+            <p className="text-stone-300 text-sm leading-relaxed">
+              Uniquement des personnages archivés (tournoi), pas ton personnage actif. Niveau max
+              en PvP : {getPvpLobbyMaxLevel()}.
+            </p>
+          </div>
           {!inRoom && <div className="max-w-md mx-auto">{renderLeaderboardEncadre()}</div>}
         </div>
 
@@ -780,29 +782,34 @@ function PvpLobby() {
         )}
 
         {inRoom && room && !replayPhase && (
-          <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4">
-            <h2 className="text-xl font-bold text-stone-200">Salle</h2>
-            <p className="text-stone-400 text-sm font-mono break-all">ID : {room.id}</p>
-            <div className="max-w-md">{renderLeaderboardEncadre()}</div>
-            {isHost && (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={copyRoomId}
-                  className="bg-stone-700 text-white px-4 py-2 rounded border border-stone-500 text-sm"
-                >
-                  Copier l’ID
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={handleDeleteHost}
-                  className="bg-red-900/60 text-red-100 px-4 py-2 rounded border border-red-700 text-sm"
-                >
-                  Supprimer la salle
-                </button>
-              </div>
-            )}
+          <>
+            <div className="max-w-md mx-auto">{renderLeaderboardEncadre()}</div>
+            <div className="bg-stone-900/80 border border-stone-600 rounded-xl p-5 space-y-4">
+              <h2 className="text-xl font-bold text-stone-200">Salle</h2>
+              {!room.isMatchmakingQueue && (
+                <p className="text-stone-400 text-sm font-mono break-all">ID : {room.id}</p>
+              )}
+              {isHost && (
+                <div className="flex flex-wrap gap-2">
+                  {!room.isMatchmakingQueue && (
+                    <button
+                      type="button"
+                      onClick={copyRoomId}
+                      className="bg-stone-700 text-white px-4 py-2 rounded border border-stone-500 text-sm"
+                    >
+                      Copier l’ID
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleDeleteHost}
+                    className="bg-red-900/60 text-red-100 px-4 py-2 rounded border border-red-700 text-sm"
+                  >
+                    Supprimer la salle
+                  </button>
+                </div>
+              )}
 
             {room.status === 'waiting' && isHost && (
               <p className="text-amber-200">
@@ -919,7 +926,8 @@ function PvpLobby() {
             {room.status === 'completed' && !replayPhase && (
               <p className="text-stone-400">Préparation du replay…</p>
             )}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
