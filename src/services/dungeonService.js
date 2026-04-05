@@ -39,6 +39,7 @@ import { getRandomWeaponByRarity, getWeaponById } from '../data/weapons.js';
 import { getUserCharacter, updateCharacterEquippedWeapon } from './characterService';
 import { clearWeaponUpgrade } from './forgeService';
 import { announceFirstDungeonFinalBossKill } from './milestoneAnnouncementService';
+import { PENDING_TOURNAMENT_BETTING_RUNS_FIELD } from './tournamentBettingService';
 
 /**
  * Bornes pour recaler bossRushCompletions (rétroactif + anti-spam) :
@@ -175,32 +176,49 @@ export const getDungeonProgress = async (userId) => {
 
       return { success: true, data };
     } else {
-      // Initialiser la progression si elle n'existe pas
-      // Dimanche (Paris) = 0 runs pour fresh restart le lundi ; sinon rattrapage depuis lundi
+      // Initialiser la progression si elle n'existe pas (+ runs en attente gagnés aux paris tournoi → prochain perso)
       console.log('ℹ️ Aucune progression, initialisation...');
-      const now = new Date();
-      const initialRuns = getInitialRunsForNewPlayer(now);
-      console.log(`🎁 Nouveau joueur: ${initialRuns} essais attribués${initialRuns === 0 ? ' (dimanche, fresh restart lundi)' : ' (rattrapage depuis lundi)'}`);
-      const initialProgress = {
-        userId,
-        equippedWeapon: null,
-        runsToday: 0,
-        runsAvailable: initialRuns,
-        lastRunDate: null,
-        lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
-        totalRuns: 0,
-        bestRun: 0,
-        totalBossKills: 0,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      const rewardRef = doc(db, 'tournamentRewards', userId);
 
       await retryOperation(async () => {
-        const progressRef = doc(db, 'dungeonProgress', userId);
-        await setDoc(progressRef, initialProgress);
+        await runTransaction(db, async (transaction) => {
+          const progressSnap = await transaction.get(progressRef);
+          if (progressSnap.exists()) return;
+
+          const rewardSnap = await transaction.get(rewardRef);
+          const pending = rewardSnap.exists()
+            ? Math.max(0, Math.floor(Number(rewardSnap.data()[PENDING_TOURNAMENT_BETTING_RUNS_FIELD]) || 0))
+            : 0;
+
+          const now = new Date();
+          const initialRuns = getInitialRunsForNewPlayer(now);
+          const totalRuns = initialRuns + pending;
+          console.log(
+            `🎁 Nouveau joueur: ${initialRuns} essais de base${pending > 0 ? ` + ${pending} (gains paris tournoi)` : ''}${initialRuns === 0 && pending === 0 ? ' (dimanche, fresh restart lundi)' : ''}`
+          );
+
+          transaction.set(progressRef, {
+            userId,
+            equippedWeapon: null,
+            runsToday: 0,
+            runsAvailable: totalRuns,
+            lastRunDate: null,
+            lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
+            totalRuns: 0,
+            bestRun: 0,
+            totalBossKills: 0,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+
+          if (pending > 0) {
+            transaction.set(rewardRef, { [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: 0 }, { merge: true });
+          }
+        });
       });
 
-      return { success: true, data: initialProgress };
+      return getDungeonProgress(userId);
     }
   } catch (error) {
     console.error('❌ Erreur récupération progression:', error);
@@ -251,10 +269,21 @@ export const startDungeonRun = async (userId) => {
       const currentData = progressSnap.exists() ? progressSnap.data() : null;
 
       const now = new Date();
+      const rewardRef = doc(db, 'tournamentRewards', userId);
+      let pendingBonus = 0;
+      if (!progressSnap.exists()) {
+        const rewardSnap = await transaction.get(rewardRef);
+        pendingBonus = rewardSnap.exists()
+          ? Math.max(0, Math.floor(Number(rewardSnap.data()[PENDING_TOURNAMENT_BETTING_RUNS_FIELD]) || 0))
+          : 0;
+      }
+      const baseInitialRuns = getInitialRunsForNewPlayer(now);
+      const poolIfNew = baseInitialRuns + pendingBonus;
+
       const initialProgress = {
         userId,
         runsToday: 0,
-        runsAvailable: getInitialRunsForNewPlayer(now),
+        runsAvailable: poolIfNew,
         lastRunDate: null,
         lastCreditDate: Timestamp.fromDate(getResetAnchor(now)),
         totalRuns: 0,
@@ -280,10 +309,13 @@ export const startDungeonRun = async (userId) => {
       runsRemainingAfter = newRunsAvailable;
 
       if (!progressSnap.exists()) {
+        if (pendingBonus > 0) {
+          transaction.set(rewardRef, { [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: 0 }, { merge: true });
+        }
         transaction.set(progressRef, {
           ...initialProgress,
           runsToday: 1,
-          runsAvailable: getInitialRunsForNewPlayer(now) - 1,
+          runsAvailable: poolIfNew - 1,
           lastRunDate: Timestamp.now(),
           totalRuns: 1,
           updatedAt: Timestamp.now()

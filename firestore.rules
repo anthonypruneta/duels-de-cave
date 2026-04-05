@@ -72,6 +72,64 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isAdmin();
       }
+
+      // Paris tournoi (runs) — uniquement tournoi du samedi + phase préparation
+      match /userBets/{userId} {
+        function tournamentCurrent() {
+          return tournamentId == 'current';
+        }
+        function tournamentPreparation() {
+          return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.statut == 'preparation';
+        }
+        function validParticipantId(pid) {
+          return pid is string && pid.size() > 0 && pid.size() <= 128;
+        }
+        function validRunsStaked(n) {
+          return n is int && n >= 1 && n <= 500000;
+        }
+        function tournoiDoc() {
+          return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+        }
+        function betTargetIsNotOwnCharacter(participantId) {
+          let p = tournoiDoc().participants[participantId];
+          return p != null && p.ownerUserId != request.auth.uid;
+        }
+        function validUserBetCreate() {
+          return validParticipantId(request.resource.data.participantId) &&
+                 validRunsStaked(request.resource.data.runsStaked) &&
+                 request.resource.data.updatedAt == request.time &&
+                 betTargetIsNotOwnCharacter(request.resource.data.participantId);
+        }
+        function validUserBetUpdate() {
+          return request.resource.data.participantId == resource.data.participantId &&
+                 validParticipantId(request.resource.data.participantId) &&
+                 request.resource.data.runsStaked is int &&
+                 request.resource.data.runsStaked > resource.data.runsStaked &&
+                 request.resource.data.runsStaked <= resource.data.runsStaked + 50000 &&
+                 request.resource.data.runsStaked <= 500000 &&
+                 request.resource.data.updatedAt == request.time &&
+                 betTargetIsNotOwnCharacter(request.resource.data.participantId);
+        }
+
+        allow read: if request.auth != null;
+
+        allow create: if request.auth != null &&
+                         request.auth.uid == userId &&
+                         tournamentCurrent() &&
+                         tournamentPreparation() &&
+                         validUserBetCreate();
+
+        allow update: if request.auth != null &&
+                         request.auth.uid == userId &&
+                         tournamentCurrent() &&
+                         tournamentPreparation() &&
+                         validUserBetUpdate();
+
+        // Joueur : annulation en préparation uniquement. Admin : nettoyage sous-collection au nouveau tournoi.
+        allow delete: if request.auth != null &&
+                         tournamentCurrent() &&
+                         ((request.auth.uid == userId && tournamentPreparation()) || isAdmin());
+      }
     }
 
     // Archives tournoi (arbre + combatLogs pour replay Hall of Fame)

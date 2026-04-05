@@ -13,6 +13,7 @@ import {
   subscribeTavernePresence,
   subscribeTaverneChat,
 } from '../services/taverneService';
+import TournamentBettingModal from './TournamentBettingModal';
 
 const chibiImageModules = import.meta.glob('../assets/chibi/*.png', { eager: true, import: 'default' });
 
@@ -109,6 +110,8 @@ export default function Taverne() {
   const [allowedInTaverne, setAllowedInTaverne] = useState(false);
   const [noCharacterReason, setNoCharacterReason] = useState(null);
   const [hoveredSlotId, setHoveredSlotId] = useState(null);
+  const [bettingModalOpen, setBettingModalOpen] = useState(false);
+  const [hoveredBettingBoard, setHoveredBettingBoard] = useState(false);
   const [ownerPseudoCompte, setOwnerPseudoCompte] = useState('');
   const chatEndRef = useRef(null);
   const hasEnteredRef = useRef(false);
@@ -406,6 +409,40 @@ export default function Taverne() {
             draggable={false}
           />
 
+          {/* Tableau des paris (tournoi) */}
+          <div
+            className={`absolute z-[15] flex flex-col items-center justify-center pointer-events-auto cursor-pointer transition-transform duration-200 ${hoveredBettingBoard ? 'scale-105' : ''}`}
+            style={{
+              left: '50%',
+              top: '36%',
+              transform: 'translate(-50%, -50%)',
+              width: 'clamp(72px, 11vw, 120px)',
+              height: 'clamp(56px, 9vw, 96px)',
+            }}
+            onMouseEnter={() => setHoveredBettingBoard(true)}
+            onMouseLeave={() => setHoveredBettingBoard(false)}
+            onClick={() => setBettingModalOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setBettingModalOpen(true);
+              }
+            }}
+            title="Ouvrir les paris du tournoi"
+          >
+            <div
+              className={`w-full h-full rounded-lg border-2 border-dashed flex items-center justify-center text-center px-1 shadow-lg ${
+                hoveredBettingBoard ? 'border-amber-400 bg-amber-950/55' : 'border-amber-700/55 bg-stone-950/40'
+              }`}
+            >
+              <span className="text-[clamp(8px,1.2vw,11px)] font-bold text-amber-200/95 leading-tight select-none">
+                Paris tournoi
+              </span>
+            </div>
+          </div>
+
           {/* Slots des personnages */}
           {slotAssignments.map(({ slot, character, userId, isPresent, isMe, presence }) => {
             const isHovered = hoveredSlotId === slot.id;
@@ -646,6 +683,12 @@ export default function Taverne() {
           </div>
         </div>
       )}
+
+      <TournamentBettingModal
+        open={bettingModalOpen}
+        onClose={() => setBettingModalOpen(false)}
+        userId={currentUser?.uid}
+      />
 
       {loading && (
         <div className="fixed inset-0 flex items-center justify-center bg-stone-900/80 z-30">

@@ -20,6 +20,7 @@ import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteL
 import { checkAndAwardTitles, trackTournamentFirstRoundResult } from './titleService';
 import { MAX_LEVEL } from '../data/featureFlags';
 import { supprimerMessagesChatTournoi } from './tournamentChatService';
+import { settleTournamentBettingIfNeeded, clearTournamentUserBets } from './tournamentBettingService';
 
 /** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
 export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
@@ -492,6 +493,12 @@ export async function creerTournoi(docId = 'current') {
       annonceIntro: annonceDebutTournoi(participants.length),
     };
 
+    if (docId === 'current') {
+      await clearTournamentUserBets(docId).catch((e) =>
+        console.warn('clearTournamentUserBets:', e?.message)
+      );
+    }
+
     await setDoc(doc(db, 'tournaments', docId), tournoi);
 
     if (qualifierConsumed) {
@@ -805,6 +812,11 @@ export async function avancerMatch(docId = 'current') {
         champion,
         annonceChampion: champion ? annonceChampion(champion.nom) : null,
       });
+
+      const betSettle = await settleTournamentBettingIfNeeded(docId, championId);
+      if (!betSettle.success && !betSettle.skipped) {
+        console.warn('Distribution des paris tournoi:', betSettle.error);
+      }
 
       if (tournoi?.tournamentType === 'legacy_archives' && champion && championId) {
         const row = participantsList.find(
