@@ -16,5 +16,5 @@ export const classes = {
   'Bastion': { ability: 'Charge du Rempart (CD: 4 tours)', description: 'Début du combat: bouclier = 30% DEF. Passif: +8% DEF. Inflige auto + 50% CAP + 50% DEF.', icon: '🏰' },
   'Alchimiste': { ability: 'Cycle de flasques (Passif)', description: 'Cycle de 3 flasques :\n- Feu : Auto + 10% CAP\n- Vie : soin 82% de votre CAP\n- Acide : Auto + réduit DEF 10% / ResC 10%', icon: '🧪' },
   'Sorcière': { ability: 'Malédiction (CD: 4 tours)', description: 'Malédiction : −10% d\'une stat adverse au hasard (cumul sur la valeur courante). Dégâts : Auto + 70% CAP + points de stats retirés à l\'ennemi (toutes sources).', icon: '🕯️' },
-  'Berserk': { ability: 'Rage (CD: 4 tours)', description: 'Consomme 10% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + 35% des PV manquants (après ce coût). Ce pourcentage augmente de +0,2% par point de Cap.', icon: '🪓' }
+  'Berserk': { ability: 'Rage (CD: 4 tours)', description: 'Consomme 10% de vos PV max (ne peut pas vous tuer). Inflige votre Auto + 35% des PV manquants (après ce coût). Ce pourcentage augmente de +0,1% par point de Cap.', icon: '🪓' }
 };
