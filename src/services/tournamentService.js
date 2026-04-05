@@ -558,7 +558,7 @@ function simulerUnMatch(matches, participants, matchId) {
   const annonceFin = annonceFinMatch(result.winnerNom, result.loserNom);
 
   return {
-    combatLogData: {
+    combatLogData: stripUndefinedDeep({
       combatLog: result.combatLog,
       steps: result.steps,
       p1MaxHP: result.p1MaxHP,
@@ -569,7 +569,7 @@ function simulerUnMatch(matches, participants, matchId) {
       p2Nom: p2Data.nom,
       winnerNom: result.winnerNom,
       loserNom: result.loserNom,
-    },
+    }),
     winnerId,
     loserId,
     matchBracket: match.bracket,

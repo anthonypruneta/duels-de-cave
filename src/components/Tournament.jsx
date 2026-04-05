@@ -24,6 +24,7 @@ import { getAwakeningEffect, applyAwakeningToBase, removeBaseRaceFlatBonusesIfAw
 import { classConstants } from '../data/combatMechanics';
 import { getCalculatedClassDescription } from '../utils/calculatedClassDescription';
 import { formatCombatLogMessage } from '../utils/combatLogFormat';
+import { mergePvpStepsForReplay } from '../utils/combatReplay';
 import { isAdminEmail } from './AdminOnlyRoute';
 
 // ============================================================================
@@ -440,9 +441,14 @@ const Tournament = () => {
     }
     setAnnonceActuelle('');
 
+    // Même merge que replayCombatSteps / Combat.jsx : conserver p1Status/p2Status si un step
+    // Firestore ou partiel omet ces champs (sinon pastilles buff/debuff effacées).
+    const rawSteps = Array.isArray(logData.steps) ? logData.steps : [];
+    const stepsToPlay = rawSteps.length > 0 ? mergePvpStepsForReplay(rawSteps) : [];
+
     // Jouer les steps un par un
-    if (logData.steps && logData.steps.length > 0) {
-      for (const step of logData.steps) {
+    if (stepsToPlay.length > 0) {
+      for (const step of stepsToPlay) {
         if (token.cancelled) {
           stopAnimation();
           return;
@@ -482,6 +488,8 @@ const Tournament = () => {
           setP2CombatModifiers(step.p2Modifiers ?? null);
           setP1CombatStatus(step.p1Status ?? null);
           setP2CombatStatus(step.p2Status ?? null);
+          setP1HP(step.p1HP);
+          setP2HP(step.p2HP);
           setP1Shield(step.p1Shield || 0);
           setP2Shield(step.p2Shield || 0);
           await delay(800);
