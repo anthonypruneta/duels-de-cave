@@ -6,9 +6,11 @@
  * @param {Object} opponent - L'adversaire qui applique des effets sur ce personnage
  * @param {Object} combatModifiers - Modificateurs déjà calculés (ex. { def: [{ label: 'Brèche mentale', value: -13 }] })
  * @param {Object} combatStatus - État de combat courant du personnage (stunned, bleed_stacks, spectralMarked, dodge, reflect, sorcierNeantBurn)
- * @returns {Array<{ id: string, icon: string, label: string, description: string }>}
+ * @returns {Array<{ id: string, icon: import('react').ReactNode, label: string, description: string }>}
  */
-import { classConstants, weaponConstants } from '../data/combatMechanics';
+import React from 'react';
+import { CendresBraisesCombatIcon } from '../components/CendresBraisesCombatIcon';
+import { classConstants, raceConstants, weaponConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel } from '../data/mageTowerPassives';
 
 function getPassiveDetails(p) {
@@ -315,6 +317,46 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         icon: '🏆',
         label: `Sceptre (+${n * pctDisplay}% CAP)`,
         description: `Sceptre du Roi-Sorcier : chaque capacité augmente votre CAP de ${pctDisplay}% (${n} stack(s)).`,
+      });
+    }
+
+    // Cendrés : braises (pool au 1er sort du tour, recharge au début de votre action)
+    if (typeof combatStatus.cendresHpDamageThreshold === 'number' && combatStatus.cendresHpDamageThreshold > 0) {
+      const pool = combatStatus.cendresPool ?? 0;
+      const first = !!combatStatus.cendresFirstSpellThisTurn;
+      const cum = combatStatus.cendresCumulativeHpDamage ?? 0;
+      const maxHp = combatStatus.cendresMaxHpRef ?? 1;
+      const th = combatStatus.cendresHpDamageThreshold;
+      const mult = combatStatus.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraiseRacial;
+      const g = combatStatus.cendresGuaranteedPerTurn ?? raceConstants.cendres.guaranteedBraisesPerTurnRacial;
+      const pctTh = Math.round(th * 100);
+      const pctMult = Math.round(mult * 100);
+      const chunk = th * maxHp;
+      const braisesFromHp = chunk > 0 ? Math.floor(cum / chunk) : 0;
+      const used = combatStatus.cendresBraisesHpConsumed ?? 0;
+      const banked = Math.max(0, braisesFromHp - used);
+      const label =
+        first && pool > 0
+          ? `Braises (${pool})`
+          : first
+            ? 'Braises (0)'
+            : 'Braises (dépensées)';
+      const descParts = [
+        `Cendrés : au début de votre tour d’action, vous regagnez ${g} braise(s) garantie(s) plus les braises gagnées via les PV que vous avez perdus (${pctTh}% des PV max par braise, non consommées reportées).`,
+        `Le premier sort du tour (dégâts ou soin) consomme tout le pool et applique +${pctMult}% par braise.`,
+        `Prochaines braises HP déjà « banquées » pour le prochain refresh : ${banked}. Dégâts PV cumulés (référence) : ${Math.round(cum)}.`,
+      ];
+      list.push({
+        id: 'cendres_braises',
+        icon: React.createElement(CendresBraisesCombatIcon, {
+          pool,
+          firstSpellThisTurn: first,
+          cumulativeHpDamage: cum,
+          threshold: th,
+          maxHpRef: maxHp,
+        }),
+        label,
+        description: descParts.join(' '),
       });
     }
 

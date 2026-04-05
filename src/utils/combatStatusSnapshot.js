@@ -1,8 +1,8 @@
 /**
  * Snapshot d’état combat pour l’UI (barre PV, pastilles buff/debuff).
- * Doit rester aligné avec getCombatBuffsDebuffs() — notamment Pointeau ADN (Sirène, Orc, Turtlekin, Mindflayer, Dragonkin…).
+ * Doit rester aligné avec getCombatBuffsDebuffs() — notamment Pointeau ADN (Sirène, Orc, Turtlekin, Mindflayer, Dragonkin, Cendrés…).
  */
-import { classConstants } from '../data/combatMechanics.js';
+import { classConstants, raceConstants } from '../data/combatMechanics.js';
 
 /**
  * @param {object|null|undefined} b - combattant préparé (tournamentCombat / coop)
@@ -90,6 +90,19 @@ export function snapshotCombatantStatusForUi(b) {
     const familierPct = capBase + capPerCap * cap + stackPerAuto * stacks;
     status.familiarPercent = familierPct * 100;
     status.familiarDamage = Math.round(familierPct * cap);
+  }
+
+  if (aw?.cendresHpDamageThreshold) {
+    status.cendresPool = b.cendresPool ?? 0;
+    status.cendresFirstSpellThisTurn = !!b.cendresFirstSpellThisTurn;
+    status.cendresCumulativeHpDamage = b.cendresCumulativeHpDamage ?? 0;
+    status.cendresBraisesHpConsumed = b.cendresBraisesHpConsumed ?? 0;
+    status.cendresHpDamageThreshold = aw.cendresHpDamageThreshold;
+    status.cendresBraiseSpellMult =
+      aw.cendresBraiseSpellMult ?? raceConstants.cendres.braisMultPerBraiseRacial;
+    status.cendresGuaranteedPerTurn =
+      aw.cendresBraiseGuaranteedEachTurn ?? raceConstants.cendres.guaranteedBraisesPerTurnRacial;
+    status.cendresMaxHpRef = b._cendresMaxHpRef ?? b.maxHP ?? 1;
   }
 
   return status;
