@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import { getUserCharacter } from '../services/characterService';
-import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoLaunch, checkAutoEnd, getChampionBossStatsByUserId, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
+import { getWorldBossEvent, getLeaderboard, onWorldBossEventChange, onLeaderboardChange, recordAttemptDamage, canAttemptBoss, checkAutoEnd, getChampionBossStatsByUserId, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
 import { getEquippedWeapon } from '../services/dungeonService';
 import { simulerWorldBossCombat } from '../utils/worldBossCombat';
 import { preparerCombattant } from '../utils/tournamentCombat';
@@ -264,9 +264,7 @@ const WorldBoss = () => {
         }));
       }
 
-      // Auto-launch si c'est lundi >= 18h et event inactif (avec champions dans le pool)
-      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
-      // Auto-end si c'est samedi >= 12h
+      // Auto-fin samedi >= 12h (Europe/Paris) si l’event est encore actif
       await checkAutoEnd();
       await claimCataclysmeRewardsIfEligible(currentUser.uid);
 
@@ -275,10 +273,9 @@ const WorldBoss = () => {
     load();
   }, [currentUser]);
 
-  // Vérification périodique pour garantir l'auto-end/auto-launch même si la page reste ouverte
+  // Vérification périodique pour l’auto-fin (samedi) même si la page reste ouverte
   useEffect(() => {
     const runChecks = async () => {
-      await checkAutoLaunch(GENERIC_BOSS_NAMES, CHAMPION_BOSS_NAMES);
       await checkAutoEnd();
       if (currentUser?.uid) {
         await claimCataclysmeRewardsIfEligible(currentUser.uid);

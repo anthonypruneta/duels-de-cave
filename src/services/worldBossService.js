@@ -70,6 +70,30 @@ function getTodayKey() {
   return `${y}-${m}-${d}`;
 }
 
+/** Fuseau de l’auto-fin Cataclysme (samedi 12h) — pas l’heure locale du navigateur. */
+const CATACLYSM_SCHEDULE_TIMEZONE = 'Europe/Paris';
+
+/** Horloge civile dans le fuseau du planning (auto-fin). */
+function getScheduleWallClock(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CATACLYSM_SCHEDULE_TIMEZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const m = {};
+  for (const p of parts) {
+    if (p.type !== 'literal') m[p.type] = p.value;
+  }
+  return {
+    weekday: m.weekday,
+    hour: parseInt(m.hour, 10),
+    minute: parseInt(m.minute, 10)
+  };
+}
+
 // ============================================================================
 // EVENT GLOBAL
 // ============================================================================
@@ -587,11 +611,10 @@ const onBossDefeated = async (killerName, killerCharacterId) => {
 export const checkAutoEnd = async () => {
   try {
     const now = new Date();
-    const day = now.getDay(); // 0=dim, 6=sam
-    const hour = now.getHours();
+    const { weekday, hour } = getScheduleWallClock(now);
 
-    // Samedi à partir de 12h
-    if (day !== 6 || hour < 12) return { ended: false };
+    // Samedi à partir de 12h (Europe/Paris)
+    if (weekday !== 'Sat' || hour < 12) return { ended: false };
 
     const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
     if (!result.exists()) return { ended: false };
@@ -645,7 +668,7 @@ export const checkAutoEnd = async () => {
 };
 
 // ============================================================================
-// LANCEMENT AUTOMATIQUE + ANNONCE DISCORD
+// LANCEMENT (ADMIN) + ANNONCES DISCORD
 // ============================================================================
 
 /**
@@ -752,22 +775,7 @@ export const launchCataclysm = async (bossData) => {
 // ============================================================================
 
 /**
- * Retourne un seed de semaine qui change le samedi à midi
- */
-function getWeekSeed() {
-  const now = new Date();
-  const day = now.getDay();
-  const hour = now.getHours();
-  let daysSinceSat = (day - 6 + 7) % 7;
-  if (daysSinceSat === 0 && hour < 12) daysSinceSat = 7;
-  const lastSatNoon = new Date(now);
-  lastSatNoon.setDate(now.getDate() - daysSinceSat);
-  lastSatNoon.setHours(12, 0, 0, 0);
-  return Math.floor(lastSatNoon.getTime() / (1000 * 60 * 60 * 24));
-}
-
-/**
- * Sélectionne un boss de la semaine parmi les boss génériques ET les champions
+ * Liste les boss Cataclysme possibles (génériques + entrées champion matchées au Hall of Fame).
  * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
  * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
  * @returns {Promise<Array<{name: string, isChampion: boolean, championData: object|null}>>}
@@ -813,74 +821,6 @@ export const getAllCataclysmBossOptions = async (genericBossNames = [], champion
     return [{ name: WORLD_BOSS.nom, isChampion: false, championData: null }];
   }
   return allBosses;
-};
-
-/**
- * Choisit un boss de la semaine (déterministe) parmi génériques + champions.
- * @param {Array} genericBossNames - Liste des noms de boss génériques (depuis les fichiers images)
- * @param {Array} championBossNames - Liste des noms de boss champions (depuis les fichiers images ChampBoss/)
- * @returns {Promise<{name: string, isChampion: boolean, championData: object|null}>}
- */
-export const pickWeeklyBossWithChampions = async (genericBossNames = [], championBossNames = []) => {
-  const allBosses = await getAllCataclysmBossOptions(genericBossNames, championBossNames);
-  if (allBosses.length === 0) {
-    return { name: WORLD_BOSS.nom, isChampion: false, championData: null };
-  }
-  const seed = getWeekSeed();
-  const index = seed % allBosses.length;
-  const genericCount = genericBossNames.length;
-  const championCount = championBossNames.length;
-  console.log(`🎲 Boss pool: ${allBosses.length} boss (${genericCount} génériques + ${championCount} champions), seed=${seed}, index=${index}`);
-  return allBosses[index];
-};
-
-/**
- * Vérifie si le cataclysme doit être lancé automatiquement (lundi 18h)
- * Retourne true si un lancement a été déclenché
- * @param {Array} genericBossNames - Liste des noms de boss génériques
- * @param {Array} championBossNames - Liste des noms de boss champions (depuis ChampBoss/)
- */
-export const checkAutoLaunch = async (genericBossNames = [], championBossNames = []) => {
-  try {
-    const now = new Date();
-    const day = now.getDay(); // 0=dim, 1=lun
-    const hour = now.getHours();
-
-    // Seulement le lundi à partir de 18h
-    if (day !== 1 || hour < 18) return { launched: false };
-
-    // Vérifier l'état actuel de l'event
-    const result = await retryOperation(async () => getDoc(EVENT_DOC_REF()));
-    if (!result.exists()) {
-      // Pas d'event, on lance avec sélection aléatoire (génériques + champions)
-      const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
-      console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
-      await launchCataclysm(weeklyBoss);
-      return { launched: true };
-    }
-
-    const data = result.data();
-
-    // Si déjà actif, ne rien faire
-    if (data.status === EVENT_STATUS.ACTIVE) return { launched: false };
-
-    // Si inactif ou terminé, vérifier qu'on n'a pas déjà lancé aujourd'hui
-    if (data.launchedAt) {
-      const launchedDate = data.launchedAt.toDate();
-      const todayKey = getTodayKey();
-      const launchedKey = `${launchedDate.getFullYear()}-${String(launchedDate.getMonth() + 1).padStart(2, '0')}-${String(launchedDate.getDate()).padStart(2, '0')}`;
-      if (launchedKey === todayKey) return { launched: false }; // Déjà lancé aujourd'hui
-    }
-
-    // Lancer avec sélection aléatoire (génériques + champions)
-    const weeklyBoss = await pickWeeklyBossWithChampions(genericBossNames, championBossNames);
-    console.log('🚀 Auto-launch Cataclysme avec boss:', weeklyBoss);
-    await launchCataclysm(weeklyBoss);
-    return { launched: true };
-  } catch (error) {
-    console.error('Erreur auto-launch cataclysme:', error);
-    return { launched: false };
-  }
 };
 
 // ============================================================================

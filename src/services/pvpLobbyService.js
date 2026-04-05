@@ -386,16 +386,17 @@ function combatResultForFirestore(result) {
 }
 
 /**
- * Salles affichées dans « Salles ouvertes » sous le lobby : pas les files matchmaking
- * (elles ont isOpenLobby: false et isMatchmakingQueue: true).
+ * Salles affichées dans « Salles ouvertes » : uniquement « Créer une salle » sans MDP.
+ * Il faut isOpenLobby === true ET isMatchmakingQueue === false (explicite), sinon on exclut
+ * les files matchmaking (true) et toute entrée ambiguë (undefined) qui pourrait encore s’afficher.
  */
 export function isPvpOpenLobbyPublicListRoom(r) {
   if (!r || r.status !== 'waiting') return false;
   if (r.guestId) return false;
-  if (r.isMatchmakingQueue === true) return false;
-  if (r.isOpenLobby !== true) return false;
   if (String(r.passwordHash || '').trim()) return false;
   if (!isCharacterEligibleForPvpLobby(r.hostSnapshot)) return false;
+  if (r.isOpenLobby !== true) return false;
+  if (r.isMatchmakingQueue !== false) return false;
   return true;
 }
 
