@@ -1106,6 +1106,23 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
   return adjusted;
 }
 
+/** Saignement Lycan / éveil (même logique que la branche auto physique de la boucle des coups). */
+function applyLycanBleedStacksOnHit(attacker, defender) {
+  if (attacker.race === 'Lycan' || (attacker.awakening?.bleedStacksPerHit ?? 0) > 0) {
+    const bleedStacks = attacker.awakening
+      ? (attacker.awakening.bleedStacksPerHit ?? 0)
+      : raceConstants.lycan.bleedPerHit;
+    if (bleedStacks > 0) {
+      defender.bleed_stacks = (defender.bleed_stacks || 0) + bleedStacks;
+    }
+    if (attacker.awakening?.bleedPercentPerStack) {
+      defender.bleedPercentPerStack = attacker.awakening.bleedPercentPerStack;
+    } else if (attacker.race === 'Lycan') {
+      defender.bleedPercentPerStack = raceConstants.lycan.bleedPercentPerStack;
+    }
+  }
+}
+
 /**
  * Un tour d’un combattant : CD, passifs début de tour, puis capacités de classe et coups.
  *
@@ -1581,6 +1598,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+      applyLycanBleedStacksOnHit(att, def);
       log.push(`${playerColor} 🧪🔥 ${att.name} lance une flasque de feu sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}`);
       // onAttack pour les armes (Option B : flasques offensives déclenchent les hooks)
       if (inflicted > 0) {
@@ -1603,6 +1621,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        if (inflictedCodex > 0) applyLycanBleedStacksOnHit(att, def);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de feu et inflige ${inflictedCodex} dégâts`);
       }
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
@@ -1684,6 +1703,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+      applyLycanBleedStacksOnHit(att, def);
       // Réduction DEF/ResC (protégée par bouclier : uniquement si des PV sont perdus)
       let acidDebuffText = '';
       if (inflicted > 0) {
@@ -1715,6 +1735,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        if (inflictedCodex > 0) applyLycanBleedStacksOnHit(att, def);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque d'acide et inflige ${inflictedCodex} dégâts`);
       }
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
@@ -1755,6 +1776,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const shieldBefore = def.shield || 0;
       const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
       const shieldHit = shieldBefore > 0 && (def.shield || 0) < shieldBefore;
+      applyLycanBleedStacksOnHit(att, def);
       const stunDur = alchC.metalStunDuration ?? classConstants.alchimiste.metalStunDuration;
       if (inflicted > 0 && def.currentHP > 0) {
         def.stunned = true;
@@ -1782,6 +1804,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       applySceptreCapBuff(att, spellEffects, log, playerColor);
       if (spellEffects.doubleCast && spellEffects.secondCastDamage > 0) {
         const inflictedCodex = applyDamage(att, def, spellEffects.secondCastDamage, false, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, false, false, turn);
+        if (inflictedCodex > 0) applyLycanBleedStacksOnHit(att, def);
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} lance une seconde flasque de métal et inflige ${inflictedCodex} dégâts`);
       }
       if (def.currentHP <= 0 && hasMortVivantRevive(def)) reviveUndead(def, att, log, playerColor);
@@ -2435,14 +2458,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         tryTriggerOnctionLastStand(att, log, playerColor);
         log.push(`${playerColor} 🩸 Orbe du Sacrifice: ${att.name} se sacrifie (-${hpCost} PV) pour frapper plus fort (+${Math.round(orbePassive.levelData.autoDamageBonus * 100)}%)`);
       }
-      if (att.race === 'Lycan' || (att.awakening?.bleedStacksPerHit ?? 0) > 0) {
-        const bleedStacks = att.awakening ? (att.awakening.bleedStacksPerHit ?? 0) : raceConstants.lycan.bleedPerHit;
-        if (bleedStacks > 0) {
-          def.bleed_stacks = (def.bleed_stacks || 0) + bleedStacks;
-        }
-        if (att.awakening?.bleedPercentPerStack) def.bleedPercentPerStack = att.awakening.bleedPercentPerStack;
-        else if (att.race === 'Lycan') def.bleedPercentPerStack = raceConstants.lycan.bleedPercentPerStack;
-      }
+      applyLycanBleedStacksOnHit(att, def);
     }
 
     if ((isMage || isSorc || isWar || isBerz || (isArcher && !isBonusAttack)) && (att.race === 'Sirène' || att.awakening?.sireneStackBonus != null) && (att.sireneStacks || 0) > 0) {
