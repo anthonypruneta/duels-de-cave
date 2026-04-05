@@ -4,7 +4,7 @@
  * Les textes ci-dessous sont alignés sur combatMechanics.subclassConstants + merge classe de base.
  */
 
-import { classes } from './classes';
+import { classes } from './classes.js';
 
 /** Liste des sous-classes par nom de classe (ordre: [0], [1]) */
 export const SUBCLASSES_BY_CLASS = {

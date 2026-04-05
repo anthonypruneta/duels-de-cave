@@ -6,7 +6,7 @@
  * Récompense : upgrade d'arme en % sur les stats de l'arme équipée.
  */
 
-import { getWeaponById } from './weapons';
+import { getWeaponById } from './weapons.js';
 
 export const FORGE_BOSS = {
   id: 'ornn',

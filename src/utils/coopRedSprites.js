@@ -1,7 +1,11 @@
 /**
  * Sprites donjon Red (src/assets/coop). Clés insensibles à la casse pour Windows / doublons.
+ * Hors Vite (ex. node scripts/runMassSim.mjs) : pas de import.meta.glob → aucune URL (getCoopRedSpriteUrl → null).
  */
-const coopSpriteModules = import.meta.glob('../assets/coop/**/*', { eager: true, import: 'default' });
+const coopSpriteModules =
+  typeof import.meta !== 'undefined' && typeof import.meta.glob === 'function'
+    ? import.meta.glob('../assets/coop/**/*', { eager: true, import: 'default' })
+    : {};
 
 const urlByFileLower = {};
 for (const path of Object.keys(coopSpriteModules)) {
