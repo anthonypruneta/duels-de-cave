@@ -32,13 +32,17 @@ import {
 
 const SESSION_KEY = 'pvpLobbyRoomId';
 
+function pvpRoomStorageKey(userId) {
+  return userId ? `${SESSION_KEY}:${userId}` : SESSION_KEY;
+}
+
 function PvpLobby() {
   const { currentUser } = useAuth();
   const [archivedChars, setArchivedChars] = useState([]);
   /** Nombre d’archivés chargés avant filtre niveau PvP (message si tous exclus). */
   const [totalArchivedCount, setTotalArchivedCount] = useState(0);
   const [loadingArchived, setLoadingArchived] = useState(true);
-  const [roomId, setRoomId] = useState(() => sessionStorage.getItem(SESSION_KEY) || '');
+  const [roomId, setRoomId] = useState('');
   const [room, setRoom] = useState(null);
   const [openRooms, setOpenRooms] = useState([]);
   const [error, setError] = useState(null);
@@ -68,6 +72,29 @@ function PvpLobby() {
   const logContainerRef = useRef(null);
   const logEndRef = useRef(null);
   const replayGuardRef = useRef({ roomId: null, done: false });
+  const currentUserIdRef = useRef(null);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUser?.uid ?? null;
+  }, [currentUser?.uid]);
+
+  /** Mémorise la salle sur l’appareil (localStorage par compte) : file matchmaking, hôte ou invité survive à la fermeture. */
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    if (!uid) return;
+
+    const key = pvpRoomStorageKey(uid);
+    let saved = localStorage.getItem(key);
+    if (!saved) {
+      const legacy = sessionStorage.getItem(SESSION_KEY);
+      if (legacy) {
+        localStorage.setItem(key, legacy);
+        sessionStorage.removeItem(SESSION_KEY);
+        saved = legacy;
+      }
+    }
+    if (saved) setRoomId(String(saved).trim());
+  }, [currentUser?.uid]);
 
   const loadArchived = useCallback(async () => {
     if (!currentUser) return;
@@ -136,6 +163,8 @@ function PvpLobby() {
       (data) => {
         setRoom(data);
         if (!data) {
+          const uid = currentUserIdRef.current;
+          if (uid) localStorage.removeItem(pvpRoomStorageKey(uid));
           sessionStorage.removeItem(SESSION_KEY);
           setRoomId('');
         }
@@ -276,8 +305,13 @@ function PvpLobby() {
   const persistRoom = (id) => {
     const t = String(id || '').trim();
     setRoomId(t);
-    if (t) sessionStorage.setItem(SESSION_KEY, t);
-    else sessionStorage.removeItem(SESSION_KEY);
+    const uid = currentUser?.uid;
+    if (uid) {
+      const key = pvpRoomStorageKey(uid);
+      if (t) localStorage.setItem(key, t);
+      else localStorage.removeItem(key);
+    }
+    sessionStorage.removeItem(SESSION_KEY);
   };
 
   const handleCreateRoom = async () => {
