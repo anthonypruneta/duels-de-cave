@@ -1,9 +1,13 @@
 /**
  * Donjon coop « Red » — 3 difficultés, 3 adversaires en rotation par run.
  * Noms & sprites Pokémon (FR) — images dans src/assets/coop/ (fichiers en minuscules, Linux/CI).
+ * Portrait dresseur : `red.png` (constante COOP_RED_TRAINER_IMAGE_FILE).
  */
 
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites.js';
+
+/** Fichier image du portrait Red (sidebar), même dossier que les sprites boss. */
+export const COOP_RED_TRAINER_IMAGE_FILE = 'red.png';
 
 export const COOP_RED_DIFFICULTY = {
   EASY: 'easy',
