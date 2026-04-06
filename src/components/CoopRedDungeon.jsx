@@ -35,8 +35,10 @@ import {
   setCoopRedHistoryEchoDelivered,
 } from '../services/coopRedMatchHistoryService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
-/** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
-import redTrainerPortraitUrl from '../assets/coop/Red.png';
+import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
+
+/** Portrait Red : résolu via glob (pas d’import statique) pour que le build CI passe si le PNG n’est pas versionné. */
+const redTrainerPortraitUrl = getCoopRedSpriteUrl('Red.png');
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 
@@ -1049,11 +1051,21 @@ function CoopRedDungeon() {
         {!isCombatLaunched && (
           <aside className="hidden xl:flex flex-col items-stretch flex-shrink-0 w-[min(100%,min(480px,44vw))] min-w-[380px] sticky top-24 self-start gap-4">
             <div className="relative rounded-xl overflow-hidden border-2 border-red-800/55 shadow-2xl bg-stone-950 ring-1 ring-red-950/40 w-full">
-              <img
-                src={redTrainerPortraitUrl}
-                alt="Red"
-                className="w-full h-auto object-cover object-top block max-h-[min(72vh,560px)]"
-              />
+              {redTrainerPortraitUrl ? (
+                <img
+                  src={redTrainerPortraitUrl}
+                  alt="Red"
+                  className="w-full h-auto object-cover object-top block max-h-[min(72vh,560px)]"
+                />
+              ) : (
+                <div
+                  className="w-full min-h-[min(40vh,320px)] max-h-[min(72vh,560px)] flex items-center justify-center bg-gradient-to-b from-red-950/90 to-stone-950 text-6xl"
+                  role="img"
+                  aria-label="Red"
+                >
+                  🔴
+                </div>
+              )}
               <div className="absolute bottom-0 inset-x-0 bg-black/55 border-t border-red-900/60 py-1.5 text-center">
                 <span className="text-red-300 text-lg font-bold tracking-wide">Red</span>
               </div>
