@@ -38,7 +38,7 @@ import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
 /** Portrait Red : résolu via glob (pas d’import statique) pour que le build CI passe si le PNG n’est pas versionné. */
-const redTrainerPortraitUrl = getCoopRedSpriteUrl('Red.png');
+const redTrainerPortraitUrl = getCoopRedSpriteUrl('red.png');
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 

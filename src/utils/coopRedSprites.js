@@ -1,5 +1,5 @@
 /**
- * Sprites donjon Red (src/assets/coop). Clés insensibles à la casse pour Windows / doublons.
+ * Sprites donjon Red (src/assets/coop). Fichiers en minuscules côté repo ; résolution par nom basse casse.
  * Hors Vite (ex. node scripts/runMassSim.mjs) : pas de import.meta.glob → aucune URL (getCoopRedSpriteUrl → null).
  */
 const coopSpriteModules =
