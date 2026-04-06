@@ -8,6 +8,8 @@ const db = getFirestore();
 
 const DUNGEON_CONSTANTS = {
   MAX_RUNS_PER_RESET: 5,
+  /** Plafond : 3 créneaux × 5 runs par jour civil (Europe/Paris), crédits automatiques uniquement. */
+  MAX_PERIOD_BLOCKS_PER_PARIS_DAY: 3,
 };
 
 function assertAuthed(request) {
@@ -62,6 +64,31 @@ function advanceResetAnchor(anchor) {
   return d;
 }
 
+/** Jour civil Paris YYYY-MM-DD (aligné dimanche / tournoi). */
+function getParisDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const d = parts.find((p) => p.type === 'day')?.value;
+  return `${y}-${m}-${d}`;
+}
+
+/** Avance lastCreditDate de N périodes (sans sauter au « maintenant » si cap journalier). */
+function lastCreditDateAfterGrantingPeriods(lastCreditDate, periodsToGrant) {
+  if (periodsToGrant <= 0) return null;
+  const last = lastCreditDate instanceof Date ? lastCreditDate : lastCreditDate.toDate();
+  let anchor = getResetAnchor(last);
+  for (let i = 0; i < periodsToGrant; i++) {
+    anchor = advanceResetAnchor(anchor);
+  }
+  return anchor;
+}
+
 function getResetPeriodsSince(lastCreditDate, now = new Date()) {
   if (!lastCreditDate) return 0;
   const last = lastCreditDate instanceof Date ? lastCreditDate : lastCreditDate.toDate();
@@ -103,21 +130,43 @@ function getInitialRunsForNewPlayer(now = new Date()) {
 async function applyRunCreditsInTransaction(tx, progressRef, data, now) {
   const updates = {};
 
-  const currentAnchor = getResetAnchor(now);
+  const parisKey = getParisDateKey(now);
   const lastCreditDate = data?.lastCreditDate ?? null;
+
+  const runsCreditedParisDay =
+    data?.dungeonPeriodRunsParisDate === parisKey
+      ? Math.min(
+          DUNGEON_CONSTANTS.MAX_PERIOD_BLOCKS_PER_PARIS_DAY * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET,
+          Math.max(0, Math.floor(Number(data.dungeonPeriodRunsCreditedToday) || 0))
+        )
+      : 0;
+  const remainingSlots = Math.max(
+    0,
+    DUNGEON_CONSTANTS.MAX_PERIOD_BLOCKS_PER_PARIS_DAY -
+      Math.floor(runsCreditedParisDay / DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET)
+  );
 
   if (!data?.lastCreditDate) {
     updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+    updates.dungeonPeriodRunsParisDate = parisKey;
+    updates.dungeonPeriodRunsCreditedToday = 0;
   } else {
     const periods = getResetPeriodsSince(lastCreditDate, now);
     if (periods > 0) {
-      updates.runsAvailable = (Number.isFinite(data?.runsAvailable) ? data.runsAvailable : 0) + periods * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
-      updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+      const periodsToGrant = Math.min(periods, remainingSlots);
+      if (periodsToGrant > 0) {
+        const grantRuns = periodsToGrant * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+        updates.runsAvailable = (Number.isFinite(data?.runsAvailable) ? data.runsAvailable : 0) + grantRuns;
+        const newLast = lastCreditDateAfterGrantingPeriods(lastCreditDate, periodsToGrant);
+        updates.lastCreditDate = Timestamp.fromDate(newLast);
+        updates.dungeonPeriodRunsParisDate = parisKey;
+        updates.dungeonPeriodRunsCreditedToday = runsCreditedParisDay + grantRuns;
+      }
     }
   }
 
   if (Object.keys(updates).length > 0) {
-    tx.set(progressRef, updates, { merge: true });
+    tx.set(progressRef, { ...updates, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   }
 
   return updates;
@@ -146,6 +195,7 @@ export const dungeon_getProgress = onCall({ region: 'europe-west1' }, async (req
       const initialRuns = getInitialRunsForNewPlayer(now);
       const totalRuns = initialRuns + pending;
 
+      const parisKeyNew = getParisDateKey(now);
       tx.set(progressRef, {
         userId: uid,
         equippedWeapon: null,
@@ -153,6 +203,8 @@ export const dungeon_getProgress = onCall({ region: 'europe-west1' }, async (req
         runsAvailable: totalRuns,
         lastRunDate: null,
         lastCreditDate: Timestamp.fromDate(getResetAnchor(now)),
+        dungeonPeriodRunsParisDate: parisKeyNew,
+        dungeonPeriodRunsCreditedToday: 0,
         totalRuns: 0,
         bestRun: 0,
         totalBossKills: 0,
@@ -171,6 +223,8 @@ export const dungeon_getProgress = onCall({ region: 'europe-west1' }, async (req
         runsAvailable: totalRuns,
         lastRunDate: null,
         lastCreditDate: Timestamp.fromDate(getResetAnchor(now)),
+        dungeonPeriodRunsParisDate: parisKeyNew,
+        dungeonPeriodRunsCreditedToday: 0,
         totalRuns: 0,
         bestRun: 0,
         totalBossKills: 0,
