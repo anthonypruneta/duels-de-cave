@@ -77,7 +77,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_salamandre',
       nom: 'Salamèche',
       icon: '🔥',
-      imageFile: 'salameche.png',
+      imageFile: 'Salameche.png',
       baseStats: { hp: 162, auto: 47, def: 34, cap: 43, rescap: 34, spd: 43 },
       /** Pas de CD : chaque attaque = Lance-Flammes (physique) + brûlure. */
       ability: {
@@ -97,7 +97,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_carapace',
       nom: 'Carapuce',
       icon: '💧',
-      imageFile: 'carapuce.png',
+      imageFile: 'Carapuce.png',
       baseStats: { hp: 221, auto: 38, def: 47, cap: 43, rescap: 38, spd: 34 },
       ability: {
         cooldown: 2,
@@ -113,7 +113,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_pousse',
       nom: 'Bulbizarre',
       icon: '🌿',
-      imageFile: 'bulbizarre.png',
+      imageFile: 'Bulbizarre.png',
       baseStats: { hp: 204, auto: 38, def: 43, cap: 51, rescap: 47, spd: 34 },
       ability: {
         cooldown: 3,
@@ -131,7 +131,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_foudre',
       nom: 'Pikachu',
       icon: '⚡',
-      imageFile: 'pikachu.png',
+      imageFile: 'Pikachu.png',
       baseStats: { hp: 340, auto: 55, def: 43, cap: 55, rescap: 43, spd: 77 },
       ability: {
         cooldown: 5,
@@ -147,7 +147,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_dormeur',
       nom: 'Ronflex',
       icon: '😴',
-      imageFile: 'ronflex.png',
+      imageFile: 'Ronflex.png',
       baseStats: { hp: 680, auto: 68, def: 60, cap: 43, rescap: 43, spd: 17 },
       ability: {
         cooldown: 6,
@@ -163,7 +163,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_lagon',
       nom: 'Lokhlass',
       icon: '🌊',
-      imageFile: 'lokhlass.png',
+      imageFile: 'Lokhlass.png',
       baseStats: { hp: 468, auto: 43, def: 51, cap: 68, rescap: 60, spd: 47 },
       ability: {
         cooldown: 5,
@@ -185,7 +185,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_dragonnet',
       nom: 'Dracaufeu',
       icon: '🐉',
-      imageFile: 'dracaufeu.png',
+      imageFile: 'Dracaufeu.png',
       // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
       baseStats: { hp: 574, auto: 77, def: 61, cap: 69, rescap: 54, spd: 69 },
       ability: {
@@ -202,7 +202,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_blinde',
       nom: 'Tortank',
       icon: '🛡️',
-      imageFile: 'tortank.png',
+      imageFile: 'Tortank.png',
       // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
       baseStats: { hp: 612, auto: 85, def: 77, cap: 54, rescap: 61, spd: 50 },
       ability: {
@@ -219,7 +219,7 @@ export const coopRedBossLineups = {
       id: 'coop_red_flore',
       nom: 'Florizarre',
       icon: '🌸',
-      imageFile: 'florizarre.png',
+      imageFile: 'Florizarre.png',
       // Nerf balance : -10% stats de base (avant multiplicateur de difficulté).
       baseStats: { hp: 689, auto: 65, def: 85, cap: 77, rescap: 77, spd: 39 },
       ability: {

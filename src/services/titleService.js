@@ -294,8 +294,20 @@ export async function getObtentionStats() {
       await Promise.all(allChars.map(async (char) => {
         const userId = char.userId || char.id;
         if (!userId) return [null, null];
-        const prefsSnap = await getDoc(doc(db, 'userPreferences', userId));
-        return [userId, prefsSnap.exists() ? prefsSnap.data() : null];
+        try {
+          // NB: Les règles Firestore limitent `userPreferences` au propriétaire.
+          // Ici on calcule des stats globales: on ignore silencieusement les prefs
+          // qu'on n'a pas le droit de lire (permission-denied).
+          const prefsSnap = await getDoc(doc(db, 'userPreferences', userId));
+          return [userId, prefsSnap.exists() ? prefsSnap.data() : null];
+        } catch (err) {
+          if (String(err?.code || '').includes('permission-denied')) {
+            return [userId, null];
+          }
+          // Autres erreurs : on ne bloque pas l'accueil, mais on les log.
+          console.warn('⚠️ Lecture userPreferences échouée (stats obtention):', err?.message || err);
+          return [userId, null];
+        }
       }))
     );
 
@@ -323,7 +335,8 @@ export async function getObtentionStats() {
 
     return { total, titleCounts, borderCounts };
   } catch (err) {
-    console.error('Erreur calcul stats obtention:', err);
+    // Ne doit jamais casser l'accueil : fallback silencieux.
+    console.warn('⚠️ Erreur calcul stats obtention:', err?.message || err);
     return { total: 0, titleCounts: {}, borderCounts: {} };
   }
 }

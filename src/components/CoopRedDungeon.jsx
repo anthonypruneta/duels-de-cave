@@ -36,7 +36,7 @@ import {
 } from '../services/coopRedMatchHistoryService';
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 /** Portrait du dresseur Red (remplace `src/assets/coop/red.png` si besoin). */
-import redTrainerPortraitUrl from '../assets/coop/red.png';
+import redTrainerPortraitUrl from '../assets/coop/Red.png';
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';
 
