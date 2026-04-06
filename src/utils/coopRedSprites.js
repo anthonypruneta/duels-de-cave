@@ -1,17 +1,16 @@
 /**
- * Sprites donjon Red — imports explicites (pas de glob) pour que les URLs soient
- * toujours résolues au build (Vite) : CI Linux, prod, pas de sprite « fantôme ».
- * Clés en minuscules : insensible à la casse côté données (Red.png / red.png).
+ * Sprites donjon Red — imports explicites. Chemins = noms exacts des fichiers sur le disque / Git
+ * (Linux CI sensible à la casse : doit matcher GitHub à l’identique).
  */
-import urlBulbizarre from '../assets/coop/Bulbizarre.png';
-import urlCarapuce from '../assets/coop/Carapuce.png';
-import urlDracaufeu from '../assets/coop/Dracaufeu.png';
+import urlBulbizarre from '../assets/coop/bulbizarre.png';
+import urlCarapuce from '../assets/coop/carapuce.png';
+import urlDracaufeu from '../assets/coop/dracaufeu.png';
 import urlFlorizarre from '../assets/coop/Florizarre.png';
-import urlLokhlass from '../assets/coop/Lokhlass.png';
-import urlPikachu from '../assets/coop/Pikachu.png';
-import urlRed from '../assets/coop/Red.png';
-import urlRonflex from '../assets/coop/Ronflex.png';
-import urlSalameche from '../assets/coop/Salameche.png';
+import urlLokhlass from '../assets/coop/lokhlass.png';
+import urlPikachu from '../assets/coop/pikachu.png';
+import urlRed from '../assets/coop/red.png';
+import urlRonflex from '../assets/coop/ronflex.png';
+import urlSalameche from '../assets/coop/salameche.png';
 import urlTortank from '../assets/coop/Tortank.png';
 
 const urlByFileLower = {
