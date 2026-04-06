@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, enableNetwork, onSnapshot, collection, setLogLevel } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 // Activer le debug logging pour diagnostiquer les problèmes de connexion
 setLogLevel('debug');
@@ -34,6 +35,7 @@ const app = initializeApp(firebaseConfig);
 // Initialiser les services
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'europe-west1');
 
 // Initialiser Firestore avec cache MEMOIRE uniquement (pas persistant)
 // Le cache persistant peut causer "client is offline" errors

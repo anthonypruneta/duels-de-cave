@@ -23,7 +23,8 @@ import {
   where,
   writeBatch
 } from 'firebase/firestore';
-import { db, waitForFirestore } from '../firebase/config';
+import { db, functions, waitForFirestore } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
 import {
   getDungeonLevelById,
   getDungeonLevelByNumber,
@@ -133,93 +134,11 @@ export const getDungeonProgress = async (userId) => {
   try {
     console.log('📖 Récupération de la progression donjon pour:', userId);
 
-    const result = await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      return await getDoc(progressRef);
-    });
-
-    if (result.exists()) {
-      const data = result.data();
-      console.log('✅ Progression trouvée');
-
-      // Reset le compteur si nouveau jour
-      if (isNewDay(data.lastRunDate)) {
-        data.runsToday = 0;
-      }
-
-      const runsAvailable = Number.isFinite(data.runsAvailable)
-        ? data.runsAvailable
-        : getRemainingRuns(data.runsToday || 0, data.lastRunDate);
-      const updates = {};
-      const currentAnchor = getResetAnchor(new Date());
-
-      if (!Number.isFinite(data.runsAvailable)) {
-        updates.runsAvailable = runsAvailable;
-        updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
-      } else if (!data.lastCreditDate) {
-        updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
-      } else {
-        const periods = getResetPeriodsSince(data.lastCreditDate, new Date());
-        if (periods > 0) {
-          updates.runsAvailable = runsAvailable + periods * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
-          updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
-        }
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await retryOperation(async () => {
-          const progressRef = doc(db, 'dungeonProgress', userId);
-          await updateDoc(progressRef, updates);
-        });
-        Object.assign(data, updates);
-      }
-
-      return { success: true, data };
-    } else {
-      // Initialiser la progression si elle n'existe pas (+ runs en attente gagnés aux paris tournoi → prochain perso)
-      console.log('ℹ️ Aucune progression, initialisation...');
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      const rewardRef = doc(db, 'tournamentRewards', userId);
-
-      await retryOperation(async () => {
-        await runTransaction(db, async (transaction) => {
-          const progressSnap = await transaction.get(progressRef);
-          if (progressSnap.exists()) return;
-
-          const rewardSnap = await transaction.get(rewardRef);
-          const pending = rewardSnap.exists()
-            ? Math.max(0, Math.floor(Number(rewardSnap.data()[PENDING_TOURNAMENT_BETTING_RUNS_FIELD]) || 0))
-            : 0;
-
-          const now = new Date();
-          const initialRuns = getInitialRunsForNewPlayer(now);
-          const totalRuns = initialRuns + pending;
-          console.log(
-            `🎁 Nouveau joueur: ${initialRuns} essais de base${pending > 0 ? ` + ${pending} (gains paris tournoi)` : ''}${initialRuns === 0 && pending === 0 ? ' (dimanche, fresh restart lundi)' : ''}`
-          );
-
-          transaction.set(progressRef, {
-            userId,
-            equippedWeapon: null,
-            runsToday: 0,
-            runsAvailable: totalRuns,
-            lastRunDate: null,
-            lastCreditDate: Timestamp.fromDate(getResetAnchor(new Date())),
-            totalRuns: 0,
-            bestRun: 0,
-            totalBossKills: 0,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-
-          if (pending > 0) {
-            transaction.set(rewardRef, { [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: 0 }, { merge: true });
-          }
-        });
-      });
-
-      return getDungeonProgress(userId);
-    }
+    // Tout le crédit de runs / init doit venir du serveur (anti-cheat horloge).
+    const call = httpsCallable(functions, 'dungeon_getProgress');
+    const response = await call({ userId });
+    const data = response?.data?.data || response?.data || {};
+    return { success: true, data };
   } catch (error) {
     console.error('❌ Erreur récupération progression:', error);
     return { success: false, error: error.message };
@@ -260,85 +179,17 @@ export const canStartDungeonRun = async (userId) => {
 export const startDungeonRun = async (userId) => {
   try {
     await waitForFirestore();
-    const progressRef = doc(db, 'dungeonProgress', userId);
-
-    let runsRemainingAfter = 0;
-
-    await runTransaction(db, async (transaction) => {
-      const progressSnap = await transaction.get(progressRef);
-      const currentData = progressSnap.exists() ? progressSnap.data() : null;
-
-      const now = new Date();
-      const rewardRef = doc(db, 'tournamentRewards', userId);
-      let pendingBonus = 0;
-      if (!progressSnap.exists()) {
-        const rewardSnap = await transaction.get(rewardRef);
-        pendingBonus = rewardSnap.exists()
-          ? Math.max(0, Math.floor(Number(rewardSnap.data()[PENDING_TOURNAMENT_BETTING_RUNS_FIELD]) || 0))
-          : 0;
-      }
-      const baseInitialRuns = getInitialRunsForNewPlayer(now);
-      const poolIfNew = baseInitialRuns + pendingBonus;
-
-      const initialProgress = {
-        userId,
-        runsToday: 0,
-        runsAvailable: poolIfNew,
-        lastRunDate: null,
-        lastCreditDate: Timestamp.fromDate(getResetAnchor(now)),
-        totalRuns: 0,
-        bestRun: 0,
-        totalBossKills: 0,
-        equippedWeapon: null,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      const data = currentData || initialProgress;
-      const runsToday = isNewDay(data.lastRunDate) ? 0 : (data.runsToday || 0);
-      const currentAvailable = Number.isFinite(data.runsAvailable)
-        ? data.runsAvailable
-        : getRemainingRuns(runsToday, data.lastRunDate);
-
-      if (currentAvailable <= 0) {
-        throw new Error('NO_RUNS_LEFT');
-      }
-
-      const newRunsToday = isNewDay(data.lastRunDate) ? 1 : (data.runsToday || 0) + 1;
-      const newRunsAvailable = currentAvailable - 1;
-      runsRemainingAfter = newRunsAvailable;
-
-      if (!progressSnap.exists()) {
-        if (pendingBonus > 0) {
-          transaction.set(rewardRef, { [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: 0 }, { merge: true });
-        }
-        transaction.set(progressRef, {
-          ...initialProgress,
-          runsToday: 1,
-          runsAvailable: poolIfNew - 1,
-          lastRunDate: Timestamp.now(),
-          totalRuns: 1,
-          updatedAt: Timestamp.now()
-        });
-      } else {
-        transaction.update(progressRef, {
-          runsToday: newRunsToday,
-          runsAvailable: newRunsAvailable,
-          lastRunDate: Timestamp.now(),
-          totalRuns: (data.totalRuns || 0) + 1,
-          updatedAt: Timestamp.now()
-        });
-      }
-    });
-
-    console.log('🏰 Démarrage d\'une run de donjon (ok)');
+    const call = httpsCallable(functions, 'dungeon_startRun');
+    const response = await call({ userId });
+    const payload = response?.data || {};
     return {
       success: true,
-      runsRemaining: runsRemainingAfter,
-      startingLevel: 1
+      runsRemaining: payload.runsRemaining,
+      startingLevel: payload.startingLevel ?? 1,
     };
   } catch (error) {
-    if (error?.message === 'NO_RUNS_LEFT') {
+    const msg = error?.message || '';
+    if (msg.includes('resource-exhausted') || msg.includes('Plus de runs disponibles')) {
       return {
         success: false,
         error: 'Plus de runs disponibles',
@@ -399,24 +250,9 @@ export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel 
     const lootWeapons = highestLevelBeaten > 0 ? generateLootPair(highestLevelBeaten) : [null, null, null];
     const lootWeapon = lootWeapons[0];
 
-    // Mettre à jour les stats
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      const progressSnap = await getDoc(progressRef);
-      const currentData = progressSnap.data();
-
-      const updateData = {
-        totalBossKills: (currentData.totalBossKills || 0) + highestLevelBeaten,
-        updatedAt: Timestamp.now()
-      };
-
-      // Mettre à jour le meilleur score si battu
-      if (highestLevelBeaten > (currentData.bestRun || 0)) {
-        updateData.bestRun = highestLevelBeaten;
-      }
-
-      await updateDoc(progressRef, updateData);
-    });
+    // Mettre à jour les stats côté serveur (anti-cheat).
+    const call = httpsCallable(functions, 'dungeon_endRun');
+    await call({ userId, highestLevelBeaten, defeatedOnLevel });
 
     return {
       success: true,
@@ -451,13 +287,8 @@ export const equipWeapon = async (userId, weaponId) => {
       await clearWeaponUpgrade(userId);
     }
 
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      await updateDoc(progressRef, {
-        equippedWeapon: weaponId,
-        updatedAt: Timestamp.now()
-      });
-    });
+    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    await call({ userId, weaponId });
 
     await updateCharacterEquippedWeapon(userId, weaponId);
 
@@ -479,13 +310,8 @@ export const unequipWeapon = async (userId) => {
     // Déséquiper = l'arme perd son upgrade Forge (Ornn)
     await clearWeaponUpgrade(userId);
 
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      await updateDoc(progressRef, {
-        equippedWeapon: null,
-        updatedAt: Timestamp.now()
-      });
-    });
+    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    await call({ userId, weaponId: null });
 
     await updateCharacterEquippedWeapon(userId, null);
 
@@ -504,13 +330,8 @@ export const clearEquippedWeapon = async (userId) => {
   try {
     console.log('🔄 Réinitialisation arme équipée:', userId);
 
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      await setDoc(progressRef, {
-        equippedWeapon: null,
-        updatedAt: Timestamp.now()
-      }, { merge: true });
-    });
+    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    await call({ userId, weaponId: null });
 
     await updateCharacterEquippedWeapon(userId, null);
 
@@ -590,34 +411,8 @@ export const resetDungeonRuns = async (userId) => {
 export const markDungeonCompleted = async (userId, dungeonKey) => {
   try {
     if (!userId || !dungeonKey) return { success: false, error: 'Paramètres invalides' };
-
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      try {
-        await updateDoc(progressRef, {
-          [`dungeonCompletions.${dungeonKey}`]: true,
-          updatedAt: Timestamp.now()
-        });
-      } catch {
-        const now = new Date();
-        await setDoc(progressRef, {
-          userId,
-          dungeonCompletions: {
-            [dungeonKey]: true
-          },
-          updatedAt: Timestamp.now(),
-          createdAt: Timestamp.now(),
-          runsToday: 0,
-          runsAvailable: getInitialRunsForNewPlayer(now),
-          totalRuns: 0,
-          bestRun: 0,
-          totalBossKills: 0,
-          equippedWeapon: null,
-          lastRunDate: null,
-          lastCreditDate: Timestamp.fromDate(getResetAnchor(now))
-        }, { merge: true });
-      }
-    });
+    const call = httpsCallable(functions, 'dungeon_markCompleted');
+    await call({ userId, dungeonKey });
 
     const characterResult = await getUserCharacter(userId);
     if (characterResult.success && characterResult.data) {
@@ -774,31 +569,9 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
  */
 export async function grantRunsToPlayer(userId, attempts) {
   try {
-    await retryOperation(async () => {
-      const progressRef = doc(db, 'dungeonProgress', userId);
-      const snap = await getDoc(progressRef);
-      const now = Timestamp.now();
-      if (snap.exists()) {
-        await updateDoc(progressRef, {
-          runsAvailable: increment(attempts),
-          updatedAt: now,
-        });
-      } else {
-        await setDoc(progressRef, {
-          userId,
-          runsAvailable: attempts,
-          updatedAt: now,
-          lastCreditDate: now,
-          createdAt: now,
-          runsToday: 0,
-          totalRuns: 0,
-          bestRun: 0,
-          totalBossKills: 0,
-          equippedWeapon: null,
-          lastRunDate: null,
-        }, { merge: true });
-      }
-    });
+    // Récompenses runs (Boss Rush / Mirror / Labyrinthe) : côté serveur (anti-cheat).
+    const call = httpsCallable(functions, 'dungeon_grantRuns');
+    await call({ userId, attempts });
     return true;
   } catch (err) {
     console.error('Erreur grantRunsToPlayer:', err);

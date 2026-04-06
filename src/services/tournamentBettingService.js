@@ -5,7 +5,8 @@
  * Les gains (pool) sont versés sur tournamentRewards.pendingTournamentBettingRuns pour le prochain perso.
  */
 
-import { db } from '../firebase/config';
+import { db, functions } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
 import {
   collection,
   doc,
@@ -133,90 +134,9 @@ export async function placeBet({ userId, participantId, amount }) {
     return { success: false, error: `Maximum ${MAX_RUNS_PER_BET_ADD} runs par ajout.` };
   }
 
-  const tRef = tournamentRef();
-  const bRef = betDocRef(userId);
-  const dRef = dungeonProgressRef(userId);
-  const cRef = characterRef(participantId);
-
   try {
-    await runTransaction(db, async (transaction) => {
-      const tSnap = await transaction.get(tRef);
-      if (tSnap.exists()) {
-        const tData = tSnap.data();
-        if (tData.statut !== 'preparation') {
-          throw new Error('Les paris sont fermés (tournoi lancé ou terminé).');
-        }
-        const target = tData.participants?.[participantId];
-        if (target && target.ownerUserId != null) {
-          if (String(target.ownerUserId) === String(userId)) {
-            throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
-          }
-        } else {
-          const cSnap = await transaction.get(cRef);
-          if (!cSnap.exists()) {
-            throw new Error('Combattant inconnu ou non éligible.');
-          }
-          const c = cSnap.data();
-          if (c.archived || c.disabled) {
-            throw new Error('Ce personnage ne participe pas au tournoi.');
-          }
-          if (String(participantId) === String(userId)) {
-            throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
-          }
-        }
-      } else {
-        const cSnap = await transaction.get(cRef);
-        if (!cSnap.exists()) {
-          throw new Error('Combattant inconnu ou non éligible.');
-        }
-        const c = cSnap.data();
-        if (c.archived || c.disabled) {
-          throw new Error('Ce personnage ne participe pas au tournoi.');
-        }
-        if (String(participantId) === String(userId)) {
-          throw new Error('Vous ne pouvez pas parier sur votre propre personnage.');
-        }
-      }
-
-      const dSnap = await transaction.get(dRef);
-      const available = runsAvailableFromProgress(dSnap.data());
-      if (available < parsed) {
-        throw new Error('Pas assez de runs disponibles.');
-      }
-
-      const betSnap = await transaction.get(bRef);
-      if (betSnap.exists()) {
-        const prev = betSnap.data();
-        if (prev.participantId !== participantId) {
-          throw new Error('Annulez votre pari avant de changer de combattant.');
-        }
-        const nextTotal = (Number(prev.runsStaked) || 0) + parsed;
-        if (nextTotal > 500000) {
-          throw new Error('Mise totale maximale dépassée (500 000 runs).');
-        }
-        transaction.update(bRef, {
-          runsStaked: nextTotal,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        transaction.set(bRef, {
-          participantId,
-          runsStaked: parsed,
-          updatedAt: serverTimestamp(),
-        });
-      }
-
-      transaction.set(
-        dRef,
-        {
-          runsAvailable: increment(-parsed),
-          userId,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    });
-
+    const call = httpsCallable(functions, 'betting_placeBet');
+    await call({ participantId, amount: parsed });
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message || 'Échec du pari.' };
@@ -226,40 +146,9 @@ export async function placeBet({ userId, participantId, amount }) {
 export async function cancelBet(userId) {
   if (!userId) return { success: false, error: 'Non connecté.' };
 
-  const tRef = tournamentRef();
-  const bRef = betDocRef(userId);
-  const dRef = dungeonProgressRef(userId);
-
   try {
-    await runTransaction(db, async (transaction) => {
-      const tSnap = await transaction.get(tRef);
-      if (tSnap.exists() && tSnap.data().statut !== 'preparation') {
-        throw new Error('Impossible d’annuler : le tournoi a déjà commencé.');
-      }
-
-      const betSnap = await transaction.get(bRef);
-      if (!betSnap.exists()) {
-        throw new Error('Aucun pari à annuler.');
-      }
-
-      const refund = Number(betSnap.data().runsStaked) || 0;
-      if (refund <= 0) {
-        transaction.delete(bRef);
-        return;
-      }
-
-      transaction.delete(bRef);
-      transaction.set(
-        dRef,
-        {
-          runsAvailable: increment(refund),
-          userId,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    });
-
+    const call = httpsCallable(functions, 'betting_cancelBet');
+    await call({});
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message || 'Échec de l’annulation.' };

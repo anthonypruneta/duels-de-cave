@@ -21,8 +21,33 @@ service cloud.firestore {
     // Règles pour la collection 'dungeonProgress'
     match /dungeonProgress/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-                      (request.auth.uid == userId || isAdmin());
+      // Les champs sensibles (runsAvailable, lastCreditDate, totalRuns, etc.) sont gérés côté Cloud Functions.
+      // On n'autorise côté client que quelques flags "meta" (Mirror/Boss Rush) + admin.
+      function allowedClientKeys() {
+        return [
+          'bossRushCompleted',
+          'bossRushCompletions',
+          'bossRushLastCountedWeekId',
+          'lastMirrorDate',
+          'updatedAt'
+        ];
+      }
+
+      function isAllowedClientWrite() {
+        return request.auth != null &&
+               request.auth.uid == userId &&
+               (
+                 // Create
+                 (!exists(/databases/$(database)/documents/dungeonProgress/$(userId)) &&
+                  request.resource.data.keys().hasOnly(allowedClientKeys())) ||
+                 // Update
+                 (exists(/databases/$(database)/documents/dungeonProgress/$(userId)) &&
+                  request.resource.data.diff(resource.data).changedKeys().hasOnly(allowedClientKeys()))
+               );
+      }
+
+      allow create, update: if isAllowedClientWrite() || isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Broadcasts admin (pop-up d'annonce globale)
