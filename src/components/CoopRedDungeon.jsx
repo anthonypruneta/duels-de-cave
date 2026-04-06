@@ -38,7 +38,7 @@ import {
 import CoopRedAnimatedReplay from './CoopRedAnimatedReplay';
 import { getCoopRedSpriteUrl } from '../utils/coopRedSprites';
 
-/** Portrait Red : résolu via glob (pas d’import statique) — fichier `COOP_RED_TRAINER_IMAGE_FILE` dans src/assets/coop/. */
+/** Portrait Red : résolu via glob — `COOP_RED_TRAINER_IMAGE_FILE` (ex. Red.png) dans src/assets/coop/. */
 const redTrainerPortraitUrl = getCoopRedSpriteUrl(COOP_RED_TRAINER_IMAGE_FILE);
 
 const COOP_RED_PAGE_BG = '/assets/backgrounds/red.png';

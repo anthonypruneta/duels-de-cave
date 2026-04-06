@@ -1,5 +1,5 @@
 /**
- * Sprites donjon Red (src/assets/coop). Fichiers en minuscules côté repo ; résolution par nom basse casse.
+ * Sprites donjon Red (src/assets/coop). Résolution insensible à la casse (Windows / noms Git PascalCase).
  * Hors Vite (ex. node scripts/runMassSim.mjs) : pas de import.meta.glob → aucune URL (getCoopRedSpriteUrl → null).
  */
 const coopSpriteModules =
