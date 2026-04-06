@@ -33,6 +33,8 @@ const PVP_CHAR_STATS_LEGACY_SUB = 'characters';
 /** Collection racine pour le classement (query simple + règles fiables ; pas de collectionGroup). */
 const PVP_LEADERBOARD_ENTRIES = 'pvpDuelLeaderboardEntries';
 
+const EMPTY_STATS = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
+
 export function pvpLeaderboardEntryDocId(userId, characterId) {
   const u = String(userId || '');
   const c = String(characterId || '');
@@ -56,6 +58,37 @@ export function getPvpLobbyMaxLevel() {
 /** Copie profonde « brute » pour simulerMatch / Firestore (aligné sur le donjon Red). */
 export function snapshotCharacterForPvp(data) {
   if (!data) return null;
+  const baseRaw = (data.base && typeof data.base === 'object') ? data.base : {};
+  const base = { ...EMPTY_STATS, ...baseRaw };
+  for (const k of Object.keys(EMPTY_STATS)) {
+    const v = Number(base[k]);
+    base[k] = Number.isFinite(v) ? v : 0;
+  }
+  if (base.hp <= 0) base.hp = 1;
+
+  const forestRaw = (data.forestBoosts && typeof data.forestBoosts === 'object') ? data.forestBoosts : {};
+  const forestBoosts = { ...EMPTY_STATS, ...forestRaw };
+  for (const k of Object.keys(EMPTY_STATS)) {
+    const v = Number(forestBoosts[k]);
+    forestBoosts[k] = Number.isFinite(v) ? v : 0;
+  }
+
+  const bonusesRaw = data.bonuses ? JSON.parse(JSON.stringify(data.bonuses)) : { race: {}, class: {} };
+  const bRace = { ...EMPTY_STATS, ...(bonusesRaw?.race || {}) };
+  const bClass = { ...EMPTY_STATS, ...(bonusesRaw?.class || {}) };
+  for (const k of Object.keys(EMPTY_STATS)) {
+    const vr = Number(bRace[k]);
+    const vc = Number(bClass[k]);
+    bRace[k] = Number.isFinite(vr) ? vr : 0;
+    bClass[k] = Number.isFinite(vc) ? vc : 0;
+  }
+  const bonuses = { ...(bonusesRaw || {}), race: bRace, class: bClass };
+
+  const equippedWeaponId =
+    data.equippedWeaponId ??
+    data.equippedWeaponData?.id ??
+    data.equippedWeaponData?.weaponId ??
+    null;
   return {
     userId: data.userId,
     id: data.id,
@@ -68,10 +101,10 @@ export function snapshotCharacterForPvp(data) {
     race: data.race,
     class: data.class,
     level: data.level ?? 1,
-    base: data.base ? { ...data.base } : {},
-    bonuses: data.bonuses ? JSON.parse(JSON.stringify(data.bonuses)) : { race: {}, class: {} },
-    forestBoosts: data.forestBoosts ? { ...data.forestBoosts } : {},
-    equippedWeaponId: data.equippedWeaponId ?? null,
+    base,
+    bonuses,
+    forestBoosts,
+    equippedWeaponId,
     equippedWeaponData: data.equippedWeaponData
       ? JSON.parse(JSON.stringify(data.equippedWeaponData))
       : null,
