@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters, getAccountTitles, saveAccountTitles, updateCharacterEquippedRealBorder } from '../services/characterService';
-import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary } from '../services/dungeonService';
+import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary, getDungeonProgress } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
 import { getWorldBossEvent, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
@@ -637,6 +637,13 @@ const CharacterCreation = () => {
       if (!currentUser) return;
 
       setLoading(true);
+      // Crédit runs (00h/12h/18h Paris) dès l'arrivée sur l'accueil, avant toute navigation.
+      // Sinon un joueur peut être bloqué avec 0 runs sans jamais déclencher le donjon.
+      try {
+        await getDungeonProgress(currentUser.uid);
+      } catch (_) {
+        /* ignore */
+      }
       await claimCataclysmeRewardsIfEligible(currentUser.uid);
       const { success, data } = await getUserCharacter(currentUser.uid);
       const accountPseudoResult = await getOwnerPseudoFromAccount(currentUser.uid);
