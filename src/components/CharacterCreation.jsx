@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { saveCharacter, getUserCharacter, canCreateCharacter, updateCharacterLevel, savePendingRoll, getPendingRoll, deletePendingRoll, updateCharacterOwnerPseudo, saveOwnerPseudoToAccount, getOwnerPseudoFromAccount, getDisabledCharacters, getAccountTitles, saveAccountTitles, updateCharacterEquippedRealBorder } from '../services/characterService';
-import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary, getDungeonProgress } from '../services/dungeonService';
+import { resetDungeonRuns, getLatestDungeonRunsGrant, getPlayerDungeonSummary, getDungeonProgress, claimBossRushRewardIfEligible } from '../services/dungeonService';
 import { resetUserLabyrinthProgress, getUserLabyrinthProgress } from '../services/infiniteLabyrinthService';
 import { checkTripleRoll, consumeTripleRoll, getTripleRollCount, getPlayerTournamentRank } from '../services/tournamentService';
 import { getWorldBossEvent, claimCataclysmeRewardsIfEligible } from '../services/worldBossService';
@@ -642,6 +642,8 @@ const CharacterCreation = () => {
       // Sinon un joueur peut être bloqué avec 0 runs sans jamais déclencher le donjon.
       try {
         await getDungeonProgress(currentUser.uid);
+        // Rétroactif: si un Boss Rush a été réussi mais que la récompense (+10 runs) n'a pas été donnée.
+        await claimBossRushRewardIfEligible(currentUser.uid);
       } catch (_) {
         /* ignore */
       }

@@ -579,6 +579,23 @@ export async function grantRunsToPlayer(userId, attempts) {
   }
 }
 
+/**
+ * Réclame la récompense Boss Rush (+10 runs) si éligible.
+ * Serveur-side (transaction) et rétroactif: accordée à la prochaine visite.
+ */
+export async function claimBossRushRewardIfEligible(userId) {
+  if (!userId) return { success: false, granted: false, error: 'Utilisateur manquant' };
+  try {
+    const call = httpsCallable(functions, 'bossRush_claimReward');
+    const res = await call({ userId });
+    const data = res?.data || {};
+    return { success: true, granted: !!data.granted, reason: data.reason || null };
+  } catch (err) {
+    console.error('claimBossRushRewardIfEligible:', err);
+    return { success: false, granted: false, error: err?.message || String(err) };
+  }
+}
+
 export const getLatestDungeonRunsGrant = async () => {
   try {
     const result = await retryOperation(async () => {

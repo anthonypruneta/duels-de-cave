@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, saveAccountTitles } from '../services/characterService';
-import { grantRunsToPlayer, getPlayerDungeonSummary } from '../services/dungeonService';
+import { claimBossRushRewardIfEligible, getPlayerDungeonSummary } from '../services/dungeonService';
 import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { getBossRushBosses, createBossRushCombatant, BOSS_RUSH_COUNT } from '../data/bossRush';
@@ -240,8 +240,10 @@ const BossRush = () => {
             : lastCountedWeekId;
 
           if (shouldCountThisWeek) {
-            await grantRunsToPlayer(currentUser.uid, 10);
-            setRewardGiven(true);
+            const claimed = await claimBossRushRewardIfEligible(currentUser.uid);
+            if (claimed.success && claimed.granted) {
+              setRewardGiven(true);
+            }
           }
 
           await setDoc(progressRef, {

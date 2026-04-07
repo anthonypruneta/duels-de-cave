@@ -28,12 +28,25 @@ export function isSameParisDay(a, b) {
  */
 export function isMirrorDoneToday(lastMirrorDate, now = new Date()) {
   if (!lastMirrorDate) return false;
-  const d =
-    lastMirrorDate instanceof Date
-      ? lastMirrorDate
-      : typeof lastMirrorDate?.toDate === 'function'
-        ? lastMirrorDate.toDate()
-        : new Date(lastMirrorDate);
+  const toDateSafe = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if (typeof v?.toDate === 'function') {
+      try { return v.toDate(); } catch (_) { /* ignore */ }
+    }
+    // Timestamp sérialisé (callable / JSON): { seconds, nanoseconds } ou { _seconds, _nanoseconds }
+    const secs = Number.isFinite(v.seconds) ? v.seconds : (Number.isFinite(v._seconds) ? v._seconds : null);
+    const nanos = Number.isFinite(v.nanoseconds) ? v.nanoseconds : (Number.isFinite(v._nanoseconds) ? v._nanoseconds : 0);
+    if (secs != null) {
+      const ms = Math.floor(secs * 1000 + Math.floor(nanos / 1e6));
+      return new Date(ms);
+    }
+    // ISO string / number fallback
+    const d = new Date(v);
+    return d;
+  };
+
+  const d = toDateSafe(lastMirrorDate);
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return false;
   return isSameParisDay(d, now);
 }

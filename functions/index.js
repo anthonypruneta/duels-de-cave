@@ -21,6 +21,15 @@ function assertAuthed(request) {
   return request.auth.uid;
 }
 
+function getIsoWeekIdUTC(referenceDate = new Date()) {
+  const date = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), referenceDate.getUTCDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 function getParisWallClockParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: PARIS_TZ,
@@ -475,6 +484,50 @@ export const dungeon_grantRuns = onCall({ region: 'europe-west1' }, async (reque
   }, { merge: true });
 
   return { success: true };
+});
+
+// ============================================================================
+// Boss Rush — récompense runs (10) : claim serveur + rétroactif
+// - Une fois par semaine ISO (UTC) par joueur
+// - Déclenché à la victoire Boss Rush OU à l'arrivée sur l'accueil
+// ============================================================================
+
+export const bossRush_claimReward = onCall({ region: 'europe-west1' }, async (request) => {
+  const uid = assertAuthed(request);
+  const userId = request.data?.userId;
+  if (!userId || String(userId) !== String(uid)) {
+    throw new HttpsError('permission-denied', 'Accès refusé.');
+  }
+
+  const progressRef = db.collection('dungeonProgress').doc(uid);
+  const now = new Date();
+  const currentWeekId = getIsoWeekIdUTC(now);
+
+  const res = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(progressRef);
+    if (!snap.exists) {
+      throw new HttpsError('failed-precondition', 'Progression donjon introuvable.');
+    }
+    const data = snap.data() || {};
+    const completed = !!data.bossRushCompleted;
+    if (!completed) return { granted: false, reason: 'not_completed' };
+
+    const lastGrantedWeekId = data.bossRushRewardLastGrantedWeekId ?? null;
+    if (String(lastGrantedWeekId || '') === String(currentWeekId)) {
+      return { granted: false, reason: 'already_granted' };
+    }
+
+    // Crédit runs en transaction + marquage "déjà donné cette semaine"
+    tx.set(progressRef, {
+      runsAvailable: FieldValue.increment(10),
+      bossRushRewardLastGrantedWeekId: currentWeekId,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { granted: true, reason: 'granted' };
+  });
+
+  return { success: true, ...res };
 });
 
 // ============================================================================
