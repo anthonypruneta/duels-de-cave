@@ -40,7 +40,7 @@ import { db } from '../firebase/config';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { announceFirstLabyrinthFloorClear } from '../services/milestoneAnnouncementService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { isMirrorDoneToday } from '../utils/parisDate';
+import { getMsUntilNextParisDungeonReset, isMirrorDoneToday } from '../utils/parisDate';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -894,6 +894,48 @@ const CharacterCreation = () => {
     };
 
     loadCharacter();
+  }, [currentUser]);
+
+  // Rafraîchir automatiquement l'UI au prochain créneau (00h/12h/18h Paris).
+  // Sans ça, un joueur déjà sur l'accueil à 18h ne verra pas ses runs crédités tant qu'il ne recharge pas.
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    let cancelled = false;
+    let timeoutId = null;
+
+    const refreshRuns = async () => {
+      try {
+        await getDungeonProgress(currentUser.uid); // déclenche le crédit serveur si éligible
+        const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+        if (cancelled) return;
+        if (summaryResult.success) {
+          const runsRemaining = summaryResult.data?.runsRemaining ?? 0;
+          const maxRuns = summaryResult.data?.maxRuns ?? 5;
+          const mirrorDoneToday = summaryResult.data?.lastMirrorDate
+            ? isMirrorDoneToday(summaryResult.data.lastMirrorDate, new Date())
+            : false;
+          setRecapData((prev) => prev ? ({ ...prev, runsRemaining, maxRuns, mirrorDoneToday }) : prev);
+        }
+      } catch (_) {
+        /* silencieux */
+      }
+    };
+
+    const schedule = () => {
+      if (cancelled) return;
+      const ms = getMsUntilNextParisDungeonReset(new Date());
+      // Petit buffer pour éviter les cas "pile à l'heure" et laisser l'instant serveur basculer.
+      timeoutId = setTimeout(async () => {
+        await refreshRuns();
+        schedule();
+      }, Math.min(ms + 3000, 12 * 60 * 60 * 1000));
+    };
+
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
   }, [currentUser]);
 
   // Garder le statut "Miroir" à jour même si on revient sur l'accueil sans remount (navigation SPA).
