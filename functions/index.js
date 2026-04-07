@@ -57,18 +57,28 @@ function getParisWallClockParts(date = new Date()) {
  * Convertit une date/heure "murale" Europe/Paris en instant UTC (Date),
  * sans dépendre du fuseau du serveur (Cloud = souvent UTC).
  *
- * Approche: itération sur un guess UTC jusqu'à ce que le rendu Paris corresponde.
+ * Approche: on calcule l'offset Europe/Paris à un instant donné via formatToParts,
+ * puis on itère (l'offset dépend du DST).
  */
 function parisLocalToUtcDate({ year, month, day, hour, minute = 0, second = 0 }) {
-  let guess = Date.UTC(year, month - 1, day, hour, minute, second, 0);
+  const naiveUtc = Date.UTC(year, month - 1, day, hour, minute, second, 0);
+
+  const parisOffsetMsAt = (utcMs) => {
+    const p = getParisWallClockParts(new Date(utcMs));
+    // "p" est l'heure locale Paris observée à l'instant utcMs.
+    // Si on l'interprète comme un instant UTC, l'écart avec utcMs = offset du fuseau.
+    const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
+    return asIfUtc - utcMs;
+  };
+
+  let guess = naiveUtc;
   for (let i = 0; i < 6; i++) {
-    const p = getParisWallClockParts(new Date(guess));
-    const want = Date.UTC(year, month - 1, day, hour, minute, second, 0);
-    const got = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
-    const deltaMs = want - got;
-    if (deltaMs === 0) return new Date(guess);
-    guess += deltaMs;
+    const offset = parisOffsetMsAt(guess);
+    const candidate = naiveUtc - offset;
+    if (candidate === guess) break;
+    guess = candidate;
   }
+
   return new Date(guess);
 }
 
