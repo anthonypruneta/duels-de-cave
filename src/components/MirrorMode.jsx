@@ -7,7 +7,7 @@ import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
-import { isSameParisDay } from '../utils/parisDate';
+import { isMirrorDoneToday } from '../utils/parisDate';
 import CombatSpeedSelector from './CombatSpeedSelector';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
@@ -104,10 +104,7 @@ const MirrorMode = () => {
         if (progressSnap.exists()) {
           const data = progressSnap.data();
           if (data.lastMirrorDate) {
-            const lastDate = typeof data.lastMirrorDate.toDate === 'function'
-              ? data.lastMirrorDate.toDate()
-              : new Date(data.lastMirrorDate);
-            if (isSameParisDay(lastDate, new Date())) {
+            if (isMirrorDoneToday(data.lastMirrorDate, new Date())) {
               setAlreadyDone(true);
             }
           }

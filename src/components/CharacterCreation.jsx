@@ -40,7 +40,7 @@ import { db } from '../firebase/config';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { announceFirstLabyrinthFloorClear } from '../services/milestoneAnnouncementService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { isSameParisDay } from '../utils/parisDate';
+import { isMirrorDoneToday } from '../utils/parisDate';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -799,10 +799,7 @@ const CharacterCreation = () => {
 
           let mirrorDoneToday = false;
           if (summaryResult.success && summaryResult.data?.lastMirrorDate) {
-            const raw = summaryResult.data.lastMirrorDate;
-            const lastDate = typeof raw.toDate === 'function' ? raw.toDate() : new Date(raw);
-            const now = new Date();
-            mirrorDoneToday = isSameParisDay(lastDate, now);
+            mirrorDoneToday = isMirrorDoneToday(summaryResult.data.lastMirrorDate, new Date());
           }
 
           const wbData = wbResult.success ? wbResult.data : null;
@@ -904,11 +901,7 @@ const CharacterCreation = () => {
     const unsub = onSnapshot(progressRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data() || {};
-      const raw = data.lastMirrorDate ?? null;
-      const lastDate = raw
-        ? (typeof raw.toDate === 'function' ? raw.toDate() : new Date(raw))
-        : null;
-      const done = lastDate ? isSameParisDay(lastDate, new Date()) : false;
+      const done = isMirrorDoneToday(data.lastMirrorDate ?? null, new Date());
 
       setRecapData((prev) => {
         if (!prev) return prev;

@@ -21,3 +21,20 @@ export function isSameParisDay(a, b) {
   return getParisDateKey(a) === getParisDateKey(b);
 }
 
+/**
+ * Retourne true si le Miroir a déjà été fait aujourd'hui (jour civil Europe/Paris).
+ * @param {any} lastMirrorDate - Timestamp Firestore, Date, ou valeur convertible en Date
+ * @param {Date} [now]
+ */
+export function isMirrorDoneToday(lastMirrorDate, now = new Date()) {
+  if (!lastMirrorDate) return false;
+  const d =
+    lastMirrorDate instanceof Date
+      ? lastMirrorDate
+      : typeof lastMirrorDate?.toDate === 'function'
+        ? lastMirrorDate.toDate()
+        : new Date(lastMirrorDate);
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return false;
+  return isSameParisDay(d, now);
+}
+
