@@ -12,6 +12,8 @@ const DUNGEON_CONSTANTS = {
   MAX_PERIOD_BLOCKS_PER_PARIS_DAY: 3,
 };
 
+const PARIS_TZ = 'Europe/Paris';
+
 function assertAuthed(request) {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Vous devez être connecté.');
@@ -19,22 +21,69 @@ function assertAuthed(request) {
   return request.auth.uid;
 }
 
+function getParisWallClockParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PARIS_TZ,
+    weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const m = {};
+  for (const p of parts) {
+    if (p.type !== 'literal') m[p.type] = p.value;
+  }
+
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  return {
+    year: parseInt(m.year, 10),
+    month: parseInt(m.month, 10),
+    day: parseInt(m.day, 10),
+    weekday: weekdayMap[m.weekday] ?? null,
+    hour: parseInt(m.hour, 10),
+    minute: parseInt(m.minute, 10),
+    second: parseInt(m.second, 10),
+  };
+}
+
+/**
+ * Convertit une date/heure "murale" Europe/Paris en instant UTC (Date),
+ * sans dépendre du fuseau du serveur (Cloud = souvent UTC).
+ *
+ * Approche: itération sur un guess UTC jusqu'à ce que le rendu Paris corresponde.
+ */
+function parisLocalToUtcDate({ year, month, day, hour, minute = 0, second = 0 }) {
+  let guess = Date.UTC(year, month - 1, day, hour, minute, second, 0);
+  for (let i = 0; i < 6; i++) {
+    const p = getParisWallClockParts(new Date(guess));
+    const want = Date.UTC(year, month - 1, day, hour, minute, second, 0);
+    const got = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
+    const deltaMs = want - got;
+    if (deltaMs === 0) return new Date(guess);
+    guess += deltaMs;
+  }
+  return new Date(guess);
+}
+
 function getResetAnchor(date) {
-  const anchor = new Date(date);
-  const hour = anchor.getHours();
-  if (hour < 12) anchor.setHours(0, 0, 0, 0);
-  else if (hour < 18) anchor.setHours(12, 0, 0, 0);
-  else anchor.setHours(18, 0, 0, 0);
-  return anchor;
+  const p = getParisWallClockParts(date);
+  const slotHour = p.hour < 12 ? 0 : p.hour < 18 ? 12 : 18;
+  return parisLocalToUtcDate({ year: p.year, month: p.month, day: p.day, hour: slotHour, minute: 0, second: 0 });
 }
 
 function isParisSunday(date) {
-  const str = new Date(date).toLocaleString('en-US', { timeZone: 'Europe/Paris' });
-  return new Date(str).getDay() === 0;
+  return getParisWallClockParts(date).weekday === 0;
 }
 
 function isParisPostTournament(date = new Date()) {
-  const tz = 'Europe/Paris';
+  const tz = PARIS_TZ;
   const parts = new Intl.DateTimeFormat('fr-FR', {
     timeZone: tz,
     weekday: 'short',
@@ -53,21 +102,45 @@ function isParisPostTournament(date = new Date()) {
 }
 
 function advanceResetAnchor(anchor) {
-  const d = new Date(anchor);
-  const h = d.getHours();
-  if (h === 0) d.setHours(12, 0, 0, 0);
-  else if (h === 12) d.setHours(18, 0, 0, 0);
+  const p = getParisWallClockParts(anchor);
+  let nextYear = p.year;
+  let nextMonth = p.month;
+  let nextDay = p.day;
+  let nextHour = 0;
+
+  if (p.hour === 0) nextHour = 12;
+  else if (p.hour === 12) nextHour = 18;
   else {
-    d.setDate(d.getDate() + 1);
-    d.setHours(0, 0, 0, 0);
+    nextHour = 0;
+    const nextLocalMidnight = parisLocalToUtcDate({
+      year: p.year,
+      month: p.month,
+      day: p.day,
+      hour: 0,
+      minute: 0,
+      second: 0,
+    });
+    const plusOneDay = new Date(nextLocalMidnight.getTime() + 24 * 60 * 60 * 1000);
+    const p2 = getParisWallClockParts(plusOneDay);
+    nextYear = p2.year;
+    nextMonth = p2.month;
+    nextDay = p2.day;
   }
-  return d;
+
+  return parisLocalToUtcDate({
+    year: nextYear,
+    month: nextMonth,
+    day: nextDay,
+    hour: nextHour,
+    minute: 0,
+    second: 0,
+  });
 }
 
 /** Jour civil Paris YYYY-MM-DD (aligné dimanche / tournoi). */
 function getParisDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Paris',
+    timeZone: PARIS_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -113,12 +186,21 @@ function isNewDay(lastRunDate, now = new Date()) {
 }
 
 function getRunsSinceWeekStart(now = new Date()) {
-  const day = now.getDay(); // 0=dim, 1=lun, ...
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(monday.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  const periods = getResetPeriodsSince(monday, now);
+  const p = getParisWallClockParts(now);
+  const weekday = p.weekday; // 0=dim, 1=lun, ...
+  const diffDays = weekday === 0 ? -6 : 1 - weekday; // ramener au lundi (Paris)
+
+  const todayParisMidnightUtc = parisLocalToUtcDate({
+    year: p.year,
+    month: p.month,
+    day: p.day,
+    hour: 0,
+    minute: 0,
+    second: 0,
+  });
+  const mondayUtc = new Date(todayParisMidnightUtc.getTime() + diffDays * 24 * 60 * 60 * 1000);
+
+  const periods = getResetPeriodsSince(mondayUtc, now);
   return (periods + 1) * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
 }
 
@@ -132,6 +214,7 @@ async function applyRunCreditsInTransaction(tx, progressRef, data, now) {
 
   const parisKey = getParisDateKey(now);
   const lastCreditDate = data?.lastCreditDate ?? null;
+  const currentAnchor = getResetAnchor(now);
 
   const runsCreditedParisDay =
     data?.dungeonPeriodRunsParisDate === parisKey
