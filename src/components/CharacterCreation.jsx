@@ -39,7 +39,7 @@ import CardBorderCanvas from './CardBorderCanvas';
 import { db } from '../firebase/config';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { announceFirstLabyrinthFloorClear } from '../services/milestoneAnnouncementService';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -111,6 +111,27 @@ const STAT_DESCRIPTIONS = {
   rescap: "Réduit les dégâts magiques/CAP reçus.",
   spd: "Détermine l'ordre d'action (le plus rapide joue en premier)."
 };
+
+const PARIS_TZ = 'Europe/Paris';
+
+const getParisDateKey = (date = new Date()) => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: PARIS_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch (_) {
+    const d = date instanceof Date ? date : new Date(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  }
+};
+
+const isSameParisDay = (a, b) => getParisDateKey(a) === getParisDateKey(b);
 
 const getWeaponStatColor = (value) => {
   if (value > 0) return 'text-green-400';
@@ -801,9 +822,7 @@ const CharacterCreation = () => {
             const raw = summaryResult.data.lastMirrorDate;
             const lastDate = typeof raw.toDate === 'function' ? raw.toDate() : new Date(raw);
             const now = new Date();
-            mirrorDoneToday = lastDate.getFullYear() === now.getFullYear()
-              && lastDate.getMonth() === now.getMonth()
-              && lastDate.getDate() === now.getDate();
+            mirrorDoneToday = isSameParisDay(lastDate, now);
           }
 
           const wbData = wbResult.success ? wbResult.data : null;
@@ -896,6 +915,30 @@ const CharacterCreation = () => {
     };
 
     loadCharacter();
+  }, [currentUser]);
+
+  // Garder le statut "Miroir" à jour même si on revient sur l'accueil sans remount (navigation SPA).
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    const progressRef = doc(db, 'dungeonProgress', currentUser.uid);
+    const unsub = onSnapshot(progressRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() || {};
+      const raw = data.lastMirrorDate ?? null;
+      const lastDate = raw
+        ? (typeof raw.toDate === 'function' ? raw.toDate() : new Date(raw))
+        : null;
+      const done = lastDate ? isSameParisDay(lastDate, new Date()) : false;
+
+      setRecapData((prev) => {
+        if (!prev) return prev;
+        if (!!prev.mirrorDoneToday === !!done) return prev;
+        return { ...prev, mirrorDoneToday: done };
+      });
+    }, () => {
+      /* ignore */
+    });
+    return () => unsub();
   }, [currentUser]);
 
   useEffect(() => {
