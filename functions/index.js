@@ -509,8 +509,12 @@ export const bossRush_claimReward = onCall({ region: 'europe-west1' }, async (re
       throw new HttpsError('failed-precondition', 'Progression donjon introuvable.');
     }
     const data = snap.data() || {};
-    const completed = !!data.bossRushCompleted;
-    if (!completed) return { granted: false, reason: 'not_completed' };
+    // Éligibilité = Boss Rush compté sur la semaine courante.
+    // (Côté client, `bossRushLastCountedWeekId` est posé lors de la victoire finale.)
+    const countedWeekId = data.bossRushLastCountedWeekId ?? null;
+    if (String(countedWeekId || '') !== String(currentWeekId)) {
+      return { granted: false, reason: 'not_completed_this_week' };
+    }
 
     const lastGrantedWeekId = data.bossRushRewardLastGrantedWeekId ?? null;
     if (String(lastGrantedWeekId || '') === String(currentWeekId)) {

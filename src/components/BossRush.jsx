@@ -239,19 +239,20 @@ const BossRush = () => {
             ? currentWeekId
             : lastCountedWeekId;
 
-          if (shouldCountThisWeek) {
-            const claimed = await claimBossRushRewardIfEligible(currentUser.uid);
-            if (claimed.success && claimed.granted) {
-              setRewardGiven(true);
-            }
-          }
-
           await setDoc(progressRef, {
             bossRushCompleted: true,
             bossRushCompletions: newCompletions,
             bossRushLastCountedWeekId: newLastCountedWeekId,
             updatedAt: Timestamp.now(),
           }, { merge: true });
+
+          // IMPORTANT: la récompense serveur vérifie bossRushCompleted.
+          // On doit donc d'abord persister la complétion, puis réclamer les +10 runs.
+          // On tente systématiquement sur victoire finale: le serveur déduplique (1x/semaine).
+          const claimed = await claimBossRushRewardIfEligible(currentUser.uid);
+          if (claimed.success && claimed.granted) {
+            setRewardGiven(true);
+          }
 
           if (shouldCountThisWeek) {
             await setDoc(doc(db, 'tournamentRewards', currentUser.uid), {
