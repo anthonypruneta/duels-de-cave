@@ -14,6 +14,49 @@ const DUNGEON_CONSTANTS = {
 
 const PARIS_TZ = 'Europe/Paris';
 
+// ============================================================================
+// Timezone Paris (CET/CEST) — sans dépendre d'Intl timeZone côté runtime
+// ============================================================================
+
+function lastSundayOfMonthUTC(year, monthIndex0) {
+  // monthIndex0: 0=Jan ... 11=Dec
+  const lastDay = new Date(Date.UTC(year, monthIndex0 + 1, 0, 0, 0, 0));
+  const dow = lastDay.getUTCDay(); // 0=Sun
+  lastDay.setUTCDate(lastDay.getUTCDate() - dow);
+  return lastDay; // 00:00 UTC du dernier dimanche
+}
+
+function parisOffsetMinutesForUtcDate(dateUtc = new Date()) {
+  // DST Europe/Paris: du dernier dimanche de mars 01:00 UTC
+  // au dernier dimanche d'octobre 01:00 UTC.
+  const y = dateUtc.getUTCFullYear();
+  const dstStart = lastSundayOfMonthUTC(y, 2); // mars
+  dstStart.setUTCHours(1, 0, 0, 0);
+  const dstEnd = lastSundayOfMonthUTC(y, 9); // octobre
+  dstEnd.setUTCHours(1, 0, 0, 0);
+
+  const t = dateUtc.getTime();
+  const inDst = t >= dstStart.getTime() && t < dstEnd.getTime();
+  return inDst ? 120 : 60; // minutes
+}
+
+function getParisWallClockParts(dateUtc = new Date()) {
+  // On convertit l'instant UTC en "murale Paris" via offset CET/CEST déterministe.
+  const offsetMin = parisOffsetMinutesForUtcDate(dateUtc);
+  const parisMs = dateUtc.getTime() + offsetMin * 60 * 1000;
+  const d = new Date(parisMs);
+
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+    weekday: d.getUTCDay(), // 0=dim, 1=lun...
+    hour: d.getUTCHours(),
+    minute: d.getUTCMinutes(),
+    second: d.getUTCSeconds(),
+  };
+}
+
 function assertAuthed(request) {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Vous devez être connecté.');
@@ -30,64 +73,24 @@ function getIsoWeekIdUTC(referenceDate = new Date()) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-function getParisWallClockParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: PARIS_TZ,
-    weekday: 'short',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    hourCycle: 'h23',
-  }).formatToParts(date);
-
-  const m = {};
-  for (const p of parts) {
-    if (p.type !== 'literal') m[p.type] = p.value;
-  }
-
-  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  return {
-    year: parseInt(m.year, 10),
-    month: parseInt(m.month, 10),
-    day: parseInt(m.day, 10),
-    weekday: weekdayMap[m.weekday] ?? null,
-    hour: parseInt(m.hour, 10),
-    minute: parseInt(m.minute, 10),
-    second: parseInt(m.second, 10),
-  };
-}
-
 /**
  * Convertit une date/heure "murale" Europe/Paris en instant UTC (Date),
  * sans dépendre du fuseau du serveur (Cloud = souvent UTC).
  *
- * Approche: on calcule l'offset Europe/Paris à un instant donné via formatToParts,
- * puis on itère (l'offset dépend du DST).
+ * Approche: on applique un offset CET/CEST déterministe, puis on itère
+ * (l'offset dépend du DST, donc il faut converger).
  */
 function parisLocalToUtcDate({ year, month, day, hour, minute = 0, second = 0 }) {
   const naiveUtc = Date.UTC(year, month - 1, day, hour, minute, second, 0);
 
-  const parisOffsetMsAt = (utcMs) => {
-    const p = getParisWallClockParts(new Date(utcMs));
-    // "p" est l'heure locale Paris observée à l'instant utcMs.
-    // Si on l'interprète comme un instant UTC, l'écart avec utcMs = offset du fuseau.
-    const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
-    return asIfUtc - utcMs;
-  };
-
-  let guess = naiveUtc;
+  // Première estimation: assume l'offset au même instant UTC.
+  let guess = naiveUtc - parisOffsetMinutesForUtcDate(new Date(naiveUtc)) * 60 * 1000;
   for (let i = 0; i < 6; i++) {
-    const offset = parisOffsetMsAt(guess);
-    const candidate = naiveUtc - offset;
+    const offsetMin = parisOffsetMinutesForUtcDate(new Date(guess));
+    const candidate = naiveUtc - offsetMin * 60 * 1000;
     if (candidate === guess) break;
     guess = candidate;
   }
-
   return new Date(guess);
 }
 
@@ -102,21 +105,9 @@ function isParisSunday(date) {
 }
 
 function isParisPostTournament(date = new Date()) {
-  const tz = PARIS_TZ;
-  const parts = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: tz,
-    weekday: 'short',
-    hour: 'numeric',
-    hour12: false,
-  }).formatToParts(date);
-  let weekday = '';
-  let hour = 0;
-  for (const p of parts) {
-    if (p.type === 'weekday') weekday = p.value;
-    if (p.type === 'hour') hour = parseInt(p.value, 10);
-  }
-  if (weekday === 'dim.') return true;
-  if (weekday === 'sam.' && hour >= 18) return true;
+  const p = getParisWallClockParts(date);
+  if (p.weekday === 0) return true; // dimanche
+  if (p.weekday === 6 && p.hour >= 18) return true; // samedi >= 18h
   return false;
 }
 
@@ -158,15 +149,10 @@ function advanceResetAnchor(anchor) {
 
 /** Jour civil Paris YYYY-MM-DD (aligné dimanche / tournoi). */
 function getParisDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PARIS_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const y = parts.find((p) => p.type === 'year')?.value;
-  const m = parts.find((p) => p.type === 'month')?.value;
-  const d = parts.find((p) => p.type === 'day')?.value;
+  const p = getParisWallClockParts(date);
+  const y = String(p.year);
+  const m = String(p.month).padStart(2, '0');
+  const d = String(p.day).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
