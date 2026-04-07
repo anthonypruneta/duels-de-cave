@@ -7,6 +7,7 @@ import { getWeaponUpgrade } from '../services/forgeService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
+import { isSameParisDay } from '../utils/parisDate';
 import CombatSpeedSelector from './CombatSpeedSelector';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
@@ -39,15 +40,6 @@ function buildMirrorClone(character) {
   clone.name = reversed.charAt(0).toUpperCase() + reversed.slice(1).toLowerCase();
   clone.userId = 'mirror_clone';
   return clone;
-}
-
-function isSameDay(ts1, ts2) {
-  if (!ts1 || !ts2) return false;
-  const d1 = ts1 instanceof Date ? ts1 : ts1.toDate();
-  const d2 = ts2 instanceof Date ? ts2 : ts2.toDate();
-  return d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
 }
 
 const MirrorMode = () => {
@@ -115,7 +107,7 @@ const MirrorMode = () => {
             const lastDate = typeof data.lastMirrorDate.toDate === 'function'
               ? data.lastMirrorDate.toDate()
               : new Date(data.lastMirrorDate);
-            if (isSameDay(lastDate, new Date())) {
+            if (isSameParisDay(lastDate, new Date())) {
               setAlreadyDone(true);
             }
           }

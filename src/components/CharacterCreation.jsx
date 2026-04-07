@@ -40,6 +40,7 @@ import { db } from '../firebase/config';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { announceFirstLabyrinthFloorClear } from '../services/milestoneAnnouncementService';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { isSameParisDay } from '../utils/parisDate';
 
 const weaponImageModules = import.meta.glob('../assets/weapons/*.png', { eager: true, import: 'default' });
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
@@ -111,27 +112,6 @@ const STAT_DESCRIPTIONS = {
   rescap: "Réduit les dégâts magiques/CAP reçus.",
   spd: "Détermine l'ordre d'action (le plus rapide joue en premier)."
 };
-
-const PARIS_TZ = 'Europe/Paris';
-
-const getParisDateKey = (date = new Date()) => {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: PARIS_TZ,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(date);
-  } catch (_) {
-    const d = date instanceof Date ? date : new Date(date);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  }
-};
-
-const isSameParisDay = (a, b) => getParisDateKey(a) === getParisDateKey(b);
 
 const getWeaponStatColor = (value) => {
   if (value > 0) return 'text-green-400';
