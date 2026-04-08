@@ -91,7 +91,7 @@ export const classConstants = {
   },
   berserk: {
     rageHpCostPercent: 0.10,     // Coût PV max par Rage
-    rageMissingHpDamageScale: 0.35, // Bonus dégâts = scale × PV manquants (après coût)
+    rageMissingHpDamageScale: 0.25, // Bonus dégâts = scale × PV manquants (après coût)
     rageMissingHpScalePerCap: 0.001, // +0,1% au ratio PV manquants par point de Cap (comme critPerCap Voleur)
     nextAutoDamageBonus: 0.20    // Brise-Caves : +20% sur la prochaine auto
   }
@@ -148,8 +148,8 @@ export const subclassConstants = {
     curseStatReductionStartOfCombat: 0.05,              // Malédiction début de combat seulement (−5% ; sort = curseStatReduction classe)
   },
   enchanteresse: { curseStatReduction: 0.15, capBase: 1.0 },
-  boucher: { rageMissingHpDamageScale: 0.44 },
-  brise_caves: { rageMissingHpDamageScale: 0.35 }       // +20% prochaine auto : berserk.nextAutoDamageBonus
+  boucher: { rageMissingHpDamageScale: 0.35 },
+  brise_caves: { rageMissingHpDamageScale: 0.25 }       // +20% prochaine auto : berserk.nextAutoDamageBonus
 };
 
 /**
