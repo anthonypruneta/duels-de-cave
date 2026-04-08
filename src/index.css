@@ -19,6 +19,15 @@ body {
   min-height: 100vh;
 }
 
+/* ===== Mode perf: couper les animations dans la zone des effets ===== */
+body.ddc-disable-effects-animations .ddc-effects-zone,
+body.ddc-disable-effects-animations .ddc-effects-zone * ,
+body.ddc-disable-effects-animations .ddc-effects-zone *::before,
+body.ddc-disable-effects-animations .ddc-effects-zone *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Fond fixe via pseudo-element (compatible mobile) */
 body::after {
   content: '';

@@ -15,6 +15,7 @@ function Header() {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const isAdmin = isAdminEmail(currentUser?.email);
+  const [disableEffectsAnimations, setDisableEffectsAnimations] = useState(() => localStorage.getItem('ddc-disable-effects-animations') === 'true');
 
   // Mobile: menu repliable pour éviter les soucis d'affichage/recouvrement.
   const [isMobile, setIsMobile] = useState(false);
@@ -35,6 +36,13 @@ function Header() {
   useEffect(() => {
     localStorage.setItem('game-muted', String(isMuted));
   }, [isMuted]);
+
+  useEffect(() => {
+    localStorage.setItem('ddc-disable-effects-animations', String(disableEffectsAnimations));
+    const cls = 'ddc-disable-effects-animations';
+    if (disableEffectsAnimations) document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+  }, [disableEffectsAnimations]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -197,6 +205,18 @@ function Header() {
               ))}
               {/* Actions : suivent les liens et sont poussées à droite sur la dernière ligne */}
               <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDisableEffectsAnimations(v => !v)}
+                  title="Désactiver les animations visuelles dans la zone des effets (meilleure perf)"
+                  className={`px-2.5 py-1.5 rounded text-xs font-medium transition border ${
+                    disableEffectsAnimations
+                      ? 'bg-emerald-700/60 border-emerald-500 text-white hover:bg-emerald-700/80'
+                      : 'bg-stone-800/80 border-stone-600 text-stone-300 hover:bg-stone-700 hover:border-amber-600/50 hover:text-white'
+                  }`}
+                >
+                  {disableEffectsAnimations ? '🧊 Effets: OFF' : '✨ Effets: ON'}
+                </button>
                 <div ref={volumeRef} className="relative"
                   onMouseEnter={() => setShowVolumeSlider(true)}
                   onMouseLeave={() => setShowVolumeSlider(false)}

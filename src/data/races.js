@@ -170,17 +170,17 @@ export const races = {
     }
   },
   'Turtlekin': {
-    bonus: '+8 DEF\n+8 ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max',
+    bonus: '+8 DEF\n+8 ResC\nLe premier coup reçu qui inflige plus de 10% de vos PV max est réduit à 10% de vos PV max',
     icon: '🐢',
     awakening: {
       levelRequired: 100,
-      description: '+15% DEF, +15% ResC\nLe premier coup reçu qui inflige plus de 10% de vos PV max est réduit à 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      description: '+4% DEF\n+4% ResC\nLe premier coup reçu ne peut dépasser 30% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
       effect: {
         turtlekinResetAt50: true,
-        turtlekinFirstHitCapPercent: 0.10,
+        turtlekinFirstHitCapPercent: 0.30,
         statMultipliers: {
-          def: 1.15,
-          rescap: 1.15
+          def: 1.04,
+          rescap: 1.04
         }
       }
     }
