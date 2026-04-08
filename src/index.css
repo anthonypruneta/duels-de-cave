@@ -20,10 +20,11 @@ body {
 }
 
 /* ===== Mode perf: couper les animations dans la zone des effets ===== */
-body.ddc-disable-effects-animations .ddc-effects-zone,
-body.ddc-disable-effects-animations .ddc-effects-zone * ,
-body.ddc-disable-effects-animations .ddc-effects-zone *::before,
-body.ddc-disable-effects-animations .ddc-effects-zone *::after {
+/* Désactive les animations CSS dans un sous-arbre ciblé (perf / dual-screen). */
+.ddc-no-anim,
+.ddc-no-anim *,
+.ddc-no-anim *::before,
+.ddc-no-anim *::after {
   animation: none !important;
   transition: none !important;
 }

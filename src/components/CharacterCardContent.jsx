@@ -226,7 +226,7 @@ export default function CharacterCardContent({
   );
 
   const details = (
-    <div className="space-y-2 ddc-effects-zone">
+    <div className="space-y-2">
       {character?.coopRedMoveDisplay && (
         <div className="flex items-start gap-2 border border-red-900/45 bg-red-950/25 p-2 text-xs text-stone-300 rounded-md">
           <span className="text-lg leading-none shrink-0">{character.coopRedBossIcon ?? '✨'}</span>
