@@ -498,6 +498,7 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
     if (!progressResult.success) {
       return { success: false, error: progressResult.error || 'Progression indisponible.' };
     }
+    const prevHighestClearedFloor = Number(progressResult.data?.highestClearedFloor ?? 0) || 0;
     const char = await getPreparedUserCharacter(userId);
 
     if (!char) {
@@ -521,7 +522,9 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
       updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
       updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
 
-      if (floor.floorNumber === 90) {
+      // Sable : compter 1 "win étage 90" par semaine (au moment où on atteint 90+ pour la première fois sur la week).
+      // Plus robuste que `floorNumber === 90` (qui peut être contourné via resets/admin/reprises).
+      if (prevHighestClearedFloor < 90 && (updatedProgress.highestClearedFloor || 0) >= 90) {
         try {
           await setDoc(doc(db, 'tournamentRewards', userId), {
             labyrinthFloor90Wins: increment(1),
