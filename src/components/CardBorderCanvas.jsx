@@ -3204,7 +3204,7 @@ const EFFECTS = {
 
 // ─── Composant React ─────────────────────────────────────────────────────────
 
-const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId, imageSrc = null }) {
+const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId, imageSrc = null, animated = true }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
@@ -3268,14 +3268,27 @@ const CardBorderCanvas = React.memo(function CardBorderCanvas({ borderId, imageS
     io.observe(parent);
 
     resize();
-    rafRef.current = requestAnimationFrame(animate);
+    // Mode statique (perf) : 1 seul rendu, pas de boucle rAF.
+    if (!animated) {
+      const ctx = canvas.getContext('2d');
+      const { w, h } = sizeRef.current;
+      if (ctx && w > 0 && h > 0 && stateRef.current) {
+        ctx.clearRect(0, 0, w * DPR, h * DPR);
+        ctx.save();
+        ctx.scale(DPR, DPR);
+        effect.draw(ctx, stateRef.current, w, h);
+        ctx.restore();
+      }
+    } else {
+      rafRef.current = requestAnimationFrame(animate);
+    }
 
     return () => {
       ro.disconnect();
       io.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [effect, animate, imageSrc]);
+  }, [effect, animate, imageSrc, animated]);
 
   if (!effect) return null;
 

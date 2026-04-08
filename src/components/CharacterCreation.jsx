@@ -1665,9 +1665,9 @@ const CharacterCreation = () => {
                                           : 'bg-stone-800 border border-stone-600 text-stone-300 hover:border-amber-600 cursor-pointer'
                                     }`}
                                   >
-                                    {unlocked && border.id !== 'default' && (
-                                      <CardBorderCanvas borderId={border.id} imageSrc={existingCharacter.characterImage || null} />
-                                    )}
+                                  {unlocked && border.id !== 'default' && (
+                                      <CardBorderCanvas borderId={border.id} imageSrc={existingCharacter.characterImage || null} animated={false} />
+                                  )}
                                     <div className="relative z-10">
                                       <div className="text-lg mb-1">{border.icon}</div>
                                       <div className="font-semibold">{border.nom}</div>
