@@ -232,25 +232,29 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
           if (r.runsStaked > 0) payouts.set(r.userId, r.runsStaked);
         }
       } else {
-        for (const r of rows) {
-          if (r.participantId !== championParticipantId || r.runsStaked <= 0) continue;
-          const base = Math.floor((totalPool * r.runsStaked) / winningStake);
-          payouts.set(r.userId, base);
-        }
-        let distributed = 0;
-        payouts.forEach((v) => {
-          distributed += v;
-        });
-        let dust = totalPool - distributed;
-        const winners = rows
-          .filter((r) => r.participantId === championParticipantId && r.runsStaked > 0)
-          .sort((a, b) => a.userId.localeCompare(b.userId));
-        let wi = 0;
-        while (dust > 0 && winners.length > 0) {
-          const u = winners[wi % winners.length].userId;
-          payouts.set(u, (payouts.get(u) || 0) + 1);
-          dust -= 1;
-          wi += 1;
+        // Gagnants = joueurs ayant parié sur le champion (stake > 0).
+        // Règle: pool divisé équitablement entre les gagnants (indépendant de la mise),
+        // crédité sur la semaine/personnage suivant via pendingTournamentBettingRuns.
+        const winnerUserIds = [...new Set(
+          rows
+            .filter((r) => r.participantId === championParticipantId && r.runsStaked > 0)
+            .map((r) => r.userId)
+        )].sort((a, b) => a.localeCompare(b));
+
+        const winnersCount = winnerUserIds.length;
+        if (winnersCount > 0) {
+          const base = Math.floor(totalPool / winnersCount);
+          for (const uid of winnerUserIds) {
+            if (base > 0) payouts.set(uid, base);
+          }
+          let dust = totalPool - base * winnersCount;
+          let wi = 0;
+          while (dust > 0) {
+            const u = winnerUserIds[wi % winnersCount];
+            payouts.set(u, (payouts.get(u) || 0) + 1);
+            dust -= 1;
+            wi += 1;
+          }
         }
       }
 
@@ -285,6 +289,8 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
           championParticipantId,
           totalPool,
           winningStake,
+          // nb de gagnants (utile debug/affichage) — 0 si aucun pari gagnant
+          winnersCount: payouts.size,
           version: 1,
           distributedAt: serverTimestamp(),
         },
