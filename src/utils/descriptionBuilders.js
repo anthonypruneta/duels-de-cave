@@ -114,7 +114,10 @@ export const buildRaceAwakeningDescription = (raceName, effect = null) => {
     case 'Sirène': return `+${e?.statBonuses?.cap || 0} CAP\nStacks à +${pct(e?.sireneStackBonus, 0)} dégâts/soins de vos compétences (max ${e?.sireneMaxStacks || 0})`;
     case 'Gnome': return `+${pct((e?.statMultipliers?.spd || 1) - 1, 0)} VIT, +${pct((e?.statMultipliers?.cap || 1) - 1, 0)} CAP\nVIT > cible: +${pct(e?.speedDuelCritHigh, 0)} crit, +${pct(e?.speedDuelCritDmgHigh, 0)} dégâts crit\nVIT < cible: +${pct(e?.speedDuelDodgeLow, 0)} esquive, +${pct(e?.speedDuelCapBonusLow ?? e?.speedDuelCapBonusHigh, 0)} CAP\nÉgalité: +${pct(e?.speedDuelEqualCrit, 0)} crit/dégâts crit, +${pct(e?.speedDuelEqualDodge, 0)} esquive/CAP`;
     case 'Mindflayer': return `Copie et relance la première capacité reçue et ajoute ${pct(e?.mindflayerStealSpellCapDamageScale, 0)} de votre CAP aux dégâts\nPremière capacité: -${e?.mindflayerOwnCooldownReductionTurns || 0} de CD\nSi cette première capacité est sans CD: +${pct(e?.mindflayerNoCooldownSpellBonus, 0)} dégâts`;
-    case 'Turtlekin': return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(raceConstants.turtlekin.firstHitCapPercent, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
+    case 'Turtlekin': {
+      const capP = e?.turtlekinFirstHitCapPercent ?? raceConstants.turtlekin.firstHitCapPercent;
+      return `+${pct((e?.statMultipliers?.def || 1) - 1, 0)} DEF, +${pct((e?.statMultipliers?.rescap || 1) - 1, 0)} ResC\nLe premier coup reçu ne peut dépasser ${pct(capP, 0)} de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.`;
+    }
     case 'Écailleux': {
       const d = raceConstants.ecailleux.statLinkDivisorRacial;
       const p = pct(e?.ecailleuxCapacityRefStatPercent ?? raceConstants.ecailleux.capacityRefStatPercent, 0);
@@ -222,7 +225,7 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'sniper':
       return `Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'chasseur_fantome':
-      return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : 100% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
+      return `Après un crit, les prochains dégâts gagnent +${pct0(c.ghostHunterCapBonus)} CAP. Deux tirs : ${(Number(c.hit1AutoMultiplier || 1) * 100).toFixed(0)}% Auto puis ${(Number(c.hit2AutoMultiplier || 0) * 100).toFixed(0)}% Auto + ${pct0(c.hit2CapMultiplier)} Cap.`;
     case 'arcaniste_instable':
       return `Inflige Auto + ${pct0(c.capBase)} Cap. Applique débuff : +${pct0(c.damageTakenStack)} dégâts subis par l'ennemi (stackable).`;
     case 'sorcier_neant': {
@@ -243,13 +246,13 @@ export const buildSubclassDescription = (className, subclassId, constants = null
     case 'dompteuse_chair':
       return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts et réduit l'Auto ennemi de ${pct0(c.autoReductionStack)} (stackable).`;
     case 'ame_tentatrice':
-      return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts. Cette capacité crit une fois sur deux (si le précédent n'a pas crit, le prochain crit obligatoire).`;
+      return `Inflige Auto + ${pct0(c.capScale)} CAP. La prochaine attaque adverse inflige -${pct0(c.nextAttackReduction)} dégâts. Cette capacité crit obligatoirement.`;
     case 'rempart_fer':
       return `Passif classe Bastion : +${pct0(classConstants.bastion.defPercentBonus)} DEF. Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
     case 'mur_implacable':
       return `Passif classe Bastion : +${pct0(classConstants.bastion.defPercentBonus)} DEF. Début du combat : bouclier = ${pct0(c.startShieldFromDef)} DEF. Vous attaquez en premier le tour de la capacité. Inflige Auto + ${pct0(c.capScale)} CAP + ${pct0(c.defScale)} DEF.`;
     case 'flagellant_sanglant':
-      return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Réduit votre DEF de ${pct0(1 - (c.defMultiplier ?? 1))} mais augmente votre Auto de ${pct0((c.autoMultiplier ?? 1) - 1)} pour le reste du combat.`;
+      return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Réduit votre DEF de ${pct0(1 - (c.defMultiplier ?? 1))} mais augmente votre Auto de ${pct0((c.autoMultiplier ?? 1) - 1)} et votre CAP de ${pct0((c.capMultiplier ?? 1) - 1)} pour le reste du combat (cumulable).`;
     case 'ecorche_fer':
       return `Renvoie ${pct0(c.returnBase)} dégâts accumulés + ${pct1(c.returnPerCap)} Cap. Soigne ${pct0(c.healPercent)} des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de ${pct0(c.defRescapStack)}.`;
     case 'assassin':

@@ -6,7 +6,7 @@ import { races } from '../data/races.js';
 import { classes } from '../data/classes.js';
 import { SUBCLASSES_BY_CLASS } from '../data/subclasses.js';
 import { getRaceBonus, getClassBonus } from '../data/combatMechanics.js';
-import { simulerMatch } from './tournamentCombat.js';
+import { simulerMatchRapide } from './tournamentCombat.js';
 import { getStatPointValue } from './statPoints.js';
 
 const SUBCLASS_ID_TO_NAME = Object.fromEntries(
@@ -51,7 +51,13 @@ const makeCharacter = (id, level = 1) => {
   const race = randomItem(Object.keys(races));
   const className = randomItem(Object.keys(classes));
   const raw = genStats();
-  const raceBonus = getRaceBonus(race);
+  const levelRequired = races?.[race]?.awakening?.levelRequired ?? Infinity;
+  const isAwakened = level >= levelRequired;
+  // Règle simulation demandée : à haut niveau, on ne prend pas le bonus racial "de base"
+  // (les bonus plats ajoutés à la création). On ne garde que l’éveil (appliqué dans preparerCombattant).
+  const raceBonus = isAwakened
+    ? { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 }
+    : getRaceBonus(race);
   const classBonus = getClassBonus(className);
   const levelBoosts = genLevelBoosts(level);
 
@@ -85,10 +91,9 @@ const makeCharacter = (id, level = 1) => {
 const simulateSingleCombat = (level = 1) => {
   const p1 = makeCharacter('P1', level);
   const p2 = makeCharacter('P2', level);
-  const result = simulerMatch(p1, p2);
-
+  const result = simulerMatchRapide(p1, p2);
   const winnerIsP1 = result.winnerId === 'P1';
-  const turns = result.steps?.filter((step) => step.phase === 'turn_start').length ?? 0;
+  const turns = result.turns ?? 0;
 
   return {
     winner: winnerIsP1 ? 'P1' : 'P2',

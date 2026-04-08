@@ -202,8 +202,8 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         list.push({
           id: 'turtlekin_shell_ready',
           icon: '🐢',
-          label: `Carapace (1er coup ≤ ${Math.round(tkCap * 100)}%)`,
-          description: `Le premier coup reçu ne peut dépasser ${Math.round(tkCap * 100)}% de vos PV max (Turtlekin / Pointeau ADN).`,
+          label: `Carapace (coup > ${Math.round(tkCap * 100)}% → ${Math.round(tkCap * 100)}%)`,
+          description: `Le premier coup reçu qui inflige plus de ${Math.round(tkCap * 100)}% de vos PV max est réduit à ${Math.round(tkCap * 100)}% (Turtlekin / Pointeau ADN).`,
         });
       } else if (combatStatus.turtlekinResetAt50 && !combatStatus.turtlekinResetAt50Used) {
         list.push({

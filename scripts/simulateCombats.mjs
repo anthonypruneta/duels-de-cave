@@ -7,7 +7,7 @@ import { races } from '../src/data/races.js';
 import { classes } from '../src/data/classes.js';
 import { weapons, getWeaponById } from '../src/data/weapons.js';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, rollMageTowerPassive } from '../src/data/mageTowerPassives.js';
-import { simulerMatch } from '../src/utils/tournamentCombat.js';
+import { simulerMatchRapide } from '../src/utils/tournamentCombat.js';
 import {
   cooldowns,
   classConstants,
@@ -671,8 +671,7 @@ const getTurnOrder = (p1, p2, turn) => {
 const simulateCombat = (attackerInput, defenderInput) => {
   const p1 = { ...attackerInput, id: 'P1', userId: 'P1', name: attackerInput.name ?? 'P1' };
   const p2 = { ...defenderInput, id: 'P2', userId: 'P2', name: defenderInput.name ?? 'P2' };
-  const { steps, winnerId } = simulerMatch(p1, p2);
-  const turns = steps.filter((step) => step.phase === 'turn_start').length;
+  const { winnerId, turns } = simulerMatchRapide(p1, p2);
   return {
     winner: winnerId === 'P1' ? 'P1' : 'P2',
     turns,
@@ -711,7 +710,6 @@ export const simulateMany = (attacker, defender, simulationsCount = 1000) => {
 const runSimulation = (numCombats = 1000, level = 1) => {
   console.log(`\n🎮 Simulation de ${numCombats} combats (niveau ${level})...\n`);
 
-  const results = [];
   const raceWins = {};
   const classWins = {};
   const raceCombats = {};
@@ -731,7 +729,6 @@ const runSimulation = (numCombats = 1000, level = 1) => {
     const p1 = generateCharacter('P1', level);
     const p2 = generateCharacter('P2', level);
     const result = simulateCombat(p1, p2);
-    results.push(result);
     totalTurns += result.turns;
 
     raceCombats[result.p1Race]++;

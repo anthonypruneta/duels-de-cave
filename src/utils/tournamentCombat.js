@@ -284,6 +284,7 @@ export function resetTransientCombatFieldsBetweenFights(p) {
   p.shieldExploded = false;
   p.sireneStacks = 0;
   p.succubeWeakenNextAttack = false;
+  p.succubeNextAttackReduction = undefined;
   p.spectralMarked = false;
   p.spectralMarkBonus = 0;
   p.mindflayerCapacityCopyUsed = false;
@@ -394,6 +395,7 @@ export function preparerCombattant(char) {
     shieldExploded: false,
     sireneStacks: 0,
     succubeWeakenNextAttack: false,
+    succubeNextAttackReduction: undefined,
     spectralMarked: false,
     spectralMarkBonus: 0,
     mindflayerCapacityCopyUsed: false,
@@ -871,9 +873,14 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     att.paladinNextAttackReduction = undefined;
   }
   if (att.succubeWeakenNextAttack) {
-    adjusted = Math.max(1, Math.round(adjusted * (1 - classConstants.succube.nextAttackReduction)));
+    const reduction =
+      typeof att.succubeNextAttackReduction === 'number'
+        ? att.succubeNextAttackReduction
+        : classConstants.succube.nextAttackReduction;
+    adjusted = Math.max(1, Math.round(adjusted * (1 - reduction)));
     att.succubeWeakenNextAttack = false;
-    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(classConstants.succube.nextAttackReduction * 100)}% dégâts sur cette attaque.`);
+    att.succubeNextAttackReduction = undefined;
+    log.push(`${playerColor} 💋 ${att.name} est affaibli et inflige -${Math.round(reduction * 100)}% dégâts sur cette attaque.`);
   }
   if (atkUnicorn) adjusted = Math.round(adjusted * (1 + atkUnicorn.outgoing));
   if (auraBoost) adjusted = Math.round(adjusted * (1 + auraBoost));
@@ -950,7 +957,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     log.push(`${playerColor} 💨 ${def.name} esquive grâce au duel de vitesse (${Math.round(speedDuel.dodge * 100)}%).`);
     return 0;
   }
-  // Turtlekin / Pointeau ADN : cap le premier coup reçu (% PV max ; éveil = constante globale, Pointeau ADN peut surcharger)
+  // Turtlekin / Pointeau ADN : le premier coup "trop gros" est capé (ne consomme pas si le coup est déjà ≤ cap)
   if ((def.race === 'Turtlekin' || def.awakening?.turtlekinResetAt50) && !def.turtlekinFirstHitUsed && adjusted > 0) {
     const tkCapPct =
       typeof def.awakening?.turtlekinFirstHitCapPercent === 'number' && def.awakening.turtlekinFirstHitCapPercent > 0
@@ -960,8 +967,8 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     if (adjusted > maxDmg) {
       log.push(`${playerColor} 🐢 Carapace de ${def.name} absorbe le choc ! Dégâts réduits de ${adjusted} à ${maxDmg}.`);
       adjusted = maxDmg;
+      def.turtlekinFirstHitUsed = true;
     }
-    def.turtlekinFirstHitUsed = true;
   }
   const preShieldAdjustedForCapacity = isCapacityDamage ? adjusted : 0;
   if (def.shield > 0 && adjusted > 0) {
@@ -1295,15 +1302,21 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         verdictBonusMaso.log.forEach(l => log.push(`${playerColor} ${l}`));
       }
       att.currentHP = Math.min(att.maxHP, att.currentHP + healAmount);
-      if (att.subclass?.id === 'flagellant_sanglant' && !att.flagellantApplied) {
-        att.flagellantApplied = true;
+      if (att.subclass?.id === 'flagellant_sanglant') {
         const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-        const defMult = masoC.defMultiplier ?? 0.80;
-        const autoMult = masoC.autoMultiplier ?? 1.12;
-        att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * defMult)), auto: Math.round(att.base.auto * autoMult) };
+        const defMult = masoC.defMultiplier ?? 0.90;
+        const autoMult = masoC.autoMultiplier ?? 1.10;
+        const capMult = masoC.capMultiplier ?? 1.10;
+        att.base = {
+          ...att.base,
+          def: Math.max(1, Math.round(att.base.def * defMult)),
+          auto: Math.round(att.base.auto * autoMult),
+          cap: Math.round(att.base.cap * capMult),
+        };
         const defLossPct = Math.round((1 - defMult) * 100);
         const autoGainPct = Math.round((autoMult - 1) * 100);
-        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -${defLossPct}% DEF, +${autoGainPct}% Auto pour le reste du combat.`);
+        const capGainPct = Math.round((capMult - 1) * 100);
+        log.push(`${playerColor} 🩸 Flagellant Sanglant: ${att.name} -${defLossPct}% DEF, +${autoGainPct}% Auto, +${capGainPct}% CAP pour le reste du combat (cumulable).`);
       }
       if (att.subclass?.id === 'ecorche_fer') {
         const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
@@ -1481,12 +1494,11 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   if (att.class === 'Succube' && att.cd.succ === getMindflayerCapacityCooldown(att, def, 'succ') && !capacityStolen) {
     skillUsed = true;
     const spellCapMultSucc = consumeAuraCapacityCapMultiplier();
-    const forceCritAme = att.subclass?.id === 'ame_tentatrice' && !att.succubeLastWasCrit;
+    const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+    const forceCritAme = !!succubeC.guaranteedCrit;
     const isCrit = turnEffects.guaranteedCrit ? true : forceCritAme || combatRandom01() < calcCritChance(att, def);
-    if (att.subclass?.id === 'ame_tentatrice') att.succubeLastWasCrit = isCrit;
     const shouldApplyDompteuseChairDebuff = att.subclass?.id === 'dompteuse_chair';
-    const succC = getSubclassCapacityConstants(att.class, att.subclass?.id);
-    const succCapScale = succC.capScale ?? classConstants.succube.capScale;
+    const succCapScale = succubeC.capScale ?? classConstants.succube.capScale;
     let raw = dmgCap(Math.round(att.base.auto + getEffectiveCapForSceptre(att) * spellCapMultSucc * succCapScale), def.base.rescap);
     raw = Math.round(raw * consumeWeaponDamageBonus());
     raw = applyMindflayerCapacityMod(att, def, raw, 'succ', log, playerColor);
@@ -1502,9 +1514,10 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
     const inflicted = applyDamage(att, def, raw, isCrit, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, true, true, turn);
     if (inflicted > 0) {
+      const nextAttackReduction = succubeC.nextAttackReduction ?? classConstants.succube.nextAttackReduction;
       def.succubeWeakenNextAttack = true;
+      def.succubeNextAttackReduction = nextAttackReduction;
       if (shouldApplyDompteuseChairDebuff) {
-        const succubeC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const stack = succubeC.autoReductionStack ?? 0.06;
         def.succubeAutoReductionStack = (def.succubeAutoReductionStack || 0) + stack;
         const autoMult = Math.max(0.1, 1 - stack);
@@ -1839,11 +1852,11 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     if (att.subclass?.id === 'roublard') {
       const stats = ['auto', 'def', 'cap', 'rescap', 'spd'];
       const stat = stats[Math.floor(combatRandom01() * stats.length)];
-      const stolen = Math.max(0, Math.round(def.base[stat] * 0.06));
+      const stolen = Math.max(0, Math.round(def.base[stat] * 0.05));
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
         att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
-        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 6% ${stat} (${stolen}) à ${def.name}.`);
+        log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 5% ${stat} (${stolen}) à ${def.name}.`);
       }
     }
     log.push(`${playerColor} 🌀 ${att.name} entre dans une posture d'esquive et évitera la prochaine attaque`);
@@ -2423,7 +2436,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       }
     } else if (isArcher && !isBonusAttack) {
       if (i === 0) {
-        raw = dmgPhys(Math.round(att.base.auto * attackMultiplier), def.base.def);
+        const archerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
+        const hit1AutoMult = archerC.hit1AutoMultiplier ?? classConstants.archer.hit1AutoMultiplier ?? 1.0;
+        raw = dmgPhys(Math.round(att.base.auto * hit1AutoMult * attackMultiplier), def.base.def);
       } else {
         const archerC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const hit2AutoMult = archerC.hit2AutoMultiplier ?? classConstants.archer.hit2AutoMultiplier;
@@ -2783,4 +2798,100 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
     loserId: loser.userId || loser.id,
     loserNom: loser.name
   };
+}
+
+/**
+ * Variante "rapide" de simulerMatch : pas de steps, pas de combatLog.
+ * Utile pour les scripts de simulation massive (évite de remplir la heap).
+ *
+ * IMPORTANT: char1/char2 doivent être BRUTS (comme simulerMatch).
+ */
+export function simulerMatchRapide(char1, char2, { maxTurns = Infinity } = {}) {
+  const p1 = preparerCombattant(char1);
+  const p2 = preparerCombattant(char2);
+
+  applyGnomeCapBonus(p1, p2);
+  applyGnomeCapBonus(p2, p1);
+
+  const scratchLogs = [];
+
+  // Début de combat (passifs qui modifient l’état)
+  applyStartOfCombatPassives(p1, p2, scratchLogs, '[P1]');
+  scratchLogs.length = 0;
+  applyStartOfCombatPassives(p2, p1, scratchLogs, '[P2]');
+  scratchLogs.length = 0;
+
+  let turn = 1;
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
+    if (turn === generalConstants.suddenDeathTurn && !p1.suddenDeath) {
+      p1.suddenDeath = true;
+      p2.suddenDeath = true;
+    }
+
+    // Tick DOT / effets début de tour qui modifient les PV
+    const neantBurnHpPct = subclassConstants.sorcier_neant?.neantBurnHpPercentPerTurn ?? 0.015;
+    if (p1.sorcierNeantBurn && p1.currentHP > 0) p1.currentHP -= Math.max(1, Math.round(p1.currentHP * neantBurnHpPct));
+    if (p2.sorcierNeantBurn && p2.currentHP > 0) p2.currentHP -= Math.max(1, Math.round(p2.currentHP * neantBurnHpPct));
+    if (p1.currentHP <= 0 || p2.currentHP <= 0) break;
+
+    // Ordre d’action (copie de la logique de simulerMatch, sans logs/steps)
+    const p1Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p1), turn);
+    const p2Unicorn = getUnicornPactTurnDataFromList(getPassiveDetailsList(p2), turn);
+    const p1HasPriority = p1.weaponState?.isLegendary
+      && p1.weaponState.weaponId === 'epee_legendaire'
+      && ((p1.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
+    const p2HasPriority = p2.weaponState?.isLegendary
+      && p2.weaponState.weaponId === 'epee_legendaire'
+      && ((p2.weaponState.counters?.turnCount ?? 0) + 1) % weaponConstants.zweihander.triggerEveryNTurns === 0;
+
+    let first;
+    if (p1Unicorn && !p2Unicorn) first = p1Unicorn.label === 'Tour A' ? p1 : p2;
+    else if (p2Unicorn && !p1Unicorn) first = p2Unicorn.label === 'Tour A' ? p2 : p1;
+    else if (p1HasPriority && !p2HasPriority) first = p1;
+    else if (p2HasPriority && !p1HasPriority) first = p2;
+    else if (p1.class === 'Bastion' && p1.cd.bast === 0 && p1.subclass?.id === 'mur_implacable') first = p1;
+    else if (p2.class === 'Bastion' && p2.cd.bast === 0 && p2.subclass?.id === 'mur_implacable') first = p2;
+    else first = p1.base.spd >= p2.base.spd ? p1 : p2;
+
+    let second = first === p1 ? p2 : p1;
+    let firstIsP1 = first === p1;
+
+    const gojoFighter = p1.bossId === 'gojo' ? p1 : (p2.bossId === 'gojo' ? p2 : null);
+    if (gojoFighter && (turn === 2 || turn === 4 || turn === 6)) {
+      const spell = gojoFighter.ability?.spells?.[turn];
+      if (spell) {
+        if (spell.attackFirst) {
+          first = gojoFighter;
+          second = gojoFighter === p1 ? p2 : p1;
+          firstIsP1 = first === p1;
+        } else {
+          first = gojoFighter === p1 ? p2 : p1;
+          second = gojoFighter;
+          firstIsP1 = first === p1;
+        }
+      }
+    }
+
+    refreshCendresPoolAtActionTurnStart(first);
+    processPlayerAction(first, second, scratchLogs, firstIsP1, turn);
+    scratchLogs.length = 0;
+    p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
+    p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
+
+    if (p1.currentHP > 0 && p2.currentHP > 0) {
+      refreshCendresPoolAtActionTurnStart(second);
+      processPlayerAction(second, first, scratchLogs, !firstIsP1, turn);
+      scratchLogs.length = 0;
+      p1.currentHP = Math.min(p1.maxHP, p1.currentHP);
+      p2.currentHP = Math.min(p2.maxHP, p2.currentHP);
+    }
+
+    turn++;
+  }
+
+  const turnLimitReached = p1.currentHP > 0 && p2.currentHP > 0;
+  const winnerIsP1 = turnLimitReached ? true : p1.currentHP > 0;
+  const winner = winnerIsP1 ? p1 : p2;
+  const turnsPlayed = Math.max(0, turn - 1);
+  return { winnerId: winner.userId || winner.id, winnerSlot: winnerIsP1 ? 1 : 2, turns: turnsPlayed };
 }

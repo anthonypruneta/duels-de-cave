@@ -24,17 +24,17 @@ export const races = {
     icon: '🧝',
     awakening: {
       levelRequired: 100,
-      description: '+3% Auto, +3% Cap, +5 VIT, +20% crit, +10% dégâts crit',
+      description: '+4% Auto, +4% Cap, +7 VIT, +20% crit, +12% dégâts crit',
       effect: {
         statMultipliers: {
-          auto: 1.03,
-          cap: 1.03
+          auto: 1.04,
+          cap: 1.04
         },
         statBonuses: {
-          spd: 5
+          spd: 7
         },
         critChanceBonus: 0.20,
-        critDamageBonus: 0.10   // 10% (était 15%)
+        critDamageBonus: 0.12
       }
     }
   },
@@ -99,10 +99,10 @@ export const races = {
     icon: '🐺',
     awakening: {
       levelRequired: 100,
-      description: 'Chaque auto: +1 stack de saignement (1.1% PV max par tour)',
+      description: 'Chaque auto: +1 stack de saignement (1% PV max par tour)',
       effect: {
         bleedStacksPerHit: 1,
-        bleedPercentPerStack: 0.011
+        bleedPercentPerStack: 0.01
       }
     }
   },
@@ -111,10 +111,10 @@ export const races = {
     icon: '🌿',
     awakening: {
       levelRequired: 100,
-      description: 'Regen 3.5% PV max/tour\n+7% dégâts si PV > 50%',
+      description: 'Regen 3% PV max/tour\n+6% dégâts si PV > 50%',
       effect: {
-        regenPercent: 0.035,
-        highHpDamageBonus: 0.07,
+        regenPercent: 0.03,
+        highHpDamageBonus: 0.06,
         highHpThreshold: 0.50
       }
     }
@@ -124,12 +124,12 @@ export const races = {
     icon: '🧬',
     awakening: {
       levelRequired: 100,
-      description: '+10% VIT\n+10% CAP\nVIT > cible: +30% crit, +20% dégâts crit\nVIT < cible: +25% esquive, +25% CAP\nÉgalité: +10% crit/dégâts crit/esquive/CAP',
+      description: '+10% VIT\n+10% CAP\nVIT > cible: +25% crit, +15% dégâts crit\nVIT < cible: +20% esquive, +20% CAP\nÉgalité: +10% crit/dégâts crit/esquive/CAP',
       effect: {
-        speedDuelCritHigh: 0.30,
-        speedDuelCritDmgHigh: 0.20,   // 20% (était 30%)
-        speedDuelCapBonusLow: 0.25,
-        speedDuelDodgeLow: 0.25,
+        speedDuelCritHigh: 0.25,
+        speedDuelCritDmgHigh: 0.15,
+        speedDuelCapBonusLow: 0.20,
+        speedDuelDodgeLow: 0.20,
         speedDuelEqualCrit: 0.10,
         speedDuelEqualCritDmg: 0.10,  // égalité inchangé
         speedDuelEqualDodge: 0.10,
@@ -174,9 +174,10 @@ export const races = {
     icon: '🐢',
     awakening: {
       levelRequired: 100,
-      description: '+15% DEF, +15% ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      description: '+15% DEF, +15% ResC\nLe premier coup reçu qui inflige plus de 10% de vos PV max est réduit à 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
       effect: {
         turtlekinResetAt50: true,
+        turtlekinFirstHitCapPercent: 0.10,
         statMultipliers: {
           def: 1.15,
           rescap: 1.15
@@ -191,10 +192,9 @@ export const races = {
     awakening: {
       levelRequired: 100,
       description:
-        'Chaque capacité qui vous inflige des dégâts sur les PV : +3% VIT et +3% ResC (cumulable).\n' +
-        'Chaque 3 VIT : +1 ResC ; chaque 3 ResC : +1 VIT (une fois au calcul des stats).',
+        'Chaque capacité qui vous inflige des dégâts sur les PV : +4% VIT et +4% ResC (cumulable). Chaque 3 VIT : +1 ResC ; chaque 3 ResC : +1 VIT (une fois au calcul des stats).',
       effect: {
-        ecailleuxCapacityRefStatPercent: 0.03
+        ecailleuxCapacityRefStatPercent: 0.04
       }
     }
   },

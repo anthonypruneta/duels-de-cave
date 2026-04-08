@@ -33,8 +33,8 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'mentaliste', name: 'Mentaliste', bonus: '+12% ResC', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 50% dégâts + 30% CAP, augmente votre DEF de 8% (stackable). Réduit les soins adverses de 20%. Auto + 15% CAP.' },
   ],
   'Masochiste': [
-    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 7% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Réduit votre DEF de 20% mais augmente votre Auto de 13% pour le reste du combat.' },
-    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+7% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 7% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 3,5%.' },
+    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Réduit votre DEF de 10% mais augmente votre Auto de 10% et votre CAP de 10% pour le reste du combat (cumulable).' },
+    { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+7% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 10%.' },
   ],
   'Succube': [
     { id: 'dompteuse_chair', name: 'Dompteuse de Chair', bonus: '+12% CAP', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 48% CAP. La prochaine attaque adverse inflige -50% dégâts et réduit l\'Auto ennemi de 11% (stackable).' },

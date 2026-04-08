@@ -100,6 +100,7 @@ export function mergeAwakeningEffects(effects = []) {
         effect.turtlekinFirstHitCapPercent
       );
     }
+    // turtlekinFirstHitCapHits: supprimé (ancienne variante "N coups capés")
     if (
       typeof effect.mindflayerCoopEchoCopyDamageMult === 'number' &&
       effect.mindflayerCoopEchoCopyDamageMult > 0 &&
