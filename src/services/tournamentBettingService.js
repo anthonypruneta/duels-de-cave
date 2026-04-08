@@ -233,27 +233,36 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
         }
       } else {
         // Gagnants = joueurs ayant parié sur le champion (stake > 0).
-        // Règle: pool divisé équitablement entre les gagnants (indépendant de la mise),
-        // crédité sur la semaine/personnage suivant via pendingTournamentBettingRuns.
-        const winnerUserIds = [...new Set(
-          rows
-            .filter((r) => r.participantId === championParticipantId && r.runsStaked > 0)
-            .map((r) => r.userId)
-        )].sort((a, b) => a.localeCompare(b));
+        // Règle: 1 run misée = 1 "entrée". Donc si tu mises 5 runs sur le gagnant,
+        // tu reçois 5 parts. Pool conservé (pas de création de runs).
+        const winnerRows = rows
+          .filter((r) => r.participantId === championParticipantId && r.runsStaked > 0)
+          .sort((a, b) => a.userId.localeCompare(b.userId));
 
-        const winnersCount = winnerUserIds.length;
-        if (winnersCount > 0) {
-          const base = Math.floor(totalPool / winnersCount);
-          for (const uid of winnerUserIds) {
-            if (base > 0) payouts.set(uid, base);
+        const perEntry = Math.floor(totalPool / winningStake); // gain par run misée
+        if (perEntry > 0) {
+          for (const r of winnerRows) {
+            payouts.set(r.userId, (payouts.get(r.userId) || 0) + perEntry * r.runsStaked);
           }
-          let dust = totalPool - base * winnersCount;
-          let wi = 0;
+        }
+
+        // Distribuer le reste (dust) : 1 run à la fois, en round-robin sur les gagnants,
+        // en attribuant au plus 1 run par "entrée" (par run misée).
+        let dust = totalPool - perEntry * winningStake;
+        if (dust > 0 && winnerRows.length > 0) {
+          const credits = new Map(); // uid -> nombre d'unités dust déjà reçues
+          let i = 0;
           while (dust > 0) {
-            const u = winnerUserIds[wi % winnersCount];
-            payouts.set(u, (payouts.get(u) || 0) + 1);
-            dust -= 1;
-            wi += 1;
+            const r = winnerRows[i % winnerRows.length];
+            const got = credits.get(r.userId) || 0;
+            if (got < r.runsStaked) {
+              payouts.set(r.userId, (payouts.get(r.userId) || 0) + 1);
+              credits.set(r.userId, got + 1);
+              dust -= 1;
+            }
+            i += 1;
+            // sécurité: si aucun ne peut recevoir (ne devrait pas arriver), on casse
+            if (i > winnerRows.length * (winningStake + 5)) break;
           }
         }
       }
@@ -291,6 +300,8 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
           winningStake,
           // nb de gagnants (utile debug/affichage) — 0 si aucun pari gagnant
           winnersCount: payouts.size,
+          distributedTotal: Array.from(payouts.values()).reduce((a, b) => a + b, 0),
+          perEntry,
           version: 1,
           distributedAt: serverTimestamp(),
         },
