@@ -174,10 +174,10 @@ export const races = {
     icon: '🐢',
     awakening: {
       levelRequired: 100,
-      description: '+4% DEF\n+4% ResC\nLe premier coup reçu ne peut dépasser 30% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
+      description: '+4% DEF\n+4% ResC\nLe premier coup reçu ne peut dépasser 10% de vos PV max.\nSe réinitialise quand vous atteignez 50% PV pour la première fois.',
       effect: {
         turtlekinResetAt50: true,
-        turtlekinFirstHitCapPercent: 0.30,
+        turtlekinFirstHitCapPercent: 0.10,
         statMultipliers: {
           def: 1.04,
           rescap: 1.04

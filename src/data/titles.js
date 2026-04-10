@@ -798,7 +798,7 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
     if (copiedSpell) detected.push('title_mindflayer');
   }
 
-  // --- title_turtlekin : la carapace a réduit un coup de plus de 30% PV max ---
+  // --- title_turtlekin : la carapace a réduit un coup de plus de 10% PV max ---
   if (isWinner && playerRace === 'Turtlekin') {
     const shellPrefix = playerIsP1 ? '[P2]' : '[P1]';
     for (const step of steps) {
@@ -807,7 +807,7 @@ export function detectTitlesFromCombat(steps, result, playerChar, context = {}) 
           const match = log.match(/réduits de (\d+) à (\d+)/);
           if (match) {
             const reduction = parseInt(match[1], 10) - parseInt(match[2], 10);
-            if (reduction >= playerMaxHP * 0.3) {
+            if (reduction >= playerMaxHP * 0.1) {
               detected.push('title_turtlekin');
               break;
             }
