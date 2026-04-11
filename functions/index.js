@@ -6,6 +6,17 @@ initializeApp();
 
 const db = getFirestore();
 
+/**
+ * Callables Gen 2 → Cloud Run : sans invoker public, le préflight OPTIONS peut être refusé
+ * avant le handler → le navigateur signale une erreur CORS (pas d’en-tête Allow-Origin).
+ * cors explicite : origines Hosting Firebase (éviter un seul élément en tableau, cf. SDK).
+ */
+const CALLABLE_OPTS = {
+  region: 'europe-west1',
+  invoker: 'public',
+  cors: ['https://duelsdecave.web.app', 'https://duelsdecave.firebaseapp.com'],
+};
+
 const DUNGEON_CONSTANTS = {
   MAX_RUNS_PER_RESET: 5,
   /** Plafond : 3 créneaux × 5 runs par jour civil (Europe/Paris), crédits automatiques uniquement. */
@@ -260,7 +271,7 @@ async function applyRunCreditsInTransaction(tx, progressRef, data, now) {
   return updates;
 }
 
-export const dungeon_getProgress = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_getProgress = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -337,7 +348,7 @@ export const dungeon_getProgress = onCall({ region: 'europe-west1' }, async (req
   return { success: true, data: result.data || {} };
 });
 
-export const dungeon_startRun = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_startRun = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -381,7 +392,7 @@ export const dungeon_startRun = onCall({ region: 'europe-west1' }, async (reques
   return { success: true, ...res };
 });
 
-export const dungeon_endRun = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_endRun = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -412,7 +423,7 @@ export const dungeon_endRun = onCall({ region: 'europe-west1' }, async (request)
   return { success: true };
 });
 
-export const dungeon_setEquippedWeapon = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_setEquippedWeapon = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -432,7 +443,7 @@ export const dungeon_setEquippedWeapon = onCall({ region: 'europe-west1' }, asyn
   return { success: true };
 });
 
-export const dungeon_markCompleted = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_markCompleted = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -452,7 +463,7 @@ export const dungeon_markCompleted = onCall({ region: 'europe-west1' }, async (r
   return { success: true };
 });
 
-export const dungeon_grantRuns = onCall({ region: 'europe-west1' }, async (request) => {
+export const dungeon_grantRuns = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -478,7 +489,7 @@ export const dungeon_grantRuns = onCall({ region: 'europe-west1' }, async (reque
 // - Déclenché à la victoire Boss Rush OU à l'arrivée sur l'accueil
 // ============================================================================
 
-export const bossRush_claimReward = onCall({ region: 'europe-west1' }, async (request) => {
+export const bossRush_claimReward = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const userId = request.data?.userId;
   if (!userId || String(userId) !== String(uid)) {
@@ -569,7 +580,7 @@ function parseRunsStakedFromBetData(data) {
   return 0;
 }
 
-export const betting_placeBet = onCall({ region: 'europe-west1' }, async (request) => {
+export const betting_placeBet = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const participantId = request.data?.participantId;
   const amount = Math.floor(Number(request.data?.amount || 0));
@@ -647,7 +658,7 @@ export const betting_placeBet = onCall({ region: 'europe-west1' }, async (reques
   return { success: true };
 });
 
-export const betting_cancelBet = onCall({ region: 'europe-west1' }, async (request) => {
+export const betting_cancelBet = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const tRef = tournamentRef();
   const bRef = betDocRef(uid);
