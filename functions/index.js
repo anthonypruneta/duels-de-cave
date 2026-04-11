@@ -548,6 +548,27 @@ function runsAvailableFromProgress(data) {
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
 }
 
+/** Lecture tolérante du doc userBet (nombre / chaîne / Long admin SDK / champ legacy amount). */
+function parseRunsStakedFromBetData(data) {
+  if (!data || typeof data !== 'object') return 0;
+  const pick = data.runsStaked != null ? data.runsStaked : data.amount;
+  if (pick == null) return 0;
+  if (typeof pick === 'number' && Number.isFinite(pick)) return Math.max(0, Math.floor(pick));
+  if (typeof pick === 'string' && pick.trim() !== '') {
+    const n = Number(pick);
+    if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+  }
+  if (typeof pick === 'object' && pick !== null && typeof pick.toNumber === 'function') {
+    try {
+      const n = pick.toNumber();
+      if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return 0;
+}
+
 export const betting_placeBet = onCall({ region: 'europe-west1' }, async (request) => {
   const uid = assertAuthed(request);
   const participantId = request.data?.participantId;
@@ -607,7 +628,8 @@ export const betting_placeBet = onCall({ region: 'europe-west1' }, async (reques
       if (prev.participantId !== participantId) {
         throw new HttpsError('failed-precondition', 'Annulez votre pari avant de changer de combattant.');
       }
-      const nextTotal = (Number(prev.runsStaked) || 0) + amount;
+      const prevStake = parseRunsStakedFromBetData(prev);
+      const nextTotal = prevStake + amount;
       if (nextTotal > 500000) {
         throw new HttpsError('failed-precondition', 'Mise totale maximale dépassée (500 000 runs).');
       }
@@ -642,15 +664,18 @@ export const betting_cancelBet = onCall({ region: 'europe-west1' }, async (reque
 
     const betSnap = await tx.get(bRef);
     if (!betSnap.exists) {
-      throw new HttpsError('not-found', 'Aucun pari à annuler.');
+      // Idempotent : double clic / doc déjà supprimé = succès sans écriture
+      return;
     }
-    const refund = Number(betSnap.data()?.runsStaked) || 0;
+    const refund = parseRunsStakedFromBetData(betSnap.data() || {});
     tx.delete(bRef);
     if (refund > 0) {
       tx.set(dRef, {
         runsAvailable: FieldValue.increment(refund),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
+    } else if (refund === 0) {
+      console.warn('betting_cancelBet: doc pari sans runsStaked/amount lisible', { uid });
     }
   });
 

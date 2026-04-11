@@ -148,7 +148,10 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
   const handlePlaceBet = async (e) => {
     e.preventDefault();
     setMessage(null);
-    if (!userId || !canPlaceBets) return;
+    if (!userId || !canPlaceBets) {
+      setMessage(!userId ? 'Session expirée, reconnectez-vous.' : 'Les paris sont fermés pour ce tournoi.');
+      return;
+    }
     const amount = parseInt(amountStr, 10);
     if (!Number.isFinite(amount) || amount < MIN_RUNS_PER_BET) {
       setMessage(`Indiquez au moins ${MIN_RUNS_PER_BET} run(s).`);
@@ -172,30 +175,49 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
       return;
     }
     setBusy(true);
-    const res = await placeBet({ userId, participantId: selectedParticipantId, amount });
-    setBusy(false);
-    if (!res.success) {
-      setMessage(res.error || 'Erreur');
-      return;
+    try {
+      const res = await placeBet({ userId, participantId: selectedParticipantId, amount });
+      if (!res.success) {
+        setMessage(res.error || 'Erreur');
+        return;
+      }
+      setAmountStr('1');
+      setMessage('Pari enregistré.');
+      try {
+        await refreshRuns();
+      } catch (err) {
+        console.error('refreshRuns après pari:', err);
+        setMessage('Pari enregistré. Rechargez la page si vos runs ne se mettent pas à jour.');
+      }
+    } finally {
+      setBusy(false);
     }
-    setAmountStr('1');
-    await refreshRuns();
-    setMessage('Pari enregistré.');
   };
 
   const handleCancel = async () => {
     setMessage(null);
-    if (!userId || !canPlaceBets) return;
-    setBusy(true);
-    const res = await cancelBet(userId);
-    setBusy(false);
-    if (!res.success) {
-      setMessage(res.error || 'Erreur');
+    if (!userId || !canPlaceBets) {
+      setMessage(!userId ? 'Session expirée, reconnectez-vous.' : 'Les paris sont fermés — annulation impossible depuis cette fenêtre.');
       return;
     }
-    setSelectedParticipantId('');
-    await refreshRuns();
-    setMessage('Pari annulé — vos runs ont été rendus.');
+    setBusy(true);
+    try {
+      const res = await cancelBet(userId);
+      if (!res.success) {
+        setMessage(res.error || 'Erreur');
+        return;
+      }
+      setSelectedParticipantId('');
+      setMessage('Pari annulé — vos runs ont été rendus.');
+      try {
+        await refreshRuns();
+      } catch (err) {
+        console.error('refreshRuns après annulation:', err);
+        setMessage('Pari annulé. Rechargez la page si vos runs ne se mettent pas à jour.');
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!open) return null;
@@ -382,9 +404,9 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
                   type="button"
                   disabled={busy}
                   onClick={handleCancel}
-                  className="w-full py-2 text-sm bg-stone-800 hover:bg-red-900/40 border border-stone-600 text-red-300 rounded-lg"
+                  className="w-full py-2 text-sm bg-stone-800 hover:bg-red-900/40 border border-stone-600 text-red-300 rounded-lg disabled:opacity-60"
                 >
-                  Annuler mon pari (remboursement)
+                  {busy ? 'Annulation en cours…' : 'Annuler mon pari (remboursement)'}
                 </button>
               )}
 

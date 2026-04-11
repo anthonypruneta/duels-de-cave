@@ -30,6 +30,19 @@ export const MAX_RUNS_PER_BET_ADD = 50000;
 
 export const MIN_RUNS_PER_BET = 1;
 
+/** Message lisible pour les erreurs httpsCallable (Firebase Functions). */
+function formatCallableError(e) {
+  if (!e) return 'Échec de la requête.';
+  const parts = [];
+  const msg = typeof e.message === 'string' ? e.message.trim() : '';
+  if (msg) parts.push(msg);
+  const details = e.details != null ? String(e.details).trim() : '';
+  if (details) parts.push(details);
+  const code = e.code != null ? String(e.code) : '';
+  if (parts.length === 0 && code) parts.push(`Code : ${code}`);
+  return parts.length ? parts.join(' — ') : 'Échec de la requête.';
+}
+
 function betDocRef(userId) {
   return doc(db, 'tournaments', TOURNAMENT_BETTING_DOC_ID, 'userBets', userId);
 }
@@ -139,7 +152,7 @@ export async function placeBet({ userId, participantId, amount }) {
     await call({ participantId, amount: parsed });
     return { success: true };
   } catch (e) {
-    return { success: false, error: e.message || 'Échec du pari.' };
+    return { success: false, error: formatCallableError(e) };
   }
 }
 
@@ -151,7 +164,7 @@ export async function cancelBet(userId) {
     await call({});
     return { success: true };
   } catch (e) {
-    return { success: false, error: e.message || 'Échec de l’annulation.' };
+    return { success: false, error: formatCallableError(e) };
   }
 }
 
@@ -227,6 +240,8 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
         .filter((r) => r.participantId === championParticipantId)
         .reduce((s, r) => s + r.runsStaked, 0);
 
+      let perEntry = 0;
+
       if (winningStake <= 0) {
         for (const r of rows) {
           if (r.runsStaked > 0) payouts.set(r.userId, r.runsStaked);
@@ -239,7 +254,7 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
           .filter((r) => r.participantId === championParticipantId && r.runsStaked > 0)
           .sort((a, b) => a.userId.localeCompare(b.userId));
 
-        const perEntry = Math.floor(totalPool / winningStake); // gain par run misée
+        perEntry = Math.floor(totalPool / winningStake); // gain par run misée
         if (perEntry > 0) {
           for (const r of winnerRows) {
             payouts.set(r.userId, (payouts.get(r.userId) || 0) + perEntry * r.runsStaked);
