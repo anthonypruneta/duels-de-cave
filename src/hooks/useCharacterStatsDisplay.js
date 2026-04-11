@@ -8,7 +8,7 @@
  * @returns {Object} finalStats, tooltipContent, getStatLineProps, etc.
  */
 
-import { getRaceBonus, getClassBonus, classConstants } from '../data/combatMechanics';
+import { getRaceBonus, getClassBonus, classConstants, raceConstants } from '../data/combatMechanics';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, mergeAwakeningEffects, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
@@ -99,7 +99,7 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
   // Bonus permanent de stats des sous-classes (Collège Kunugigaoka) : appliqué partout (fiche perso + carte),
   // pas uniquement au démarrage d'un combat.
   const subclassBonuses = getSubclassStatBonuses(character.subclass?.id);
-  const finalStats = subclassBonuses && typeof character.subclass?.id === 'string'
+  const finalStatsAfterSubclass = subclassBonuses && typeof character.subclass?.id === 'string'
     ? Object.entries(subclassBonuses).reduce((acc, [stat, pct]) => {
       if (acc[stat] != null && pct) {
         acc[stat] = Math.max(1, Math.round(acc[stat] * (1 + pct)));
@@ -108,7 +108,25 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     }, { ...finalStatsBeforeSubclass })
     : finalStatsBeforeSubclass;
 
-  const subclassDelta = (k) => (finalStats[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
+  // Même ordre que preparerCombattant (tournamentCombat.js) : lien VIT ↔ ResC une fois, sans boucle
+  let finalStats = finalStatsAfterSubclass;
+  if (character.race === 'Écailleux') {
+    const div = raceConstants.ecailleux.statLinkDivisorRacial;
+    const s0 = finalStats.spd ?? 0;
+    const r0 = finalStats.rescap ?? 0;
+    finalStats = { ...finalStats, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
+  } else if (character.coopRaceEcho?.race === 'Écailleux') {
+    const div = raceConstants.ecailleux.statLinkDivisorPointeau;
+    const s0 = finalStats.spd ?? 0;
+    const r0 = finalStats.rescap ?? 0;
+    finalStats = { ...finalStats, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
+  }
+  const ecailleuxLinkDelta = (k) => {
+    if (k !== 'spd' && k !== 'rescap') return 0;
+    return (finalStats[k] ?? 0) - (finalStatsAfterSubclass[k] ?? 0);
+  };
+
+  const subclassDelta = (k) => (finalStatsAfterSubclass[k] ?? 0) - (finalStatsBeforeSubclass[k] ?? 0);
   const coopRaceEchoDelta = (k) => (finalStatsBeforeForge[k] ?? 0) - (finalStatsBeforeForgeWithoutEcho[k] ?? 0);
 
   const baseWithoutBonus = (k) => (rawBase[k] ?? 0) - totalBonus(k);
@@ -136,6 +154,8 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+` : ''}${raceDisplayBonus}`);
     const raceEchoDelta = coopRaceEchoDelta(k);
     if (raceEchoDelta !== 0) parts.push(`Pointeau ADN: ${raceEchoDelta > 0 ? '+' : ''}${raceEchoDelta}`);
+    const ecaLink = ecailleuxLinkDelta(k);
+    if (ecaLink !== 0) parts.push(`Race (lien VIT↔ResC): ${ecaLink > 0 ? '+' : ''}${ecaLink}`);
     if (hasForgeUpgrade && forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k) + raceEchoDelta;
@@ -162,6 +182,7 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
     })() : 0;
     const subclassDeltaForStat = subclassDelta(statKey);
+    const ecailleuxLinkForStat = ecailleuxLinkDelta(statKey);
     const hasBonus = raceDisplayBonus !== 0
       || raceEchoDeltaForStat !== 0
       || classB[statKey] > 0
@@ -170,7 +191,8 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
       || weaponStatValue(statKey) !== 0
       || (statKey === 'auto' && passiveAutoBonus !== 0)
       || forgeDeltaForStat !== 0
-      || subclassDeltaForStat !== 0;
+      || subclassDeltaForStat !== 0
+      || ecailleuxLinkForStat !== 0;
     const totalDelta = raceDisplayBonus
       + raceEchoDeltaForStat
       + (classB[statKey] || 0)
@@ -179,7 +201,8 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
       + weaponStatValue(statKey)
       + (statKey === 'auto' ? passiveAutoBonus : 0)
       + forgeDeltaForStat
-      + subclassDeltaForStat;
+      + subclassDeltaForStat
+      + ecailleuxLinkForStat;
     const labelClass = totalDelta > 0 ? 'text-green-400' : totalDelta < 0 ? 'text-red-400' : 'text-yellow-300';
     return {
       displayValue,
