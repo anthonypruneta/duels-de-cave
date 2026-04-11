@@ -208,7 +208,14 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
         return;
       }
       setSelectedParticipantId('');
-      setMessage('Pari annulé — vos runs ont été rendus.');
+      const n = typeof res.refunded === 'number' ? res.refunded : 0;
+      setMessage(
+        n > 0
+          ? n === 1
+            ? 'Pari annulé — 1 run a été rendu sur votre compte.'
+            : `Pari annulé — ${n} runs ont été rendus sur votre compte.`
+          : 'Pari annulé (aucune mise en cours à rembourser).'
+      );
       try {
         await refreshRuns();
       } catch (err) {

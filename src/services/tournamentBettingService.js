@@ -161,8 +161,9 @@ export async function cancelBet(userId) {
 
   try {
     const call = httpsCallable(functions, 'betting_cancelBet');
-    await call({});
-    return { success: true };
+    const result = await call({});
+    const refunded = Math.max(0, Math.floor(Number(result?.data?.refunded ?? 0)));
+    return { success: true, refunded };
   } catch (e) {
     return { success: false, error: formatCallableError(e) };
   }

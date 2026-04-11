@@ -559,25 +559,55 @@ function runsAvailableFromProgress(data) {
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
 }
 
-/** Lecture tolérante du doc userBet (nombre / chaîne / Long admin SDK / champ legacy amount). */
+/** Lecture tolérante du doc userBet (nombre / chaîne / BigInt / Long admin SDK / champ legacy amount). */
 function parseRunsStakedFromBetData(data) {
   if (!data || typeof data !== 'object') return 0;
-  const pick = data.runsStaked != null ? data.runsStaked : data.amount;
-  if (pick == null) return 0;
-  if (typeof pick === 'number' && Number.isFinite(pick)) return Math.max(0, Math.floor(pick));
-  if (typeof pick === 'string' && pick.trim() !== '') {
-    const n = Number(pick);
-    if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
-  }
-  if (typeof pick === 'object' && pick !== null && typeof pick.toNumber === 'function') {
-    try {
-      const n = pick.toNumber();
-      if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
-    } catch (_) {
-      /* ignore */
+
+  const tryCoerce = (pick) => {
+    if (pick == null) return null;
+    if (typeof pick === 'number' && Number.isFinite(pick)) return Math.max(0, Math.floor(pick));
+    if (typeof pick === 'bigint') {
+      const n = Number(pick);
+      return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
     }
-  }
+    if (typeof pick === 'string' && pick.trim() !== '') {
+      const n = Number(pick);
+      return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
+    }
+    if (typeof pick === 'object' && pick !== null && typeof pick.toNumber === 'function') {
+      try {
+        const n = pick.toNumber();
+        if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (typeof pick === 'object' && pick !== null && typeof pick.valueOf === 'function') {
+      try {
+        const v = pick.valueOf();
+        if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, Math.floor(v));
+        if (typeof v === 'bigint') {
+          const n = Number(v);
+          if (Number.isFinite(n)) return Math.max(0, Math.floor(n));
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    return null;
+  };
+
+  const fromStaked = tryCoerce(data.runsStaked);
+  if (fromStaked != null) return fromStaked;
+  const fromAmount = tryCoerce(data.amount);
+  if (fromAmount != null) return fromAmount;
   return 0;
+}
+
+/** Indique si le doc pari porte un champ de mise connu (même à 0). */
+function betDocHasStakeFields(data) {
+  if (!data || typeof data !== 'object') return false;
+  return Object.prototype.hasOwnProperty.call(data, 'runsStaked') || Object.prototype.hasOwnProperty.call(data, 'amount');
 }
 
 export const betting_placeBet = onCall(CALLABLE_OPTS, async (request) => {
@@ -664,6 +694,8 @@ export const betting_cancelBet = onCall(CALLABLE_OPTS, async (request) => {
   const bRef = betDocRef(uid);
   const dRef = dungeonProgressRef(uid);
 
+  let refundedRuns = 0;
+
   await db.runTransaction(async (tx) => {
     const tSnap = await tx.get(tRef);
     if (tSnap.exists) {
@@ -675,21 +707,54 @@ export const betting_cancelBet = onCall(CALLABLE_OPTS, async (request) => {
 
     const betSnap = await tx.get(bRef);
     if (!betSnap.exists) {
-      // Idempotent : double clic / doc déjà supprimé = succès sans écriture
+      // Idempotent : double clic / doc déjà supprimé
       return;
     }
-    const refund = parseRunsStakedFromBetData(betSnap.data() || {});
-    tx.delete(bRef);
+
+    const data = betSnap.data() || {};
+    const refund = parseRunsStakedFromBetData(data);
+    const hasStake = betDocHasStakeFields(data);
+
     if (refund > 0) {
-      tx.set(dRef, {
-        runsAvailable: FieldValue.increment(refund),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    } else if (refund === 0) {
-      console.warn('betting_cancelBet: doc pari sans runsStaked/amount lisible', { uid });
+      tx.delete(bRef);
+      tx.set(
+        dRef,
+        {
+          runsAvailable: FieldValue.increment(refund),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      refundedRuns = refund;
+      return;
     }
+
+    // refund === 0 : soit mise réellement 0, soit doc sans champ, soit valeur illisible
+    if (!hasStake) {
+      tx.delete(bRef);
+      console.warn('betting_cancelBet: suppression doc pari sans champ runsStaked/amount', { uid });
+      return;
+    }
+
+    const raw = data.runsStaked !== undefined ? data.runsStaked : data.amount;
+    const explicitZero =
+      raw === 0 ||
+      raw === '0' ||
+      (typeof raw === 'string' && raw.trim() === '0');
+
+    if (explicitZero) {
+      tx.delete(bRef);
+      return;
+    }
+
+    // Champ présent mais montant > 0 non lisible : ne pas supprimer (éviter de voler des runs)
+    console.error('betting_cancelBet: mise illisible', { uid, rawType: typeof raw });
+    throw new HttpsError(
+      'failed-precondition',
+      'Impossible de lire le montant de votre mise. Réessayez ou contactez un administrateur.'
+    );
   });
 
-  return { success: true };
+  return { success: true, refunded: refundedRuns };
 });
 
