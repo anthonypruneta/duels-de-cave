@@ -5,8 +5,7 @@
  * Les gains (pool) sont versés sur tournamentRewards.pendingTournamentBettingRuns pour le prochain perso.
  */
 
-import { db, functions } from '../firebase/config';
-import { httpsCallable } from 'firebase/functions';
+import { db, functions, getHttpsCallable } from '../firebase/config';
 import {
   collection,
   doc,
@@ -148,7 +147,7 @@ export async function placeBet({ userId, participantId, amount }) {
   }
 
   try {
-    const call = httpsCallable(functions, 'betting_placeBet');
+    const call = getHttpsCallable(functions, 'betting_placeBet');
     await call({ participantId, amount: parsed });
     return { success: true };
   } catch (e) {
@@ -160,7 +159,7 @@ export async function cancelBet(userId) {
   if (!userId) return { success: false, error: 'Non connecté.' };
 
   try {
-    const call = httpsCallable(functions, 'betting_cancelBet');
+    const call = getHttpsCallable(functions, 'betting_cancelBet');
     const result = await call({});
     const refunded = Math.max(0, Math.floor(Number(result?.data?.refunded ?? 0)));
     return { success: true, refunded };

@@ -15,6 +15,42 @@
     ],
     "rewrites": [
       {
+        "source": "/callable/dungeon_getProgress",
+        "function": { "functionId": "dungeon_getProgress", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/dungeon_startRun",
+        "function": { "functionId": "dungeon_startRun", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/dungeon_endRun",
+        "function": { "functionId": "dungeon_endRun", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/dungeon_setEquippedWeapon",
+        "function": { "functionId": "dungeon_setEquippedWeapon", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/dungeon_markCompleted",
+        "function": { "functionId": "dungeon_markCompleted", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/dungeon_grantRuns",
+        "function": { "functionId": "dungeon_grantRuns", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/bossRush_claimReward",
+        "function": { "functionId": "bossRush_claimReward", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/betting_placeBet",
+        "function": { "functionId": "betting_placeBet", "region": "europe-west1" }
+      },
+      {
+        "source": "/callable/betting_cancelBet",
+        "function": { "functionId": "betting_cancelBet", "region": "europe-west1" }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

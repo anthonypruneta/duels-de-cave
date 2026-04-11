@@ -23,8 +23,7 @@ import {
   where,
   writeBatch
 } from 'firebase/firestore';
-import { db, functions, waitForFirestore } from '../firebase/config';
-import { httpsCallable } from 'firebase/functions';
+import { db, functions, getHttpsCallable, waitForFirestore } from '../firebase/config';
 import {
   getDungeonLevelById,
   getDungeonLevelByNumber,
@@ -135,7 +134,7 @@ export const getDungeonProgress = async (userId) => {
     console.log('📖 Récupération de la progression donjon pour:', userId);
 
     // Tout le crédit de runs / init doit venir du serveur (anti-cheat horloge).
-    const call = httpsCallable(functions, 'dungeon_getProgress');
+    const call = getHttpsCallable(functions, 'dungeon_getProgress');
     const response = await call({ userId });
     const data = response?.data?.data || response?.data || {};
     return { success: true, data };
@@ -179,7 +178,7 @@ export const canStartDungeonRun = async (userId) => {
 export const startDungeonRun = async (userId) => {
   try {
     await waitForFirestore();
-    const call = httpsCallable(functions, 'dungeon_startRun');
+    const call = getHttpsCallable(functions, 'dungeon_startRun');
     const response = await call({ userId });
     const payload = response?.data || {};
     return {
@@ -251,7 +250,7 @@ export const endDungeonRun = async (userId, highestLevelBeaten, defeatedOnLevel 
     const lootWeapon = lootWeapons[0];
 
     // Mettre à jour les stats côté serveur (anti-cheat).
-    const call = httpsCallable(functions, 'dungeon_endRun');
+    const call = getHttpsCallable(functions, 'dungeon_endRun');
     await call({ userId, highestLevelBeaten, defeatedOnLevel });
 
     return {
@@ -287,7 +286,7 @@ export const equipWeapon = async (userId, weaponId) => {
       await clearWeaponUpgrade(userId);
     }
 
-    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    const call = getHttpsCallable(functions, 'dungeon_setEquippedWeapon');
     await call({ userId, weaponId });
 
     await updateCharacterEquippedWeapon(userId, weaponId);
@@ -310,7 +309,7 @@ export const unequipWeapon = async (userId) => {
     // Déséquiper = l'arme perd son upgrade Forge (Ornn)
     await clearWeaponUpgrade(userId);
 
-    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    const call = getHttpsCallable(functions, 'dungeon_setEquippedWeapon');
     await call({ userId, weaponId: null });
 
     await updateCharacterEquippedWeapon(userId, null);
@@ -330,7 +329,7 @@ export const clearEquippedWeapon = async (userId) => {
   try {
     console.log('🔄 Réinitialisation arme équipée:', userId);
 
-    const call = httpsCallable(functions, 'dungeon_setEquippedWeapon');
+    const call = getHttpsCallable(functions, 'dungeon_setEquippedWeapon');
     await call({ userId, weaponId: null });
 
     await updateCharacterEquippedWeapon(userId, null);
@@ -411,7 +410,7 @@ export const resetDungeonRuns = async (userId) => {
 export const markDungeonCompleted = async (userId, dungeonKey) => {
   try {
     if (!userId || !dungeonKey) return { success: false, error: 'Paramètres invalides' };
-    const call = httpsCallable(functions, 'dungeon_markCompleted');
+    const call = getHttpsCallable(functions, 'dungeon_markCompleted');
     await call({ userId, dungeonKey });
 
     const characterResult = await getUserCharacter(userId);
@@ -570,7 +569,7 @@ export const grantDungeonRunsToAllPlayers = async ({ attempts, message, adminEma
 export async function grantRunsToPlayer(userId, attempts) {
   try {
     // Récompenses runs (Boss Rush / Mirror / Labyrinthe) : côté serveur (anti-cheat).
-    const call = httpsCallable(functions, 'dungeon_grantRuns');
+    const call = getHttpsCallable(functions, 'dungeon_grantRuns');
     await call({ userId, attempts });
     return true;
   } catch (err) {
@@ -586,7 +585,7 @@ export async function grantRunsToPlayer(userId, attempts) {
 export async function claimBossRushRewardIfEligible(userId) {
   if (!userId) return { success: false, granted: false, error: 'Utilisateur manquant' };
   try {
-    const call = httpsCallable(functions, 'bossRush_claimReward');
+    const call = getHttpsCallable(functions, 'bossRush_claimReward');
     const res = await call({ userId });
     const data = res?.data || {};
     return { success: true, granted: !!data.granted, reason: data.reason || null };
