@@ -1,21 +1,21 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+
+// Gen 2 = Cloud Run : sans accès public, OPTIONS est coupé avant le handler → « CORS » côté navigateur.
+setGlobalOptions({
+  region: 'europe-west1',
+  invoker: 'public',
+  ingressSettings: 'ALLOW_ALL',
+});
 
 initializeApp();
 
 const db = getFirestore();
 
-/**
- * Callables Gen 2 → Cloud Run : sans invoker public, le préflight OPTIONS peut être refusé
- * avant le handler → le navigateur signale une erreur CORS (pas d’en-tête Allow-Origin).
- * cors explicite : origines Hosting Firebase (éviter un seul élément en tableau, cf. SDK).
- */
-const CALLABLE_OPTS = {
-  region: 'europe-west1',
-  invoker: 'public',
-  cors: ['https://duelsdecave.web.app', 'https://duelsdecave.firebaseapp.com'],
-};
+/** cors: true = autoriser toutes les origines (callables ; l’auth reste dans le corps de la requête). */
+const CALLABLE_OPTS = { cors: true };
 
 const DUNGEON_CONSTANTS = {
   MAX_RUNS_PER_RESET: 5,
