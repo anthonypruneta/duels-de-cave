@@ -25,6 +25,26 @@ export const TOURNAMENT_BETTING_DOC_ID = 'current';
 /** Runs crédités sur tournamentRewards puis transférés au prochain personnage (init dungeonProgress). */
 export const PENDING_TOURNAMENT_BETTING_RUNS_FIELD = 'pendingTournamentBettingRuns';
 
+/**
+ * Même logique que la fin de avancerMatch : id bracket du champion (GF / GFR), avec repli sur la liste.
+ * @param {Object|null|undefined} tournoi
+ * @returns {string|null}
+ */
+export function resolveChampionParticipantIdForBetting(tournoi) {
+  if (!tournoi) return null;
+  const matches = tournoi.matches || {};
+  const gfr = matches.GFR;
+  const gf = matches.GF;
+  let pid = gfr?.winnerId || gf?.winnerId;
+  if (pid && pid !== 'BYE') return pid;
+  const champ = tournoi.champion;
+  if (champ?.userId) {
+    const row = (tournoi.participantsList || []).find((p) => p.userId === champ.userId);
+    if (row?.participantId && row.participantId !== 'BYE') return row.participantId;
+  }
+  return null;
+}
+
 /** Aligné sur firestore.rules (update : +50000 max par transaction) */
 export const MAX_RUNS_PER_BET_ADD = 50000;
 

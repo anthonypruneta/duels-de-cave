@@ -20,7 +20,11 @@ import { generateWeeklyInfiniteLabyrinth, getCurrentWeekId, resetWeeklyInfiniteL
 import { checkAndAwardTitles, trackTournamentFirstRoundResult } from './titleService';
 import { MAX_LEVEL } from '../data/featureFlags';
 import { supprimerMessagesChatTournoi } from './tournamentChatService';
-import { settleTournamentBettingIfNeeded, clearTournamentUserBets } from './tournamentBettingService';
+import {
+  settleTournamentBettingIfNeeded,
+  clearTournamentUserBets,
+  resolveChampionParticipantIdForBetting,
+} from './tournamentBettingService';
 
 /** Document Firestore du tournoi « des anciens » (archives récentes, niveau ≤ 400) */
 export const LEGACY_TOURNAMENT_DOC_ID = 'legacy_current';
@@ -399,6 +403,8 @@ export async function getLegacyQualifierSnapshot() {
 
 export async function creerTournoi(docId = 'current') {
   try {
+    /** Tournoi « current » déjà archivé (si présent), pour filet de sécurité paris avant clear userBets */
+    let prevArchivedCurrentTournament = null;
     // Ne jamais écraser un tournoi du samedi non archivé.
     // Si le tournoi précédent existe et n'a pas été "terminé/archivé" (archivedAt absent),
     // on bloque la création du suivant pour ne pas perdre les infos d'arbre.
@@ -413,6 +419,7 @@ export async function creerTournoi(docId = 'current') {
             error: 'Un tournoi du samedi existe déjà mais n’est pas archivé. Termine/archiver le tournoi précédent avant d’en créer un nouveau.',
           };
         }
+        prevArchivedCurrentTournament = existing;
       }
     }
 
@@ -494,6 +501,17 @@ export async function creerTournoi(docId = 'current') {
     };
 
     if (docId === 'current') {
+      // Filet : si la distribution des paris n’a jamais abouti, la faire AVANT de supprimer userBets
+      const prev = prevArchivedCurrentTournament;
+      if (prev?.champion && !prev.bettingSettlement?.done) {
+        const championPid = resolveChampionParticipantIdForBetting(prev);
+        if (championPid) {
+          const betSettle = await settleTournamentBettingIfNeeded(docId, championPid);
+          if (!betSettle.success && !betSettle.skipped) {
+            console.warn('settle paris avant nouveau tournoi:', betSettle.error);
+          }
+        }
+      }
       await clearTournamentUserBets(docId).catch((e) =>
         console.warn('clearTournamentUserBets:', e?.message)
       );
@@ -786,9 +804,7 @@ export async function avancerMatch(docId = 'current') {
     }
 
     if (!result) {
-      const gfrMatch = matches['GFR'];
-      const gfMatch = matches['GF'];
-      let championId = gfrMatch?.winnerId || gfMatch?.winnerId;
+      const championId = resolveChampionParticipantIdForBetting({ ...tournoi, matches, participantsList });
       const championData = participantsList.find(
         p => p.participantId === championId || p.userId === championId
       );
@@ -1113,6 +1129,17 @@ export async function terminerTournoi(docId = 'current') {
     const tournoi = tournoiDoc.data();
     if (!tournoi.champion) return { success: false, error: 'Pas de champion désigné' };
     if (tournoi.archivedAt) return { success: true, alreadyArchived: true };
+
+    // Filet : distribution des paris si le dernier avancerMatch n’a pas réussi à la faire
+    if (!tournoi.bettingSettlement?.done) {
+      const championPid = resolveChampionParticipantIdForBetting(tournoi);
+      if (championPid) {
+        const betSettle = await settleTournamentBettingIfNeeded(docId, championPid);
+        if (!betSettle.success && !betSettle.skipped) {
+          console.warn('Distribution paris (terminerTournoi):', betSettle.error);
+        }
+      }
+    }
 
     const hallOfFameEntryId = buildHallOfFameEntryId(tournoi);
 
