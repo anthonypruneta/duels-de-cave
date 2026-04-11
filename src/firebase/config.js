@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, enableNetwork, onSnapshot, collection, setLogLevel } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getFunctions, httpsCallable, httpsCallableFromURL } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
 
 // Activer le debug logging pour diagnostiquer les problèmes de connexion
 setLogLevel('debug');
@@ -32,25 +32,32 @@ console.log('🌐 État réseau navigateur:', navigator.onLine ? 'ONLINE' : 'OFF
 // Initialiser Firebase
 const app = initializeApp(firebaseConfig);
 
+const FUNCTIONS_REGION = 'europe-west1';
+
+/**
+ * Deuxième argument de getFunctions (doc Firebase) :
+ * - région → URL https://REGION-PROJECT.cloudfunctions.net/NAME
+ * - URL absolue avec chemin → « custom domain » : les callables deviennent ORIGIN/chemin/NAME
+ *
+ * Sur Hosting (https, hors localhost), on pointe vers /callable (rewrites firebase.json)
+ * pour rester en same-origin et éviter le CORS Cloud Run Gen 2 sur *.cloudfunctions.net.
+ */
+function getFunctionsConnectTarget() {
+  if (typeof window === 'undefined') return FUNCTIONS_REGION;
+  const { hostname, protocol } = window.location;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return FUNCTIONS_REGION;
+  }
+  if (protocol === 'https:') {
+    return `${window.location.origin}/callable`;
+  }
+  return FUNCTIONS_REGION;
+}
+
 // Initialiser les services
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app, 'europe-west1');
-
-/**
- * Callables HTTPS : en build prod déployée sur Firebase Hosting, on appelle via
- * /callable/<nom> (rewrites firebase.json → même origine que le site) pour éviter
- * le blocage CORS des URL *.cloudfunctions.net (Cloud Run Gen 2).
- * En dev (vite), on garde l’URL régionale classique.
- */
-export function getHttpsCallable(functionsInstance, functionName) {
-  const prod = import.meta.env.PROD === true;
-  if (typeof window !== 'undefined' && prod) {
-    const url = `${window.location.origin}/callable/${functionName}`;
-    return httpsCallableFromURL(functionsInstance, url);
-  }
-  return httpsCallable(functionsInstance, functionName);
-}
+export const functions = getFunctions(app, getFunctionsConnectTarget());
 
 // Initialiser Firestore avec cache MEMOIRE uniquement (pas persistant)
 // Le cache persistant peut causer "client is offline" errors

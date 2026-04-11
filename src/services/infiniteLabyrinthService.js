@@ -1,5 +1,6 @@
-import { db, functions, getHttpsCallable } from '../firebase/config';
+import { db, functions } from '../firebase/config';
 import { Timestamp, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { getMageTowerPassiveById, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { races } from '../data/races';
 import { getWeaponsByRarity, RARITY } from '../data/weapons';
@@ -155,7 +156,7 @@ export function resolveLabyrinthFloorImagePath(floor) {
 }
 
 async function grantDungeonRunsForLabyrinthBoss(userId, attempts = 5) {
-  const call = getHttpsCallable(functions, 'dungeon_grantRuns');
+  const call = httpsCallable(functions, 'dungeon_grantRuns');
   await call({ userId, attempts });
 }
 
