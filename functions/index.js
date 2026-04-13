@@ -239,11 +239,8 @@ async function applyRunCreditsInTransaction(tx, progressRef, data, now) {
           Math.max(0, Math.floor(Number(data.dungeonPeriodRunsCreditedToday) || 0))
         )
       : 0;
-  const remainingSlots = Math.max(
-    0,
-    DUNGEON_CONSTANTS.MAX_PERIOD_BLOCKS_PER_PARIS_DAY -
-      Math.floor(runsCreditedParisDay / DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET)
-  );
+  const blocksCreditedToday = Math.floor(runsCreditedParisDay / DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET);
+  const remainingBlocksToday = Math.max(0, DUNGEON_CONSTANTS.MAX_PERIOD_BLOCKS_PER_PARIS_DAY - blocksCreditedToday);
 
   if (!data?.lastCreditDate) {
     updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
@@ -251,16 +248,47 @@ async function applyRunCreditsInTransaction(tx, progressRef, data, now) {
     updates.dungeonPeriodRunsCreditedToday = 0;
   } else {
     const periods = getResetPeriodsSince(lastCreditDate, now);
+
     if (periods > 0) {
-      const periodsToGrant = Math.min(periods, remainingSlots);
-      if (periodsToGrant > 0) {
-        const grantRuns = periodsToGrant * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
-        updates.runsAvailable = (Number.isFinite(data?.runsAvailable) ? data.runsAvailable : 0) + grantRuns;
-        const newLast = lastCreditDateAfterGrantingPeriods(lastCreditDate, periodsToGrant);
-        updates.lastCreditDate = Timestamp.fromDate(newLast);
-        updates.dungeonPeriodRunsParisDate = parisKey;
-        updates.dungeonPeriodRunsCreditedToday = runsCreditedParisDay + grantRuns;
+      // Rattrapage OUI, mais plafond journalier appliqué UNIQUEMENT aux créneaux du jour Paris.
+      // Les créneaux des jours précédents doivent pouvoir s'accumuler sans "consommer" midi/18h du jour.
+      const last = lastCreditDate instanceof Date ? lastCreditDate : lastCreditDate.toDate();
+      const lastAnchor = getResetAnchor(last);
+
+      let cursor = advanceResetAnchor(new Date(lastAnchor.getTime()));
+      let grantRunsTotal = 0;
+      let grantedTodayBlocks = 0;
+
+      while (cursor <= currentAnchor) {
+        if (!isParisSunday(cursor)) {
+          const cursorKey = getParisDateKey(cursor);
+          if (cursorKey === parisKey) {
+            if (grantedTodayBlocks < remainingBlocksToday) {
+              grantRunsTotal += DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+              grantedTodayBlocks += 1;
+            }
+          } else {
+            // Jour précédent : rattrapage complet (pas de plafond du jour courant)
+            grantRunsTotal += DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+          }
+        }
+        cursor = advanceResetAnchor(cursor);
       }
+
+      if (grantRunsTotal > 0) {
+        updates.runsAvailable =
+          (Number.isFinite(data?.runsAvailable) ? data.runsAvailable : 0) + grantRunsTotal;
+      }
+
+      // On avance toujours le pointeur au créneau courant pour éviter qu'un plafond journalier
+      // laisse des créneaux "en retard" qui seraient re-crédités le lendemain.
+      updates.lastCreditDate = Timestamp.fromDate(currentAnchor);
+      updates.dungeonPeriodRunsParisDate = parisKey;
+      updates.dungeonPeriodRunsCreditedToday = runsCreditedParisDay + grantedTodayBlocks * DUNGEON_CONSTANTS.MAX_RUNS_PER_RESET;
+    } else if (data?.dungeonPeriodRunsParisDate !== parisKey) {
+      // Jour nouveau mais aucun créneau écoulé depuis la dernière ancre: on réinitialise le compteur "du jour".
+      updates.dungeonPeriodRunsParisDate = parisKey;
+      updates.dungeonPeriodRunsCreditedToday = 0;
     }
   }
 
