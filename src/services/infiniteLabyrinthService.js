@@ -166,8 +166,19 @@ export function getEnemyNameFromFilename(path) {
   return filename.replace(/\.[^/.]+$/, '');
 }
 
+/** Repère ISO semaine aligné sur le calendrier Europe/Paris (comme isParisSunday / tournoi), pas sur le fuseau du navigateur. */
 export function getCurrentWeekId(referenceDate = new Date()) {
-  const date = new Date(Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()));
+  const dtf = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = dtf.formatToParts(referenceDate);
+  const y = parseInt(parts.find((p) => p.type === 'year')?.value ?? '0', 10);
+  const m = parseInt(parts.find((p) => p.type === 'month')?.value ?? '1', 10) - 1;
+  const d = parseInt(parts.find((p) => p.type === 'day')?.value ?? '1', 10);
+  const date = new Date(Date.UTC(y, m, d));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));

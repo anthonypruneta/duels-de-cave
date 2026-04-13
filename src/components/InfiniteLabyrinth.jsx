@@ -437,8 +437,15 @@ const InfiniteLabyrinth = () => {
 
     try {
       startFightMusic();
+      let labyrinthWeekId = weekId;
       while (!token.cancelled) {
-        const result = await launchLabyrinthCombat({ userId: currentUser.uid, weekId });
+        const result = await launchLabyrinthCombat({ userId: currentUser.uid });
+        if (result.success && result.weekId && result.weekId !== labyrinthWeekId) {
+          labyrinthWeekId = result.weekId;
+          const lab = await ensureWeeklyInfiniteLabyrinth(result.weekId);
+          if (lab.success) setLabyrinthData(lab.data);
+          setWeekId(result.weekId);
+        }
         if (result.success && result.result?.steps) {
           checkAndAwardTitles(
             currentUser.uid,
