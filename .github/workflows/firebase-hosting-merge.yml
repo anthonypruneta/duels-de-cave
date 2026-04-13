@@ -25,6 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Functions dependencies
+        run: npm ci
+        working-directory: functions
+
       - name: Build
         run: npm run build
         env:
