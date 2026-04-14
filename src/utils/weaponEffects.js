@@ -53,6 +53,7 @@ export function initWeaponCombatState(combatant, weaponId) {
     executeTriggered: false,  // Faux de Thanatos: explosion exécution déjà déclenchée
     sceptreCapStacks: 0,      // Sceptre du Roi-Sorcier: stacks de CAP
     penduleCdUsed: 0,         // Pendule de Chronos: nombre de capacités ayant bénéficié du -1 CD
+    athenaAtkBonusApplied: null, // Égide d'Athéna: bonus d'Auto actuellement appliqué (recalculé chaque tour)
   };
 
   return {
@@ -158,6 +159,35 @@ export function onTurnStart(weaponState, combatant, turn) {
   const turnCount = weaponState.counters.turnCount;
 
   switch (weaponState.weaponId) {
+    case 'bouclier_legendaire': {
+      // Égide d'Athéna: le bonus d'Auto dépend de la DEF/ResC courantes → recalcul à chaque début de tour
+      // (et ajuste l'Auto en conséquence si DEF/ResC montent OU baissent pendant le combat).
+      if (!combatant?.base) break;
+      const defNow = combatant.base.def ?? 0;
+      const resNow = combatant.base.rescap ?? 0;
+      const pctDef = weaponConstants.egide?.defToAtkPercent ?? 0;
+      const pctRes = weaponConstants.egide?.rescapToAtkPercent ?? 0;
+      const newBonus = Math.round(defNow * pctDef + resNow * pctRes);
+
+      // Au tout premier tour, initialiser le compteur sans modifier l'Auto :
+      // le bonus a déjà été appliqué lors de la préparation via applyPassiveWeaponStats().
+      const prev = weaponState.counters.athenaAtkBonusApplied;
+      if (prev == null) {
+        weaponState.counters.athenaAtkBonusApplied = newBonus;
+        break;
+      }
+
+      if (newBonus !== prev) {
+        const autoNow = combatant.base.auto ?? 0;
+        combatant.base = {
+          ...combatant.base,
+          auto: Math.max(1, autoNow - prev + newBonus),
+        };
+        weaponState.counters.athenaAtkBonusApplied = newBonus;
+      }
+      break;
+    }
+
     case 'baton_legendaire': {
       // Branche d'Yggdrasil: regen 3% si pas de heal
       if (combatant.base._yggdrasilRegen) {
