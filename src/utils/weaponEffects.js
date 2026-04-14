@@ -53,7 +53,7 @@ export function initWeaponCombatState(combatant, weaponId) {
     executeTriggered: false,  // Faux de Thanatos: explosion exécution déjà déclenchée
     sceptreCapStacks: 0,      // Sceptre du Roi-Sorcier: stacks de CAP
     penduleCdUsed: 0,         // Pendule de Chronos: nombre de capacités ayant bénéficié du -1 CD
-    athenaAtkBonusApplied: null, // Égide d'Athéna: bonus d'Auto actuellement appliqué (recalculé chaque tour)
+    athenaAtkBonusApplied: null, // Égide (aligné sur combatant._egideAthenaAppliedBonus après sync)
   };
 
   return {
@@ -97,6 +97,28 @@ export function applyEgideAthenaAfterFinalStats(stats, weaponId) {
   if (!stats || weaponId !== 'bouclier_legendaire') return stats;
   const bonus = getEgideAthenaAutoBonusFromStats(stats);
   return { ...stats, auto: (stats.auto ?? 0) + bonus };
+}
+
+/**
+ * Recalcule le bonus Auto Égide après un changement de DEF ou ResC en combat.
+ * Utilise `combatant._egideAthenaAppliedBonus` (initialisé par preparerCombattant).
+ */
+export function syncEgideAthenaAutoBonus(combatant) {
+  if (!combatant?.base) return;
+  const weaponId =
+    combatant.equippedWeaponId ||
+    combatant.equippedWeaponData?.id ||
+    combatant.weaponState?.weaponId;
+  if (weaponId !== 'bouclier_legendaire') return;
+  const newBonus = getEgideAthenaAutoBonusFromStats(combatant.base);
+  const prev = combatant._egideAthenaAppliedBonus ?? 0;
+  if (newBonus === prev) return;
+  const autoNow = combatant.base.auto ?? 0;
+  combatant.base = { ...combatant.base, auto: Math.max(1, autoNow - prev + newBonus) };
+  combatant._egideAthenaAppliedBonus = newBonus;
+  if (combatant.weaponState?.counters) {
+    combatant.weaponState.counters.athenaAtkBonusApplied = newBonus;
+  }
 }
 
 // ============================================================================
@@ -179,31 +201,8 @@ export function onTurnStart(weaponState, combatant, turn) {
 
   switch (weaponState.weaponId) {
     case 'bouclier_legendaire': {
-      // Égide d'Athéna: le bonus d'Auto dépend de la DEF/ResC courantes → recalcul à chaque début de tour
-      // (et ajuste l'Auto en conséquence si DEF/ResC montent OU baissent pendant le combat).
-      if (!combatant?.base) break;
-      const defNow = combatant.base.def ?? 0;
-      const resNow = combatant.base.rescap ?? 0;
-      const pctDef = weaponConstants.egide?.defToAtkPercent ?? 0;
-      const pctRes = weaponConstants.egide?.rescapToAtkPercent ?? 0;
-      const newBonus = Math.round(defNow * pctDef + resNow * pctRes);
-
-      // Au tout premier tour, initialiser le compteur sans modifier l'Auto :
-      // le bonus a déjà été appliqué lors de la préparation via applyPassiveWeaponStats().
-      const prev = weaponState.counters.athenaAtkBonusApplied;
-      if (prev == null) {
-        weaponState.counters.athenaAtkBonusApplied = newBonus;
-        break;
-      }
-
-      if (newBonus !== prev) {
-        const autoNow = combatant.base.auto ?? 0;
-        combatant.base = {
-          ...combatant.base,
-          auto: Math.max(1, autoNow - prev + newBonus),
-        };
-        weaponState.counters.athenaAtkBonusApplied = newBonus;
-      }
+      // Égide : même logique que les sync après mutation DEF/ResC (rattrape aussi les cas sans hook explicite).
+      syncEgideAthenaAutoBonus(combatant);
       break;
     }
 

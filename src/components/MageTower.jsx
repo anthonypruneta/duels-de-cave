@@ -49,6 +49,7 @@ import {
   applyGungnirDebuff,
   applyMjollnirStun,
   applyPassiveWeaponStats,
+  syncEgideAthenaAutoBonus,
   initWeaponCombatState,
   modifyCritDamage,
   onAttack,
@@ -811,6 +812,7 @@ const MageTower = () => {
         }
         if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
           def.base = applyGungnirDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
         }
         if (attackEffects.log.length > 0) {
           log.push(`${playerColor} ${attackEffects.log.join(' ')}`);

@@ -7,7 +7,8 @@
 import { getMageTowerPassiveById, getMageTowerPassiveByName, getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
 import { applyStatBoosts, getEmptyStatBoosts } from './statPoints.js';
 import {
-  applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats, applyEgideAthenaAfterFinalStats,
+  applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
+  applyEgideAthenaAfterFinalStats, getEgideAthenaAutoBonusFromStats, syncEgideAthenaAutoBonus,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onCapacityCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty, shouldSkipVerdictDemonFamiliar,
   applyForgeUpgrade, getPenduleCooldownReduction, consumePenduleCdCharge, getPenduleSpellBonus
@@ -153,6 +154,7 @@ export function applyStartOfCombatPassives(attacker, defender, log, label) {
     if (passiveDetails?.id === 'mind_breach' && !defender.isWorldBoss) {
       const reduction = passiveDetails.levelData.defReduction;
       defender.base.def = Math.max(0, Math.round(defender.base.def * (1 - reduction)));
+      syncEgideAthenaAutoBonus(defender);
       log.push(`${label} 🧠 Brèche mentale: ${defender.name} perd ${Math.round(reduction * 100)}% de DEF.`);
     }
   }
@@ -222,6 +224,7 @@ function applySorciereCurseRandomStat(target, percent, log, label, effectLabel) 
   const before = target.base[stat];
   const after = Math.max(1, Math.round(before * (1 - percent)));
   target.base = { ...target.base, [stat]: after };
+  if (stat === 'def' || stat === 'rescap') syncEgideAthenaAutoBonus(target);
   if (log && label != null && effectLabel) {
     log.push(`${label} ${effectLabel}: ${target.name} — ${stat.toUpperCase()} ${before}→${after} (−${Math.round(percent * 100)}%).`);
   }
@@ -371,6 +374,7 @@ export function preparerCombattant(char) {
     const r0 = baseFinal.rescap;
     baseFinal = { ...baseFinal, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
   }
+  const egideAppliedForState = weaponId === 'bouclier_legendaire' ? getEgideAthenaAutoBonusFromStats(baseFinal) : 0;
   baseFinal = applyEgideAthenaAfterFinalStats(baseFinal, weaponId);
   const weaponState = initWeaponCombatState(charForPrep, weaponId);
   const startHP = (typeof charForPrep._bossRushStartHP === 'number' && charForPrep._bossRushStartHP > 0)
@@ -424,7 +428,8 @@ export function preparerCombattant(char) {
     cendresBraisesHpConsumed: 0,
     _cendresMaxHpRef: baseFinal.hp,
     cendresPool: 0,
-    cendresFirstSpellThisTurn: true
+    cendresFirstSpellThisTurn: true,
+    _egideAthenaAppliedBonus: egideAppliedForState
   };
 }
 
@@ -791,6 +796,7 @@ function grantOnCapacityHitDefenderEffects(def, adjusted, log, playerColor) {
       const stack = briseurC.defBonusStack ?? 0.08;
       def.mentalisteDefStack = (def.mentalisteDefStack || 0) + stack;
       def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * (1 + stack))) };
+      syncEgideAthenaAutoBonus(def);
       log.push(`${playerColor} 🧠 Mentaliste: ${def.name} gagne +${Math.round((stack ?? 0) * 100)}% DEF (stackable).`);
     }
   }
@@ -1024,6 +1030,7 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         const dSpd = Math.round(spdNow * pct);
         const dRes = Math.round(resNow * pct);
         def.base = { ...def.base, spd: def.base.spd + dSpd, rescap: def.base.rescap + dRes };
+        syncEgideAthenaAutoBonus(def);
         log.push(`${playerColor} 🐍 Écailleux : ${def.name} +${dSpd} VIT, +${dRes} ResC.`);
       }
     }
@@ -1314,6 +1321,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
           auto: Math.round(att.base.auto * autoMult),
           cap: Math.round(att.base.cap * capMult),
         };
+        syncEgideAthenaAutoBonus(att);
         const defLossPct = Math.round((1 - defMult) * 100);
         const autoGainPct = Math.round((autoMult - 1) * 100);
         const capGainPct = Math.round((capMult - 1) * 100);
@@ -1323,6 +1331,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const masoC = getSubclassCapacityConstants(att.class, att.subclass?.id);
         const stack = masoC.defRescapStack ?? 0.03;
         att.base = { ...att.base, def: Math.max(1, Math.round(att.base.def * (1 + stack))), rescap: Math.max(1, Math.round(att.base.rescap * (1 + stack))) };
+        syncEgideAthenaAutoBonus(att);
         log.push(`${playerColor} ⛓️ Ecorché de Fer: ${att.name} +${Math.round(stack * 100)}% DEF et ResC.`);
       }
       const masoHealEffects = onHeal(att.weaponState, att, healAmount, def);
@@ -1413,6 +1422,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       const stack = paladinC.defReductionStack ?? 0.03;
       def.paladinDefReductionStack = (def.paladinDefReductionStack || 0) + stack;
       def.base = { ...def.base, def: Math.max(1, Math.round(def.base.def * (1 - stack))) };
+      syncEgideAthenaAutoBonus(def);
       log.push(`${playerColor} ⚖️ Juge implacable: la DEF de ${def.name} est réduite de ${(stack * 100).toFixed(1)}% (stackable).`);
     }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
@@ -1632,8 +1642,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if (inflicted > 0) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
+          def.base = applyGungnirDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) {
+          def.base = applyAnathemeDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
         if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
         if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
         if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
@@ -1740,6 +1756,7 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
         const defAfter = Math.max(1, Math.round(def.base.def * (1 - acidDefRed)));
         const rescAfter = Math.max(1, Math.round(def.base.rescap * (1 - acidRescRed)));
         def.base = { ...def.base, def: defAfter, rescap: rescAfter };
+        syncEgideAthenaAutoBonus(def);
         acidDebuffText = `. DEF -${Math.round(acidDefRed * 100)}% (${defBefore}→${defAfter}), ResC -${Math.round(acidRescRed * 100)}% (${rescBefore}→${rescAfter}).`;
       }
       log.push(`${playerColor} 🧪🟢 ${att.name} lance une flasque d'acide sur ${def.name} et inflige ${inflicted} dégâts${isCrit ? ' CRITIQUE !' : ''}${acidDebuffText}`);
@@ -1747,8 +1764,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if (inflicted > 0) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
+          def.base = applyGungnirDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) {
+          def.base = applyAnathemeDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
         if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
         if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
         if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
@@ -1816,8 +1839,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if (inflicted > 0) {
         const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
         if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+        if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
+          def.base = applyGungnirDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
+        if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) {
+          def.base = applyAnathemeDebuff(def.base);
+          syncEgideAthenaAutoBonus(def);
+        }
         if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
         if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
         if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
@@ -1857,6 +1886,10 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
       if (stolen > 0) {
         def.base = { ...def.base, [stat]: Math.max(1, def.base[stat] - stolen) };
         att.base = { ...att.base, [stat]: (att.base[stat] || 0) + stolen };
+        if (stat === 'def' || stat === 'rescap') {
+          syncEgideAthenaAutoBonus(def);
+          syncEgideAthenaAutoBonus(att);
+        }
         log.push(`${playerColor} 🎭 Roublard: ${att.name} vole 5% ${stat} (${stolen}) à ${def.name}.`);
       }
     }
@@ -2547,8 +2580,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     if (!isMage && !isSorc && !isBerz && inflicted > 0) {
       const attackEffects = onAttack(att.weaponState, att, def, inflicted, { connected: inflicted > 0 });
       if (attackEffects.stunTarget) Object.assign(def, applyMjollnirStun(def));
-      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) def.base = applyGungnirDebuff(def.base);
-      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) def.base = applyAnathemeDebuff(def.base);
+      if (attackEffects.atkDebuff && !def.base._gungnirDebuffed) {
+        def.base = applyGungnirDebuff(def.base);
+        syncEgideAthenaAutoBonus(def);
+      }
+      if (attackEffects.anathemeDebuff && !def.base._anathemeDebuffed) {
+        def.base = applyAnathemeDebuff(def.base);
+        syncEgideAthenaAutoBonus(def);
+      }
       if (attackEffects.applyLabrysBleed) applyLabrysBleed(def);
       if (attackEffects.fauxBonusDamage > 0) { def.currentHP -= attackEffects.fauxBonusDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
       if (attackEffects.fauxExecuteDamage > 0) { def.currentHP -= attackEffects.fauxExecuteDamage; tryTriggerOnctionLastStand(def, log, playerColor); }
