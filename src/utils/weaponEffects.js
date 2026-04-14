@@ -76,7 +76,30 @@ function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassi
   return YGGDRASIL_HEAL_PASSIVES.has(mageTowerPassiveOrList?.id);
 }
 
+// ============================================================================
+// ÉGIDE D'ATHÉNA — bonus Auto en fin de chaîne (DEF / ResC finales)
+// ============================================================================
+
+/** Bonus plat Auto = 6% DEF + 6% ResC (arrondi), à partir des stats déjà finales. */
+export function getEgideAthenaAutoBonusFromStats(stats) {
+  if (!stats) return 0;
+  return Math.round(
+    (stats.def ?? 0) * weaponConstants.egide.defToAtkPercent +
+    (stats.rescap ?? 0) * weaponConstants.egide.rescapToAtkPercent
+  );
+}
+
 /**
+ * Ajoute le bonus Égide sur `stats.auto` si le bouclier légendaire est équipé.
+ * À appeler après forge, passifs de classe, sous-classe et lien VIT↔ResC.
+ */
+export function applyEgideAthenaAfterFinalStats(stats, weaponId) {
+  if (!stats || weaponId !== 'bouclier_legendaire') return stats;
+  const bonus = getEgideAthenaAutoBonusFromStats(stats);
+  return { ...stats, auto: (stats.auto ?? 0) + bonus };
+}
+
+// ============================================================================
 // MODIFICATION DES STATS DE BASE (Passifs permanents)
 // ============================================================================
 /**
@@ -107,12 +130,8 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
   if (weapon.rarete === RARITY.LEGENDAIRE) {
     switch (weapon.id) {
       case 'bouclier_legendaire': {
-        // Égide d'Athéna: +10% DEF et +10% RESC → Auto
-        const atkBonus = Math.round(
-          modifiedStats.def * weaponConstants.egide.defToAtkPercent +
-          modifiedStats.rescap * weaponConstants.egide.rescapToAtkPercent
-        );
-        modifiedStats.auto += atkBonus;
+        // Égide d'Athéna : le bonus Auto (6% DEF + 6% ResC) est appliqué en tout dernier
+        // sur les stats finales — voir applyEgideAthenaAfterFinalStats / preparerCombattant.
         break;
       }
 

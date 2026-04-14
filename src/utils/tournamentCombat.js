@@ -7,7 +7,7 @@
 import { getMageTowerPassiveById, getMageTowerPassiveByName, getMageTowerPassiveLevel } from '../data/mageTowerPassives.js';
 import { applyStatBoosts, getEmptyStatBoosts } from './statPoints.js';
 import {
-  applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats,
+  applyGungnirDebuff, applyMjollnirStun, applyPassiveWeaponStats, applyEgideAthenaAfterFinalStats,
   initWeaponCombatState, modifyCritDamage, onAttack, onHeal, onCapacityCast, onTurnStart, rollHealCrit,
   applyAnathemeDebuff, applyLabrysBleed, processLabrysBleed, getVerdictCapacityBonus, getVerdictCooldownPenalty, shouldSkipVerdictDemonFamiliar,
   applyForgeUpgrade, getPenduleCooldownReduction, consumePenduleCdCharge, getPenduleSpellBonus
@@ -371,6 +371,7 @@ export function preparerCombattant(char) {
     const r0 = baseFinal.rescap;
     baseFinal = { ...baseFinal, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
   }
+  baseFinal = applyEgideAthenaAfterFinalStats(baseFinal, weaponId);
   const weaponState = initWeaponCombatState(charForPrep, weaponId);
   const startHP = (typeof charForPrep._bossRushStartHP === 'number' && charForPrep._bossRushStartHP > 0)
     ? Math.min(charForPrep._bossRushStartHP, baseFinal.hp)

@@ -2,6 +2,7 @@
  * Hook partagé pour le calcul et l'affichage des stats de personnage.
  * Même logique que la page d'accueil (CharacterCreation) : finalStats avec forge,
  * getRaceDisplayBonus basé sur finalStatsBeforeForge pour ne pas mélanger Race et Forge dans le tooltip.
+ * Égide d'Athéna : bonus Auto (6% DEF + 6% ResC) appliqué en tout dernier, comme preparerCombattant.
  *
  * @param {Object} character - { base, race, class, forestBoosts, forgeUpgrade, mageTowerPassive, level }
  * @param {Object} [weaponOverride] - arme si pas sur character.equippedWeaponData
@@ -10,7 +11,7 @@
 
 import { getRaceBonus, getClassBonus, classConstants, raceConstants } from '../data/combatMechanics';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
-import { applyPassiveWeaponStats, applyForgeUpgrade } from '../utils/weaponEffects';
+import { applyPassiveWeaponStats, applyForgeUpgrade, getEgideAthenaAutoBonusFromStats } from '../utils/weaponEffects';
 import { applyAwakeningToBase, getAwakeningEffect, mergeAwakeningEffects, removeBaseRaceFlatBonusesIfAwakened } from '../utils/awakening';
 import { isForgeActive } from '../data/featureFlags';
 import { extractForgeUpgrade, hasAnyForgeUpgrade, FORGE_STAT_LABELS, computeForgeStatDelta } from '../data/forgeDungeon';
@@ -84,7 +85,6 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
   const baseWithClassPassive = bastionDefBonus > 0
     ? { ...baseWithPassive, def: Math.max(1, (baseWithPassive.def ?? 0) + bastionDefBonus) }
     : baseWithPassive;
-  const passiveAutoBonus = (baseWithPassive.auto ?? baseStats.auto) - (baseStats.auto + (skipWeaponFlat ? 0 : (weapon?.stats?.auto ?? 0)));
   const mainAwakeningEffect = getAwakeningEffect(character.race, effectiveLevel);
   const additionalEffects = (character.additionalAwakeningRaces || []).map((r) => getAwakeningEffect(r, effectiveLevel));
   const coopRaceEchoEffect = getCoopRaceEchoAwakeningFragment(character?.coopRaceEcho?.race);
@@ -121,6 +121,12 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     const r0 = finalStats.rescap ?? 0;
     finalStats = { ...finalStats, spd: s0 + Math.floor(r0 / div), rescap: r0 + Math.floor(s0 / div) };
   }
+  const egideAutoBonus = weapon?.id === 'bouclier_legendaire' ? getEgideAthenaAutoBonusFromStats(finalStats) : 0;
+  if (egideAutoBonus !== 0) {
+    finalStats = { ...finalStats, auto: (finalStats.auto ?? 0) + egideAutoBonus };
+  }
+  const passiveAutoBonus = egideAutoBonus;
+
   const ecailleuxLinkDelta = (k) => {
     if (k !== 'spd' && k !== 'rescap') return 0;
     return (finalStats[k] ?? 0) - (finalStatsAfterSubclass[k] ?? 0);
@@ -136,9 +142,8 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     const classBonus = classB[k] || 0;
     const forestBonus = forestBoosts[k] || 0;
     const weaponBonus = weaponStatValue(k);
-    const passiveBonus = k === 'auto' ? passiveAutoBonus : 0;
     const bastionBonus = k === 'def' ? bastionDefBonus : 0;
-    const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + passiveBonus + bastionBonus;
+    const subtotalWithoutRace = baseWithoutBonus(k) + classBonus + forestBonus + weaponBonus + bastionBonus;
     return (finalStatsBeforeForge[k] ?? 0) - subtotalWithoutRace;
   };
 
@@ -148,7 +153,6 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     if (k === 'def' && bastionDefBonus > 0) parts.push(`Classe: +8% DEF (+${bastionDefBonus})`);
     if (forestBoosts[k] > 0) parts.push(`Forêt: +${forestBoosts[k]}`);
     if (weaponStatValue(k) !== 0) parts.push(`Arme: ${weaponStatValue(k) > 0 ? `+${weaponStatValue(k)}` : weaponStatValue(k)}`);
-    if (k === 'auto' && passiveAutoBonus > 0) parts.push(`Passif arme: +${passiveAutoBonus}`);
 
     const raceDisplayBonus = getRaceDisplayBonus(k);
     if (raceDisplayBonus !== 0) parts.push(`Race: ${raceDisplayBonus > 0 ? `+` : ''}${raceDisplayBonus}`);
@@ -158,7 +162,7 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     if (ecaLink !== 0) parts.push(`Race (lien VIT↔ResC): ${ecaLink > 0 ? '+' : ''}${ecaLink}`);
     if (hasForgeUpgrade && forgeUpgrade) {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
-      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + (k === 'auto' ? passiveAutoBonus : 0) + getRaceDisplayBonus(k) + raceEchoDelta;
+      const valueBeforeForge = baseWithoutBonus(k) + (classB[k] || 0) + (k === 'def' ? bastionDefBonus : 0) + (forestBoosts[k] || 0) + weaponStatValue(k) + getRaceDisplayBonus(k) + raceEchoDelta;
       const forgeDelta = computeForgeStatDelta(valueBeforeForge, bonuses[k], penalties[k]);
       if (forgeDelta !== 0) parts.push(`Forge: ${forgeDelta > 0 ? '+' : ''}${forgeDelta}`);
     }
@@ -168,6 +172,9 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
       const pctText = pct ? ` (${Math.round(pct * 100)}%)` : '';
       parts.push(`Sous-classe${pctText}: +${subDelta}`);
     }
+    if (k === 'auto' && passiveAutoBonus > 0) {
+      parts.push(`Passif arme (Égide): +${passiveAutoBonus}`);
+    }
     return parts.join(' | ');
   };
 
@@ -176,7 +183,7 @@ export function computeCharacterStatsDisplay(character, weaponOverride = null) {
     const raceDisplayBonus = getRaceDisplayBonus(statKey);
     const raceEchoDeltaForStat = coopRaceEchoDelta(statKey);
     const bastionDelta = statKey === 'def' ? bastionDefBonus : 0;
-    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + (statKey === 'auto' ? passiveAutoBonus : 0) + raceDisplayBonus + raceEchoDeltaForStat;
+    const valueBeforeForgeForStat = baseWithoutBonus(statKey) + (classB[statKey] || 0) + bastionDelta + (forestBoosts[statKey] || 0) + weaponStatValue(statKey) + raceDisplayBonus + raceEchoDeltaForStat;
     const forgeDeltaForStat = (hasForgeUpgrade && forgeUpgrade) ? (() => {
       const { bonuses, penalties } = extractForgeUpgrade(forgeUpgrade);
       return computeForgeStatDelta(valueBeforeForgeForStat, bonuses[statKey], penalties[statKey]);
