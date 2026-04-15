@@ -33,7 +33,7 @@ export const SUBCLASSES_BY_CLASS = {
     { id: 'mentaliste', name: 'Mentaliste', bonus: '+12% ResC', abilityLabel: 'Égide fractale (Passif)', description: 'Après une capacité subie : bouclier 50% dégâts + 30% CAP, augmente votre DEF de 8% (stackable). Réduit les soins adverses de 20%. Auto + 15% CAP.' },
   ],
   'Masochiste': [
-    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% Cap', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Réduit votre DEF de 10% mais augmente votre Auto de 10% et votre CAP de 10% pour le reste du combat (cumulable).' },
+    { id: 'flagellant_sanglant', name: 'Flagellant Sanglant', bonus: '+10% CAP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Réduit votre DEF de 10% mais augmente votre Auto de 10% et votre CAP de 10% pour le reste du combat (cumulable).' },
     { id: 'ecorche_fer', name: 'Ecorché de Fer', bonus: '+7% HP', abilityLabel: 'Purge sanglante (CD: 4 tours)', description: 'Renvoie 15% dégâts accumulés + 0,5% Cap. Soigne 12% des dégâts accumulés. Chaque Purge augmente votre DEF et ResC de 10%.' },
   ],
   'Succube': [
@@ -54,7 +54,7 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Alchimiste': [
     { id: 'maitre_alchimiste', name: 'Maître Alchimiste', bonus: '+10% CAP', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Feu…\n- Feu : Auto + 30% CAP\n- Vie : soigne 108% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 25%' },
-    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+10% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP\n- Vie : soigne 82% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 10%\n- Métal : Auto et étourdit 1 tour' },
+    { id: 'alchimiste_metal', name: 'Alchimiste de Métal', bonus: '+5% Auto', abilityLabel: 'Cycle de flasques (Passif)', description: 'Cycle complet (1 flasque par tour, en boucle) : Feu → Vie → Acide → Métal → Feu…\n- Feu : Auto + 10% CAP\n- Vie : soigne 82% de votre Cap\n- Acide : Auto et réduit DEF/ResC de 10%\n- Métal : Auto et étourdit 1 tour' },
   ],
   'Sorcière': [
     { id: 'hexe_noire', name: 'Hexe Noire', bonus: '+5% VIT, +5% Auto, +5% CAP', abilityLabel: 'Malédiction (CD: 3 tours)', description: 'Début de combat : Malédiction −5% d\'une stat adverse au hasard (permanent). Malédiction (CD 3) : −10% d\'une stat adverse au hasard (cumul sur la valeur courante). Total dégâts : Auto + 70% CAP + points de stats retirés (toutes sources).' },
