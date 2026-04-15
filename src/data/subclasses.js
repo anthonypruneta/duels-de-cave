@@ -38,7 +38,7 @@ export const SUBCLASSES_BY_CLASS = {
   ],
   'Succube': [
     { id: 'dompteuse_chair', name: 'Dompteuse de Chair', bonus: '+12% CAP', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 48% CAP. La prochaine attaque adverse inflige -50% dégâts et réduit l\'Auto ennemi de 11% (stackable).' },
-    { id: 'ame_tentatrice', name: 'Ame Tentatrice', bonus: '+10% chance de critique', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 47% CAP. La prochaine attaque adverse inflige -50% dégâts. Cette capacité crit une fois sur deux (si le précédent n\'a pas crit, le prochain crit obligatoire).' },
+    { id: 'ame_tentatrice', name: 'Ame Tentatrice', bonus: '+15% chance de critique', abilityLabel: 'Coup de Fouet (CD: 4 tours)', description: 'Inflige Auto + 60% CAP. La prochaine attaque adverse inflige -60% dégâts. Cette capacité crit obligatoirement.' },
   ],
   'Bastion': [
     { id: 'rempart_fer', name: 'Rempart de Fer', bonus: '+12% DEF', abilityLabel: 'Charge du Rempart (CD: 4 tours)', description: 'Passif classe Bastion : +8% DEF. Début du combat : bouclier = 55% DEF. Inflige Auto + 50% CAP + 50% DEF.' },

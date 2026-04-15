@@ -638,8 +638,8 @@ export function getCalculatedSubclassDescription(className, subclassId, stats) {
           </Tooltip>
           . La prochaine attaque adverse inflige{' '}
           <span className="text-red-400">-{nextPct}%</span> dégâts.{' '}
-          <Tooltip content="Si le dernier sort n'était pas critique, le prochain est garanti crit. +10% crit sur les autos.">
-            <span className="text-purple-400 underline decoration-dotted cursor-help">Crit alterné</span>
+          <Tooltip content="La capacité est un critique garanti. Bonus permanent : +15% chance de critique.">
+            <span className="text-purple-400 underline decoration-dotted cursor-help">Crit garanti</span>
           </Tooltip>.
         </>
       );
