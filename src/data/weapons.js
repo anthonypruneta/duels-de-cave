@@ -199,13 +199,13 @@ export const weapons = {
     },
     effet: {
       nom: 'Protection Divine',
-      description: 'Ajoute 6% de la DEF et 6% de la RESC à l\'Auto.',
+      description: 'Ajoute 8% de la DEF et 8% de la RESC à l\'Auto.',
       trigger: {
         type: TRIGGER_TYPES.PASSIVE,
       },
       values: {
-        defToAtkPercent: 0.06,   // 6% DEF → Auto
-        rescapToAtkPercent: 0.06, // 6% RESC → Auto
+        defToAtkPercent: 0.08,   // 8% DEF → Auto
+        rescapToAtkPercent: 0.08, // 8% RESC → Auto
       },
     },
     description: 'Le bouclier légendaire de la déesse de la guerre.',

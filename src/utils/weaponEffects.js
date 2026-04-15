@@ -80,7 +80,7 @@ function canUseYggdrasilHealDamage(combatantClass, combatantRace, mageTowerPassi
 // ÉGIDE D'ATHÉNA — bonus Auto en fin de chaîne (DEF / ResC finales)
 // ============================================================================
 
-/** Bonus plat Auto = 6% DEF + 6% ResC (arrondi), à partir des stats déjà finales. */
+/** Bonus plat Auto = 8% DEF + 8% ResC (arrondi), à partir des stats déjà finales. */
 export function getEgideAthenaAutoBonusFromStats(stats) {
   if (!stats) return 0;
   return Math.round(
@@ -152,7 +152,7 @@ export function applyPassiveWeaponStats(stats, weaponId, combatantClass, combata
   if (weapon.rarete === RARITY.LEGENDAIRE) {
     switch (weapon.id) {
       case 'bouclier_legendaire': {
-        // Égide d'Athéna : le bonus Auto (6% DEF + 6% ResC) est appliqué en tout dernier
+        // Égide d'Athéna : le bonus Auto (8% DEF + 8% ResC) est appliqué en tout dernier
         // sur les stats finales — voir applyEgideAthenaAfterFinalStats / preparerCombattant.
         break;
       }

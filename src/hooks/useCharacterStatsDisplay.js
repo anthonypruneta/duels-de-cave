@@ -2,7 +2,7 @@
  * Hook partagé pour le calcul et l'affichage des stats de personnage.
  * Même logique que la page d'accueil (CharacterCreation) : finalStats avec forge,
  * getRaceDisplayBonus basé sur finalStatsBeforeForge pour ne pas mélanger Race et Forge dans le tooltip.
- * Égide d'Athéna : bonus Auto (6% DEF + 6% ResC) appliqué en tout dernier, comme preparerCombattant.
+ * Égide d'Athéna : bonus Auto (8% DEF + 8% ResC) appliqué en tout dernier, comme preparerCombattant.
  *
  * @param {Object} character - { base, race, class, forestBoosts, forgeUpgrade, mageTowerPassive, level }
  * @param {Object} [weaponOverride] - arme si pas sur character.equippedWeaponData
