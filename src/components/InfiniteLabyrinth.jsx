@@ -155,6 +155,17 @@ const InfiniteLabyrinth = () => {
   const autoRunTokenRef = useRef(null);
   const logContainerRef = useRef(null);
 
+  const cancelToken = (token) => {
+    if (!token) return;
+    token.cancelled = true;
+    if (Array.isArray(token._cancelCallbacks)) {
+      // Copie défensive: les callbacks peuvent se retirer pendant l'itération
+      [...token._cancelCallbacks].forEach((cb) => {
+        try { cb(); } catch (_) { /* ignore */ }
+      });
+    }
+  };
+
   const currentFloor = progress?.currentFloor || 1;
   const defaultEnemyFloor = labyrinthData?.floors?.find((f) => f.floorNumber === currentFloor) || null;
   const shownEnemyFloor = displayEnemyFloor || defaultEnemyFloor;
@@ -275,27 +286,52 @@ const InfiniteLabyrinth = () => {
     if (labyrinthMusic) labyrinthMusic.pause();
   };
 
-  const delayReplay = (ms) => new Promise((resolve) => {
-    replayTimeoutRef.current = setTimeout(resolve, ms);
+  const delayReplay = (ms, token) => new Promise((resolve) => {
+    if (token?.cancelled) return resolve();
+    const timeoutId = setTimeout(() => {
+      replayTimeoutRef.current = null;
+      if (token?._cancelCallbacks) {
+        token._cancelCallbacks = token._cancelCallbacks.filter((cb) => cb !== cancelCb);
+      }
+      resolve();
+    }, ms);
+    replayTimeoutRef.current = timeoutId;
+
+    const cancelCb = () => {
+      clearTimeout(timeoutId);
+      replayTimeoutRef.current = null;
+      if (token?._cancelCallbacks) {
+        token._cancelCallbacks = token._cancelCallbacks.filter((cb) => cb !== cancelCb);
+      }
+      resolve();
+    };
+    if (token) {
+      token._cancelCallbacks = token._cancelCallbacks || [];
+      token._cancelCallbacks.push(cancelCb);
+    }
   });
 
   const stopAutoRun = () => {
     if (autoRunTokenRef.current) {
-      autoRunTokenRef.current.cancelled = true;
+      cancelToken(autoRunTokenRef.current);
       autoRunTokenRef.current = null;
     }
+    if (replayTokenRef.current) {
+      cancelToken(replayTokenRef.current);
+      replayTokenRef.current = null;
+    }
     setIsAutoRunActive(false);
+    setIsAnimatingFight(false);
+    stopFightMusic();
   };
 
   const playReplay = async (result) => {
     const data = result?.result;
     if (!data) return;
 
-    if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
-    if (replayTimeoutRef.current) {
-      clearTimeout(replayTimeoutRef.current);
-      replayTimeoutRef.current = null;
-    }
+    if (replayTokenRef.current) cancelToken(replayTokenRef.current);
+    if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
+    replayTimeoutRef.current = null;
 
     const token = { cancelled: false };
     replayTokenRef.current = token;
@@ -328,7 +364,7 @@ const InfiniteLabyrinth = () => {
         for (const line of (step.logs || [])) {
           if (token.cancelled) return;
           setReplayLogs((prev) => [...prev, line]);
-          await delayReplay(delays.line);
+          await delayReplay(delays.line, token);
         }
 
         setReplayP1HP(step.p1HP ?? 0);
@@ -342,16 +378,16 @@ const InfiniteLabyrinth = () => {
         setReplayP1Status(step.p1Status ?? null);
         setReplayP2Status(step.p2Status ?? null);
 
-        if (step.phase === 'turnStart') await delayReplay(delays.turnStart);
-        else if (step.phase === 'action') await delayReplay(delays.action);
-        else if (step.phase === 'victory') await delayReplay(delays.victory);
-        else await delayReplay(delays.line);
+        if (step.phase === 'turnStart') await delayReplay(delays.turnStart, token);
+        else if (step.phase === 'action') await delayReplay(delays.action, token);
+        else if (step.phase === 'victory') await delayReplay(delays.victory, token);
+        else await delayReplay(delays.line, token);
       }
     } else {
       for (const line of (data.combatLog || [])) {
         if (token.cancelled) return;
         setReplayLogs((prev) => [...prev, line]);
-        await delayReplay(line.includes('---') ? delays.noStepDash : delays.noStepOther);
+        await delayReplay(line.includes('---') ? delays.noStepDash : delays.noStepOther, token);
       }
     }
 
@@ -419,9 +455,9 @@ const InfiniteLabyrinth = () => {
   }, [currentUser?.uid]);
 
   useEffect(() => () => {
-    if (replayTokenRef.current) replayTokenRef.current.cancelled = true;
+    if (replayTokenRef.current) cancelToken(replayTokenRef.current);
     if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
-    if (autoRunTokenRef.current) autoRunTokenRef.current.cancelled = true;
+    if (autoRunTokenRef.current) cancelToken(autoRunTokenRef.current);
     stopFightMusic();
   }, []);
 
