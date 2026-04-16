@@ -1895,26 +1895,26 @@ const ForestDungeon = () => {
           </button>
           <button
             onClick={handleStartRun}
-            disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
+            disabled={isStartingRun || !dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
             className={`px-12 py-4 font-bold text-xl rounded-lg transition ${
-              dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
+              dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL && !isStartingRun
                 ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL ? 'Entrer dans la forêt' : (character?.level ?? 0) >= MAX_LEVEL ? 'Bloqué (niveau max)' : 'Plus de runs'}
+            {isStartingRun ? 'Patientez...' : dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL ? 'Entrer dans la forêt' : (character?.level ?? 0) >= MAX_LEVEL ? 'Bloqué (niveau max)' : 'Plus de runs'}
           </button>
           {canInstantFinish && (
             <button
               onClick={handleInstantFinishRun}
-              disabled={!dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
+              disabled={isStartingRun || !dungeonSummary?.runsRemaining || (character?.level ?? 0) >= MAX_LEVEL}
               className={`px-8 py-4 font-bold border rounded-lg transition ${
-                dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL
+                dungeonSummary?.runsRemaining > 0 && (character?.level ?? 0) < MAX_LEVEL && !isStartingRun
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
               }`}
             >
-              ⚡ Terminer instantanément
+              {isStartingRun ? 'Patientez...' : '⚡ Terminer instantanément'}
             </button>
           )}
         </div>

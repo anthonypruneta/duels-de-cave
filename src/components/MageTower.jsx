@@ -171,6 +171,7 @@ const MageTower = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const [canInstantFinish, setCanInstantFinish] = useState(false);
   const [instantMessage, setInstantMessage] = useState(null);
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
 
@@ -893,71 +894,82 @@ const MageTower = () => {
   };
 
   const handleStartRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setInstantMessage(null);
-    const result = await startDungeonRun(currentUser.uid);
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
 
-    if (!result.success) {
-      setError(result.error);
-      return;
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      setGameState('fighting');
+      setCurrentLevel(1);
+      setCombatResult(null);
+      setCurrentAction(null);
+      setRewardSummary(null);
+      setIsSimulating(false);
+      ensureTowerMusic();
+
+      const levelData = getMageTowerLevelByNumber(1);
+      const playerReady = preparerCombattant({
+        ...character,
+        mageTowerPassive: equippedPassive,
+        equippedWeaponData: equippedWeapon,
+        equippedWeaponId: equippedWeapon?.id || null
+      });
+      const bossReady = createMageTowerBossCombatant(levelData.boss);
+      if (bossReady) {
+        bossReady.weaponState = initWeaponCombatState(bossReady, null);
+        bossReady.stunned = false;
+        bossReady.stunnedTurns = 0;
+      }
+
+      setPlayer(playerReady);
+      setBoss(bossReady);
+      setPlayerCombatBase(null);
+      setBossCombatBase(null);
+      setPlayerCombatModifiers(null);
+      setPlayerCombatStatus(null);
+      setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+    } finally {
+      setIsStartingRun(false);
     }
-
-    setGameState('fighting');
-    setCurrentLevel(1);
-    setCombatResult(null);
-    setCurrentAction(null);
-    setRewardSummary(null);
-    setIsSimulating(false);
-    ensureTowerMusic();
-
-    const levelData = getMageTowerLevelByNumber(1);
-    const playerReady = preparerCombattant({
-      ...character,
-      mageTowerPassive: equippedPassive,
-      equippedWeaponData: equippedWeapon,
-      equippedWeaponId: equippedWeapon?.id || null
-    });
-    const bossReady = createMageTowerBossCombatant(levelData.boss);
-    if (bossReady) {
-      bossReady.weaponState = initWeaponCombatState(bossReady, null);
-      bossReady.stunned = false;
-      bossReady.stunnedTurns = 0;
-    }
-
-    setPlayer(playerReady);
-    setBoss(bossReady);
-    setPlayerCombatBase(null);
-    setBossCombatBase(null);
-    setPlayerCombatModifiers(null);
-    setPlayerCombatStatus(null);
-    setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
   const handleInstantFinishRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setInstantMessage(null);
+    setIsStartingRun(true);
+    try {
+      const startResult = await startDungeonRun(currentUser.uid);
+      if (!startResult.success) {
+        setError(startResult.error);
+        return;
+      }
 
-    const startResult = await startDungeonRun(currentUser.uid);
-    if (!startResult.success) {
-      setError(startResult.error);
-      return;
+      const droppedPassives = rollMageTowerPassivePair(3);
+      await markDungeonCompleted(currentUser.uid, 'mageTower');
+
+      setCanInstantFinish(true);
+      const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
+      if (summaryResult.success) {
+        setDungeonSummary(summaryResult.data);
+      }
+
+      setRewardSummary({
+        droppedPassives,
+        hasNextLevel: false,
+        nextLevel: 4
+      });
+      setGameState('reward');
+    } finally {
+      setIsStartingRun(false);
     }
-
-    const droppedPassives = rollMageTowerPassivePair(3);
-    await markDungeonCompleted(currentUser.uid, 'mageTower');
-
-    setCanInstantFinish(true);
-    const summaryResult = await getPlayerDungeonSummary(currentUser.uid);
-    if (summaryResult.success) {
-      setDungeonSummary(summaryResult.data);
-    }
-
-    setRewardSummary({
-      droppedPassives,
-      hasNextLevel: false,
-      nextLevel: 4
-    });
-    setGameState('reward');
   };
 
   // On passe le personnage BRUT (character + équipement tour) à simulerMatch pour éviter double préparation
@@ -1571,26 +1583,26 @@ const MageTower = () => {
           </button>
           <button
             onClick={handleStartRun}
-            disabled={!dungeonSummary?.runsRemaining}
+            disabled={!dungeonSummary?.runsRemaining || isStartingRun}
             className={`px-12 py-4 rounded-lg font-bold text-xl ${
-              dungeonSummary?.runsRemaining > 0
+              dungeonSummary?.runsRemaining > 0 && !isStartingRun
                 ? 'bg-amber-600 hover:bg-amber-700 text-white border border-amber-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la tour' : 'Plus de runs'}
+            {isStartingRun ? 'Patientez...' : dungeonSummary?.runsRemaining > 0 ? 'Entrer dans la tour' : 'Plus de runs'}
           </button>
           {canInstantFinish && (
             <button
               onClick={handleInstantFinishRun}
-              disabled={!dungeonSummary?.runsRemaining}
+              disabled={!dungeonSummary?.runsRemaining || isStartingRun}
               className={`px-8 py-4 rounded-lg font-bold border ${
-                dungeonSummary?.runsRemaining > 0
+                dungeonSummary?.runsRemaining > 0 && !isStartingRun
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
               }`}
             >
-              ⚡ Terminer instantanément
+              {isStartingRun ? 'Patientez...' : '⚡ Terminer instantanément'}
             </button>
           )}
         </div>

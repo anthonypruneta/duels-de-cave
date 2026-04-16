@@ -55,6 +55,7 @@ const SubclassDungeon = () => {
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const [selectedSubclass, setSelectedSubclass] = useState(null);
   const [savingSubclass, setSavingSubclass] = useState(false);
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const logEndRef = useRef(null);
   const logContainerRef = useRef(null);
   const hasAutoStartedRef = useRef(false);
@@ -143,24 +144,30 @@ const SubclassDungeon = () => {
   const canAccess = character && characterLevel >= SUBCLASS_DUNGEON_LEVEL_REQUIRED && (dungeonSummary?.runsRemaining ?? 0) > 0;
 
   const handleStartRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setSelectedSubclass(null);
-    const result = await startDungeonRun(currentUser.uid);
-    if (!result.success) {
-      setError(result.error);
-      return;
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setGameState('fighting');
+      setCombatResult(null);
+      setIsSimulating(false);
+      ensureSubclassMusic();
+      const playerReady = preparerCombattant(character);
+      const bossReady = preparerCombattant(createSubclassBossCombatant());
+      setPlayer(playerReady);
+      setBoss(bossReady);
+      setPlayerCombatBase(null);
+      setBossCombatBase(null);
+      setCombatLog([`⚔️ ${SUBCLASS_DUNGEON_NAME} — ${playerReady.name} vs ${SUBCLASS_BOSS.nom} !`]);
+    } finally {
+      setIsStartingRun(false);
     }
-    setGameState('fighting');
-    setCombatResult(null);
-    setIsSimulating(false);
-    ensureSubclassMusic();
-    const playerReady = preparerCombattant(character);
-    const bossReady = preparerCombattant(createSubclassBossCombatant());
-    setPlayer(playerReady);
-    setBoss(bossReady);
-    setPlayerCombatBase(null);
-    setBossCombatBase(null);
-    setCombatLog([`⚔️ ${SUBCLASS_DUNGEON_NAME} — ${playerReady.name} vs ${SUBCLASS_BOSS.nom} !`]);
   };
 
   const simulateCombat = async () => {
@@ -659,12 +666,12 @@ const SubclassDungeon = () => {
           <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartRun}
-            disabled={!canAccess}
+            disabled={!canAccess || isStartingRun}
             className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
-              canAccess ? 'bg-yellow-500 hover:bg-yellow-600 text-stone-900 border border-yellow-400' : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
+              canAccess && !isStartingRun ? 'bg-yellow-500 hover:bg-yellow-600 text-stone-900 border border-yellow-400' : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {canAccess ? `⚔️ Défier ${SUBCLASS_BOSS.nom}` : 'Accès impossible'}
+            {isStartingRun ? 'Patientez...' : canAccess ? `⚔️ Défier ${SUBCLASS_BOSS.nom}` : 'Accès impossible'}
           </button>
           <button
             onClick={() => navigate('/dungeons')}

@@ -213,6 +213,7 @@ const Dungeon = () => {
   const [instantMessage, setInstantMessage] = useState(null);
   // Default maintient le comportement actuel (animation "rapide")
   const [combatSpeed, setCombatSpeed] = useState('fast'); // normal | fast | turbo
+  const [isStartingRun, setIsStartingRun] = useState(false);
 
   // États de combat (même pattern que Combat.jsx)
   const [player, setPlayer] = useState(null);
@@ -898,62 +899,73 @@ const Dungeon = () => {
 
   // Démarrer une run
   const handleStartRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setInstantMessage(null);
-    const result = await startDungeonRun(currentUser.uid);
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
 
-    if (!result.success) {
-      setError(result.error);
-      return;
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+
+      setGameState('fighting');
+      setCurrentLevel(1);
+      setHighestLevelBeaten(0);
+      setCombatResult(null);
+      setCurrentAction(null);
+      ensureDungeonMusic();
+
+      // Préparer le premier combat
+      const levelData = getDungeonLevelByNumber(1);
+      const playerReady = preparerCombattant(character);
+      const bossReady = createBossCombatant(levelData.bossId);
+      if (bossReady) {
+        bossReady.weaponState = initWeaponCombatState(bossReady, null);
+        bossReady.stunned = false;
+        bossReady.stunnedTurns = 0;
+      }
+
+      setPlayer(playerReady);
+      setBoss(bossReady);
+      setPlayerCombatBase(null);
+      setBossCombatBase(null);
+      setPlayerCombatModifiers(null);
+      setPlayerCombatStatus(null);
+      setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
+    } finally {
+      setIsStartingRun(false);
     }
-
-    setGameState('fighting');
-    setCurrentLevel(1);
-    setHighestLevelBeaten(0);
-    setCombatResult(null);
-    setCurrentAction(null);
-    ensureDungeonMusic();
-
-    // Préparer le premier combat
-    const levelData = getDungeonLevelByNumber(1);
-    const playerReady = preparerCombattant(character);
-    const bossReady = createBossCombatant(levelData.bossId);
-    if (bossReady) {
-      bossReady.weaponState = initWeaponCombatState(bossReady, null);
-      bossReady.stunned = false;
-      bossReady.stunnedTurns = 0;
-    }
-
-    setPlayer(playerReady);
-    setBoss(bossReady);
-    setPlayerCombatBase(null);
-    setBossCombatBase(null);
-    setPlayerCombatModifiers(null);
-    setPlayerCombatStatus(null);
-    setCombatLog([`⚔️ Niveau 1: ${levelData.nom} — ${playerReady.name} vs ${bossReady.name} !`]);
   };
 
   const handleInstantFinishRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setInstantMessage(null);
+    setIsStartingRun(true);
+    try {
+      const startResult = await startDungeonRun(currentUser.uid);
+      if (!startResult.success) {
+        setError(startResult.error);
+        return;
+      }
 
-    const startResult = await startDungeonRun(currentUser.uid);
-    if (!startResult.success) {
-      setError(startResult.error);
-      return;
+      const endResult = await endDungeonRun(currentUser.uid, DUNGEON_CONSTANTS.TOTAL_LEVELS);
+      if (!endResult.success || !endResult.lootWeapons?.[0]) {
+        setError(endResult.error || 'Impossible de terminer instantanément cette run.');
+        return;
+      }
+
+      await markDungeonCompleted(currentUser.uid, 'cave');
+
+      setLootWeapons(endResult.lootWeapons);
+
+      setGameState('loot');
+    } finally {
+      setIsStartingRun(false);
     }
-
-    const endResult = await endDungeonRun(currentUser.uid, DUNGEON_CONSTANTS.TOTAL_LEVELS);
-    if (!endResult.success || !endResult.lootWeapons?.[0]) {
-      setError(endResult.error || 'Impossible de terminer instantanément cette run.');
-      return;
-    }
-
-    await markDungeonCompleted(currentUser.uid, 'cave');
-
-    setLootWeapons(endResult.lootWeapons);
-
-    setGameState('loot');
   };
 
   // Lancer le combat (timing identique à Combat.jsx)
@@ -1647,26 +1659,26 @@ const Dungeon = () => {
           </button>
           <button
             onClick={handleStartRun}
-            disabled={!dungeonSummary?.runsRemaining}
+            disabled={!dungeonSummary?.runsRemaining || isStartingRun}
             className={`px-10 py-3 rounded-lg font-bold text-lg transition ${
-              dungeonSummary?.runsRemaining > 0
+              dungeonSummary?.runsRemaining > 0 && !isStartingRun
                 ? 'bg-red-700 hover:bg-red-600 text-white border border-red-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {dungeonSummary?.runsRemaining > 0 ? '🏰 Entrer dans la grotte' : 'Plus de runs'}
+            {isStartingRun ? 'Patientez...' : dungeonSummary?.runsRemaining > 0 ? '🏰 Entrer dans la grotte' : 'Plus de runs'}
           </button>
           {(dungeonSummary?.bestRun || 0) >= DUNGEON_CONSTANTS.TOTAL_LEVELS && (
             <button
               onClick={handleInstantFinishRun}
-              disabled={!dungeonSummary?.runsRemaining}
+              disabled={!dungeonSummary?.runsRemaining || isStartingRun}
               className={`px-6 py-3 rounded-lg font-bold border transition ${
-                dungeonSummary?.runsRemaining > 0
+                dungeonSummary?.runsRemaining > 0 && !isStartingRun
                   ? 'bg-emerald-700 hover:bg-emerald-600 text-white border-emerald-500'
                   : 'bg-stone-700 text-stone-500 cursor-not-allowed border-stone-600'
               }`}
             >
-              ⚡ Terminer instantanément
+              {isStartingRun ? 'Patientez...' : '⚡ Terminer instantanément'}
             </button>
           )}
         </div>

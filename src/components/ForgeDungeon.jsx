@@ -149,6 +149,7 @@ const ForgeDungeon = () => {
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const [error, setError] = useState(null);
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
@@ -281,32 +282,37 @@ const ForgeDungeon = () => {
 
 
   const handleStartRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setNewUpgradeRoll(null);
     setPreviousUpgrade(null);
     setUpgradeChoice(null);
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
 
-    const result = await startDungeonRun(currentUser.uid);
-    if (!result.success) {
-      setError(result.error);
-      return;
+      setGameState('fighting');
+      setCombatResult(null);
+      setIsSimulating(false);
+      ensureForgeMusic();
+
+      const playerReady = preparerCombattant(character);
+      const bossReady = preparerCombattant(createForgeBossCombatant());
+
+      setPlayer(playerReady);
+      setBoss(bossReady);
+      setPlayerCombatBase(null);
+      setBossCombatBase(null);
+      setPlayerCombatModifiers(null);
+      setPlayerCombatStatus(null);
+      setCombatLog([`⚔️ Forge des Legendes — ${playerReady.name} vs ${FORGE_BOSS.nom} !`]);
+    } finally {
+      setIsStartingRun(false);
     }
-
-    setGameState('fighting');
-    setCombatResult(null);
-    setIsSimulating(false);
-    ensureForgeMusic();
-
-    const playerReady = preparerCombattant(character);
-    const bossReady = preparerCombattant(createForgeBossCombatant());
-
-    setPlayer(playerReady);
-    setBoss(bossReady);
-    setPlayerCombatBase(null);
-    setBossCombatBase(null);
-    setPlayerCombatModifiers(null);
-    setPlayerCombatStatus(null);
-    setCombatLog([`⚔️ Forge des Legendes — ${playerReady.name} vs ${FORGE_BOSS.nom} !`]);
   };
 
   const simulateCombat = async () => {
@@ -985,14 +991,14 @@ const ForgeDungeon = () => {
           <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartRun}
-            disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining}
+            disabled={!isLegendaryEquipped || !dungeonSummary?.runsRemaining || isStartingRun}
             className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
-              isLegendaryEquipped && dungeonSummary?.runsRemaining > 0
+              isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 && !isStartingRun
                 ? 'bg-orange-600 hover:bg-orange-700 text-white border border-orange-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Ornn' : 'Accès impossible'}
+            {isStartingRun ? 'Patientez...' : isLegendaryEquipped && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Ornn' : 'Accès impossible'}
           </button>
           <button
             onClick={() => navigate('/dungeons')}

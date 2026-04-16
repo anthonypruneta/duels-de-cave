@@ -105,6 +105,7 @@ const ExtensionDungeon = () => {
   const [combatLog, setCombatLog] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [combatResult, setCombatResult] = useState(null);
+  const [isStartingRun, setIsStartingRun] = useState(false);
   const [error, setError] = useState(null);
   const [dungeonSummary, setDungeonSummary] = useState(null);
   const logEndRef = useRef(null);
@@ -212,28 +213,34 @@ const ExtensionDungeon = () => {
   const canAccess = character && canAccessExtensionDungeon(character.mageTowerPassive);
 
   const handleStartRun = async () => {
+    if (isStartingRun) return;
     setError(null);
     setRolledExtensionPassive(null);
     setPreviousExtensionPassive(null);
     setExtensionChoice(null);
-    const result = await startDungeonRun(currentUser.uid);
-    if (!result.success) {
-      setError(result.error);
-      return;
+    setIsStartingRun(true);
+    try {
+      const result = await startDungeonRun(currentUser.uid);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setGameState('fighting');
+      setCombatResult(null);
+      setIsSimulating(false);
+      ensureExtensionMusic();
+      const playerReady = preparerCombattant(character);
+      const bossReady = preparerCombattant(createExtensionBossCombatant());
+      setPlayer(playerReady);
+      setBoss(bossReady);
+      setPlayerCombatBase(null);
+      setBossCombatBase(null);
+      setPlayerCombatModifiers(null);
+      setPlayerCombatStatus(null);
+      setCombatLog([`⚔️ Extension du Territoire — ${playerReady.name} vs ${EXTENSION_BOSS.nom} !`]);
+    } finally {
+      setIsStartingRun(false);
     }
-    setGameState('fighting');
-    setCombatResult(null);
-    setIsSimulating(false);
-    ensureExtensionMusic();
-    const playerReady = preparerCombattant(character);
-    const bossReady = preparerCombattant(createExtensionBossCombatant());
-    setPlayer(playerReady);
-    setBoss(bossReady);
-    setPlayerCombatBase(null);
-    setBossCombatBase(null);
-    setPlayerCombatModifiers(null);
-    setPlayerCombatStatus(null);
-    setCombatLog([`⚔️ Extension du Territoire — ${playerReady.name} vs ${EXTENSION_BOSS.nom} !`]);
   };
 
   const simulateCombat = async () => {
@@ -901,14 +908,14 @@ const ExtensionDungeon = () => {
           <CombatSpeedSelector value={combatSpeed} onChange={setCombatSpeed} label="Vitesse des combats" />
           <button
             onClick={handleStartRun}
-            disabled={!canAccess || !dungeonSummary?.runsRemaining}
+            disabled={!canAccess || !dungeonSummary?.runsRemaining || isStartingRun}
             className={`px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg ${
-              canAccess && dungeonSummary?.runsRemaining > 0
+              canAccess && dungeonSummary?.runsRemaining > 0 && !isStartingRun
                 ? 'bg-violet-600 hover:bg-violet-700 text-white border border-violet-500'
                 : 'bg-stone-700 text-stone-500 cursor-not-allowed border border-stone-600'
             }`}
           >
-            {canAccess && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Satoru Gojo' : 'Accès impossible'}
+            {isStartingRun ? 'Patientez...' : canAccess && dungeonSummary?.runsRemaining > 0 ? '⚔️ Défier Satoru Gojo' : 'Accès impossible'}
           </button>
           <button
             onClick={() => navigate('/dungeons')}
