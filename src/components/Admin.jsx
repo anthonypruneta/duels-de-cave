@@ -36,6 +36,7 @@ import { getDisplayTitle } from '../services/titleService';
 import AdminCoopRedSimPanel from './AdminCoopRedSimPanel';
 import { adminCleanCoopRedPointeauAndHistory } from '../services/adminCoopRedPointeauService';
 import { htmlToDiscordMarkdown } from '../utils/htmlToDiscordMarkdown';
+import { runCheatAudit, SEVERITY_LABELS, CATEGORY_LABELS } from '../services/cheatAuditService';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -102,6 +103,14 @@ const Admin = () => {
 
   // Personnages archivés
   const [archivedCharacters, setArchivedCharacters] = useState([]);
+
+  // États pour l'audit anti-triche
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditReport, setAuditReport] = useState(null);
+  const [auditError, setAuditError] = useState('');
+  const [auditSeverityFilter, setAuditSeverityFilter] = useState('all');
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState('all');
+  const [auditExpandedUserId, setAuditExpandedUserId] = useState(null);
 
   const [adminMainTab, setAdminMainTab] = useState('annonce');
   const [characterStatusTab, setCharacterStatusTab] = useState('actifs');
@@ -264,6 +273,24 @@ const Admin = () => {
       labyrinthReplayTimeoutRef.current = null;
     }
   }, []);
+
+  const handleRunCheatAudit = async () => {
+    setAuditLoading(true);
+    setAuditError('');
+    setAuditReport(null);
+    try {
+      const res = await runCheatAudit();
+      if (res.success) {
+        setAuditReport(res.report);
+      } else {
+        setAuditError(res.error || 'Erreur inconnue pendant l\'audit');
+      }
+    } catch (e) {
+      setAuditError(e?.message || String(e));
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   const handleDelete = async (userId, characterName) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le personnage "${characterName}" ?`)) {
@@ -1148,7 +1175,8 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             { key: 'red-sim', label: '🔴 Red simu' },
             { key: 'combat-hd2d', label: '⚔️ Combat HD-2D' },
             { key: 'skins', label: '🎨 Skins' },
-            { key: 'personnage', label: '👤 Personnage' }
+            { key: 'personnage', label: '👤 Personnage' },
+            { key: 'audit', label: '🕵️ Audit anti-triche' }
           ].map((tab) => (
             <button
               key={tab.key}
@@ -1729,6 +1757,233 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                   )}
                 </div>
               </div>
+            </div>
+          );
+        })()}
+
+        {adminMainTab === 'audit' && (() => {
+          const report = auditReport;
+          const filteredFindings = report
+            ? report.findings.filter((f) =>
+                (auditSeverityFilter === 'all' || f.severity === auditSeverityFilter) &&
+                (auditCategoryFilter === 'all' || f.category === auditCategoryFilter)
+              )
+            : [];
+          const suspectsFiltered = report
+            ? report.suspects
+                .map((s) => ({
+                  ...s,
+                  findings: s.findings.filter((f) =>
+                    (auditSeverityFilter === 'all' || f.severity === auditSeverityFilter) &&
+                    (auditCategoryFilter === 'all' || f.category === auditCategoryFilter)
+                  ),
+                }))
+                .filter((s) => s.findings.length > 0)
+            : [];
+          const categoriesPresent = report
+            ? Array.from(new Set(report.findings.map((f) => f.category)))
+            : [];
+
+          return (
+            <div className="bg-stone-900/70 border-2 border-rose-600 rounded-xl p-6 mb-8">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-rose-300 mb-1">🕵️ Audit anti-triche</h2>
+                  <p className="text-stone-400 text-sm">
+                    Détecte les incohérences entre les données stockées en Firestore et les règles du jeu (stats,
+                    progression, équipement, titres, PvP, Cataclysme). 100% en lecture.
+                  </p>
+                </div>
+                <button
+                  onClick={handleRunCheatAudit}
+                  disabled={auditLoading}
+                  className="bg-rose-600 hover:bg-rose-500 disabled:bg-stone-700 text-white font-bold px-5 py-2 rounded-lg border border-rose-400"
+                >
+                  {auditLoading ? '⏳ Audit en cours…' : '🔍 Lancer l\'audit'}
+                </button>
+              </div>
+
+              {auditError && (
+                <div className="bg-red-900/40 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+                  ❌ {auditError}
+                </div>
+              )}
+
+              {!report && !auditLoading && !auditError && (
+                <p className="text-stone-500 text-sm italic">
+                  Clique sur « Lancer l'audit » pour parcourir tous les personnages actifs et remonter les anomalies.
+                </p>
+              )}
+
+              {report && (
+                <>
+                  {/* Résumé */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                    <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
+                      <div className="text-xs text-stone-400">Personnages audités</div>
+                      <div className="text-2xl font-bold text-white">{report.summary.totalCharacters}</div>
+                    </div>
+                    <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
+                      <div className="text-xs text-stone-400">Anomalies totales</div>
+                      <div className="text-2xl font-bold text-white">{report.summary.totalFindings}</div>
+                    </div>
+                    <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
+                      <div className="text-xs text-stone-400">Joueurs suspects</div>
+                      <div className="text-2xl font-bold text-white">{report.summary.totalSuspects}</div>
+                    </div>
+                    <div className="bg-red-900/30 border border-red-500 rounded px-3 py-2">
+                      <div className="text-xs text-red-300">Critiques</div>
+                      <div className="text-2xl font-bold text-red-200">
+                        {report.summary.bySeverity.critical || 0}
+                      </div>
+                    </div>
+                    <div className="bg-orange-900/30 border border-orange-500 rounded px-3 py-2">
+                      <div className="text-xs text-orange-300">Élevés</div>
+                      <div className="text-2xl font-bold text-orange-200">
+                        {report.summary.bySeverity.high || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filtres */}
+                  <div className="flex flex-wrap gap-2 mb-4 items-center">
+                    <span className="text-stone-400 text-sm">Filtres:</span>
+                    <select
+                      value={auditSeverityFilter}
+                      onChange={(e) => setAuditSeverityFilter(e.target.value)}
+                      className="bg-stone-800 border border-stone-600 rounded px-3 py-1 text-white text-sm"
+                    >
+                      <option value="all">Toutes sévérités</option>
+                      <option value="critical">Critique</option>
+                      <option value="high">Élevé</option>
+                      <option value="medium">Moyen</option>
+                      <option value="low">Faible</option>
+                      <option value="info">Info</option>
+                    </select>
+                    <select
+                      value={auditCategoryFilter}
+                      onChange={(e) => setAuditCategoryFilter(e.target.value)}
+                      className="bg-stone-800 border border-stone-600 rounded px-3 py-1 text-white text-sm"
+                    >
+                      <option value="all">Toutes catégories</option>
+                      {categoriesPresent.map((c) => (
+                        <option key={c} value={c}>{CATEGORY_LABELS[c] || c}</option>
+                      ))}
+                    </select>
+                    <span className="text-stone-500 text-xs">
+                      {filteredFindings.length} anomalie(s) affichée(s) / {suspectsFiltered.length} joueur(s)
+                    </span>
+                  </div>
+
+                  {/* Tableau des suspects */}
+                  {suspectsFiltered.length === 0 ? (
+                    <p className="text-emerald-300 text-sm italic">
+                      ✅ Aucune anomalie avec les filtres actuels.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {suspectsFiltered.map((suspect) => {
+                        const isOpen = auditExpandedUserId === suspect.userId;
+                        const char = characters.find((c) => c.id === suspect.userId);
+                        const sev = suspect.counts;
+                        return (
+                          <div
+                            key={suspect.userId}
+                            className="border border-stone-700 rounded-lg bg-stone-800/40"
+                          >
+                            <button
+                              onClick={() => setAuditExpandedUserId(isOpen ? null : suspect.userId)}
+                              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-stone-800/80"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-stone-300">{isOpen ? '▼' : '▶'}</span>
+                                <div>
+                                  <div className="text-white font-bold">
+                                    {suspect.characterName}
+                                    {suspect.ownerPseudo && (
+                                      <span className="text-stone-400 font-normal text-sm"> — {suspect.ownerPseudo}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-stone-500">
+                                    {char ? `${char.race} ${char.class} • Lvl ${char.level ?? 1}` : suspect.userId}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {sev.critical > 0 && (
+                                  <span className="text-xs font-bold px-2 py-1 rounded bg-red-900/60 border border-red-500 text-red-200">
+                                    {sev.critical} critique{sev.critical > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {sev.high > 0 && (
+                                  <span className="text-xs font-bold px-2 py-1 rounded bg-orange-900/60 border border-orange-500 text-orange-200">
+                                    {sev.high} élevé{sev.high > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {sev.medium > 0 && (
+                                  <span className="text-xs font-bold px-2 py-1 rounded bg-amber-900/60 border border-amber-500 text-amber-200">
+                                    {sev.medium} moyen{sev.medium > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {sev.low > 0 && (
+                                  <span className="text-xs font-bold px-2 py-1 rounded bg-stone-700 border border-stone-500 text-stone-300">
+                                    {sev.low} faible{sev.low > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+
+                            {isOpen && (
+                              <div className="border-t border-stone-700 p-3 space-y-2">
+                                {suspect.findings.map((f, i) => {
+                                  const sevStyle = SEVERITY_LABELS[f.severity] || SEVERITY_LABELS.info;
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`border rounded px-3 py-2 ${sevStyle.bg} ${sevStyle.border}`}
+                                    >
+                                      <div className="flex items-center justify-between gap-2 mb-1">
+                                        <span className={`text-xs font-bold uppercase ${sevStyle.color}`}>
+                                          {sevStyle.label} • {CATEGORY_LABELS[f.category] || f.category}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm text-stone-100">{f.message}</div>
+                                      {f.details && (
+                                        <pre className="mt-1 text-xs text-stone-400 bg-stone-900/60 rounded p-2 overflow-x-auto">
+                                          {JSON.stringify(f.details, null, 2)}
+                                        </pre>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                <div className="flex gap-2 pt-2">
+                                  {char && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCharacter(char);
+                                        setAdminMainTab('personnage');
+                                      }}
+                                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1 rounded"
+                                    >
+                                      Ouvrir dans « Personnage »
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(suspect.userId)}
+                                    className="bg-stone-700 hover:bg-stone-600 text-white text-xs px-3 py-1 rounded"
+                                  >
+                                    Copier userId
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })()}
