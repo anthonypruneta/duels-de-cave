@@ -5,7 +5,7 @@
  * Les gains (pool) sont versés sur tournamentRewards.pendingTournamentBettingRuns pour le prochain perso.
  */
 
-import { db, functions } from '../firebase/config';
+import { auth, db, functions } from '../firebase/config';
 import { httpsCallable } from 'firebase/functions';
 import {
   collection,
@@ -19,6 +19,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export const TOURNAMENT_BETTING_DOC_ID = 'current';
 
@@ -61,6 +62,45 @@ function formatCallableError(e) {
   const code = e.code != null ? String(e.code) : '';
   if (parts.length === 0 && code) parts.push(`Code : ${code}`);
   return parts.length ? parts.join(' — ') : 'Échec de la requête.';
+}
+
+/**
+ * Assure que l'appel callable part avec un contexte Auth valide.
+ * Sans ça, on peut avoir un `userId` côté UI mais un `request.auth` vide côté Functions (race au chargement / token expiré).
+ */
+async function ensureAuthedForCallable(expectedUid) {
+  if (!expectedUid) throw new Error('Non connecté.');
+
+  const current = auth.currentUser;
+  if (current && String(current.uid) === String(expectedUid)) {
+    // Force un refresh léger si besoin (token expiré) avant l'appel Functions.
+    await current.getIdToken();
+    return;
+  }
+
+  // Attendre une fois la résolution d'état Auth (au premier load, currentUser peut être null brièvement).
+  const user = await new Promise((resolve) => {
+    let done = false;
+    const timeout = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(null);
+    }, 2500);
+
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      unsub();
+      resolve(u || null);
+    });
+  });
+
+  if (!user || String(user.uid) !== String(expectedUid)) {
+    throw new Error('Session expirée, reconnectez-vous.');
+  }
+
+  await user.getIdToken();
 }
 
 function betDocRef(userId) {
@@ -168,6 +208,7 @@ export async function placeBet({ userId, participantId, amount }) {
   }
 
   try {
+    await ensureAuthedForCallable(userId);
     const call = httpsCallable(functions, 'betting_placeBet');
     await call({ participantId, amount: parsed });
     return { success: true };
@@ -180,6 +221,7 @@ export async function cancelBet(userId) {
   if (!userId) return { success: false, error: 'Non connecté.' };
 
   try {
+    await ensureAuthedForCallable(userId);
     const call = httpsCallable(functions, 'betting_cancelBet');
     const result = await call({});
     const refunded = Math.max(0, Math.floor(Number(result?.data?.refunded ?? 0)));
