@@ -278,6 +278,7 @@ const Admin = () => {
     setAuditLoading(true);
     setAuditError('');
     setAuditReport(null);
+    setAuditExpandedUserId(null); // rouvrir tout à chaque run
     try {
       const res = await runCheatAudit();
       if (res.success) {
@@ -1827,13 +1828,18 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                     archivées. Si un joueur a gonflé ses stats pour battre un boss puis les a
                     remises, une régression apparaît ici.
                   </p>
+                  {report?.runAt && (
+                    <p className="text-xs text-emerald-400 mt-1">
+                      ✓ Dernière exécution : {new Date(report.runAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleRunCheatAudit}
                   disabled={auditLoading}
                   className="bg-rose-600 hover:bg-rose-500 disabled:bg-stone-700 text-white font-bold px-5 py-2 rounded-lg border border-rose-400"
                 >
-                  {auditLoading ? '⏳ Audit en cours…' : '🔍 Lancer l\'audit'}
+                  {auditLoading ? '⏳ Audit en cours…' : (report ? '🔄 Relancer l\'audit' : '🔍 Lancer l\'audit')}
                 </button>
               </div>
 

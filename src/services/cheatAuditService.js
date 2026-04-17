@@ -12,7 +12,14 @@
  * Tout est en lecture seule.
  */
 
-import { collection, getDocs, collectionGroup, query, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  getDocsFromServer,
+  collectionGroup,
+  query,
+  orderBy
+} from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { getAllCharacters } from './characterService';
 import { getStatPointValue } from '../utils/statPoints';
@@ -287,9 +294,12 @@ async function loadAllSnapshotsGrouped() {
   // On essaie d'abord la requête collectionGroup (plus efficace).
   // Si les règles ou l'index ne sont pas encore déployés, on fallback vers
   // un parcours perso par perso.
+  // IMPORTANT : on utilise getDocsFromServer pour forcer une lecture fraîche
+  // et ignorer le cache mémoire de Firestore (sinon relancer l'audit peut
+  // renvoyer un résultat identique alors que des snapshots ont été ajoutés).
   try {
     const q = query(collectionGroup(db, 'statSnapshots'), orderBy('when', 'asc'));
-    const snap = await getDocs(q);
+    const snap = await getDocsFromServer(q);
     const grouped = {};
     for (const d of snap.docs) {
       const parentUid = d.ref.parent.parent?.id;
@@ -297,9 +307,10 @@ async function loadAllSnapshotsGrouped() {
       if (!grouped[parentUid]) grouped[parentUid] = [];
       grouped[parentUid].push({ id: d.id, ...d.data() });
     }
+    console.log(`[cheatAudit] collectionGroup OK → ${snap.size} snapshots lus depuis le serveur`);
     return { grouped, mode: 'collectionGroup' };
   } catch (e) {
-    console.warn('collectionGroup(statSnapshots) indisponible, fallback:', e?.message || e);
+    console.warn('[cheatAudit] collectionGroup(statSnapshots) indisponible, fallback par utilisateur :', e?.message || e);
     return { grouped: null, mode: 'fallback' };
   }
 }
@@ -307,7 +318,7 @@ async function loadAllSnapshotsGrouped() {
 async function loadSnapshotsForUser(userId) {
   try {
     const colRef = collection(db, 'characters', userId, 'statSnapshots');
-    const snap = await getDocs(colRef);
+    const snap = await getDocsFromServer(colRef);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (e) {
     return [];
@@ -324,15 +335,27 @@ async function loadSnapshotsForUser(userId) {
  * @returns {Promise<{ success: boolean, report?: { summary: Object, suspects: any[], findings: Finding[], perUser: Object }, error?: string }>}
  */
 export async function runCheatAudit() {
+  const runLabel = `[cheatAudit @ ${new Date().toLocaleTimeString('fr-FR')}]`;
+  console.log(`${runLabel} démarrage de l'audit...`);
   try {
     await waitForFirestore();
 
-    const charactersRes = await getAllCharacters();
-    if (!charactersRes.success) {
-      return { success: false, error: charactersRes.error };
+    // Lecture fraîche des personnages (contourne le cache mémoire Firestore)
+    let allCharacters = [];
+    try {
+      const charactersSnap = await getDocsFromServer(collection(db, 'characters'));
+      allCharacters = charactersSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((c) => !c.disabled);
+      console.log(`${runLabel} ${allCharacters.length} personnages lus depuis le serveur`);
+    } catch (e) {
+      console.warn(`${runLabel} getDocsFromServer(characters) a échoué, fallback sur getAllCharacters :`, e?.message || e);
+      const charactersRes = await getAllCharacters();
+      if (!charactersRes.success) {
+        return { success: false, error: charactersRes.error };
+      }
+      allCharacters = (charactersRes.data || []).filter((c) => !c.disabled);
     }
-
-    const allCharacters = (charactersRes.data || []).filter((c) => !c.disabled);
 
     const { grouped } = await loadAllSnapshotsGrouped();
 
@@ -426,9 +449,12 @@ export async function runCheatAudit() {
       }, {}),
     };
 
+    const runAt = Date.now();
+    console.log(`${runLabel} terminé :`, summary);
+
     return {
       success: true,
-      report: { summary, suspects, findings, perUser },
+      report: { summary, suspects, findings, perUser, runAt },
     };
   } catch (error) {
     console.error('runCheatAudit error:', error);
