@@ -111,10 +111,6 @@ function tournamentRef() {
   return doc(db, 'tournaments', TOURNAMENT_BETTING_DOC_ID);
 }
 
-function dungeonProgressRef(userId) {
-  return doc(db, 'dungeonProgress', userId);
-}
-
 function characterRef(participantId) {
   return doc(db, 'characters', participantId);
 }
@@ -305,11 +301,7 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
 
       let perEntry = 0;
 
-      if (winningStake <= 0) {
-        for (const r of rows) {
-          if (r.runsStaked > 0) payouts.set(r.userId, r.runsStaked);
-        }
-      } else {
+      if (winningStake > 0) {
         // Gagnants = joueurs ayant parié sur le champion (stake > 0).
         // Règle: 1 run misée = 1 "entrée". Donc si tu mises 5 runs sur le gagnant,
         // tu reçois 5 parts. Pool conservé (pas de création de runs).
@@ -328,7 +320,7 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
         // en attribuant au plus 1 run par "entrée" (par run misée).
         let dust = totalPool - perEntry * winningStake;
         if (dust > 0 && winnerRows.length > 0) {
-          const credits = new Map(); // uid -> nombre d'unités dust déjà reçues
+          const credits = new Map();
           let i = 0;
           while (dust > 0) {
             const r = winnerRows[i % winnerRows.length];
@@ -339,35 +331,22 @@ export async function settleTournamentBettingIfNeeded(docId, championParticipant
               dust -= 1;
             }
             i += 1;
-            // sécurité: si aucun ne peut recevoir (ne devrait pas arriver), on casse
             if (i > winnerRows.length * (winningStake + 5)) break;
           }
         }
       }
+      // Si winningStake === 0 : personne n'a parié sur le champion → pool perdu, aucun remboursement.
 
       payouts.forEach((amount, uid) => {
         if (amount <= 0) return;
-        if (winningStake <= 0) {
-          const progRef = dungeonProgressRef(uid);
-          transaction.set(
-            progRef,
-            {
-              runsAvailable: increment(amount),
-              userId: uid,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } else {
-          const rewardRef = doc(db, 'tournamentRewards', uid);
-          transaction.set(
-            rewardRef,
-            {
-              [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: increment(amount),
-            },
-            { merge: true }
-          );
-        }
+        const rewardRef = doc(db, 'tournamentRewards', uid);
+        transaction.set(
+          rewardRef,
+          {
+            [PENDING_TOURNAMENT_BETTING_RUNS_FIELD]: increment(amount),
+          },
+          { merge: true }
+        );
       });
 
       transaction.update(tRef, {

@@ -422,7 +422,7 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
                 mise ou annuler tant que le tournoi n’a pas commencé (y compris avant la création du document tournoi).
                 Dès le lancement des matchs, aucune modification n’est possible. Les gains (si vous avez parié sur le
                 champion) sont ajoutés à vos runs lorsque vous créez votre prochain personnage après la fin de saison.
-                Si personne n’a parié sur le champion, les mises sont remboursées sur votre personnage actuel.
+                Si personne n’a parié sur le champion, le pool est perdu — toutes les mises sont définitivement consommées.
               </p>
             </>
           )}
