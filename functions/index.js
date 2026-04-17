@@ -716,6 +716,7 @@ export const betting_placeBet = onCall(CALLABLE_OPTS, async (request) => {
   return { success: true };
 });
 
+// Redeploy tag: ensure IAM invoker=public is (re)applied on Cloud Run service.
 export const betting_cancelBet = onCall(CALLABLE_OPTS, async (request) => {
   const uid = assertAuthed(request);
   const tRef = tournamentRef();
