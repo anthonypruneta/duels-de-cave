@@ -1766,6 +1766,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
           const STAT_LABEL_MAP = { hp: 'PV', auto: 'Auto', def: 'DEF', cap: 'CAP', rescap: 'RESC', spd: 'VIT' };
           const STAT_LIST = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
 
+          // Total = base + forestBoosts (c'est cette valeur qui ne peut que monter)
+          const statTotal = (obj, k) => {
+            const b = Number(obj?.base?.[k] ?? 0) || 0;
+            const f = Number(obj?.forestBoosts?.[k] ?? 0) || 0;
+            return b + f;
+          };
+
           const formatSnapshotDate = (when) => {
             if (!when) return '—';
             if (typeof when?.toDate === 'function') {
@@ -1949,62 +1956,68 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
                                 {isOpen && (
                                   <div className="border-t border-stone-700 p-3 space-y-4">
-                                    {/* Stats actuelles */}
+                                    {/* Stats actuelles (total = base + forêt) */}
                                     {char && (
                                       <div className="bg-stone-900/60 rounded p-3">
-                                        <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (base)</div>
+                                        <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (total = base + forêt)</div>
                                         <div className="grid grid-cols-6 gap-2 text-center text-sm">
-                                          {STAT_LIST.map((k) => (
-                                            <div key={k} className="bg-stone-800 rounded px-2 py-1">
-                                              <div className="text-xs text-stone-400">{STAT_LABEL_MAP[k]}</div>
-                                              <div className="text-white font-bold">{char.base?.[k] ?? '?'}</div>
-                                            </div>
-                                          ))}
+                                          {STAT_LIST.map((k) => {
+                                            const b = char.base?.[k] ?? 0;
+                                            const f = char.forestBoosts?.[k] ?? 0;
+                                            return (
+                                              <div key={k} className="bg-stone-800 rounded px-2 py-1" title={`base ${b} + forêt ${f}`}>
+                                                <div className="text-xs text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                                <div className="text-white font-bold">{b + f}</div>
+                                                <div className="text-[10px] text-stone-500">{b}+{f}</div>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
                                       </div>
                                     )}
 
                                     {/* Timeline des snapshots */}
                                     <div>
-                                      <div className="text-xs text-stone-400 mb-2 font-bold">TIMELINE DES SNAPSHOTS (base)</div>
+                                      <div className="text-xs text-stone-400 mb-2 font-bold">TIMELINE DES SNAPSHOTS (total = base + forêt)</div>
                                       <div className="space-y-2">
-                                        {orderedSnaps.map((s) => {
-                                          const snapBase = s.stats?.base || {};
-                                          const curBase = char?.base || {};
-                                          return (
-                                            <div key={s.id} className="bg-stone-900/60 rounded p-2">
-                                              <div className="flex items-center justify-between mb-1">
-                                                <div className="text-sm text-stone-200 font-bold">{snapshotLabel(s)}</div>
-                                                <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
-                                              </div>
-                                              <div className="grid grid-cols-6 gap-1 text-center text-xs">
-                                                {STAT_LIST.map((k) => {
-                                                  const sv = Number(snapBase[k] ?? 0);
-                                                  const cv = Number(curBase[k] ?? 0);
-                                                  const regressed = sv > cv;
-                                                  return (
-                                                    <div
-                                                      key={k}
-                                                      className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}
-                                                      title={regressed ? `Régression: ${sv} → ${cv} (−${sv - cv})` : ''}
-                                                    >
-                                                      <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
-                                                      <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>
-                                                        {sv}
-                                                        {regressed && <span className="text-red-300"> ↓</span>}
-                                                      </div>
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                              <div className="mt-1 text-xs text-stone-500">
-                                                Niveau : <span className="text-stone-300">{s.stats?.level ?? '?'}</span>
-                                                {' • '}Arme : <span className="text-stone-300">{s.stats?.equippedWeaponId || '—'}</span>
-                                                {s.stats?.subclass?.id && <> • Sous-classe : <span className="text-stone-300">{s.stats.subclass.id}</span></>}
-                                              </div>
+                                        {orderedSnaps.map((s) => (
+                                          <div key={s.id} className="bg-stone-900/60 rounded p-2">
+                                            <div className="flex items-center justify-between mb-1">
+                                              <div className="text-sm text-stone-200 font-bold">{snapshotLabel(s)}</div>
+                                              <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
                                             </div>
-                                          );
-                                        })}
+                                            <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                                              {STAT_LIST.map((k) => {
+                                                const sv = statTotal(s.stats, k);
+                                                const cv = char ? statTotal(char, k) : sv;
+                                                const regressed = sv > cv;
+                                                const sb = s.stats?.base?.[k] ?? 0;
+                                                const sf = s.stats?.forestBoosts?.[k] ?? 0;
+                                                return (
+                                                  <div
+                                                    key={k}
+                                                    className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}
+                                                    title={regressed
+                                                      ? `Régression: ${sv} → ${cv} (−${sv - cv}) — snapshot: base ${sb} + forêt ${sf}`
+                                                      : `base ${sb} + forêt ${sf}`}
+                                                  >
+                                                    <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                                    <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>
+                                                      {sv}
+                                                      {regressed && <span className="text-red-300"> ↓</span>}
+                                                    </div>
+                                                    <div className="text-[10px] text-stone-500">{sb}+{sf}</div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                            <div className="mt-1 text-xs text-stone-500">
+                                              Niveau : <span className="text-stone-300">{s.stats?.level ?? '?'}</span>
+                                              {' • '}Arme : <span className="text-stone-300">{s.stats?.equippedWeaponId || '—'}</span>
+                                              {s.stats?.subclass?.id && <> • Sous-classe : <span className="text-stone-300">{s.stats.subclass.id}</span></>}
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
                                     </div>
 
@@ -2087,42 +2100,52 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                                 <div className="border-t border-stone-700 p-3 space-y-2">
                                   {char && (
                                     <div className="bg-stone-900/60 rounded p-2">
-                                      <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (base)</div>
+                                      <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (total = base + forêt)</div>
                                       <div className="grid grid-cols-6 gap-1 text-center text-xs">
-                                        {STAT_LIST.map((k) => (
-                                          <div key={k} className="bg-stone-800 rounded px-1 py-1">
-                                            <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
-                                            <div className="text-white font-bold">{char.base?.[k] ?? '?'}</div>
-                                          </div>
-                                        ))}
+                                        {STAT_LIST.map((k) => {
+                                          const b = char.base?.[k] ?? 0;
+                                          const f = char.forestBoosts?.[k] ?? 0;
+                                          return (
+                                            <div key={k} className="bg-stone-800 rounded px-1 py-1" title={`base ${b} + forêt ${f}`}>
+                                              <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                              <div className="text-white font-bold">{b + f}</div>
+                                              <div className="text-[10px] text-stone-500">{b}+{f}</div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}
-                                  {orderedSnaps.map((s) => {
-                                    const snapBase = s.stats?.base || {};
-                                    const curBase = char?.base || {};
-                                    return (
-                                      <div key={s.id} className="bg-stone-900/60 rounded p-2">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <div className="text-sm text-stone-200">{snapshotLabel(s)}</div>
-                                          <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
-                                        </div>
-                                        <div className="grid grid-cols-6 gap-1 text-center text-xs">
-                                          {STAT_LIST.map((k) => {
-                                            const sv = Number(snapBase[k] ?? 0);
-                                            const cv = Number(curBase[k] ?? 0);
-                                            const regressed = sv > cv;
-                                            return (
-                                              <div key={k} className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}>
-                                                <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
-                                                <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>{sv}</div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
+                                  {orderedSnaps.map((s) => (
+                                    <div key={s.id} className="bg-stone-900/60 rounded p-2">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="text-sm text-stone-200">{snapshotLabel(s)}</div>
+                                        <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
                                       </div>
-                                    );
-                                  })}
+                                      <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                                        {STAT_LIST.map((k) => {
+                                          const sv = statTotal(s.stats, k);
+                                          const cv = char ? statTotal(char, k) : sv;
+                                          const regressed = sv > cv;
+                                          const sb = s.stats?.base?.[k] ?? 0;
+                                          const sf = s.stats?.forestBoosts?.[k] ?? 0;
+                                          return (
+                                            <div
+                                              key={k}
+                                              className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}
+                                              title={regressed
+                                                ? `Régression: ${sv} → ${cv} (−${sv - cv}) — snapshot: base ${sb} + forêt ${sf}`
+                                                : `base ${sb} + forêt ${sf}`}
+                                            >
+                                              <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                              <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>{sv}</div>
+                                              <div className="text-[10px] text-stone-500">{sb}+{sf}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>

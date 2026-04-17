@@ -127,6 +127,17 @@ function formatWhen(ts) {
 // =====================================================================
 
 /**
+ * Somme base + forestBoosts pour obtenir la stat "totale" hors bonus race/classe/arme.
+ * C'est la métrique qui détecte un cheat, peu importe si le joueur a trafiqué
+ * base ou forestBoosts.
+ */
+function totalStats(statBlock) {
+  const base = safeStats(statBlock?.base);
+  const forest = safeStats(statBlock?.forestBoosts);
+  return STAT_KEYS.reduce((acc, k) => { acc[k] = base[k] + forest[k]; return acc; }, {});
+}
+
+/**
  * Compare les stats d'un snapshot aux stats actuelles du personnage.
  * Retourne un tableau de findings.
  */
@@ -171,12 +182,17 @@ function compareSnapshotToCurrent(char, snapshot, findings) {
     );
   }
 
-  // Stats de base : ne peuvent QUE monter (via forêt, mais forêt est séparée).
-  // En pratique, base ne change jamais après création → toute variation est suspecte.
+  // Stats TOTALES (base + forêt) : ne peuvent QUE monter en jeu normal.
+  // Toute régression = le joueur a modifié ses stats, peu importe où (base ou forêt).
+  const snapTotal = totalStats(snapStats);
+  const curTotal = totalStats(char);
   const snapBase = safeStats(snapStats.base);
   const curBase = safeStats(char.base);
+  const snapForest = safeStats(snapStats.forestBoosts);
+  const curForest = safeStats(char.forestBoosts);
+
   for (const k of STAT_KEYS) {
-    const delta = snapBase[k] - curBase[k];
+    const delta = snapTotal[k] - curTotal[k];
     if (delta <= 0) continue;
     const isHp = k === 'hp';
     const threshold = isHp ? HP_REGRESSION_THRESHOLD : STAT_REGRESSION_THRESHOLD;
@@ -184,35 +200,31 @@ function compareSnapshotToCurrent(char, snapshot, findings) {
     if (delta < threshold) continue;
 
     const severity = delta >= critThreshold ? 'critical' : 'high';
+    const deltaBase = snapBase[k] - curBase[k];
+    const deltaForest = snapForest[k] - curForest[k];
+    const src = [];
+    if (deltaBase > 0) src.push(`base: ${snapBase[k]} → ${curBase[k]} (−${deltaBase})`);
+    if (deltaForest > 0) src.push(`forêt: ${snapForest[k]} → ${curForest[k]} (−${deltaForest})`);
+    const sourceNote = src.length > 0 ? ` [source : ${src.join(', ')}]` : '';
+
     findings.push(
       mkFinding(char, severity, 'stats_regression',
-        `base.${k} a DIMINUÉ depuis ${snapshot.context} (snapshot: ${snapBase[k]} → actuel: ${curBase[k]}, écart: ${delta})`,
-        { snapshot, diff: { stat: k, snap: snapBase[k], current: curBase[k], delta } }
+        `Total ${k} (base+forêt) a DIMINUÉ depuis ${snapshot.context} : ${snapTotal[k]} → ${curTotal[k]} (écart: ${delta})${sourceNote}`,
+        {
+          snapshot,
+          diff: {
+            stat: k,
+            snapTotal: snapTotal[k],
+            currentTotal: curTotal[k],
+            delta,
+            snapBase: snapBase[k],
+            currentBase: curBase[k],
+            snapForest: snapForest[k],
+            currentForest: curForest[k],
+          }
+        }
       )
     );
-  }
-
-  // Forêt : ne peut QUE monter également.
-  const snapForest = safeStats(snapStats.forestBoosts);
-  const curForest = safeStats(char.forestBoosts);
-  for (const k of STAT_KEYS) {
-    const delta = snapForest[k] - curForest[k];
-    if (delta <= 0) continue;
-    if (delta < FOREST_REGRESSION_CRITICAL) {
-      findings.push(
-        mkFinding(char, 'medium', 'forest_regression',
-          `forestBoosts.${k} a diminué depuis ${snapshot.context} (${snapForest[k]} → ${curForest[k]})`,
-          { snapshot, diff: { stat: k, snap: snapForest[k], current: curForest[k], delta } }
-        )
-      );
-    } else {
-      findings.push(
-        mkFinding(char, 'critical', 'forest_regression',
-          `forestBoosts.${k} a FORTEMENT diminué depuis ${snapshot.context} (${snapForest[k]} → ${curForest[k]}, écart: ${delta})`,
-          { snapshot, diff: { stat: k, snap: snapForest[k], current: curForest[k], delta } }
-        )
-      );
-    }
   }
 }
 
@@ -237,11 +249,11 @@ function checkSnapshotChronology(char, snapshots, findings) {
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
     const curr = sorted[i];
-    const prevBase = safeStats(prev.stats?.base);
-    const currBase = safeStats(curr.stats?.base);
+    const prevTotal = totalStats(prev.stats);
+    const currTotal = totalStats(curr.stats);
 
     for (const k of STAT_KEYS) {
-      const delta = prevBase[k] - currBase[k];
+      const delta = prevTotal[k] - currTotal[k];
       if (delta <= 0) continue;
       const isHp = k === 'hp';
       const threshold = isHp ? HP_REGRESSION_THRESHOLD : STAT_REGRESSION_THRESHOLD;
@@ -251,13 +263,13 @@ function checkSnapshotChronology(char, snapshots, findings) {
       const severity = delta >= critThreshold ? 'critical' : 'high';
       findings.push(
         mkFinding(char, severity, 'stats_regression',
-          `base.${k} a baissé entre ${prev.context} et ${curr.context} (${prevBase[k]} → ${currBase[k]}, écart: ${delta})`,
+          `Total ${k} (base+forêt) a baissé entre ${prev.context} et ${curr.context} (${prevTotal[k]} → ${currTotal[k]}, écart: ${delta})`,
           {
             snapshot: curr,
             diff: {
               stat: k,
-              from: { context: prev.context, value: prevBase[k], when: formatWhen(prev.when) },
-              to: { context: curr.context, value: currBase[k], when: formatWhen(curr.when) },
+              from: { context: prev.context, value: prevTotal[k], when: formatWhen(prev.when) },
+              to: { context: curr.context, value: currTotal[k], when: formatWhen(curr.when) },
               delta
             }
           }
