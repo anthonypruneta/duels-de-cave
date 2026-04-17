@@ -49,6 +49,26 @@ jobs:
           npm i -g firebase-tools
           firebase deploy --only functions --project duelsdecave
 
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: duelsdecave
+
+      - name: Ensure public invoker on all callable Cloud Run services
+        run: |
+          set -e
+          SERVICES="dungeon_getProgress dungeon_startRun dungeon_endRun dungeon_setEquippedWeapon dungeon_markCompleted dungeon_grantRuns bossRush_claimReward betting_placeBet betting_cancelBet"
+          for SVC in $SERVICES; do
+            # Cloud Run lowercases service names derived from function names.
+            SVC_LC=$(echo "$SVC" | tr '[:upper:]' '[:lower:]')
+            echo "=== IAM binding allUsers/roles/run.invoker for $SVC_LC (region europe-west1) ==="
+            gcloud run services add-iam-policy-binding "$SVC_LC" \
+              --region=europe-west1 \
+              --project=duelsdecave \
+              --member="allUsers" \
+              --role="roles/run.invoker" || echo "WARN: failed to patch IAM for $SVC_LC"
+          done
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
