@@ -109,7 +109,7 @@ const Admin = () => {
   const [auditReport, setAuditReport] = useState(null);
   const [auditError, setAuditError] = useState('');
   const [auditSeverityFilter, setAuditSeverityFilter] = useState('all');
-  const [auditCategoryFilter, setAuditCategoryFilter] = useState('all');
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState('suspects');
   const [auditExpandedUserId, setAuditExpandedUserId] = useState(null);
 
   const [adminMainTab, setAdminMainTab] = useState('annonce');
@@ -1763,35 +1763,62 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
         {adminMainTab === 'audit' && (() => {
           const report = auditReport;
-          const filteredFindings = report
-            ? report.findings.filter((f) =>
-                (auditSeverityFilter === 'all' || f.severity === auditSeverityFilter) &&
-                (auditCategoryFilter === 'all' || f.category === auditCategoryFilter)
-              )
-            : [];
+          const STAT_LABEL_MAP = { hp: 'PV', auto: 'Auto', def: 'DEF', cap: 'CAP', rescap: 'RESC', spd: 'VIT' };
+          const STAT_LIST = ['hp', 'auto', 'def', 'cap', 'rescap', 'spd'];
+
+          const formatSnapshotDate = (when) => {
+            if (!when) return '—';
+            if (typeof when?.toDate === 'function') {
+              return when.toDate().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+            }
+            if (when?.seconds) {
+              return new Date(when.seconds * 1000).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+            }
+            return '—';
+          };
+
+          const snapshotLabel = (snap) => {
+            if (snap.type === 'labyrinth') {
+              const n = snap.extra?.floor || String(snap.context || '').replace('laby_floor_', '');
+              return `🌀 Labyrinthe — étage ${n}`;
+            }
+            const map = {
+              forest: '🌲 Forêt',
+              cave: '🪨 Caves',
+              mageTower: '🧙 Tour du Mage',
+              extension: '🧵 Extension',
+              subclass: '🎓 Sous-classe',
+              forge: '🔥 Forge',
+              bossRush: '⚔️ Boss Rush',
+            };
+            return `🗡️ 1er clear — ${map[snap.context] || snap.context}`;
+          };
+
+          const orderSnapshots = (list) => {
+            return [...(list || [])].sort((a, b) => {
+              const ta = a.when?.seconds ?? (a.when?.toDate ? a.when.toDate().getTime() / 1000 : 0);
+              const tb = b.when?.seconds ?? (b.when?.toDate ? b.when.toDate().getTime() / 1000 : 0);
+              return ta - tb;
+            });
+          };
+
+          // Liste des suspects (joueurs avec au moins 1 finding)
           const suspectsFiltered = report
-            ? report.suspects
-                .map((s) => ({
-                  ...s,
-                  findings: s.findings.filter((f) =>
-                    (auditSeverityFilter === 'all' || f.severity === auditSeverityFilter) &&
-                    (auditCategoryFilter === 'all' || f.category === auditCategoryFilter)
-                  ),
-                }))
-                .filter((s) => s.findings.length > 0)
-            : [];
-          const categoriesPresent = report
-            ? Array.from(new Set(report.findings.map((f) => f.category)))
+            ? report.suspects.filter((s) => auditSeverityFilter === 'all'
+                ? true
+                : s.findings.some((f) => f.severity === auditSeverityFilter))
             : [];
 
           return (
             <div className="bg-stone-900/70 border-2 border-rose-600 rounded-xl p-6 mb-8">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-rose-300 mb-1">🕵️ Audit anti-triche</h2>
+                  <h2 className="text-2xl font-bold text-rose-300 mb-1">🕵️ Audit anti-triche (snapshots)</h2>
                   <p className="text-stone-400 text-sm">
-                    Détecte les incohérences entre les données stockées en Firestore et les règles du jeu (stats,
-                    progression, équipement, titres, PvP, Cataclysme). 100% en lecture.
+                    À chaque victoire du Labyrinthe (nouveau meilleur étage) et à chaque
+                    <em> premier</em> clear de boss de donjon, les stats du personnage sont
+                    archivées. Si un joueur a gonflé ses stats pour battre un boss puis les a
+                    remises, une régression apparaît ici.
                   </p>
                 </div>
                 <button
@@ -1811,7 +1838,7 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
 
               {!report && !auditLoading && !auditError && (
                 <p className="text-stone-500 text-sm italic">
-                  Clique sur « Lancer l'audit » pour parcourir tous les personnages actifs et remonter les anomalies.
+                  Clique sur « Lancer l'audit » pour parcourir tous les snapshots enregistrés.
                 </p>
               )}
 
@@ -1820,12 +1847,12 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                   {/* Résumé */}
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
-                      <div className="text-xs text-stone-400">Personnages audités</div>
+                      <div className="text-xs text-stone-400">Personnages</div>
                       <div className="text-2xl font-bold text-white">{report.summary.totalCharacters}</div>
                     </div>
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
-                      <div className="text-xs text-stone-400">Anomalies totales</div>
-                      <div className="text-2xl font-bold text-white">{report.summary.totalFindings}</div>
+                      <div className="text-xs text-stone-400">Snapshots</div>
+                      <div className="text-2xl font-bold text-white">{report.summary.totalSnapshots}</div>
                     </div>
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
                       <div className="text-xs text-stone-400">Joueurs suspects</div>
@@ -1845,141 +1872,262 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                     </div>
                   </div>
 
-                  {/* Filtres */}
+                  {/* Bascule mode : suspects / tous les joueurs */}
                   <div className="flex flex-wrap gap-2 mb-4 items-center">
-                    <span className="text-stone-400 text-sm">Filtres:</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setAuditCategoryFilter('suspects')}
+                        className={`px-3 py-1 text-sm rounded font-bold border ${auditCategoryFilter !== 'all' ? 'bg-rose-600 border-rose-400 text-white' : 'bg-stone-800 border-stone-600 text-stone-300'}`}
+                      >
+                        ⚠️ Anomalies ({report.summary.totalSuspects})
+                      </button>
+                      <button
+                        onClick={() => setAuditCategoryFilter('all')}
+                        className={`px-3 py-1 text-sm rounded font-bold border ${auditCategoryFilter === 'all' ? 'bg-rose-600 border-rose-400 text-white' : 'bg-stone-800 border-stone-600 text-stone-300'}`}
+                      >
+                        📋 Tous les joueurs ({report.summary.charactersWithSnapshots})
+                      </button>
+                    </div>
+
+                    <span className="text-stone-400 text-sm ml-auto">Sévérité :</span>
                     <select
                       value={auditSeverityFilter}
                       onChange={(e) => setAuditSeverityFilter(e.target.value)}
                       className="bg-stone-800 border border-stone-600 rounded px-3 py-1 text-white text-sm"
                     >
-                      <option value="all">Toutes sévérités</option>
+                      <option value="all">Toutes</option>
                       <option value="critical">Critique</option>
                       <option value="high">Élevé</option>
                       <option value="medium">Moyen</option>
                       <option value="low">Faible</option>
-                      <option value="info">Info</option>
                     </select>
-                    <select
-                      value={auditCategoryFilter}
-                      onChange={(e) => setAuditCategoryFilter(e.target.value)}
-                      className="bg-stone-800 border border-stone-600 rounded px-3 py-1 text-white text-sm"
-                    >
-                      <option value="all">Toutes catégories</option>
-                      {categoriesPresent.map((c) => (
-                        <option key={c} value={c}>{CATEGORY_LABELS[c] || c}</option>
-                      ))}
-                    </select>
-                    <span className="text-stone-500 text-xs">
-                      {filteredFindings.length} anomalie(s) affichée(s) / {suspectsFiltered.length} joueur(s)
-                    </span>
                   </div>
 
-                  {/* Tableau des suspects */}
-                  {suspectsFiltered.length === 0 ? (
-                    <p className="text-emerald-300 text-sm italic">
-                      ✅ Aucune anomalie avec les filtres actuels.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {suspectsFiltered.map((suspect) => {
-                        const isOpen = auditExpandedUserId === suspect.userId;
-                        const char = characters.find((c) => c.id === suspect.userId);
-                        const sev = suspect.counts;
-                        return (
-                          <div
-                            key={suspect.userId}
-                            className="border border-stone-700 rounded-lg bg-stone-800/40"
-                          >
-                            <button
-                              onClick={() => setAuditExpandedUserId(isOpen ? null : suspect.userId)}
-                              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-stone-800/80"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-stone-300">{isOpen ? '▼' : '▶'}</span>
-                                <div>
-                                  <div className="text-white font-bold">
-                                    {suspect.characterName}
-                                    {suspect.ownerPseudo && (
-                                      <span className="text-stone-400 font-normal text-sm"> — {suspect.ownerPseudo}</span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-stone-500">
-                                    {char ? `${char.race} ${char.class} • Lvl ${char.level ?? 1}` : suspect.userId}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {sev.critical > 0 && (
-                                  <span className="text-xs font-bold px-2 py-1 rounded bg-red-900/60 border border-red-500 text-red-200">
-                                    {sev.critical} critique{sev.critical > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                                {sev.high > 0 && (
-                                  <span className="text-xs font-bold px-2 py-1 rounded bg-orange-900/60 border border-orange-500 text-orange-200">
-                                    {sev.high} élevé{sev.high > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                                {sev.medium > 0 && (
-                                  <span className="text-xs font-bold px-2 py-1 rounded bg-amber-900/60 border border-amber-500 text-amber-200">
-                                    {sev.medium} moyen{sev.medium > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                                {sev.low > 0 && (
-                                  <span className="text-xs font-bold px-2 py-1 rounded bg-stone-700 border border-stone-500 text-stone-300">
-                                    {sev.low} faible{sev.low > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                              </div>
-                            </button>
+                  {/* Mode "anomalies" : uniquement les suspects */}
+                  {auditCategoryFilter !== 'all' && (
+                    <>
+                      {suspectsFiltered.length === 0 ? (
+                        <p className="text-emerald-300 text-sm italic">
+                          ✅ Aucune anomalie détectée sur les snapshots. Les stats actuelles sont cohérentes avec les stats au moment des exploits.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {suspectsFiltered.map((suspect) => {
+                            const isOpen = auditExpandedUserId === suspect.userId;
+                            const userData = report.perUser[suspect.userId];
+                            const char = characters.find((c) => c.id === suspect.userId);
+                            const sev = suspect.counts;
+                            const orderedSnaps = orderSnapshots(userData?.snapshots);
 
-                            {isOpen && (
-                              <div className="border-t border-stone-700 p-3 space-y-2">
-                                {suspect.findings.map((f, i) => {
-                                  const sevStyle = SEVERITY_LABELS[f.severity] || SEVERITY_LABELS.info;
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`border rounded px-3 py-2 ${sevStyle.bg} ${sevStyle.border}`}
-                                    >
-                                      <div className="flex items-center justify-between gap-2 mb-1">
-                                        <span className={`text-xs font-bold uppercase ${sevStyle.color}`}>
-                                          {sevStyle.label} • {CATEGORY_LABELS[f.category] || f.category}
-                                        </span>
+                            return (
+                              <div key={suspect.userId} className="border border-stone-700 rounded-lg bg-stone-800/40">
+                                <button
+                                  onClick={() => setAuditExpandedUserId(isOpen ? null : suspect.userId)}
+                                  className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-stone-800/80"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-stone-300">{isOpen ? '▼' : '▶'}</span>
+                                    <div>
+                                      <div className="text-white font-bold">
+                                        {suspect.characterName}
+                                        {suspect.ownerPseudo && (
+                                          <span className="text-stone-400 font-normal text-sm"> — {suspect.ownerPseudo}</span>
+                                        )}
                                       </div>
-                                      <div className="text-sm text-stone-100">{f.message}</div>
-                                      {f.details && (
-                                        <pre className="mt-1 text-xs text-stone-400 bg-stone-900/60 rounded p-2 overflow-x-auto">
-                                          {JSON.stringify(f.details, null, 2)}
-                                        </pre>
-                                      )}
+                                      <div className="text-xs text-stone-500">
+                                        {char ? `${char.race} ${char.class} • Lvl ${char.level ?? 1}` : suspect.userId}
+                                        {userData && ` • ${userData.snapshots.length} snapshot(s)`}
+                                      </div>
                                     </div>
-                                  );
-                                })}
-                                <div className="flex gap-2 pt-2">
-                                  {char && (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedCharacter(char);
-                                        setAdminMainTab('personnage');
-                                      }}
-                                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1 rounded"
-                                    >
-                                      Ouvrir dans « Personnage »
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => navigator.clipboard.writeText(suspect.userId)}
-                                    className="bg-stone-700 hover:bg-stone-600 text-white text-xs px-3 py-1 rounded"
-                                  >
-                                    Copier userId
-                                  </button>
-                                </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {sev.critical > 0 && <span className="text-xs font-bold px-2 py-1 rounded bg-red-900/60 border border-red-500 text-red-200">{sev.critical} critique{sev.critical > 1 ? 's' : ''}</span>}
+                                    {sev.high > 0 && <span className="text-xs font-bold px-2 py-1 rounded bg-orange-900/60 border border-orange-500 text-orange-200">{sev.high} élevé{sev.high > 1 ? 's' : ''}</span>}
+                                    {sev.medium > 0 && <span className="text-xs font-bold px-2 py-1 rounded bg-amber-900/60 border border-amber-500 text-amber-200">{sev.medium} moyen{sev.medium > 1 ? 's' : ''}</span>}
+                                  </div>
+                                </button>
+
+                                {isOpen && (
+                                  <div className="border-t border-stone-700 p-3 space-y-4">
+                                    {/* Stats actuelles */}
+                                    {char && (
+                                      <div className="bg-stone-900/60 rounded p-3">
+                                        <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (base)</div>
+                                        <div className="grid grid-cols-6 gap-2 text-center text-sm">
+                                          {STAT_LIST.map((k) => (
+                                            <div key={k} className="bg-stone-800 rounded px-2 py-1">
+                                              <div className="text-xs text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                              <div className="text-white font-bold">{char.base?.[k] ?? '?'}</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Timeline des snapshots */}
+                                    <div>
+                                      <div className="text-xs text-stone-400 mb-2 font-bold">TIMELINE DES SNAPSHOTS (base)</div>
+                                      <div className="space-y-2">
+                                        {orderedSnaps.map((s) => {
+                                          const snapBase = s.stats?.base || {};
+                                          const curBase = char?.base || {};
+                                          return (
+                                            <div key={s.id} className="bg-stone-900/60 rounded p-2">
+                                              <div className="flex items-center justify-between mb-1">
+                                                <div className="text-sm text-stone-200 font-bold">{snapshotLabel(s)}</div>
+                                                <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
+                                              </div>
+                                              <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                                                {STAT_LIST.map((k) => {
+                                                  const sv = Number(snapBase[k] ?? 0);
+                                                  const cv = Number(curBase[k] ?? 0);
+                                                  const regressed = sv > cv;
+                                                  return (
+                                                    <div
+                                                      key={k}
+                                                      className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}
+                                                      title={regressed ? `Régression: ${sv} → ${cv} (−${sv - cv})` : ''}
+                                                    >
+                                                      <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                                      <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>
+                                                        {sv}
+                                                        {regressed && <span className="text-red-300"> ↓</span>}
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                              <div className="mt-1 text-xs text-stone-500">
+                                                Niveau : <span className="text-stone-300">{s.stats?.level ?? '?'}</span>
+                                                {' • '}Arme : <span className="text-stone-300">{s.stats?.equippedWeaponId || '—'}</span>
+                                                {s.stats?.subclass?.id && <> • Sous-classe : <span className="text-stone-300">{s.stats.subclass.id}</span></>}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Findings résumés */}
+                                    <div>
+                                      <div className="text-xs text-stone-400 mb-2 font-bold">ANOMALIES</div>
+                                      <div className="space-y-2">
+                                        {suspect.findings.map((f, i) => {
+                                          const sevStyle = SEVERITY_LABELS[f.severity] || SEVERITY_LABELS.info;
+                                          return (
+                                            <div key={i} className={`border rounded px-3 py-2 ${sevStyle.bg} ${sevStyle.border}`}>
+                                              <div className="flex items-center justify-between gap-2 mb-1">
+                                                <span className={`text-xs font-bold uppercase ${sevStyle.color}`}>
+                                                  {sevStyle.label} • {CATEGORY_LABELS[f.category] || f.category}
+                                                </span>
+                                              </div>
+                                              <div className="text-sm text-stone-100">{f.message}</div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-2 pt-1">
+                                      {char && (
+                                        <button
+                                          onClick={() => { setSelectedCharacter(char); setAdminMainTab('personnage'); }}
+                                          className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1 rounded"
+                                        >
+                                          Ouvrir dans « Personnage »
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => navigator.clipboard.writeText(suspect.userId)}
+                                        className="bg-stone-700 hover:bg-stone-600 text-white text-xs px-3 py-1 rounded"
+                                      >
+                                        Copier userId
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Mode "tous les joueurs" : liste tous les joueurs avec au moins 1 snapshot */}
+                  {auditCategoryFilter === 'all' && (
+                    <div className="space-y-2">
+                      {Object.values(report.perUser)
+                        .filter((u) => (u.snapshots || []).length > 0)
+                        .sort((a, b) => (b.snapshots.length || 0) - (a.snapshots.length || 0))
+                        .map((userData) => {
+                          const isOpen = auditExpandedUserId === userData.userId;
+                          const char = characters.find((c) => c.id === userData.userId);
+                          const orderedSnaps = orderSnapshots(userData.snapshots);
+                          return (
+                            <div key={userData.userId} className="border border-stone-700 rounded-lg bg-stone-800/40">
+                              <button
+                                onClick={() => setAuditExpandedUserId(isOpen ? null : userData.userId)}
+                                className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left hover:bg-stone-800/80"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-stone-300">{isOpen ? '▼' : '▶'}</span>
+                                  <div>
+                                    <div className="text-white font-bold">
+                                      {userData.characterName}
+                                      {userData.ownerPseudo && <span className="text-stone-400 font-normal text-sm"> — {userData.ownerPseudo}</span>}
+                                    </div>
+                                    <div className="text-xs text-stone-500">
+                                      {userData.race} {userData.class} • Lvl {userData.level ?? 1} • {orderedSnaps.length} snapshot(s)
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                              {isOpen && (
+                                <div className="border-t border-stone-700 p-3 space-y-2">
+                                  {char && (
+                                    <div className="bg-stone-900/60 rounded p-2">
+                                      <div className="text-xs text-stone-400 mb-1 font-bold">STATS ACTUELLES (base)</div>
+                                      <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                                        {STAT_LIST.map((k) => (
+                                          <div key={k} className="bg-stone-800 rounded px-1 py-1">
+                                            <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                            <div className="text-white font-bold">{char.base?.[k] ?? '?'}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {orderedSnaps.map((s) => {
+                                    const snapBase = s.stats?.base || {};
+                                    const curBase = char?.base || {};
+                                    return (
+                                      <div key={s.id} className="bg-stone-900/60 rounded p-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <div className="text-sm text-stone-200">{snapshotLabel(s)}</div>
+                                          <div className="text-xs text-stone-500">{formatSnapshotDate(s.when)}</div>
+                                        </div>
+                                        <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                                          {STAT_LIST.map((k) => {
+                                            const sv = Number(snapBase[k] ?? 0);
+                                            const cv = Number(curBase[k] ?? 0);
+                                            const regressed = sv > cv;
+                                            return (
+                                              <div key={k} className={`rounded px-1 py-1 ${regressed ? 'bg-red-900/70 border border-red-500' : 'bg-stone-800'}`}>
+                                                <div className="text-stone-400">{STAT_LABEL_MAP[k]}</div>
+                                                <div className={`font-bold ${regressed ? 'text-red-200' : 'text-white'}`}>{sv}</div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   )}
                 </>

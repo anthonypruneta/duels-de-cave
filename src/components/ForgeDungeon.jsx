@@ -7,6 +7,7 @@ import {
 } from '../services/characterService';
 import { getEquippedWeapon, getPlayerDungeonSummary, startDungeonRun } from '../services/dungeonService';
 import { saveWeaponUpgrade, getWeaponUpgrade } from '../services/forgeService';
+import { recordDungeonFirstClearSnapshot } from '../services/statSnapshotService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -356,6 +357,11 @@ const ForgeDungeon = () => {
       logs.push(`🏆 ${player?.name ?? p.name} terrasse ${boss?.name ?? b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
+
+      // Audit anti-triche : snapshot stats uniquement au tout premier clear (pas d'upgrade forge existante)
+      if (!character?.forgeUpgrade) {
+        recordDungeonFirstClearSnapshot(currentUser.uid, 'forge').catch(() => {});
+      }
 
       const weaponId = character.equippedWeaponId || equippedWeapon?.id;
       const roll = generateForgeUpgradeRoll(weaponId);

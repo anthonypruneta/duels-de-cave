@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, updateCharacterSubclass } from '../services/characterService';
 import { getPlayerDungeonSummary, startDungeonRun } from '../services/dungeonService';
+import { recordDungeonFirstClearSnapshot } from '../services/statSnapshotService';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts } from '../utils/statPoints';
 import {
@@ -204,6 +205,12 @@ const SubclassDungeon = () => {
       logs.push(`🏆 ${player?.name} terrasse ${boss?.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
+
+      // Audit anti-triche : snapshot stats uniquement au tout premier clear (avant d'avoir une sous-classe)
+      if (!character?.subclass?.id) {
+        recordDungeonFirstClearSnapshot(currentUser.uid, 'subclass').catch(() => {});
+      }
+
       setGameState('reward');
     } else {
       logs.push(`💀 ${player?.name} a été vaincu par ${boss?.name}...`);

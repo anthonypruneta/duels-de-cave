@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter, saveAccountTitles } from '../services/characterService';
 import { claimBossRushRewardIfEligible, getPlayerDungeonSummary } from '../services/dungeonService';
 import { getWeaponUpgrade } from '../services/forgeService';
+import { recordDungeonFirstClearSnapshot } from '../services/statSnapshotService';
 import { checkAndAwardTitles } from '../services/titleService';
 import { getBossRushBosses, createBossRushCombatant, BOSS_RUSH_COUNT } from '../data/bossRush';
 import { simulerMatch } from '../utils/tournamentCombat';
@@ -238,6 +239,11 @@ const BossRush = () => {
           const newLastCountedWeekId = (shouldCountThisWeek || lastCountedWeekId == null)
             ? currentWeekId
             : lastCountedWeekId;
+
+          // Audit anti-triche : snapshot stats au tout premier clear Boss Rush (compteur précédent à 0)
+          if (prevCompletions === 0 && !progressData.bossRushCompleted) {
+            recordDungeonFirstClearSnapshot(currentUser.uid, 'bossRush').catch(() => {});
+          }
 
           await setDoc(progressRef, {
             bossRushCompleted: true,

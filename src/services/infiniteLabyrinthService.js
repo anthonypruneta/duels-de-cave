@@ -9,6 +9,7 @@ import { simulerMatch } from '../utils/tournamentCombat';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { getEquippedWeapon } from './dungeonService';
 import { announceFirstLabyrinthFloorClear } from './milestoneAnnouncementService';
+import { recordLabyrinthFloorSnapshot } from './statSnapshotService';
 
 const FLOOR_COUNT = 120;
 export const LABYRINTH_FLOOR_COUNT = FLOOR_COUNT;
@@ -530,8 +531,19 @@ export async function launchLabyrinthCombat({ userId, floorNumber = null, weekId
     let rewardGranted = false;
 
     if (didWin) {
+      const isNewBestFloor = (floor.floorNumber || 0) > prevHighestClearedFloor;
       updatedProgress.highestClearedFloor = Math.max(updatedProgress.highestClearedFloor || 0, floor.floorNumber);
       updatedProgress.currentFloor = Math.min(FLOOR_COUNT, floor.floorNumber + 1);
+
+      // Audit anti-triche : snapshot des stats uniquement quand c'est une VRAIE progression
+      // (nouveau meilleur étage). Un joueur qui refait un étage déjà battu n'en génère pas.
+      if (isNewBestFloor) {
+        recordLabyrinthFloorSnapshot(userId, floor.floorNumber, {
+          weekId: resolvedWeekId,
+          enemyName: floor.enemyName || null,
+          floorType: floor.type || null,
+        }).catch(() => { /* non-bloquant */ });
+      }
 
       // Sable : compter 1 "win étage 90" par semaine (au moment où on atteint 90+ pour la première fois sur la week).
       // Plus robuste que `floorNumber === 90` (qui peut être contourné via resets/admin/reprises).

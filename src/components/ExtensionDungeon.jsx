@@ -6,6 +6,7 @@ import {
   updateCharacterMageTowerExtensionPassive,
 } from '../services/characterService';
 import { getPlayerDungeonSummary, startDungeonRun } from '../services/dungeonService';
+import { recordDungeonFirstClearSnapshot } from '../services/statSnapshotService';
 import { races } from '../data/races';
 import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
@@ -280,6 +281,12 @@ const ExtensionDungeon = () => {
       logs.push(`🏆 ${player?.name ?? p.name} terrasse ${boss?.name ?? b.name} !`);
       setCombatLog([...logs]);
       setCombatResult('victory');
+
+      // Audit anti-triche : snapshot stats uniquement au tout premier clear du donjon extension
+      if (!character?.mageTowerExtensionPassive?.id) {
+        recordDungeonFirstClearSnapshot(currentUser.uid, 'extension').catch(() => {});
+      }
+
       const rolled = rollExtensionPassive(
         character.mageTowerPassive?.id,
         character.mageTowerExtensionPassive?.id

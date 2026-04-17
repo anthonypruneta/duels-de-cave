@@ -411,6 +411,19 @@ export const resetDungeonRuns = async (userId) => {
 export const markDungeonCompleted = async (userId, dungeonKey) => {
   try {
     if (!userId || !dungeonKey) return { success: false, error: 'Paramètres invalides' };
+
+    // Audit anti-triche : on détecte si c'est la PREMIÈRE complétion AVANT d'appeler
+    // la Cloud Function (qui ajoute le flag). Si oui, on snapshot les stats actuelles.
+    let isFirstClear = false;
+    try {
+      const progressRef = doc(db, 'dungeonProgress', userId);
+      const progressSnap = await getDoc(progressRef);
+      const prevCompletions = progressSnap.exists()
+        ? (progressSnap.data()?.dungeonCompletions || {})
+        : {};
+      isFirstClear = !prevCompletions[dungeonKey];
+    } catch (_) { /* si lecture échoue, on ne bloque pas le flow */ }
+
     const call = httpsCallable(functions, 'dungeon_markCompleted');
     await call({ userId, dungeonKey });
 
@@ -421,6 +434,13 @@ export const markDungeonCompleted = async (userId, dungeonKey) => {
         dungeonKey,
         character: characterResult.data
       });
+    }
+
+    if (isFirstClear) {
+      try {
+        const { recordDungeonFirstClearSnapshot } = await import('./statSnapshotService');
+        recordDungeonFirstClearSnapshot(userId, dungeonKey).catch(() => {});
+      } catch (_) { /* import dynamique non bloquant */ }
     }
 
     return { success: true };
