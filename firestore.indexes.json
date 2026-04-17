@@ -15,6 +15,13 @@
       ]
     },
     {
+      "collectionGroup": "pvpDuelLeaderboardEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "elo", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pvpLobbyRooms",
       "queryScope": "COLLECTION",
       "fields": [

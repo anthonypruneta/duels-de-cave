@@ -349,27 +349,39 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
     }
 
-    // Classement PvP (collection racine — requête orderBy wins sans collectionGroup)
+    // Classement PvP (collection racine — requête orderBy elo sans collectionGroup)
+    // Depuis le schéma 2 : champ `elo` (number, 0..3000) optionnel côté règles (défaut 1000 côté client).
+    function pvpEloValid() {
+      return !('elo' in request.resource.data) ||
+             (request.resource.data.elo is number &&
+              request.resource.data.elo >= 0 &&
+              request.resource.data.elo <= 3000);
+    }
+
     match /pvpDuelLeaderboardEntries/{entryId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
                        request.resource.data.ownerUserId == request.auth.uid &&
                        request.resource.data.characterId is string &&
                        request.resource.data.characterId.size() > 0 &&
-                       entryId == request.auth.uid + '__' + request.resource.data.characterId;
+                       entryId == request.auth.uid + '__' + request.resource.data.characterId &&
+                       pvpEloValid();
       allow update: if request.auth != null &&
                        resource.data.ownerUserId == request.auth.uid &&
                        request.resource.data.ownerUserId == resource.data.ownerUserId &&
                        request.resource.data.characterId == resource.data.characterId &&
-                       entryId == request.auth.uid + '__' + request.resource.data.characterId;
+                       entryId == request.auth.uid + '__' + request.resource.data.characterId &&
+                       pvpEloValid();
       allow delete: if isAdmin();
     }
 
-    // Stats victoires/défaites duels PvP lobby (par perso archivé)
+    // Stats victoires/défaites + ELO duels PvP lobby (par perso archivé)
     // Sous-collection + synchro vers pvpDuelLeaderboardEntries pour le classement global.
     match /pvpDuelStatsByUser/{userId}/pvpDuelCharStats/{charId} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null &&
+                               request.auth.uid == userId &&
+                               pvpEloValid();
       allow delete: if isAdmin();
     }
     // Ancienne sous-collection (migration / rétrocompat)

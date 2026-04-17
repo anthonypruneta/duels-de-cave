@@ -35,6 +35,34 @@ const PVP_LEADERBOARD_ENTRIES = 'pvpDuelLeaderboardEntries';
 
 const EMPTY_STATS = { hp: 0, auto: 0, def: 0, cap: 0, rescap: 0, spd: 0 };
 
+export const DEFAULT_ELO = 1000;
+export const ELO_K_FACTOR = 32;
+const ELO_MIN = 0;
+const ELO_MAX = 3000;
+
+function clampElo(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return DEFAULT_ELO;
+  if (n < ELO_MIN) return ELO_MIN;
+  if (n > ELO_MAX) return ELO_MAX;
+  return Math.round(n);
+}
+
+/**
+ * Delta ELO classique (zero-sum) : le gagnant gagne exactement ce que le perdant perd.
+ * @param {number} ratingA rating courant du joueur A
+ * @param {number} ratingB rating courant de l'adversaire
+ * @param {boolean} aWon true si A a gagné, false si B a gagné
+ * @returns {number} delta à appliquer à A (positif si victoire, négatif sinon)
+ */
+export function computeEloDelta(ratingA, ratingB, aWon) {
+  const rA = Number.isFinite(Number(ratingA)) ? Number(ratingA) : DEFAULT_ELO;
+  const rB = Number.isFinite(Number(ratingB)) ? Number(ratingB) : DEFAULT_ELO;
+  const eA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
+  const sA = aWon ? 1 : 0;
+  return Math.round(ELO_K_FACTOR * (sA - eA));
+}
+
 export function pvpLeaderboardEntryDocId(userId, characterId) {
   const u = String(userId || '');
   const c = String(characterId || '');
@@ -130,6 +158,107 @@ export async function hashPvpLobbyPassword(plain) {
     .join('');
 }
 
+/**
+ * ADMIN — Reset complet du classement PvP (ELO + W/L).
+ * Supprime :
+ *  1) Tous les docs de la collection racine `pvpDuelLeaderboardEntries` (classement global).
+ *  2) Pour chaque userId collecté (via les entrées ci-dessus) : toutes les sous-collections
+ *     `pvpDuelStatsByUser/{uid}/pvpDuelCharStats` et `pvpDuelStatsByUser/{uid}/characters` (legacy).
+ *
+ * Après le wipe, chaque perso redémarre implicitement à ELO 1000 / 0V / 0D dès son prochain
+ * match classé (matchmaking). Les salles custom (amicales) n'écrivent plus W/L ni ELO depuis
+ * le schéma v2.
+ *
+ * Les règles Firestore autorisent `delete: if isAdmin();` sur ces collections — la fonction
+ * doit être appelée par un compte admin (sinon permission-denied).
+ */
+export async function adminResetPvpLeaderboard() {
+  await waitForFirestore();
+  const errors = [];
+  const userIds = new Set();
+  let deletedBoard = 0;
+  let deletedStats = 0;
+  let deletedLegacy = 0;
+
+  try {
+    const snap = await getDocs(collection(db, PVP_LEADERBOARD_ENTRIES));
+    let batch = writeBatch(db);
+    let n = 0;
+    for (const d of snap.docs) {
+      const owner = d.data()?.ownerUserId;
+      if (owner) userIds.add(String(owner));
+      const legacyUid = String(d.id).split('__')[0];
+      if (legacyUid) userIds.add(legacyUid);
+      batch.delete(d.ref);
+      n += 1;
+      deletedBoard += 1;
+      if (n % 400 === 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+      }
+    }
+    if (n % 400 !== 0) await batch.commit();
+  } catch (e) {
+    errors.push(`leaderboard: ${e.message || 'erreur'}`);
+  }
+
+  for (const uid of userIds) {
+    try {
+      const snap = await getDocs(collection(db, PVP_STATS, uid, PVP_CHAR_STATS_SUB));
+      let batch = writeBatch(db);
+      let n = 0;
+      for (const d of snap.docs) {
+        batch.delete(d.ref);
+        n += 1;
+        deletedStats += 1;
+        if (n % 400 === 0) {
+          await batch.commit();
+          batch = writeBatch(db);
+        }
+      }
+      if (n % 400 !== 0) await batch.commit();
+    } catch (e) {
+      errors.push(`stats(${uid}): ${e.message || 'erreur'}`);
+    }
+
+    try {
+      const snap = await getDocs(collection(db, PVP_STATS, uid, PVP_CHAR_STATS_LEGACY_SUB));
+      let batch = writeBatch(db);
+      let n = 0;
+      for (const d of snap.docs) {
+        batch.delete(d.ref);
+        n += 1;
+        deletedLegacy += 1;
+        if (n % 400 === 0) {
+          await batch.commit();
+          batch = writeBatch(db);
+        }
+      }
+      if (n % 400 !== 0) await batch.commit();
+    } catch (e) {
+      errors.push(`legacy(${uid}): ${e.message || 'erreur'}`);
+    }
+  }
+
+  if (errors.length) {
+    return {
+      success: false,
+      error: errors.join(' | '),
+      deletedBoard,
+      deletedStats,
+      deletedLegacy,
+      userIds: userIds.size,
+    };
+  }
+  return {
+    success: true,
+    deletedBoard,
+    deletedStats,
+    deletedLegacy,
+    userIds: userIds.size,
+  };
+}
+
 async function retryOperation(operation, maxRetries = 3, delayMs = 1000) {
   await waitForFirestore();
   let lastError;
@@ -170,11 +299,13 @@ export async function migrateLegacyPvpStatsToLeaderboardDocs(userId, entries, ow
         const o = sOld.data();
         const w = Number(o.wins) || 0;
         const l = Number(o.losses) || 0;
-        if (w === 0 && l === 0) return;
+        const elo = Number.isFinite(Number(o.elo)) ? Math.round(Number(o.elo)) : DEFAULT_ELO;
+        if (w === 0 && l === 0 && elo === DEFAULT_ELO) return;
         const updatedAt = Timestamp.now();
         const payload = {
           wins: w,
           losses: l,
+          elo,
           characterName: String(name || '—').slice(0, 40),
           ownerUserId: userId,
           ownerPseudo: pseudo,
@@ -189,6 +320,7 @@ export async function migrateLegacyPvpStatsToLeaderboardDocs(userId, entries, ow
           {
             wins: w,
             losses: l,
+            elo,
             characterName: payload.characterName,
             ownerUserId: userId,
             ownerPseudo: pseudo,
@@ -227,13 +359,15 @@ export async function syncPvpLeaderboardEntriesForUser(userId) {
       const charId = d.id;
       const wins = Number(data.wins) || 0;
       const losses = Number(data.losses) || 0;
-      if (wins === 0 && losses === 0) continue;
+      const elo = Number.isFinite(Number(data.elo)) ? Math.round(Number(data.elo)) : DEFAULT_ELO;
+      if (wins === 0 && losses === 0 && elo === DEFAULT_ELO) continue;
       const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
       batch.set(
         boardRef,
         {
           wins,
           losses,
+          elo,
           characterName: String(data.characterName || '—').slice(0, 40),
           ownerUserId: userId,
           ownerPseudo: String(data.ownerPseudo || ownerPseudo).slice(0, 40),
@@ -266,7 +400,7 @@ export async function fetchPvpDuelLeaderboard(maxRows = LEADERBOARD_DEFAULT_LIMI
     await waitForFirestore();
     const q = query(
       collection(db, PVP_LEADERBOARD_ENTRIES),
-      orderBy('wins', 'desc'),
+      orderBy('elo', 'desc'),
       limit(cap)
     );
     const snap = await getDocs(q);
@@ -280,10 +414,12 @@ export async function fetchPvpDuelLeaderboard(maxRows = LEADERBOARD_DEFAULT_LIMI
         characterName: String(data.characterName || '—').slice(0, 40),
         wins: Number(data.wins) || 0,
         losses: Number(data.losses) || 0,
+        elo: Number.isFinite(Number(data.elo)) ? Math.round(Number(data.elo)) : DEFAULT_ELO,
         updatedAt: data.updatedAt,
       };
     });
     rows.sort((a, b) => {
+      if (b.elo !== a.elo) return b.elo - a.elo;
       if (b.wins !== a.wins) return b.wins - a.wins;
       if (a.losses !== b.losses) return a.losses - b.losses;
       return String(a.characterName).localeCompare(String(b.characterName), 'fr');
@@ -309,7 +445,15 @@ export async function fetchPvpDuelStatsForUserCharacters(userId, archivedCharact
         const ref = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, charId);
         const s = await getDoc(ref);
         const d = s.exists() ? s.data() : {};
-        return [charId, { wins: Number(d.wins) || 0, losses: Number(d.losses) || 0 }];
+        const elo = Number.isFinite(Number(d.elo)) ? Math.round(Number(d.elo)) : DEFAULT_ELO;
+        return [
+          charId,
+          {
+            wins: Number(d.wins) || 0,
+            losses: Number(d.losses) || 0,
+            elo,
+          },
+        ];
       })
     );
     return { success: true, data: Object.fromEntries(pairs) };
@@ -320,7 +464,9 @@ export async function fetchPvpDuelStatsForUserCharacters(userId, archivedCharact
 }
 
 /**
- * Après un duel terminé : chaque joueur applique +1 V ou +1 D sur SON perso (idempotent par salle).
+ * Après un duel terminé : chaque joueur applique +1 V ou +1 D + ELO sur SON perso (idempotent par salle).
+ * Depuis schemaVersion 2 : n'applique stats ET ELO QUE sur salles classées (matchmaking).
+ * Les salles custom (ouvertes / MDP) restent amicales et n'affectent ni W/L ni ELO.
  */
 export async function applyMyPvpDuelStatsFromRoom(roomId, userId) {
   const id = String(roomId || '').trim();
@@ -336,63 +482,55 @@ export async function applyMyPvpDuelStatsFromRoom(roomId, userId) {
         if (!snap.exists()) return;
         const d = snap.data();
         if (d.status !== 'completed') return;
-        if (d.pvpDuelStatsSchemaVersion !== 1) return;
+        const schema = Number(d.pvpDuelStatsSchemaVersion);
+        if (schema !== 2) return;
         const slot = Number(d.combat?.winnerSlot);
         if (slot !== 1 && slot !== 2) return;
+        const isRanked = d.combat?.isRanked === true;
 
-        if (d.hostId === userId) {
-          if (d.hostDuelStatsApplied === true) return;
-          const charId = d.hostSnapshot?.id;
-          if (!charId) {
-            tx.update(ref, { hostDuelStatsApplied: true, updatedAt: Timestamp.now() });
-            return;
-          }
-          const won = slot === 1;
-          const charName = String(d.hostSnapshot?.name || '—').slice(0, 40);
-          const statsRef = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, String(charId));
-          const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
-          const meta = {
-            characterName: charName,
-            ownerUserId: userId,
-            ownerPseudo,
-            characterId: String(charId),
-            updatedAt: Timestamp.now(),
-          };
-          if (won) {
-            tx.set(statsRef, { wins: increment(1), ...meta }, { merge: true });
-            tx.set(boardRef, { wins: increment(1), ...meta }, { merge: true });
-          } else {
-            tx.set(statsRef, { losses: increment(1), ...meta }, { merge: true });
-            tx.set(boardRef, { losses: increment(1), ...meta }, { merge: true });
-          }
-          tx.update(ref, { hostDuelStatsApplied: true, updatedAt: Timestamp.now() });
-        } else if (d.guestId === userId) {
-          if (d.guestDuelStatsApplied === true) return;
-          const charId = d.guestSnapshot?.id;
-          if (!charId) {
-            tx.update(ref, { guestDuelStatsApplied: true, updatedAt: Timestamp.now() });
-            return;
-          }
-          const won = slot === 2;
-          const charName = String(d.guestSnapshot?.name || '—').slice(0, 40);
-          const statsRef = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, String(charId));
-          const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
-          const meta = {
-            characterName: charName,
-            ownerUserId: userId,
-            ownerPseudo,
-            characterId: String(charId),
-            updatedAt: Timestamp.now(),
-          };
-          if (won) {
-            tx.set(statsRef, { wins: increment(1), ...meta }, { merge: true });
-            tx.set(boardRef, { wins: increment(1), ...meta }, { merge: true });
-          } else {
-            tx.set(statsRef, { losses: increment(1), ...meta }, { merge: true });
-            tx.set(boardRef, { losses: increment(1), ...meta }, { merge: true });
-          }
-          tx.update(ref, { guestDuelStatsApplied: true, updatedAt: Timestamp.now() });
+        const isHost = d.hostId === userId;
+        const isGuest = d.guestId === userId;
+        if (!isHost && !isGuest) return;
+
+        const appliedFlag = isHost ? 'hostDuelStatsApplied' : 'guestDuelStatsApplied';
+        if (d[appliedFlag] === true) return;
+
+        const snap2 = isHost ? d.hostSnapshot : d.guestSnapshot;
+        const charId = snap2?.id;
+
+        if (!charId || !isRanked) {
+          // Pas de stats à écrire (perso sans id ou partie non classée) : on marque juste comme traité.
+          tx.update(ref, { [appliedFlag]: true, updatedAt: Timestamp.now() });
+          return;
         }
+
+        const won = isHost ? slot === 1 : slot === 2;
+        const charName = String(snap2?.name || '—').slice(0, 40);
+        const eloBefore = isHost ? d.combat?.hostEloBefore : d.combat?.guestEloBefore;
+        const eloAfter = isHost ? d.combat?.hostEloAfter : d.combat?.guestEloAfter;
+        const eloDelta = isHost ? d.combat?.hostEloDelta : d.combat?.guestEloDelta;
+        const eloBeforeN = clampElo(Number.isFinite(Number(eloBefore)) ? Number(eloBefore) : DEFAULT_ELO);
+        const eloAfterN = clampElo(Number.isFinite(Number(eloAfter)) ? Number(eloAfter) : DEFAULT_ELO);
+        const eloDeltaN = Number.isFinite(Number(eloDelta)) ? Math.round(Number(eloDelta)) : (eloAfterN - eloBeforeN);
+
+        const statsRef = doc(db, PVP_STATS, userId, PVP_CHAR_STATS_SUB, String(charId));
+        const boardRef = doc(db, PVP_LEADERBOARD_ENTRIES, pvpLeaderboardEntryDocId(userId, charId));
+        const meta = {
+          characterName: charName,
+          ownerUserId: userId,
+          ownerPseudo,
+          characterId: String(charId),
+          elo: eloAfterN,
+          lastEloBefore: eloBeforeN,
+          lastEloDelta: eloDeltaN,
+          updatedAt: Timestamp.now(),
+        };
+
+        const winLoss = won ? { wins: increment(1) } : { losses: increment(1) };
+        tx.set(statsRef, { ...winLoss, ...meta }, { merge: true });
+        tx.set(boardRef, { ...winLoss, ...meta }, { merge: true });
+
+        tx.update(ref, { [appliedFlag]: true, updatedAt: Timestamp.now() });
       });
     });
     return { success: true };
@@ -416,6 +554,21 @@ function combatResultForFirestore(result) {
     loserId: result.loserId,
     loserNom: result.loserNom,
   };
+}
+
+/** Lit l'ELO courant d'un perso archivé (fallback DEFAULT_ELO si absent). */
+async function readCharacterElo(userId, characterId) {
+  try {
+    if (!userId || !characterId) return DEFAULT_ELO;
+    const ref = doc(db, PVP_STATS, String(userId), PVP_CHAR_STATS_SUB, String(characterId));
+    const s = await getDoc(ref);
+    if (!s.exists()) return DEFAULT_ELO;
+    const v = Number(s.data()?.elo);
+    if (!Number.isFinite(v)) return DEFAULT_ELO;
+    return clampElo(v);
+  } catch {
+    return DEFAULT_ELO;
+  }
 }
 
 /**
@@ -807,6 +960,32 @@ export async function runPvpLobbySimulation(roomId) {
 
   const combatPayload = combatResultForFirestore(result);
 
+  // ELO : uniquement sur la file matchmaking. Salles custom (ouvertes / MDP) restent amicales.
+  const isRanked = r.isMatchmakingQueue === true;
+  if (isRanked) {
+    const hostCharId = r.hostSnapshot?.id;
+    const guestCharId = r.guestSnapshot?.id;
+    const [hostEloBefore, guestEloBefore] = await Promise.all([
+      readCharacterElo(r.hostId, hostCharId),
+      readCharacterElo(r.guestId, guestCharId),
+    ]);
+    const hostWon = combatPayload.winnerSlot === 1;
+    const hostDelta = computeEloDelta(hostEloBefore, guestEloBefore, hostWon);
+    // Zero-sum strict : le perdant perd exactement ce que le gagnant gagne.
+    const guestDelta = -hostDelta;
+    const hostEloAfter = clampElo(hostEloBefore + hostDelta);
+    const guestEloAfter = clampElo(guestEloBefore + guestDelta);
+    combatPayload.isRanked = true;
+    combatPayload.hostEloBefore = hostEloBefore;
+    combatPayload.guestEloBefore = guestEloBefore;
+    combatPayload.hostEloAfter = hostEloAfter;
+    combatPayload.guestEloAfter = guestEloAfter;
+    combatPayload.hostEloDelta = hostEloAfter - hostEloBefore;
+    combatPayload.guestEloDelta = guestEloAfter - guestEloBefore;
+  } else {
+    combatPayload.isRanked = false;
+  }
+
   try {
     await retryOperation(async () => {
       await runTransaction(db, async (tx) => {
@@ -829,7 +1008,7 @@ export async function runPvpLobbySimulation(roomId) {
           combatSeed: seed,
           status: 'completed',
           combat: combatPayload,
-          pvpDuelStatsSchemaVersion: 1,
+          pvpDuelStatsSchemaVersion: 2,
           hostDuelStatsApplied: false,
           guestDuelStatsApplied: false,
           updatedAt: Timestamp.now(),

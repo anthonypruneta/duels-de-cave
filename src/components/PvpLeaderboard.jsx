@@ -45,13 +45,12 @@ function PvpLeaderboard() {
       <div className="max-w-5xl mx-auto pt-20 space-y-5 relative z-10">
         <section className="rounded-xl border-2 border-stone-600 bg-stone-950 px-5 py-5 shadow-2xl">
           <h1 className="text-3xl font-bold text-amber-400 text-center">
-            🏆 Classement duels PvP
+            🏆 Classement ELO PvP
           </h1>
           <p className="text-stone-200 text-sm max-w-xl mx-auto mt-4 text-center leading-relaxed">
-            Victoires et défaites uniquement pour les duels du lobby PvP (personnages archivés, niveau
-            max {getPvpLobbyMaxLevel()}).
+            Classé uniquement via la file matchmaking — les salles privées ne comptent plus.
             <br />
-            Pseudo compte et nom du perso affichés tels qu’au dernier duel enregistré.
+            Personnages archivés, niveau max {getPvpLobbyMaxLevel()}. ELO de départ&nbsp;: 1000.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-5">
             <Link
@@ -93,7 +92,7 @@ function PvpLeaderboard() {
               <p className="mt-3 text-xs text-red-200/90">
                 Index : déploie{' '}
                 <code className="rounded bg-black/40 px-1">firestore.indexes.json</code> (tri{' '}
-                <code className="rounded bg-black/40 px-1">wins</code> DESC sur{' '}
+                <code className="rounded bg-black/40 px-1">elo</code> DESC sur{' '}
                 <code className="rounded bg-black/40 px-1">pvpDuelLeaderboardEntries</code>).
               </p>
             )}
@@ -126,11 +125,12 @@ function PvpLeaderboard() {
                 <thead>
                   <tr className="border-b border-stone-600 bg-stone-800 text-stone-200">
                     <th className="px-3 py-3 font-bold w-12 text-center">#</th>
+                    <th className="px-3 py-3 font-bold text-right text-amber-300">ELO</th>
                     <th className="px-3 py-3 font-bold">Personnage</th>
                     <th className="px-3 py-3 font-bold">Compte (pseudo)</th>
-                    <th className="px-3 py-3 font-bold text-right text-emerald-400">Victoires</th>
-                    <th className="px-3 py-3 font-bold text-right text-rose-400">Défaites</th>
-                    <th className="px-3 py-3 font-bold text-right text-stone-300">Total</th>
+                    <th className="px-3 py-3 font-bold text-right text-emerald-400">V</th>
+                    <th className="px-3 py-3 font-bold text-right text-rose-400">D</th>
+                    <th className="px-3 py-3 font-bold text-right text-stone-300">Ratio</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -145,6 +145,9 @@ function PvpLeaderboard() {
                         <td className="px-3 py-2.5 text-center text-stone-400 font-mono text-xs">
                           {idx + 1}
                         </td>
+                        <td className="px-3 py-2.5 text-right text-amber-300 font-bold tabular-nums">
+                          {r.elo}
+                        </td>
                         <td className="px-3 py-2.5 font-semibold text-white">{r.characterName}</td>
                         <td className="px-3 py-2.5 text-stone-200">{r.ownerPseudo}</td>
                         <td className="px-3 py-2.5 text-right text-emerald-400 font-semibold tabular-nums">
@@ -154,9 +157,13 @@ function PvpLeaderboard() {
                           {r.losses}
                         </td>
                         <td className="px-3 py-2.5 text-right text-stone-300 tabular-nums">
-                          {total}
-                          {total > 0 && (
-                            <span className="text-stone-500 text-xs ml-1">({pct}%)</span>
+                          {total > 0 ? (
+                            <>
+                              {total}
+                              <span className="text-stone-500 text-xs ml-1">({pct}%)</span>
+                            </>
+                          ) : (
+                            <span className="text-stone-500">—</span>
                           )}
                         </td>
                       </tr>

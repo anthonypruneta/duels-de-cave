@@ -29,6 +29,7 @@ import {
   getPvpLobbyMaxLevel,
   isPvpOpenLobbyPublicListRoom,
   fetchMyPvpHostWaitingRoomId,
+  DEFAULT_ELO,
 } from '../services/pvpLobbyService';
 
 const SESSION_KEY = 'pvpLobbyRoomId';
@@ -145,7 +146,7 @@ function PvpLobby() {
       const statsMap = statsRes.success ? statsRes.data : {};
       const withStats = enriched.map((c) => ({
         ...c,
-        pvpDuelStats: statsMap[c.id] || { wins: 0, losses: 0 },
+        pvpDuelStats: statsMap[c.id] || { wins: 0, losses: 0, elo: DEFAULT_ELO },
       }));
       setTotalArchivedCount(withStats.length);
       setArchivedChars(withStats.filter(isCharacterEligibleForPvpLobby));
@@ -221,7 +222,7 @@ function PvpLobby() {
 
   useEffect(() => {
     if (!room?.id || room.status !== 'completed' || !currentUser?.uid) return;
-    if (room.pvpDuelStatsSchemaVersion !== 1) return;
+    if (room.pvpDuelStatsSchemaVersion !== 2) return;
     if (room.combat?.winnerSlot == null && !room.combat?.winnerNom) return;
     let cancelled = false;
     applyMyPvpDuelStatsFromRoom(room.id, currentUser.uid).then((res) => {
@@ -515,12 +516,17 @@ function PvpLobby() {
                 <span className="text-2xl">{races[c.race]?.icon || '❓'}</span>
               )}
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-white text-sm">{c.name}</div>
+                <div className="font-bold text-white text-sm flex items-center gap-2">
+                  <span className="truncate">{c.name}</span>
+                  <span className="shrink-0 rounded bg-amber-500/15 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-bold text-amber-200 tabular-nums">
+                    ELO {c.pvpDuelStats?.elo ?? DEFAULT_ELO}
+                  </span>
+                </div>
                 <div className="text-xs text-stone-400">
                   {c.race} • {c.class} • Niv.{c.level ?? 1}
                 </div>
                 <div className="text-[11px] text-stone-500 mt-0.5">
-                  Duels PvP :{' '}
+                  Classé (MM) :{' '}
                   <span className="text-emerald-400 font-semibold">{c.pvpDuelStats?.wins ?? 0}V</span>
                   {' · '}
                   <span className="text-rose-400 font-semibold">{c.pvpDuelStats?.losses ?? 0}D</span>
@@ -536,6 +542,40 @@ function PvpLobby() {
   if (replayPhase && player1 && player2 && room?.combat) {
     const p1Name = player1?.name ?? '';
     const p2Name = player2?.name ?? '';
+    const isRankedReplay = room?.combat?.isRanked === true;
+    const viewerIsHost = currentUser && room.hostId === currentUser.uid;
+    const viewerIsGuest = currentUser && room.guestId === currentUser.uid;
+    const myEloBefore = viewerIsHost
+      ? room.combat?.hostEloBefore
+      : viewerIsGuest
+        ? room.combat?.guestEloBefore
+        : null;
+    const myEloAfter = viewerIsHost
+      ? room.combat?.hostEloAfter
+      : viewerIsGuest
+        ? room.combat?.guestEloAfter
+        : null;
+    const myEloDelta = viewerIsHost
+      ? room.combat?.hostEloDelta
+      : viewerIsGuest
+        ? room.combat?.guestEloDelta
+        : null;
+    const hasEloInfo =
+      isRankedReplay &&
+      Number.isFinite(Number(myEloBefore)) &&
+      Number.isFinite(Number(myEloAfter));
+    const deltaN = Number.isFinite(Number(myEloDelta))
+      ? Math.round(Number(myEloDelta))
+      : hasEloInfo
+        ? Math.round(Number(myEloAfter) - Number(myEloBefore))
+        : 0;
+    const deltaLabel = deltaN > 0 ? `+${deltaN}` : deltaN < 0 ? `${deltaN}` : '±0';
+    const deltaColor =
+      deltaN > 0
+        ? 'text-emerald-300 border-emerald-500/50 bg-emerald-500/10'
+        : deltaN < 0
+          ? 'text-rose-300 border-rose-500/50 bg-rose-500/10'
+          : 'text-stone-200 border-stone-500/50 bg-stone-700/30';
 
     return (
       <div className="min-h-screen p-4 md:p-6">
@@ -573,10 +613,28 @@ function PvpLobby() {
 
             <div className="order-2 md:order-2 w-full md:w-[600px] lg:w-[500px] lg:flex-1 lg:min-w-[400px] md:flex-shrink-0 lg:flex-shrink flex flex-col">
               {winner && (
-                <div className="flex justify-center mb-3">
+                <div className="flex flex-col items-center gap-2 mb-3">
                   <div className="bg-amber-500/10 border border-amber-500/60 text-amber-200 px-6 py-2.5 font-bold text-lg rounded-lg animate-pulse">
                     🏆 {winner} remporte le combat !
                   </div>
+                  {hasEloInfo && (
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-lg border px-4 py-1.5 text-sm font-bold tabular-nums ${deltaColor}`}
+                    >
+                      <span className="uppercase tracking-wider text-[11px] opacity-80">
+                        ELO
+                      </span>
+                      <span>{Number(myEloBefore)}</span>
+                      <span className="opacity-70">→</span>
+                      <span>{Number(myEloAfter)}</span>
+                      <span className="ml-1">({deltaLabel})</span>
+                    </div>
+                  )}
+                  {winner && !isRankedReplay && (
+                    <div className="inline-flex items-center rounded-lg border border-stone-500/60 bg-stone-700/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-stone-300">
+                      Match amical — pas d’impact ELO
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -842,7 +900,18 @@ function PvpLobby() {
                 room.status === 'lobby' ? 'max-w-6xl' : 'max-w-xl'
               }`}
             >
-              <h2 className="text-xl font-bold text-stone-200">Salle</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-bold text-stone-200">Salle</h2>
+                {room.isMatchmakingQueue ? (
+                  <span className="inline-flex items-center rounded-full border border-amber-500/60 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-200">
+                    Classé · ELO
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full border border-stone-500/60 bg-stone-700/40 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-stone-300">
+                    Amical · non classé
+                  </span>
+                )}
+              </div>
               {!room.isMatchmakingQueue && (
                 <p className="text-stone-400 text-sm font-mono break-all">ID : {room.id}</p>
               )}
@@ -897,7 +966,10 @@ function PvpLobby() {
                     </p>
                     {isHost && room.hostSnapshot?.id && (
                       <p className="text-[11px] text-stone-500 mt-1">
-                        Record duels PvP :{' '}
+                        <span className="text-amber-300 font-semibold">
+                          ELO {archivedChars.find((c) => c.id === room.hostSnapshot.id)?.pvpDuelStats?.elo ?? DEFAULT_ELO}
+                        </span>
+                        {' · '}
                         <span className="text-emerald-400 font-semibold">
                           {archivedChars.find((c) => c.id === room.hostSnapshot.id)?.pvpDuelStats?.wins ?? 0}V
                         </span>
@@ -921,7 +993,10 @@ function PvpLobby() {
                     </p>
                     {isGuest && room.guestSnapshot?.id && (
                       <p className="text-[11px] text-stone-500 mt-1">
-                        Record duels PvP :{' '}
+                        <span className="text-amber-300 font-semibold">
+                          ELO {archivedChars.find((c) => c.id === room.guestSnapshot.id)?.pvpDuelStats?.elo ?? DEFAULT_ELO}
+                        </span>
+                        {' · '}
                         <span className="text-emerald-400 font-semibold">
                           {archivedChars.find((c) => c.id === room.guestSnapshot.id)?.pvpDuelStats?.wins ?? 0}V
                         </span>

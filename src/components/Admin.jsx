@@ -37,6 +37,7 @@ import AdminCoopRedSimPanel from './AdminCoopRedSimPanel';
 import { adminCleanCoopRedPointeauAndHistory } from '../services/adminCoopRedPointeauService';
 import { htmlToDiscordMarkdown } from '../utils/htmlToDiscordMarkdown';
 import { runCheatAudit, SEVERITY_LABELS, CATEGORY_LABELS } from '../services/cheatAuditService';
+import { adminResetPvpLeaderboard } from '../services/pvpLobbyService';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -87,6 +88,9 @@ const Admin = () => {
 
   // État pour la migration PV 4→6
   const [migrationHpLoading, setMigrationHpLoading] = useState(false);
+
+  // État pour le reset classement PvP (ELO)
+  const [resetPvpLeaderboardLoading, setResetPvpLeaderboardLoading] = useState(false);
 
   // Niveau / stats Forêt (admin)
   const [clampLevelLoading, setClampLevelLoading] = useState(false);
@@ -2189,6 +2193,52 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             className="bg-amber-600 hover:bg-amber-500 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition"
           >
             {migrationHpLoading ? '⏳ Migration...' : '🩺 Migration PV 4→6'}
+          </button>
+        </div>
+
+        {/* Reset classement PvP (ELO) — one-shot */}
+        <div className="bg-stone-900/70 border-2 border-red-700 rounded-xl p-4 mb-6">
+          <h2 className="text-lg font-bold text-red-300 mb-2">⚔️ Reset classement PvP (ELO)</h2>
+          <p className="text-stone-400 text-sm mb-3">
+            Supprime <strong>toutes</strong> les entrées du classement ELO PvP (collection
+            <code className="mx-1 rounded bg-black/40 px-1">pvpDuelLeaderboardEntries</code>) ainsi
+            que toutes les stats par perso archivé (<code className="mx-1 rounded bg-black/40 px-1">pvpDuelStatsByUser/*</code>).
+            Chaque perso redémarrera à ELO&nbsp;1000 / 0V / 0D à son prochain match classé. Les salles
+            amicales (avec mot de passe ou ouvertes) n'affectent plus l'ELO depuis le schéma v2.
+          </p>
+          <button
+            onClick={async () => {
+              if (!window.confirm(
+                'Confirmer : reset COMPLET du classement PvP (ELO + W/D) pour TOUS les joueurs ? Cette action est irréversible.'
+              )) return;
+              if (!window.confirm(
+                'Dernière confirmation : effacer toutes les entrées du classement et toutes les stats PvP ?'
+              )) return;
+              setResetPvpLeaderboardLoading(true);
+              try {
+                const result = await adminResetPvpLeaderboard();
+                if (result.success) {
+                  alert(
+                    `✅ Reset effectué.\n` +
+                    `- Entrées classement supprimées : ${result.deletedBoard}\n` +
+                    `- Stats par perso supprimées : ${result.deletedStats}\n` +
+                    `- Legacy supprimées : ${result.deletedLegacy}\n` +
+                    `- Utilisateurs concernés : ${result.userIds}`
+                  );
+                } else {
+                  alert(`❌ Reset partiel : ${result.error}\n` +
+                    `Entrées=${result.deletedBoard} / Stats=${result.deletedStats} / Legacy=${result.deletedLegacy}`);
+                }
+              } catch (e) {
+                alert(`❌ ${e.message || 'Erreur inconnue'}`);
+              } finally {
+                setResetPvpLeaderboardLoading(false);
+              }
+            }}
+            disabled={resetPvpLeaderboardLoading}
+            className="bg-red-700 hover:bg-red-600 disabled:bg-stone-700 disabled:text-stone-500 text-white px-4 py-2 rounded-lg font-bold transition"
+          >
+            {resetPvpLeaderboardLoading ? '⏳ Reset en cours…' : '🗑️ Reset classement PvP (ELO)'}
           </button>
         </div>
 
