@@ -1862,13 +1862,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
               {report && (
                 <>
                   {/* Résumé */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
                       <div className="text-xs text-stone-400">Personnages</div>
                       <div className="text-2xl font-bold text-white">{report.summary.totalCharacters}</div>
                     </div>
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
-                      <div className="text-xs text-stone-400">Snapshots</div>
+                      <div className="text-xs text-stone-400">Snapshots (perso actuel)</div>
                       <div className="text-2xl font-bold text-white">{report.summary.totalSnapshots}</div>
                     </div>
                     <div className="bg-stone-800 border border-stone-600 rounded px-3 py-2">
@@ -1888,6 +1888,11 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
                       </div>
                     </div>
                   </div>
+                  {report.summary.orphanSnapshotsSkipped > 0 && (
+                    <p className="text-xs text-stone-500 italic mb-4">
+                      ℹ️ {report.summary.orphanSnapshotsSkipped} snapshot(s) d'anciens personnages ignoré(s) (sur {report.summary.totalSnapshotsAllTime} total).
+                    </p>
+                  )}
 
                   {/* Bascule mode : suspects / tous les joueurs */}
                   <div className="flex flex-wrap gap-2 mb-4 items-center">

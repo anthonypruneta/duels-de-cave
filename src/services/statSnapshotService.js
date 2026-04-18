@@ -100,11 +100,17 @@ export async function recordStatSnapshot(userId, { type, context, extra = null }
       return { success: false, error: 'Impossible de sérialiser les stats' };
     }
 
+    // characterInstanceId : permet de lier un snapshot à une INSTANCE précise de
+    // personnage. Quand l'utilisateur reroll après un tournoi, un nouvel id est
+    // généré, donc l'audit peut ignorer les vieux snapshots d'un ancien perso.
+    const characterInstanceId = charData.characterInstanceId || null;
+
     const payload = {
       type,
       context,
       when: serverTimestamp(),
       stats: statSnap,
+      characterInstanceId,
       ...(extra && typeof extra === 'object' ? { extra } : {}),
     };
 

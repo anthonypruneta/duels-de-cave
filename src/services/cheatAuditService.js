@@ -75,6 +75,46 @@ const LEVEL_REGRESSION_CRITICAL = 10;
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
 // =====================================================================
+// Filtrage des snapshots orphelins (ancien personnage)
+// =====================================================================
+
+function getWhenMs(when) {
+  if (!when) return 0;
+  if (typeof when.toDate === 'function') return when.toDate().getTime();
+  if (typeof when.seconds === 'number') return when.seconds * 1000;
+  return 0;
+}
+
+/**
+ * Ne garde que les snapshots liés à l'instance courante du personnage.
+ *
+ * Un joueur qui reroll après un tournoi conserve son uid, donc ses vieux
+ * snapshots restent dans `characters/{uid}/statSnapshots/*`. On les ignore :
+ *  1. via le `characterInstanceId` (nouveau champ, présent dans les snapshots
+ *     créés après cette mise à jour)
+ *  2. ou, par défaut, via le `createdAt` du personnage actuel : tout snapshot
+ *     écrit AVANT la date de création du perso actuel correspond à un ancien
+ *     personnage.
+ */
+function filterSnapshotsForCurrentCharacter(char, snaps) {
+  if (!snaps || snaps.length === 0) return [];
+  const currentInstanceId = char?.characterInstanceId || null;
+  const createdAtMs = getWhenMs(char?.createdAt);
+  return snaps.filter((s) => {
+    if (currentInstanceId && s.characterInstanceId) {
+      return s.characterInstanceId === currentInstanceId;
+    }
+    const snapMs = getWhenMs(s.when);
+    if (createdAtMs > 0 && snapMs > 0) {
+      // Petit buffer de 60s pour éviter les micro-écarts d'horloge serveur
+      return snapMs >= (createdAtMs - 60_000);
+    }
+    // Cas indéterminé : on le garde pour ne pas masquer de vraies régressions.
+    return true;
+  });
+}
+
+// =====================================================================
 // Utilitaires
 // =====================================================================
 
@@ -379,9 +419,14 @@ export async function runCheatAudit() {
 
     const findings = [];
     const perUser = {}; // userId -> { character, snapshots }
+    let totalOrphanSkipped = 0;
 
     for (const char of allCharacters) {
-      const snaps = snapshotsByUser[char.id] || [];
+      const rawSnaps = snapshotsByUser[char.id] || [];
+      const snaps = filterSnapshotsForCurrentCharacter(char, rawSnaps);
+      const skipped = rawSnaps.length - snaps.length;
+      if (skipped > 0) totalOrphanSkipped += skipped;
+
       perUser[char.id] = {
         userId: char.id,
         characterName: char.name,
@@ -392,6 +437,7 @@ export async function runCheatAudit() {
         base: char.base,
         forestBoosts: char.forestBoosts,
         snapshots: snaps,
+        orphanSkipped: skipped,
       };
 
       if (snaps.length === 0) continue;
@@ -400,6 +446,10 @@ export async function runCheatAudit() {
         compareSnapshotToCurrent(char, s, findings);
       }
       checkSnapshotChronology(char, snaps, findings);
+    }
+
+    if (totalOrphanSkipped > 0) {
+      console.log(`${runLabel} ${totalOrphanSkipped} snapshot(s) ignoré(s) (anciens personnages)`);
     }
 
     // Trier par gravité puis par nom.
@@ -433,10 +483,14 @@ export async function runCheatAudit() {
       return scoreB - scoreA;
     });
 
+    const totalSnapshotsAll = Object.values(snapshotsByUser).reduce((acc, list) => acc + list.length, 0);
+    const totalSnapshotsCurrent = Object.values(perUser).reduce((acc, u) => acc + (u.snapshots?.length || 0), 0);
     const summary = {
       totalCharacters: allCharacters.length,
-      totalSnapshots: Object.values(snapshotsByUser).reduce((acc, list) => acc + list.length, 0),
-      charactersWithSnapshots: Object.keys(snapshotsByUser).length,
+      totalSnapshots: totalSnapshotsCurrent,
+      totalSnapshotsAllTime: totalSnapshotsAll,
+      orphanSnapshotsSkipped: totalOrphanSkipped,
+      charactersWithSnapshots: Object.values(perUser).filter((u) => (u.snapshots?.length || 0) > 0).length,
       totalFindings: findings.length,
       totalSuspects: suspects.length,
       bySeverity: findings.reduce((acc, f) => {
