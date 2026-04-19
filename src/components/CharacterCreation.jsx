@@ -1261,22 +1261,15 @@ const CharacterCreation = () => {
       weapon,
     } = statsDisplay;
 
-    // CC/DC sur la page d'accueil : valeur "fiche" (neutre, sans bonus d'écart de VIT).
+    // CC/DC sur la page d'accueil : valeur "fiche" (hors combat → pas de "duel de VIT" / bonus Gnome).
     const critAttacker = { ...(existingCharacter || {}), base: finalStats ?? existingCharacter?.base ?? {} };
-    const neutralDefender = { base: { spd: critAttacker?.base?.spd ?? 0 } };
-    const cc = calcCritChance(critAttacker, neutralDefender);
-    const dc = getCritMultiplier(critAttacker, neutralDefender);
+    const cc = calcCritChance(critAttacker, null);
+    const dc = getCritMultiplier(critAttacker, null);
     const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
     const dcText = `x${(dc ?? 1.5).toFixed(2)}`;
 
-    // Référence "base" pour le vert/rouge : sans bonus d'écart de VIT, sans bonus d'éveil/armes.
-    const baseCc = (() => {
-      let c = generalConstants.baseCritChance;
-      const cap = critAttacker?.base?.cap ?? 0;
-      if (critAttacker?.class === 'Voleur') c += classConstants.voleur.critPerCap * cap;
-      if (critAttacker?.race === 'Elfe' && !critAttacker?.awakening) c += raceConstants.elfe.critBonus;
-      return c;
-    })();
+    // Référence "base" pour le vert/rouge : valeur fixe (sans aucun bonus).
+    const baseCc = generalConstants.baseCritChance;
     const baseDc = generalConstants.critMultiplier;
     const ccDelta = (cc ?? 0) - baseCc;
     const dcDelta = (dc ?? baseDc) - baseDc;

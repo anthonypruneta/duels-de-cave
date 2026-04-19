@@ -23,7 +23,7 @@ import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLO
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
 import { getDisplayTitle } from '../services/titleService';
-import { calcCritChance, getCritMultiplier, classConstants, raceConstants, generalConstants } from '../data/combatMechanics';
+import { calcCritChance, getCritMultiplier, generalConstants } from '../data/combatMechanics';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -90,26 +90,19 @@ export default function CharacterCardContent({
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((shield ?? character?.shield ?? 0) / safeMaxHP) * 100) : 0;
 
-  // Affichage "fiche" : CC/DC basés sur les stats du perso, sans dépendre d'un adversaire spécifique.
-  // En combat, si un adversaire est disponible, on affiche la valeur réelle vs cet adversaire (inclut l'écart de VIT).
-  // Hors combat, on passe un défenseur "neutre" avec la même VIT pour ne pas inclure le bonus d'écart de VIT.
+  // CC/DC :
+  // - En combat : valeur réelle vs l'adversaire (inclut bonus d'écart de VIT / Gnome / éveils, etc.).
+  // - Hors combat : pas de défenseur → pas de "duel de VIT" (les bonus Gnome ne doivent pas s'appliquer hors combat).
   const critAttacker = { ...(character || {}), base: combatBaseOverride ?? finalStats ?? character?.base ?? {} };
-  const neutralDefender = { base: { spd: critAttacker?.base?.spd ?? 0 } };
-  const defenderForCrit = opponent?.base ? opponent : neutralDefender;
+  const defenderForCrit = opponent?.base ? opponent : null;
   const cc = calcCritChance(critAttacker, defenderForCrit); // 0..1
   const dc = getCritMultiplier(critAttacker, defenderForCrit); // ex: 1.5
   const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
   const dcText = `x${(dc ?? 1.5).toFixed(2)}`;
 
-  // Référence "base" pour le vert/rouge : sans bonus d'écart de VIT, sans bonus d'éveil/armes.
-  // (On garde Voleur/Elfe comme partie intégrante de la formule de base.)
-  const baseCc = (() => {
-    let c = generalConstants.baseCritChance;
-    const cap = critAttacker?.base?.cap ?? 0;
-    if (critAttacker?.class === 'Voleur') c += classConstants.voleur.critPerCap * cap;
-    if (critAttacker?.race === 'Elfe' && !critAttacker?.awakening) c += raceConstants.elfe.critBonus;
-    return c;
-  })();
+  // Référence "base" pour le vert/rouge : valeur fixe (sans aucun bonus).
+  // Les bonus permanents (Elfe/Voleur/éveils/armes) doivent faire passer la stat en vert.
+  const baseCc = generalConstants.baseCritChance;
   const baseDc = generalConstants.critMultiplier;
 
   const ccDelta = (cc ?? 0) - baseCc;
