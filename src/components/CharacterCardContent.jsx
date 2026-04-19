@@ -23,7 +23,7 @@ import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLO
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
 import { getDisplayTitle } from '../services/titleService';
-import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
+import { calcCritChance, getCritMultiplier, classConstants, raceConstants, generalConstants } from '../data/combatMechanics';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -91,13 +91,34 @@ export default function CharacterCardContent({
   const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((shield ?? character?.shield ?? 0) / safeMaxHP) * 100) : 0;
 
   // Affichage "fiche" : CC/DC basés sur les stats du perso, sans dépendre d'un adversaire spécifique.
-  // On passe un défenseur "neutre" avec la même VIT pour ne pas inclure le bonus d'écart de VIT.
+  // En combat, si un adversaire est disponible, on affiche la valeur réelle vs cet adversaire (inclut l'écart de VIT).
+  // Hors combat, on passe un défenseur "neutre" avec la même VIT pour ne pas inclure le bonus d'écart de VIT.
   const critAttacker = { ...(character || {}), base: combatBaseOverride ?? finalStats ?? character?.base ?? {} };
   const neutralDefender = { base: { spd: critAttacker?.base?.spd ?? 0 } };
-  const cc = calcCritChance(critAttacker, neutralDefender); // 0..1
-  const dc = getCritMultiplier(critAttacker, neutralDefender); // ex: 1.5
+  const defenderForCrit = opponent?.base ? opponent : neutralDefender;
+  const cc = calcCritChance(critAttacker, defenderForCrit); // 0..1
+  const dc = getCritMultiplier(critAttacker, defenderForCrit); // ex: 1.5
   const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
   const dcText = `x${(dc ?? 1.5).toFixed(2)}`;
+
+  // Référence "base" pour le vert/rouge : sans bonus d'écart de VIT, sans bonus d'éveil/armes.
+  // (On garde Voleur/Elfe comme partie intégrante de la formule de base.)
+  const baseCc = (() => {
+    let c = generalConstants.baseCritChance;
+    const cap = critAttacker?.base?.cap ?? 0;
+    if (critAttacker?.class === 'Voleur') c += classConstants.voleur.critPerCap * cap;
+    if (critAttacker?.race === 'Elfe' && !critAttacker?.awakening) c += raceConstants.elfe.critBonus;
+    return c;
+  })();
+  const baseDc = generalConstants.critMultiplier;
+
+  const ccDelta = (cc ?? 0) - baseCc;
+  const dcDelta = (dc ?? baseDc) - baseDc;
+  const ccClass = ccDelta > 1e-6 ? 'text-green-400' : ccDelta < -1e-6 ? 'text-red-400' : 'text-white';
+  const dcClass = dcDelta > 1e-6 ? 'text-green-400' : dcDelta < -1e-6 ? 'text-red-400' : 'text-white';
+
+  const ccTooltip = `Base: ${Math.round(baseCc * 1000) / 10}% | Total: ${ccPct}${opponent?.base ? ' (vs adversaire)' : ''}`;
+  const dcTooltip = `Base: x${baseDc.toFixed(2)} | Total: ${dcText}${opponent?.base ? ' (vs adversaire)' : ''}`;
 
   const combatBuffsDebuffs = (showHpBar && (opponent || combatModifiers || combatStatus)) ? getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus) : [];
   const aboveHpBar = combatBuffsDebuffs.length > 0 ? (
@@ -172,12 +193,16 @@ export default function CharacterCardContent({
   const mainStats = combatBaseOverride ? (
     <>
       {STAT_KEYS_MAIN.map((k) => <CombatStatLine key={k} statKey={k} />)}
-      <div>
-        CC : <span className="text-white font-bold">{ccPct}</span>
-      </div>
-      <div>
-        DC : <span className="text-white font-bold">{dcText}</span>
-      </div>
+      <SharedTooltip content={ccTooltip}>
+        <div className="cursor-help">
+          CC : <span className={`font-bold ${ccClass}`}>{ccPct}</span>
+        </div>
+      </SharedTooltip>
+      <SharedTooltip content={dcTooltip}>
+        <div className="cursor-help">
+          DC : <span className={`font-bold ${dcClass}`}>{dcText}</span>
+        </div>
+      </SharedTooltip>
     </>
   ) : (
     <>
@@ -185,12 +210,16 @@ export default function CharacterCardContent({
       <StatLine statKey="def" label="Déf" />
       <StatLine statKey="cap" label="Cap" />
       <StatLine statKey="rescap" label="ResC" />
-      <div>
-        CC : <span className="text-white font-bold">{ccPct}</span>
-      </div>
-      <div>
-        DC : <span className="text-white font-bold">{dcText}</span>
-      </div>
+      <SharedTooltip content={ccTooltip}>
+        <div className="cursor-help">
+          CC : <span className={`font-bold ${ccClass}`}>{ccPct}</span>
+        </div>
+      </SharedTooltip>
+      <SharedTooltip content={dcTooltip}>
+        <div className="cursor-help">
+          DC : <span className={`font-bold ${dcClass}`}>{dcText}</span>
+        </div>
+      </SharedTooltip>
     </>
   );
 

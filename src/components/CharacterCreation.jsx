@@ -12,7 +12,7 @@ import { classes } from '../data/classes';
 import { normalizeCharacterBonuses } from '../utils/characterBonuses';
 import { applyStatBoosts, getEmptyStatBoosts, getStatPointValue } from '../utils/statPoints';
 import { getWeaponById, getWeaponFamilyInfo, getWeaponsByFamily, RARITY_COLORS } from '../data/weapons';
-import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants } from '../data/combatMechanics';
+import { classConstants, raceConstants, getRaceBonus, getClassBonus, weaponConstants, calcCritChance, getCritMultiplier, generalConstants } from '../data/combatMechanics';
 import { getMageTowerPassiveById, getMageTowerPassiveLevel, MAGE_TOWER_PASSIVES } from '../data/mageTowerPassives';
 import { getFusedPassiveDisplayData } from '../data/extensionDungeon';
 import SharedTooltip from './SharedTooltip';
@@ -1261,6 +1261,30 @@ const CharacterCreation = () => {
       weapon,
     } = statsDisplay;
 
+    // CC/DC sur la page d'accueil : valeur "fiche" (neutre, sans bonus d'écart de VIT).
+    const critAttacker = { ...(existingCharacter || {}), base: finalStats ?? existingCharacter?.base ?? {} };
+    const neutralDefender = { base: { spd: critAttacker?.base?.spd ?? 0 } };
+    const cc = calcCritChance(critAttacker, neutralDefender);
+    const dc = getCritMultiplier(critAttacker, neutralDefender);
+    const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
+    const dcText = `x${(dc ?? 1.5).toFixed(2)}`;
+
+    // Référence "base" pour le vert/rouge : sans bonus d'écart de VIT, sans bonus d'éveil/armes.
+    const baseCc = (() => {
+      let c = generalConstants.baseCritChance;
+      const cap = critAttacker?.base?.cap ?? 0;
+      if (critAttacker?.class === 'Voleur') c += classConstants.voleur.critPerCap * cap;
+      if (critAttacker?.race === 'Elfe' && !critAttacker?.awakening) c += raceConstants.elfe.critBonus;
+      return c;
+    })();
+    const baseDc = generalConstants.critMultiplier;
+    const ccDelta = (cc ?? 0) - baseCc;
+    const dcDelta = (dc ?? baseDc) - baseDc;
+    const ccClass = ccDelta > 1e-6 ? 'text-green-400' : ccDelta < -1e-6 ? 'text-red-400' : 'text-white';
+    const dcClass = dcDelta > 1e-6 ? 'text-green-400' : dcDelta < -1e-6 ? 'text-red-400' : 'text-white';
+    const ccTooltip = `Base: ${Math.round(baseCc * 1000) / 10}% | Total: ${ccPct}`;
+    const dcTooltip = `Base: x${baseDc.toFixed(2)} | Total: ${dcText}`;
+
     const StatLine = ({ statKey, label, valueClassName = '' }) => {
       const props = getStatLineProps(statKey, label, valueClassName);
       const { displayValue, hasBonus, labelClass, tooltipContent: tip } = props;
@@ -1298,6 +1322,16 @@ const CharacterCreation = () => {
                     <StatLine statKey="def" label="Déf" />
                     <StatLine statKey="cap" label="Cap" />
                     <StatLine statKey="rescap" label="ResC" />
+                    <Tooltip content={ccTooltip}>
+                      <div className="cursor-help">
+                        CC : <span className={`font-bold ${ccClass}`}>{ccPct}</span>
+                      </div>
+                    </Tooltip>
+                    <Tooltip content={dcTooltip}>
+                      <div className="cursor-help">
+                        DC : <span className={`font-bold ${dcClass}`}>{dcText}</span>
+                      </div>
+                    </Tooltip>
                   </div>
                   <div className="border-t border-stone-700/60 pt-3 space-y-2 overflow-visible">
                     {weapon ? (() => {
