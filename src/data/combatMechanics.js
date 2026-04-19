@@ -231,8 +231,8 @@ export const generalConstants = {
 };
 
 // Fonctions utilitaires
-export const dmgPhys = (auto, def) => Math.max(1, Math.round(auto - 0.5 * def));
-export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.5 * rescap));
+export const dmgPhys = (auto, def) => Math.max(1, Math.round(auto - 0.65 * def));
+export const dmgCap = (cap, rescap) => Math.max(1, Math.round(cap - 0.65 * rescap));
 
 // Calcul du crit chance (identique à Combat.jsx)
 export const getSpeedDuelBonuses = (attacker, defender) => {
@@ -244,6 +244,16 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
     aw.speedDuelCritHigh != null ||
     aw.speedDuelDodgeLow != null ||
     aw.speedDuelEqualCrit != null;
+
+  // Bonus générique : +1% crit par 10 VIT d'avance (cap à +10%).
+  // Récompense les investissements en vitesse, sans rendre la VIT obligatoire.
+  const spdDelta = (attacker?.base?.spd ?? 0) - (defender?.base?.spd ?? 0);
+  if (spdDelta > 0) {
+    const raw = Math.floor(spdDelta / 10) * 0.01;
+    bonuses.crit += Math.min(0.10, Math.max(0, raw));
+  }
+
+  // Bonus spécifiques Gnome (race) et/ou overrides d'éveil.
   if (attacker?.race !== 'Gnome' && !hasSpeedDuelFromAwakening) return bonuses;
 
   const critIfFaster = aw.speedDuelCritHigh ?? raceConstants.gnome.critIfFaster;
