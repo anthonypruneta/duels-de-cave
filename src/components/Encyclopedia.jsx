@@ -22,6 +22,8 @@ const STAT_LABELS = {
   cap: 'Cap',
   rescap: 'ResC',
   spd: 'VIT',
+  cc: 'CC',
+  dc: 'DC',
 };
 
 const STAT_DESCRIPTIONS = {
@@ -31,6 +33,8 @@ const STAT_DESCRIPTIONS = {
   cap: "Puissance des capacités (CAP) et scaling de plusieurs effets.",
   rescap: "Réduit les dégâts magiques/CAP reçus.",
   spd: "Détermine l'ordre d'action (le plus rapide joue en premier).",
+  cc: "Chance de critique (en %). La VIT peut aussi en donner via l'écart de VIT avec l'adversaire (cap +10%).",
+  dc: "Dégâts critiques : multiplicateur appliqué quand un coup critique (ex: x1.50). Peut être modifié par certains effets/armes/éveils.",
 };
 
 const splitDescriptionLines = (text) => {

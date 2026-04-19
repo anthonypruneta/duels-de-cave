@@ -23,6 +23,7 @@ import { getWeaponImage, getWeaponTooltipContent, formatWeaponStats, RARITY_COLO
 import SubclassDetailBlock from './SubclassDetailBlock';
 import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
 import { getDisplayTitle } from '../services/titleService';
+import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -88,6 +89,15 @@ export default function CharacterCardContent({
   const hpPercent = hpRatio * 100;
   const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((shield ?? character?.shield ?? 0) / safeMaxHP) * 100) : 0;
+
+  // Affichage "fiche" : CC/DC basés sur les stats du perso, sans dépendre d'un adversaire spécifique.
+  // On passe un défenseur "neutre" avec la même VIT pour ne pas inclure le bonus d'écart de VIT.
+  const critAttacker = { ...(character || {}), base: combatBaseOverride ?? finalStats ?? character?.base ?? {} };
+  const neutralDefender = { base: { spd: critAttacker?.base?.spd ?? 0 } };
+  const cc = calcCritChance(critAttacker, neutralDefender); // 0..1
+  const dc = getCritMultiplier(critAttacker, neutralDefender); // ex: 1.5
+  const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
+  const dcText = `x${(dc ?? 1.5).toFixed(2)}`;
 
   const combatBuffsDebuffs = (showHpBar && (opponent || combatModifiers || combatStatus)) ? getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus) : [];
   const aboveHpBar = combatBuffsDebuffs.length > 0 ? (
@@ -162,6 +172,12 @@ export default function CharacterCardContent({
   const mainStats = combatBaseOverride ? (
     <>
       {STAT_KEYS_MAIN.map((k) => <CombatStatLine key={k} statKey={k} />)}
+      <div>
+        CC : <span className="text-white font-bold">{ccPct}</span>
+      </div>
+      <div>
+        DC : <span className="text-white font-bold">{dcText}</span>
+      </div>
     </>
   ) : (
     <>
@@ -169,6 +185,12 @@ export default function CharacterCardContent({
       <StatLine statKey="def" label="Déf" />
       <StatLine statKey="cap" label="Cap" />
       <StatLine statKey="rescap" label="ResC" />
+      <div>
+        CC : <span className="text-white font-bold">{ccPct}</span>
+      </div>
+      <div>
+        DC : <span className="text-white font-bold">{dcText}</span>
+      </div>
     </>
   );
 
