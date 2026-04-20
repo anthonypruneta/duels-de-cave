@@ -27,6 +27,7 @@ import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import UnifiedCharacterCard from './UnifiedCharacterCard';
+import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
 
 const subclassImageModules = import.meta.glob('../assets/subclass/*.png', { eager: true, import: 'default' });
 const getSubclassImage = (imageFile) => {
@@ -317,6 +318,8 @@ const SubclassDungeon = () => {
             <div>DEF: {base.def}</div>
             <div>CAP: {base.cap}</div>
             <div>RESC: {base.rescap}</div>
+            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
+            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
           </>
         }
         details={bossChar.ability ? (

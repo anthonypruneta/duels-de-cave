@@ -95,7 +95,10 @@ export default function CharacterCardContent({
   // - Hors combat : pas de défenseur → pas de "duel de VIT" (les bonus Gnome ne doivent pas s'appliquer hors combat).
   const critAttacker = { ...(character || {}), base: combatBaseOverride ?? finalStats ?? character?.base ?? {} };
   const defenderForCrit = opponent?.base ? opponent : null;
-  const cc = calcCritChance(critAttacker, defenderForCrit); // 0..1
+  // Reflet Maudit (debuff combat) : malus de crit appliqué sur l'attaquant (stocké dans combatStatusSnapshot).
+  const refletMauditCritMalus =
+    (combatStatus?._refletMauditCritMalus ?? critAttacker?._refletMauditCritMalus ?? 0) || 0;
+  const cc = Math.max(0, calcCritChance(critAttacker, defenderForCrit) - refletMauditCritMalus); // 0..1
   const dc = getCritMultiplier(critAttacker, defenderForCrit); // ex: 1.5
   const ccPct = `${Math.round((cc ?? 0) * 1000) / 10}%`;
   const dcText = `x${(dc ?? 1.5).toFixed(2)}`;

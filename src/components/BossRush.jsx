@@ -18,6 +18,7 @@ import { syncUnlockedBorders } from '../data/borders';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
@@ -389,6 +390,8 @@ const BossRush = () => {
             <div>Déf: {base.def}</div>
             <div>Cap: {base.cap}</div>
             <div>ResC: {base.rescap}</div>
+            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
+            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
           </>
         }
         details={bossChar.ability ? (

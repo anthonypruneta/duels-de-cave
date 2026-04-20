@@ -14,6 +14,8 @@ import { getRaceBonusText } from '../utils/descriptionBuilders';
 import {
   classConstants,
   raceConstants,
+  calcCritChance,
+  getCritMultiplier,
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
@@ -451,6 +453,8 @@ const ExtensionDungeon = () => {
             <div>DEF: {base.def}</div>
             <div>CAP: {base.cap}</div>
             <div>RESC: {base.rescap}</div>
+            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
+            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
           </>
         }
         details={
