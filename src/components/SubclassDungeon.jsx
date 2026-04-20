@@ -26,8 +26,6 @@ import CombatSpeedSelector from './CombatSpeedSelector';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
-import UnifiedCharacterCard from './UnifiedCharacterCard';
-import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
 
 const subclassImageModules = import.meta.glob('../assets/subclass/*.png', { eager: true, import: 'default' });
 const getSubclassImage = (imageFile) => {
@@ -297,32 +295,21 @@ const SubclassDungeon = () => {
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getSubclassImage(bossChar.imageFile);
     return (
-      <UnifiedCharacterCard
-        header={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
-        name={bossChar.name}
-        image={bossImg}
-        fallback={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
-        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
-        hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
-        hpPercent={hpPercent}
-        hpClass={hpClass}
-        shieldPercent={shieldPercent}
-        mainStats={
-          <>
-            <div>Auto: {base.auto}</div>
-            <div>DEF: {base.def}</div>
-            <div>CAP: {base.cap}</div>
-            <div>RESC: {base.rescap}</div>
-            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
-            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
-          </>
-        }
-        details={bossChar.ability ? (
+      <CharacterCardContent
+        character={bossChar}
+        headerOverride={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
+        imageOverride={bossImg}
+        fallbackOverride={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
+        showHpBar
+        currentHP={Math.max(0, bossChar.currentHP)}
+        maxHP={bossChar.maxHP || base.hp || 1}
+        shield={bossChar.shield ?? 0}
+        combatBaseOverride={bossCombatBaseOverride}
+        cardClassName=""
+        borderId="gold"
+        detailsOverride={bossChar.ability ? (
           <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
             <span className="text-lg">🎓</span>
             <div className="flex-1">
@@ -331,8 +318,6 @@ const SubclassDungeon = () => {
             </div>
           </div>
         ) : null}
-        cardClassName=""
-        borderId="gold"
       />
     );
   };
@@ -609,21 +594,20 @@ const SubclassDungeon = () => {
   const bossImg = getSubclassImage(SUBCLASS_BOSS.imageFile);
 
   const LobbyBossCard = () => (
-    <UnifiedCharacterCard
-      header={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
-      name={SUBCLASS_BOSS.nom}
-      image={bossImg}
-      fallback={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
-      topStats={<><span>HP: {SUBCLASS_BOSS.stats.hp}</span><span>VIT: {SUBCLASS_BOSS.stats.spd}</span></>}
-      mainStats={
-        <>
-          <div>Auto: {SUBCLASS_BOSS.stats.auto}</div>
-          <div>DEF: {SUBCLASS_BOSS.stats.def}</div>
-          <div>CAP: {SUBCLASS_BOSS.stats.cap}</div>
-          <div>RESC: {SUBCLASS_BOSS.stats.rescap}</div>
-        </>
-      }
-      details={
+    <CharacterCardContent
+      character={{
+        name: SUBCLASS_BOSS.nom,
+        level: SUBCLASS_BOSS.level || 1,
+        base: SUBCLASS_BOSS.stats,
+        bonuses: { race: {}, class: {} },
+        isBoss: true,
+      }}
+      headerOverride={`Boss • ${SUBCLASS_DUNGEON_NAME}`}
+      imageOverride={bossImg}
+      fallbackOverride={<span className="text-7xl">{SUBCLASS_BOSS.icon}</span>}
+      cardClassName=""
+      borderId="gold"
+      detailsOverride={(
         <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
           <span className="text-lg">🎓</span>
           <div className="flex-1">
@@ -631,9 +615,7 @@ const SubclassDungeon = () => {
             <div className="text-stone-400 text-[10px]">{SUBCLASS_BOSS.ability.description}</div>
           </div>
         </div>
-      }
-      cardClassName=""
-      borderId="gold"
+      )}
     />
   );
 

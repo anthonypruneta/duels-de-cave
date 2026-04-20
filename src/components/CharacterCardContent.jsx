@@ -34,6 +34,14 @@ export default function CharacterCardContent({
   weaponOverride = null,
   imageOverride = null,
   nameOverride = null,
+  /** Override complet de l'en-tête (bandeau). */
+  headerOverride = null,
+  /** Override du fallback (si aucune image). */
+  fallbackOverride = null,
+  /** Ajoute du contenu dans la section détails (au-dessus des détails standard). */
+  detailsAppend = null,
+  /** Remplace entièrement la section détails (rare). */
+  detailsOverride = null,
   showHpBar = false,
   currentHP,
   maxHP,
@@ -274,6 +282,7 @@ export default function CharacterCardContent({
 
   const details = (
     <div className="space-y-2">
+      {detailsAppend}
       {character?.coopRedMoveDisplay && (
         <div className="flex items-start gap-2 border border-red-900/45 bg-red-950/25 p-2 text-xs text-stone-300 rounded-md">
           <span className="text-lg leading-none shrink-0">{character.coopRedBossIcon ?? '✨'}</span>
@@ -418,14 +427,18 @@ export default function CharacterCardContent({
     </div>
   );
 
+  const effectiveDetails = detailsOverride ?? details;
+
   const headerRacePart = (character?.additionalAwakeningRaces?.length > 0 && character?.race)
     ? `${character.race} + ${character.additionalAwakeningRaces[0]}`
     : (character?.race ?? '');
-  const header = `${headerRacePart} • ${character?.class ?? ''} • Niveau ${character?.level ?? 1}`;
+  const computedHeader = `${headerRacePart} • ${character?.class ?? ''} • Niveau ${character?.level ?? 1}`;
+  const header = headerOverride ?? computedHeader;
 
-  const cardFallback = character?.race && races[character.race]
+  const computedFallback = character?.race && races[character.race]
     ? <div className="h-96 w-full flex items-center justify-center"><div className="text-9xl opacity-20">{races[character.race].icon}</div></div>
     : <div className="h-96 w-full flex items-center justify-center"><span className="text-7xl opacity-20">❓</span></div>;
+  const cardFallback = fallbackOverride ?? computedFallback;
 
   const cardProps = {
     header,
@@ -485,12 +498,12 @@ export default function CharacterCardContent({
       <div className="flex gap-3 items-start">
         {detailsPlacement === 'left' && sidePanel}
         <div className="flex-shrink-0">
-          <UnifiedCharacterCard {...sidePanelCardProps} details={<div className="lg:hidden">{details}</div>} />
+          <UnifiedCharacterCard {...sidePanelCardProps} details={<div className="lg:hidden">{effectiveDetails}</div>} />
         </div>
         {detailsPlacement === 'right' && sidePanel}
       </div>
     );
   }
 
-  return <UnifiedCharacterCard {...cardProps} details={details} />;
+  return <UnifiedCharacterCard {...cardProps} details={effectiveDetails} />;
 }

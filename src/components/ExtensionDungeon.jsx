@@ -14,8 +14,6 @@ import { getRaceBonusText } from '../utils/descriptionBuilders';
 import {
   classConstants,
   raceConstants,
-  calcCritChance,
-  getCritMultiplier,
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
@@ -40,7 +38,6 @@ import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
-import UnifiedCharacterCard from './UnifiedCharacterCard';
 import SharedTooltip from './SharedTooltip';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
@@ -432,32 +429,21 @@ const ExtensionDungeon = () => {
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getExtensionImage(bossChar.imageFile);
     return (
-      <UnifiedCharacterCard
-        header="Boss • Extension du Territoire"
-        name={bossChar.name}
-        image={bossImg}
-        fallback={<span className="text-7xl">{EXTENSION_BOSS.icon}</span>}
-        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
-        hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
-        hpPercent={hpPercent}
-        hpClass={hpClass}
-        shieldPercent={shieldPercent}
-        mainStats={
-          <>
-            <div>Auto: {base.auto}</div>
-            <div>DEF: {base.def}</div>
-            <div>CAP: {base.cap}</div>
-            <div>RESC: {base.rescap}</div>
-            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
-            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
-          </>
-        }
-        details={
+      <CharacterCardContent
+        character={bossChar}
+        headerOverride="Boss • Extension du Territoire"
+        imageOverride={bossImg}
+        fallbackOverride={<span className="text-7xl">{EXTENSION_BOSS.icon}</span>}
+        showHpBar
+        currentHP={Math.max(0, bossChar.currentHP)}
+        maxHP={bossChar.maxHP || base.hp || 1}
+        shield={bossChar.shield ?? 0}
+        combatBaseOverride={bossCombatBaseOverride}
+        cardClassName=""
+        borderId="territory"
+        detailsOverride={(
           <div className="space-y-2">
             {[2, 4, 6].map((t) => {
               const spell = EXTENSION_BOSS.spells[t];
@@ -478,9 +464,7 @@ const ExtensionDungeon = () => {
               );
             })}
           </div>
-        }
-        cardClassName=""
-        borderId="territory"
+        )}
       />
     );
   };
@@ -844,21 +828,20 @@ const ExtensionDungeon = () => {
   const bossImg = getExtensionImage(EXTENSION_BOSS.imageFile);
 
   const LobbyBossCard = () => (
-    <UnifiedCharacterCard
-      header="Boss • Extension du Territoire"
-      name={EXTENSION_BOSS.nom}
-      image={bossImg}
-      fallback={<span className="text-7xl">{EXTENSION_BOSS.icon}</span>}
-      topStats={<><span>HP: {EXTENSION_BOSS.stats.hp}</span><span>VIT: {EXTENSION_BOSS.stats.spd}</span></>}
-      mainStats={
-        <>
-          <div>Auto: {EXTENSION_BOSS.stats.auto}</div>
-          <div>DEF: {EXTENSION_BOSS.stats.def}</div>
-          <div>CAP: {EXTENSION_BOSS.stats.cap}</div>
-          <div>RESC: {EXTENSION_BOSS.stats.rescap}</div>
-        </>
-      }
-      details={
+    <CharacterCardContent
+      character={{
+        name: EXTENSION_BOSS.nom,
+        level: EXTENSION_BOSS.level || 1,
+        base: EXTENSION_BOSS.stats,
+        bonuses: { race: {}, class: {} },
+        isBoss: true,
+      }}
+      headerOverride="Boss • Extension du Territoire"
+      imageOverride={bossImg}
+      fallbackOverride={<span className="text-7xl">{EXTENSION_BOSS.icon}</span>}
+      cardClassName=""
+      borderId="territory"
+      detailsOverride={(
         <div className="space-y-2">
           {[2, 4, 6].map((t) => {
             const spell = EXTENSION_BOSS.spells[t];
@@ -874,9 +857,7 @@ const ExtensionDungeon = () => {
             );
           })}
         </div>
-      }
-      cardClassName=""
-      borderId="territory"
+      )}
     />
   );
 

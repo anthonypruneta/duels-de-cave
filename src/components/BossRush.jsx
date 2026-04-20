@@ -12,13 +12,11 @@ import { replayCombatSteps } from '../utils/combatReplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
-import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CombatSpeedSelector from './CombatSpeedSelector';
 import { syncUnlockedBorders } from '../data/borders';
 import { getCurrentWeekId } from '../services/infiniteLabyrinthService';
 import { doc, getDoc, setDoc, Timestamp, increment } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { calcCritChance, getCritMultiplier } from '../data/combatMechanics';
 
 const bossImageModules = import.meta.glob('../assets/bosses/*.png', { eager: true, import: 'default' });
 const forgeImageModules = import.meta.glob('../assets/forge/*.png', { eager: true, import: 'default' });
@@ -365,36 +363,22 @@ const BossRush = () => {
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const safeMaxHP = bossMaxHP || bossChar.maxHP || base.hp || 1;
-    const currentHP = Math.max(0, bossHP ?? safeMaxHP);
-    const hpPct = Math.max(0, Math.min(100, (currentHP / safeMaxHP) * 100));
-    const hpClass = hpPct > 50 ? 'bg-green-500' : hpPct > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPct = safeMaxHP > 0 ? Math.min(100, ((bossShield || 0) / safeMaxHP) * 100) : 0;
     const bossImg = getBossImage(bossChar.imageFile, bossChar.imageSource);
     const bossInfo = bosses[currentBossIndex];
 
     return (
-      <UnifiedCharacterCard
-        header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
-        name={bossChar.name}
-        image={bossImg}
-        fallback={<span className="text-7xl">{bossInfo?.icon || '👹'}</span>}
-        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
-        hpText={`${bossChar.name} — PV ${currentHP}/${safeMaxHP}`}
-        hpPercent={hpPct}
-        hpClass={hpClass}
-        shieldPercent={shieldPct}
-        mainStats={
-          <>
-            <div>Auto: {base.auto}</div>
-            <div>Déf: {base.def}</div>
-            <div>Cap: {base.cap}</div>
-            <div>ResC: {base.rescap}</div>
-            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
-            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
-          </>
-        }
-        details={bossChar.ability ? (
+      <CharacterCardContent
+        character={bossChar}
+        headerOverride={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
+        imageOverride={bossImg}
+        fallbackOverride={<span className="text-7xl">{bossInfo?.icon || '👹'}</span>}
+        showHpBar
+        currentHP={Math.max(0, bossHP ?? (bossMaxHP || bossChar.maxHP || base.hp || 1))}
+        maxHP={bossMaxHP || bossChar.maxHP || base.hp || 1}
+        shield={bossShield || 0}
+        combatBaseOverride={bossCombatBaseOverride}
+        cardClassName="border-2 border-red-600/50"
+        detailsOverride={bossChar.ability ? (
           <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
             <span className="text-lg">⚡</span>
             <div className="flex-1">
@@ -403,7 +387,6 @@ const BossRush = () => {
             </div>
           </div>
         ) : null}
-        cardClassName="border-2 border-red-600/50"
       />
     );
   };
@@ -795,21 +778,19 @@ const BossRush = () => {
           <div className="w-full lg:w-auto flex-shrink-0">
             {boss && <BossCard bossChar={boss} combatBaseOverride={bossCombatBase} />}
             {!boss && currentBoss && (
-              <UnifiedCharacterCard
-                header={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
-                name={currentBoss.nom}
-                image={getBossImage(currentBoss.imageFile, currentBoss.imageSource)}
-                fallback={<span className="text-7xl">{currentBoss.icon}</span>}
-                topStats={<><span>HP: {currentBoss.stats.hp}</span><span>VIT: {currentBoss.stats.spd}</span></>}
-                mainStats={
-                  <>
-                    <div>Auto: {currentBoss.stats.auto}</div>
-                    <div>Déf: {currentBoss.stats.def}</div>
-                    <div>Cap: {currentBoss.stats.cap}</div>
-                    <div>ResC: {currentBoss.stats.rescap}</div>
-                  </>
-                }
-                details={currentBoss.ability ? (
+              <CharacterCardContent
+                character={{
+                  name: currentBoss.nom,
+                  level: currentBoss.level || 1,
+                  base: currentBoss.stats,
+                  bonuses: { race: {}, class: {} },
+                  isBoss: true,
+                }}
+                headerOverride={`Boss ${currentBossIndex + 1}/${BOSS_RUSH_COUNT} • Boss Rush`}
+                imageOverride={getBossImage(currentBoss.imageFile, currentBoss.imageSource)}
+                fallbackOverride={<span className="text-7xl">{currentBoss.icon}</span>}
+                cardClassName="border-2 border-red-600/50"
+                detailsOverride={currentBoss.ability ? (
                   <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
                     <span className="text-lg">⚡</span>
                     <div className="flex-1">
@@ -818,7 +799,6 @@ const BossRush = () => {
                     </div>
                   </div>
                 ) : null}
-                cardClassName="border-2 border-red-600/50"
               />
             )}
           </div>

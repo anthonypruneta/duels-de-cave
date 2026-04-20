@@ -63,7 +63,6 @@ import {
   getClassBonus
 } from '../data/combatMechanics';
 import Header from './Header';
-import UnifiedCharacterCard from './UnifiedCharacterCard';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
 import { preparerCombattant, resetTransientCombatFieldsBetweenFights, simulerMatch, tryTriggerOnctionLastStand } from '../utils/tournamentCombat';
@@ -1177,11 +1176,6 @@ const Dungeon = () => {
     if (!bossChar) return null;
 
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const safeMaxHP = bossChar.maxHP || base.hp || 1;
-    const safeCurrentHP = Math.max(0, Math.min(safeMaxHP, bossChar.currentHP));
-    const hpPercent = (safeCurrentHP / safeMaxHP) * 100;
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = safeMaxHP > 0 ? Math.min(100, ((bossChar.shield || 0) / safeMaxHP) * 100) : 0;
 
     const bossData = getBossById(bossChar.bossId);
     const bossImg = getBossImage(bossChar.imageFile);
@@ -1190,32 +1184,18 @@ const Dungeon = () => {
     const difficultyColor = DIFFICULTY_COLORS[currentLvlData?.difficulte] || '';
 
     return (
-      <UnifiedCharacterCard
-        header={`Boss • ${difficultyLabel}`}
-        name={bossChar.name}
-        image={bossImg}
-        fallback={<span className="text-7xl">{bossData?.icon || '👹'}</span>}
-        topStats={(
-          <>
-            <span>HP: {base.hp}</span>
-            <span>VIT: {base.spd}</span>
-          </>
-        )}
-        hpText={`${bossChar.name} — PV ${safeCurrentHP}/${safeMaxHP}`}
-        hpPercent={hpPercent}
-        hpClass={hpClass}
-        shieldPercent={shieldPercent}
-        mainStats={(
-          <>
-            <div>Auto: {base.auto}</div>
-            <div>Déf: {base.def}</div>
-            <div>Cap: {base.cap}</div>
-            <div>ResC: {base.rescap}</div>
-            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
-            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
-          </>
-        )}
-        details={bossChar.ability ? (
+      <CharacterCardContent
+        character={bossChar}
+        headerOverride={`Boss • ${difficultyLabel}`}
+        imageOverride={bossImg}
+        fallbackOverride={<span className="text-7xl">{bossData?.icon || '👹'}</span>}
+        showHpBar
+        currentHP={bossChar.currentHP}
+        maxHP={bossChar.maxHP || base.hp || 1}
+        shield={bossChar.shield || 0}
+        combatBaseOverride={bossCombatBaseOverride}
+        cardClassName={`border-2 border-stone-600 ${difficultyColor}`.trim()}
+        detailsOverride={bossChar.ability ? (
           <div className="flex items-start gap-2 bg-stone-700/50 p-2 text-xs border border-stone-600">
             <span className="text-lg">⚡</span>
             <div className="flex-1">
@@ -1224,7 +1204,6 @@ const Dungeon = () => {
             </div>
           </div>
         ) : null}
-        cardClassName={`border-2 border-stone-600 ${difficultyColor}`.trim()}
       />
     );
   };

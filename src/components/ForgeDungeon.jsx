@@ -18,8 +18,6 @@ import {
   raceConstants,
   dmgPhys,
   dmgCap,
-  calcCritChance,
-  getCritMultiplier,
   getRaceBonus,
   getClassBonus
 } from '../data/combatMechanics';
@@ -37,7 +35,6 @@ import WeaponNameWithForge from './WeaponWithForgeDisplay';
 import Header from './Header';
 import CharacterCardContent from './CharacterCardContent';
 import { MiniCard } from './CombatLayout';
-import UnifiedCharacterCard from './UnifiedCharacterCard';
 import { preparerCombattant, simulerMatch } from '../utils/tournamentCombat';
 import { replayCombatSteps } from '../utils/combatReplay';
 import { envoyerAnnonceDiscord } from '../services/discordService';
@@ -542,32 +539,21 @@ const ForgeDungeon = () => {
   const BossCard = ({ bossChar, combatBaseOverride: bossCombatBaseOverride }) => {
     if (!bossChar) return null;
     const base = bossCombatBaseOverride ?? bossChar.base;
-    const hpPercent = Math.max(0, Math.min(100, (bossChar.currentHP / bossChar.maxHP) * 100));
-    const hpClass = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
-    const shieldPercent = bossChar.maxHP > 0 ? Math.min(100, ((bossChar.shield ?? 0) / bossChar.maxHP) * 100) : 0;
     const bossImg = getForgeImage(bossChar.imageFile);
     return (
-      <UnifiedCharacterCard
-        header="Boss • Forge des Légendes"
-        name={bossChar.name}
-        image={bossImg}
-        fallback={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
-        topStats={<><span>HP: {base.hp}</span><span>VIT: {base.spd}</span></>}
-        hpText={`${bossChar.name} — PV ${Math.max(0, bossChar.currentHP)}/${bossChar.maxHP}`}
-        hpPercent={hpPercent}
-        hpClass={hpClass}
-        shieldPercent={shieldPercent}
-        mainStats={
-          <>
-            <div>Auto: {base.auto}</div>
-            <div>DEF: {base.def}</div>
-            <div>CAP: {base.cap}</div>
-            <div>RESC: {base.rescap}</div>
-            <div>CC: {`${Math.round(Math.max(0, (calcCritChance({ ...bossChar, base }, null) - (bossChar?._refletMauditCritMalus ?? 0))) * 1000) / 10}%`}</div>
-            <div>DC: {`x${getCritMultiplier({ ...bossChar, base }, null).toFixed(2)}`}</div>
-          </>
-        }
-        details={bossChar.ability ? (
+      <CharacterCardContent
+        character={bossChar}
+        headerOverride="Boss • Forge des Légendes"
+        imageOverride={bossImg}
+        fallbackOverride={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
+        showHpBar
+        currentHP={Math.max(0, bossChar.currentHP)}
+        maxHP={bossChar.maxHP || base.hp || 1}
+        shield={bossChar.shield ?? 0}
+        combatBaseOverride={bossCombatBaseOverride}
+        cardClassName=""
+        borderId="lava"
+        detailsOverride={bossChar.ability ? (
           <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
             <span className="text-lg">🔥</span>
             <div className="flex-1">
@@ -576,8 +562,6 @@ const ForgeDungeon = () => {
             </div>
           </div>
         ) : null}
-        cardClassName=""
-        borderId="lava"
       />
     );
   };
@@ -911,21 +895,20 @@ const ForgeDungeon = () => {
   const bossImg = getForgeImage(FORGE_BOSS.imageFile);
 
   const LobbyBossCard = () => (
-    <UnifiedCharacterCard
-      header={`Boss • Forge des Légendes`}
-      name={FORGE_BOSS.nom}
-      image={bossImg}
-      fallback={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
-      topStats={<><span>HP: {FORGE_BOSS.stats.hp}</span><span>VIT: {FORGE_BOSS.stats.spd}</span></>}
-      mainStats={
-        <>
-          <div>Auto: {FORGE_BOSS.stats.auto}</div>
-          <div>DEF: {FORGE_BOSS.stats.def}</div>
-          <div>CAP: {FORGE_BOSS.stats.cap}</div>
-          <div>RESC: {FORGE_BOSS.stats.rescap}</div>
-        </>
-      }
-      details={
+    <CharacterCardContent
+      character={{
+        name: FORGE_BOSS.nom,
+        level: FORGE_BOSS.level || 1,
+        base: FORGE_BOSS.stats,
+        bonuses: { race: {}, class: {} },
+        isBoss: true,
+      }}
+      headerOverride="Boss • Forge des Légendes"
+      imageOverride={bossImg}
+      fallbackOverride={<span className="text-7xl">{FORGE_BOSS.icon}</span>}
+      cardClassName=""
+      borderId="lava"
+      detailsOverride={(
         <div className="flex items-start gap-2 bg-stone-700/50 p-2 rounded-lg text-xs border border-stone-600">
           <span className="text-lg">🔥</span>
           <div className="flex-1">
@@ -933,9 +916,7 @@ const ForgeDungeon = () => {
             <div className="text-stone-400 text-[10px]">{FORGE_BOSS.ability.description || 'Capacité spéciale du boss'}</div>
           </div>
         </div>
-      }
-      cardClassName=""
-      borderId="lava"
+      )}
     />
   );
 
