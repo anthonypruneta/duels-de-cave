@@ -209,7 +209,7 @@ export function applyStartOfCombatPassives(attacker, defender, log, label) {
 }
 
 /** Stats visées par Malédiction / malus Sorcière */
-const SORCIERE_CURSE_STAT_KEYS = ['auto', 'def', 'cap', 'rescap', 'spd'];
+const SORCIERE_CURSE_STAT_KEYS = ['auto', 'def', 'cap', 'rescap', 'spd', 'crit'];
 
 function pickSorciereCurseStatKey() {
   return SORCIERE_CURSE_STAT_KEYS[Math.floor(combatRandom01() * SORCIERE_CURSE_STAT_KEYS.length)];
@@ -221,6 +221,18 @@ function pickSorciereCurseStatKey() {
  */
 function applySorciereCurseRandomStat(target, percent, log, label, effectLabel) {
   const stat = pickSorciereCurseStatKey();
+  // Cas spécial : CRIT n'est pas une stat "base" → on applique un malus de chance de crit (en points, ex: 0.12 = -12%).
+  if (stat === 'crit') {
+    const before = target._sorciereCritMalus || 0;
+    const add = Math.max(0, percent || 0);
+    const after = before + add;
+    target._sorciereCritMalus = after;
+    if (log && label != null && effectLabel) {
+      log.push(`${label} ${effectLabel}: ${target.name} — CRIT −${Math.round(add * 100)}% (malus permanent).`);
+    }
+    return { stat, before, after };
+  }
+
   const before = target.base[stat];
   const after = Math.max(1, Math.round(before * (1 - percent)));
   target.base = { ...target.base, [stat]: after };
@@ -237,6 +249,12 @@ function getTotalSorciereStatPointsReduced(fighter) {
   if (!b || !fighter.base) return 0;
   let sum = 0;
   for (const k of SORCIERE_CURSE_STAT_KEYS) {
+    if (k === 'crit') {
+      // Pour le bonus de Malédiction : -12% crit => +12 dégâts (points).
+      const malus = fighter._sorciereCritMalus || 0;
+      sum += Math.max(0, Math.round(malus * 100));
+      continue;
+    }
     sum += Math.max(0, (b[k] ?? 0) - (fighter.base[k] ?? 0));
   }
   return sum;
@@ -298,6 +316,7 @@ export function resetTransientCombatFieldsBetweenFights(p) {
   p.boneGuardActive = false;
   p._labrysBleedPercent = 0;
   p.onctionLastStandUsed = false;
+  p._sorciereCritMalus = 0;
   p.turtlekinFirstHitUsed = false;
   p.turtlekinResetAt50Used = false;
   p.alchPhase = 0;
@@ -2319,7 +2338,13 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
   for (let i = 0; i < totalHits; i++) {
     const isBonusAttack = i >= baseHits;
     const subclassCritBonus = att.subclass?.id === 'ame_tentatrice' ? 0.15 : (att.subclass?.id === 'chasseur_fantome' ? 0.10 : 0);
-    const critChance = Math.max(0, calcCritChance(att, def) + subclassCritBonus - (att._refletMauditCritMalus || 0));
+    const critChance = Math.max(
+      0,
+      calcCritChance(att, def) +
+        subclassCritBonus -
+        (att._refletMauditCritMalus || 0) -
+        (att._sorciereCritMalus || 0)
+    );
     const isCrit = turnEffects.guaranteedCrit ? true : forceCrit ? true : att.voleurGuaranteedCrit ? (att.voleurGuaranteedCrit = false, true) : combatRandom01() < critChance;
     if (isCrit) wasCrit = true;
     let raw = 0;
