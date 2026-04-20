@@ -24,6 +24,7 @@ import SubclassDetailBlock from './SubclassDetailBlock';
 import { getCombatBuffsDebuffs } from '../utils/combatBuffsDebuffs';
 import { getDisplayTitle } from '../services/titleService';
 import { calcCritChance, getCritMultiplier, generalConstants } from '../data/combatMechanics';
+import { buildAwakeningState, getMergedAwakeningEffectForPrep } from '../utils/awakening';
 
 const STAT_KEYS_TOP = ['hp', 'spd'];
 const STAT_KEYS_MAIN = ['auto', 'def', 'cap', 'rescap'];
@@ -101,7 +102,14 @@ export default function CharacterCardContent({
   // CC/DC :
   // - En combat : valeur réelle vs l'adversaire (inclut bonus d'écart de VIT / Gnome / éveils, etc.).
   // - Hors combat : pas de défenseur → pas de "duel de VIT" (les bonus Gnome ne doivent pas s'appliquer hors combat).
-  const critAttacker = { ...(character || {}), base: combatBaseOverride ?? finalStats ?? character?.base ?? {} };
+  const critAttackerBase = combatBaseOverride ?? finalStats ?? character?.base ?? {};
+  // Important: pour afficher correctement CC/DC, on a besoin de l'état d'éveil "fusionné"
+  // (race principale + races additionnelles + Pointeau ADN). En combat, `character.awakening`
+  // existe déjà (préparé par le moteur) → on ne le remplace pas.
+  const mergedAwakening = (character?.awakening != null)
+    ? character.awakening
+    : buildAwakeningState(getMergedAwakeningEffectForPrep({ ...(character || {}), base: critAttackerBase }));
+  const critAttacker = { ...(character || {}), base: critAttackerBase, awakening: mergedAwakening };
   const defenderForCrit = opponent?.base ? opponent : null;
   // Reflet Maudit (debuff combat) : malus de crit appliqué sur l'attaquant (stocké dans combatStatusSnapshot).
   const refletMauditCritMalus =
