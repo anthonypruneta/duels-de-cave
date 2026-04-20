@@ -1329,6 +1329,9 @@ export async function checkTripleRoll(userId) {
     // IMPORTANT: les rerolls ne sont valables que pour la SEMAINE en cours
     // (cataclysme + tournoi du samedi de la semaine), pas indéfiniment.
     const currentWeekId = getCurrentWeekId();
+    // Tolérance 1 semaine : un gain (Cataclysme / Tournoi) en fin de semaine
+    // doit rester consommable au tout début de la semaine suivante (reset du lundi).
+    const previousWeekId = getCurrentWeekId(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
     const toDateSafe = (ts) => {
       if (!ts) return null;
       if (typeof ts.toDate === 'function') return ts.toDate();
@@ -1346,7 +1349,11 @@ export async function checkTripleRoll(userId) {
       (toDateSafe(data.lastCataclysmeDate) ? getCurrentWeekId(toDateSafe(data.lastCataclysmeDate)) : null) ||
       (toDateSafe(data.date) ? getCurrentWeekId(toDateSafe(data.date)) : null); // legacy checkAutoEnd
 
-    return tournamentWeekId === currentWeekId || cataclysmeWeekId === currentWeekId;
+    const isThisWeek = (weekId) => weekId === currentWeekId;
+    const isThisOrPrevWeek = (weekId) => weekId === currentWeekId || weekId === previousWeekId;
+
+    // Tournoi et Cataclysme: consommable cette semaine OU sur la bascule (semaine précédente).
+    return isThisOrPrevWeek(tournamentWeekId) || isThisOrPrevWeek(cataclysmeWeekId);
   } catch {
     return false;
   }
@@ -1361,6 +1368,7 @@ export async function getTripleRollCount(userId) {
     if (data.tripleRoll !== true) return 0;
 
     const currentWeekId = getCurrentWeekId();
+    const previousWeekId = getCurrentWeekId(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
     const toDateSafe = (ts) => {
       if (!ts) return null;
       if (typeof ts.toDate === 'function') return ts.toDate();
@@ -1378,14 +1386,15 @@ export async function getTripleRollCount(userId) {
       (toDateSafe(data.lastCataclysmeDate) ? getCurrentWeekId(toDateSafe(data.lastCataclysmeDate)) : null) ||
       (toDateSafe(data.date) ? getCurrentWeekId(toDateSafe(data.date)) : null);
 
-    const hasTournamentThisWeek = tournamentWeekId === currentWeekId;
-    const hasCataclysmeThisWeek = cataclysmeWeekId === currentWeekId;
-    if (!hasTournamentThisWeek && !hasCataclysmeThisWeek) return 0;
+    const isThisOrPrevWeek = (weekId) => weekId === currentWeekId || weekId === previousWeekId;
+    const hasTournamentEligible = isThisOrPrevWeek(tournamentWeekId);
+    const hasCataclysmeEligible = isThisOrPrevWeek(cataclysmeWeekId);
+    if (!hasTournamentEligible && !hasCataclysmeEligible) return 0;
     
     // Comptage strict "semaine en cours" (stack possible: 3 + 3 = 6).
     let totalRerolls = 0;
-    if (hasTournamentThisWeek) totalRerolls += 3;
-    if (hasCataclysmeThisWeek) totalRerolls += 3;
+    if (hasTournamentEligible) totalRerolls += 3;
+    if (hasCataclysmeEligible) totalRerolls += 3;
     return totalRerolls;
   } catch {
     return 0;
