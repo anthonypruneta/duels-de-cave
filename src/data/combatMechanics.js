@@ -265,9 +265,17 @@ export const getSpeedDuelBonuses = (attacker, defender) => {
   let dodgeIfEqual = aw.speedDuelEqualDodge ?? raceConstants.gnome.dodgeIfEqual;
   let capBonusIfEqual = aw.speedDuelEqualCapBonus ?? raceConstants.gnome.capBonusIfEqual;
 
-  // Important: l'éveil du Gnome est la source de vérité.
-  // On ne remappe pas vers 25%/30% : si une vieille config a survécu en stockage, elle doit être écrasée
-  // via BALANCE_CONFIG_VERSION, pas "corrigée" ici.
+  // Important: l'éveil du Gnome est FIXE.
+  // Peu importe une ancienne config d'équilibrage (Storage) ou un vieux fragment, l'éveil doit rester à 20% (jamais 25/30).
+  const hasAwakenedSpeedDuel =
+    aw.speedDuelDodgeLow != null ||
+    aw.speedDuelCapBonusLow != null ||
+    aw.speedDuelCritHigh != null ||
+    aw.speedDuelEqualCrit != null;
+  if (hasAwakenedSpeedDuel) {
+    dodgeIfSlower = 0.20;
+    capBonusIfSlower = 0.20;
+  }
 
   if (attacker.base.spd > defender.base.spd) {
     bonuses.crit += critIfFaster;
