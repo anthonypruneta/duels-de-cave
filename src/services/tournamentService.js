@@ -833,6 +833,13 @@ export async function avancerMatch(docId = 'current') {
       if (!betSettle.success && !betSettle.skipped) {
         console.warn('Distribution des paris tournoi:', betSettle.error);
       }
+      // Reset immédiat des paris une fois le tournoi terminé (évite d'afficher ceux de la semaine précédente
+      // tant qu'un nouveau tournoi n'a pas été recréé).
+      if (docId === 'current') {
+        await clearTournamentUserBets(docId).catch((e) =>
+          console.warn('clearTournamentUserBets (fin tournoi):', e?.message)
+        );
+      }
 
       if (tournoi?.tournamentType === 'legacy_archives' && champion && championId) {
         const row = participantsList.find(
@@ -1139,6 +1146,12 @@ export async function terminerTournoi(docId = 'current') {
           console.warn('Distribution paris (terminerTournoi):', betSettle.error);
         }
       }
+    }
+    // Filet : purge des paris après fin du tournoi, même si l'admin saute directement à l'archivage.
+    if (docId === 'current') {
+      await clearTournamentUserBets(docId).catch((e) =>
+        console.warn('clearTournamentUserBets (terminerTournoi):', e?.message)
+      );
     }
 
     const hallOfFameEntryId = buildHallOfFameEntryId(tournoi);

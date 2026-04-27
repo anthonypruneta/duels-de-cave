@@ -94,6 +94,13 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
       setCharactersLoading(false);
       setFirestoreError(null);
       setTournament(null);
+      setBets([]);
+      setMyBet(null);
+      setRunsRemaining(0);
+      setSelectedParticipantId('');
+      setAmountStr('1');
+      setBusy(false);
+      setMessage(null);
       return;
     }
     let cancelled = false;
@@ -126,7 +133,10 @@ export default function TournamentBettingModal({ open, onClose, userId }) {
   }, [open, handleFirestoreListenError]);
 
   useEffect(() => {
-    if (!open || !userId) return undefined;
+    if (!open || !userId) {
+      setMyBet(null);
+      return undefined;
+    }
     return subscribeMyBet(userId, setMyBet, handleFirestoreListenError);
   }, [open, userId, handleFirestoreListenError]);
 
