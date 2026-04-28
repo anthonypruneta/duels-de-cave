@@ -418,6 +418,22 @@ const ForestDungeon = () => {
     };
     let skillUsed = false;
 
+    const getRiposteQueue = (char) => {
+      if (!char) return [];
+      if (!Array.isArray(char.riposteQueue)) char.riposteQueue = [];
+      // Migration legacy : reflect(+riposteTwice) -> riposteQueue
+      if (typeof char.reflect === 'number' && char.reflect > 0) {
+        const pct = char.reflect;
+        const mult = char.riposteVerdictMultiplier;
+        char.riposteQueue.push({ pct, verdictMultiplier: mult });
+        if (char.riposteTwice) char.riposteQueue.push({ pct, verdictMultiplier: mult });
+        char.reflect = false;
+        char.riposteTwice = false;
+        char.riposteVerdictMultiplier = undefined;
+      }
+      return char.riposteQueue;
+    };
+
     const applyMageTowerDamage = (raw, isCrit, applyOnHitPassives = true) => {
       let adjusted = applyOutgoingAwakeningBonus(att, raw);
 
@@ -465,11 +481,12 @@ const ForestDungeon = () => {
           def.awakening.damageTakenStacks += 1;
         }
 
-        if (def.reflect && def.currentHP > 0) {
-          let back = Math.round(def.reflect * adjusted);
-          if (def.riposteVerdictMultiplier) {
-            back = Math.round(back * def.riposteVerdictMultiplier);
-          }
+        const riposteQueue = getRiposteQueue(def);
+        if (riposteQueue.length > 0 && def.currentHP > 0) {
+          const riposte = riposteQueue.shift();
+          const pct = riposte?.pct ?? 0;
+          let back = Math.round(pct * adjusted);
+          if (riposte?.verdictMultiplier) back = Math.round(back * riposte.verdictMultiplier);
           att.currentHP -= back;
           tryTriggerOnctionLastStand(att, log, playerColor);
           log.push(`${playerColor} 🔁 ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
@@ -478,19 +495,6 @@ const ForestDungeon = () => {
             att.shield = (att.shield || 0) + shield;
             log.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield}).`);
           }
-          if (def.riposteTwice && back > 0) {
-            att.currentHP -= back;
-            tryTriggerOnctionLastStand(att, log, playerColor);
-            log.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-            if (att.class === 'Briseur de Sort') {
-              const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + att.base.cap * classConstants.briseurSort.shieldFromCap));
-              att.shield = (att.shield || 0) + shield2;
-              log.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield2}).`);
-            }
-          }
-          def.reflect = false;
-          def.riposteTwice = false;
-          def.riposteVerdictMultiplier = undefined;
         }
       }
 
@@ -523,7 +527,6 @@ const ForestDungeon = () => {
       return;
     }
 
-    att.reflect = false;
     for (const k of Object.keys(cooldowns)) {
       att.cd[k] = (att.cd[k] % cooldowns[k]) + 1;
     }
@@ -656,18 +659,18 @@ const ForestDungeon = () => {
       const { reflectBase, reflectPerCap } = classConstants.paladin;
       const spellCapMult = consumeAuraCapacityCapMultiplier();
       const reflectValue = reflectBase + reflectPerCap * att.base.cap * spellCapMult;
-      att.reflect = reflectValue;
       const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
-      if (verdictBonusPal.damageMultiplier !== 1) {
-        att.riposteVerdictMultiplier = verdictBonusPal.damageMultiplier;
-        verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
-      }
+      const verdictMultiplier = verdictBonusPal.damageMultiplier !== 1 ? verdictBonusPal.damageMultiplier : undefined;
+      if (verdictMultiplier) verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
       const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
-      if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
-        att.riposteTwice = true;
+      const riposteCount = paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice ? 2 : 1;
+      att.riposteQueue = Array.isArray(att.riposteQueue) ? att.riposteQueue : [];
+      for (let i = 0; i < riposteCount; i++) att.riposteQueue.push({ pct: reflectValue, verdictMultiplier });
+      if (riposteCount === 2) {
         log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
       }
-      log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
+      const stacks = att.riposteQueue.length;
+      log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(reflectValue * 100)}% des dégâts${stacks > 1 ? ` (charges : ${stacks})` : ''}`);
     }
 
     if (att.class === 'Healer' && att.cd.heal === cooldowns.heal) {

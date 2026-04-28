@@ -636,8 +636,10 @@ function triggerMindflayerCapacityCopy(caster, target, log, playerColor, atkPass
     }
     case 'Paladin': {
       const { reflectBase, reflectPerCap } = classConstants.paladin;
-      target.reflect = reflectBase + reflectPerCap * target.base.cap;
-      log.push(`${playerColor} 🦑 ${target.name} copie la riposte de ${caster.name} et renverra ${Math.round(target.reflect * 100)}% des dégâts !`);
+      const pct = reflectBase + reflectPerCap * target.base.cap;
+      target.riposteQueue = Array.isArray(target.riposteQueue) ? target.riposteQueue : [];
+      target.riposteQueue.push({ pct, verdictMultiplier: undefined });
+      log.push(`${playerColor} 🦑 ${target.name} copie la riposte de ${caster.name} et renverra ${Math.round(pct * 100)}% des dégâts !`);
       break;
     }
     case 'Healer': {
@@ -878,6 +880,24 @@ function applyCendresBraiseToOutgoing(att, amount, log, playerColor) {
   return out;
 }
 
+function getRiposteQueue(char) {
+  if (!char) return [];
+  if (!Array.isArray(char.riposteQueue)) char.riposteQueue = [];
+
+  // Migration "legacy" : anciens champs reflect/riposteTwice -> riposteQueue (une seule fois).
+  if (typeof char.reflect === 'number' && char.reflect > 0) {
+    const pct = char.reflect;
+    const mult = char.riposteVerdictMultiplier;
+    char.riposteQueue.push({ pct, verdictMultiplier: mult });
+    if (char.riposteTwice) char.riposteQueue.push({ pct, verdictMultiplier: mult });
+    char.reflect = false;
+    char.riposteTwice = false;
+    char.riposteVerdictMultiplier = undefined;
+  }
+
+  return char.riposteQueue;
+}
+
 function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPassives, atkUnicorn, defUnicorn, auraBoost, applyOnHitPassives = true, isCapacityDamage = false, turn = null) {
   const atkList = Array.isArray(atkPassives) ? atkPassives : (atkPassives ? [atkPassives] : []);
   const defList = Array.isArray(defPassives) ? defPassives : (defPassives ? [defPassives] : []);
@@ -1030,7 +1050,8 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
     grantOnCapacityHitDefenderEffects(def, grantAmount, log, playerColor);
   }
   if (adjusted > 0) {
-    const hadReflectBeforeHit = Boolean(def.reflect);
+    const riposteQueue = getRiposteQueue(def);
+    const hadRiposteBeforeHit = riposteQueue.length > 0;
     def.currentHP -= adjusted;
     tryTriggerOnctionLastStand(def, log, playerColor);
     def.maso_taken = (def.maso_taken || 0) + adjusted;
@@ -1087,11 +1108,11 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
       }
     }
 
-    if (hadReflectBeforeHit && def.currentHP > 0) {
-      let back = Math.round(def.reflect * adjusted);
-      if (def.riposteVerdictMultiplier) {
-        back = Math.round(back * def.riposteVerdictMultiplier);
-      }
+    if (hadRiposteBeforeHit && def.currentHP > 0) {
+      const riposte = riposteQueue.shift();
+      const pct = riposte?.pct ?? 0;
+      let back = Math.round(pct * adjusted);
+      if (riposte?.verdictMultiplier) back = Math.round(back * riposte.verdictMultiplier);
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
       att._pendingCombatLogs = att._pendingCombatLogs || [];
@@ -1102,19 +1123,6 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
         att.shield = (att.shield || 0) + shield;
         att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield}).`);
       }
-      if (def.riposteTwice && back > 0) {
-        att.currentHP -= back;
-        tryTriggerOnctionLastStand(att, log, playerColor);
-        att._pendingCombatLogs.push(`${playerColor} 📜 Codex Archon : ${def.name} riposte et renvoie ${back} points de dégâts à ${att.name}`);
-        if (att.class === 'Briseur de Sort') {
-          const shield2 = Math.max(1, Math.round(back * classConstants.briseurSort.shieldFromSpellDamage + getEffectiveCapForSceptre(att) * classConstants.briseurSort.shieldFromCap));
-          att.shield = (att.shield || 0) + shield2;
-          att._pendingCombatLogs.push(`${playerColor} 🧱 ${att.name} convertit la capacité en bouclier (+${shield2}).`);
-        }
-      }
-      def.reflect = false;
-      def.riposteTwice = false;
-      def.riposteVerdictMultiplier = undefined;
     }
   }
   if (applyOnHitPassives && adjusted > 0 && !def.spectralMarked) {
@@ -1206,7 +1214,6 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     return;
   }
 
-  att.reflect = false;
   for (const k of Object.keys(cooldowns)) {
     const effectiveCd = getMindflayerCapacityCooldown(att, def, k);
     att.cd[k] = (att.cd[k] % effectiveCd) + 1;
@@ -1424,12 +1431,9 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     const { reflectBase, reflectPerCap } = classConstants.paladin;
     const spellCapMult = consumeAuraCapacityCapMultiplier();
     const reflectValue = reflectBase + reflectPerCap * getEffectiveCapForSceptre(att) * spellCapMult;
-    att.reflect = reflectValue;
     const verdictBonusPal = getVerdictCapacityBonus(att.weaponState);
-    if (verdictBonusPal.damageMultiplier !== 1) {
-      att.riposteVerdictMultiplier = verdictBonusPal.damageMultiplier;
-      verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
-    }
+    const verdictMultiplier = verdictBonusPal.damageMultiplier !== 1 ? verdictBonusPal.damageMultiplier : undefined;
+    if (verdictMultiplier) verdictBonusPal.log.forEach((l) => log.push(`${playerColor} ${l}`));
     if (att.subclass?.id === 'croise_lumineux') {
       const paladinC = getSubclassCapacityConstants(att.class, att.subclass?.id);
       const red = paladinC.nextAttackReduction ?? 0.20;
@@ -1446,11 +1450,14 @@ export function processPlayerAction(att, def, log, isP1, turn, logLabel = null, 
     }
     const paladinSpellEffects = onCapacityCast(att.weaponState, att, def, reflectValue, 'paladin');
     applySceptreCapBuff(att, paladinSpellEffects, log, playerColor);
-    if (paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice) {
-      att.riposteTwice = true;
+    const riposteCount = paladinSpellEffects.doubleCast && paladinSpellEffects.riposteTwice ? 2 : 1;
+    att.riposteQueue = Array.isArray(att.riposteQueue) ? att.riposteQueue : [];
+    for (let i = 0; i < riposteCount; i++) att.riposteQueue.push({ pct: reflectValue, verdictMultiplier });
+    if (riposteCount === 2) {
       log.push(`${playerColor} 📜 Codex Archon : ${att.name} se prépare à riposter et renverra deux fois les dégâts`);
     }
-    log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(att.reflect * 100)}% des dégâts`);
+    const stacks = att.riposteQueue.length;
+    log.push(`${playerColor} 🛡️ ${att.name} se prépare à riposter et renverra ${Math.round(reflectValue * 100)}% des dégâts${stacks > 1 ? ` (charges : ${stacks})` : ''}`);
     if (def?.race === 'Mindflayer' || def?.awakening?.mindflayerStealSpellCapDamageScale != null) {
       triggerMindflayerCapacityCopy(att, def, log, playerColor, attackerPassiveList, defenderPassiveList, attackerUnicorn, defenderUnicorn, auraBonus, null, null, turn);
     }
@@ -2698,7 +2705,12 @@ export function applyGnomeCapBonus(fighter, opponent) {
  * @param {Object} char1 - Personnage ou NPC brut (ex. character depuis Firestore, createBossCombatant(), buildFloorEnemy())
  * @param {Object} char2 - Idem
  */
-export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
+export function simulerMatch(char1, char2, { maxTurns } = {}) {
+  // Sécurité anti-boucle infinie: par défaut on borne au tour de mort subite.
+  // (Un Infinity ici peut générer des millions de steps/logs et faire planter le navigateur.)
+  const effectiveMaxTurns = Number.isFinite(maxTurns)
+    ? maxTurns
+    : (generalConstants?.suddenDeathTurn ?? 30);
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);
 
@@ -2742,7 +2754,7 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
   });
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= effectiveMaxTurns) {
     // Turn start
     const turnStartLogs = [`--- Début du tour ${turn} ---`];
 
@@ -2846,7 +2858,7 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
   const winner = winnerIsP1 ? p1 : p2;
   const loser = winnerIsP1 ? p2 : p1;
   const victoryLog = turnLimitReached
-    ? `⏱️ Limite de ${maxTurns} tours atteinte ! Combat terminé.`
+    ? `⏱️ Limite de ${effectiveMaxTurns} tours atteinte ! Combat terminé.`
     : `🏆 ${winner.name} remporte glorieusement le combat contre ${loser.name} !`;
   allLogs.push(victoryLog);
   steps.push({ phase: 'victory', logs: [victoryLog], p1HP: p1.currentHP, p2HP: p2.currentHP, p1Shield: p1.shield, p2Shield: p2.shield, p1Base: snapshotBase(p1), p2Base: snapshotBase(p2), ...stepExtras() });
@@ -2871,7 +2883,10 @@ export function simulerMatch(char1, char2, { maxTurns = Infinity } = {}) {
  *
  * IMPORTANT: char1/char2 doivent être BRUTS (comme simulerMatch).
  */
-export function simulerMatchRapide(char1, char2, { maxTurns = Infinity } = {}) {
+export function simulerMatchRapide(char1, char2, { maxTurns } = {}) {
+  const effectiveMaxTurns = Number.isFinite(maxTurns)
+    ? maxTurns
+    : (generalConstants?.suddenDeathTurn ?? 30);
   const p1 = preparerCombattant(char1);
   const p2 = preparerCombattant(char2);
 
@@ -2887,7 +2902,7 @@ export function simulerMatchRapide(char1, char2, { maxTurns = Infinity } = {}) {
   scratchLogs.length = 0;
 
   let turn = 1;
-  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= maxTurns) {
+  while (p1.currentHP > 0 && p2.currentHP > 0 && turn <= effectiveMaxTurns) {
     if (turn === generalConstants.suddenDeathTurn && !p1.suddenDeath) {
       p1.suddenDeath = true;
       p2.suddenDeath = true;

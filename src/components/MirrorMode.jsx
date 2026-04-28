@@ -140,7 +140,10 @@ const MirrorMode = () => {
 
     try {
       const clone = buildMirrorClone(character);
-      const result = simulerMatch(character, clone);
+      // Défaut global: simulerMatch borne déjà le nombre de tours,
+      // mais on force ici une limite explicite pour éviter tout combat "infini"
+      // qui remplirait les steps/logs et ferait planter le navigateur.
+      const result = simulerMatch(character, clone, { maxTurns: 30 });
 
       setPlayerMaxHP(result.p1MaxHP);
       setCloneMaxHP(result.p2MaxHP);

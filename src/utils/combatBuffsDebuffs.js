@@ -116,13 +116,19 @@ export function getCombatBuffsDebuffs(opponent, combatModifiers, combatStatus = 
         description: 'La prochaine attaque physique qui vous cible sera esquivée.',
       });
     }
-    if (typeof combatStatus.reflect === 'number' && combatStatus.reflect > 0) {
-      const pct = Math.round(combatStatus.reflect * 100);
+    const riposteStacks = Array.isArray(combatStatus.riposteQueue) ? combatStatus.riposteQueue.length : 0;
+    const legacyRipostePct = typeof combatStatus.reflect === 'number' ? combatStatus.reflect : 0;
+    if (riposteStacks > 0 || legacyRipostePct > 0) {
+      const nextPct = riposteStacks > 0 ? (combatStatus.riposteQueue[0]?.pct ?? 0) : legacyRipostePct;
+      const pct = Math.round(nextPct * 100);
       list.push({
         id: 'reflect',
-        icon: '🦑',
-        label: `Riposte (${pct}%)`,
-        description: `Vous renverrez ${pct}% des dégâts reçus au prochain coup.`,
+        icon: '🛡️',
+        label: riposteStacks > 1 ? `Riposte (${pct}%) ×${riposteStacks}` : `Riposte (${pct}%)`,
+        description:
+          riposteStacks > 1
+            ? `Vous renverrez ${pct}% des dégâts reçus au prochain coup. Ripostes en réserve : ${riposteStacks}.`
+            : `Vous renverrez ${pct}% des dégâts reçus au prochain coup.`,
       });
     }
     if (combatStatus.sorcierNeantBurn) {
