@@ -38,6 +38,7 @@ import { adminCleanCoopRedPointeauAndHistory } from '../services/adminCoopRedPoi
 import { htmlToDiscordMarkdown } from '../utils/htmlToDiscordMarkdown';
 import { runCheatAudit, SEVERITY_LABELS, CATEGORY_LABELS } from '../services/cheatAuditService';
 import { adminResetPvpLeaderboard } from '../services/pvpLobbyService';
+import { clearTournamentUserBets } from '../services/tournamentBettingService';
 
 const realBorderPngModules = import.meta.glob('../assets/backgrounds/*.png', { eager: true, import: 'default' });
 
@@ -77,6 +78,7 @@ const Admin = () => {
   const [legacyTournamentLoading, setLegacyTournamentLoading] = useState(false);
   const [legacyQualifier, setLegacyQualifier] = useState(null);
   const [legacyTournamentDocId, setLegacyTournamentDocId] = useState(null);
+  const [clearBetsLoading, setClearBetsLoading] = useState(false);
 
   // État pour les rerolls disponibles
   const [rerollsData, setRerollsData] = useState([]);
@@ -705,6 +707,19 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
     const r = await nettoyerTournoiLegacy();
     if (r.success) alert('✅ Nettoyé');
     else alert('❌ ' + (r.error || 'Erreur'));
+  };
+
+  const handleResetTournamentBets = async () => {
+    if (!window.confirm('Supprimer tous les paris du tournoi (pool) maintenant ?')) return;
+    setClearBetsLoading(true);
+    try {
+      await clearTournamentUserBets('current');
+      alert('✅ Paris du tournoi supprimés (pool reset).');
+    } catch (e) {
+      alert('❌ ' + (e?.message || 'Erreur suppression paris'));
+    } finally {
+      setClearBetsLoading(false);
+    }
   };
 
   const handleCleanPointeauAdn = async () => {
@@ -1423,6 +1438,22 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             className="w-full bg-red-600 hover:bg-red-500 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
           >
             {tirageLoading ? '⏳ Lancement de l\'event...' : '🚀 Démarrer l\'event'}
+          </button>
+        </div>
+
+        {/* Section Paris tournoi (maintenance) */}
+        <div className="bg-stone-900/70 border-2 border-amber-600 rounded-xl p-6 mb-8">
+          <h2 className="text-2xl font-bold text-amber-300 mb-2">📌 Paris du tournoi (maintenance)</h2>
+          <p className="text-stone-400 text-sm mb-4">
+            Reset manuel du pool si des anciens paris traînent (ex : avant déploiement du reset automatique).
+          </p>
+          <button
+            type="button"
+            onClick={handleResetTournamentBets}
+            disabled={clearBetsLoading}
+            className="w-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-white py-3 rounded-lg font-bold transition"
+          >
+            {clearBetsLoading ? '⏳ Reset en cours…' : '🗑️ Reset pool des paris (supprimer userBets)'}
           </button>
         </div>
 
