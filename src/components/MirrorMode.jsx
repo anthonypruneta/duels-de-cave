@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserCharacter } from '../services/characterService';
@@ -36,7 +36,11 @@ function buildMirrorClone(character) {
     fb.rescap = tmpCap;
     clone.forestBoosts = fb;
   }
-  const reversed = character.name.split('').reverse().join('');
+  // Défense: si un joueur a réussi à enregistrer un nom gigantesque, cette page
+  // pouvait crasher le navigateur (Out of Memory) en clonant/transformant la string.
+  const rawName = typeof character?.name === 'string' ? character.name : 'Clone';
+  const safeName = rawName.slice(0, 80);
+  const reversed = safeName.split('').reverse().join('');
   clone.name = reversed.charAt(0).toUpperCase() + reversed.slice(1).toLowerCase();
   clone.userId = 'mirror_clone';
   return clone;
@@ -203,7 +207,10 @@ const MirrorMode = () => {
     }
   };
 
-  const mirrorCloneForDisplay = character ? buildMirrorClone(character) : null;
+  const mirrorCloneForDisplay = useMemo(
+    () => (character ? buildMirrorClone(character) : null),
+    [character]
+  );
 
   const formatLogMessage = (text) => {
     if (!character || !mirrorCloneForDisplay) return text;
