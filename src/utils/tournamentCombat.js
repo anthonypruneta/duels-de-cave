@@ -1113,6 +1113,11 @@ function applyDamage(att, def, raw, isCrit, log, playerColor, atkPassives, defPa
       const pct = riposte?.pct ?? 0;
       let back = Math.round(pct * adjusted);
       if (riposte?.verdictMultiplier) back = Math.round(back * riposte.verdictMultiplier);
+      // Sirène : les stacks boostent aussi les dégâts de la riposte (compétence).
+      if (back > 0 && (def.race === 'Sirène' || def.awakening?.sireneStackBonus != null) && (def.sireneStacks || 0) > 0) {
+        const stackBonus = def.awakening?.sireneStackBonus ?? raceConstants.sirene.stackBonus;
+        back = Math.max(1, Math.round(back * (1 + stackBonus * def.sireneStacks)));
+      }
       att.currentHP -= back;
       tryTriggerOnctionLastStand(att, log, playerColor);
       att._pendingCombatLogs = att._pendingCombatLogs || [];
