@@ -31,11 +31,21 @@ import MirrorMode from './components/MirrorMode';
 import PvpLobby from './components/PvpLobby';
 import PvpLeaderboard from './components/PvpLeaderboard';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
+import MaintenanceShutdown from './components/MaintenanceShutdown';
+
+/** Repasser à `false` pour rouvrir le site (routes, auth, jeu). */
+export const FERMETURE_TEMPORAIRE_ACTIVE = true;
 
 function Application() {
   useEffect(() => {
-    loadPersistedBalanceConfig();
+    if (!FERMETURE_TEMPORAIRE_ACTIVE) {
+      loadPersistedBalanceConfig();
+    }
   }, []);
+
+  if (FERMETURE_TEMPORAIRE_ACTIVE) {
+    return <MaintenanceShutdown />;
+  }
 
   return (
     <Router>
