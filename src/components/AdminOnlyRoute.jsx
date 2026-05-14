@@ -9,7 +9,9 @@ export const ADMIN_EMAILS = [
 ];
 
 export function isAdminEmail(email) {
-  return typeof email === 'string' && ADMIN_EMAILS.includes(email);
+  if (typeof email !== 'string') return false;
+  const key = email.trim().toLowerCase();
+  return ADMIN_EMAILS.some((a) => a.toLowerCase() === key);
 }
 
 function AdminOnlyRoute({ children }) {

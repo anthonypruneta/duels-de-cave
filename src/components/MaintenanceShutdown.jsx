@@ -25,6 +25,28 @@ export default function MaintenanceShutdown() {
         >
           Fermeture temporaire
         </h1>
+        <div className="mt-6 w-full max-w-md rounded-xl border-2 border-amber-500/80 bg-stone-900/90 p-4 shadow-lg">
+          <p className="text-center text-xs font-bold uppercase tracking-wide text-amber-200/90">
+            Accès organisateur
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-3">
+            <Link
+              to="/auth"
+              className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2.5 text-center text-sm font-bold text-stone-950 shadow hover:bg-amber-500"
+            >
+              Connexion
+            </Link>
+            <Link
+              to="/admin/annuaire"
+              className="inline-flex items-center justify-center rounded-lg border-2 border-amber-500/70 bg-stone-800 px-4 py-2.5 text-center text-sm font-bold text-amber-100 hover:bg-stone-700"
+            >
+              Annuaire personnages
+            </Link>
+          </div>
+          <p className="mt-2 text-center text-[11px] text-stone-500">
+            Après connexion compte admin, tu es redirigé automatiquement vers l’annuaire.
+          </p>
+        </div>
         <p
           id="maintenance-desc"
           className="mt-6 text-base leading-relaxed text-stone-300 sm:text-lg"
@@ -35,23 +57,6 @@ export default function MaintenanceShutdown() {
           votre patience et votre fidélité.
         </p>
         <p className="mt-8 text-sm text-stone-500">— L’équipe</p>
-        <p className="mt-10 flex flex-col items-center gap-2 text-sm text-stone-500 sm:flex-row sm:justify-center sm:gap-4">
-          <Link
-            to="/auth"
-            className="text-amber-500/90 underline underline-offset-2 hover:text-amber-400"
-          >
-            Connexion organisateur
-          </Link>
-          <span className="hidden sm:inline" aria-hidden="true">
-            ·
-          </span>
-          <Link
-            to="/admin/annuaire"
-            className="text-amber-500/90 underline underline-offset-2 hover:text-amber-400"
-          >
-            Annuaire admin (session déjà ouverte)
-          </Link>
-        </p>
       </div>
     </div>
   );

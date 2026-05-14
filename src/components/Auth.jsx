@@ -53,9 +53,9 @@ function Auth() {
       } else {
         await signup(email, password);
       }
-      if (FERMETURE_TEMPORAIRE_ACTIVE && isAdminEmail(email.trim())) {
-        navigate('/admin/annuaire');
-      } else {
+      // Fermeture : ne pas naviguer ici — l'useEffect (currentUser) envoie admin → annuaire
+      // et évite une course avec navigate('/') qui réaffichait la maintenance par-dessus.
+      if (!FERMETURE_TEMPORAIRE_ACTIVE) {
         navigate('/');
       }
     } catch (err) {
