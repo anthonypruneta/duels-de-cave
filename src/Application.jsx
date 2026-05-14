@@ -19,6 +19,7 @@ import Training from './components/Training';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
+import AdminCharacterDirectory from './components/AdminCharacterDirectory';
 import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
 import Taverne from './components/Taverne';
@@ -287,6 +288,16 @@ function Application() {
               <ProtectedRoute>
                 <AdminOnlyRoute>
                   <AdminBalance />
+                </AdminOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/annuaire"
+            element={
+              <ProtectedRoute>
+                <AdminOnlyRoute>
+                  <AdminCharacterDirectory />
                 </AdminOnlyRoute>
               </ProtectedRoute>
             }

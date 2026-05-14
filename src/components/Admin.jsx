@@ -1182,6 +1182,13 @@ no blur, no watercolor, no chibi, handcrafted pixel art, retro-modern JRPG sprit
             <p className="text-stone-400 text-lg">
               {characters.filter(c => !c.disabled).length} actif{characters.filter(c => !c.disabled).length > 1 ? 's' : ''} • {characters.filter(c => c.disabled).length} désactivé{characters.filter(c => c.disabled).length > 1 ? 's' : ''}
             </p>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/annuaire')}
+              className="mt-3 text-sm font-bold text-amber-300 hover:text-amber-200 underline underline-offset-2"
+            >
+              📋 Annuaire complet (toutes les fiches, stats, équipements, champions)
+            </button>
           </div>
         </div>
 

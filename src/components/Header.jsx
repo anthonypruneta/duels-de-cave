@@ -230,10 +230,24 @@ function Header() {
                   </button>
                 )}
                 {isAdmin && (
-                  <button onClick={() => navigate('/admin')}
-                    className="bg-amber-700 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded border border-amber-500 transition text-xs font-bold">
-                    🛠️
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      title="Annuaire personnages"
+                      onClick={() => navigate('/admin/annuaire')}
+                      className="bg-stone-800 hover:bg-stone-700 text-amber-200 px-2.5 py-1.5 rounded border border-stone-500 transition text-xs font-bold"
+                    >
+                      📋
+                    </button>
+                    <button
+                      type="button"
+                      title="Backoffice admin"
+                      onClick={() => navigate('/admin')}
+                      className="bg-amber-700 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded border border-amber-500 transition text-xs font-bold"
+                    >
+                      🛠️
+                    </button>
+                  </>
                 )}
                 <button onClick={handleLogout}
                   className="bg-stone-700 hover:bg-stone-600 text-amber-300 px-2.5 py-1.5 rounded border border-amber-600/50 transition text-xs">
