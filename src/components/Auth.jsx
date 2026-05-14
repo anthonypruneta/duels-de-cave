@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { FERMETURE_TEMPORAIRE_ACTIVE } from '../config/maintenanceMode';
+import { isAdminEmail } from './AdminOnlyRoute';
 
 function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,8 +12,18 @@ function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { signup, login } = useAuth();
+  const { signup, login, currentUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!FERMETURE_TEMPORAIRE_ACTIVE || authLoading) return;
+    if (!currentUser) return;
+    if (isAdminEmail(currentUser.email)) {
+      navigate('/admin/annuaire', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [FERMETURE_TEMPORAIRE_ACTIVE, authLoading, currentUser, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,7 +53,11 @@ function Auth() {
       } else {
         await signup(email, password);
       }
-      navigate('/');
+      if (FERMETURE_TEMPORAIRE_ACTIVE && isAdminEmail(email.trim())) {
+        navigate('/admin/annuaire');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {

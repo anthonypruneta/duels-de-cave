@@ -11,6 +11,7 @@ import { computeCharacterStatsDisplay } from '../hooks/useCharacterStatsDisplay'
 import { getEmptyStatBoosts } from '../utils/statPoints';
 import { extractForgeUpgrade, hasAnyForgeUpgrade } from '../data/forgeDungeon';
 import { clampLevel, MAX_LEVEL } from '../data/featureFlags';
+import { FERMETURE_TEMPORAIRE_ACTIVE } from '../config/maintenanceMode';
 
 const STAT_KEYS = [
   ['hp', 'PV'],
@@ -314,10 +315,10 @@ function AdminCharacterDirectory() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => navigate('/admin')}
+              onClick={() => navigate(FERMETURE_TEMPORAIRE_ACTIVE ? '/' : '/admin')}
               className="px-4 py-2 rounded-lg border border-stone-600 bg-stone-800 text-stone-200 text-sm font-bold hover:border-amber-500"
             >
-              ← Backoffice
+              {FERMETURE_TEMPORAIRE_ACTIVE ? '← Fermeture (accueil)' : '← Backoffice'}
             </button>
             <button
               type="button"

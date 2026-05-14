@@ -1,8 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 /**
- * Écran de fermeture temporaire : bloque toute l’app (pas de routes, pas d’auth).
- * Désactivé via `FERMETURE_TEMPORAIRE_ACTIVE` dans Application.jsx.
+ * Écran de fermeture temporaire pour les visiteurs.
+ * Désactivé via `FERMETURE_TEMPORAIRE_ACTIVE` dans `src/config/maintenanceMode.js`.
+ * Les admins peuvent encore ouvrir `/auth` puis `/admin/annuaire` (voir Application.jsx).
  */
 export default function MaintenanceShutdown() {
   return (
@@ -33,6 +35,23 @@ export default function MaintenanceShutdown() {
           votre patience et votre fidélité.
         </p>
         <p className="mt-8 text-sm text-stone-500">— L’équipe</p>
+        <p className="mt-10 flex flex-col items-center gap-2 text-sm text-stone-500 sm:flex-row sm:justify-center sm:gap-4">
+          <Link
+            to="/auth"
+            className="text-amber-500/90 underline underline-offset-2 hover:text-amber-400"
+          >
+            Connexion organisateur
+          </Link>
+          <span className="hidden sm:inline" aria-hidden="true">
+            ·
+          </span>
+          <Link
+            to="/admin/annuaire"
+            className="text-amber-500/90 underline underline-offset-2 hover:text-amber-400"
+          >
+            Annuaire admin (session déjà ouverte)
+          </Link>
+        </p>
       </div>
     </div>
   );

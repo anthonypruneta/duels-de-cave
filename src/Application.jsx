@@ -33,9 +33,10 @@ import PvpLobby from './components/PvpLobby';
 import PvpLeaderboard from './components/PvpLeaderboard';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import MaintenanceShutdown from './components/MaintenanceShutdown';
+import { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
 
-/** Repasser à `false` pour rouvrir le site (routes, auth, jeu). */
-export const FERMETURE_TEMPORAIRE_ACTIVE = true;
+/** Repasser à `false` dans `src/config/maintenanceMode.js` pour rouvrir le site. */
+export { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
 
 function Application() {
   useEffect(() => {
@@ -45,7 +46,26 @@ function Application() {
   }, []);
 
   if (FERMETURE_TEMPORAIRE_ACTIVE) {
-    return <MaintenanceShutdown />;
+    return (
+      <Router>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/admin/annuaire"
+              element={
+                <ProtectedRoute>
+                  <AdminOnlyRoute>
+                    <AdminCharacterDirectory />
+                  </AdminOnlyRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<MaintenanceShutdown />} />
+          </Routes>
+        </AuthProvider>
+      </Router>
+    );
   }
 
   return (
