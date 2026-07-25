@@ -5,15 +5,20 @@
 import {
   CAVE_DESTINY_AMBITIONS,
   CAVE_DESTINY_MENTORS,
-  CAVE_DESTINY_WEAPONS,
   CAVE_DESTINY_EVENTS,
   CAVE_DESTINY_TIERS,
   CAVE_DESTINY_SEASON_COUNT,
   STORAGE_KEY_SAVE,
   STORAGE_KEY_PANTHEON,
   getOptionsForEvent,
+  getDestinyWeaponById,
+  upgradeDestinyWeapon,
+  grantLegendaryDestinyWeapon,
+  fillWeaponPlaceholders,
+  isWeaponMaxed,
 } from '../data/caveDestiny';
 import { getEventBaseWeight } from '../data/caveDestinyRarity';
+import { RARITY } from '../data/weapons';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -93,9 +98,12 @@ function characterBonus(character, deltas) {
 export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   const ambition = CAVE_DESTINY_AMBITIONS.find((a) => a.id === ambitionId);
   const mentor = CAVE_DESTINY_MENTORS.find((m) => m.id === mentorId);
-  const weapon = CAVE_DESTINY_WEAPONS.find((w) => w.id === weaponId);
+  const weapon = getDestinyWeaponById(weaponId);
   if (!character || !ambition || !mentor || !weapon) {
     throw new Error('Choix de création incomplets');
+  }
+  if (weapon.rarity !== RARITY.COMMUNE) {
+    throw new Error('L’arme de départ doit être commune');
   }
 
   let stats = {
@@ -117,7 +125,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 4,
+    version: 5,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -142,7 +150,37 @@ function eventWeight(event, career) {
   if (career.stats.forme < 35 && event.id === 'blessure') w *= 2.2;
   if (career.stats.forme < 25 && event.tags?.includes('combat')) w *= 0.55;
   if (career.recentEventIds.includes(event.id)) w *= 0.25;
+
+  // Events d’upgrade / légendaire : inutiles si déjà au max
+  if (event.tags?.includes('arme') && isWeaponMaxed(career.weapon)) {
+    w *= 0.05;
+  }
+  // Légendaire plus probable si déjà en rare
+  if (event.tags?.includes('arme_legendaire') && career.weapon?.rarity === RARITY.RARE) {
+    w *= 1.4;
+  }
+  // Upgrade plus utile en commune
+  if (event.tags?.includes('arme_upgrade') && career.weapon?.rarity === RARITY.COMMUNE) {
+    w *= 1.35;
+  }
   return w;
+}
+
+function localizeEventForWeapon(event, weapon) {
+  const options = (event.options || []).map((opt) => ({
+    ...opt,
+    label: fillWeaponPlaceholders(opt.label, weapon),
+    outcomes: (opt.outcomes || []).map((o) => ({
+      ...o,
+      text: fillWeaponPlaceholders(o.text, weapon),
+    })),
+  }));
+  return {
+    ...event,
+    title: fillWeaponPlaceholders(event.title, weapon),
+    text: fillWeaponPlaceholders(event.text, weapon),
+    options,
+  };
 }
 
 export function drawEvent(career) {
@@ -152,13 +190,14 @@ export function drawEvent(career) {
   }));
   const raw = pickWeighted(pool);
   const options = getOptionsForEvent(raw, career.character);
+  const localized = localizeEventForWeapon({ ...raw, options }, career.weapon);
   return {
-    id: raw.id,
-    title: raw.title,
-    text: raw.text,
-    tags: raw.tags,
-    rarity: raw.rarity || 'common',
-    options,
+    id: localized.id,
+    title: localized.title,
+    text: localized.text,
+    tags: localized.tags,
+    rarity: localized.rarity || 'common',
+    options: localized.options,
   };
 }
 
@@ -185,19 +224,47 @@ export function resolveChoice(career, optionIndex) {
   let deltas = { ...(outcome.deltas || {}) };
   const trophyDelta = deltas.trophies;
   delete deltas.trophies;
+  const weaponProgress = outcome.weaponProgress || deltas.weaponProgress || null;
+  delete deltas.weaponProgress;
   deltas = characterBonus(career.character, deltas);
 
-  const stats = applyEffects(career.stats, deltas);
+  let stats = applyEffects(career.stats, deltas);
   const trophies = applyTrophies(career.trophies, trophyDelta);
+
+  let weapon = career.weapon;
+  let outcomeText = fillWeaponPlaceholders(outcome.text, weapon);
+  const weaponDeltas = {};
+
+  if (weaponProgress === 'upgrade' || weaponProgress === 'legendary') {
+    const result =
+      weaponProgress === 'legendary'
+        ? grantLegendaryDestinyWeapon(weapon)
+        : upgradeDestinyWeapon(weapon);
+    if (result.changed || Object.keys(result.statDelta || {}).length) {
+      weapon = result.weapon;
+      stats = applyEffects(stats, result.statDelta);
+      Object.assign(weaponDeltas, result.statDelta);
+      if (result.message) {
+        outcomeText = `${outcomeText} ${result.message}`;
+      }
+    } else if (result.message) {
+      outcomeText = `${outcomeText} ${result.message}`;
+    }
+  }
+
+  const mergedDeltas = { ...deltas, ...weaponDeltas };
 
   const historyEntry = {
     season: career.season,
     eventId: career.currentEvent.id,
     title: career.currentEvent.title,
     choice: option.label,
-    text: outcome.text,
+    text: outcomeText,
     variant: outcome.variant || 'neutre',
-    deltas,
+    deltas: mergedDeltas,
+    weaponProgress: weaponProgress || null,
+    weaponName: weapon?.name || null,
+    weaponRarity: weapon?.rarity || null,
   };
 
   const recentEventIds = [...career.recentEventIds, career.currentEvent.id].slice(-4);
@@ -213,6 +280,7 @@ export function resolveChoice(career, optionIndex) {
 
   let next = {
     ...career,
+    weapon,
     stats: agedStats,
     trophies,
     history: [...career.history, historyEntry],
@@ -282,6 +350,13 @@ export function buildFinalStory(career) {
   else arc += ' Aucune couronne… mais des histoires à la Taverne.';
 
   if (forge >= 1) arc += ' Ornn a reconnu son bras dans le feu de la forge.';
+  const weaponName = career.weapon?.name;
+  const weaponRarity = career.weapon?.rarity;
+  if (weaponName && weaponRarity === RARITY.LEGENDAIRE) {
+    arc += ` ${weaponName} a révélé sa forme légendaire.`;
+  } else if (weaponName && weaponRarity === RARITY.RARE) {
+    arc += ` ${weaponName} a été améliorée en chemin.`;
+  }
   if (score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
   else if (score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
 

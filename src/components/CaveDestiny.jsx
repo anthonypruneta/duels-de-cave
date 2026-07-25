@@ -2,13 +2,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CAVE_DESTINY_AMBITIONS,
-  CAVE_DESTINY_MENTORS,
-  CAVE_DESTINY_WEAPONS,
   pickRandomGameCharacters,
+  pickRandomMentors,
+  pickRandomCommonWeapons,
+  CAVE_DESTINY_MENTOR_OFFER_COUNT,
+  CAVE_DESTINY_WEAPON_OFFER_COUNT,
   LAST_OFFERED_STORAGE_KEY,
   LAST_OFFERED_HISTORY_LIMIT,
   getRaceIcon,
   getClassIcon,
+  WEAPON_RARITY_LABEL,
 } from '../data/caveDestiny';
 import {
   createCareer,
@@ -271,9 +274,13 @@ const CaveDestiny = () => {
   const [outcomeFlash, setOutcomeFlash] = useState(null);
   const [allGameCharacters, setAllGameCharacters] = useState([]);
   const [offeredCharacters, setOfferedCharacters] = useState([]);
+  const [offeredMentors, setOfferedMentors] = useState([]);
+  const [offeredWeapons, setOfferedWeapons] = useState([]);
   const [charsLoading, setCharsLoading] = useState(false);
   const [charsError, setCharsError] = useState(null);
   const [drawNonce, setDrawNonce] = useState(0);
+  const [mentorDrawNonce, setMentorDrawNonce] = useState(0);
+  const [weaponDrawNonce, setWeaponDrawNonce] = useState(0);
   const poolRef = useRef([]);
 
   useEffect(() => {
@@ -332,12 +339,24 @@ const CaveDestiny = () => {
     drawFreshOffer();
   }, [screen, drawNonce, drawFreshOffer]);
 
+  useEffect(() => {
+    if (screen !== 'mentor') return;
+    setOfferedMentors(pickRandomMentors(CAVE_DESTINY_MENTOR_OFFER_COUNT));
+  }, [screen, mentorDrawNonce]);
+
+  useEffect(() => {
+    if (screen !== 'arme') return;
+    setOfferedWeapons(pickRandomCommonWeapons(CAVE_DESTINY_WEAPON_OFFER_COUNT));
+  }, [screen, weaponDrawNonce]);
+
   const startFresh = () => {
     setSetup({ character: null, ambitionId: null, mentorId: null, weaponId: null });
     setCareer(null);
     clearSave();
     setOutcomeFlash(null);
     setDrawNonce((n) => n + 1);
+    setMentorDrawNonce((n) => n + 1);
+    setWeaponDrawNonce((n) => n + 1);
     setScreen('personnage');
   };
 
@@ -353,11 +372,13 @@ const CaveDestiny = () => {
 
   const selectAmbition = (id) => {
     setSetup((s) => ({ ...s, ambitionId: id }));
+    setMentorDrawNonce((n) => n + 1);
     setScreen('mentor');
   };
 
   const selectMentor = (id) => {
     setSetup((s) => ({ ...s, mentorId: id }));
+    setWeaponDrawNonce((n) => n + 1);
     setScreen('arme');
   };
 
@@ -582,12 +603,15 @@ const CaveDestiny = () => {
             <CharacterIdentity character={setup.character} compact />
           </div>
         )}
-        <ScreenTitle title="Votre mentor" sub="Qui vous guide au début ?" />
+        <ScreenTitle
+          title="Votre mentor"
+          sub={`${CAVE_DESTINY_MENTOR_OFFER_COUNT} guides tirés au hasard. Qui vous accompagne ?`}
+        />
         <div className="space-y-2">
-          {CAVE_DESTINY_MENTORS.map((m) => (
+          {offeredMentors.map((m) => (
             <ChoiceRow
               key={m.id}
-              title={m.name}
+              title={`${m.icon || ''} ${m.name}`.trim()}
               description={m.desc}
               onClick={() => selectMentor(m.id)}
             />
@@ -608,13 +632,16 @@ const CaveDestiny = () => {
             <CharacterIdentity character={setup.character} compact />
           </div>
         )}
-        <ScreenTitle title="Votre voie d’arme" sub="Choisissez l’arme qui vous définit." />
+        <ScreenTitle
+          title="Votre arme"
+          sub="4 armes communes tirées du roster. Les events pourront l’upgrader… ou, rarement, révéler sa légendaire."
+        />
         <div className="space-y-2">
-          {CAVE_DESTINY_WEAPONS.map((w) => (
+          {offeredWeapons.map((w) => (
             <ChoiceRow
               key={w.id}
-              title={w.name}
-              description={w.desc}
+              title={`${w.icon || ''} ${w.name}`.trim()}
+              description={`${w.description} → rare : ${w.path?.rareName || '—'} · légendaire : ${w.path?.legendaireName || '—'}`}
               onClick={() => selectWeapon(w.id)}
             />
           ))}
@@ -716,6 +743,15 @@ const CaveDestiny = () => {
               classe={career.character.class}
               className="mt-0.5"
             />
+            <p className="text-[11px] text-amber-200/80 truncate mt-0.5">
+              {career.weapon?.icon} {career.weapon?.name}
+              {career.weapon?.rarity ? (
+                <span className="text-stone-500">
+                  {' '}
+                  · {WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity}
+                </span>
+              ) : null}
+            </p>
             <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
               Créateur : {career.character.ownerPseudo || 'Inconnu'}
             </p>
@@ -756,19 +792,38 @@ const CaveDestiny = () => {
         </div>
 
         {showProfile && (
-          <div className="mb-4 rounded-xl border border-stone-700 bg-stone-950/80 p-3 grid grid-cols-3 gap-2 text-center text-xs">
-            {[
-              ['Puissance', career.stats.puissance],
-              ['Endurance', career.stats.endurance],
-              ['Magie', career.stats.magie],
-              ['Vitesse', career.stats.vitesse],
-              ['Charisme', career.stats.charisme],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-stone-500">{label}</p>
-                <p className="font-semibold text-amber-100">{Math.round(value)}</p>
-              </div>
-            ))}
+          <div className="mb-4 rounded-xl border border-stone-700 bg-stone-950/80 p-3 space-y-3">
+            <div className="text-center text-xs">
+              <p className="text-stone-500">Arme</p>
+              <p className="font-semibold text-amber-100">
+                {career.weapon?.icon} {career.weapon?.name}
+              </p>
+              <p className="text-stone-400 mt-0.5">
+                {WEAPON_RARITY_LABEL[career.weapon?.rarity] || '—'}
+                {career.weapon?.path?.legendaireName
+                  ? ` → ${career.weapon.path.legendaireName}`
+                  : ''}
+              </p>
+              {career.mentor?.name && (
+                <p className="text-stone-500 mt-2">
+                  Mentor : <span className="text-stone-300">{career.mentor.name}</span>
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              {[
+                ['Puissance', career.stats.puissance],
+                ['Endurance', career.stats.endurance],
+                ['Magie', career.stats.magie],
+                ['Vitesse', career.stats.vitesse],
+                ['Charisme', career.stats.charisme],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-stone-500">{label}</p>
+                  <p className="font-semibold text-amber-100">{Math.round(value)}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

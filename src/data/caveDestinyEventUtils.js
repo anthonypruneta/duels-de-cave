@@ -4,10 +4,17 @@
 
 /** Construit le trio obligatoire bonus / neutre / malus */
 export function trio(bonus, neutre, malus, weights = [30, 40, 30]) {
+  const pack = (variant, weight, o) => ({
+    variant,
+    weight,
+    text: o.text,
+    deltas: o.deltas,
+    ...(o.weaponProgress ? { weaponProgress: o.weaponProgress } : {}),
+  });
   return [
-    { variant: 'bonus', weight: weights[0], text: bonus.text, deltas: bonus.deltas },
-    { variant: 'neutre', weight: weights[1], text: neutre.text, deltas: neutre.deltas },
-    { variant: 'malus', weight: weights[2], text: malus.text, deltas: malus.deltas },
+    pack('bonus', weights[0], bonus),
+    pack('neutre', weights[1], neutre),
+    pack('malus', weights[2], malus),
   ];
 }
 
