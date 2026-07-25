@@ -9,6 +9,7 @@ import {
   CAVE_DESTINY_WEAPON_OFFER_COUNT,
   LAST_OFFERED_STORAGE_KEY,
   LAST_OFFERED_HISTORY_LIMIT,
+  EXTEND_SEASON_HP_COST,
   getRaceIcon,
   getClassIcon,
   WEAPON_RARITY_LABEL,
@@ -27,6 +28,9 @@ import {
   buildCompanionPool,
   withCompanionPool,
   listActiveChainQuests,
+  canExtendSeason,
+  extendCareerSeason,
+  retireFromExtend,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
@@ -493,7 +497,7 @@ const CaveDestiny = () => {
     let cancelled = false;
     const boot = async () => {
       const saved = loadSave();
-      if (!saved || saved.phase !== 'playing') return;
+      if (!saved || (saved.phase !== 'playing' && saved.phase !== 'extendOffer')) return;
       try {
         const pool = await ensurePool();
         if (cancelled) return;
@@ -597,7 +601,40 @@ const CaveDestiny = () => {
 
   const resume = () => {
     if (!career) return;
-    setScreen(career.phase === 'finished' ? 'final' : 'game');
+    if (career.phase === 'finished') setScreen('final');
+    else if (career.phase === 'extendOffer') setScreen('extend');
+    else setScreen('game');
+  };
+
+  const finishAndSaveRun = (finishedCareer) => {
+    if (!finishedCareer || finishedCareer.phase !== 'finished') return;
+    const uid = currentUser?.uid || null;
+    pushToPantheon(finishedCareer, { userId: uid });
+    if (uid && !savingRunRef.current) {
+      savingRunRef.current = true;
+      saveCaveDestinyFinishedRun({ userId: uid, career: finishedCareer })
+        .then((res) => {
+          if (res.success && res.entry) {
+            setMyRuns((prev) => {
+              const without = prev.filter((r) => r.id !== res.entry.id);
+              return [res.entry, ...without].sort(
+                (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
+              );
+            });
+            setPantheon((prev) => {
+              const without = prev.filter((r) => r.id !== res.entry.id);
+              return [res.entry, ...without].sort(
+                (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
+              );
+            });
+          } else if (!res.success) {
+            console.error('Sauvegarde run Cave Destiny:', res.error);
+          }
+        })
+        .finally(() => {
+          savingRunRef.current = false;
+        });
+    }
   };
 
   const selectCharacter = (character) => {
@@ -640,39 +677,30 @@ const CaveDestiny = () => {
     setOutcomeFlash(next.lastOutcome);
     setCareer(next);
     if (next.phase === 'finished') {
-      const uid = currentUser?.uid || null;
-      pushToPantheon(next, { userId: uid });
-      if (uid && !savingRunRef.current) {
-        savingRunRef.current = true;
-        saveCaveDestinyFinishedRun({ userId: uid, career: next })
-          .then((res) => {
-            if (res.success && res.entry) {
-              setMyRuns((prev) => {
-                const without = prev.filter((r) => r.id !== res.entry.id);
-                return [res.entry, ...without].sort(
-                  (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
-                );
-              });
-              setPantheon((prev) => {
-                const without = prev.filter((r) => r.id !== res.entry.id);
-                return [res.entry, ...without].sort(
-                  (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
-                );
-              });
-            } else if (!res.success) {
-              console.error('Sauvegarde run Cave Destiny:', res.error);
-            }
-          })
-          .finally(() => {
-            savingRunRef.current = false;
-          });
-      }
+      finishAndSaveRun(next);
     }
   };
 
   const continueAfterOutcome = () => {
     setOutcomeFlash(null);
     if (career?.phase === 'finished') setScreen('final');
+    else if (career?.phase === 'extendOffer') setScreen('extend');
+  };
+
+  const handleExtendSeason = () => {
+    if (!career || !canExtendSeason(career)) return;
+    const next = extendCareerSeason(career);
+    setOutcomeFlash(next.lastOutcome);
+    setCareer(next);
+    setScreen('game');
+  };
+
+  const handleRetireFromExtend = () => {
+    if (!career) return;
+    const next = retireFromExtend(career);
+    setCareer(next);
+    finishAndSaveRun(next);
+    setScreen('final');
   };
 
   const backSetup = () => {
@@ -693,7 +721,7 @@ const CaveDestiny = () => {
 
   /* ---------- HOME ---------- */
   if (screen === 'home') {
-    const canResume = career?.phase === 'playing';
+    const canResume = career?.phase === 'playing' || career?.phase === 'extendOffer';
     return (
       <Shell>
         <div className="flex flex-col items-center text-center min-h-[70vh] justify-center">
@@ -713,7 +741,9 @@ const CaveDestiny = () => {
           <div className="mt-10 w-full space-y-3 max-w-sm">
             {canResume && (
               <PrimaryButton onClick={resume}>
-                Reprendre — saison {career.season}/{career.maxSeasons}
+                {career.phase === 'extendOffer'
+                  ? `Reprendre — fin de saison ${career.maxSeasons}`
+                  : `Reprendre — saison ${career.season}/${career.maxSeasons}`}
               </PrimaryButton>
             )}
             <PrimaryButton onClick={startFresh}>Commencer une carrière</PrimaryButton>
@@ -962,6 +992,45 @@ const CaveDestiny = () => {
     );
   }
 
+  /* ---------- EXTEND (fin de saison max) ---------- */
+  if (screen === 'extend' && career?.phase === 'extendOffer') {
+    const hp = Math.round(Number(career.stats?.hp ?? career.stats?.forme) || 0);
+    const canPay = canExtendSeason(career);
+    const cost = EXTEND_SEASON_HP_COST;
+    return (
+      <Shell>
+        <SectionTitle
+          title="Le livre tremble"
+          sub={`Saison ${career.maxSeasons} achevée. La Cave peut encore tourner une page — contre votre sang.`}
+        />
+        <div className="rounded-2xl border-2 border-rose-700/45 bg-rose-950/20 px-4 py-5 shadow-[0_0_22px_rgba(225,29,72,0.12)]">
+          <p className="text-[11px] uppercase tracking-wider text-rose-300/90 font-bold">
+            Prolongation
+          </p>
+          <h3 className="mt-1 text-lg font-bold text-amber-50">
+            Sacrifier {cost} PV pour +1 saison ?
+          </h3>
+          <p className="mt-3 text-sm text-stone-300 leading-relaxed font-[Cormorant_Garamond,Georgia,serif]">
+            Vous avez {hp} PV. {canPay
+              ? `Après le sacrifice, il vous en resterait ${hp - cost}. La run continue à la saison ${career.maxSeasons + 1}.`
+              : `Pas assez de PV (il faut plus de ${cost}). La retraite est la seule issue.`}
+          </p>
+          <p className="mt-2 text-xs text-stone-500">
+            Vous pourrez recommencer ce choix à chaque nouveau plafond de saisons.
+          </p>
+          <div className="mt-6 space-y-3">
+            <PrimaryButton onClick={handleExtendSeason} disabled={!canPay}>
+              Sacrifier {cost} PV — continuer
+            </PrimaryButton>
+            <GhostButton onClick={handleRetireFromExtend}>
+              Prendre sa retraite
+            </GhostButton>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
   /* ---------- FINAL ---------- */
   if (screen === 'final' && career) {
     return (
@@ -1188,12 +1257,16 @@ const CaveDestiny = () => {
               </div>
               {outcomeFlash.died && (
                 <p className="mt-3 text-sm font-semibold text-red-300">
-                  💀 Mort — PV à 0. Fin de carrière.
+                  💀 Mort — PV à 0. Score final divisé par 2.
                 </p>
               )}
               <div className="mt-5">
                 <PrimaryButton onClick={continueAfterOutcome}>
-                  {outcomeFlash.died ? 'Voir le destin' : 'Continuer'}
+                  {outcomeFlash.died
+                    ? 'Voir le destin'
+                    : career?.phase === 'extendOffer'
+                      ? 'La Cave propose une suite…'
+                      : 'Continuer'}
                 </PrimaryButton>
               </div>
             </>

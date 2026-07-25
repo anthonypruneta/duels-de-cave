@@ -327,6 +327,8 @@ export const CAVE_DESTINY_TIERS = [
 ];
 
 export const CAVE_DESTINY_SEASON_COUNT = 20;
+/** Coût en PV pour gagner une saison de plus en fin de carrière. */
+export const EXTEND_SEASON_HP_COST = 20;
 export const STORAGE_KEY_SAVE = 'caveDestiny:save';
 export const STORAGE_KEY_PANTHEON = 'caveDestiny:pantheon';
 

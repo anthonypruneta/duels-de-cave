@@ -234,6 +234,9 @@ export default function CaveDestinyRecap({
               {recap.score}
             </p>
             <p className="text-[10px] uppercase tracking-wide text-stone-500">score</p>
+            {career?.endReason === 'death' && (
+              <p className="mt-0.5 text-[10px] text-red-400/90">÷2 mort</p>
+            )}
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import {
   CAVE_DESTINY_EVENTS,
   CAVE_DESTINY_TIERS,
   CAVE_DESTINY_SEASON_COUNT,
+  EXTEND_SEASON_HP_COST,
   STORAGE_KEY_SAVE,
   STORAGE_KEY_PANTHEON,
   getOptionsForEvent,
@@ -1271,8 +1272,8 @@ export function resolveChoice(career, optionIndex) {
     recentEventIds = recentEventIds.filter((id) => !steps.includes(id));
   }
   const nextSeason = career.season + 1;
-  const retired = !dead && nextSeason > career.maxSeasons;
-  const finished = dead || retired;
+  const hitSeasonCap = !dead && nextSeason > career.maxSeasons;
+  const finished = dead;
 
   const agedStats = dead
     ? stats
@@ -1328,20 +1329,81 @@ export function resolveChoice(career, optionIndex) {
     chainProgress: chainState.chainProgress,
     // Plus de forçage d’étape suivante : les suites se tirent dans le pool
     queuedEventId: null,
-    endReason: dead ? 'death' : retired ? 'retire' : career.endReason || null,
+    endReason: dead ? 'death' : career.endReason || null,
     history: [...career.history, historyEntry],
     recentEventIds,
     lastOutcome: historyEntry,
     currentEvent: null,
-    season: finished ? (dead ? career.season : career.maxSeasons) : nextSeason,
-    phase: finished ? 'finished' : 'playing',
+    season: dead ? career.season : hitSeasonCap ? career.maxSeasons : nextSeason,
+    // Cap atteint → offre de prolonger (sacrifice PV) avant la retraite
+    phase: dead ? 'finished' : hitSeasonCap ? 'extendOffer' : 'playing',
   };
 
-  if (!finished) {
+  if (!finished && !hitSeasonCap) {
     next = ensureCurrentEvent(next);
   }
 
   return next;
+}
+
+/** Peut sacrifier des PV pour +1 saison (phase extendOffer, PV > coût). */
+export function canExtendSeason(career) {
+  if (!career || career.phase !== 'extendOffer') return false;
+  const hp = Number(career.stats?.hp ?? career.stats?.forme) || 0;
+  return hp > EXTEND_SEASON_HP_COST;
+}
+
+/**
+ * Sacrifie EXTEND_SEASON_HP_COST PV pour allonger la carrière d’une saison.
+ * Rejouable à chaque fois que le plafond est atteint.
+ */
+export function extendCareerSeason(career) {
+  if (!canExtendSeason(career)) return career;
+  const cost = EXTEND_SEASON_HP_COST;
+  const stats = applyEffects(career.stats, { hp: -cost });
+  const maxSeasons = (Number(career.maxSeasons) || CAVE_DESTINY_SEASON_COUNT) + 1;
+  const season = maxSeasons;
+  const historyEntry = {
+    season: career.season,
+    eventId: 'prolongation',
+    title: 'Une saison de plus',
+    choice: `Sacrifier ${cost} PV`,
+    text: `Vous versez ${cost} PV à la Cave. Elle vous rend une saison — fragile, brûlante, encore jouable.`,
+    variant: 'neutre',
+    deltas: { hp: -cost },
+    scoreGain: 0,
+    died: false,
+    ambitionLinked: false,
+    weaponProgress: null,
+    weaponName: career.weapon?.name || null,
+    weaponRarity: career.weapon?.rarity || null,
+    subclassName: career.subclass?.name || null,
+  };
+  let next = {
+    ...career,
+    stats,
+    maxSeasons,
+    season,
+    phase: 'playing',
+    endReason: null,
+    currentEvent: null,
+    history: [...(career.history || []), historyEntry],
+    lastOutcome: historyEntry,
+    seasonsExtended: (Number(career.seasonsExtended) || 0) + 1,
+  };
+  return ensureCurrentEvent(next);
+}
+
+/** Décline l’offre de prolongation → retraite. */
+export function retireFromExtend(career) {
+  if (!career || career.phase !== 'extendOffer') return career;
+  return {
+    ...career,
+    phase: 'finished',
+    endReason: 'retire',
+    season: career.maxSeasons,
+    currentEvent: null,
+  };
 }
 
 export function computeScore(career) {
@@ -1372,7 +1434,12 @@ export function computeScore(career) {
     (s.spd || 0) * 0.35 +
     (s.charisme || 0) * 0.3;
 
-  return Math.round(statsPoints + runScore * 0.7 + trophyPoints);
+  let score = Math.round(statsPoints + runScore * 0.7 + trophyPoints);
+  // Mort en run : la Cave ne garde que la moitié de la légende
+  if (career?.endReason === 'death') {
+    score = Math.round(score / 2);
+  }
+  return score;
 }
 
 export function getTier(score) {
@@ -1396,7 +1463,7 @@ export function buildFinalStory(career) {
   let arc = `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`;
 
   if (died) {
-    arc += ' La mort l’a cueilli avant la retraite : PV à zéro.';
+    arc += ' La mort l’a cueilli avant la retraite : PV à zéro. La Cave ne garde que la moitié de ses points.';
   }
 
   if (wins >= 2) arc += ' Les tournois du samedi ont appris à craindre son nom.';
