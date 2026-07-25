@@ -121,25 +121,26 @@ function inferCheckStats(option, event) {
   return Object.fromEntries(ranked);
 }
 
-/** Score secret [-1, 1] : au-dessus de la baseline → plus de bonus */
+/** Score secret [-1, 1] : au-dessus de la baseline → un peu plus de bonus */
 function computeCheckScore(stats, checkWeights, season = 1) {
   const entries = Object.entries(checkWeights || {});
   if (!entries.length) return 0;
-  const baseline = 16 + Math.max(0, season - 1) * 1.05;
+  // Baseline un peu plus haute + échelle plus douce → moins d’écart win/lose
+  const baseline = 18 + Math.max(0, season - 1) * 0.85;
   let sum = 0;
   let totalW = 0;
   for (const [stat, w] of entries) {
     const val = Number(stats?.[stat]) || 0;
-    const delta = clamp((val - baseline) / 12, -1.25, 1.25);
+    const delta = clamp((val - baseline) / 22, -0.7, 0.7);
     sum += delta * w;
     totalW += w;
   }
-  return totalW > 0 ? clamp(sum / totalW, -1, 1) : 0;
+  return totalW > 0 ? clamp(sum / totalW, -0.7, 0.7) : 0;
 }
 
 /**
- * Ajuste les poids bonus/neutre/malus selon les stats (secret).
- * Une bonne Déf sur un blocage augmente nettement le bonus.
+ * Ajuste légèrement les poids bonus/neutre/malus selon les stats (secret).
+ * Influence volontairement modérée : le hasard reste le moteur principal.
  */
 function applySecretStatWeights(outcomes, career, option, event) {
   const check = inferCheckStats(option, event);
@@ -147,16 +148,16 @@ function applySecretStatWeights(outcomes, career, option, event) {
   const hp = Number(career.stats?.hp) || 50;
   const moral = Number(career.stats?.moral) || 50;
   const soft =
-    clamp((hp - 50) / 70, -0.35, 0.35) * 0.45 +
-    clamp((moral - 50) / 70, -0.35, 0.35) * 0.35;
-  const factor = clamp(checkScore + soft, -1, 1);
+    clamp((hp - 50) / 70, -0.25, 0.25) * 0.2 +
+    clamp((moral - 50) / 70, -0.25, 0.25) * 0.15;
+  const factor = clamp(checkScore + soft, -0.55, 0.55);
 
   return (outcomes || []).map((o) => {
     let w = o.weight || 1;
-    if (o.variant === 'bonus') w *= 1 + factor * 0.75;
-    else if (o.variant === 'malus') w *= 1 - factor * 0.65;
-    else w *= 1 + Math.abs(factor) * 0.08;
-    return { ...o, weight: Math.max(0.35, w) };
+    if (o.variant === 'bonus') w *= 1 + factor * 0.32;
+    else if (o.variant === 'malus') w *= 1 - factor * 0.28;
+    else w *= 1 + Math.abs(factor) * 0.04;
+    return { ...o, weight: Math.max(0.5, w) };
   });
 }
 
