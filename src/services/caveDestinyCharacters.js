@@ -15,71 +15,118 @@ function normName(name) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-/**
- * Complète characterImage manquant via archivedCharacters (même userId / nom).
- */
-async function mergeImagesFromArchives(characters) {
-  const missing = characters.filter((c) => !hasCharacterImage(c));
-  if (missing.length === 0) return characters;
+function characterKey(char) {
+  const uid = String(char.id || char.userId || '');
+  return `${uid}::${normName(char.name || char.nom)}`;
+}
 
+/**
+ * Fusionne actifs + archives, dédupliqués, en privilégiant image + données live.
+ */
+function mergeCharacterPools(liveList, archivedList) {
+  const map = new Map();
+
+  const consider = (raw, { fromArchive }) => {
+    if (!raw || raw.disabled || !raw.name || !raw.race || !raw.class) return;
+    const id = raw.id || raw.userId;
+    if (!id) return;
+
+    const entry = {
+      ...raw,
+      id,
+      userId: raw.userId || id,
+      fromArchive: !!fromArchive,
+    };
+    const key = characterKey(entry);
+    const prev = map.get(key);
+
+    if (!prev) {
+      map.set(key, entry);
+      return;
+    }
+
+    // Préfère la version avec image ; à égalité, préfère le live
+    const prevImg = hasCharacterImage(prev);
+    const nextImg = hasCharacterImage(entry);
+    if (nextImg && !prevImg) {
+      map.set(key, entry);
+      return;
+    }
+    if (prevImg && !nextImg) return;
+    if (!fromArchive && prev.fromArchive) {
+      map.set(key, { ...entry, characterImage: entry.characterImage || prev.characterImage });
+    }
+  };
+
+  archivedList.forEach((c) => consider(c, { fromArchive: true }));
+  liveList.forEach((c) => consider(c, { fromArchive: false }));
+
+  return Array.from(map.values());
+}
+
+async function loadArchivedCharacters() {
   try {
     const snap = await getDocs(collection(db, 'archivedCharacters'));
-    const byUserName = new Map();
-    const byUser = new Map();
-
-    snap.docs.forEach((docSnap) => {
+    return snap.docs.map((docSnap) => {
       const data = docSnap.data() || {};
-      if (!hasCharacterImage(data)) return;
-      const uid = String(data.userId || '');
-      if (!uid) return;
-      const key = `${uid}::${normName(data.name || data.nom)}`;
-      // garde la première URL valide rencontrée (archives les + récentes en tête si besoin)
-      if (!byUserName.has(key)) byUserName.set(key, data.characterImage);
-      if (!byUser.has(uid)) byUser.set(uid, data.characterImage);
-    });
-
-    return characters.map((c) => {
-      if (hasCharacterImage(c)) return c;
-      const uid = String(c.id || c.userId || '');
-      const key = `${uid}::${normName(c.name)}`;
-      const img = byUserName.get(key) || byUser.get(uid) || null;
-      return img ? { ...c, characterImage: img } : c;
+      return {
+        id: data.userId || docSnap.id,
+        ...data,
+        userId: data.userId || docSnap.id,
+      };
     });
   } catch (e) {
-    console.warn('Cave Destiny: enrichissement images archives impossible', e?.message || e);
-    return characters;
+    console.warn('Cave Destiny: lecture archives impossible', e?.message || e);
+    return [];
   }
 }
 
 async function enrichPseudos(characters) {
-  return Promise.all(
-    characters.map(async (c) => {
-      if (c.ownerPseudo) return c;
+  // Limite les lectures : seulement ceux sans pseudo
+  const need = characters.filter((c) => !c.ownerPseudo);
+  if (need.length === 0) return characters;
+
+  const pseudoByUser = new Map();
+  await Promise.all(
+    need.map(async (c) => {
       const userId = c.id || c.userId;
-      if (!userId) return c;
+      if (!userId || pseudoByUser.has(userId)) return;
       try {
         const pseudoRes = await getOwnerPseudoFromAccount(userId);
         const ownerPseudo = pseudoRes.success ? (pseudoRes.ownerPseudo || '') : '';
-        return ownerPseudo ? { ...c, ownerPseudo } : c;
+        pseudoByUser.set(userId, ownerPseudo);
       } catch {
-        return c;
+        pseudoByUser.set(userId, '');
       }
     })
   );
+
+  return characters.map((c) => {
+    if (c.ownerPseudo) return c;
+    const userId = c.id || c.userId;
+    const ownerPseudo = pseudoByUser.get(userId);
+    return ownerPseudo ? { ...c, ownerPseudo } : c;
+  });
 }
 
 /**
- * Charge tous les personnages jouables pour Cave Destiny (actifs + images si possible).
+ * Pool large : personnages actifs + archives (légendes passées).
  */
 export async function loadCaveDestinyCharacterPool() {
-  const res = await getAllCharacters();
-  if (!res.success) {
-    return { success: false, error: res.error || 'Chargement impossible', data: [] };
+  const [liveRes, archived] = await Promise.all([
+    getAllCharacters(),
+    loadArchivedCharacters(),
+  ]);
+
+  if (!liveRes.success && archived.length === 0) {
+    return { success: false, error: liveRes.error || 'Chargement impossible', data: [] };
   }
 
-  let active = (res.data || []).filter((c) => c && !c.disabled && !c.archived && c.name && c.race && c.class);
-  active = await mergeImagesFromArchives(active);
-  active = await enrichPseudos(active);
+  const live = (liveRes.success ? liveRes.data : []) || [];
+  const liveActive = live.filter((c) => c && !c.disabled && !c.archived);
 
-  return { success: true, data: active };
+  let pool = mergeCharacterPools(liveActive, archived);
+  pool = await enrichPseudos(pool);
+
+  return { success: true, data: pool };
 }

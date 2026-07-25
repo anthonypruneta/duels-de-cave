@@ -6,6 +6,7 @@ import {
   CAVE_DESTINY_WEAPONS,
   pickRandomGameCharacters,
   LAST_OFFERED_STORAGE_KEY,
+  LAST_OFFERED_HISTORY_LIMIT,
 } from '../data/caveDestiny';
 import {
   createCareer,
@@ -39,7 +40,10 @@ function readLastOfferedIds() {
 
 function writeLastOfferedIds(ids) {
   try {
-    sessionStorage.setItem(LAST_OFFERED_STORAGE_KEY, JSON.stringify(ids.map(String)));
+    const incoming = ids.map(String);
+    const prev = readLastOfferedIds().filter((id) => !incoming.includes(id));
+    const next = [...incoming, ...prev].slice(0, LAST_OFFERED_HISTORY_LIMIT);
+    sessionStorage.setItem(LAST_OFFERED_STORAGE_KEY, JSON.stringify(next));
   } catch {
     /* ignore */
   }
@@ -47,8 +51,11 @@ function writeLastOfferedIds(ids) {
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen text-stone-100 bg-[#1c1917]">
-      <div className="mx-auto max-w-lg px-4 pt-10 pb-16">{children}</div>
+    <div className="cave-destiny-shell relative min-h-screen text-stone-100 overflow-hidden">
+      <div className="cave-destiny-orb cave-destiny-orb-a" aria-hidden="true" />
+      <div className="cave-destiny-orb cave-destiny-orb-b" aria-hidden="true" />
+      <div className="cave-destiny-vignette" aria-hidden="true" />
+      <div className="relative z-10 mx-auto max-w-lg px-4 pt-10 pb-16">{children}</div>
     </div>
   );
 }
