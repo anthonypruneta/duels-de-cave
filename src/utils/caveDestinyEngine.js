@@ -609,7 +609,7 @@ function localizeEventForWeapon(event, weapon) {
 
 /**
  * Ambition allumée uniquement en finale de suite
- * (ex. donjons : boss de forêt / tour / Red… pas le rat du début).
+ * (ex. donjons : boss de forêt / tour / grotte… pas le rat du début).
  * Suites 1 étape (invitation / défi reportable) : pas de violet avant le choix.
  */
 export function isAmbitionLinkedEvent(event, career) {
