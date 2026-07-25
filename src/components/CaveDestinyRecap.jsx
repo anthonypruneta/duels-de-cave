@@ -260,11 +260,6 @@ export default function CaveDestinyRecap({
                 </>
               ) : null}
             </p>
-            {id.ownerPseudo ? (
-              <p className="text-xs italic text-stone-500 mt-1">
-                Créateur : {id.ownerPseudo}
-              </p>
-            ) : null}
             {id.ambitionName ? (
               <p className="text-xs text-stone-400 mt-1.5">
                 {id.ambitionIcon ? `${id.ambitionIcon} ` : ''}
