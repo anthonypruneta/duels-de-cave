@@ -11,6 +11,13 @@ concurrency:
   group: firebase-hosting-merge-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  deployments: write
+  pull-requests: write
+  id-token: write
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -48,10 +55,31 @@ jobs:
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
+      # Hosting d’abord : ne doit pas être bloqué par Firestore/Functions
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DUELSDECAVE }}
+          channelId: live
+          projectId: duelsdecave
+
+      # Le SA doit avoir roles/firebaserules.admin (+ indexes). continue-on-error
+      # pour ne pas bloquer le site si le rôle manque encore.
       - name: Deploy Firestore rules & indexes
-        run: firebase deploy --only firestore:rules,firestore:indexes --project duelsdecave
+        id: firestore_deploy
+        continue-on-error: true
+        run: |
+          set -e
+          if firebase deploy --only firestore:rules,firestore:indexes --project duelsdecave; then
+            echo "Firestore rules/indexes déployés."
+          else
+            echo "::warning::Échec déploiement Firestore (souvent 403 : le service account n’a pas Firebase Rules Admin). Hosting déjà déployé."
+            exit 1
+          fi
 
       - name: Deploy Cloud Functions
+        continue-on-error: true
         run: firebase deploy --only functions --project duelsdecave
 
       - name: Setup gcloud
@@ -60,10 +88,12 @@ jobs:
           project_id: duelsdecave
 
       - name: Debug list Cloud Run services
+        continue-on-error: true
         run: |
           gcloud run services list --region=europe-west1 --project=duelsdecave --format="value(metadata.name)"
 
       - name: Ensure public invoker on all callable Cloud Functions
+        continue-on-error: true
         run: |
           set -e
           FUNCTIONS="dungeon_getProgress dungeon_startRun dungeon_endRun dungeon_setEquippedWeapon dungeon_markCompleted dungeon_grantRuns bossRush_claimReward betting_placeBet betting_cancelBet"
@@ -72,13 +102,5 @@ jobs:
             gcloud functions add-invoker-policy-binding "$FN" \
               --region=europe-west1 \
               --project=duelsdecave \
-              --member="allUsers"
+              --member="allUsers" || true
           done
-
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DUELSDECAVE }}
-          channelId: live
-          projectId: duelsdecave

@@ -11,6 +11,13 @@ concurrency:
   group: firebase-hosting-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Requis par FirebaseExtended/action-hosting-deploy (check-runs + commentaire PR)
+permissions:
+  contents: read
+  checks: write
+  deployments: write
+  pull-requests: write
+
 jobs:
   build_and_preview:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
