@@ -907,9 +907,63 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
   return { deltas: next, trophyDelta: trophies, scoreGain: gain };
 }
 
+/**
+ * Ajoute un refus / abandon sur toute suite (sauf si déjà présent, ex. Red / Anciens / Ornn).
+ * Permet de ne pas « bloquer » un slot de quête active.
+ */
+function expandChainRefuseOption(event, career) {
+  const info = getChainStep(event?.id);
+  if (!info) return event;
+  // Red gère déjà son refus dédié
+  if (RED_ARENA_EVENT_IDS.has(event.id)) return event;
+  // Suites 1 étape avec sortie soft déjà prévue
+  if (event.id === 'tournoi_anciens' || event.id === 'ornn_jugement') return event;
+  if (event.options?.some((o) => o?.exitChain || o?.id === 'refuser_quete' || o?.id === 'refuser')) {
+    return event;
+  }
+
+  const isOpening = info.stepIndex === 0;
+  const label = info.chain.label || 'cette quête';
+  const refuseOption = {
+    id: 'refuser_quete',
+    exitChain: true,
+    label: isOpening ? `Refuser « ${label} »` : `Abandonner « ${label} »`,
+    detail: isOpening
+      ? 'Ne pas démarrer — laisse la place à une autre suite'
+      : 'Abandonne la progression — la place se libère',
+    outcomes: trio(
+      {
+        text: isOpening
+          ? `Vous déclinez « ${label} ». D’autres chemins restent ouverts.`
+          : `Vous abandonnez « ${label} ». La place se libère pour une autre suite.`,
+        deltas: { moral: 1 },
+      },
+      {
+        text: isOpening
+          ? `Pas cette saison. « ${label} » attendra — ou jamais.`
+          : `Fin de parcours pour « ${label} ». Il faudrait tout reprendre depuis le début.`,
+        deltas: {},
+      },
+      {
+        text: isOpening
+          ? `Un regard en coin. Refuser « ${label} » n’est pas une honte — juste un choix.`
+          : `On murmure que vous lâchez « ${label} » trop vite. La place se libère quand même.`,
+        deltas: { moral: -1, renommee: -1 },
+      },
+      [45, 40, 15]
+    ),
+  };
+
+  return {
+    ...event,
+    options: [...(event.options || []), refuseOption],
+  };
+}
+
 function materializeEvent(raw, career) {
   let event = expandSubclassEvent(raw, career.character, career);
   event = expandRedArenaEvent(event, career);
+  event = expandChainRefuseOption(event, career);
   const options = getOptionsForEvent(event, career.character, career);
   const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
   const ambitionLinked = isAmbitionLinkedEvent(localized, career);
@@ -1091,12 +1145,13 @@ export function resolveChoice(career, optionIndex) {
       outcomeText = `${outcomeText} (Votre lignée légendaire a tenu — une forge divine l’aurait rendue plus sûre encore.)`;
     }
   }
-  const redRefuse =
-    RED_ARENA_EVENT_IDS.has(career.currentEvent.id) &&
-    (option.id === 'refuser' || option.exitChain);
   const chainMeta = buildChainUiMeta(career.currentEvent.id);
-  if (redRefuse && chainMeta) {
-    outcomeText = `${outcomeText} La quête « ${chainMeta.label} » s’arrête ici.`;
+  const questRefuse =
+    !!option.exitChain ||
+    option.id === 'refuser_quete' ||
+    (RED_ARENA_EVENT_IDS.has(career.currentEvent.id) && option.id === 'refuser');
+  if (questRefuse && chainMeta) {
+    outcomeText = `${outcomeText} La quête « ${chainMeta.label} » s’arrête ici — la place se libère.`;
   } else if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
@@ -1210,9 +1265,10 @@ export function resolveChoice(career, optionIndex) {
   if (nextFlags.ornn_duel_pending && career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter') {
     recentEventIds = recentEventIds.filter((id) => id !== 'ornn_jugement');
   }
-  // Refus Arène de Red : retire les étapes pour permettre de relancer la quête
-  if (redRefuse) {
-    recentEventIds = recentEventIds.filter((id) => !RED_ARENA_EVENT_IDS.has(id));
+  // Refus / abandon de suite : retire les ids pour pouvoir la relancer plus tard
+  if (questRefuse && chainMeta) {
+    const steps = getChainStep(career.currentEvent.id)?.chain?.steps || [];
+    recentEventIds = recentEventIds.filter((id) => !steps.includes(id));
   }
   const nextSeason = career.season + 1;
   const retired = !dead && nextSeason > career.maxSeasons;
@@ -1227,18 +1283,20 @@ export function resolveChoice(career, optionIndex) {
         spd: career.character?.prefersSpeed ? 1 : 0,
       });
 
-  // Suites optionnelles : décliner / reporter / refuser Red → pas d’étape forcée
+  // Suites optionnelles : décliner / reporter / refuser / abandonner → pas de progression
   const softLeave =
     (career.currentEvent.id === 'tournoi_anciens' && option.id !== 'participer') ||
     (career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter') ||
-    redRefuse;
+    questRefuse;
   let chainState;
   if (dead) {
     chainState = { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null };
   } else if (softLeave) {
     const chainProgress = { ...(career.chainProgress || {}) };
-    // Refus Red : reset la quête (pourra être relancée plus tard)
-    if (redRefuse) delete chainProgress.arene_red;
+    // Libère le slot de quête active
+    if (questRefuse && chainMeta?.chainId) {
+      delete chainProgress[chainMeta.chainId];
+    }
     chainState = { chainProgress, queuedEventId: null };
   } else {
     chainState = advanceChainState(career, career.currentEvent.id, variant);

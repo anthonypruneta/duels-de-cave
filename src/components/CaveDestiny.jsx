@@ -1266,7 +1266,7 @@ const CaveDestiny = () => {
                       className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition ${
                         locked
                           ? 'border-stone-700/80 bg-stone-950/40 text-stone-500 cursor-not-allowed'
-                          : opt.exitChain || opt.id === 'refuser'
+                          : opt.exitChain || opt.id === 'refuser' || opt.id === 'refuser_quete'
                             ? 'border-stone-600/80 text-stone-300 hover:border-stone-400/70 hover:bg-stone-900/50'
                             : companion
                               ? 'border-rose-700/45 text-stone-100 hover:border-rose-400/70 hover:bg-rose-950/30'
