@@ -1347,30 +1347,32 @@ export function resolveChoice(career, optionIndex) {
 export function computeScore(career) {
   const s = career.stats || {};
   const t = career.trophies || {};
+  // Les faits d’armes pèsent plus que le grind de stats.
   const trophyPoints =
-    (t.tournoi || 0) * 28 +
-    (t.donjon || 0) * 10 +
-    (t.tour || 0) * 12 +
-    (t.forge || 0) * 22 +
-    (t.labyrinthe || 0) * 14 +
-    (t.cataclysme || 0) * 20 +
-    (t.pvp || 0) * 12 +
-    (t.bossRush || 0) * 14 +
-    (t.extension || 0) * 10 +
-    (t.coop || 0) * 10;
+    (t.tournoi || 0) * 36 +
+    (t.donjon || 0) * 16 +
+    (t.tour || 0) * 18 +
+    (t.forge || 0) * 30 +
+    (t.labyrinthe || 0) * 20 +
+    (t.cataclysme || 0) * 28 +
+    (t.pvp || 0) * 14 +
+    (t.bossRush || 0) * 18 +
+    (t.extension || 0) * 16 +
+    (t.coop || 0) * 14;
 
   // Or / renommée boostent surtout les gains par event (runScore).
   const runScore = Number(career.runScore) || 0;
 
-  return Math.round(
-    (s.auto || 0) * 1.2 +
-      (s.def || 0) * 1.1 +
-      (s.cap || 0) * 1.2 +
-      (s.spd || 0) * 1.1 +
-      (s.charisme || 0) * 1.0 +
-      runScore +
-      trophyPoints
-  );
+  // Stats de combat : elles montent même sur une run faible (events neutres).
+  // Coefficient bas pour éviter « Légende » sans trophée ni réussite d’ambition.
+  const statsPoints =
+    (s.auto || 0) * 0.4 +
+    (s.def || 0) * 0.35 +
+    (s.cap || 0) * 0.4 +
+    (s.spd || 0) * 0.35 +
+    (s.charisme || 0) * 0.3;
+
+  return Math.round(statsPoints + runScore * 0.7 + trophyPoints);
 }
 
 export function getTier(score) {

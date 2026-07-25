@@ -316,13 +316,14 @@ export {
 /** @deprecated — utiliser pickRandomCommonWeapons / getDestinyWeaponById */
 export const CAVE_DESTINY_WEAPONS = [];
 
+/** Paliers de score — exigeants (run sans trophée / ambition ratée ≠ Légende). */
 export const CAVE_DESTINY_TIERS = [
   { minScore: 0, id: 'bronze_cave', label: 'Cave bronze', color: 'text-stone-300' },
-  { minScore: 120, id: 'cave_confirme', label: 'Cave confirmé', color: 'text-emerald-300' },
-  { minScore: 200, id: 'aventurier', label: 'Aventurier', color: 'text-blue-300' },
-  { minScore: 280, id: 'champion_local', label: 'Champion local', color: 'text-amber-300' },
-  { minScore: 360, id: 'legende_arene', label: 'Légende de l’arène', color: 'text-yellow-200' },
-  { minScore: 440, id: 'mythe', label: 'Mythe des Duels', color: 'text-fuchsia-300' },
+  { minScore: 220, id: 'cave_confirme', label: 'Cave confirmé', color: 'text-emerald-300' },
+  { minScore: 300, id: 'aventurier', label: 'Aventurier', color: 'text-blue-300' },
+  { minScore: 400, id: 'champion_local', label: 'Champion local', color: 'text-amber-300' },
+  { minScore: 520, id: 'legende_arene', label: 'Légende de l’arène', color: 'text-yellow-200' },
+  { minScore: 640, id: 'mythe', label: 'Mythe des Duels', color: 'text-fuchsia-300' },
 ];
 
 export const CAVE_DESTINY_SEASON_COUNT = 20;
