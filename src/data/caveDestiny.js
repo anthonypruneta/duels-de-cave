@@ -65,17 +65,33 @@ export function buildDestinyCharacterFromGame(char) {
   };
 }
 
+function randomInt(max) {
+  if (max <= 0) return 0;
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
 function shuffleInPlace(arr) {
   for (let i = arr.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
 }
 
+export function hasCharacterImage(char) {
+  const img = char?.characterImage;
+  return typeof img === 'string' && /^https?:\/\//i.test(img.trim());
+}
+
 /**
- * Tire `count` personnages actifs distincts au hasard.
- * Préfère ceux qui ont une image ; évite les IDs exclus (dernier tirage).
+ * Tire `count` personnages distincts au hasard.
+ * Priorité au pool avec image (mais tirage 100% aléatoire dans ce pool),
+ * en évitant les IDs du tirage précédent.
  */
 export function pickRandomGameCharacters(allCharacters, count = 3, options = {}) {
   const excludeIds = new Set((options.excludeIds || []).map(String));
@@ -83,14 +99,15 @@ export function pickRandomGameCharacters(allCharacters, count = 3, options = {})
     (c) => c && !c.disabled && !c.archived && c.name && c.race && c.class
   );
 
-  const eligible = active.filter((c) => !excludeIds.has(String(c.id || c.userId)));
-  const pool = eligible.length >= count ? eligible : active;
+  const pictured = active.filter(hasCharacterImage);
+  const basePool = pictured.length >= count ? pictured : active;
 
-  const withImage = shuffleInPlace(pool.filter((c) => c.characterImage));
-  const withoutImage = shuffleInPlace(pool.filter((c) => !c.characterImage));
-  const ordered = [...withImage, ...withoutImage];
+  let pool = basePool.filter((c) => !excludeIds.has(String(c.id || c.userId)));
+  // Si l’exclusion vide trop le pool, on ignore l’exclusion
+  if (pool.length < count) pool = [...basePool];
 
-  // Si trop peu après exclusion, complète depuis le reste
+  const ordered = shuffleInPlace([...pool]);
+
   if (ordered.length < count) {
     const pickedIds = new Set(ordered.map((c) => String(c.id || c.userId)));
     const fillers = shuffleInPlace(

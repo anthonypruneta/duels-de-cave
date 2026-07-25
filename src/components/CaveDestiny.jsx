@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CAVE_DESTINY_AMBITIONS,
@@ -21,7 +21,7 @@ import {
   computeScore,
   getTier,
 } from '../utils/caveDestinyEngine';
-import { getAllCharacters, getOwnerPseudoFromAccount } from '../services/characterService';
+import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
 import { useAuth } from '../contexts/AuthContext';
 
 const SETUP_STEPS = ['personnage', 'ambition', 'mentor', 'arme'];
@@ -47,7 +47,7 @@ function writeLastOfferedIds(ids) {
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen text-stone-100">
+    <div className="min-h-screen text-stone-100 bg-[#1c1917]">
       <div className="mx-auto max-w-lg px-4 pt-10 pb-16">{children}</div>
     </div>
   );
@@ -156,6 +156,10 @@ function Gauge({ label, value, colorClass = 'bg-amber-500' }) {
 
 function CharacterPortrait({ src, alt, className }) {
   const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   if (!src || failed) {
     return (
       <div
@@ -169,6 +173,7 @@ function CharacterPortrait({ src, alt, className }) {
     <img
       src={src}
       alt={alt || ''}
+      referrerPolicy="no-referrer"
       className={`${className} object-cover bg-stone-900 border border-stone-600`}
       onError={() => setFailed(true)}
     />
@@ -193,65 +198,46 @@ const CaveDestiny = () => {
   const [offeredCharacters, setOfferedCharacters] = useState([]);
   const [charsLoading, setCharsLoading] = useState(false);
   const [charsError, setCharsError] = useState(null);
-  const [poolReady, setPoolReady] = useState(false);
+  const [drawNonce, setDrawNonce] = useState(0);
+  const poolRef = useRef([]);
 
-  const enrichOffered = useCallback(async (picked) => {
-    const enriched = await Promise.all(
-      picked.map(async (c) => {
-        if (c.ownerPseudo) return c;
-        const userId = c.id || c.userId;
-        if (!userId) return c;
-        const pseudoRes = await getOwnerPseudoFromAccount(userId);
-        const ownerPseudo = pseudoRes.success ? (pseudoRes.ownerPseudo || '') : '';
-        return ownerPseudo ? { ...c, ownerPseudo } : c;
-      })
-    );
-    setOfferedCharacters(enriched);
-    writeLastOfferedIds(enriched.map((c) => c.id));
+  useEffect(() => {
+    document.body.classList.add('cave-destiny-plain');
+    return () => document.body.classList.remove('cave-destiny-plain');
   }, []);
 
-  const drawFreshOffer = useCallback(async (pool) => {
-    const source = pool || allGameCharacters;
-    if (!source.length) {
-      setOfferedCharacters([]);
-      return;
+  const ensurePool = useCallback(async () => {
+    if (poolRef.current.length > 0) return poolRef.current;
+    const res = await loadCaveDestinyCharacterPool();
+    if (!res.success) {
+      throw new Error(res.error || 'Chargement impossible');
     }
-    const excludeIds = readLastOfferedIds();
-    const picked = pickRandomGameCharacters(source, 3, { excludeIds });
-    setOfferedCharacters(picked);
-    await enrichOffered(picked);
-  }, [allGameCharacters, enrichOffered]);
+    poolRef.current = res.data || [];
+    setAllGameCharacters(poolRef.current);
+    return poolRef.current;
+  }, []);
 
-  const loadGameCharacters = useCallback(async () => {
+  const drawFreshOffer = useCallback(async () => {
     setCharsLoading(true);
     setCharsError(null);
     try {
-      const res = await getAllCharacters();
-      if (!res.success) {
-        setCharsError(res.error || 'Impossible de charger les personnages.');
-        setAllGameCharacters([]);
+      const pool = await ensurePool();
+      if (!pool.length) {
         setOfferedCharacters([]);
-        setPoolReady(true);
+        setCharsError('Aucun personnage actif trouvé dans Duels de Cave.');
         return;
       }
-      const active = (res.data || []).filter((c) => !c.disabled && !c.archived);
-      setAllGameCharacters(active);
-      setPoolReady(true);
-      if (active.length === 0) {
-        setCharsError('Aucun personnage actif trouvé dans Duels de Cave.');
-        setOfferedCharacters([]);
-      } else {
-        await drawFreshOffer(active);
-      }
+      const excludeIds = readLastOfferedIds();
+      const picked = pickRandomGameCharacters(pool, 3, { excludeIds });
+      setOfferedCharacters(picked);
+      writeLastOfferedIds(picked.map((c) => c.id));
     } catch (e) {
       setCharsError(e?.message || 'Erreur de chargement.');
-      setAllGameCharacters([]);
       setOfferedCharacters([]);
-      setPoolReady(true);
     } finally {
       setCharsLoading(false);
     }
-  }, [drawFreshOffer]);
+  }, [ensurePool]);
 
   useEffect(() => {
     setPantheon(loadPantheon());
@@ -265,33 +251,18 @@ const CaveDestiny = () => {
     if (career) persistSave(career);
   }, [career]);
 
-  // À chaque entrée sur l’écran personnage : nouveau tirage
+  // Nouveau tirage à chaque visite de l’écran (drawNonce incrémenté à l’entrée)
   useEffect(() => {
     if (screen !== 'personnage') return;
-    let cancelled = false;
-    (async () => {
-      if (!poolReady) {
-        await loadGameCharacters();
-        return;
-      }
-      if (cancelled) return;
-      if (allGameCharacters.length === 0) {
-        await loadGameCharacters();
-      } else {
-        setCharsLoading(true);
-        await drawFreshOffer(allGameCharacters);
-        if (!cancelled) setCharsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tirage volontaire à chaque visite de l’écran
-  }, [screen]);
+    drawFreshOffer();
+  }, [screen, drawNonce, drawFreshOffer]);
 
   const startFresh = () => {
     setSetup({ character: null, ambitionId: null, mentorId: null, weaponId: null });
     setCareer(null);
     clearSave();
     setOutcomeFlash(null);
+    setDrawNonce((n) => n + 1);
     setScreen('personnage');
   };
 
@@ -452,7 +423,15 @@ const CaveDestiny = () => {
         {!charsLoading && charsError && offeredCharacters.length === 0 && (
           <div className="text-center py-8 space-y-4">
             <p className="text-sm text-red-300">{charsError}</p>
-            <GhostButton onClick={loadGameCharacters}>Réessayer</GhostButton>
+            <GhostButton
+              onClick={() => {
+                poolRef.current = [];
+                setAllGameCharacters([]);
+                setDrawNonce((n) => n + 1);
+              }}
+            >
+              Réessayer
+            </GhostButton>
           </div>
         )}
 
