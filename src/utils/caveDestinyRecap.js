@@ -3,7 +3,7 @@
  * (inspiré Destiny Eleven — adapté aux Duels de Cave).
  */
 
-import { WEAPON_RARITY_LABEL } from '../data/caveDestiny';
+import { WEAPON_RARITY_LABEL, CAVE_DESTINY_SEASON_COUNT } from '../data/caveDestiny';
 import { RARITY } from '../data/weapons';
 import * as DestinyEngine from './caveDestinyEngine';
 
@@ -346,9 +346,9 @@ export function buildParcours(career) {
 
   // Fin
   milestones.push({
-    season: career?.maxSeasons || 14,
+    season: career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT,
     kind: 'end',
-    label: `Saison ${career?.maxSeasons || 14}`,
+    label: `Saison ${career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT}`,
     title: 'Retraite des Duels',
     detail: career?.weapon?.name
       ? `Dernière arme : ${career.weapon.icon || ''} ${career.weapon.name}`.trim()
@@ -376,7 +376,7 @@ export function buildStatRows(career) {
   const bonusCount = history.filter((h) => h.variant === 'bonus').length;
   const malusCount = history.filter((h) => h.variant === 'malus').length;
   return [
-    { label: 'Saisons jouées', value: String(career?.maxSeasons || 14) },
+    { label: 'Saisons jouées', value: String(career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT) },
     { label: 'Événements vécus', value: String(history.length) },
     { label: 'Éclats (bonus)', value: String(bonusCount) },
     { label: 'Épreuves (malus)', value: String(malusCount) },
@@ -642,7 +642,7 @@ export function buildCareerRecap(career, opts = {}) {
       weaponRarityLabel: career?.weapon?.rarity
         ? WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity
         : null,
-      seasons: career?.maxSeasons || 14,
+      seasons: career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT,
       stats: career?.stats || {},
     },
   };

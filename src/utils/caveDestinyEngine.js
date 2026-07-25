@@ -222,15 +222,20 @@ function applyEffects(stats, effects = {}) {
 
 /**
  * Moral élevé → moins de PV perdus ; moral bas → plus de pertes.
- * moral 0 ≈ ×1.45 · moral 50 ≈ ×1 · moral 100 ≈ ×0.55
+ * Les pertes de base sont un peu amplifiées (~×1.3).
+ * moral 0 ≈ ×1.5 · moral 50 ≈ ×1.05 · moral 100 ≈ ×0.65 (après amplification)
  */
 function scaleHpLossByMoral(deltas, moral) {
   const next = normalizeHpKey({ ...deltas });
   if (typeof next.hp !== 'number' || next.hp >= 0) return next;
+  // Amplifie légèrement les pertes avant l’amortissement du moral
+  next.hp = Math.round(next.hp * 1.3);
   const m = Number(moral);
   const moralVal = Number.isFinite(m) ? m : 50;
-  const factor = clamp(1.45 - (moralVal / 100) * 0.9, 0.45, 1.55);
+  const factor = clamp(1.5 - (moralVal / 100) * 0.85, 0.65, 1.6);
   next.hp = Math.round(next.hp * factor);
+  // Au moins −1 si une perte était prévue
+  if (next.hp >= 0) next.hp = -1;
   return next;
 }
 
@@ -754,6 +759,13 @@ function migrateCareerStatKeys(career) {
     runScore: Number(career.runScore) || 0,
     endReason: career.endReason || null,
   };
+  // Carrières en cours : allonger jusqu’à la durée actuelle du mode
+  if (
+    next.phase === 'playing' &&
+    (Number(next.maxSeasons) || 0) < CAVE_DESTINY_SEASON_COUNT
+  ) {
+    next.maxSeasons = CAVE_DESTINY_SEASON_COUNT;
+  }
   if (next.character?.baseStats) {
     next.character = {
       ...next.character,
