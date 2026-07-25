@@ -19,6 +19,7 @@ import Training from './components/Training';
 import ProtectedRoute from './components/ProtectedRoute';
 import ModeAvailabilityRoute from './components/ModeAvailabilityRoute';
 import AdminOnlyRoute from './components/AdminOnlyRoute';
+import ClassicGameRoute from './components/ClassicGameRoute';
 import AdminCharacterDirectory from './components/AdminCharacterDirectory';
 import AdminBalance from './components/AdminBalance';
 import WorldBoss from './components/WorldBoss';
@@ -31,12 +32,27 @@ import BossRush from './components/BossRush';
 import MirrorMode from './components/MirrorMode';
 import PvpLobby from './components/PvpLobby';
 import PvpLeaderboard from './components/PvpLeaderboard';
+import CaveDestiny from './components/CaveDestiny';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import MaintenanceShutdown from './components/MaintenanceShutdown';
 import { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
 
 /** Repasser à `false` dans `src/config/maintenanceMode.js` pour rouvrir le site. */
 export { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
+
+function classic(element) {
+  return (
+    <ProtectedRoute>
+      <ClassicGameRoute>{element}</ClassicGameRoute>
+    </ProtectedRoute>
+  );
+}
+
+function classicMode(element) {
+  return classic(
+    <ModeAvailabilityRoute>{element}</ModeAvailabilityRoute>
+  );
+}
 
 function Application() {
   useEffect(() => {
@@ -73,14 +89,21 @@ function Application() {
       <AuthProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+
+          {/* Accueil public : Cave Destiny */}
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <CharacterCreation />
+                <CaveDestiny />
               </ProtectedRoute>
             }
           />
+          <Route path="/cave-destiny" element={<Navigate to="/" replace />} />
+
+          {/* Ancien accueil / création de perso — admins (ou tous si mode désactivé) */}
+          <Route path="/perso" element={classic(<CharacterCreation />)} />
+
           <Route
             path="/combat"
             element={
@@ -91,197 +114,28 @@ function Application() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/pvp"
-            element={
-              <ProtectedRoute>
-                <PvpLobby />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/pvp-classement"
-            element={
-              <ProtectedRoute>
-                <PvpLeaderboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dungeon"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <Dungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dungeons"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <DungeonSelection />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/coop-red"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <CoopRedDungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/forest"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <ForestDungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mage-tower"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <MageTower />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/tournament/history/:archiveId"
-            element={
-              <ProtectedRoute>
-                <Tournament />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/tournament"
-            element={
-              <ProtectedRoute>
-                <Tournament />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/hall-of-fame"
-            element={
-              <ProtectedRoute>
-                <HallOfFame />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/taverne"
-            element={
-              <ProtectedRoute>
-                <Taverne />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mes-anciens-personnages"
-            element={
-              <ProtectedRoute>
-                <MesAnciensPersonnages />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/encyclopedie"
-            element={
-              <ProtectedRoute>
-                <Encyclopedia />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/pvp" element={classic(<PvpLobby />)} />
+          <Route path="/pvp-classement" element={classic(<PvpLeaderboard />)} />
+          <Route path="/dungeon" element={classicMode(<Dungeon />)} />
+          <Route path="/dungeons" element={classicMode(<DungeonSelection />)} />
+          <Route path="/coop-red" element={classicMode(<CoopRedDungeon />)} />
+          <Route path="/forest" element={classicMode(<ForestDungeon />)} />
+          <Route path="/mage-tower" element={classicMode(<MageTower />)} />
+          <Route path="/tournament/history/:archiveId" element={classic(<Tournament />)} />
+          <Route path="/tournament" element={classic(<Tournament />)} />
+          <Route path="/hall-of-fame" element={classic(<HallOfFame />)} />
+          <Route path="/taverne" element={classic(<Taverne />)} />
+          <Route path="/mes-anciens-personnages" element={classic(<MesAnciensPersonnages />)} />
+          <Route path="/encyclopedie" element={classic(<Encyclopedia />)} />
+          <Route path="/training" element={classic(<Training />)} />
+          <Route path="/labyrinthe-infini" element={classicMode(<InfiniteLabyrinth />)} />
+          <Route path="/forge" element={classicMode(<ForgeDungeon />)} />
+          <Route path="/extension" element={classicMode(<ExtensionDungeon />)} />
+          <Route path="/sous-classe" element={classicMode(<SubclassDungeon />)} />
+          <Route path="/boss-rush" element={classicMode(<BossRush />)} />
+          <Route path="/mirror" element={classicMode(<MirrorMode />)} />
+          <Route path="/cataclysme" element={classic(<WorldBoss />)} />
 
-          <Route
-            path="/training"
-            element={
-              <ProtectedRoute>
-                <Training />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/labyrinthe-infini"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <InfiniteLabyrinth />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/forge"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <ForgeDungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/extension"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <ExtensionDungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/sous-classe"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <SubclassDungeon />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/boss-rush"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <BossRush />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mirror"
-            element={
-              <ProtectedRoute>
-                <ModeAvailabilityRoute>
-                  <MirrorMode />
-                </ModeAvailabilityRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/cataclysme"
-            element={
-              <ProtectedRoute>
-                <WorldBoss />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/roguelike"
             element={
