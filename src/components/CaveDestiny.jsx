@@ -476,9 +476,9 @@ const CaveDestiny = () => {
 
     const load = async () => {
       if (screen === 'final') {
-        // Panthéon pour percentile / rival — silencieux
+        // Panthéon pour percentile réel / rival — silencieux
         try {
-          const res = await loadCaveDestinyPantheon();
+          const res = await loadCaveDestinyPantheon({ max: 500 });
           if (!cancelled && res.success) setPantheon(res.runs || []);
         } catch {
           /* ignore */

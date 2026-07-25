@@ -391,28 +391,46 @@ export function buildStatRows(career) {
   ];
 }
 
+/** Minimum de carrières pour afficher un vrai % (pas d’estimation). */
+export const PERCENTILE_MIN_SAMPLE = 5;
+
 /**
- * Percentile vs panthéon (local + optionnel distant).
- * @returns {{ percentile: number, sampleSize: number, label: string }}
+ * Percentile réel vs panthéon — aucun fallback estimé.
+ * @returns {{ percentile: number|null, sampleSize: number, ready: boolean, label: string }}
  */
 export function computePercentile(score, comparisonScores = []) {
   const scores = comparisonScores.filter((n) => typeof n === 'number' && Number.isFinite(n));
-  if (scores.length < 3) {
-    // Fallback heuristique sur les paliers de tier
-    if (score >= 440) return { percentile: 94, sampleSize: scores.length, label: 'Meilleure carrière que ~94 % des destins (estimation)' };
-    if (score >= 360) return { percentile: 86, sampleSize: scores.length, label: 'Meilleure carrière que ~86 % des destins (estimation)' };
-    if (score >= 280) return { percentile: 72, sampleSize: scores.length, label: 'Meilleure carrière que ~72 % des destins (estimation)' };
-    if (score >= 200) return { percentile: 55, sampleSize: scores.length, label: 'Meilleure carrière que ~55 % des destins (estimation)' };
-    if (score >= 120) return { percentile: 35, sampleSize: scores.length, label: 'Meilleure carrière que ~35 % des destins (estimation)' };
-    return { percentile: 18, sampleSize: scores.length, label: 'Meilleure carrière que ~18 % des destins (estimation)' };
+  if (scores.length < PERCENTILE_MIN_SAMPLE) {
+    const label =
+      scores.length <= 0
+        ? 'Pas assez de carrières enregistrées pour calculer le classement'
+        : `Pas assez de carrières pour calculer le classement (${scores.length}/${PERCENTILE_MIN_SAMPLE})`;
+    return {
+      percentile: null,
+      sampleSize: scores.length,
+      ready: false,
+      label,
+    };
   }
   const below = scores.filter((s) => s < score).length;
   const percentile = Math.round((below / scores.length) * 100);
   return {
     percentile,
     sampleSize: scores.length,
-    label: `Meilleure carrière que ${percentile} % des destins simulés`,
+    ready: true,
+    label: `Meilleure carrière que ${percentile} % des destins simulés (${scores.length} carrières)`,
   };
+}
+
+/** Fusionne local + serveur, déduplique par id. */
+function mergePantheonEntries(remote = [], local = []) {
+  const byId = new Map();
+  for (const e of [...local, ...remote]) {
+    if (!e || typeof e.score !== 'number') continue;
+    const key = e.id || `${e.name || '?'}-${e.score}-${e.date || 0}`;
+    if (!byId.has(key)) byId.set(key, e);
+  }
+  return [...byId.values()];
 }
 
 function scaleRivalStat(base, seed, spread = 0.25) {
@@ -576,7 +594,7 @@ export function buildNarratives(career, ambitionEval, traits) {
 /**
  * Construit le récap complet de fin de run.
  * @param {object} career
- * @param {{ pantheon?: object[] }} [opts]
+ * @param {{ pantheon?: object[], excludeRunId?: string|null }} [opts]
  */
 export function buildCareerRecap(career, opts = {}) {
   const base = buildFinalStory(career);
@@ -584,8 +602,19 @@ export function buildCareerRecap(career, opts = {}) {
   const score = base.score ?? computeScore(career);
   const tier = base.tier || getTier(score);
 
-  const pantheon = opts.pantheon?.length ? opts.pantheon : loadPantheon();
-  const comparisonScores = pantheon.map((e) => e.score).filter((n) => typeof n === 'number');
+  const local = loadPantheon();
+  const remote = Array.isArray(opts.pantheon) ? opts.pantheon : [];
+  const pantheon = mergePantheonEntries(remote, local);
+  const excludeId = opts.excludeRunId || null;
+  const name = career?.character?.name;
+  const comparisonScores = pantheon
+    .filter((e) => {
+      if (excludeId && e.id === excludeId) return false;
+      // Évite de se compter soi-même juste après la sauvegarde (même nom + même score)
+      if (name && e.name === name && e.score === score) return false;
+      return true;
+    })
+    .map((e) => e.score);
   const percentile = computePercentile(score, comparisonScores);
 
   const traits = buildTraits(career);
