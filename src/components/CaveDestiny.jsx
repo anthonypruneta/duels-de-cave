@@ -25,6 +25,7 @@ import {
   formatDelta,
   computeScore,
   getTier,
+  evaluateAmbition,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
@@ -798,7 +799,10 @@ const CaveDestiny = () => {
             <CharacterIdentity character={setup.character} compact />
           </div>
         )}
-        <ScreenTitle title="Votre ambition" sub="Elle orientera votre carrière." />
+        <ScreenTitle
+          title="Votre ambition"
+          sub="Elle oriente vos events… et rapporte un gros bonus de score si vous la réussissez."
+        />
         <div className="space-y-2">
           {CAVE_DESTINY_AMBITIONS.map((a) => (
             <ChoiceRow
@@ -873,7 +877,7 @@ const CaveDestiny = () => {
 
   /* ---------- FINAL ---------- */
   if (screen === 'final' && career) {
-    const { score, tier, story } = buildFinalStory(career);
+    const { score, tier, story, ambition: ambitionEval } = buildFinalStory(career);
     const trophyEntries = Object.entries(career.trophies || {}).filter(([, v]) => v > 0);
     return (
       <Shell>
@@ -921,6 +925,18 @@ const CaveDestiny = () => {
             <span className="text-4xl font-black text-amber-300">{score}</span>
             <span className="text-sm text-stone-500 pb-1">score</span>
           </div>
+
+          {ambitionEval?.id && (
+            <p
+              className={`mt-2 text-sm ${
+                ambitionEval.succeeded ? 'text-emerald-400' : 'text-stone-500'
+              }`}
+            >
+              {ambitionEval.succeeded
+                ? `Ambition réussie · +${ambitionEval.bonus} pts · ${ambitionEval.detail}`
+                : `Ambition non réussie · ${ambitionEval.detail}`}
+            </p>
+          )}
 
           <p className="mt-4 text-sm text-stone-300 leading-relaxed">{story}</p>
 

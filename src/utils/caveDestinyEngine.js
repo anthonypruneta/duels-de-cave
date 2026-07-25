@@ -572,6 +572,113 @@ export function resolveChoice(career, optionIndex) {
   return next;
 }
 
+/**
+ * Évalue si l’ambition de départ est réussie, et le bonus de score associé.
+ * - tournoi : ≥ 1 couronne
+ * - donjons : ≥ 2 trophées parmi donjon / tour / extension
+ * - forge : ≥ 1 trophée forge, ou arme rare/légendaire
+ * - ombres : ≥ 1 trophée labyrinthe ou cataclysme
+ */
+export function evaluateAmbition(career) {
+  const id = career?.ambition?.id || null;
+  const name = career?.ambition?.name || 'Ambition';
+  const t = career?.trophies || {};
+  const weaponRarity = career?.weapon?.rarity || null;
+
+  const base = {
+    id,
+    name,
+    succeeded: false,
+    progress: 0,
+    goal: 1,
+    bonus: 0,
+    detail: '',
+  };
+
+  if (!id) return base;
+
+  if (id === 'tournoi') {
+    const progress = t.tournoi || 0;
+    const succeeded = progress >= 1;
+    const bonus = succeeded ? 48 + (progress - 1) * 24 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal: 1,
+      bonus,
+      detail: succeeded
+        ? `Couronne obtenue (${progress})`
+        : 'Aucune couronne de tournoi',
+    };
+  }
+
+  if (id === 'donjons') {
+    const progress = (t.donjon || 0) + (t.tour || 0) + (t.extension || 0);
+    const goal = 2;
+    const succeeded = progress >= goal;
+    const bonus = succeeded ? 42 + (progress - goal) * 14 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal,
+      bonus,
+      detail: succeeded
+        ? `Donjons maîtrisés (${progress} trophées)`
+        : `Progression donjons : ${progress}/${goal}`,
+    };
+  }
+
+  if (id === 'forge') {
+    const forgeCount = t.forge || 0;
+    const weaponOk = weaponRarity === RARITY.RARE || weaponRarity === RARITY.LEGENDAIRE;
+    const succeeded = forgeCount >= 1 || weaponOk;
+    let bonus = 0;
+    if (succeeded) {
+      bonus = 44 + forgeCount * 20;
+      if (weaponRarity === RARITY.LEGENDAIRE) bonus += 28;
+      else if (weaponRarity === RARITY.RARE) bonus += 12;
+    }
+    return {
+      ...base,
+      succeeded,
+      progress: forgeCount + (weaponOk ? 1 : 0),
+      goal: 1,
+      bonus,
+      detail: succeeded
+        ? `Ornn satisfait${forgeCount ? ` (${forgeCount} forge)` : ''}${
+            weaponOk ? ` · arme ${weaponRarity}` : ''
+          }`
+        : 'Aucune forge réussie, arme encore commune',
+    };
+  }
+
+  if (id === 'ombres') {
+    const lab = t.labyrinthe || 0;
+    const cata = t.cataclysme || 0;
+    const progress = lab + cata;
+    const succeeded = progress >= 1;
+    let bonus = 0;
+    if (succeeded) {
+      bonus = 40 + lab * 16 + cata * 22;
+      if (lab > 0 && cata > 0) bonus += 24; // les deux épreuves
+    }
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal: 1,
+      bonus,
+      detail: succeeded
+        ? `Épreuves sombres : labyrinthe ${lab}, cataclysme ${cata}`
+        : 'Aucune épreuve sombre réussie',
+    };
+  }
+
+  return base;
+}
+
 export function computeScore(career) {
   const s = career.stats || {};
   const t = career.trophies || {};
@@ -587,6 +694,21 @@ export function computeScore(career) {
     (t.extension || 0) * 10 +
     (t.coop || 0) * 10;
 
+  const ambition = evaluateAmbition(career);
+  // Les trophées liés à l’ambition rapportent +50 % s’il y a succès
+  let ambitionTrophyBoost = 0;
+  if (ambition.succeeded) {
+    const id = ambition.id;
+    if (id === 'tournoi') ambitionTrophyBoost = (t.tournoi || 0) * 28 * 0.5;
+    else if (id === 'donjons') {
+      ambitionTrophyBoost =
+        ((t.donjon || 0) * 10 + (t.tour || 0) * 12 + (t.extension || 0) * 10) * 0.5;
+    } else if (id === 'forge') ambitionTrophyBoost = (t.forge || 0) * 22 * 0.5;
+    else if (id === 'ombres') {
+      ambitionTrophyBoost = ((t.labyrinthe || 0) * 14 + (t.cataclysme || 0) * 20) * 0.5;
+    }
+  }
+
   return Math.round(
     (s.auto || 0) * 1.2 +
       (s.def || 0) * 1.1 +
@@ -595,7 +717,9 @@ export function computeScore(career) {
       (s.charisme || 0) * 1.0 +
       (s.renommee || 0) * 1.4 +
       (s.or || 0) * 0.35 +
-      trophyPoints
+      trophyPoints +
+      ambition.bonus +
+      ambitionTrophyBoost
   );
 }
 
@@ -608,6 +732,7 @@ export function getTier(score) {
 }
 
 export function buildFinalStory(career) {
+  const ambitionEval = evaluateAmbition(career);
   const score = computeScore(career);
   const tier = getTier(score);
   const name = career.character?.name || 'Aventurier';
@@ -619,6 +744,13 @@ export function buildFinalStory(career) {
   let arc = owner
     ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`
     : `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`;
+
+  if (ambitionEval.succeeded) {
+    arc += ` Ambition accomplie (+${ambitionEval.bonus} pts).`;
+  } else if (ambitionEval.id) {
+    arc += ' Ambition inachevée… la route reste ouverte.';
+  }
+
   if (wins >= 2) arc += ' Les tournois du samedi ont appris à craindre son nom.';
   else if (wins === 1) arc += ' Une couronne arrachée sous les acclamations de l’arène.';
   else arc += ' Aucune couronne… mais des histoires à la Taverne.';
@@ -634,7 +766,7 @@ export function buildFinalStory(career) {
   if (score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
   else if (score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
 
-  return { score, tier, story: arc };
+  return { score, tier, story: arc, ambition: ambitionEval };
 }
 
 /** Migre les anciennes clés Destiny (puissance/endurance/…) vers Auto/Déf/Cap/VIT. */
