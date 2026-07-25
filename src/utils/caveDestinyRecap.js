@@ -12,8 +12,10 @@ const { buildFinalStory, computeScore, getTier, loadPantheon } = DestinyEngine;
 /** Ambition eval — utilise le moteur si dispo, sinon heuristique trophées. */
 function resolveAmbitionEval(career, fromStory) {
   if (fromStory && typeof fromStory.succeeded === 'boolean') return fromStory;
-  if (typeof DestinyEngine.evaluateAmbition === 'function') {
-    return DestinyEngine.evaluateAmbition(career);
+  // Accès dynamique : `evaluateAmbition` n’existe qu’après les PRs ambition.
+  const evaluateAmbitionFn = DestinyEngine['evaluateAmbition'];
+  if (typeof evaluateAmbitionFn === 'function') {
+    return evaluateAmbitionFn(career);
   }
   const id = career?.ambition?.id || null;
   const name = career?.ambition?.name || 'Ambition';
