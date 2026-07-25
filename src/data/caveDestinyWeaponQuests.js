@@ -18,7 +18,6 @@ function q({ id, family, title, text, rarity = 'uncommon', tags = [], options })
   };
 }
 
-/** @type {import('./caveDestinyChains').DestinyChain[]} */
 export const WEAPON_QUEST_CHAIN_DEFS = [
   { id: 'suite_dague', family: 'dague', label: 'Braquage à la dague', steps: ['dague_plan', 'dague_fuite', 'dague_coupe'] },
   { id: 'suite_arc', family: 'arc', label: 'Tir vers les cieux', steps: ['arc_rumeur', 'arc_tour', 'arc_ciel'] },
