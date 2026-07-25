@@ -784,13 +784,31 @@ const CaveDestiny = () => {
               <RaceClassLine
                 race={c.race}
                 classe={c.class}
-                subclass={c.subclass}
+                subclass={null}
                 centered
                 className="mt-1"
               />
               <p className="mt-1 w-full text-center text-[10px] sm:text-xs italic text-stone-500 truncate">
                 {c.ownerPseudo || 'Inconnu'}
               </p>
+              <div className="mt-2 w-full grid grid-cols-5 gap-0.5 text-center rounded-lg border border-stone-700/80 bg-stone-900/70 px-1 py-1.5">
+                {[
+                  ['Auto', c.baseStats?.auto],
+                  ['Déf', c.baseStats?.def],
+                  ['Cap', c.baseStats?.cap],
+                  ['VIT', c.baseStats?.spd],
+                  ['CHA', c.baseStats?.charisme],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wide text-stone-500 leading-none">
+                      {label}
+                    </p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-amber-100 tabular-nums leading-none">
+                      {Math.round(value || 0)}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </button>
           ))}
         </div>
