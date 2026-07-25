@@ -172,6 +172,34 @@ export const CAVE_DESTINY_AMBITIONS = [
     desc: 'Cataclysme, Labyrinthe Infini : là où la légende se juge. Réussite : ≥ 1 trophée labyrinthe ou cataclysme.',
     effects: { spd: 6, cap: 3, charisme: -2 },
   },
+  {
+    id: 'pvp',
+    name: 'Seigneur des duels',
+    icon: '⚔️',
+    desc: 'Dominer les duels PvP entre joueurs. Réussite : ≥ 1 trophée PvP.',
+    effects: { auto: 4, spd: 4, charisme: 2 },
+  },
+  {
+    id: 'coop',
+    name: 'Frères de la fosse',
+    icon: '🔴',
+    desc: 'Survivre à l’arène coop de Red en duo. Réussite : ≥ 1 trophée coop.',
+    effects: { def: 4, charisme: 5, or: 2 },
+  },
+  {
+    id: 'taverne',
+    name: 'Légende de la Taverne',
+    icon: '🍺',
+    desc: 'Rumeurs, paris, pots et réputation au comptoir. Réussite : ≥ 2 trophées Taverne.',
+    effects: { charisme: 7, or: 5, moral: 3 },
+  },
+  {
+    id: 'rush',
+    name: 'Maître du Boss Rush',
+    icon: '💀',
+    desc: 'Enchaîner les bosses sans répit. Réussite : ≥ 1 trophée Boss Rush.',
+    effects: { auto: 3, def: 3, spd: 3, forme: -4 },
+  },
 ];
 
 export const CAVE_DESTINY_MENTORS = [

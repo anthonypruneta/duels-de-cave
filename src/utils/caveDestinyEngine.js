@@ -192,6 +192,7 @@ function emptyTrophies() {
     bossRush: 0,
     extension: 0,
     coop: 0,
+    taverne: 0,
   };
 }
 
@@ -283,6 +284,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     subclass: character.subclass || null,
     stats,
     trophies: emptyTrophies(),
+    flags: {},
     history: [],
     recentEventIds: [],
     currentEvent: null,
@@ -301,6 +303,27 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   if (seenIds.has(event.id)) {
     // Quasi jamais de doublon ; seulement si le pool unique est épuisé
     w *= allowRepeat ? 0.04 : 0;
+  }
+
+  // Chaînes d’events : exclusifs tant que le prérequis n’est pas rempli
+  if (event.requiresEvent && !seenIds.has(event.requiresEvent)) {
+    return 0;
+  }
+  if (event.requiresAnyEvent?.length) {
+    if (!event.requiresAnyEvent.some((id) => seenIds.has(id))) return 0;
+  }
+  if (event.requiresAllEvents?.length) {
+    if (!event.requiresAllEvents.every((id) => seenIds.has(id))) return 0;
+  }
+  if (event.requiresFlag) {
+    if (!(career.flags || {})[event.requiresFlag]) return 0;
+  }
+  // Suite logique : bien plus probable une fois le parent vu
+  if (event.followsEvent && seenIds.has(event.followsEvent)) {
+    w *= 2.8;
+  }
+  if (event.followsFlag && (career.flags || {})[event.followsFlag]) {
+    w *= 2.4;
   }
 
   // Events d’upgrade / légendaire : inutiles si déjà au max
@@ -523,6 +546,19 @@ export function resolveChoice(career, optionIndex) {
     outcomeText = `${outcomeText} Sous-classe obtenue : ${subclass.name}.`;
   }
 
+  const flags = { ...(career.flags || {}) };
+  if (outcome.unlockFlag) flags[outcome.unlockFlag] = true;
+  if (outcome.flags && typeof outcome.flags === 'object') {
+    for (const [k, v] of Object.entries(outcome.flags)) {
+      if (v) flags[k] = true;
+    }
+  }
+  // Flag implicite par event (utile pour chaînes)
+  flags[`seen:${career.currentEvent.id}`] = true;
+  if ((outcome.variant || 'neutre') === 'bonus') {
+    flags[`win:${career.currentEvent.id}`] = true;
+  }
+
   const mergedDeltas = { ...deltas, ...weaponDeltas };
 
   const historyEntry = {
@@ -557,6 +593,7 @@ export function resolveChoice(career, optionIndex) {
     subclass,
     stats: agedStats,
     trophies,
+    flags,
     history: [...career.history, historyEntry],
     recentEventIds,
     lastOutcome: historyEntry,
@@ -676,6 +713,65 @@ export function evaluateAmbition(career) {
     };
   }
 
+  if (id === 'pvp') {
+    const progress = t.pvp || 0;
+    const succeeded = progress >= 1;
+    const bonus = succeeded ? 46 + (progress - 1) * 20 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal: 1,
+      bonus,
+      detail: succeeded ? `Duels PvP remportés (${progress})` : 'Aucun trophée PvP',
+    };
+  }
+
+  if (id === 'coop') {
+    const progress = t.coop || 0;
+    const succeeded = progress >= 1;
+    const bonus = succeeded ? 44 + (progress - 1) * 18 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal: 1,
+      bonus,
+      detail: succeeded ? `Runs coop réussies (${progress})` : 'Aucun trophée coop',
+    };
+  }
+
+  if (id === 'taverne') {
+    const progress = t.taverne || 0;
+    const goal = 2;
+    const succeeded = progress >= goal;
+    const bonus = succeeded ? 40 + (progress - goal) * 14 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal,
+      bonus,
+      detail: succeeded
+        ? `Légende du comptoir (${progress} trophées Taverne)`
+        : `Taverne : ${progress}/${goal}`,
+    };
+  }
+
+  if (id === 'rush') {
+    const progress = t.bossRush || 0;
+    const succeeded = progress >= 1;
+    const bonus = succeeded ? 50 + (progress - 1) * 26 : 0;
+    return {
+      ...base,
+      succeeded,
+      progress,
+      goal: 1,
+      bonus,
+      detail: succeeded ? `Boss Rush maîtrisé (${progress})` : 'Aucun Boss Rush réussi',
+    };
+  }
+
   return base;
 }
 
@@ -692,7 +788,8 @@ export function computeScore(career) {
     (t.pvp || 0) * 12 +
     (t.bossRush || 0) * 14 +
     (t.extension || 0) * 10 +
-    (t.coop || 0) * 10;
+    (t.coop || 0) * 10 +
+    (t.taverne || 0) * 12;
 
   const ambition = evaluateAmbition(career);
   // Les trophées liés à l’ambition rapportent +50 % s’il y a succès
@@ -706,7 +803,10 @@ export function computeScore(career) {
     } else if (id === 'forge') ambitionTrophyBoost = (t.forge || 0) * 22 * 0.5;
     else if (id === 'ombres') {
       ambitionTrophyBoost = ((t.labyrinthe || 0) * 14 + (t.cataclysme || 0) * 20) * 0.5;
-    }
+    } else if (id === 'pvp') ambitionTrophyBoost = (t.pvp || 0) * 12 * 0.5;
+    else if (id === 'coop') ambitionTrophyBoost = (t.coop || 0) * 10 * 0.5;
+    else if (id === 'taverne') ambitionTrophyBoost = (t.taverne || 0) * 12 * 0.5;
+    else if (id === 'rush') ambitionTrophyBoost = (t.bossRush || 0) * 14 * 0.5;
   }
 
   return Math.round(
@@ -784,7 +884,12 @@ function migrateDestinyStatKeys(stats) {
 
 function migrateCareerStatKeys(career) {
   if (!career || typeof career !== 'object') return career;
-  const next = { ...career, stats: migrateDestinyStatKeys(career.stats) };
+  const next = {
+    ...career,
+    stats: migrateDestinyStatKeys(career.stats),
+    flags: career.flags && typeof career.flags === 'object' ? career.flags : {},
+    trophies: { ...emptyTrophies(), ...(career.trophies || {}) },
+  };
   if (next.character?.baseStats) {
     next.character = {
       ...next.character,
