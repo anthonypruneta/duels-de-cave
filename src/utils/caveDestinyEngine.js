@@ -108,16 +108,16 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
 
   let stats = {
     ...(character.baseStats || {
-      puissance: 45,
-      endurance: 45,
-      magie: 45,
-      vitesse: 45,
-      charisme: 45,
+      puissance: 18,
+      endurance: 18,
+      magie: 18,
+      vitesse: 18,
+      charisme: 16,
     }),
-    renommee: 10,
-    or: 20,
-    forme: 78,
-    moral: 72,
+    renommee: 0,
+    or: 10,
+    forme: 76,
+    moral: 70,
   };
 
   stats = applyEffects(stats, ambition.effects);
@@ -125,7 +125,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 5,
+    version: 6,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,

@@ -39,20 +39,18 @@ function effectDelta(from = {}, to = {}) {
   return out;
 }
 
-/** Convertit les stats d’une arme jeu → stats Cave Destiny */
+/** Convertit les stats d’une arme jeu → stats Cave Destiny (bonus modestes) */
 export function destinyEffectsFromGameWeapon(weapon) {
   if (!weapon) return {};
   const s = weapon.stats || {};
   const rarityBonus =
-    weapon.rarete === RARITY.LEGENDAIRE ? 4 : weapon.rarete === RARITY.RARE ? 2 : 0;
+    weapon.rarete === RARITY.LEGENDAIRE ? 3 : weapon.rarete === RARITY.RARE ? 1 : 0;
 
   return {
-    puissance: Math.round((s.auto || 0) * 2.4) + (weapon.rarete === RARITY.COMMUNE ? 2 : rarityBonus),
-    endurance:
-      Math.round((s.def || 0) * 1.8 + (s.rescap || 0) * 1.4 + (s.hp || 0) * 0.35) +
-      (weapon.rarete === RARITY.COMMUNE ? 1 : 0),
-    magie: Math.round((s.cap || 0) * 2.4) + (weapon.famille === 'tome' || weapon.famille === 'baton' || weapon.famille === 'sceptre' ? 1 : 0),
-    vitesse: Math.round((s.spd || 0) * 2.4) + (weapon.famille === 'dague' || weapon.famille === 'arc' ? 1 : 0),
+    puissance: Math.round((s.auto || 0) * 0.9) + rarityBonus,
+    endurance: Math.round((s.def || 0) * 0.8 + (s.rescap || 0) * 0.6 + (s.hp || 0) * 0.12),
+    magie: Math.round((s.cap || 0) * 0.9) + (weapon.famille === 'tome' || weapon.famille === 'baton' || weapon.famille === 'sceptre' ? 1 : 0),
+    vitesse: Math.round((s.spd || 0) * 0.9) + (weapon.famille === 'dague' || weapon.famille === 'arc' ? 1 : 0),
     charisme: weapon.rarete === RARITY.LEGENDAIRE ? 2 : weapon.rarete === RARITY.RARE ? 1 : 0,
   };
 }
