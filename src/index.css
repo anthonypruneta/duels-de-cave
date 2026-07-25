@@ -127,6 +127,27 @@ body.cave-destiny-plain::before {
   }
 }
 
+/* Format carte TCG (~63×88 → ratio 5/7) */
+.cave-destiny-tcg {
+  aspect-ratio: 5 / 7;
+  height: auto;
+}
+
+.cave-destiny-tcg-card {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.cave-destiny-tcg-card:hover {
+  box-shadow: 0 8px 22px rgba(180, 83, 9, 0.22);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cave-destiny-tcg-card:hover {
+    transform: none;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

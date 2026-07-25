@@ -7,6 +7,8 @@ import {
   pickRandomGameCharacters,
   LAST_OFFERED_STORAGE_KEY,
   LAST_OFFERED_HISTORY_LIMIT,
+  getRaceIcon,
+  getClassIcon,
 } from '../data/caveDestiny';
 import {
   createCareer,
@@ -22,6 +24,7 @@ import {
   computeScore,
   getTier,
 } from '../utils/caveDestinyEngine';
+import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -55,7 +58,7 @@ function Shell({ children }) {
       <div className="cave-destiny-orb cave-destiny-orb-a" aria-hidden="true" />
       <div className="cave-destiny-orb cave-destiny-orb-b" aria-hidden="true" />
       <div className="cave-destiny-vignette" aria-hidden="true" />
-      <div className="relative z-10 mx-auto max-w-lg px-4 pt-10 pb-16">{children}</div>
+      <div className="relative z-10 mx-auto max-w-xl px-4 pt-10 pb-16">{children}</div>
     </div>
   );
 }
@@ -161,16 +164,26 @@ function Gauge({ label, value, colorClass = 'bg-amber-500' }) {
   );
 }
 
-function CharacterPortrait({ src, alt, className }) {
+/** Portrait format carte TCG (ratio ~5:7) */
+function CharacterPortrait({ src, alt, className = '', size = 'md' }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);
   }, [src]);
 
+  const sizeClass =
+    size === 'sm'
+      ? 'w-12 cave-destiny-tcg'
+      : size === 'lg'
+        ? 'w-36 sm:w-40 cave-destiny-tcg'
+        : size === 'xl'
+          ? 'w-full max-w-[11rem] cave-destiny-tcg'
+          : 'w-20 sm:w-24 cave-destiny-tcg';
+
   if (!src || failed) {
     return (
       <div
-        className={`${className} bg-stone-800 border border-stone-600 flex items-center justify-center text-stone-500 text-xs`}
+        className={`${sizeClass} ${className} bg-stone-800 border border-amber-800/40 rounded-md flex items-center justify-center text-stone-500 text-xs shadow-inner`}
       >
         ?
       </div>
@@ -181,9 +194,64 @@ function CharacterPortrait({ src, alt, className }) {
       src={src}
       alt={alt || ''}
       referrerPolicy="no-referrer"
-      className={`${className} object-cover bg-stone-900 border border-stone-600`}
+      className={`${sizeClass} ${className} object-cover object-top bg-stone-900 border border-amber-700/50 rounded-md shadow-[0_4px_14px_rgba(0,0,0,0.45)]`}
       onError={() => setFailed(true)}
     />
+  );
+}
+
+function RaceClassLine({ race, classe, className = '', centered = false }) {
+  if (!race && !classe) return null;
+  return (
+    <p
+      className={`text-xs text-amber-200/90 ${centered ? 'text-center' : ''} ${className}`}
+    >
+      <span className="inline-flex items-center gap-1">
+        <span aria-hidden="true">{getRaceIcon(race)}</span>
+        <span>{race || '—'}</span>
+      </span>
+      <span className="text-stone-600 mx-1.5">·</span>
+      <span className="inline-flex items-center gap-1">
+        <span aria-hidden="true">{getClassIcon(classe)}</span>
+        <span>{classe || '—'}</span>
+      </span>
+    </p>
+  );
+}
+
+function CharacterIdentity({ character, compact = false }) {
+  if (!character) return null;
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/80 ${
+        compact ? 'px-2.5 py-2' : 'px-3 py-2.5'
+      }`}
+    >
+      <CharacterPortrait
+        src={character.characterImage}
+        alt={character.name}
+        size={compact ? 'sm' : 'md'}
+        className="shrink-0"
+      />
+      <div className="min-w-0 flex-1">
+        <p className={`font-semibold text-amber-50 truncate ${compact ? 'text-sm' : 'font-[Cinzel,serif] text-base'}`}>
+          {character.name}
+        </p>
+        <RaceClassLine race={character.race} classe={character.class} className="mt-0.5" />
+        <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
+          Créateur : {character.ownerPseudo || 'Inconnu'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function RarityBadge({ rarity }) {
+  const meta = getRarityMeta(rarity);
+  return (
+    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${meta.className}`}>
+      {meta.label}
+    </span>
   );
 }
 
@@ -346,7 +414,7 @@ const CaveDestiny = () => {
             Cave Destiny
           </h1>
           <p className="mt-4 text-sm text-stone-300 leading-relaxed max-w-sm">
-            Incarnez un perso de Duels de Cave et surviving la saison… en cave.
+            Incarnez un perso de Duels de Cave et survivez à la saison — donjons, tournoi, forge… en vrai cave.
           </p>
 
           <div className="mt-10 w-full space-y-3 max-w-sm">
@@ -395,11 +463,13 @@ const CaveDestiny = () => {
               <CharacterPortrait
                 src={entry.characterImage}
                 alt={entry.name}
-                className="w-12 h-12 rounded-lg shrink-0"
+                size="sm"
+                className="shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-amber-50 truncate">{entry.name}</p>
-                <p className="text-xs italic text-stone-500">
+                <RaceClassLine race={entry.race} classe={entry.class} className="mt-0.5" />
+                <p className="text-[11px] italic text-stone-500 mt-0.5">
                   Créateur : {entry.ownerPseudo || 'Inconnu'}
                 </p>
                 <p className="text-xs text-stone-500 mt-0.5">{entry.tierLabel}</p>
@@ -420,7 +490,7 @@ const CaveDestiny = () => {
         <StepDots step="personnage" />
         <ScreenTitle
           title="Choisissez un personnage"
-          sub="Trois persos réels de Duels de Cave. Bonne chance, cave."
+          sub="Trois persos réels tirés du roster. Choisissez votre destin, cave."
         />
 
         {charsLoading && (
@@ -442,27 +512,32 @@ const CaveDestiny = () => {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           {!charsLoading && offeredCharacters.map((c) => (
             <button
               key={`${c.id}-${c.name}`}
               type="button"
               onClick={() => selectCharacter(c)}
-              className="w-full text-left rounded-xl border border-stone-600 bg-stone-950/80 p-3 hover:border-amber-500/70 hover:bg-amber-950/20 transition flex items-center gap-4"
+              className="cave-destiny-tcg-card group text-left rounded-xl border border-stone-600 bg-stone-950/85 p-2 sm:p-2.5 hover:border-amber-500/70 hover:bg-amber-950/25 transition flex flex-col items-center"
             >
               <CharacterPortrait
                 src={c.characterImage}
                 alt={c.name}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg shrink-0"
+                size="xl"
+                className="shrink-0"
               />
-              <div className="min-w-0">
-                <h3 className="text-lg font-bold text-amber-50 leading-tight font-[Cinzel,serif]">
-                  {c.name}
-                </h3>
-                <p className="mt-1.5 text-sm italic text-stone-500">
-                  Créateur : {c.ownerPseudo || 'Inconnu'}
-                </p>
-              </div>
+              <h3 className="mt-2 w-full text-center text-sm sm:text-base font-bold text-amber-50 leading-tight font-[Cinzel,serif] truncate">
+                {c.name}
+              </h3>
+              <RaceClassLine
+                race={c.race}
+                classe={c.class}
+                centered
+                className="mt-1"
+              />
+              <p className="mt-1 w-full text-center text-[10px] sm:text-xs italic text-stone-500 truncate">
+                {c.ownerPseudo || 'Inconnu'}
+              </p>
             </button>
           ))}
         </div>
@@ -476,6 +551,11 @@ const CaveDestiny = () => {
       <Shell>
         <BackLink onClick={backSetup} />
         <StepDots step="ambition" />
+        {setup.character && (
+          <div className="mb-4">
+            <CharacterIdentity character={setup.character} compact />
+          </div>
+        )}
         <ScreenTitle title="Votre ambition" sub="Elle orientera votre carrière." />
         <div className="space-y-2">
           {CAVE_DESTINY_AMBITIONS.map((a) => (
@@ -497,6 +577,11 @@ const CaveDestiny = () => {
       <Shell>
         <BackLink onClick={backSetup} />
         <StepDots step="mentor" />
+        {setup.character && (
+          <div className="mb-4">
+            <CharacterIdentity character={setup.character} compact />
+          </div>
+        )}
         <ScreenTitle title="Votre mentor" sub="Qui vous guide au début ?" />
         <div className="space-y-2">
           {CAVE_DESTINY_MENTORS.map((m) => (
@@ -518,6 +603,11 @@ const CaveDestiny = () => {
       <Shell>
         <BackLink onClick={backSetup} />
         <StepDots step="arme" />
+        {setup.character && (
+          <div className="mb-4">
+            <CharacterIdentity character={setup.character} compact />
+          </div>
+        )}
         <ScreenTitle title="Votre voie d’arme" sub="Choisissez l’arme qui vous définit." />
         <div className="space-y-2">
           {CAVE_DESTINY_WEAPONS.map((w) => (
@@ -544,7 +634,8 @@ const CaveDestiny = () => {
             <CharacterPortrait
               src={career.character.characterImage}
               alt={career.character.name}
-              className="w-20 h-20 rounded-lg shrink-0"
+              size="lg"
+              className="shrink-0"
             />
             <div className="min-w-0">
               <p className={`text-xs uppercase tracking-wider font-bold ${tier.color}`}>
@@ -553,6 +644,11 @@ const CaveDestiny = () => {
               <h2 className="font-[Cinzel,serif] text-2xl font-bold text-amber-50 mt-0.5">
                 {career.character.name}
               </h2>
+              <RaceClassLine
+                race={career.character.race}
+                classe={career.character.class}
+                className="mt-1.5"
+              />
               <p className="text-sm italic text-stone-500 mt-1">
                 Créateur : {career.character.ownerPseudo || 'Inconnu'}
               </p>
@@ -610,11 +706,17 @@ const CaveDestiny = () => {
           <CharacterPortrait
             src={career.character.characterImage}
             alt=""
-            className="w-10 h-10 rounded-lg shrink-0"
+            size="sm"
+            className="shrink-0"
           />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-amber-50 truncate">{career.character.name}</p>
-            <p className="text-xs italic text-stone-500 truncate">
+            <RaceClassLine
+              race={career.character.race}
+              classe={career.character.class}
+              className="mt-0.5"
+            />
+            <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
               Créateur : {career.character.ownerPseudo || 'Inconnu'}
             </p>
           </div>
@@ -722,15 +824,18 @@ const CaveDestiny = () => {
             </>
           ) : event ? (
             <>
-              <p className="text-[11px] uppercase tracking-wider text-amber-500/90 font-bold">
-                Événement
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wider text-amber-500/90 font-bold">
+                  Événement
+                </p>
+                <RarityBadge rarity={event.rarity} />
+              </div>
               <h3 className="text-lg font-bold text-amber-50 mt-1">{event.title}</h3>
               <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">{event.text}</p>
               <div className="mt-5 space-y-2">
                 {event.options.map((opt, i) => (
                   <button
-                    key={opt.label}
+                    key={opt.id || opt.label}
                     type="button"
                     onClick={() => handleChoice(i)}
                     className="w-full text-left rounded-xl border border-stone-600 px-4 py-3 text-sm text-stone-100 hover:border-amber-500/60 hover:bg-amber-950/25 transition"
