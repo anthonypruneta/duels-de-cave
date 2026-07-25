@@ -167,6 +167,76 @@ function applySecretStatWeights(outcomes, career, option, event) {
   });
 }
 
+const ORNN_DUEL_FIGHT_OPTIONS = new Set(['affronter_maintenant', 'affronter_legendaire', 'bastion']);
+
+/**
+ * Défi Ornn : sans arme légendaire = très dur ; légendaire = plus tenable ;
+ * légendaire + forgée (forge_ornn réussie) = nettement plus favorable.
+ */
+function applyOrnnDuelWeaponScaling(outcomes, career, option, event) {
+  if (event?.id !== 'ornn_jugement' || !ORNN_DUEL_FIGHT_OPTIONS.has(option?.id)) {
+    return outcomes;
+  }
+
+  const hasLegendary = career.weapon?.rarity === RARITY.LEGENDAIRE;
+  const forged = !!career.flags?.arme_legendaire_forgee;
+
+  let bonusMul;
+  let neutreMul;
+  let malusMul;
+  let hpLossMul;
+  let rewardMul;
+  let penaltyMul;
+
+  if (!hasLegendary) {
+    // Folie : malus dominant, bonus rare, coups plus durs
+    bonusMul = 0.22;
+    neutreMul = 0.65;
+    malusMul = 2.6;
+    hpLossMul = 1.4;
+    rewardMul = 0.8;
+    penaltyMul = 1.45;
+  } else if (!forged) {
+    // Arme légendaire seule : duel tenable
+    bonusMul = 1.2;
+    neutreMul = 1;
+    malusMul = 0.7;
+    hpLossMul = 1;
+    rewardMul = 1;
+    penaltyMul = 1;
+  } else {
+    // Légendaire reforgée par Ornn : le fer incline le duel
+    bonusMul = 1.9;
+    neutreMul = 1.05;
+    malusMul = 0.32;
+    hpLossMul = 0.72;
+    rewardMul = 1.2;
+    penaltyMul = 0.85;
+  }
+
+  return (outcomes || []).map((o) => {
+    let w = o.weight || 1;
+    if (o.variant === 'bonus') w *= bonusMul;
+    else if (o.variant === 'malus') w *= malusMul;
+    else w *= neutreMul;
+
+    const deltas = { ...(o.deltas || {}) };
+    if (typeof deltas.hp === 'number' && deltas.hp < 0) {
+      deltas.hp = Math.round(deltas.hp * hpLossMul);
+    }
+    for (const key of ['auto', 'def', 'cap', 'spd', 'renommee', 'or', 'charisme', 'moral']) {
+      if (typeof deltas[key] !== 'number') continue;
+      if (deltas[key] > 0) {
+        deltas[key] = Math.max(1, Math.round(deltas[key] * rewardMul));
+      } else if (deltas[key] < 0) {
+        deltas[key] = Math.round(deltas[key] * penaltyMul);
+      }
+    }
+
+    return { ...o, weight: Math.max(0.05, w), deltas };
+  });
+}
+
 /** Ids d’événements déjà rencontrés dans la run */
 function seenEventIds(career) {
   const ids = new Set();
@@ -701,6 +771,8 @@ export function resolveChoice(career, optionIndex) {
   const definedCheck = lookupDefinedCheck(career.currentEvent.id, option.id);
   const optionForCheck = definedCheck ? { ...option, check: definedCheck } : option;
   outcomes = applySecretStatWeights(outcomes, career, optionForCheck, career.currentEvent);
+  // Défi Ornn : difficulté selon arme légendaire / forgée
+  outcomes = applyOrnnDuelWeaponScaling(outcomes, career, option, career.currentEvent);
 
   const outcome = pickWeighted(outcomes);
   let deltas = normalizeHpKey({ ...(outcome.deltas || {}) });
@@ -734,6 +806,20 @@ export function resolveChoice(career, optionIndex) {
   let weapon = career.weapon;
   let subclass = career.subclass || null;
   let outcomeText = fillWeaponPlaceholders(outcome.text, weapon);
+  if (
+    career.currentEvent.id === 'ornn_jugement' &&
+    ORNN_DUEL_FIGHT_OPTIONS.has(option.id)
+  ) {
+    const hasLegendary = weapon?.rarity === RARITY.LEGENDAIRE;
+    const forged = !!career.flags?.arme_legendaire_forgee;
+    if (!hasLegendary) {
+      outcomeText = `${outcomeText} (Sans arme légendaire, Ornn ne vous a fait aucune faveur.)`;
+    } else if (forged) {
+      outcomeText = `${outcomeText} (Le fer reforgé par Ornn a parlé pour vous.)`;
+    } else {
+      outcomeText = `${outcomeText} (Votre lignée légendaire a tenu — une forge divine l’aurait rendue plus sûre encore.)`;
+    }
+  }
   const chainMeta = buildChainUiMeta(career.currentEvent.id);
   if (ambitionLinked && career.ambition?.name) {
     const mark =
@@ -788,6 +874,10 @@ export function resolveChoice(career, optionIndex) {
   const nextFlags = { ...(career.flags || {}) };
   if (outcome.flags && typeof outcome.flags === 'object') {
     Object.assign(nextFlags, outcome.flags);
+  }
+  // Forge d’Ornn réussie → l’arme légendaire est considérée forgée (duel plus favorable)
+  if (career.currentEvent.id === 'forge_ornn' && variant !== 'malus') {
+    nextFlags.arme_legendaire_forgee = true;
   }
   // Duel Ornn : report → peut revenir ; affrontement → challenge clos
   if (career.currentEvent.id === 'ornn_jugement') {
