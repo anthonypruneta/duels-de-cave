@@ -47,27 +47,31 @@ export const CAVE_DESTINY_CHAINS = {
     id: 'couronne',
     ambition: 'tournoi',
     label: 'Voie de la couronne',
-    // Qualif → Anciens → porte de la finale → couronne du samedi
-    steps: [
-      'tournoi_qualification',
-      'tournoi_anciens',
-      'tournoi_qualif_finale',
-      'tournoi_samedi',
-    ],
+    // Qualif → porte de la finale → couronne du samedi
+    steps: ['tournoi_qualification', 'tournoi_qualif_finale', 'tournoi_samedi'],
+  },
+  // Tournoi à part (invitation « par erreur »)
+  tournoi_anciens: {
+    id: 'tournoi_anciens',
+    ambition: 'tournoi',
+    label: 'Tournoi des anciens',
+    steps: ['tournoi_anciens'],
   },
 
   // ——— Forge ———
-  forge_ornn: {
-    id: 'forge_ornn',
+  forge_voie: {
+    id: 'forge_voie',
     ambition: 'forge',
-    label: 'Chemin de la Forge',
-    // Upgrade → Forge des Légendes → Jugement → révélation légendaire (via Ornn)
-    steps: [
-      'arme_upgrade_chemin',
-      'forge_ornn',
-      'ornn_jugement',
-      'arme_legendaire_revelation',
-    ],
+    label: 'Voie du fer',
+    // 1re amélioration → arme légendaire → forge de l’arme légendaire
+    steps: ['arme_upgrade_chemin', 'arme_legendaire_revelation', 'forge_ornn'],
+  },
+  // Combat mythique (reportable jusqu’à l’arme légendaire)
+  ornn_duel: {
+    id: 'ornn_duel',
+    ambition: 'forge',
+    label: 'Défi mythique d’Ornn',
+    steps: ['ornn_jugement'],
   },
 
   // ——— Ombres ———

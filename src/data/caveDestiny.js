@@ -148,7 +148,7 @@ export const CAVE_DESTINY_AMBITIONS = [
     id: 'tournoi',
     name: 'Couronne du samedi',
     icon: '🏆',
-    desc: 'Le Hall murmure déjà votre nom. Qualifiez-vous, bravez les Anciens, forcez la finale — puis arrachez la couronne.',
+    desc: 'Le Hall murmure déjà votre nom. Qualifiez-vous, forcez la porte de la finale, arrachez la couronne — et parfois, une erreur vous jette chez les Anciens.',
     effects: { renommee: 8, auto: 4, or: -2 },
   },
   {
@@ -162,7 +162,7 @@ export const CAVE_DESTINY_AMBITIONS = [
     id: 'forge',
     name: 'Forgé par Ornn',
     icon: '🔨',
-    desc: 'Le feu d’Ornn ne ment pas. Trempez le fer, entrez dans sa Forge, subissez le jugement — la lignée légendaire n’attend que vous.',
+    desc: 'Le feu d’Ornn ne ment pas. Améliorez le fer, éveillez la lignée, forgez le légendaire — et défiez le dieu quand vous oserez.',
     effects: { auto: 5, def: 3, or: -4 },
   },
   {
