@@ -295,7 +295,7 @@ export const CAVE_DESTINY_TIERS = [
   { minScore: 440, id: 'mythe', label: 'Mythe des Duels', color: 'text-fuchsia-300' },
 ];
 
-export const CAVE_DESTINY_SEASON_COUNT = 14;
+export const CAVE_DESTINY_SEASON_COUNT = 20;
 export const STORAGE_KEY_SAVE = 'caveDestiny:save';
 export const STORAGE_KEY_PANTHEON = 'caveDestiny:pantheon';
 

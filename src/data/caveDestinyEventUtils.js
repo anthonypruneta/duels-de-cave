@@ -65,13 +65,25 @@ export function formatRequireLabels(req = {}) {
   return labels;
 }
 
+/** Labels verts (race / classe / require) pour un choix débloqué. */
+export function formatOptionUnlockLabels(opt = {}) {
+  const labels = formatRequireLabels(opt.require || {});
+  if (opt.ifRace?.length) {
+    labels.push(`Race : ${opt.ifRace.join(' / ')}`);
+  }
+  if (opt.ifClass?.length) {
+    labels.push(`Classe : ${opt.ifClass.join(' / ')}`);
+  }
+  return labels;
+}
+
 /**
  * Évalue si un choix est accessible.
  * `require` = restrictions visibles (choix affiché mais verrouillé si non rempli).
  */
 export function evaluateOptionAccess(opt, character, career) {
   const req = opt?.require || {};
-  const requireLabels = formatRequireLabels(req);
+  const requireLabels = formatOptionUnlockLabels(opt);
   const reasons = [];
   const stats = career?.stats || {};
 

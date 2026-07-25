@@ -304,9 +304,13 @@ export default function CaveDestinyRecap({
           </div>
         )}
 
-        <p className="mt-4 text-sm text-amber-300/95 flex items-start gap-2">
-          <span aria-hidden="true">🌐</span>
-          <span>{recap.percentile.label}</span>
+        <p
+          className={`mt-4 text-sm flex items-start gap-2 ${
+            recap.percentile?.ready ? 'text-amber-300/95' : 'text-stone-500'
+          }`}
+        >
+          <span aria-hidden="true">{recap.percentile?.ready ? '🌐' : '📭'}</span>
+          <span>{recap.percentile?.label}</span>
         </p>
 
         {recap.ambition?.id && (

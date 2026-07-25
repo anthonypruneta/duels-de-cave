@@ -3,7 +3,7 @@
  * (inspiré Destiny Eleven — adapté aux Duels de Cave).
  */
 
-import { WEAPON_RARITY_LABEL } from '../data/caveDestiny';
+import { WEAPON_RARITY_LABEL, CAVE_DESTINY_SEASON_COUNT } from '../data/caveDestiny';
 import { RARITY } from '../data/weapons';
 import * as DestinyEngine from './caveDestinyEngine';
 
@@ -311,6 +311,7 @@ export function buildParcours(career) {
       : [];
     const isHighlight =
       h.variant === 'bonus' ||
+      h.ambitionLinked ||
       trophyGain.length > 0 ||
       h.weaponProgress ||
       h.subclassName;
@@ -330,6 +331,9 @@ export function buildParcours(career) {
     } else if (h.weaponProgress === 'upgrade') {
       badge = 'FORGE';
       badgeTone = 'orange';
+    } else if (h.ambitionLinked) {
+      badge = 'AMBITION';
+      badgeTone = 'violet';
     }
 
     milestones.push({
@@ -337,7 +341,9 @@ export function buildParcours(career) {
       kind: 'event',
       label: `Saison ${h.season}`,
       title: h.title || 'Événement',
-      detail: h.choice ? `Choix : ${h.choice}` : h.text || '',
+      detail: h.choice
+        ? `${h.ambitionLinked ? 'Voie · ' : ''}Choix : ${h.choice}`
+        : h.text || '',
       badge,
       badgeTone,
       variant: h.variant,
@@ -346,9 +352,9 @@ export function buildParcours(career) {
 
   // Fin
   milestones.push({
-    season: career?.maxSeasons || 14,
+    season: career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT,
     kind: 'end',
-    label: `Saison ${career?.maxSeasons || 14}`,
+    label: `Saison ${career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT}`,
     title: 'Retraite des Duels',
     detail: career?.weapon?.name
       ? `Dernière arme : ${career.weapon.icon || ''} ${career.weapon.name}`.trim()
@@ -375,9 +381,13 @@ export function buildStatRows(career) {
   const history = Array.isArray(career?.history) ? career.history : [];
   const bonusCount = history.filter((h) => h.variant === 'bonus').length;
   const malusCount = history.filter((h) => h.variant === 'malus').length;
+  const ambitionCount =
+    Number(career?.ambitionEventsFaced) ||
+    history.filter((h) => h.ambitionLinked).length;
   return [
-    { label: 'Saisons jouées', value: String(career?.maxSeasons || 14) },
+    { label: 'Saisons jouées', value: String(career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT) },
     { label: 'Événements vécus', value: String(history.length) },
+    { label: 'Voie d’ambition', value: String(ambitionCount) },
     { label: 'Éclats (bonus)', value: String(bonusCount) },
     { label: 'Épreuves (malus)', value: String(malusCount) },
     { label: 'Renommée', value: String(Math.round(s.renommee || 0)) },
@@ -391,28 +401,46 @@ export function buildStatRows(career) {
   ];
 }
 
+/** Minimum de carrières pour afficher un vrai % (pas d’estimation). */
+export const PERCENTILE_MIN_SAMPLE = 5;
+
 /**
- * Percentile vs panthéon (local + optionnel distant).
- * @returns {{ percentile: number, sampleSize: number, label: string }}
+ * Percentile réel vs panthéon — aucun fallback estimé.
+ * @returns {{ percentile: number|null, sampleSize: number, ready: boolean, label: string }}
  */
 export function computePercentile(score, comparisonScores = []) {
   const scores = comparisonScores.filter((n) => typeof n === 'number' && Number.isFinite(n));
-  if (scores.length < 3) {
-    // Fallback heuristique sur les paliers de tier
-    if (score >= 440) return { percentile: 94, sampleSize: scores.length, label: 'Meilleure carrière que ~94 % des destins (estimation)' };
-    if (score >= 360) return { percentile: 86, sampleSize: scores.length, label: 'Meilleure carrière que ~86 % des destins (estimation)' };
-    if (score >= 280) return { percentile: 72, sampleSize: scores.length, label: 'Meilleure carrière que ~72 % des destins (estimation)' };
-    if (score >= 200) return { percentile: 55, sampleSize: scores.length, label: 'Meilleure carrière que ~55 % des destins (estimation)' };
-    if (score >= 120) return { percentile: 35, sampleSize: scores.length, label: 'Meilleure carrière que ~35 % des destins (estimation)' };
-    return { percentile: 18, sampleSize: scores.length, label: 'Meilleure carrière que ~18 % des destins (estimation)' };
+  if (scores.length < PERCENTILE_MIN_SAMPLE) {
+    const label =
+      scores.length <= 0
+        ? 'Pas assez de carrières enregistrées pour calculer le classement'
+        : `Pas assez de carrières pour calculer le classement (${scores.length}/${PERCENTILE_MIN_SAMPLE})`;
+    return {
+      percentile: null,
+      sampleSize: scores.length,
+      ready: false,
+      label,
+    };
   }
   const below = scores.filter((s) => s < score).length;
   const percentile = Math.round((below / scores.length) * 100);
   return {
     percentile,
     sampleSize: scores.length,
-    label: `Meilleure carrière que ${percentile} % des destins simulés`,
+    ready: true,
+    label: `Meilleure carrière que ${percentile} % des destins simulés (${scores.length} carrières)`,
   };
+}
+
+/** Fusionne local + serveur, déduplique par id. */
+function mergePantheonEntries(remote = [], local = []) {
+  const byId = new Map();
+  for (const e of [...local, ...remote]) {
+    if (!e || typeof e.score !== 'number') continue;
+    const key = e.id || `${e.name || '?'}-${e.score}-${e.date || 0}`;
+    if (!byId.has(key)) byId.set(key, e);
+  }
+  return [...byId.values()];
 }
 
 function scaleRivalStat(base, seed, spread = 0.25) {
@@ -523,6 +551,10 @@ export function buildNarratives(career, ambitionEval, traits) {
   const history = Array.isArray(career?.history) ? career.history : [];
   const name = career?.character?.name || 'Ce cave';
 
+  const ambitionHits =
+    Number(career?.ambitionEventsFaced) ||
+    history.filter((h) => h.ambitionLinked).length;
+
   if (ambitionEval?.succeeded) {
     paragraphs.push(
       `${name} a tenu parole : « ${ambitionEval.name} » n’était pas un rêve de comptoir. ${ambitionEval.detail}.`
@@ -530,6 +562,11 @@ export function buildNarratives(career, ambitionEval, traits) {
   } else if (ambitionEval?.id) {
     paragraphs.push(
       `L’ambition « ${ambitionEval.name} » reste inachevée (${ambitionEval.detail}). Certains destins se jugent à ce qui manque.`
+    );
+  }
+  if (ambitionHits >= 3 && ambitionEval?.name) {
+    paragraphs.push(
+      `La voie a résonné ${ambitionHits} fois : chaque événement lié à « ${ambitionEval.name} » a pesé plus lourd que le reste.`
     );
   }
 
@@ -576,7 +613,7 @@ export function buildNarratives(career, ambitionEval, traits) {
 /**
  * Construit le récap complet de fin de run.
  * @param {object} career
- * @param {{ pantheon?: object[] }} [opts]
+ * @param {{ pantheon?: object[], excludeRunId?: string|null }} [opts]
  */
 export function buildCareerRecap(career, opts = {}) {
   const base = buildFinalStory(career);
@@ -584,8 +621,19 @@ export function buildCareerRecap(career, opts = {}) {
   const score = base.score ?? computeScore(career);
   const tier = base.tier || getTier(score);
 
-  const pantheon = opts.pantheon?.length ? opts.pantheon : loadPantheon();
-  const comparisonScores = pantheon.map((e) => e.score).filter((n) => typeof n === 'number');
+  const local = loadPantheon();
+  const remote = Array.isArray(opts.pantheon) ? opts.pantheon : [];
+  const pantheon = mergePantheonEntries(remote, local);
+  const excludeId = opts.excludeRunId || null;
+  const name = career?.character?.name;
+  const comparisonScores = pantheon
+    .filter((e) => {
+      if (excludeId && e.id === excludeId) return false;
+      // Évite de se compter soi-même juste après la sauvegarde (même nom + même score)
+      if (name && e.name === name && e.score === score) return false;
+      return true;
+    })
+    .map((e) => e.score);
   const percentile = computePercentile(score, comparisonScores);
 
   const traits = buildTraits(career);
@@ -642,7 +690,7 @@ export function buildCareerRecap(career, opts = {}) {
       weaponRarityLabel: career?.weapon?.rarity
         ? WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity
         : null,
-      seasons: career?.maxSeasons || 14,
+      seasons: career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT,
       stats: career?.stats || {},
     },
   };
