@@ -1130,10 +1130,10 @@ const CaveDestiny = () => {
                       }`}
                     >
                       {outcomeFlash.variant === 'bonus'
-                        ? 'Éclat'
+                        ? 'Réussite'
                         : outcomeFlash.variant === 'malus'
-                          ? 'Épreuve'
-                          : 'Souffle'}
+                          ? 'Échec'
+                          : 'Neutre'}
                     </span>
                   )}
                 </div>

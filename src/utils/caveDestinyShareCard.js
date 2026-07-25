@@ -156,14 +156,14 @@ function starsFromTier(tier) {
 function shareStatCells(recap) {
   const s = recap.identity?.stats || {};
   const events = recap.statRows?.find((r) => r.label?.includes('Événements'))?.value || '—';
-  const eclats = recap.statRows?.find((r) => r.label?.includes('Éclats'))?.value || '0';
-  const epreuves = recap.statRows?.find((r) => r.label?.includes('Épreuves'))?.value || '0';
+  const reussites = recap.statRows?.find((r) => r.label?.includes('Réussites'))?.value || '0';
+  const echecs = recap.statRows?.find((r) => r.label?.includes('Échecs'))?.value || '0';
   return [
     { value: String(recap.identity?.seasons || CAVE_DESTINY_SEASON_COUNT), label: 'SAISONS' },
     { value: String(events), label: 'ÉVÉNEMENTS' },
     { value: String(Math.round(s.renommee || 0)), label: 'RENOMMÉE' },
-    { value: String(eclats), label: 'ÉCLATS' },
-    { value: String(epreuves), label: 'ÉPREUVES' },
+    { value: String(reussites), label: 'RÉUSSITES' },
+    { value: String(echecs), label: 'ÉCHECS' },
     { value: `${Math.round(s.or || 0)}`, label: 'OR' },
   ];
 }
