@@ -37,12 +37,40 @@ export function trio(bonus, neutre, malus, weights = [30, 40, 30]) {
   ];
 }
 
+/** Liste lisible des conditions d’un `require` (toujours, même si remplies). */
+export function formatRequireLabels(req = {}) {
+  const labels = [];
+  for (const [stat, min] of Object.entries(req.stats || {})) {
+    labels.push(`${STAT_LABELS[stat] || stat} ≥ ${min}`);
+  }
+  if (req.races?.length && req.classes?.length) {
+    labels.push(`Race ${req.races.join('/')} ou classe ${req.classes.join('/')}`);
+  } else {
+    if (req.races?.length) labels.push(`Race : ${req.races.join(' / ')}`);
+    if (req.classes?.length) labels.push(`Classe : ${req.classes.join(' / ')}`);
+  }
+  if (req.weaponFamilies?.length) {
+    labels.push(`Famille d’arme : ${req.weaponFamilies.join(' / ')}`);
+  }
+  if (req.weaponRarities?.length) {
+    const rarities = req.weaponRarities.map((r) => RARITY_LABELS[r] || r);
+    labels.push(`Arme ${rarities.join(' / ')}`);
+  }
+  if (typeof req.minRenommee === 'number') {
+    labels.push(`Renommée ≥ ${req.minRenommee}`);
+  }
+  if (req.noSubclass) labels.push('Sans sous-classe');
+  if (req.hasSubclass) labels.push('Sous-classe requise');
+  return labels;
+}
+
 /**
  * Évalue si un choix est accessible.
  * `require` = restrictions visibles (choix affiché mais verrouillé si non rempli).
  */
 export function evaluateOptionAccess(opt, character, career) {
   const req = opt?.require || {};
+  const requireLabels = formatRequireLabels(req);
   const reasons = [];
   const stats = career?.stats || {};
 
@@ -85,7 +113,11 @@ export function evaluateOptionAccess(opt, character, career) {
     reasons.push('Sous-classe requise');
   }
 
-  return { locked: reasons.length > 0, lockReasons: reasons };
+  return {
+    locked: reasons.length > 0,
+    lockReasons: reasons,
+    requireLabels,
+  };
 }
 
 function optionHiddenByLegacyFilter(opt, character) {
@@ -113,6 +145,7 @@ export function getOptionsForEvent(event, character, career) {
       ...opt,
       locked: access.locked,
       lockReasons: access.lockReasons,
+      requireLabels: access.requireLabels,
     });
   }
 

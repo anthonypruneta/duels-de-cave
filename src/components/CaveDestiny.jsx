@@ -607,6 +607,7 @@ const CaveDestiny = () => {
               <RaceClassLine
                 race={c.race}
                 classe={c.class}
+                subclass={c.subclass}
                 centered
                 className="mt-1"
               />
@@ -919,6 +920,7 @@ const CaveDestiny = () => {
               <div className="mt-5 space-y-2">
                 {event.options.map((opt, i) => {
                   const locked = !!opt.locked;
+                  const requireLabels = opt.requireLabels || [];
                   return (
                     <button
                       key={opt.id || opt.label}
@@ -932,7 +934,14 @@ const CaveDestiny = () => {
                       }`}
                     >
                       <span className="flex items-start justify-between gap-2">
-                        <span>{opt.label}</span>
+                        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span>{opt.label}</span>
+                          {!locked && requireLabels.length > 0 && (
+                            <span className="text-[11px] font-medium text-emerald-400/95">
+                              {requireLabels.join(' · ')}
+                            </span>
+                          )}
+                        </span>
                         {locked && (
                           <span className="shrink-0 text-[10px] uppercase tracking-wide text-stone-500">
                             🔒
