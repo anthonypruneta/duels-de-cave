@@ -35,6 +35,13 @@ export const CAVE_DESTINY_CHAINS = {
     label: 'Extension du Territoire',
     steps: ['double_passif', 'extension'],
   },
+  // Quête coop (hors payoff ambition donjons) : compagnons réels à chaque étape
+  arene_red: {
+    id: 'arene_red',
+    ambition: null,
+    label: 'Arène de Red',
+    steps: ['salameche_red', 'ronflex_red', 'coop_red'],
+  },
 
   // ——— Tournoi ———
   couronne: {
