@@ -65,6 +65,26 @@ const CAVE_DESTINY_EVENTS_CORE = [
           { text: 'Le sort part trop tôt. Votre adversaire en profite.', deltas: { magie: -1, moral: -8, forme: -4 } },
         ),
       },
+      {
+        id: 'gated_finale',
+        label: 'Viser la finale sans détour',
+        require: { stats: { puissance: 28, vitesse: 24 }, minRenommee: 12 },
+        outcomes: trio(
+          { text: 'Vous forcez le bracket. La couronne tremble.', deltas: { renommee: 16, puissance: 4, trophies: { tournoi: 1 } } },
+          { text: 'Demi-finale honorable sous pression.', deltas: { renommee: 6, forme: -5 } },
+          { text: 'Trop tôt. Élimination sèche.', deltas: { renommee: -4, moral: -8, forme: -6 } },
+        ),
+      },
+      {
+        id: 'gated_lame',
+        label: 'Imposer votre lignée d’arme en duel',
+        require: { weaponFamilies: ['epee', 'hache', 'lance', 'dague'], stats: { puissance: 22 } },
+        outcomes: trio(
+          { text: 'Votre arme dicte le rythme. L’arène retient le geste.', deltas: { puissance: 4, renommee: 5 } },
+          { text: 'Belle exhibition, pas de titre.', deltas: { puissance: 2 } },
+          { text: 'L’adversaire lit votre garde.', deltas: { forme: -7, moral: -3 } },
+        ),
+      },
     ],
   },
   {
@@ -258,6 +278,33 @@ const CAVE_DESTINY_EVENTS_CORE = [
           { text: 'Le rempart cède trop tôt.', deltas: { forme: -11, moral: -4 } },
         ),
       },
+      {
+        id: 'gated_legend',
+        label: 'Exiger la forme légendaire immédiatement',
+        require: { stats: { endurance: 30, puissance: 28 }, weaponRarities: ['rare'], minRenommee: 16 },
+        outcomes: [
+          {
+            variant: 'bonus',
+            weight: 20,
+            text: 'Ornn cède. La légende s’écrit dans le fer.',
+            deltas: { renommee: 6, forme: -8, or: -8, trophies: { forge: 1 } },
+            weaponProgress: 'legendary',
+          },
+          {
+            variant: 'neutre',
+            weight: 45,
+            text: 'Il refuse le mythe… mais upgrade quand même.',
+            deltas: { or: -4, forme: -5 },
+            weaponProgress: 'upgrade',
+          },
+          {
+            variant: 'malus',
+            weight: 35,
+            text: 'Orgueil puni. Les soufflets se taisent.',
+            deltas: { moral: -7, renommee: -3, forme: -6 },
+          },
+        ],
+      },
     ],
   },
   {
@@ -312,6 +359,16 @@ const CAVE_DESTINY_EVENTS_CORE = [
           { text: 'Vous n’êtes qu’une ombre. Les coups vous manquent.', deltas: { vitesse: 7, renommee: 3, forme: 2 } },
           { text: 'Esquives utiles, progression moyenne.', deltas: { vitesse: 3, forme: -2 } },
           { text: 'L’esquive tombe au mauvais instant.', deltas: { forme: -10, moral: -4 } },
+        ),
+      },
+      {
+        id: 'gated_couloir',
+        label: 'Ouvrir un couloir interdit',
+        require: { stats: { vitesse: 26, magie: 22 }, races: ['Elfe', 'Gnome'], classes: ['Voleur', 'Archer'] },
+        outcomes: trio(
+          { text: 'Le couloir cède. Record et butin.', deltas: { vitesse: 4, renommee: 6, or: 8, trophies: { labyrinthe: 1 } } },
+          { text: 'Vous avancez… puis rebroussez.', deltas: { vitesse: 2, forme: -4 } },
+          { text: 'Le labyrinthe se moque. Cul-de-sac.', deltas: { forme: -10, moral: -5 } },
         ),
       },
     ],
@@ -424,6 +481,26 @@ const CAVE_DESTINY_EVENTS_CORE = [
           { text: 'La frappe ouvre une brèche. Le monde respire.', deltas: { puissance: 6, renommee: 5, trophies: { cataclysme: 1 } } },
           { text: 'Frappe correcte sur l’entité.', deltas: { puissance: 2, forme: -3 } },
           { text: 'Vous frappez trop tôt. La brèche se referme.', deltas: { moral: -5, forme: -5 } },
+        ),
+      },
+      {
+        id: 'gated_sauveur',
+        label: 'Se déclarer sauveur du Cataclysme',
+        require: { stats: { puissance: 32, magie: 28, endurance: 28 }, minRenommee: 25 },
+        outcomes: trio(
+          { text: 'Le monde retient votre nom. EXTINCTION recule.', deltas: { renommee: 20, puissance: 4, magie: 3, forme: -12, trophies: { cataclysme: 1 } } },
+          { text: 'Contribution majeure, pas de mythe.', deltas: { renommee: 8, forme: -8 } },
+          { text: 'L’entité vous brise. Le front tient sans vous.', deltas: { forme: -16, moral: -8 } },
+        ),
+      },
+      {
+        id: 'gated_bouclier',
+        label: 'Tenir le rempart magique',
+        require: { classes: ['Bastion', 'Paladin', 'Briseur de Sort'], weaponFamilies: ['bouclier'], stats: { endurance: 26 } },
+        outcomes: trio(
+          { text: 'Le rempart tient. Les lignes respirent.', deltas: { endurance: 5, renommee: 7, forme: -5 } },
+          { text: 'Vous absorbez l’essentiel.', deltas: { endurance: 2, forme: -6 } },
+          { text: 'Brèche. Recul forcé.', deltas: { forme: -11, moral: -4 } },
         ),
       },
     ],
