@@ -357,6 +357,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     ambitionEventsFaced: 0,
     chainProgress: {},
     queuedEventId: null,
+    flags: {},
     endReason: null,
     history: [],
     recentEventIds: [],
@@ -399,9 +400,14 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   }
 
   const seenIds = seen || seenEventIds(career);
-  if (seenIds.has(event.id)) {
+  // Défi Ornn reporté : peut revenir (surtout avec arme légendaire)
+  const ornnPending = career.flags?.ornn_duel_pending && event.id === 'ornn_jugement';
+  if (seenIds.has(event.id) && !ornnPending) {
     // Quasi jamais de doublon ; seulement si le pool unique est épuisé
     w *= allowRepeat ? 0.04 : 0;
+  }
+  if (ornnPending) {
+    w *= career.weapon?.rarity === RARITY.LEGENDAIRE ? 3.2 : 1.6;
   }
 
   // Events d’upgrade / légendaire : inutiles si déjà au max
@@ -534,11 +540,26 @@ function localizeEventForWeapon(event, weapon) {
 /**
  * Ambition allumée uniquement en finale de suite
  * (ex. donjons : boss de forêt / tour / Red… pas le rat du début).
+ * Suites 1 étape (invitation / défi reportable) : pas de violet avant le choix.
  */
 export function isAmbitionLinkedEvent(event, career) {
   const ambitionId = career?.ambition?.id;
   if (!ambitionId || !event?.id) return false;
-  return isAmbitionChainFinale(event.id, ambitionId);
+  if (!isAmbitionChainFinale(event.id, ambitionId)) return false;
+  const info = getChainStep(event.id);
+  // Multi-étapes : la finale s’affiche tout de suite
+  if (info && info.chain.steps.length > 1) return true;
+  return false;
+}
+
+/** Payoff d’ambition après résolution (choix « participer / affronter » sur suites 1 étape). */
+function isAmbitionPayoff(event, career, option, outcome) {
+  const ambitionId = career?.ambition?.id;
+  if (!ambitionId || !event?.id) return false;
+  if (!isAmbitionChainFinale(event.id, ambitionId)) return false;
+  const info = getChainStep(event.id);
+  if (info && info.chain.steps.length > 1) return true;
+  return !!(option?.ambitionPayoff || outcome?.ambitionPayoff);
 }
 
 /**
@@ -697,9 +718,7 @@ export function resolveChoice(career, optionIndex) {
   let scoreGain = computeEventScoreGain(variant, career.stats);
   let resolvedTrophyDelta = trophyDelta;
 
-  const ambitionLinked =
-    career.currentEvent.ambitionLinked === true ||
-    isAmbitionLinkedEvent(career.currentEvent, career);
+  const ambitionLinked = isAmbitionPayoff(career.currentEvent, career, option, outcome);
   if (ambitionLinked) {
     const boosted = applyAmbitionEventImpact(deltas, resolvedTrophyDelta, scoreGain, variant);
     deltas = boosted.deltas;
@@ -748,11 +767,10 @@ export function resolveChoice(career, optionIndex) {
     }
   }
 
-  // Suite Ornn : la finale impose l’arme légendaire si la suite n’est pas brisée
+  // Voie du fer : l’étape « révélation » impose l’arme légendaire (si pas malus)
   if (
     variant !== 'malus' &&
-    career.ambition?.id === 'forge' &&
-    isAmbitionChainFinale(career.currentEvent.id, 'forge') &&
+    career.currentEvent.id === 'arme_legendaire_revelation' &&
     weapon?.rarity !== RARITY.LEGENDAIRE
   ) {
     const forced = grantLegendaryDestinyWeapon(weapon);
@@ -760,9 +778,23 @@ export function resolveChoice(career, optionIndex) {
       weapon = forced.weapon;
       stats = applyEffects(stats, forced.statDelta);
       Object.assign(weaponDeltas, forced.statDelta);
-      outcomeText = `${outcomeText} Ornn scelle la lignée : ${forced.message || 'votre arme devient légendaire.'}`;
+      outcomeText = `${outcomeText} La lignée s’éveille : ${forced.message || 'votre arme devient légendaire.'}`;
     } else if (forced.message) {
       outcomeText = `${outcomeText} ${forced.message}`;
+    }
+  }
+
+  // Flags d’outcome (ex. défi Ornn reporté)
+  const nextFlags = { ...(career.flags || {}) };
+  if (outcome.flags && typeof outcome.flags === 'object') {
+    Object.assign(nextFlags, outcome.flags);
+  }
+  // Duel Ornn : report → peut revenir ; affrontement → challenge clos
+  if (career.currentEvent.id === 'ornn_jugement') {
+    if (option.id === 'reporter' || outcome.flags?.ornn_duel_pending) {
+      nextFlags.ornn_duel_pending = true;
+    } else if (option.ambitionPayoff || outcome.ambitionPayoff) {
+      delete nextFlags.ornn_duel_pending;
     }
   }
 
@@ -797,7 +829,11 @@ export function resolveChoice(career, optionIndex) {
   };
 
   // Historique long pour anti-doublon (toute la run)
-  const recentEventIds = [...(career.recentEventIds || []), career.currentEvent.id].slice(-20);
+  let recentEventIds = [...(career.recentEventIds || []), career.currentEvent.id].slice(-20);
+  // Report du défi Ornn : on retire l’id pour qu’il puisse revenir
+  if (nextFlags.ornn_duel_pending && career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter') {
+    recentEventIds = recentEventIds.filter((id) => id !== 'ornn_jugement');
+  }
   const nextSeason = career.season + 1;
   const retired = !dead && nextSeason > career.maxSeasons;
   const finished = dead || retired;
@@ -811,9 +847,15 @@ export function resolveChoice(career, optionIndex) {
         spd: career.character?.prefersSpeed ? 1 : 0,
       });
 
+  // Suites 1 étape « optionnelles » : décliner / reporter ne casse pas la progression
+  const softLeave =
+    (career.currentEvent.id === 'tournoi_anciens' && option.id !== 'participer') ||
+    (career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter');
   const chainState = dead
     ? { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null }
-    : advanceChainState(career, career.currentEvent.id, variant);
+    : softLeave
+      ? { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null }
+      : advanceChainState(career, career.currentEvent.id, variant);
 
   let next = {
     ...career,
@@ -822,6 +864,7 @@ export function resolveChoice(career, optionIndex) {
     stats: agedStats,
     trophies,
     runScore,
+    flags: nextFlags,
     ambitionEventsFaced: (Number(career.ambitionEventsFaced) || 0) + (ambitionLinked ? 1 : 0),
     chainProgress: chainState.chainProgress,
     queuedEventId: finished ? null : chainState.queuedEventId,
@@ -937,6 +980,7 @@ function migrateCareerStatKeys(career) {
         ? career.chainProgress
         : {},
     queuedEventId: career.queuedEventId || null,
+    flags: career.flags && typeof career.flags === 'object' ? career.flags : {},
   };
   // Carrières en cours : allonger jusqu’à la durée actuelle du mode
   if (

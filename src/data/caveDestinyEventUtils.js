@@ -30,6 +30,8 @@ export function trio(bonus, neutre, malus, weights = [30, 40, 30]) {
     deltas: o.deltas,
     ...(o.weaponProgress ? { weaponProgress: o.weaponProgress } : {}),
     ...(o.subclassGain ? { subclassGain: o.subclassGain } : {}),
+    ...(o.flags ? { flags: o.flags } : {}),
+    ...(o.ambitionPayoff ? { ambitionPayoff: true } : {}),
   });
   return [
     pack('bonus', weights[0], bonus),
