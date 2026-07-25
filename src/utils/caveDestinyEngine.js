@@ -331,19 +331,10 @@ function computeEventScoreGain(variant, stats) {
   return Math.max(0, Math.round(base * mult));
 }
 
-/** Events d’armes nommées : incompatibles hors de leur famille. */
-const WEAPON_EVENT_FAMILY = {
-  mjollnir: 'marteau',
-  gungnir: 'lance',
-  arc_cieux: 'arc',
-  codex_archon: 'tome',
-  faux_thanatos: 'faux',
-};
-
+/** Famille d’arme requise pour qu’un event soit tirable. */
 function requiredWeaponFamily(event) {
   if (!event) return null;
-  if (event.requiresWeaponFamily) return event.requiresWeaponFamily;
-  return WEAPON_EVENT_FAMILY[event.id] || null;
+  return event.requiresWeaponFamily || null;
 }
 
 function applyTrophies(trophies, deltaTrophies) {
@@ -680,10 +671,20 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   if (hp < 35 && event.id === 'blessure') w *= 2.2;
   if (hp < 25 && event.tags?.includes('combat')) w *= 0.55;
 
-  // Arme nommée (Mjöllnir, Codex…) : uniquement si la famille correspond
+  // Quêtes / events liés à une famille d’arme : gate dure
   const needFamily = requiredWeaponFamily(event);
   if (needFamily && career.weapon?.family !== needFamily) {
     return 0;
+  }
+  // Ouverture de quête d’arme : boost fort (sinon 1/14 du pool = quasi invisible)
+  if (
+    event.tags?.includes('arme_quete') &&
+    chainInfo &&
+    chainInfo.stepIndex === 0 &&
+    needFamily &&
+    career.weapon?.family === needFamily
+  ) {
+    w *= 2.8;
   }
 
   const seenIds = seen || seenEventIds(career);
@@ -1182,6 +1183,10 @@ export function resolveChoice(career, optionIndex) {
   // Report du défi Ornn : on retire l’id pour qu’il puisse revenir
   if (nextFlags.ornn_duel_pending && career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter') {
     recentEventIds = recentEventIds.filter((id) => id !== 'ornn_jugement');
+  }
+  // Refus Arène de Red : retire les étapes pour permettre de relancer la quête
+  if (redRefuse) {
+    recentEventIds = recentEventIds.filter((id) => !RED_ARENA_EVENT_IDS.has(id));
   }
   const nextSeason = career.season + 1;
   const retired = !dead && nextSeason > career.maxSeasons;

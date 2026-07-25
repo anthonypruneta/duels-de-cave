@@ -6,7 +6,9 @@
  * Ex. donjons / Forêt : sanglier → ours → sanctuaire (foret).
  */
 
-/** @typedef {{ id: string, ambition: string, label: string, steps: string[] }} DestinyChain */
+import { CAVE_DESTINY_WEAPON_QUEST_CHAINS } from './caveDestinyWeaponQuests';
+
+/** @typedef {{ id: string, ambition: string|null, label: string, steps: string[] }} DestinyChain */
 
 /** @type {Record<string, DestinyChain>} */
 export const CAVE_DESTINY_CHAINS = {
@@ -88,6 +90,9 @@ export const CAVE_DESTINY_CHAINS = {
     label: 'Épreuves sombres',
     steps: ['miroir', 'boss_rush', 'cataclysme'],
   },
+
+  // ——— Quêtes par famille d’arme (hors obtention ; progression via Ornn) ———
+  ...CAVE_DESTINY_WEAPON_QUEST_CHAINS,
 };
 
 /** Index eventId → { chain, stepIndex, isFinale, nextEventId } */
