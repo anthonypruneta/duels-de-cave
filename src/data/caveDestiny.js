@@ -174,91 +174,121 @@ export const CAVE_DESTINY_AMBITIONS = [
   },
 ];
 
+/** Formate les bonus/malus de départ (ambition, mentor…). */
+export function formatDestinyEffects(effects = {}) {
+  const labels = {
+    auto: 'Auto',
+    def: 'Déf',
+    cap: 'Cap',
+    spd: 'VIT',
+    charisme: 'Charisme',
+    renommee: 'Renommée',
+    or: 'Or',
+    hp: 'PV',
+    moral: 'Moral',
+  };
+  return Object.entries(effects || {})
+    .filter(([, v]) => typeof v === 'number' && v !== 0)
+    .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${labels[k] || k}`)
+    .join(', ');
+}
+
+function buildMentor({ id, name, icon, lore, effects }) {
+  const fx = formatDestinyEffects(effects);
+  return {
+    id,
+    name,
+    icon,
+    effects,
+    desc: fx ? `${lore} Effets : ${fx}.` : lore,
+  };
+}
+
 export const CAVE_DESTINY_MENTORS = [
-  {
+  buildMentor({
     id: 'tavernier',
     name: 'Le Tavernier',
     icon: '🍺',
-    desc: 'Il a vu naître et tomber des champions. Il parie encore sur vous.',
+    lore: 'Il a vu naître et tomber des champions. Il parie encore sur vous.',
     effects: { charisme: 8, or: 6, moral: 5 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'forgeron',
     name: 'L’apprenti d’Ornn',
     icon: '⚒️',
-    desc: 'Peu de mots. Beaucoup de martelage. Il juge le fer… et le bras.',
+    lore: 'Peu de mots. Beaucoup de martelage. Il juge le fer… et le bras.',
     effects: { auto: 6, def: 5, or: -3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'archimage',
     name: 'Un archimage de la Tour',
     icon: '🔮',
-    desc: 'Il connaît les passifs des étages. Vous, pas encore. Alliance précieuse.',
+    lore: 'Il connaît les passifs des étages. Vous, pas encore. Alliance précieuse.',
     effects: { cap: 9, spd: 2, moral: -2 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'champion',
     name: 'Un ancien vainqueur',
     icon: '👑',
-    desc: 'Il a porté la couronne. Puis s’est retiré. Il veut un digne successeur.',
+    lore: 'Il a porté la couronne. Puis s’est retiré. Il veut un digne successeur.',
     effects: { renommee: 6, auto: 4, charisme: 3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'forestier',
     name: 'Le forestier de la Forêt enchantée',
     icon: '🌲',
-    desc: 'Il connaît chaque clairière, chaque embuscade, chaque murmure d’arbre.',
+    lore: 'Il connaît chaque clairière, chaque embuscade, chaque murmure d’arbre.',
     effects: { def: 5, spd: 4, or: 3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'bibliothecaire',
     name: 'Le bibliothécaire de l’Encyclopédie',
     icon: '📚',
-    desc: 'Bestiaires, lignées d’armes, notes de vainqueurs : tout est dans sa tête.',
+    lore: 'Bestiaires, lignées d’armes, notes de vainqueurs : tout est dans sa tête.',
     effects: { cap: 6, charisme: 3, moral: 3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'parieur',
     name: 'Un parieur de la Taverne',
     icon: '🎲',
-    desc: 'Il lit les cotes mieux que les sorts. Chance… ou arnaque.',
+    lore: 'Il lit les cotes mieux que les sorts. Chance… ou arnaque.',
     effects: { or: 10, charisme: 4, moral: -2 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'guetteur',
     name: 'Le Guetteur du Labyrinthe',
     icon: '🌀',
-    desc: 'Cent vingt étages dans les yeux. Il sait quand un couloir ment.',
+    lore: 'Cent vingt étages dans les yeux. Il sait quand un couloir ment.',
     effects: { spd: 7, cap: 3, hp: -3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'nain_forge',
     name: 'Un maître-nain de la Forge',
     icon: '⛏️',
-    desc: 'Il a vu Ornn travailler. Il ne le dira jamais… mais il enseigne.',
+    lore: 'Il a vu Ornn travailler. Il ne le dira jamais… mais il enseigne.',
     effects: { def: 7, auto: 4, or: -2 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'spectre_tour',
     name: 'Un spectre de la Tour du Mage',
     icon: '👻',
-    desc: 'Ancien aspirant. Il murmure les passifs oubliés entre deux étages.',
+    lore: 'Ancien aspirant. Il murmure les passifs oubliés entre deux étages.',
     effects: { cap: 8, spd: 3, moral: -3 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'veteran_red',
     name: 'Un vétéran de l’arène de Red',
     icon: '🔴',
-    desc: 'Il a survécu à Dracaufeu. Deux fois. Il parle encore trop fort.',
+    lore: 'Il a survécu à Dracaufeu. Deux fois. Il parle encore trop fort.',
     effects: { auto: 5, charisme: 4, def: 2 },
-  },
-  {
+  }),
+  buildMentor({
     id: 'messager_hall',
     name: 'Un messager du Hall of Fame',
     icon: '📜',
-    desc: 'Il grave les noms. Il sait lesquels méritent l’encre… et lesquels non.',
+    lore: 'Il grave les noms. Il sait lesquels méritent l’encre… et lesquels non.',
     effects: { renommee: 8, charisme: 3, moral: 2 },
-  },
+  }),
 ];
 
 /** Nombre de mentors proposés au tirage (parmi le pool complet). */
