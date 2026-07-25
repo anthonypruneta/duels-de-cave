@@ -66,6 +66,15 @@ body.cataclysm-bg::before {
   background-color: rgba(0, 0, 0, 0.60);
 }
 
+/* Cave Destiny : fond uni, sans image de site */
+body.cave-destiny-plain {
+  background-color: #fafafa;
+}
+body.cave-destiny-plain::after,
+body.cave-destiny-plain::before {
+  display: none !important;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
