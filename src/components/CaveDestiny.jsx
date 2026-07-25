@@ -650,6 +650,9 @@ const CaveDestiny = () => {
           <p className="mt-4 text-sm text-stone-300 leading-relaxed max-w-sm">
             Incarnez un perso de Duels de Cave et survivez à la saison — donjons, tournoi, forge… en vrai cave.
           </p>
+          <p className="mt-2 text-xs text-stone-500 max-w-sm">
+            Ouvert à tous les joueurs connectés : carrière, Mes runs et Panthéon.
+          </p>
 
           <div className="mt-10 w-full space-y-3 max-w-sm">
             {canResume && (
@@ -1045,7 +1048,11 @@ const CaveDestiny = () => {
                             : 'border-stone-600 bg-stone-900 text-stone-300'
                       }`}
                     >
-                      {outcomeFlash.variant}
+                      {outcomeFlash.variant === 'bonus'
+                        ? 'Éclat'
+                        : outcomeFlash.variant === 'malus'
+                          ? 'Épreuve'
+                          : 'Souffle'}
                     </span>
                   )}
                 </div>
@@ -1056,10 +1063,23 @@ const CaveDestiny = () => {
                   </p>
                 )}
                 <h3 className="text-lg font-bold text-amber-50 mt-1">{outcomeFlash.title}</h3>
-                <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">
+                {outcomeFlash.choice && (
+                  <p className="mt-2 text-xs italic text-stone-500">
+                    Choix : {outcomeFlash.choice}
+                  </p>
+                )}
+                <p
+                  className={`mt-4 text-[15px] sm:text-base leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif] ${
+                    outcomeFlash.variant === 'bonus'
+                      ? 'text-amber-50'
+                      : outcomeFlash.variant === 'malus'
+                        ? 'text-stone-200'
+                        : 'text-stone-100'
+                  }`}
+                >
                   {outcomeFlash.text}
                 </p>
-              <div className="flex flex-wrap gap-1.5 mt-3">
+              <div className="flex flex-wrap gap-1.5 mt-4">
                 {formatDelta(outcomeFlash.deltas).map((d) => (
                   <span
                     key={d}
@@ -1122,7 +1142,9 @@ const CaveDestiny = () => {
                   Cet événement résonne avec votre ambition — les gains y sont renforcés.
                 </p>
               )}
-              <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">{event.text}</p>
+              <p className="mt-3 text-[15px] sm:text-base text-stone-200 leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif]">
+                {event.text}
+              </p>
               <div className="mt-5 space-y-2">
                 {event.options.map((opt, i) => {
                   const locked = !!opt.locked;
