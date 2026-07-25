@@ -497,7 +497,7 @@ const CaveDestiny = () => {
     let cancelled = false;
     const boot = async () => {
       const saved = loadSave();
-      if (!saved || saved.phase !== 'playing') return;
+      if (!saved || (saved.phase !== 'playing' && saved.phase !== 'extendOffer')) return;
       try {
         const pool = await ensurePool();
         if (cancelled) return;
