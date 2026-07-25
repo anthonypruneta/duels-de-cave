@@ -21,7 +21,6 @@ import {
   persistSave,
   clearSave,
   pushToPantheon,
-  buildFinalStory,
   formatDelta,
   computeScore,
   getTier,
@@ -35,6 +34,7 @@ import {
   migrateLocalCaveDestinyPantheon,
 } from '../services/caveDestinyRunsService';
 import { useAuth } from '../contexts/AuthContext';
+import CaveDestinyRecap from './CaveDestinyRecap';
 
 const SETUP_STEPS = ['personnage', 'ambition', 'mentor', 'arme'];
 
@@ -471,10 +471,21 @@ const CaveDestiny = () => {
   }, [currentUser?.uid]);
 
   useEffect(() => {
-    if (screen !== 'mesRuns' && screen !== 'pantheon') return;
+    if (screen !== 'mesRuns' && screen !== 'pantheon' && screen !== 'final') return;
     let cancelled = false;
 
     const load = async () => {
+      if (screen === 'final') {
+        // Panthéon pour percentile / rival — silencieux
+        try {
+          const res = await loadCaveDestinyPantheon();
+          if (!cancelled && res.success) setPantheon(res.runs || []);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
       setRunsLoading(true);
       setRunsError(null);
       try {
@@ -873,83 +884,31 @@ const CaveDestiny = () => {
 
   /* ---------- FINAL ---------- */
   if (screen === 'final' && career) {
-    const { score, tier, story } = buildFinalStory(career);
-    const trophyEntries = Object.entries(career.trophies || {}).filter(([, v]) => v > 0);
     return (
       <Shell>
-        <div className="rounded-2xl border-2 border-amber-600/50 bg-stone-950/85 p-5 shadow-[0_0_30px_rgba(245,158,11,0.12)]">
-          <div className="flex gap-4 items-start">
-            <CharacterPortrait
-              src={career.character.characterImage}
-              alt={career.character.name}
-              size="lg"
-              className="shrink-0"
-            />
-            <div className="min-w-0">
-              <p className={`text-xs uppercase tracking-wider font-bold ${tier.color}`}>
-                {tier.label}
-              </p>
-              <h2 className="font-[Cinzel,serif] text-2xl font-bold text-amber-50 mt-0.5">
-                {career.character.name}
-              </h2>
-              <RaceClassLine
-                race={career.character.race}
-                classe={career.character.class}
-                subclass={career.subclass || career.character.subclass}
-                className="mt-1.5"
-              />
-              <p className="text-sm italic text-stone-500 mt-1">
-                Créateur : {career.character.ownerPseudo || 'Inconnu'}
-              </p>
-              {career.weapon?.name && (
-                <p className="text-sm text-amber-200/80 mt-1">
-                  Arme : {career.weapon.icon} {career.weapon.name}
-                  {career.weapon.rarity
-                    ? ` · ${WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity}`
-                    : ''}
-                </p>
-              )}
-              <p className="text-sm text-stone-400 mt-2">{career.ambition.name}</p>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <RpgStatsBar stats={career.stats} weapon={career.weapon} />
-          </div>
-
-          <div className="mt-6 flex items-end gap-2">
-            <span className="text-4xl font-black text-amber-300">{score}</span>
-            <span className="text-sm text-stone-500 pb-1">score</span>
-          </div>
-
-          <p className="mt-4 text-sm text-stone-300 leading-relaxed">{story}</p>
-
-          {trophyEntries.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {trophyEntries.map(([k, v]) => (
-                <span
-                  key={k}
-                  className="text-xs px-2 py-1 rounded-md bg-amber-950/50 border border-amber-800/40 text-amber-100"
-                >
-                  {k} ×{v}
-                </span>
-              ))}
-            </div>
-          )}
+        <div className="mb-4 text-center">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-amber-500/80 font-bold">
+            Fin de carrière
+          </p>
+          <h2 className="font-[Cinzel,serif] text-2xl font-bold text-amber-100 mt-1">
+            Votre destin
+          </h2>
         </div>
-
-        <div className="mt-6 space-y-3">
-          <PrimaryButton onClick={startFresh}>Nouvelle carrière</PrimaryButton>
-          <GhostButton
-            onClick={() => {
-              clearSave();
-              setCareer(null);
-              setScreen('home');
-            }}
-          >
-            Accueil
-          </GhostButton>
-        </div>
+        <CaveDestinyRecap
+          career={career}
+          pantheon={pantheon}
+          onReplay={startFresh}
+          onMyRuns={() => {
+            clearSave();
+            setCareer(null);
+            setScreen('mesRuns');
+          }}
+          onHome={() => {
+            clearSave();
+            setCareer(null);
+            setScreen('home');
+          }}
+        />
       </Shell>
     );
   }
