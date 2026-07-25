@@ -438,36 +438,36 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   },
   {
     id: 'arme_commune',
-    title: 'Coffre d’arme',
-    text: 'Dans la Grotte aux merveilles, un coffre grince. Une arme commune pulse faiblement — fer tiède, promesse courte.',
+    title: 'Seuil de la Grotte',
+    text: 'L’entrée de la Grotte aux merveilles grince. Pas une arme à prendre — une carte, un passage, un choix de sentier.',
     rarity: 'uncommon',
     tags: ['donjons', 'loot'],
     options: [
       {
-        id: 'prendre',
-        label: 'S’équiper immédiatement',
+        id: 'carte',
+        label: 'Déchiffrer la carte du seuil',
         outcomes: trio(
-          { text: 'L’arme s’accorde à votre main. Le poids tombe juste ; le premier coup sonne déjà plus vrai.', deltas: { auto: 3, or: 2 } },
-          { text: 'Correcte. Rien de plus — une garde banale, un tranchant honnête, pas de romance.', deltas: { auto: 1 } },
-          { text: 'Mauvaise balance. Vous la jetez — le fer ment, votre poignet aussi, rage discrète.', deltas: { moral: -2 } },
+          { text: 'Le plan s’ouvre. Couloirs, pièges, caches — la Grotte a moins de secrets.', deltas: { cap: 2, spd: 1, or: 3 } },
+          { text: 'Quelques annotations utiles. Assez pour ne pas mourir bête.', deltas: { cap: 1 } },
+          { text: 'La carte ment. Ou vous la lisez de travers — même résultat.', deltas: { moral: -2, hp: -2 } },
         ),
       },
       {
-        id: 'vendre',
-        label: 'La revendre à la Taverne',
+        id: 'forcer',
+        label: 'Forcer le passage sans détour',
         outcomes: trio(
-          { text: 'Bon prix. La bourse chante — pièces qui cognent, regard du marchand un peu trop jaloux.', deltas: { or: 12, charisme: 1 } },
-          { text: 'Prix moyen. Assez pour une tournée, pas assez pour rêver à la Forge Ornn.', deltas: { or: 5 } },
-          { text: 'On vous arnaque. Sourire trop large, pièce trop légère — vous le sentez trop tard.', deltas: { or: 1, moral: -3 } },
+          { text: 'Porte enfoncée. Le bruit annonce un intrus… et un butin plus proche.', deltas: { auto: 2, or: 5, hp: -3 } },
+          { text: 'Passage correct. Sueurs, poussière, suite.', deltas: { or: 2, hp: -2 } },
+          { text: 'Piège de seuil. La Grotte vous mord dès l’entrée.', deltas: { hp: -7, moral: -2 } },
         ),
       },
       {
-        id: 'offrir_ornn',
-        label: 'La garder pour Ornn',
+        id: 'discret',
+        label: 'Glisser en silence entre les stalactites',
         outcomes: trio(
-          { text: 'Ornn appréciera le matériau. Vous le sentez déjà — le fer veut redevenir quelque chose.', deltas: { moral: 2, def: 1 } },
-          { text: 'Vous trimballez du fer inutile… pour l’instant. Le poids tire, la promesse attend.', deltas: {} },
-          { text: 'Vous la perdez en route. Un trou dans le sac, et la Forge qui n’aura rien de vous ce jour-là.', deltas: { moral: -3 } },
+          { text: 'Personne ne vous voit. Une cachette mineure paye déjà le risque.', deltas: { spd: 3, or: 4 } },
+          { text: 'Discrétion correcte. Peu de gloire, peu de bruit.', deltas: { spd: 1 } },
+          { text: 'Un caillou traître. L’écho court plus vite que vous.', deltas: { moral: -3, hp: -2 } },
         ),
       },
     ],
@@ -632,82 +632,6 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     ],
   },
   {
-    id: 'arc_cieux',
-    title: 'Arc des Cieux',
-    text: 'Une rumeur : l’Arc des Cieux aurait été aperçu au sommet d’une tour oubliée. Vent froid, corde qui chante.',
-    rarity: 'rare',
-    tags: ['loot', 'donjons', 'arme'],
-    requiresWeaponFamily: 'arc',
-    options: [
-      {
-        id: 'grimper',
-        label: 'Escalader la tour',
-        outcomes: trio(
-          { text: 'L’arc pulse entre vos mains. Ciel bas, corde tendue — la lignée vous reconnaît enfin.', deltas: { spd: 5, auto: 3, renommee: 4 } },
-          { text: 'Vous trouvez une corde… pas l’arc. Assez pour tirer mieux ; pas assez pour devenir mythe.', deltas: { spd: 2, or: 3 } },
-          { text: 'Chute. L’arc reste un mythe — pierre qui frappe, souffle coupé, rêve qui s’effondre.', deltas: { hp: -10, moral: -4 } },
-        ),
-      },
-      {
-        id: 'archer',
-        label: 'Tenter l’accord parfait',
-        ifClass: ['Archer'],
-        outcomes: trio(
-          { text: 'L’arc vous choisit. Flèches bénies — chaque trait semble déjà connaître la cible.', deltas: { spd: 7, auto: 3, renommee: 5 } },
-          { text: 'Accord partiel. La corde vibre juste… puis se tait, comme une promesse inachevée.', deltas: { spd: 3 } },
-          { text: 'L’arc refuse votre main. Froid soudain, doigts engourdis, orgueil d’archer à terre.', deltas: { moral: -5 } },
-        ),
-      },
-      {
-        id: 'laisser',
-        label: 'Laisser l’arc à son sommeil',
-        outcomes: trio(
-          { text: 'Respect. Une plume céleste tombe à vos pieds — légère, tiède, déjà magique.', deltas: { cap: 3, moral: 3 } },
-          { text: 'Vous repartez vides. Le vent de la tour siffle ; l’arc, lui, reste endormi.', deltas: {} },
-          { text: 'Un autre s’en empare. Regret — vous entendez la corde chanter… dans d’autres mains.', deltas: { moral: -4, renommee: -1 } },
-        ),
-      },
-    ],
-  },
-  {
-    id: 'gungnir',
-    title: 'Gungnir',
-    text: 'La lance qui ne rate jamais. On dit qu’elle choisit son porteur — haste runique, promesse de ligne droite.',
-    rarity: 'rare',
-    tags: ['forge', 'loot', 'arme'],
-    requiresWeaponFamily: 'lance',
-    options: [
-      {
-        id: 'lancer',
-        label: 'Tenter le lancer rituel',
-        outcomes: trio(
-          { text: 'La lance revient. Elle vous accepte — sifflement, chaleur au poignet, certitude cruelle.', deltas: { auto: 5, spd: 3, renommee: 4 } },
-          { text: 'Presque. Elle vibre… puis se tait. Le rituel a goûté votre bras sans encore le choisir.', deltas: { auto: 2 } },
-          { text: 'Elle vous fuit. Doigts brûlés — la ligne droite vous a jugé trop courbe.', deltas: { hp: -6, moral: -4 } },
-        ),
-      },
-      {
-        id: 'etudier',
-        label: 'Étudier les runes de la haste',
-        outcomes: trio(
-          { text: 'Compréhension. Votre prochaine frappe portera plus loin — les runes vous ont parlé vrai.', deltas: { cap: 4, auto: 2 } },
-          { text: 'Runes partiellement lues. Un fragment de sens, assez pour ajuster un lancer.', deltas: { cap: 1 } },
-          { text: 'Les runes mentent. Vertige — symboles qui tournent, estomac qui suit, foi qui lâche.', deltas: { moral: -3, hp: -2 } },
-        ),
-      },
-      {
-        id: 'guerrier',
-        label: 'Planter Gungnir comme un étendard',
-        ifClass: ['Guerrier', 'Paladin'],
-        outcomes: trio(
-          { text: 'L’étendard tient. Moral de troupe — autour de vous, les regards se redressent.', deltas: { renommee: 5, charisme: 3, auto: 2 } },
-          { text: 'Geste symbolique. Beau, court — la lance ne reste plantée que le temps d’un souffle.', deltas: { charisme: 1 } },
-          { text: 'La lance refuse de rester plantée. Elle tombe ; avec elle, un peu de votre stature.', deltas: { moral: -3 } },
-        ),
-      },
-    ],
-  },
-  {
     id: 'ronflex_red',
     title: 'Ronflex endormi',
     text: 'Le couloir est bloqué par un Ronflex. Red attend votre duo — un autre allié réel… ou la sortie.',
@@ -715,130 +639,6 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     tags: ['donjons', 'social'],
     // Options injectées dynamiquement (3 personnages réels + refus)
     options: [],
-  },
-  {
-    id: 'mjollnir',
-    title: 'Mjöllnir',
-    text: 'Le marteau de guerre attend dans la Forge. Seuls les dignes le soulèvent — tonnerre distant, enclume chaude.',
-    rarity: 'epic',
-    tags: ['forge', 'arme'],
-    requiresWeaponFamily: 'marteau',
-    options: [
-      {
-        id: 'soulever',
-        label: 'Tenter de soulever Mjöllnir',
-        outcomes: trio(
-          { text: 'Le marteau se lève. Le tonnerre applaudit — foudre dans le bras, Forge Ornn qui retient son souffle.', deltas: { auto: 8, def: 4, renommee: 8, trophies: { forge: 1 } } },
-          { text: 'Il bouge… d’un pouce. Assez pour croire ; pas assez pour régner. Vos tendons crient.', deltas: { auto: 3, hp: -6 } },
-          { text: 'Immobile. Humiliation divine — le métal vous juge, et la Forge entière l’entend.', deltas: { moral: -8, renommee: -3, hp: -4 } },
-        ),
-      },
-      {
-        id: 'ornn',
-        label: 'Demander le jugement d’Ornn',
-        outcomes: trio(
-          { text: 'Ornn hoche. Une rune de foudre vous marque — peau chaude, regard du dieu, destin scellé.', deltas: { auto: 5, cap: 3, renommee: 4 } },
-          { text: '« Reviens plus fort. » La voix gronde. Pas de refus net — juste un défi qui reste ouvert.', deltas: { moral: 1 } },
-          { text: 'Silence glacial. Les soufflets s’arrêtent ; même le feu semble détourner la tête.', deltas: { moral: -5 } },
-        ),
-      },
-      {
-        id: 'nain',
-        label: 'Invoquer le droit des forgerons',
-        ifRace: ['Nain', 'Dragonkin'],
-        outcomes: trio(
-          { text: 'Le sang de la forge répond. Mjöllnir cède — ancestralité, chaleur, et foudre dans la paume.', deltas: { auto: 7, def: 3, renommee: 5 } },
-          { text: 'Presque digne. Le marteau frémit ; vos ancêtres auraient voulu plus… et moins de douleur.', deltas: { auto: 3, hp: -4 } },
-          { text: 'Même le droit ancestral ne suffit pas. Le fer reste sourd ; votre lignée aussi, ce jour-là.', deltas: { moral: -6, hp: -3 } },
-        ),
-      },
-    ],
-  },
-  {
-    id: 'codex_archon',
-    title: 'Codex Archon',
-    text: 'Un tome interdit pulse au sommet nécromant. Lire, c’est risquer l’esprit — pages noires, savoir qui mord.',
-    rarity: 'epic',
-    tags: ['magie', 'donjons', 'arme'],
-    requiresWeaponFamily: 'tome',
-    options: [
-      {
-        id: 'lire',
-        label: 'Ouvrir le Codex',
-        outcomes: trio(
-          { text: 'Savoir interdit. Votre magie mute — mots qui brûlent, pouvoir qui s’ancre, un prix déjà payé.', deltas: { cap: 9, renommee: 5, moral: -2, trophies: { tour: 1 } } },
-          { text: 'Quelques pages. Assez — une formule tenue, une migraine sourde, le livre déjà trop lourd.', deltas: { cap: 4, hp: -3 } },
-          { text: 'L’esprit se fissure. Fermez le livre — murmures, sang au nez, Tour du Mage qui rit trop bas.', deltas: { cap: 1, moral: -9, hp: -5 } },
-        ),
-      },
-      {
-        id: 'copier',
-        label: 'Copier une rune sans lire le reste',
-        outcomes: trio(
-          { text: 'Rune stable. Gain propre — tracé net, pouvoir contenu, aucune voix dans votre tête.', deltas: { cap: 5, spd: 2 } },
-          { text: 'Copie imparfaite. Le trait tremble ; la rune tient… à condition de ne pas trop forcer.', deltas: { cap: 2 } },
-          { text: 'La rune vous brûle la main. Encre qui fume, peau qui claque, leçon trop chère.', deltas: { hp: -7, moral: -3 } },
-        ),
-      },
-      {
-        id: 'mindflayer',
-        label: 'Absorber une page par l’esprit',
-        ifRace: ['Mindflayer'],
-        outcomes: trio(
-          { text: 'La page devient vôtre. Terrifiant — savoir qui s’installe comme une seconde voix.', deltas: { cap: 10, renommee: 4 } },
-          { text: 'Absorption partielle. Fragments de sens, goût de métal, soif d’en savoir encore trop.', deltas: { cap: 4 } },
-          { text: 'Retour de bâton mental. Votre crâne sonne comme une cloche ; le Codex a mordu plus fort.', deltas: { moral: -8, hp: -4 } },
-        ),
-      },
-      {
-        id: 'sorciere',
-        label: 'Sceller le Codex d’une malédiction',
-        ifClass: ['Sorcière', 'Demoniste'],
-        outcomes: trio(
-          { text: 'Le sceau tient. Pouvoir détourné — le livre obéit à votre ombre, pas l’inverse.', deltas: { cap: 6, charisme: 3, renommee: 3 } },
-          { text: 'Sceau fragile. Il tiendra… jusqu’à la prochaine page trop curieuse.', deltas: { cap: 2 } },
-          { text: 'Le Codex renvoie la malédiction. Votre propre sort vous revient au visage — amer, juste.', deltas: { moral: -6, hp: -5 } },
-        ),
-      },
-    ],
-  },
-  {
-    id: 'faux_thanatos',
-    title: 'Faux de Thanatos',
-    text: 'Une faux d’ombre traîne dans un couloir du Labyrinthe. Elle murmure des fins — métal froid, voix trop proches.',
-    rarity: 'epic',
-    tags: ['ombres', 'loot', 'arme'],
-    requiresWeaponFamily: 'faux',
-    options: [
-      {
-        id: 'brandir',
-        label: 'Brandir la faux',
-        outcomes: trio(
-          { text: 'Thanatos sourit. Votre ombre s’allonge — la lame chante la fin des autres, pas encore la vôtre.', deltas: { auto: 6, cap: 4, renommee: 6, moral: -2 } },
-          { text: 'L’arme obéit… à moitié. Coups nets, murmures persistants, un prix encore flou.', deltas: { auto: 3, hp: -4 } },
-          { text: 'Elle veut votre âme en acompte. Froid dans la poitrine, genoux mous, Labyrinthe qui se tait.', deltas: { hp: -10, moral: -7 } },
-        ),
-      },
-      {
-        id: 'sceller',
-        label: 'La sceller dans un coffre',
-        outcomes: trio(
-          { text: 'Sagesse. Une bénédiction discrète vous suit — silence retrouvé, ombre un peu moins longue.', deltas: { moral: 5, def: 2, renommee: 2 } },
-          { text: 'Coffre fermé. Silence. Le couloir reprend son souffle ; vous aussi, à peine.', deltas: { moral: 1 } },
-          { text: 'Le murmure continue la nuit. Derrière le bois, la faux parle encore — et vous écoutez.', deltas: { moral: -5 } },
-        ),
-      },
-      {
-        id: 'mortvivant',
-        label: 'Négocier avec la mort',
-        ifRace: ['Mort-vivant'],
-        outcomes: trio(
-          { text: 'La faux reconnaît les siens. Accord d’ombres — tranchant partagé, silence complice.', deltas: { def: 5, cap: 4, renommee: 4 } },
-          { text: 'Accord tiède. Elle vous tolère ; vous tolérez ses murmures. Personne ne sourit.', deltas: { def: 2 } },
-          { text: 'Même les morts peuvent être refusés. La faux se détourne — et ça fait plus mal qu’un coup.', deltas: { moral: -6, hp: -4 } },
-        ),
-      },
-    ],
   },
   {
     id: 'eveil_race',
@@ -1270,60 +1070,6 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       },
     ],
   },
-  {
-    id: 'arme_donjon_echo',
-    title: 'Écho d’arme dans le donjon',
-    text: 'Au fond d’une salle, un socle porte l’empreinte de {arme_legendaire}. Votre {arme} réagit — métal qui chauffe, destin qui tire.',
-    rarity: 'rare',
-    tags: ['arme', 'arme_upgrade', 'donjons'],
-    options: [
-      {
-        id: 'poser',
-        label: 'Poser {arme} sur le socle',
-        outcomes: [
-          {
-            variant: 'bonus',
-            weight: 8,
-            text: 'L’empreinte s’empare du métal. Lignée accomplie — lumière basse, {arme_legendaire} qui s’éveille.',
-            deltas: { renommee: 5, hp: -5 },
-            weaponProgress: 'legendary',
-          },
-          {
-            variant: 'neutre',
-            weight: 52,
-            text: 'Le socle chauffe. Upgrade stable — pas le mythe encore, mais le fer a changé de ton.',
-            deltas: { hp: -3 },
-            weaponProgress: 'upgrade',
-          },
-          {
-            variant: 'malus',
-            weight: 40,
-            text: 'Rejet. Une décharge vous renvoie — pierre froide, bras engourdi, promesse brisée net.',
-            deltas: { hp: -9, moral: -4 },
-          },
-        ],
-      },
-      {
-        id: 'prier',
-        label: 'Prier la lignée sans toucher',
-        outcomes: trio(
-          { text: 'Une bénédiction discrète vous suit — chaleur légère dans la garde, silence respectueux du donjon.', deltas: { moral: 4, cap: 2 } },
-          { text: 'Silence respectueux. Les murs n’offrent rien ; votre {arme} ne vibre plus autant.', deltas: { moral: 1 } },
-          { text: 'Rien qu’un froid de pierre. L’empreinte reste sourde ; votre prière, trop courte.', deltas: { moral: -2 } },
-        ),
-      },
-      {
-        id: 'briser',
-        label: 'Briser le socle pour le butin',
-        outcomes: trio(
-          { text: 'Or et fragments. Pas de gloire d’arme — juste le bruit du sac et un peu de honte utile.', deltas: { or: 14, renommee: -1 } },
-          { text: 'Quelques pièces. Le socle cède mal ; le butin aussi. Vous repartez avec peu.', deltas: { or: 4 } },
-          { text: 'Le socle se venge. Malédiction légère — doigts engourdis, goût de rouille, or trop cher.', deltas: { hp: -8, moral: -3, or: 2 } },
-        ),
-      },
-    ],
-  },
-
   {
     id: 'college_sous_classe',
     title: 'Collège Kunugigaoka — Sous-classe',

@@ -6,6 +6,7 @@
  */
 
 import { CAVE_DESTINY_EVENTS_EXTRA } from './caveDestinyEventsExtra';
+import { CAVE_DESTINY_WEAPON_QUEST_EVENTS } from './caveDestinyWeaponQuests';
 import { trio, getOptionsForEvent } from './caveDestinyEventUtils';
 
 export { trio, getOptionsForEvent };
@@ -748,4 +749,5 @@ const CAVE_DESTINY_EVENTS_CORE = [
 export const CAVE_DESTINY_EVENTS = [
   ...CAVE_DESTINY_EVENTS_CORE,
   ...CAVE_DESTINY_EVENTS_EXTRA,
+  ...CAVE_DESTINY_WEAPON_QUEST_EVENTS,
 ];
