@@ -27,11 +27,24 @@ export function buildDestinyCharacterFromGame(char) {
   const raceBonus = races[race]?.bonus || '';
   const classAbility = classes[classe]?.ability || '';
 
-  const scaleStat = (value, fallback = 20) => {
+  /**
+   * Conversion volontairement plate : tout le monde démarre bas.
+   * Le perso réel n’apporte qu’une légère coloration (≈ 14–24),
+   * le niveau compte à peine. La carrière fait le reste.
+   */
+  const scaleStat = (value, fallback = 18) => {
     const v = Number(value);
     const raw = Number.isFinite(v) ? v : fallback;
-    return Math.round(28 + (raw / 40) * 45 + Math.min(level, 200) * 0.12);
+    const t = Math.max(0, Math.min(1, (raw - 12) / 30));
+    return Math.round(14 + t * 10 + Math.min(level, 100) * 0.02);
   };
+
+  // HP jeu (~120–200) ne doit pas exploser l’endurance Destiny
+  const enduranceSource = Number.isFinite(Number(base.def))
+    ? Number(base.def)
+    : Number.isFinite(Number(base.hp))
+      ? Number(base.hp) / 8
+      : 18;
 
   return {
     id: char.id || char.userId,
@@ -49,11 +62,11 @@ export function buildDestinyCharacterFromGame(char) {
       : `${race} ${classe} de Duels de Cave.`,
     playstyle: classAbility || `${race} · ${classe}`,
     baseStats: {
-      puissance: scaleStat(base.auto, 22),
-      endurance: scaleStat(base.def ?? base.hp, 22),
-      magie: scaleStat(base.cap, 20),
-      vitesse: scaleStat(base.spd, 20),
-      charisme: Math.round(38 + Math.min(level, 300) * 0.08),
+      puissance: scaleStat(base.auto, 18),
+      endurance: scaleStat(enduranceSource, 18),
+      magie: scaleStat(base.cap, 18),
+      vitesse: scaleStat(base.spd, 18),
+      charisme: Math.round(16 + Math.min(level, 100) * 0.04),
     },
     trait: races[race]?.awakening?.description
       ? `Héritage de race : ${String(races[race].awakening.description).split('\n')[0]}`
