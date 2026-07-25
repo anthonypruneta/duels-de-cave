@@ -18,6 +18,12 @@ import {
   isWeaponMaxed,
 } from '../data/caveDestiny';
 import { getEventBaseWeight } from '../data/caveDestinyRarity';
+import {
+  getChainStep,
+  isChainLockedStep,
+  isAmbitionChainFinale,
+  buildChainUiMeta,
+} from '../data/caveDestinyChains';
 import { RARITY } from '../data/weapons';
 import { getSubclassesForClass } from '../data/subclasses';
 import { trio } from '../data/caveDestinyEventUtils';
@@ -349,6 +355,8 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     trophies: emptyTrophies(),
     runScore: 0,
     ambitionEventsFaced: 0,
+    chainProgress: {},
+    queuedEventId: null,
     endReason: null,
     history: [],
     recentEventIds: [],
@@ -361,8 +369,26 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   let w = getEventBaseWeight(event);
   const ambitionId = career.ambition?.id;
   const hp = Number(career.stats?.hp) || 0;
-  // Ambition : rencontre plus souvent les événements de sa voie
-  if (ambitionId && event.tags?.includes(ambitionId)) w *= 2.2;
+
+  // Suite en cours : étapes non débloquées = impossibles
+  const chainInfo = getChainStep(event.id);
+  if (chainInfo && isChainLockedStep(event.id, career)) {
+    return 0;
+  }
+  // Ouverture de suite alignée sur l’ambition : plus fréquente
+  if (
+    ambitionId &&
+    chainInfo &&
+    chainInfo.stepIndex === 0 &&
+    chainInfo.chain.ambition === ambitionId
+  ) {
+    w *= 2.4;
+  }
+  // Finale de suite (ambition) : boost une fois débloquée
+  if (ambitionId && isAmbitionChainFinale(event.id, ambitionId)) {
+    w *= 1.8;
+  }
+
   if (hp < 35 && event.id === 'blessure') w *= 2.2;
   if (hp < 25 && event.tags?.includes('combat')) w *= 0.55;
 
@@ -505,11 +531,14 @@ function localizeEventForWeapon(event, weapon) {
   };
 }
 
-/** Event aligné sur l’ambition de départ (tag = ambition.id). */
+/**
+ * Ambition allumée uniquement en finale de suite
+ * (ex. donjons : boss de forêt / tour / Red… pas le rat du début).
+ */
 export function isAmbitionLinkedEvent(event, career) {
   const ambitionId = career?.ambition?.id;
-  if (!ambitionId || !event?.tags?.length) return false;
-  return event.tags.includes(ambitionId);
+  if (!ambitionId || !event?.id) return false;
+  return isAmbitionChainFinale(event.id, ambitionId);
 }
 
 /**
@@ -543,7 +572,36 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
   return { deltas: next, trophyDelta: trophies, scoreGain: gain };
 }
 
+function materializeEvent(raw, career) {
+  let event = expandSubclassEvent(raw, career.character, career);
+  const options = getOptionsForEvent(event, career.character, career);
+  const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
+  const ambitionLinked = isAmbitionLinkedEvent(localized, career);
+  const chain = buildChainUiMeta(localized.id);
+  return {
+    id: localized.id,
+    title: localized.title,
+    text: localized.text,
+    tags: localized.tags,
+    rarity: localized.rarity || 'common',
+    options: localized.options,
+    chain,
+    ambitionLinked,
+    ambitionId: ambitionLinked ? career.ambition?.id || null : null,
+    ambitionName: ambitionLinked ? career.ambition?.name || null : null,
+    ambitionIcon: ambitionLinked ? career.ambition?.icon || '🎯' : null,
+  };
+}
+
 export function drawEvent(career) {
+  // Suite en cours : forcer l’étape suivante (rat → niveau 2 → boss…)
+  if (career.queuedEventId) {
+    const forced = CAVE_DESTINY_EVENTS.find((e) => e.id === career.queuedEventId);
+    if (forced) {
+      return materializeEvent(forced, career);
+    }
+  }
+
   const seen = seenEventIds(career);
   const weightedFresh = CAVE_DESTINY_EVENTS.map((e) => ({
     ...e,
@@ -560,28 +618,49 @@ export function drawEvent(career) {
         })).filter((e) => e.weight > 0);
 
   let raw = pickWeighted(pool.length ? pool : CAVE_DESTINY_EVENTS);
-  raw = expandSubclassEvent(raw, career.character, career);
-  const options = getOptionsForEvent(raw, career.character, career);
-  const localized = localizeEventForWeapon({ ...raw, options }, career.weapon);
-  const ambitionLinked = isAmbitionLinkedEvent(localized, career);
-  return {
-    id: localized.id,
-    title: localized.title,
-    text: localized.text,
-    tags: localized.tags,
-    rarity: localized.rarity || 'common',
-    options: localized.options,
-    ambitionLinked,
-    ambitionId: ambitionLinked ? career.ambition?.id || null : null,
-    ambitionName: ambitionLinked ? career.ambition?.name || null : null,
-    ambitionIcon: ambitionLinked ? career.ambition?.icon || '🎯' : null,
-  };
+  return materializeEvent(raw, career);
 }
 
 export function ensureCurrentEvent(career) {
   if (career.phase !== 'playing') return career;
   if (career.currentEvent) return career;
-  return { ...career, currentEvent: drawEvent(career) };
+  const currentEvent = drawEvent(career);
+  const clearedQueue =
+    career.queuedEventId && currentEvent?.id === career.queuedEventId
+      ? null
+      : career.queuedEventId || null;
+  return {
+    ...career,
+    currentEvent,
+    queuedEventId: clearedQueue,
+  };
+}
+
+/** Met à jour la progression de suite après un choix. */
+function advanceChainState(career, eventId, variant) {
+  const info = getChainStep(eventId);
+  const chainProgress = { ...(career.chainProgress || {}) };
+  let queuedEventId = null;
+
+  if (!info) {
+    return { chainProgress, queuedEventId };
+  }
+
+  // Échec : la suite se brise (retour à la case départ)
+  if (variant === 'malus') {
+    delete chainProgress[info.chainId];
+    return { chainProgress, queuedEventId: null };
+  }
+
+  if (info.isFinale) {
+    delete chainProgress[info.chainId];
+    return { chainProgress, queuedEventId: null };
+  }
+
+  // Bonus / neutre : enchaîne l’étage suivant
+  chainProgress[info.chainId] = info.stepIndex + 1;
+  queuedEventId = info.nextEventId;
+  return { chainProgress, queuedEventId };
 }
 
 export function resolveChoice(career, optionIndex) {
@@ -636,14 +715,19 @@ export function resolveChoice(career, optionIndex) {
   let weapon = career.weapon;
   let subclass = career.subclass || null;
   let outcomeText = fillWeaponPlaceholders(outcome.text, weapon);
+  const chainMeta = buildChainUiMeta(career.currentEvent.id);
   if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
-        ? `Sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
+        ? `Finale de suite : sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
         : variant === 'malus'
-          ? `La voie « ${career.ambition.name} » se souvient aussi des chutes — celle-ci laisse une cicatrice utile.`
-          : `« ${career.ambition.name} » grave ce soir dans le livre, sans fanfare ni sentence.`;
+          ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes — cicatrice utile.`
+          : `Finale de « ${chainMeta?.label || career.ambition.name} » : l’ambition grave ce soir sans fanfare.`;
     outcomeText = `${outcomeText} ${mark}`;
+  } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
+    outcomeText = `${outcomeText} La suite « ${chainMeta.label} » continue (${chainMeta.step}/${chainMeta.total} → ${chainMeta.step + 1}/${chainMeta.total}).`;
+  } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
+    outcomeText = `${outcomeText} La suite « ${chainMeta.label} » se brise ici — il faudra reprendre depuis le début.`;
   }
   const weaponDeltas = {};
 
@@ -709,6 +793,10 @@ export function resolveChoice(career, optionIndex) {
         spd: career.character?.prefersSpeed ? 1 : 0,
       });
 
+  const chainState = dead
+    ? { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null }
+    : advanceChainState(career, career.currentEvent.id, variant);
+
   let next = {
     ...career,
     weapon,
@@ -717,6 +805,8 @@ export function resolveChoice(career, optionIndex) {
     trophies,
     runScore,
     ambitionEventsFaced: (Number(career.ambitionEventsFaced) || 0) + (ambitionLinked ? 1 : 0),
+    chainProgress: chainState.chainProgress,
+    queuedEventId: finished ? null : chainState.queuedEventId,
     endReason: dead ? 'death' : retired ? 'retire' : career.endReason || null,
     history: [...career.history, historyEntry],
     recentEventIds,
@@ -827,6 +917,11 @@ function migrateCareerStatKeys(career) {
     stats: normalizeHpKey(migrateDestinyStatKeys(career.stats)),
     runScore: Number(career.runScore) || 0,
     endReason: career.endReason || null,
+    chainProgress:
+      career.chainProgress && typeof career.chainProgress === 'object'
+        ? career.chainProgress
+        : {},
+    queuedEventId: career.queuedEventId || null,
   };
   // Carrières en cours : allonger jusqu’à la durée actuelle du mode
   if (
