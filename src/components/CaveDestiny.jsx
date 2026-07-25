@@ -25,7 +25,6 @@ import {
   formatDelta,
   computeScore,
   getTier,
-  evaluateAmbition,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
