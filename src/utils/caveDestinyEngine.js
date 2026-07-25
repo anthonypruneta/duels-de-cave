@@ -867,13 +867,10 @@ export function buildFinalStory(career) {
   const ambition = career.ambition?.name || 'la gloire';
   const wins = career.trophies?.tournoi || 0;
   const forge = career.trophies?.forge || 0;
-  const owner = career.character?.ownerPseudo;
   const seasonsLived = career.season || career.maxSeasons;
   const died = career.endReason === 'death';
 
-  let arc = owner
-    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`
-    : `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`;
+  let arc = `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`;
 
   if (died) {
     arc += ' La mort l’a cueilli avant la retraite : PV à zéro.';
