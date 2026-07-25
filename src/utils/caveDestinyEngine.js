@@ -3,7 +3,6 @@
  */
 
 import {
-  CAVE_DESTINY_CHARACTERS,
   CAVE_DESTINY_AMBITIONS,
   CAVE_DESTINY_MENTORS,
   CAVE_DESTINY_WEAPONS,
@@ -65,22 +64,31 @@ function applyTrophies(trophies, deltaTrophies) {
   return next;
 }
 
-function characterBonus(characterId, deltas) {
+/** Bonus passifs dérivés de la race / classe du perso réel choisi */
+function characterBonus(character, deltas) {
   const next = { ...deltas };
-  if (characterId === 'grom' && (next.renommee || 0) > 0 && (next.forme || 0) < 0) {
+  if (!character) return next;
+
+  if (character.prefersGrit && (next.renommee || 0) > 0 && (next.forme || 0) < 0) {
     next.renommee += 3;
   }
-  if (characterId === 'elyndra' && (next.magie || 0) > 0) {
+  if (character.prefersMagic && (next.magie || 0) > 0) {
     next.magie += 1;
   }
-  if (characterId === 'shade' && (next.moral || 0) < 0) {
+  if (character.prefersRebound && (next.moral || 0) < 0) {
     next.moral += 3;
+  }
+  if (character.prefersSpeed && (next.vitesse || 0) > 0) {
+    next.vitesse += 1;
   }
   return next;
 }
 
-export function createCareer({ characterId, ambitionId, mentorId, weaponId }) {
-  const character = CAVE_DESTINY_CHARACTERS.find((c) => c.id === characterId);
+/**
+ * @param {{ character: object, ambitionId: string, mentorId: string, weaponId: string }} opts
+ * `character` = profil déjà construit via buildDestinyCharacterFromGame
+ */
+export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   const ambition = CAVE_DESTINY_AMBITIONS.find((a) => a.id === ambitionId);
   const mentor = CAVE_DESTINY_MENTORS.find((m) => m.id === mentorId);
   const weapon = CAVE_DESTINY_WEAPONS.find((w) => w.id === weaponId);
@@ -89,7 +97,13 @@ export function createCareer({ characterId, ambitionId, mentorId, weaponId }) {
   }
 
   let stats = {
-    ...character.baseStats,
+    ...(character.baseStats || {
+      puissance: 45,
+      endurance: 45,
+      magie: 45,
+      vitesse: 45,
+      charisme: 45,
+    }),
     renommee: 10,
     or: 20,
     forme: 78,
@@ -101,7 +115,7 @@ export function createCareer({ characterId, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 1,
+    version: 2,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -152,7 +166,7 @@ export function resolveChoice(career, optionIndex) {
   let deltas = { ...(outcome.deltas || {}) };
   const trophyDelta = deltas.trophies;
   delete deltas.trophies;
-  deltas = characterBonus(career.character.id, deltas);
+  deltas = characterBonus(career.character, deltas);
 
   const stats = applyEffects(career.stats, deltas);
   const trophies = applyTrophies(career.trophies, trophyDelta);
@@ -170,12 +184,11 @@ export function resolveChoice(career, optionIndex) {
   const nextSeason = career.season + 1;
   const retired = nextSeason > career.maxSeasons;
 
-  // Micro progression naturelle chaque saison
   const agedStats = applyEffects(stats, {
     puissance: 1,
     endurance: 1,
-    magie: career.character.id === 'elyndra' ? 1 : 0,
-    vitesse: career.character.id === 'shade' ? 1 : 0,
+    magie: career.character?.prefersMagic ? 1 : 0,
+    vitesse: career.character?.prefersSpeed ? 1 : 0,
   });
 
   let next = {
@@ -239,8 +252,11 @@ export function buildFinalStory(career) {
   const ambition = career.ambition?.name || 'la gloire';
   const wins = career.trophies?.tournoi || 0;
   const forge = career.trophies?.forge || 0;
+  const owner = career.character?.ownerPseudo;
 
-  let arc = `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons dans la Cave.`;
+  let arc = owner
+    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons dans la Cave.`
+    : `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons dans la Cave.`;
   if (wins >= 2) arc += ' Les tournois du samedi se souviennent encore de ses finales.';
   else if (wins === 1) arc += ' Une couronne de tournoi brille dans son palmarès.';
   else arc += ' Le trône du tournoi lui a échappé — d’autres gloires restent.';
@@ -290,6 +306,8 @@ export function pushToPantheon(career) {
     name: career.character.name,
     race: career.character.race,
     class: career.character.class,
+    ownerPseudo: career.character.ownerPseudo || null,
+    characterImage: career.character.characterImage || null,
     ambition: career.ambition.name,
     weapon: career.weapon.name,
     score,

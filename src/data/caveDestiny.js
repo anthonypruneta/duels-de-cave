@@ -1,50 +1,84 @@
 /**
  * Cave Destiny — données du mode carrière (inspiré Destiny Eleven)
- * Premier choix : 3 personnages emblématiques issus de Duels de Cave.
+ * Premier choix : 3 personnages tirés au hasard parmi les persos réels de Duels de Cave.
  */
 
 import { races } from './races';
 import { classes } from './classes';
 
-/** Trois légendes déjà ancrées dans l’univers Duels de Cave */
-export const CAVE_DESTINY_CHARACTERS = [
-  {
-    id: 'grom',
-    name: 'Grom le Brisé',
-    race: 'Orc',
-    class: 'Berserk',
-    tagline: 'La rage des arènes',
-    blurb:
-      'Champion des premiers tournois du samedi. Quand ses PV chutent, la Cave entière retient son souffle.',
-    playstyle: 'Agressif · Burst · Risque',
-    baseStats: { puissance: 58, endurance: 52, magie: 38, vitesse: 48, charisme: 44 },
-    trait: 'Sous pression, vos combats gagnent en intensité (+renommée en cas de victoire risquée).',
-  },
-  {
-    id: 'elyndra',
-    name: 'Élyndra Voileclair',
-    race: 'Elfe',
-    class: 'Mage',
-    tagline: 'L’arcane de la Tour',
-    blurb:
-      'Archimage de la Tour du Mage. Ses explosions arcaniques ont gravé son nom dans le Hall of Fame.',
-    playstyle: 'Contrôle · Capacité · Precision',
-    baseStats: { puissance: 42, endurance: 40, magie: 62, vitesse: 55, charisme: 50 },
-    trait: 'Les donjons magiques et la Tour vous réussissent mieux (+progression magie).',
-  },
-  {
-    id: 'shade',
-    name: 'Shade Cendrevie',
-    race: 'Mort-vivant',
-    class: 'Voleur',
-    tagline: 'L’ombre des couloirs',
-    blurb:
-      'Survivant du Labyrinthe Infini. On dit qu’il est déjà mort une fois — et que la Cave l’a rendu.',
-    playstyle: 'Esquive · Critique · Survie',
-    baseStats: { puissance: 48, endurance: 46, magie: 44, vitesse: 64, charisme: 42 },
-    trait: 'Une défaite n’est jamais définitive : vous rebondissez plus vite (+moral après revers).',
-  },
-];
+/** Classes plutôt orientées magie (progression Cave Destiny) */
+const MAGIC_CLASSES = new Set([
+  'Mage', 'Healer', 'Demoniste', 'Sorcière', 'Alchimiste', 'Succube', 'Briseur de Sort',
+]);
+
+/** Classes plutôt orientées vitesse / critique */
+const SPEED_CLASSES = new Set(['Voleur', 'Archer', 'Gnome']);
+
+/**
+ * Convertit un document personnage Firestore en profil jouable Cave Destiny.
+ */
+export function buildDestinyCharacterFromGame(char) {
+  const level = Number(char.level) || 1;
+  const base = char.base || {};
+  const race = char.race || 'Humain';
+  const classe = char.class || 'Guerrier';
+  const name = char.name || 'Sans nom';
+  const ownerPseudo = char.ownerPseudo || null;
+  const raceBonus = races[race]?.bonus || '';
+  const classAbility = classes[classe]?.ability || '';
+
+  const scaleStat = (value, fallback = 20) => {
+    const v = Number(value);
+    const raw = Number.isFinite(v) ? v : fallback;
+    return Math.round(28 + (raw / 40) * 45 + Math.min(level, 200) * 0.12);
+  };
+
+  return {
+    id: char.id || char.userId,
+    name,
+    race,
+    class: classe,
+    level,
+    characterImage: char.characterImage || null,
+    ownerPseudo,
+    gender: char.gender || null,
+    keyword: char.keyword || null,
+    tagline: ownerPseudo ? `${ownerPseudo} · Niv. ${level}` : `Niv. ${level}`,
+    blurb: raceBonus
+      ? `${race} ${classe} — ${String(raceBonus).split('\n')[0]}`
+      : `${race} ${classe} de Duels de Cave.`,
+    playstyle: classAbility || `${race} · ${classe}`,
+    baseStats: {
+      puissance: scaleStat(base.auto, 22),
+      endurance: scaleStat(base.def ?? base.hp, 22),
+      magie: scaleStat(base.cap, 20),
+      vitesse: scaleStat(base.spd, 20),
+      charisme: Math.round(38 + Math.min(level, 300) * 0.08),
+    },
+    trait: races[race]?.awakening?.description
+      ? `Héritage de race : ${String(races[race].awakening.description).split('\n')[0]}`
+      : `Vous incarnez ${name}, un vrai personnage de la Cave.`,
+    prefersMagic: MAGIC_CLASSES.has(classe) || race === 'Elfe' || race === 'Sirène' || race === 'Mindflayer',
+    prefersSpeed: SPEED_CLASSES.has(classe) || race === 'Elfe' || race === 'Gnome' || race === 'Écailleux',
+    prefersGrit: race === 'Orc' || race === 'Cendrés' || classe === 'Berserk' || classe === 'Masochiste',
+    prefersRebound: race === 'Mort-vivant' || race === 'Turtlekin' || classe === 'Paladin' || classe === 'Bastion',
+  };
+}
+
+/**
+ * Tire `count` personnages actifs distincts au hasard.
+ */
+export function pickRandomGameCharacters(allCharacters, count = 3) {
+  const active = (allCharacters || []).filter(
+    (c) => c && !c.disabled && !c.archived && c.name && c.race && c.class
+  );
+  const shuffled = [...active];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, count).map(buildDestinyCharacterFromGame);
+}
 
 export const CAVE_DESTINY_AMBITIONS = [
   {
