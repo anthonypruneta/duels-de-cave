@@ -31,6 +31,7 @@ import BossRush from './components/BossRush';
 import MirrorMode from './components/MirrorMode';
 import PvpLobby from './components/PvpLobby';
 import PvpLeaderboard from './components/PvpLeaderboard';
+import CaveDestiny from './components/CaveDestiny';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import MaintenanceShutdown from './components/MaintenanceShutdown';
 import { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
@@ -202,6 +203,14 @@ function Application() {
             element={
               <ProtectedRoute>
                 <Encyclopedia />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cave-destiny"
+            element={
+              <ProtectedRoute>
+                <CaveDestiny />
               </ProtectedRoute>
             }
           />

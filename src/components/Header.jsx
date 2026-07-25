@@ -144,6 +144,7 @@ function Header() {
     { path: '/training', label: '🎯 Entraînement' },
     { path: '/taverne', label: '🍺 Taverne' },
     { path: '/encyclopedie', label: '📚 Encyclopédie' },
+    { path: '/cave-destiny', label: '🕯️ Cave Destiny' },
     { path: '/hall-of-fame', label: '👑 Hall of Fame' },
     { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
     { path: '/pvp', label: '⚔️ PvP' },
