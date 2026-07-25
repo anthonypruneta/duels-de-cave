@@ -123,9 +123,11 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     options: [
       {
         id: 'affronter',
-        label: 'Tenir le choc de front',
+        label: 'Bloquer la charge de front',
+        // check secret : bonne endurance (défense) → bien plus de succès
+        check: { endurance: 1.5, puissance: 0.55 },
         outcomes: trio(
-          { text: 'Le sanglier s’effondre. Viande et gloire mineure.', deltas: { puissance: 2, or: 4, forme: -3 } },
+          { text: 'Vous encaissez la charge. Le sanglier s’effondre. Viande et gloire mineure.', deltas: { endurance: 2, or: 4, forme: -2 } },
           { text: 'Vous le chassez… après une course.', deltas: { endurance: 1, forme: -4 } },
           { text: 'Il vous renverse. Départ humiliant.', deltas: { forme: -9, moral: -3 } },
         ),
@@ -133,6 +135,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'esquiver',
         label: 'L’attirer hors du sentier',
+        check: { vitesse: 1.4, charisme: 0.3 },
         outcomes: trio(
           { text: 'Piège parfait. Butin sans une égratignure.', deltas: { vitesse: 3, or: 5 } },
           { text: 'Vous gagnez… salement.', deltas: { or: 2, forme: -2 } },
@@ -142,6 +145,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'fuir',
         label: 'Contourner le territoire',
+        check: { vitesse: 0.8, charisme: 0.5 },
         outcomes: trio(
           { text: 'Sagesse. Vous trouvez un autre sentier riche.', deltas: { or: 3, moral: 1 } },
           { text: 'Vous perdez du temps, rien de plus.', deltas: {} },

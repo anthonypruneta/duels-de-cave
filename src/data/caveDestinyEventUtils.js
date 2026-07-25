@@ -141,8 +141,10 @@ export function getOptionsForEvent(event, character, career) {
   for (const opt of all) {
     if (optionHiddenByLegacyFilter(opt, character)) continue;
     const access = evaluateOptionAccess(opt, character, career);
+    // `check` reste secret (définition d’event uniquement, jamais envoyé à l’UI)
+    const { check: _secretCheck, ...publicOpt } = opt;
     result.push({
-      ...opt,
+      ...publicOpt,
       locked: access.locked,
       lockReasons: access.lockReasons,
       requireLabels: access.requireLabels,
@@ -160,7 +162,8 @@ export function getOptionsForEvent(event, character, career) {
   for (const g of generics) {
     const key = g.id || g.label;
     if (ids.has(key)) continue;
-    result.push({ ...g, locked: false, lockReasons: [] });
+    const { check: _secretCheck, ...publicG } = g;
+    result.push({ ...publicG, locked: false, lockReasons: [], requireLabels: [] });
     ids.add(key);
     if (result.filter((o) => !o.locked).length >= 3) break;
   }

@@ -21,6 +21,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'entrer',
         label: 'Entrer dans l’arène et viser la couronne',
+        check: { puissance: 1.2, vitesse: 0.7, endurance: 0.6 },
         outcomes: trio(
           { text: 'Vous tranchez jusqu’en finale. La couronne est à vous.', deltas: { renommee: 14, puissance: 5, moral: 8, or: 10, trophies: { tournoi: 1 } } },
           { text: 'Belle course jusqu’en demi-finale. L’arène retient votre nom.', deltas: { renommee: 5, puissance: 2, moral: -1, or: 3 } },
@@ -30,6 +31,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'observer',
         label: 'Observer les combats depuis les gradins',
+        check: { magie: 0.9, charisme: 0.8 },
         outcomes: trio(
           { text: 'Vous décryptez les styles. Votre prochain duel sera plus malin.', deltas: { magie: 4, charisme: 3, moral: 3 } },
           { text: 'Vous retenez quelques feintes utiles.', deltas: { magie: 1, charisme: 1 } },
@@ -39,6 +41,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'parier',
         label: 'Parier à la Taverne sur un challenger oublié',
+        check: { charisme: 1.3, renommee: 0.4 },
         outcomes: trio(
           { text: 'Cote folle. La bourse de la Taverne se vide… dans votre poche.', deltas: { or: 22, renommee: 4, charisme: 2 } },
           { text: 'Petit gain, petite perte. La soirée est correcte.', deltas: { or: 2, moral: 1 } },
@@ -97,6 +100,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'rush',
         label: 'Traverser la forêt jusqu’au sanctuaire',
+        check: { endurance: 1.1, puissance: 0.8, vitesse: 0.5 },
         outcomes: trio(
           { text: 'Vous nettoyez les sentiers. Le butin des clairières est à vous.', deltas: { endurance: 4, or: 12, forme: -4, trophies: { donjon: 1 } } },
           { text: 'Progression honorable. Quelques égratignures.', deltas: { or: 5, endurance: 1, forme: -5 } },
@@ -106,6 +110,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'farm',
         label: 'Chasser prudemment dans les clairières basses',
+        check: { endurance: 0.9, vitesse: 0.6 },
         outcomes: trio(
           { text: 'Gibier, herbes, or. Une journée de forestier accomplie.', deltas: { or: 8, endurance: 2, forme: 2 } },
           { text: 'Peu de gloire, un peu d’or.', deltas: { or: 3 } },
