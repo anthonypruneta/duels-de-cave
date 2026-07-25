@@ -830,7 +830,7 @@ const CaveDestiny = () => {
         )}
         <ScreenTitle
           title="Votre ambition"
-          sub="Elle lance des suites (étages → boss). L’ambition ne s’allume qu’à la finale."
+          sub="Choisissez une voie. Elle s’éclaire seulement au bout du chemin."
         />
         <div className="space-y-2">
           {CAVE_DESTINY_AMBITIONS.map((a) => (
