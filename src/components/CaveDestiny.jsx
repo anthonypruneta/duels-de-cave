@@ -516,6 +516,14 @@ const CaveDestiny = () => {
     if (career) persistSave(career);
   }, [career]);
 
+  // Filet : phase prolongation atteinte sans être déjà sur l’écran dédié
+  useEffect(() => {
+    if (!career || outcomeFlash) return;
+    if (career.phase === 'extendOffer' && screen !== 'extend') {
+      setScreen('extend');
+    }
+  }, [career, career?.phase, outcomeFlash, screen]);
+
   useEffect(() => {
     if (!currentUser?.uid) return;
     migrateLocalCaveDestinyPantheon(currentUser.uid).catch(() => {});
@@ -682,9 +690,10 @@ const CaveDestiny = () => {
   };
 
   const continueAfterOutcome = () => {
+    const phase = career?.phase;
     setOutcomeFlash(null);
-    if (career?.phase === 'finished') setScreen('final');
-    else if (career?.phase === 'extendOffer') setScreen('extend');
+    if (phase === 'finished') setScreen('final');
+    else if (phase === 'extendOffer') setScreen('extend');
   };
 
   const handleExtendSeason = () => {
@@ -999,7 +1008,7 @@ const CaveDestiny = () => {
     const cost = EXTEND_SEASON_HP_COST;
     return (
       <Shell>
-        <SectionTitle
+        <ScreenTitle
           title="Le livre tremble"
           sub={`Saison ${career.maxSeasons} achevée. La Cave peut encore tourner une page — contre votre sang.`}
         />
