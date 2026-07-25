@@ -120,14 +120,43 @@ export function getChainStep(eventId) {
   return STEP_INDEX[eventId] || null;
 }
 
-/** L’event est-il une étape intermédiaire / finale verrouillée sans progression ? */
+/**
+ * L’event est-il verrouillé pour cette carrière ?
+ * - Suite non commencée : seule l’ouverture (step 0)
+ * - Suite en cours : uniquement l’étape attendue (`chainProgress` = index suivant)
+ * Les étapes ne sont plus forcées saison après saison — elles restent tirables.
+ */
 export function isChainLockedStep(eventId, career) {
   const info = getChainStep(eventId);
   if (!info) return false;
-  if (info.stepIndex === 0) return false; // ouverture toujours dispo
   const progress = career?.chainProgress?.[info.chainId];
-  // progress = index de la prochaine étape attendue
-  return progress !== info.stepIndex;
+  if (typeof progress === 'number') {
+    return info.stepIndex !== progress;
+  }
+  return info.stepIndex !== 0;
+}
+
+/**
+ * Quêtes / suites en cours (au moins une étape réussie, suite non terminée).
+ * `done` = nombre d’étapes déjà validées ; la suivante peut pop… ou jamais.
+ */
+export function listActiveChainQuests(career) {
+  const progress = career?.chainProgress || {};
+  const out = [];
+  for (const [chainId, stepIndex] of Object.entries(progress)) {
+    const chain = CAVE_DESTINY_CHAINS[chainId];
+    if (!chain || typeof stepIndex !== 'number') continue;
+    if (stepIndex <= 0 || stepIndex >= chain.steps.length) continue;
+    out.push({
+      chainId,
+      label: chain.label,
+      done: stepIndex,
+      total: chain.steps.length,
+      nextStep: stepIndex + 1,
+      ambition: chain.ambition || null,
+    });
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 }
 
 /** Prochaine étape attendue pour une chaîne (ou null). */

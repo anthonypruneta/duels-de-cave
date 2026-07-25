@@ -24,7 +24,10 @@ import {
   isChainLockedStep,
   isAmbitionChainFinale,
   buildChainUiMeta,
+  listActiveChainQuests,
 } from '../data/caveDestinyChains';
+
+export { listActiveChainQuests };
 import { RARITY } from '../data/weapons';
 import { getSubclassesForClass } from '../data/subclasses';
 import { trio } from '../data/caveDestinyEventUtils';
@@ -635,6 +638,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId, compan
     ambitionEventsFaced: 0,
     chainProgress: {},
     queuedEventId: null,
+    suitesStarted: 0,
     flags: {},
     endReason: null,
     history: [],
@@ -649,23 +653,46 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   const ambitionId = career.ambition?.id;
   const hp = Number(career.stats?.hp) || 0;
 
-  // Suite en cours : étapes non débloquées = impossibles
+  // Suite : étapes non débloquées = impossibles
   const chainInfo = getChainStep(event.id);
   if (chainInfo && isChainLockedStep(event.id, career)) {
     return 0;
   }
-  // Ouverture de suite alignée sur l’ambition : plus fréquente
+
+  const suitesStarted = Number(career.suitesStarted) || 0;
+  const activeSuites = Object.keys(career.chainProgress || {}).length;
+  const isOpening = chainInfo && chainInfo.stepIndex === 0;
+
+  // Cible ~3 suites / run (20 saisons) : freiner les ouvertures après 2–3 démarrages
+  if (isOpening) {
+    if (suitesStarted >= 4) w *= 0.06;
+    else if (suitesStarted >= 3) w *= 0.22;
+    else if (suitesStarted >= 2) w *= 0.5;
+    else w *= 0.85;
+    // Peu de quêtes simultanées
+    if (activeSuites >= 2) w *= 0.12;
+    else if (activeSuites >= 1) w *= 0.55;
+  }
+
+  // Ouverture alignée ambition : léger coup de pouce (plus le ×2.4 d’avant)
   if (
     ambitionId &&
-    chainInfo &&
-    chainInfo.stepIndex === 0 &&
+    isOpening &&
     chainInfo.chain.ambition === ambitionId
   ) {
-    w *= 2.4;
+    w *= 1.45;
+  }
+  // Étape débloquée (suite en cours) : un peu plus probable, sans forcer la saison suivante
+  if (
+    chainInfo &&
+    chainInfo.stepIndex > 0 &&
+    career.chainProgress?.[chainInfo.chainId] === chainInfo.stepIndex
+  ) {
+    w *= 1.55;
   }
   // Finale de suite (ambition) : boost une fois débloquée
   if (ambitionId && isAmbitionChainFinale(event.id, ambitionId)) {
-    w *= 1.8;
+    w *= 1.5;
   }
 
   if (hp < 35 && event.id === 'blessure') w *= 2.2;
@@ -676,15 +703,14 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   if (needFamily && career.weapon?.family !== needFamily) {
     return 0;
   }
-  // Ouverture de quête d’arme : boost fort (sinon 1/14 du pool = quasi invisible)
+  // Ouverture quête d’arme : visible si la famille match, sans saturer la run
   if (
     event.tags?.includes('arme_quete') &&
-    chainInfo &&
-    chainInfo.stepIndex === 0 &&
+    isOpening &&
     needFamily &&
     career.weapon?.family === needFamily
   ) {
-    w *= 2.8;
+    w *= 1.55;
   }
 
   const seenIds = seen || seenEventIds(career);
@@ -993,9 +1019,9 @@ function advanceChainState(career, eventId, variant) {
     return { chainProgress, queuedEventId: null };
   }
 
-  // Bonus / neutre : enchaîne l’étage suivant
+  // Bonus / neutre : débloque l’étape suivante (tirage futur, pas la saison d’après)
   chainProgress[info.chainId] = info.stepIndex + 1;
-  queuedEventId = info.nextEventId;
+  queuedEventId = null;
   return { chainProgress, queuedEventId };
 }
 
@@ -1080,7 +1106,7 @@ export function resolveChoice(career, optionIndex) {
           : `Finale de « ${chainMeta?.label || career.ambition.name} » : l’ambition grave ce soir sans fanfare.`;
     outcomeText = `${outcomeText} ${mark}`;
   } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
-    outcomeText = `${outcomeText} La suite « ${chainMeta.label} » continue (${chainMeta.step}/${chainMeta.total} → ${chainMeta.step + 1}/${chainMeta.total}).`;
+    outcomeText = `${outcomeText} Suite « ${chainMeta.label} » : étape ${chainMeta.step}/${chainMeta.total} validée — la suite peut revenir plus tard (pas forcément la prochaine saison).`;
   } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
     outcomeText = `${outcomeText} La suite « ${chainMeta.label} » se brise ici — il faudra reprendre depuis le début.`;
   }
@@ -1218,6 +1244,19 @@ export function resolveChoice(career, optionIndex) {
     chainState = advanceChainState(career, career.currentEvent.id, variant);
   }
 
+  // Compte les suites réellement engagées (ouverture réussie, hors refus soft)
+  let suitesStarted = Number(career.suitesStarted) || 0;
+  const openedChain = getChainStep(career.currentEvent.id);
+  if (
+    !dead &&
+    !softLeave &&
+    variant !== 'malus' &&
+    openedChain &&
+    openedChain.stepIndex === 0
+  ) {
+    suitesStarted += 1;
+  }
+
   let next = {
     ...career,
     weapon,
@@ -1226,9 +1265,11 @@ export function resolveChoice(career, optionIndex) {
     trophies,
     runScore,
     flags: nextFlags,
+    suitesStarted,
     ambitionEventsFaced: (Number(career.ambitionEventsFaced) || 0) + (ambitionLinked ? 1 : 0),
     chainProgress: chainState.chainProgress,
-    queuedEventId: finished ? null : chainState.queuedEventId,
+    // Plus de forçage d’étape suivante : les suites se tirent dans le pool
+    queuedEventId: null,
     endReason: dead ? 'death' : retired ? 'retire' : career.endReason || null,
     history: [...career.history, historyEntry],
     recentEventIds,
@@ -1340,7 +1381,9 @@ function migrateCareerStatKeys(career) {
       career.chainProgress && typeof career.chainProgress === 'object'
         ? career.chainProgress
         : {},
-    queuedEventId: career.queuedEventId || null,
+    // Anciennes saves : ne plus forcer l’étape suivante d’une suite
+    queuedEventId: null,
+    suitesStarted: Number(career.suitesStarted) || 0,
     flags: career.flags && typeof career.flags === 'object' ? career.flags : {},
   };
   // Carrières en cours : allonger jusqu’à la durée actuelle du mode
