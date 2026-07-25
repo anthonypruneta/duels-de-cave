@@ -515,19 +515,21 @@ function buildRedRefuseOutcomes(eventId) {
   return trio(
     {
       text: mid
-        ? 'Vous saluez Red et sortez. L’arène reste ouverte… pour d’autres duos.'
-        : 'Vous déclinez. Red hausse les épaules — d’autres cherchent un allié.',
-      deltas: { moral: 2 },
+        ? 'Vous saluez Red et sortez la tête haute. L’arène reste ouverte… pour d’autres duos plus assoiffés.'
+        : 'Vous déclinez avec panache. Red hausse les épaules — respect muet, place libérée.',
+      deltas: { charisme: 2, moral: 3, spd: 1 },
     },
     {
       text: 'Pas ce soir. Vous laissez l’arène derrière vous, sans gloire ni brûlure.',
-      deltas: {},
+      deltas: { moral: 1 },
     },
     {
-      text: 'Quelques regards en coin. Refuser Red n’est pas une honte… mais ce n’est pas non plus une couronne.',
-      deltas: { moral: -2, renommee: -1 },
+      text: mid
+        ? 'Vous quittez trop vite. Un sifflet fuse — Red n’aime pas les alliés qui lâchent au milieu.'
+        : 'Quelques regards en coin. Fuir Red n’est pas une couronne… plutôt une rumeur.',
+      deltas: { moral: -3, renommee: -2, charisme: -1 },
     },
-    [40, 45, 15],
+    [30, 40, 30],
   );
 }
 
@@ -573,8 +575,14 @@ function expandRedArenaEvent(event, career) {
       ...allyOptions,
       {
         id: 'refuser',
-        label: 'Refuser et quitter l’arène de Red',
         exitChain: true,
+        label:
+          event.id === 'salameche_red'
+            ? 'Saluer Red et s’éclipser'
+            : event.id === 'ronflex_red'
+              ? 'Laisser le Ronflex… et le duo'
+              : 'Quitter l’arène avant la finale',
+        detail: 'Sortie RP — libère la suite Arène de Red',
         outcomes: buildRedRefuseOutcomes(event.id),
       },
     ],
@@ -909,13 +917,205 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
 }
 
 /**
- * Ajoute un refus / abandon sur toute suite (sauf si déjà présent, ex. Red / Anciens / Ornn).
- * Permet de ne pas « bloquer » un slot de quête active.
+ * Sortie RP d’une suite : libère le slot + vrai trio (réussite / neutre / échec).
+ * Pas un simple « Refuser » — un choix narratif avec gains ou pertes.
+ */
+function buildChainExitChoice(info) {
+  const isOpening = info.stepIndex === 0;
+  const label = info.chain.label || 'cette quête';
+  const ambition = info.chain.ambition || 'autre';
+
+  const byAmbition = {
+    donjons: {
+      open: {
+        label: 'Faire demi-tour avant l’entrée',
+        detail: 'Ranger le sac, laisser le donjon aux obstinés',
+        bonus: {
+          text: `Vous faites demi-tour proprement. « ${label} » peut attendre — vos jambes, elles, vous remercient.`,
+          deltas: { spd: 2, moral: 3, hp: 2 },
+        },
+        neutre: {
+          text: `Pas d’exploit aujourd’hui. Vous laissez « ${label} » derrière la porte, sans gloire ni regret.`,
+          deltas: { moral: 1 },
+        },
+        malus: {
+          text: `Vous reculez trop vite. Un rire s’élève dans le couloir — « ${label} » n’oublie pas les peureux.`,
+          deltas: { moral: -3, renommee: -2, charisme: -1 },
+        },
+      },
+      mid: {
+        label: 'Repartir vivant, les mains vides',
+        detail: 'Abandonner la progression pour sauver sa peau',
+        bonus: {
+          text: `Retraite sage. Vous sortez de « ${label} » sans trophée, mais avec le sang encore chaud.`,
+          deltas: { def: 2, moral: 2, hp: 3 },
+        },
+        neutre: {
+          text: `Vous tournez les talons. « ${label} » se referme — il faudrait tout recommencer.`,
+          deltas: {},
+        },
+        malus: {
+          text: `Fuite maladroite. Une pierre vous accroche ; « ${label} » vous crache dehors, humilié.`,
+          deltas: { hp: -4, moral: -3, renommee: -2 },
+        },
+      },
+    },
+    tournoi: {
+      open: {
+        label: 'Rendre les armes avant le Hall',
+        detail: 'Décliner le bracket — d’autres se battront',
+        bonus: {
+          text: `Vous saluez le Hall et rangez les armes. « ${label} » respectera un refus digne.`,
+          deltas: { charisme: 3, moral: 2 },
+        },
+        neutre: {
+          text: `Pas de couronne cette saison. Vous laissez « ${label} » aux autres noms.`,
+          deltas: { moral: 1 },
+        },
+        malus: {
+          text: `On murmure que vous avez peur du public. « ${label} » vous raye sans cérémonie.`,
+          deltas: { renommee: -3, charisme: -2, moral: -2 },
+        },
+      },
+      mid: {
+        label: 'Quitter le bracket sans fanfare',
+        detail: 'Sortir du tournoi — la place se libère',
+        bonus: {
+          text: `Vous partez la tête haute. Mieux vaut un forfait propre qu’une défaite ridicule sur « ${label} ».`,
+          deltas: { charisme: 2, moral: 3, renommee: 1 },
+        },
+        neutre: {
+          text: `Fin de parcours. « ${label} » continue sans vous.`,
+          deltas: {},
+        },
+        malus: {
+          text: `Vous abandonnez sous les sifflets. Le Hall retient le nom… pour s’en moquer.`,
+          deltas: { renommee: -4, moral: -3, charisme: -1 },
+        },
+      },
+    },
+    forge: {
+      open: {
+        label: 'Laisser le fer dormir ce soir',
+        detail: 'Éteindre l’enclume — la forge attendra',
+        bonus: {
+          text: `Vous posez le marteau. Même Ornn comprend qu’un bras fatigué gâche le fer de « ${label} ».`,
+          deltas: { def: 2, moral: 2, or: 2 },
+        },
+        neutre: {
+          text: `Pas de braise aujourd’hui. « ${label} » reste froide.`,
+          deltas: {},
+        },
+        malus: {
+          text: `Les soufflets sifflent votre absence. La forge juge le refus comme une insulte.`,
+          deltas: { moral: -3, renommee: -2, auto: -1 },
+        },
+      },
+      mid: {
+        label: 'Éteindre la forge et partir',
+        detail: 'Abandonner la voie du fer — tout reprendre plus tard',
+        bonus: {
+          text: `Vous retirez le fer du feu à temps. « ${label} » n’est pas ruinée — seulement reportée.`,
+          deltas: { auto: 1, def: 2, moral: 2 },
+        },
+        neutre: {
+          text: `Braise morte. « ${label} » devra être reprise depuis la première étincelle.`,
+          deltas: { moral: -1 },
+        },
+        malus: {
+          text: `Vous fuyez la chaleur. Une étincelle vous brûle le poignet — orgueil puni.`,
+          deltas: { hp: -5, moral: -3, renommee: -2 },
+        },
+      },
+    },
+    ombres: {
+      open: {
+        label: 'Reculer avant l’obscurité',
+        detail: 'Ne pas descendre — garder la lumière',
+        bonus: {
+          text: `Vous restez au seuil. « ${label} » murmure… puis se tait. La prudence vous va bien.`,
+          deltas: { spd: 2, cap: 1, moral: 3 },
+        },
+        neutre: {
+          text: `Pas ce noir-là. Vous laissez « ${label} » aux fous courageux.`,
+          deltas: { moral: 1 },
+        },
+        malus: {
+          text: `En reculant, vous trébuchez. L’ombre rit — « ${label} » n’aime pas les demi-mesures.`,
+          deltas: { moral: -4, cap: -1, renommee: -1 },
+        },
+      },
+      mid: {
+        label: 'Remonter sans regarder derrière',
+        detail: 'Abandonner la descente — la place se libère',
+        bonus: {
+          text: `Vous remontez à temps. « ${label} » garde ses secrets ; vous gardez votre souffle.`,
+          deltas: { spd: 2, hp: 2, moral: 2 },
+        },
+        neutre: {
+          text: `Retour à la surface. « ${label} » se referme comme si vous n’aviez jamais été là.`,
+          deltas: {},
+        },
+        malus: {
+          text: `Quelque chose vous suit jusqu’à la sortie. Vous échappez à « ${label} »… pas à la peur.`,
+          deltas: { hp: -4, moral: -4, charisme: -1 },
+        },
+      },
+    },
+    autre: {
+      open: {
+        label: 'Passer son chemin, le regard ailleurs',
+        detail: `Ne pas s’engager dans « ${label} »`,
+        bonus: {
+          text: `Vous croisez « ${label} » et continuez. Un détour évité, une leçon discrète empochée.`,
+          deltas: { charisme: 2, or: 2, moral: 2 },
+        },
+        neutre: {
+          text: `Pas cette histoire. « ${label} » attendra un autre cave.`,
+          deltas: { moral: 1 },
+        },
+        malus: {
+          text: `Vous refusez trop sèchement. On retient le geste — pas votre gloire.`,
+          deltas: { renommee: -2, moral: -2 },
+        },
+      },
+      mid: {
+        label: 'Couper le fil et s’en aller',
+        detail: `Abandonner « ${label} » — tout recommencer plus tard`,
+        bonus: {
+          text: `Vous coupez le fil proprement. « ${label} » n’est plus votre fardeau — pour l’instant.`,
+          deltas: { spd: 1, moral: 3, or: 1 },
+        },
+        neutre: {
+          text: `Fin de fil. « ${label} » retombe à zéro.`,
+          deltas: {},
+        },
+        malus: {
+          text: `Vous lâchez trop vite. Ceux qui suivaient « ${label} » retiennent votre dos.`,
+          deltas: { renommee: -3, moral: -3, hp: -2 },
+        },
+      },
+    },
+  };
+
+  const pack = (byAmbition[ambition] || byAmbition.autre)[isOpening ? 'open' : 'mid'];
+  return {
+    id: 'refuser_quete',
+    exitChain: true,
+    label: pack.label,
+    detail: pack.detail,
+    outcomes: trio(pack.bonus, pack.neutre, pack.malus, [30, 40, 30]),
+  };
+}
+
+/**
+ * Ajoute une sortie RP sur toute suite (sauf si déjà présent, ex. Red / Anciens / Ornn).
+ * Libère le slot de quête active + roll réussite / neutre / échec.
  */
 function expandChainRefuseOption(event, career) {
   const info = getChainStep(event?.id);
   if (!info) return event;
-  // Red gère déjà son refus dédié
+  // Red gère déjà sa sortie dédiée
   if (RED_ARENA_EVENT_IDS.has(event.id)) return event;
   // Suites 1 étape avec sortie soft déjà prévue
   if (event.id === 'tournoi_anciens' || event.id === 'ornn_jugement') return event;
@@ -923,41 +1123,9 @@ function expandChainRefuseOption(event, career) {
     return event;
   }
 
-  const isOpening = info.stepIndex === 0;
-  const label = info.chain.label || 'cette quête';
-  const refuseOption = {
-    id: 'refuser_quete',
-    exitChain: true,
-    label: isOpening ? `Refuser « ${label} »` : `Abandonner « ${label} »`,
-    detail: isOpening
-      ? 'Ne pas démarrer — laisse la place à une autre suite'
-      : 'Abandonne la progression — la place se libère',
-    outcomes: trio(
-      {
-        text: isOpening
-          ? `Vous déclinez « ${label} ». D’autres chemins restent ouverts.`
-          : `Vous abandonnez « ${label} ». La place se libère pour une autre suite.`,
-        deltas: { moral: 1 },
-      },
-      {
-        text: isOpening
-          ? `Pas cette saison. « ${label} » attendra — ou jamais.`
-          : `Fin de parcours pour « ${label} ». Il faudrait tout reprendre depuis le début.`,
-        deltas: {},
-      },
-      {
-        text: isOpening
-          ? `Un regard en coin. Refuser « ${label} » n’est pas une honte — juste un choix.`
-          : `On murmure que vous lâchez « ${label} » trop vite. La place se libère quand même.`,
-        deltas: { moral: -1, renommee: -1 },
-      },
-      [45, 40, 15]
-    ),
-  };
-
   return {
     ...event,
-    options: [...(event.options || []), refuseOption],
+    options: [...(event.options || []), buildChainExitChoice(info)],
   };
 }
 
@@ -1152,7 +1320,13 @@ export function resolveChoice(career, optionIndex) {
     option.id === 'refuser_quete' ||
     (RED_ARENA_EVENT_IDS.has(career.currentEvent.id) && option.id === 'refuser');
   if (questRefuse && chainMeta) {
-    outcomeText = `${outcomeText} La quête « ${chainMeta.label} » s’arrête ici — la place se libère.`;
+    const exitMark =
+      variant === 'bonus'
+        ? ` « ${chainMeta.label} » se referme — sortie digne, place libérée.`
+        : variant === 'malus'
+          ? ` « ${chainMeta.label} » s’arrête dans la douleur : il faudra tout reprendre.`
+          : ` « ${chainMeta.label} » est abandonnée. La place se libère.`;
+    outcomeText = `${outcomeText}${exitMark}`;
   } else if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
