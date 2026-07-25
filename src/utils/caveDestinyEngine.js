@@ -19,6 +19,8 @@ import {
 } from '../data/caveDestiny';
 import { getEventBaseWeight } from '../data/caveDestinyRarity';
 import { RARITY } from '../data/weapons';
+import { getSubclassesForClass } from '../data/subclasses';
+import { trio } from '../data/caveDestinyEventUtils';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -125,7 +127,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 6,
+    version: 7,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -134,6 +136,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     ambition,
     mentor,
     weapon,
+    subclass: character.subclass || null,
     stats,
     trophies: emptyTrophies(),
     history: [],
@@ -163,7 +166,102 @@ function eventWeight(event, career) {
   if (event.tags?.includes('arme_upgrade') && career.weapon?.rarity === RARITY.COMMUNE) {
     w *= 1.35;
   }
+  // Sous-classe : moins utile si déjà obtenue
+  if (event.tags?.includes('subclass') && career.subclass) {
+    w *= 0.2;
+  }
   return w;
+}
+
+/** Options dynamiques pour l’event Collège / sous-classes */
+function expandSubclassEvent(event, character, career) {
+  if (event.id !== 'college_sous_classe') return event;
+  const list = getSubclassesForClass(character?.class) || [];
+  const className = character?.class || 'votre classe';
+
+  const subclassOptions = list.map((sc, idx) => ({
+    id: `sc_${sc.id}`,
+    label: `Embrasser la voie « ${sc.name} »`,
+    detail: sc.bonus || sc.description,
+    require: career?.subclass
+      ? { noSubclass: true }
+      : idx === 0
+        ? { stats: { magie: 24 }, noSubclass: true }
+        : { stats: { puissance: 24 }, noSubclass: true },
+    subclassId: sc.id,
+    subclassName: sc.name,
+    outcomes: trio(
+      {
+        text: `La voie « ${sc.name} » s’ancre. Votre style de ${className} change.`,
+        deltas: { renommee: 5, magie: 2, puissance: 2, moral: 3 },
+        subclassGain: { id: sc.id, name: sc.name },
+      },
+      {
+        text: `Vous entrevoyez « ${sc.name} »… sans l’embrasser pleinement.`,
+        deltas: { magie: 1, moral: 1 },
+      },
+      {
+        text: 'L’examen vous dépasse. Retour aux bancs.',
+        deltas: { forme: -6, moral: -4 },
+      }
+    ),
+  }));
+
+  return {
+    ...event,
+    text: fillWeaponPlaceholders(
+      `Au Collège Kunugigaoka, Koro Sensei propose une sous-classe à votre ${className}. Deux voies… et des exigences.`,
+      career?.weapon
+    ),
+    options: [
+      {
+        id: 'observer',
+        label: 'Assister aux cours sans s’engager',
+        outcomes: trio(
+          { text: 'Vous comprenez mieux les voies. Plus tard peut-être.', deltas: { magie: 2, moral: 2 } },
+          { text: 'Cours correct.', deltas: { magie: 1 } },
+          { text: 'Vous vous endormez. Interrogation surprise ratée.', deltas: { moral: -3 } }
+        ),
+      },
+      ...subclassOptions,
+      {
+        id: 'elite',
+        label: 'Forcer la voie d’élite du Collège',
+        require: {
+          stats: { magie: 30, puissance: 28 },
+          minRenommee: 18,
+          weaponRarities: ['rare', 'légendaire'],
+          noSubclass: true,
+        },
+        outcomes: [
+          {
+            variant: 'bonus',
+            weight: 35,
+            text: 'Koro Sensei applaudit. Les deux voies vous inspirent — vous choisissez la plus dure.',
+            deltas: { renommee: 8, magie: 3, puissance: 3, forme: -4 },
+            subclassGain: list[1]
+              ? { id: list[1].id, name: list[1].name }
+              : list[0]
+                ? { id: list[0].id, name: list[0].name }
+                : null,
+          },
+          {
+            variant: 'neutre',
+            weight: 40,
+            text: 'Presque. Une seule voie s’ouvre à demi.',
+            deltas: { magie: 2, forme: -3 },
+            subclassGain: list[0] ? { id: list[0].id, name: list[0].name } : null,
+          },
+          {
+            variant: 'malus',
+            weight: 25,
+            text: 'Trop tôt. Le Collège vous renvoie.',
+            deltas: { forme: -10, moral: -6, renommee: -2 },
+          },
+        ],
+      },
+    ],
+  };
 }
 
 function localizeEventForWeapon(event, weapon) {
@@ -188,8 +286,9 @@ export function drawEvent(career) {
     ...e,
     weight: eventWeight(e, career),
   }));
-  const raw = pickWeighted(pool);
-  const options = getOptionsForEvent(raw, career.character);
+  let raw = pickWeighted(pool);
+  raw = expandSubclassEvent(raw, career.character, career);
+  const options = getOptionsForEvent(raw, career.character, career);
   const localized = localizeEventForWeapon({ ...raw, options }, career.weapon);
   return {
     id: localized.id,
@@ -210,7 +309,7 @@ export function ensureCurrentEvent(career) {
 export function resolveChoice(career, optionIndex) {
   if (!career.currentEvent) return career;
   const option = career.currentEvent.options[optionIndex];
-  if (!option) return career;
+  if (!option || option.locked) return career;
 
   // Garantit un trio bonus/neutre/malus même sur d’anciennes saves
   let outcomes = option.outcomes || [];
@@ -226,12 +325,14 @@ export function resolveChoice(career, optionIndex) {
   delete deltas.trophies;
   const weaponProgress = outcome.weaponProgress || deltas.weaponProgress || null;
   delete deltas.weaponProgress;
+  const subclassGain = outcome.subclassGain || null;
   deltas = characterBonus(career.character, deltas);
 
   let stats = applyEffects(career.stats, deltas);
   const trophies = applyTrophies(career.trophies, trophyDelta);
 
   let weapon = career.weapon;
+  let subclass = career.subclass || null;
   let outcomeText = fillWeaponPlaceholders(outcome.text, weapon);
   const weaponDeltas = {};
 
@@ -252,6 +353,11 @@ export function resolveChoice(career, optionIndex) {
     }
   }
 
+  if (subclassGain?.id && !subclass) {
+    subclass = { id: subclassGain.id, name: subclassGain.name };
+    outcomeText = `${outcomeText} Sous-classe obtenue : ${subclass.name}.`;
+  }
+
   const mergedDeltas = { ...deltas, ...weaponDeltas };
 
   const historyEntry = {
@@ -265,6 +371,7 @@ export function resolveChoice(career, optionIndex) {
     weaponProgress: weaponProgress || null,
     weaponName: weapon?.name || null,
     weaponRarity: weapon?.rarity || null,
+    subclassName: subclass?.name || null,
   };
 
   const recentEventIds = [...career.recentEventIds, career.currentEvent.id].slice(-4);
@@ -281,6 +388,7 @@ export function resolveChoice(career, optionIndex) {
   let next = {
     ...career,
     weapon,
+    subclass,
     stats: agedStats,
     trophies,
     history: [...career.history, historyEntry],

@@ -1328,4 +1328,41 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       },
     ],
   },
+
+  {
+    id: 'college_sous_classe',
+    title: 'Collège Kunugigaoka — Sous-classe',
+    text: 'Koro Sensei ouvre le registre des voies. Une sous-classe peut redéfinir votre classe… si vous en êtes digne.',
+    rarity: 'rare',
+    tags: ['donjons', 'subclass'],
+    options: [
+      {
+        id: 'placeholder',
+        label: 'Écouter le discours d’ouverture',
+        outcomes: trio(
+          { text: 'Le discours inspire. Les voies s’éclaircissent.', deltas: { magie: 2, moral: 2 } },
+          { text: 'Long discours.', deltas: {} },
+          { text: 'Vous ratez le début.', deltas: { moral: -2 } },
+        ),
+      },
+      {
+        id: 'placeholder2',
+        label: 'Prendre des notes',
+        outcomes: trio(
+          { text: 'Notes utiles pour plus tard.', deltas: { magie: 1, charisme: 1 } },
+          { text: 'Quelques griffonnages.', deltas: {} },
+          { text: 'Votre stylo casse.', deltas: { moral: -1 } },
+        ),
+      },
+      {
+        id: 'placeholder3',
+        label: 'Quitter l’amphi',
+        outcomes: trio(
+          { text: 'Vous repartez. Le Collège reste ouvert.', deltas: { moral: 1 } },
+          { text: 'Rien.', deltas: {} },
+          { text: 'On note votre absence.', deltas: { renommee: -1 } },
+        ),
+      },
+    ],
+  },
 ];

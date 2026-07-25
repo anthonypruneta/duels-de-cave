@@ -203,7 +203,7 @@ function CharacterPortrait({ src, alt, className = '', size = 'md' }) {
   );
 }
 
-function RaceClassLine({ race, classe, className = '', centered = false }) {
+function RaceClassLine({ race, classe, subclass, className = '', centered = false }) {
   if (!race && !classe) return null;
   return (
     <p
@@ -218,7 +218,57 @@ function RaceClassLine({ race, classe, className = '', centered = false }) {
         <span aria-hidden="true">{getClassIcon(classe)}</span>
         <span>{classe || '—'}</span>
       </span>
+      {subclass?.name ? (
+        <>
+          <span className="text-stone-600 mx-1.5">·</span>
+          <span className="text-violet-300">{subclass.name}</span>
+        </>
+      ) : null}
     </p>
+  );
+}
+
+function RpgStatsBar({ stats, weapon, compact = false }) {
+  if (!stats) return null;
+  const rows = [
+    ['PUJ', 'Puissance', stats.puissance],
+    ['END', 'Endurance', stats.endurance],
+    ['MAG', 'Magie', stats.magie],
+    ['VIT', 'Vitesse', stats.vitesse],
+    ['CHA', 'Charisme', stats.charisme],
+  ];
+  return (
+    <div
+      className={`rounded-xl border border-stone-700 bg-stone-950/85 ${
+        compact ? 'px-2.5 py-2' : 'px-3 py-2.5'
+      }`}
+    >
+      <div className="grid grid-cols-5 gap-1 text-center">
+        {rows.map(([short, label, value]) => (
+          <div key={short} title={label}>
+            <p className="text-[10px] uppercase tracking-wide text-stone-500">{short}</p>
+            <p className="text-sm font-bold text-amber-100 tabular-nums">{Math.round(value || 0)}</p>
+          </div>
+        ))}
+      </div>
+      {weapon?.name ? (
+        <p className="mt-2 text-center text-[11px] text-stone-400 truncate">
+          Arme :{' '}
+          <span className="text-amber-200/90">
+            {weapon.icon ? `${weapon.icon} ` : ''}
+            {weapon.name}
+          </span>
+          {weapon.rarity ? (
+            <span className="text-stone-500">
+              {' '}
+              · {WEAPON_RARITY_LABEL[weapon.rarity] || weapon.rarity}
+            </span>
+          ) : null}
+        </p>
+      ) : (
+        <p className="mt-2 text-center text-[11px] text-stone-600">Arme : —</p>
+      )}
+    </div>
   );
 }
 
@@ -240,7 +290,12 @@ function CharacterIdentity({ character, compact = false }) {
         <p className={`font-semibold text-amber-50 truncate ${compact ? 'text-sm' : 'font-[Cinzel,serif] text-base'}`}>
           {character.name}
         </p>
-        <RaceClassLine race={character.race} classe={character.class} className="mt-0.5" />
+        <RaceClassLine
+          race={character.race}
+          classe={character.class}
+          subclass={character.subclass}
+          className="mt-0.5"
+        />
         <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
           Créateur : {character.ownerPseudo || 'Inconnu'}
         </p>
@@ -270,7 +325,6 @@ const CaveDestiny = () => {
   });
   const [career, setCareer] = useState(null);
   const [pantheon, setPantheon] = useState([]);
-  const [showProfile, setShowProfile] = useState(false);
   const [outcomeFlash, setOutcomeFlash] = useState(null);
   const [allGameCharacters, setAllGameCharacters] = useState([]);
   const [offeredCharacters, setOfferedCharacters] = useState([]);
@@ -674,13 +728,26 @@ const CaveDestiny = () => {
               <RaceClassLine
                 race={career.character.race}
                 classe={career.character.class}
+                subclass={career.subclass || career.character.subclass}
                 className="mt-1.5"
               />
               <p className="text-sm italic text-stone-500 mt-1">
                 Créateur : {career.character.ownerPseudo || 'Inconnu'}
               </p>
+              {career.weapon?.name && (
+                <p className="text-sm text-amber-200/80 mt-1">
+                  Arme : {career.weapon.icon} {career.weapon.name}
+                  {career.weapon.rarity
+                    ? ` · ${WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity}`
+                    : ''}
+                </p>
+              )}
               <p className="text-sm text-stone-400 mt-2">{career.ambition.name}</p>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <RpgStatsBar stats={career.stats} weapon={career.weapon} />
           </div>
 
           <div className="mt-6 flex items-end gap-2">
@@ -741,19 +808,12 @@ const CaveDestiny = () => {
             <RaceClassLine
               race={career.character.race}
               classe={career.character.class}
+              subclass={career.subclass || career.character.subclass}
               className="mt-0.5"
             />
-            <p className="text-[11px] text-amber-200/80 truncate mt-0.5">
-              {career.weapon?.icon} {career.weapon?.name}
-              {career.weapon?.rarity ? (
-                <span className="text-stone-500">
-                  {' '}
-                  · {WEAPON_RARITY_LABEL[career.weapon.rarity] || career.weapon.rarity}
-                </span>
-              ) : null}
-            </p>
             <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
               Créateur : {career.character.ownerPseudo || 'Inconnu'}
+              {career.mentor?.name ? ` · Mentor : ${career.mentor.name}` : ''}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -764,7 +824,11 @@ const CaveDestiny = () => {
           </div>
         </header>
 
-        <div className="flex gap-4 text-sm mb-4">
+        <div className="mb-3">
+          <RpgStatsBar stats={career.stats} weapon={career.weapon} />
+        </div>
+
+        <div className="flex gap-4 text-sm mb-3">
           <div>
             <p className="text-[11px] text-stone-500">Score</p>
             <p className="font-bold text-amber-300">{liveScore}</p>
@@ -777,55 +841,20 @@ const CaveDestiny = () => {
             <p className="text-[11px] text-stone-500">Renommée</p>
             <p className="font-bold text-amber-100">{Math.round(career.stats.renommee)}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowProfile((v) => !v)}
-            className="text-xs text-stone-400 hover:text-amber-300 self-end"
-          >
-            Profil
-          </button>
+          {(career.subclass || career.character.subclass) && (
+            <div className="text-right">
+              <p className="text-[11px] text-stone-500">Sous-classe</p>
+              <p className="text-xs font-semibold text-violet-300 truncate max-w-[7rem]">
+                {(career.subclass || career.character.subclass)?.name}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mb-3">
           <Gauge label="Forme" value={career.stats.forme} colorClass="bg-emerald-500" />
           <Gauge label="Moral" value={career.stats.moral} colorClass="bg-sky-500" />
         </div>
-
-        {showProfile && (
-          <div className="mb-4 rounded-xl border border-stone-700 bg-stone-950/80 p-3 space-y-3">
-            <div className="text-center text-xs">
-              <p className="text-stone-500">Arme</p>
-              <p className="font-semibold text-amber-100">
-                {career.weapon?.icon} {career.weapon?.name}
-              </p>
-              <p className="text-stone-400 mt-0.5">
-                {WEAPON_RARITY_LABEL[career.weapon?.rarity] || '—'}
-                {career.weapon?.path?.legendaireName
-                  ? ` → ${career.weapon.path.legendaireName}`
-                  : ''}
-              </p>
-              {career.mentor?.name && (
-                <p className="text-stone-500 mt-2">
-                  Mentor : <span className="text-stone-300">{career.mentor.name}</span>
-                </p>
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              {[
-                ['Puissance', career.stats.puissance],
-                ['Endurance', career.stats.endurance],
-                ['Magie', career.stats.magie],
-                ['Vitesse', career.stats.vitesse],
-                ['Charisme', career.stats.charisme],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <p className="text-stone-500">{label}</p>
-                  <p className="font-semibold text-amber-100">{Math.round(value)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="h-1 rounded-full bg-stone-900 border border-stone-700 overflow-hidden mb-6">
           <div
@@ -888,16 +917,36 @@ const CaveDestiny = () => {
               <h3 className="text-lg font-bold text-amber-50 mt-1">{event.title}</h3>
               <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">{event.text}</p>
               <div className="mt-5 space-y-2">
-                {event.options.map((opt, i) => (
-                  <button
-                    key={opt.id || opt.label}
-                    type="button"
-                    onClick={() => handleChoice(i)}
-                    className="w-full text-left rounded-xl border border-stone-600 px-4 py-3 text-sm text-stone-100 hover:border-amber-500/60 hover:bg-amber-950/25 transition"
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {event.options.map((opt, i) => {
+                  const locked = !!opt.locked;
+                  return (
+                    <button
+                      key={opt.id || opt.label}
+                      type="button"
+                      disabled={locked}
+                      onClick={() => !locked && handleChoice(i)}
+                      className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition ${
+                        locked
+                          ? 'border-stone-700/80 bg-stone-950/40 text-stone-500 cursor-not-allowed'
+                          : 'border-stone-600 text-stone-100 hover:border-amber-500/60 hover:bg-amber-950/25'
+                      }`}
+                    >
+                      <span className="flex items-start justify-between gap-2">
+                        <span>{opt.label}</span>
+                        {locked && (
+                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-stone-500">
+                            🔒
+                          </span>
+                        )}
+                      </span>
+                      {locked && opt.lockReasons?.length > 0 && (
+                        <span className="block mt-1 text-[11px] text-stone-500 leading-snug">
+                          Requis : {opt.lockReasons.join(' · ')}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </>
           ) : (

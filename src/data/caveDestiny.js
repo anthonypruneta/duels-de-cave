@@ -46,11 +46,21 @@ export function buildDestinyCharacterFromGame(char) {
       ? Number(base.hp) / 8
       : 18;
 
+  const rawSubclass = char.subclass || null;
+  const subclass =
+    rawSubclass && (rawSubclass.id || rawSubclass.name)
+      ? {
+          id: rawSubclass.id || null,
+          name: rawSubclass.name || rawSubclass.id || 'Sous-classe',
+        }
+      : null;
+
   return {
     id: char.id || char.userId,
     name,
     race,
     class: classe,
+    subclass,
     level,
     characterImage: char.characterImage || null,
     ownerPseudo,
