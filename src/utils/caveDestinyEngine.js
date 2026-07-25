@@ -683,13 +683,13 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
     else if (activeSuites >= 1) w *= 0.55;
   }
 
-  // Ouverture alignée ambition : léger coup de pouce (plus le ×2.4 d’avant)
+  // Ouverture alignée ambition : coup de pouce (×1.65)
   if (
     ambitionId &&
     isOpening &&
     chainInfo.chain.ambition === ambitionId
   ) {
-    w *= 1.45;
+    w *= 1.65;
   }
   // Étape débloquée (suite en cours) : un peu plus probable, sans forcer la saison suivante
   if (
