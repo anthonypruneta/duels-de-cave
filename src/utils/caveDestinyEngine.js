@@ -27,13 +27,157 @@ function clamp(n, min, max) {
 }
 
 function pickWeighted(items) {
-  const total = items.reduce((s, it) => s + (it.weight || 1), 0);
+  const total = items.reduce((s, it) => s + Math.max(0, it.weight || 1), 0);
+  if (total <= 0) return items[items.length - 1];
   let r = Math.random() * total;
   for (const it of items) {
-    r -= it.weight || 1;
+    r -= Math.max(0, it.weight || 1);
     if (r <= 0) return it;
   }
   return items[items.length - 1];
+}
+
+/** Stats pouvant influencer secrètement un choix */
+const CHECKABLE_STATS = ['puissance', 'endurance', 'magie', 'vitesse', 'charisme', 'renommee'];
+
+const CHECK_KEYWORDS = {
+  puissance: [
+    'force', 'frappe', 'attaq', 'coup', 'puissan', 'rage', 'combat', 'duel', 'brut',
+    'affronter', 'charger', 'charge', 'tournoi', 'arène', 'assaut',
+  ],
+  endurance: [
+    'bloqu', 'défense', 'defens', 'encaiss', 'tenir', 'résist', 'resist', 'bouclier',
+    'rempart', 'tank', 'sanglier', 'endure', 'protect', 'choc', 'front', 'égide', 'egide',
+  ],
+  magie: [
+    'sort', 'arcan', 'magie', 'rituel', 'enchant', 'mage', 'runique', 'mystiq', 'collège',
+    'college', 'koro', 'passif', 'tome',
+  ],
+  vitesse: [
+    'fuir', 'esquiv', 'rapide', 'sprint', 'course', 'ombre', 'discret', 'voleur', 'archer',
+    'précis', 'precis', 'éviter', 'eviter', 'contourner', 'attirer', 'piège', 'piege',
+  ],
+  charisme: [
+    'parler', 'négoc', 'negoci', 'persuad', 'bluff', 'pari', 'taverne', 'charme',
+    'diplom', 'convainc', 'mentor', 'observer', 'gradin', 'social',
+  ],
+  renommee: ['gloire', 'renom', 'légende', 'legende', 'prestige', 'foule', 'public', 'couronne'],
+};
+
+/**
+ * Infère les stats qui influencent un choix (jamais affichées).
+ * `option.check` explicite prime si présent sur la définition d’event.
+ */
+function inferCheckStats(option, event) {
+  if (option?.check && typeof option.check === 'object') {
+    const explicit = {};
+    for (const [stat, w] of Object.entries(option.check)) {
+      if (CHECKABLE_STATS.includes(stat) && typeof w === 'number' && w > 0) {
+        explicit[stat] = w;
+      }
+    }
+    if (Object.keys(explicit).length) return explicit;
+  }
+
+  const weights = {};
+  const bump = (stat, amount) => {
+    if (!CHECKABLE_STATS.includes(stat)) return;
+    weights[stat] = (weights[stat] || 0) + amount;
+  };
+
+  for (const [stat, min] of Object.entries(option?.require?.stats || {})) {
+    if (typeof min === 'number') bump(stat, 1.25);
+  }
+
+  const blob = `${option?.id || ''} ${option?.label || ''}`.toLowerCase();
+  for (const [stat, words] of Object.entries(CHECK_KEYWORDS)) {
+    if (words.some((w) => blob.includes(w))) bump(stat, 1);
+  }
+
+  const tags = event?.tags || [];
+  if (tags.includes('combat') || tags.includes('tournoi') || tags.includes('donjons')) {
+    bump('puissance', 0.35);
+    bump('endurance', 0.3);
+    bump('vitesse', 0.2);
+  }
+  if (tags.includes('forge')) bump('endurance', 0.35);
+  if (tags.includes('social') || tags.includes('taverne')) bump('charisme', 0.45);
+  if (tags.includes('magie') || tags.includes('subclass')) bump('magie', 0.4);
+
+  const bonus = (option?.outcomes || []).find((o) => o.variant === 'bonus');
+  if (bonus?.deltas) {
+    for (const [stat, v] of Object.entries(bonus.deltas)) {
+      if (typeof v === 'number' && v > 0) bump(stat, Math.min(0.7, v * 0.12));
+    }
+  }
+
+  // Garde les 3 stats les plus pertinentes
+  const ranked = Object.entries(weights).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (!ranked.length) {
+    // Défaut soft selon tags
+    if (tags.includes('combat')) return { puissance: 0.7, endurance: 0.7 };
+    return { charisme: 0.5, renommee: 0.35 };
+  }
+  return Object.fromEntries(ranked);
+}
+
+/** Score secret [-1, 1] : au-dessus de la baseline → plus de bonus */
+function computeCheckScore(stats, checkWeights, season = 1) {
+  const entries = Object.entries(checkWeights || {});
+  if (!entries.length) return 0;
+  const baseline = 16 + Math.max(0, season - 1) * 1.05;
+  let sum = 0;
+  let totalW = 0;
+  for (const [stat, w] of entries) {
+    const val = Number(stats?.[stat]) || 0;
+    const delta = clamp((val - baseline) / 12, -1.25, 1.25);
+    sum += delta * w;
+    totalW += w;
+  }
+  return totalW > 0 ? clamp(sum / totalW, -1, 1) : 0;
+}
+
+/**
+ * Ajuste les poids bonus/neutre/malus selon les stats (secret).
+ * Une bonne défense (endurance) sur un blocage augmente nettement le bonus.
+ */
+function applySecretStatWeights(outcomes, career, option, event) {
+  const check = inferCheckStats(option, event);
+  const checkScore = computeCheckScore(career.stats, check, career.season);
+  const forme = Number(career.stats?.forme) || 50;
+  const moral = Number(career.stats?.moral) || 50;
+  const soft =
+    clamp((forme - 50) / 70, -0.35, 0.35) * 0.45 +
+    clamp((moral - 50) / 70, -0.35, 0.35) * 0.35;
+  const factor = clamp(checkScore + soft, -1, 1);
+
+  return (outcomes || []).map((o) => {
+    let w = o.weight || 1;
+    if (o.variant === 'bonus') w *= 1 + factor * 0.75;
+    else if (o.variant === 'malus') w *= 1 - factor * 0.65;
+    else w *= 1 + Math.abs(factor) * 0.08;
+    return { ...o, weight: Math.max(0.35, w) };
+  });
+}
+
+/** Ids d’événements déjà rencontrés dans la run */
+function seenEventIds(career) {
+  const ids = new Set();
+  for (const h of career.history || []) {
+    if (h?.eventId) ids.add(h.eventId);
+  }
+  for (const id of career.recentEventIds || []) {
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+/** Récupère le `check` secret défini sur l’event source (hors UI) */
+function lookupDefinedCheck(eventId, optionId) {
+  if (!eventId || !optionId) return null;
+  const raw = CAVE_DESTINY_EVENTS.find((e) => e.id === eventId);
+  const opt = raw?.options?.find((o) => o.id === optionId);
+  return opt?.check || null;
 }
 
 function emptyTrophies() {
@@ -146,13 +290,18 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   };
 }
 
-function eventWeight(event, career) {
+function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   let w = getEventBaseWeight(event);
   const ambitionId = career.ambition?.id;
   if (ambitionId && event.tags?.includes(ambitionId)) w *= 1.7;
   if (career.stats.forme < 35 && event.id === 'blessure') w *= 2.2;
   if (career.stats.forme < 25 && event.tags?.includes('combat')) w *= 0.55;
-  if (career.recentEventIds.includes(event.id)) w *= 0.25;
+
+  const seenIds = seen || seenEventIds(career);
+  if (seenIds.has(event.id)) {
+    // Quasi jamais de doublon ; seulement si le pool unique est épuisé
+    w *= allowRepeat ? 0.04 : 0;
+  }
 
   // Events d’upgrade / légendaire : inutiles si déjà au max
   if (event.tags?.includes('arme') && isWeaponMaxed(career.weapon)) {
@@ -282,11 +431,22 @@ function localizeEventForWeapon(event, weapon) {
 }
 
 export function drawEvent(career) {
-  const pool = CAVE_DESTINY_EVENTS.map((e) => ({
+  const seen = seenEventIds(career);
+  const weightedFresh = CAVE_DESTINY_EVENTS.map((e) => ({
     ...e,
-    weight: eventWeight(e, career),
-  }));
-  let raw = pickWeighted(pool);
+    weight: eventWeight(e, career, { seen, allowRepeat: false }),
+  })).filter((e) => e.weight > 0);
+
+  // Priorité absolue aux events jamais vus dans la run
+  const pool =
+    weightedFresh.length >= 1
+      ? weightedFresh
+      : CAVE_DESTINY_EVENTS.map((e) => ({
+          ...e,
+          weight: eventWeight(e, career, { seen, allowRepeat: true }),
+        })).filter((e) => e.weight > 0);
+
+  let raw = pickWeighted(pool.length ? pool : CAVE_DESTINY_EVENTS);
   raw = expandSubclassEvent(raw, career.character, career);
   const options = getOptionsForEvent(raw, career.character, career);
   const localized = localizeEventForWeapon({ ...raw, options }, career.weapon);
@@ -318,6 +478,11 @@ export function resolveChoice(career, optionIndex) {
     // fallback : redistribue poids existants
     outcomes = outcomes.length ? outcomes : [{ weight: 100, text: 'Rien ne se passe.', deltas: {} }];
   }
+
+  // Influence secrète des stats (jamais exposée à l’UI)
+  const definedCheck = lookupDefinedCheck(career.currentEvent.id, option.id);
+  const optionForCheck = definedCheck ? { ...option, check: definedCheck } : option;
+  outcomes = applySecretStatWeights(outcomes, career, optionForCheck, career.currentEvent);
 
   const outcome = pickWeighted(outcomes);
   let deltas = { ...(outcome.deltas || {}) };
@@ -374,7 +539,8 @@ export function resolveChoice(career, optionIndex) {
     subclassName: subclass?.name || null,
   };
 
-  const recentEventIds = [...career.recentEventIds, career.currentEvent.id].slice(-4);
+  // Historique long pour anti-doublon (toute la run)
+  const recentEventIds = [...(career.recentEventIds || []), career.currentEvent.id].slice(-20);
   const nextSeason = career.season + 1;
   const retired = nextSeason > career.maxSeasons;
 
