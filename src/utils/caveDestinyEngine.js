@@ -348,6 +348,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     stats,
     trophies: emptyTrophies(),
     runScore: 0,
+    ambitionEventsFaced: 0,
     endReason: null,
     history: [],
     recentEventIds: [],
@@ -360,7 +361,8 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   let w = getEventBaseWeight(event);
   const ambitionId = career.ambition?.id;
   const hp = Number(career.stats?.hp) || 0;
-  if (ambitionId && event.tags?.includes(ambitionId)) w *= 1.7;
+  // Ambition : rencontre plus souvent les événements de sa voie
+  if (ambitionId && event.tags?.includes(ambitionId)) w *= 2.2;
   if (hp < 35 && event.id === 'blessure') w *= 2.2;
   if (hp < 25 && event.tags?.includes('combat')) w *= 0.55;
 
@@ -503,6 +505,44 @@ function localizeEventForWeapon(event, weapon) {
   };
 }
 
+/** Event aligné sur l’ambition de départ (tag = ambition.id). */
+export function isAmbitionLinkedEvent(event, career) {
+  const ambitionId = career?.ambition?.id;
+  if (!ambitionId || !event?.tags?.length) return false;
+  return event.tags.includes(ambitionId);
+}
+
+/**
+ * Amplifie les gains d’un event d’ambition : score, stats positives, trophées.
+ * Les pertes de PV ne sont pas adoucies (le destin exige un prix).
+ */
+function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
+  const next = { ...deltas };
+  for (const [k, v] of Object.entries(next)) {
+    if (typeof v !== 'number' || v <= 0) continue;
+    if (k === 'hp') {
+      // Soins un peu meilleurs sur la voie
+      next[k] = Math.round(v * 1.25);
+    } else {
+      next[k] = Math.max(v + 1, Math.round(v * 1.4));
+    }
+  }
+  if (variant === 'bonus') {
+    next.renommee = (next.renommee || 0) + 2;
+    next.moral = (next.moral || 0) + 1;
+  }
+
+  let trophies = trophyDelta ? { ...trophyDelta } : null;
+  if (trophies) {
+    for (const [k, v] of Object.entries(trophies)) {
+      if (typeof v === 'number' && v > 0) trophies[k] = v + 1;
+    }
+  }
+
+  const gain = Math.max(scoreGain + 6, Math.round(scoreGain * 1.6));
+  return { deltas: next, trophyDelta: trophies, scoreGain: gain };
+}
+
 export function drawEvent(career) {
   const seen = seenEventIds(career);
   const weightedFresh = CAVE_DESTINY_EVENTS.map((e) => ({
@@ -523,6 +563,7 @@ export function drawEvent(career) {
   raw = expandSubclassEvent(raw, career.character, career);
   const options = getOptionsForEvent(raw, career.character, career);
   const localized = localizeEventForWeapon({ ...raw, options }, career.weapon);
+  const ambitionLinked = isAmbitionLinkedEvent(localized, career);
   return {
     id: localized.id,
     title: localized.title,
@@ -530,6 +571,10 @@ export function drawEvent(career) {
     tags: localized.tags,
     rarity: localized.rarity || 'common',
     options: localized.options,
+    ambitionLinked,
+    ambitionId: ambitionLinked ? career.ambition?.id || null : null,
+    ambitionName: ambitionLinked ? career.ambition?.name || null : null,
+    ambitionIcon: ambitionLinked ? career.ambition?.icon || '🎯' : null,
   };
 }
 
@@ -570,15 +615,36 @@ export function resolveChoice(career, optionIndex) {
 
   // Score d’event : or + renommée influencent le gain (stats avant l’event)
   const variant = outcome.variant || 'neutre';
-  const scoreGain = computeEventScoreGain(variant, career.stats);
+  let scoreGain = computeEventScoreGain(variant, career.stats);
+  let resolvedTrophyDelta = trophyDelta;
+
+  const ambitionLinked =
+    career.currentEvent.ambitionLinked === true ||
+    isAmbitionLinkedEvent(career.currentEvent, career);
+  if (ambitionLinked) {
+    const boosted = applyAmbitionEventImpact(deltas, resolvedTrophyDelta, scoreGain, variant);
+    deltas = boosted.deltas;
+    resolvedTrophyDelta = boosted.trophyDelta;
+    scoreGain = boosted.scoreGain;
+  }
+
   const runScore = (Number(career.runScore) || 0) + scoreGain;
 
   let stats = applyEffects(career.stats, deltas);
-  const trophies = applyTrophies(career.trophies, trophyDelta);
+  const trophies = applyTrophies(career.trophies, resolvedTrophyDelta);
 
   let weapon = career.weapon;
   let subclass = career.subclass || null;
   let outcomeText = fillWeaponPlaceholders(outcome.text, weapon);
+  if (ambitionLinked && career.ambition?.name) {
+    const mark =
+      variant === 'bonus'
+        ? `La voie « ${career.ambition.name} » s’ouvre un peu plus — gains renforcés.`
+        : variant === 'malus'
+          ? `Même dans l’échec, « ${career.ambition.name} » laisse une trace : l’épreuve a compté.`
+          : `Cet épisode marque votre ambition « ${career.ambition.name} ».`;
+    outcomeText = `${outcomeText} ${mark}`;
+  }
   const weaponDeltas = {};
 
   if (weaponProgress === 'upgrade' || weaponProgress === 'legendary') {
@@ -621,6 +687,7 @@ export function resolveChoice(career, optionIndex) {
     deltas: mergedDeltas,
     scoreGain,
     died: dead,
+    ambitionLinked,
     weaponProgress: weaponProgress || null,
     weaponName: weapon?.name || null,
     weaponRarity: weapon?.rarity || null,
@@ -649,6 +716,7 @@ export function resolveChoice(career, optionIndex) {
     stats: agedStats,
     trophies,
     runScore,
+    ambitionEventsFaced: (Number(career.ambitionEventsFaced) || 0) + (ambitionLinked ? 1 : 0),
     endReason: dead ? 'death' : retired ? 'retire' : career.endReason || null,
     history: [...career.history, historyEntry],
     recentEventIds,

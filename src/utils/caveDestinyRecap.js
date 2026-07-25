@@ -311,6 +311,7 @@ export function buildParcours(career) {
       : [];
     const isHighlight =
       h.variant === 'bonus' ||
+      h.ambitionLinked ||
       trophyGain.length > 0 ||
       h.weaponProgress ||
       h.subclassName;
@@ -330,6 +331,9 @@ export function buildParcours(career) {
     } else if (h.weaponProgress === 'upgrade') {
       badge = 'FORGE';
       badgeTone = 'orange';
+    } else if (h.ambitionLinked) {
+      badge = 'AMBITION';
+      badgeTone = 'violet';
     }
 
     milestones.push({
@@ -337,7 +341,9 @@ export function buildParcours(career) {
       kind: 'event',
       label: `Saison ${h.season}`,
       title: h.title || 'Événement',
-      detail: h.choice ? `Choix : ${h.choice}` : h.text || '',
+      detail: h.choice
+        ? `${h.ambitionLinked ? 'Voie · ' : ''}Choix : ${h.choice}`
+        : h.text || '',
       badge,
       badgeTone,
       variant: h.variant,
@@ -375,9 +381,13 @@ export function buildStatRows(career) {
   const history = Array.isArray(career?.history) ? career.history : [];
   const bonusCount = history.filter((h) => h.variant === 'bonus').length;
   const malusCount = history.filter((h) => h.variant === 'malus').length;
+  const ambitionCount =
+    Number(career?.ambitionEventsFaced) ||
+    history.filter((h) => h.ambitionLinked).length;
   return [
     { label: 'Saisons jouées', value: String(career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT) },
     { label: 'Événements vécus', value: String(history.length) },
+    { label: 'Voie d’ambition', value: String(ambitionCount) },
     { label: 'Éclats (bonus)', value: String(bonusCount) },
     { label: 'Épreuves (malus)', value: String(malusCount) },
     { label: 'Renommée', value: String(Math.round(s.renommee || 0)) },
@@ -541,6 +551,10 @@ export function buildNarratives(career, ambitionEval, traits) {
   const history = Array.isArray(career?.history) ? career.history : [];
   const name = career?.character?.name || 'Ce cave';
 
+  const ambitionHits =
+    Number(career?.ambitionEventsFaced) ||
+    history.filter((h) => h.ambitionLinked).length;
+
   if (ambitionEval?.succeeded) {
     paragraphs.push(
       `${name} a tenu parole : « ${ambitionEval.name} » n’était pas un rêve de comptoir. ${ambitionEval.detail}.`
@@ -548,6 +562,11 @@ export function buildNarratives(career, ambitionEval, traits) {
   } else if (ambitionEval?.id) {
     paragraphs.push(
       `L’ambition « ${ambitionEval.name} » reste inachevée (${ambitionEval.detail}). Certains destins se jugent à ce qui manque.`
+    );
+  }
+  if (ambitionHits >= 3 && ambitionEval?.name) {
+    paragraphs.push(
+      `La voie a résonné ${ambitionHits} fois : chaque événement lié à « ${ambitionEval.name} » a pesé plus lourd que le reste.`
     );
   }
 
