@@ -226,6 +226,11 @@ export default function CaveDestinyRecap({
             <span className="inline-block mt-2 text-[10px] uppercase tracking-[0.18em] font-black px-2.5 py-1 rounded-full border border-amber-500/60 bg-amber-950/70 text-amber-200">
               {recap.legendBadge}
             </span>
+            {career?.endReason === 'death' && (
+              <span className="inline-block mt-2 ml-2 text-[10px] uppercase tracking-[0.18em] font-black px-2.5 py-1 rounded-full border border-red-600/60 bg-red-950/70 text-red-200">
+                Mort au combat
+              </span>
+            )}
           </div>
           <div className="text-right shrink-0">
             <p className={`text-3xl font-black tabular-nums ${recap.tier.color}`}>

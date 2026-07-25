@@ -144,10 +144,10 @@ function computeCheckScore(stats, checkWeights, season = 1) {
 function applySecretStatWeights(outcomes, career, option, event) {
   const check = inferCheckStats(option, event);
   const checkScore = computeCheckScore(career.stats, check, career.season);
-  const forme = Number(career.stats?.forme) || 50;
+  const hp = Number(career.stats?.hp) || 50;
   const moral = Number(career.stats?.moral) || 50;
   const soft =
-    clamp((forme - 50) / 70, -0.35, 0.35) * 0.45 +
+    clamp((hp - 50) / 70, -0.35, 0.35) * 0.45 +
     clamp((moral - 50) / 70, -0.35, 0.35) * 0.35;
   const factor = clamp(checkScore + soft, -1, 1);
 
@@ -195,17 +195,72 @@ function emptyTrophies() {
   };
 }
 
-function applyEffects(stats, effects = {}) {
-  const next = { ...stats };
-  for (const [k, v] of Object.entries(effects)) {
-    if (k === 'trophies' || typeof v !== 'number') continue;
-    if (k in next) next[k] = (next[k] || 0) + v;
+/** Migrates legacy `forme` → `hp` on stats / deltas. */
+function normalizeHpKey(obj = {}) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const next = { ...obj };
+  if (next.forme != null) {
+    next.hp = (Number(next.hp) || 0) + Number(next.forme);
+    delete next.forme;
   }
-  next.forme = clamp(next.forme ?? 70, 0, 100);
+  return next;
+}
+
+function applyEffects(stats, effects = {}) {
+  const next = normalizeHpKey({ ...stats });
+  const eff = normalizeHpKey(effects);
+  for (const [k, v] of Object.entries(eff)) {
+    if (k === 'trophies' || typeof v !== 'number') continue;
+    if (k in next || k === 'hp') next[k] = (Number(next[k]) || 0) + v;
+  }
+  next.hp = clamp(next.hp ?? 70, 0, 100);
   next.moral = clamp(next.moral ?? 70, 0, 100);
   next.or = Math.max(0, next.or ?? 0);
   next.renommee = Math.max(0, next.renommee ?? 0);
   return next;
+}
+
+/**
+ * Moral élevé → moins de PV perdus ; moral bas → plus de pertes.
+ * moral 0 ≈ ×1.45 · moral 50 ≈ ×1 · moral 100 ≈ ×0.55
+ */
+function scaleHpLossByMoral(deltas, moral) {
+  const next = normalizeHpKey({ ...deltas });
+  if (typeof next.hp !== 'number' || next.hp >= 0) return next;
+  const m = Number(moral);
+  const moralVal = Number.isFinite(m) ? m : 50;
+  const factor = clamp(1.45 - (moralVal / 100) * 0.9, 0.45, 1.55);
+  next.hp = Math.round(next.hp * factor);
+  return next;
+}
+
+/**
+ * Points de score gagnés sur un event.
+ * Or + renommée multiplient le gain (plafonds).
+ * Les trophées restent comptés à part dans computeScore.
+ */
+function computeEventScoreGain(variant, stats) {
+  const base = variant === 'bonus' ? 14 : variant === 'malus' ? 4 : 8;
+  const renown = Number(stats?.renommee) || 0;
+  const gold = Number(stats?.or) || 0;
+  const mult =
+    1 + Math.min(0.9, renown * 0.015) + Math.min(0.7, gold * 0.012);
+  return Math.max(0, Math.round(base * mult));
+}
+
+/** Events d’armes nommées : incompatibles hors de leur famille. */
+const WEAPON_EVENT_FAMILY = {
+  mjollnir: 'marteau',
+  gungnir: 'lance',
+  arc_cieux: 'arc',
+  codex_archon: 'tome',
+  faux_thanatos: 'faux',
+};
+
+function requiredWeaponFamily(event) {
+  if (!event) return null;
+  if (event.requiresWeaponFamily) return event.requiresWeaponFamily;
+  return WEAPON_EVENT_FAMILY[event.id] || null;
 }
 
 function applyTrophies(trophies, deltaTrophies) {
@@ -222,7 +277,7 @@ function characterBonus(character, deltas) {
   const next = { ...deltas };
   if (!character) return next;
 
-  if (character.prefersGrit && (next.renommee || 0) > 0 && (next.forme || 0) < 0) {
+  if (character.prefersGrit && (next.renommee || 0) > 0 && (next.hp || 0) < 0) {
     next.renommee += 3;
   }
   if (character.prefersMagic && (next.cap || 0) > 0) {
@@ -262,7 +317,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     }),
     renommee: 0,
     or: 10,
-    forme: 76,
+    hp: 100,
     moral: 70,
   };
 
@@ -270,19 +325,24 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, mentor.effects);
   stats = applyEffects(stats, weapon.effects);
 
+  // Pas de sous-classe au départ : elle se gagne en run (Collège, etc.)
+  const careerCharacter = { ...character, subclass: null };
+
   return {
-    version: 7,
+    version: 8,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
     phase: 'playing',
-    character,
+    character: careerCharacter,
     ambition,
     mentor,
     weapon,
-    subclass: character.subclass || null,
+    subclass: null,
     stats,
     trophies: emptyTrophies(),
+    runScore: 0,
+    endReason: null,
     history: [],
     recentEventIds: [],
     currentEvent: null,
@@ -293,9 +353,16 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
 function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   let w = getEventBaseWeight(event);
   const ambitionId = career.ambition?.id;
+  const hp = Number(career.stats?.hp) || 0;
   if (ambitionId && event.tags?.includes(ambitionId)) w *= 1.7;
-  if (career.stats.forme < 35 && event.id === 'blessure') w *= 2.2;
-  if (career.stats.forme < 25 && event.tags?.includes('combat')) w *= 0.55;
+  if (hp < 35 && event.id === 'blessure') w *= 2.2;
+  if (hp < 25 && event.tags?.includes('combat')) w *= 0.55;
+
+  // Arme nommée (Mjöllnir, Codex…) : uniquement si la famille correspond
+  const needFamily = requiredWeaponFamily(event);
+  if (needFamily && career.weapon?.family !== needFamily) {
+    return 0;
+  }
 
   const seenIds = seen || seenEventIds(career);
   if (seenIds.has(event.id)) {
@@ -351,7 +418,7 @@ function expandSubclassEvent(event, character, career) {
       },
       {
         text: 'L’examen vous dépasse. Retour aux bancs.',
-        deltas: { forme: -6, moral: -4 },
+        deltas: { hp: -6, moral: -4 },
       }
     ),
   }));
@@ -387,7 +454,7 @@ function expandSubclassEvent(event, character, career) {
             variant: 'bonus',
             weight: 35,
             text: 'Koro Sensei applaudit. Les deux voies vous inspirent — vous choisissez la plus dure.',
-            deltas: { renommee: 8, cap: 3, auto: 3, forme: -4 },
+            deltas: { renommee: 8, cap: 3, auto: 3, hp: -4 },
             subclassGain: list[1]
               ? { id: list[1].id, name: list[1].name }
               : list[0]
@@ -398,14 +465,14 @@ function expandSubclassEvent(event, character, career) {
             variant: 'neutre',
             weight: 40,
             text: 'Presque. Une seule voie s’ouvre à demi.',
-            deltas: { cap: 2, forme: -3 },
+            deltas: { cap: 2, hp: -3 },
             subclassGain: list[0] ? { id: list[0].id, name: list[0].name } : null,
           },
           {
             variant: 'malus',
             weight: 25,
             text: 'Trop tôt. Le Collège vous renvoie.',
-            deltas: { forme: -10, moral: -6, renommee: -2 },
+            deltas: { hp: -10, moral: -6, renommee: -2 },
           },
         ],
       },
@@ -485,13 +552,20 @@ export function resolveChoice(career, optionIndex) {
   outcomes = applySecretStatWeights(outcomes, career, optionForCheck, career.currentEvent);
 
   const outcome = pickWeighted(outcomes);
-  let deltas = { ...(outcome.deltas || {}) };
+  let deltas = normalizeHpKey({ ...(outcome.deltas || {}) });
   const trophyDelta = deltas.trophies;
   delete deltas.trophies;
   const weaponProgress = outcome.weaponProgress || deltas.weaponProgress || null;
   delete deltas.weaponProgress;
   const subclassGain = outcome.subclassGain || null;
   deltas = characterBonus(career.character, deltas);
+  // Moral amortit (ou aggrave) les pertes de PV
+  deltas = scaleHpLossByMoral(deltas, career.stats?.moral);
+
+  // Score d’event : or + renommée influencent le gain (stats avant l’event)
+  const variant = outcome.variant || 'neutre';
+  const scoreGain = computeEventScoreGain(variant, career.stats);
+  const runScore = (Number(career.runScore) || 0) + scoreGain;
 
   let stats = applyEffects(career.stats, deltas);
   const trophies = applyTrophies(career.trophies, trophyDelta);
@@ -523,7 +597,13 @@ export function resolveChoice(career, optionIndex) {
     outcomeText = `${outcomeText} Sous-classe obtenue : ${subclass.name}.`;
   }
 
-  const mergedDeltas = { ...deltas, ...weaponDeltas };
+  const dead = (Number(stats.hp) || 0) <= 0;
+  if (dead) {
+    stats = { ...stats, hp: 0 };
+    outcomeText = `${outcomeText} Vos PV tombent à 0 — la Cave referme le livre.`;
+  }
+
+  const mergedDeltas = normalizeHpKey({ ...deltas, ...weaponDeltas });
 
   const historyEntry = {
     season: career.season,
@@ -531,8 +611,10 @@ export function resolveChoice(career, optionIndex) {
     title: career.currentEvent.title,
     choice: option.label,
     text: outcomeText,
-    variant: outcome.variant || 'neutre',
+    variant,
     deltas: mergedDeltas,
+    scoreGain,
+    died: dead,
     weaponProgress: weaponProgress || null,
     weaponName: weapon?.name || null,
     weaponRarity: weapon?.rarity || null,
@@ -542,14 +624,17 @@ export function resolveChoice(career, optionIndex) {
   // Historique long pour anti-doublon (toute la run)
   const recentEventIds = [...(career.recentEventIds || []), career.currentEvent.id].slice(-20);
   const nextSeason = career.season + 1;
-  const retired = nextSeason > career.maxSeasons;
+  const retired = !dead && nextSeason > career.maxSeasons;
+  const finished = dead || retired;
 
-  const agedStats = applyEffects(stats, {
-    auto: 1,
-    def: 1,
-    cap: career.character?.prefersMagic ? 1 : 0,
-    spd: career.character?.prefersSpeed ? 1 : 0,
-  });
+  const agedStats = dead
+    ? stats
+    : applyEffects(stats, {
+        auto: 1,
+        def: 1,
+        cap: career.character?.prefersMagic ? 1 : 0,
+        spd: career.character?.prefersSpeed ? 1 : 0,
+      });
 
   let next = {
     ...career,
@@ -557,15 +642,17 @@ export function resolveChoice(career, optionIndex) {
     subclass,
     stats: agedStats,
     trophies,
+    runScore,
+    endReason: dead ? 'death' : retired ? 'retire' : career.endReason || null,
     history: [...career.history, historyEntry],
     recentEventIds,
     lastOutcome: historyEntry,
     currentEvent: null,
-    season: retired ? career.maxSeasons : nextSeason,
-    phase: retired ? 'finished' : 'playing',
+    season: finished ? (dead ? career.season : career.maxSeasons) : nextSeason,
+    phase: finished ? 'finished' : 'playing',
   };
 
-  if (!retired) {
+  if (!finished) {
     next = ensureCurrentEvent(next);
   }
 
@@ -587,14 +674,16 @@ export function computeScore(career) {
     (t.extension || 0) * 10 +
     (t.coop || 0) * 10;
 
+  // Or / renommée boostent surtout les gains par event (runScore).
+  const runScore = Number(career.runScore) || 0;
+
   return Math.round(
     (s.auto || 0) * 1.2 +
       (s.def || 0) * 1.1 +
       (s.cap || 0) * 1.2 +
       (s.spd || 0) * 1.1 +
       (s.charisme || 0) * 1.0 +
-      (s.renommee || 0) * 1.4 +
-      (s.or || 0) * 0.35 +
+      runScore +
       trophyPoints
   );
 }
@@ -615,10 +704,17 @@ export function buildFinalStory(career) {
   const wins = career.trophies?.tournoi || 0;
   const forge = career.trophies?.forge || 0;
   const owner = career.character?.ownerPseudo;
+  const seasonsLived = career.season || career.maxSeasons;
+  const died = career.endReason === 'death';
 
   let arc = owner
-    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`
-    : `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`;
+    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`
+    : `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`;
+
+  if (died) {
+    arc += ' La mort l’a cueilli avant la retraite : PV à zéro.';
+  }
+
   if (wins >= 2) arc += ' Les tournois du samedi ont appris à craindre son nom.';
   else if (wins === 1) arc += ' Une couronne arrachée sous les acclamations de l’arène.';
   else arc += ' Aucune couronne… mais des histoires à la Taverne.';
@@ -631,10 +727,10 @@ export function buildFinalStory(career) {
   } else if (weaponName && weaponRarity === RARITY.RARE) {
     arc += ` ${weaponName} a été améliorée en chemin.`;
   }
-  if (score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
-  else if (score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
+  if (!died && score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
+  else if (!died && score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
 
-  return { score, tier, story: arc };
+  return { score, tier, story: arc, died };
 }
 
 /** Migre les anciennes clés Destiny (puissance/endurance/…) vers Auto/Déf/Cap/VIT. */
@@ -652,23 +748,47 @@ function migrateDestinyStatKeys(stats) {
 
 function migrateCareerStatKeys(career) {
   if (!career || typeof career !== 'object') return career;
-  const next = { ...career, stats: migrateDestinyStatKeys(career.stats) };
+  const next = {
+    ...career,
+    stats: normalizeHpKey(migrateDestinyStatKeys(career.stats)),
+    runScore: Number(career.runScore) || 0,
+    endReason: career.endReason || null,
+  };
   if (next.character?.baseStats) {
     next.character = {
       ...next.character,
       baseStats: migrateDestinyStatKeys(next.character.baseStats),
     };
   }
+  // Sous-classe : uniquement si obtenue en run (entrée history avec subclassName)
+  const earnedSubclass = (next.history || []).some((h) => h?.subclassName);
+  if (next.subclass && !earnedSubclass) {
+    next.subclass = null;
+  }
+  if (next.character) {
+    next.character = { ...next.character, subclass: next.subclass };
+  }
   if (Array.isArray(next.history)) {
     next.history = next.history.map((h) =>
-      h?.deltas ? { ...h, deltas: migrateDestinyStatKeys(h.deltas) } : h
+      h?.deltas
+        ? { ...h, deltas: normalizeHpKey(migrateDestinyStatKeys(h.deltas)) }
+        : h
     );
   }
   if (next.lastOutcome?.deltas) {
     next.lastOutcome = {
       ...next.lastOutcome,
-      deltas: migrateDestinyStatKeys(next.lastOutcome.deltas),
+      deltas: normalizeHpKey(migrateDestinyStatKeys(next.lastOutcome.deltas)),
     };
+  }
+  // Backfill runScore pour les saves entamées avant ce système
+  if (!next.runScore && Array.isArray(next.history) && next.history.length) {
+    let total = 0;
+    for (const h of next.history) {
+      if (typeof h.scoreGain === 'number') total += h.scoreGain;
+      else total += computeEventScoreGain(h.variant || 'neutre', next.stats);
+    }
+    next.runScore = total;
   }
   return next;
 }
@@ -706,7 +826,7 @@ export function loadPantheon() {
 /** Snapshot d’une carrière terminée (local + serveur). */
 export function buildRunEntry(career, extras = {}) {
   const { score, tier, story } = buildFinalStory(career);
-  const subclass = career.subclass || career.character?.subclass || null;
+  const subclass = career.subclass || null;
   return {
     id: extras.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     date: extras.date || Date.now(),
@@ -728,7 +848,9 @@ export function buildRunEntry(career, extras = {}) {
     tierLabel: tier.label,
     trophies: career.trophies || {},
     story,
-    stats: career.stats || {},
+    stats: normalizeHpKey(career.stats || {}),
+    runScore: Number(career.runScore) || 0,
+    endReason: career.endReason || null,
   };
 }
 
@@ -756,10 +878,12 @@ export function formatDelta(deltas = {}) {
     charisme: 'Charisme',
     renommee: 'Renommée',
     or: 'Or',
-    forme: 'Forme',
+    hp: 'PV',
+    forme: 'PV',
     moral: 'Moral',
   };
-  return Object.entries(deltas)
+  const normalized = normalizeHpKey(deltas);
+  return Object.entries(normalized)
     .filter(([, v]) => typeof v === 'number' && v !== 0)
     .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${labels[k] || k}`);
 }
