@@ -174,8 +174,12 @@ export function buildTraits(career) {
   if ((s.renommee || 0) >= 30) traits.push({ id: 'renom', label: 'Nom qui porte', icon: '📢' });
   if ((s.moral || 0) >= 75) traits.push({ id: 'sangfroid', label: 'Sang-froid', icon: '🧊' });
   else if ((s.moral || 0) < 40) traits.push({ id: 'ombre', label: 'Cœur sombre', icon: '🌑' });
-  if ((s.forme || 0) >= 70) traits.push({ id: 'inoxydable', label: 'Inoxydable', icon: '💪' });
-  else if ((s.forme || 0) < 35) traits.push({ id: 'blesse', label: 'Marqué au fer', icon: '🩹' });
+  const hp = s.hp ?? s.forme ?? 0;
+  if (hp >= 70) traits.push({ id: 'inoxydable', label: 'Inoxydable', icon: '💪' });
+  else if (hp < 35) traits.push({ id: 'blesse', label: 'Marqué au fer', icon: '🩹' });
+  if (career?.endReason === 'death') {
+    traits.push({ id: 'mort', label: 'Tombé au combat', icon: '💀' });
+  }
 
   if (f.pvp_won || (t.pvp || 0) >= 1) traits.push({ id: 'duelliste', label: 'Duelliste', icon: '⚔️' });
   if (f.pvp_streak) traits.push({ id: 'serie', label: 'En série', icon: '🔥' });
@@ -183,7 +187,7 @@ export function buildTraits(career) {
   if ((t.coop || 0) >= 1 || f.coop_cleared) traits.push({ id: 'coop', label: 'Frère de fosse', icon: '🔴' });
   if ((t.bossRush || 0) >= 1 || f.rush_cleared) traits.push({ id: 'rush', label: 'Chasseur de Rush', icon: '💀' });
   if (f.mirror_read) traits.push({ id: 'miroir', label: 'Lecteur de miroirs', icon: '🪞' });
-  if (career?.subclass?.name || career?.character?.subclass?.name) {
+  if (career?.subclass?.name) {
     traits.push({ id: 'subclass', label: 'Voie choisie', icon: '🎓' });
   }
 
@@ -271,9 +275,8 @@ export function buildBadges(career, ambitionEval) {
   if (f.taverne_cellar) {
     badges.push({ id: 'cave', icon: '🗝️', label: 'Cave secrète', detail: 'Initié' });
   }
-  if (career?.subclass?.name || career?.character?.subclass?.name) {
-    const sub = career?.subclass?.name || career?.character?.subclass?.name;
-    badges.push({ id: 'sub', icon: '🎓', label: 'Sous-classe', detail: sub });
+  if (career?.subclass?.name) {
+    badges.push({ id: 'sub', icon: '🎓', label: 'Sous-classe', detail: career.subclass.name });
   }
 
   return badges.slice(0, 8);
@@ -379,8 +382,12 @@ export function buildStatRows(career) {
     { label: 'Épreuves (malus)', value: String(malusCount) },
     { label: 'Renommée', value: String(Math.round(s.renommee || 0)) },
     { label: 'Or amassé', value: String(Math.round(s.or || 0)), icon: '🪙' },
-    { label: 'Forme finale', value: `${Math.round(s.forme || 0)} %` },
+    { label: 'PV restants', value: String(Math.round(s.hp ?? s.forme ?? 0)) },
     { label: 'Moral final', value: `${Math.round(s.moral || 0)} %` },
+    {
+      label: 'Score des events',
+      value: String(Math.round(career?.runScore || 0)),
+    },
   ];
 }
 
@@ -531,7 +538,11 @@ export function buildNarratives(career, ambitionEval, traits) {
       'Entre les acclamations du samedi et les bières du soir, le mythe s’est construit en deux temps — lame et mousse.'
     );
   }
-  if ((s.forme || 0) < 40 && (s.renommee || 0) >= 25) {
+  if (career?.endReason === 'death') {
+    paragraphs.push(
+      'Les PV ont touché zéro. La Cave n’offre pas de seconde manche — seulement un tombeau et des rumeurs.'
+    );
+  } else if ((s.hp ?? s.forme ?? 100) < 40 && (s.renommee || 0) >= 25) {
     paragraphs.push(
       'Le corps a lâché avant la légende. On se souvient du nom, pas des cicatrices.'
     );
@@ -585,7 +596,7 @@ export function buildCareerRecap(career, opts = {}) {
   const faceOff = buildRivalFaceOff(career, score, pantheon);
   const narratives = buildNarratives(career, ambitionEval, traits);
 
-  const subclass = career?.subclass || career?.character?.subclass || null;
+  const subclass = career?.subclass || null;
   const headline = buildRecapHeadline(tier, career);
   const nickname = buildNickname(career);
 

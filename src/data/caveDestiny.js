@@ -229,7 +229,7 @@ export const CAVE_DESTINY_MENTORS = [
     name: 'Le Guetteur du Labyrinthe',
     icon: '🌀',
     desc: 'Cent vingt étages dans les yeux. Il sait quand un couloir ment.',
-    effects: { spd: 7, cap: 3, forme: -3 },
+    effects: { spd: 7, cap: 3, hp: -3 },
   },
   {
     id: 'nain_forge',

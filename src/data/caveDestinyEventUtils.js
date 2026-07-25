@@ -10,7 +10,8 @@ const STAT_LABELS = {
   charisme: 'Charisme',
   renommee: 'Renommée',
   or: 'Or',
-  forme: 'Forme',
+  hp: 'PV',
+  forme: 'PV',
   moral: 'Moral',
 };
 

@@ -298,7 +298,7 @@ function CharacterIdentity({ character, compact = false }) {
         <RaceClassLine
           race={character.race}
           classe={character.class}
-          subclass={character.subclass}
+          subclass={null}
           className="mt-0.5"
         />
         <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
@@ -934,7 +934,7 @@ const CaveDestiny = () => {
             <RaceClassLine
               race={career.character.race}
               classe={career.character.class}
-              subclass={career.subclass || career.character.subclass}
+              subclass={career.subclass}
               className="mt-0.5"
             />
             <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
@@ -967,18 +967,22 @@ const CaveDestiny = () => {
             <p className="text-[11px] text-stone-500">Renommée</p>
             <p className="font-bold text-amber-100">{Math.round(career.stats.renommee)}</p>
           </div>
-          {(career.subclass || career.character.subclass) && (
+          {career.subclass && (
             <div className="text-right">
               <p className="text-[11px] text-stone-500">Sous-classe</p>
               <p className="text-xs font-semibold text-violet-300 truncate max-w-[7rem]">
-                {(career.subclass || career.character.subclass)?.name}
+                {career.subclass?.name}
               </p>
             </div>
           )}
         </div>
 
         <div className="flex gap-3 mb-3">
-          <Gauge label="Forme" value={career.stats.forme} colorClass="bg-emerald-500" />
+          <Gauge
+            label="PV"
+            value={career.stats.hp ?? career.stats.forme ?? 0}
+            colorClass={(career.stats.hp ?? career.stats.forme ?? 0) <= 25 ? 'bg-red-500' : 'bg-rose-500'}
+          />
           <Gauge label="Moral" value={career.stats.moral} colorClass="bg-sky-500" />
         </div>
 
@@ -1027,9 +1031,21 @@ const CaveDestiny = () => {
                     {d}
                   </span>
                 ))}
+                {typeof outcomeFlash.scoreGain === 'number' && outcomeFlash.scoreGain > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded border border-amber-700/50 bg-amber-950/40 text-amber-300">
+                    +{outcomeFlash.scoreGain} score
+                  </span>
+                )}
               </div>
+              {outcomeFlash.died && (
+                <p className="mt-3 text-sm font-semibold text-red-300">
+                  💀 Mort — PV à 0. Fin de carrière.
+                </p>
+              )}
               <div className="mt-5">
-                <PrimaryButton onClick={continueAfterOutcome}>Continuer</PrimaryButton>
+                <PrimaryButton onClick={continueAfterOutcome}>
+                  {outcomeFlash.died ? 'Voir le destin' : 'Continuer'}
+                </PrimaryButton>
               </div>
             </>
           ) : event ? (
