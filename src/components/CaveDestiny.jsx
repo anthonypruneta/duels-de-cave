@@ -281,28 +281,62 @@ function RpgStatsBar({ stats, weapon, compact = false }) {
 
 function CharacterIdentity({ character, compact = false }) {
   if (!character) return null;
+  const stats = character.baseStats || {};
+  const statRows = [
+    ['Auto', stats.auto],
+    ['Déf', stats.def],
+    ['Cap', stats.cap],
+    ['VIT', stats.spd],
+    ['CHA', stats.charisme],
+  ];
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/80 ${
+      className={`rounded-xl border border-stone-700 bg-stone-950/80 ${
         compact ? 'px-2.5 py-2' : 'px-3 py-2.5'
       }`}
     >
-      <CharacterPortrait
-        src={character.characterImage}
-        alt={character.name}
-        size={compact ? 'sm' : 'md'}
-        className="shrink-0"
-      />
-      <div className="min-w-0 flex-1">
-        <p className={`font-semibold text-amber-50 truncate ${compact ? 'text-sm' : 'font-[Cinzel,serif] text-base'}`}>
-          {character.name}
-        </p>
-        <RaceClassLine
-          race={character.race}
-          classe={character.class}
-          subclass={null}
-          className="mt-0.5"
+      <div className="flex items-center gap-3">
+        <CharacterPortrait
+          src={character.characterImage}
+          alt={character.name}
+          size={compact ? 'sm' : 'md'}
+          className="shrink-0"
         />
+        <div className="min-w-0 flex-1">
+          <p className={`font-semibold text-amber-50 truncate ${compact ? 'text-sm' : 'font-[Cinzel,serif] text-base'}`}>
+            {character.name}
+          </p>
+          <RaceClassLine
+            race={character.race}
+            classe={character.class}
+            subclass={null}
+            className="mt-0.5"
+          />
+        </div>
+      </div>
+      <div
+        className={`grid grid-cols-5 gap-0.5 text-center rounded-lg border border-stone-700/80 bg-stone-900/70 ${
+          compact ? 'mt-2 px-1 py-1.5' : 'mt-2.5 px-1.5 py-2'
+        }`}
+      >
+        {statRows.map(([label, value]) => (
+          <div key={label}>
+            <p
+              className={`uppercase tracking-wide text-stone-500 leading-none ${
+                compact ? 'text-[8px]' : 'text-[9px]'
+              }`}
+            >
+              {label}
+            </p>
+            <p
+              className={`mt-0.5 font-bold text-amber-100 tabular-nums leading-none ${
+                compact ? 'text-[11px]' : 'text-xs'
+              }`}
+            >
+              {Math.round(value || 0)}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );
