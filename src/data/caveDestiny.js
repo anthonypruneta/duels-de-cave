@@ -139,28 +139,28 @@ export const CAVE_DESTINY_AMBITIONS = [
     name: 'Couronne du samedi',
     icon: '🏆',
     desc: 'Vaincre l’arène du tournoi et graver son nom au Hall of Fame.',
-    effects: { renommee: 8, puissance: 4, or: -2 },
+    effects: { renommee: 4, puissance: 3, or: -2 },
   },
   {
     id: 'donjons',
     name: 'Maître des donjons',
     icon: '🏰',
     desc: 'Forêt enchantée, Tour du Mage, Grotte aux merveilles, Extension… tout explorer.',
-    effects: { endurance: 5, magie: 3, or: 4 },
+    effects: { endurance: 3, magie: 2, or: 3 },
   },
   {
     id: 'forge',
     name: 'Forgé par Ornn',
     icon: '🔨',
     desc: 'Impressionner le Dieu de la Forge et reforger une arme légendaire.',
-    effects: { puissance: 5, endurance: 3, or: -4 },
+    effects: { puissance: 3, endurance: 2, or: -3 },
   },
   {
     id: 'ombres',
     name: 'Affronter les épreuves sombres',
     icon: '🪞',
     desc: 'Miroir, Cataclysme, Labyrinthe Infini : là où la légende se juge.',
-    effects: { vitesse: 6, magie: 3, charisme: -2 },
+    effects: { vitesse: 4, magie: 2, charisme: -1 },
   },
 ];
 
