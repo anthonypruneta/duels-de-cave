@@ -23,7 +23,7 @@ import {
   computeScore,
   getTier,
 } from '../utils/caveDestinyEngine';
-import { getAllCharacters } from '../services/characterService';
+import { getAllCharacters, getOwnerPseudoFromAccount } from '../services/characterService';
 
 const SETUP_STEPS = ['personnage', 'ambition', 'mentor', 'arme'];
 
@@ -118,10 +118,26 @@ const CaveDestiny = () => {
   const [charsLoading, setCharsLoading] = useState(false);
   const [charsError, setCharsError] = useState(null);
 
-  const reshuffleOffered = useCallback((pool) => {
+  const enrichOffered = useCallback(async (picked) => {
+    const enriched = await Promise.all(
+      picked.map(async (c) => {
+        if (c.ownerPseudo) return c;
+        const userId = c.id || c.userId;
+        if (!userId) return c;
+        const pseudoRes = await getOwnerPseudoFromAccount(userId);
+        const ownerPseudo = pseudoRes.success ? (pseudoRes.ownerPseudo || '') : '';
+        return ownerPseudo ? { ...c, ownerPseudo } : c;
+      })
+    );
+    setOfferedCharacters(enriched);
+  }, []);
+
+  const reshuffleOffered = useCallback(async (pool) => {
     const source = pool || allGameCharacters;
-    setOfferedCharacters(pickRandomGameCharacters(source, 3));
-  }, [allGameCharacters]);
+    const picked = pickRandomGameCharacters(source, 3);
+    setOfferedCharacters(picked);
+    await enrichOffered(picked);
+  }, [allGameCharacters, enrichOffered]);
 
   const loadGameCharacters = useCallback(async () => {
     setCharsLoading(true);
@@ -136,7 +152,9 @@ const CaveDestiny = () => {
       }
       const active = (res.data || []).filter((c) => !c.disabled && !c.archived);
       setAllGameCharacters(active);
-      setOfferedCharacters(pickRandomGameCharacters(active, 3));
+      const picked = pickRandomGameCharacters(active, 3);
+      setOfferedCharacters(picked);
+      await enrichOffered(picked);
       if (active.length === 0) {
         setCharsError('Aucun personnage actif trouvé dans Duels de Cave.');
       }
@@ -147,7 +165,7 @@ const CaveDestiny = () => {
     } finally {
       setCharsLoading(false);
     }
-  }, []);
+  }, [enrichOffered]);
 
   useEffect(() => {
     setPantheon(loadPantheon());
