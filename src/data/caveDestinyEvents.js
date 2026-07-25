@@ -6,8 +6,9 @@
  */
 
 import { CAVE_DESTINY_EVENTS_EXTRA } from './caveDestinyEventsExtra';
+import { trio, getOptionsForEvent } from './caveDestinyEventUtils';
 
-export { trio, getOptionsForEvent } from './caveDestinyEventUtils';
+export { trio, getOptionsForEvent };
 
 const CAVE_DESTINY_EVENTS_CORE = [
   {
