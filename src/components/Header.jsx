@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isAdminEmail } from './AdminOnlyRoute';
+import { CAVE_DESTINY_ONLY_MODE } from '../config/maintenanceMode';
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
@@ -133,25 +134,29 @@ function Header() {
     }
   };
 
-  const navLinks = [
-    { path: '/', label: '🏠 Accueil' },
-    { path: '/dungeons', label: '🏰 Donjons' },
-    { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
-    { path: '/boss-rush', label: '💀 Boss Rush' },
-    { path: '/mirror', label: '🪞 Miroir' },
-    { path: '/cataclysme', label: '☄️ Cataclysme' },
-    { path: '/tournament', label: '🏆 Tournoi' },
-    { path: '/training', label: '🎯 Entraînement' },
-    { path: '/taverne', label: '🍺 Taverne' },
-    { path: '/encyclopedie', label: '📚 Encyclopédie' },
-    { path: '/cave-destiny', label: '🕯️ Cave Destiny' },
-    { path: '/hall-of-fame', label: '👑 Hall of Fame' },
-    { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
-    { path: '/pvp', label: '⚔️ PvP' },
-    { path: '/pvp-classement', label: '🏆 Classement PvP' },
-    ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
-    ...(isAdmin ? [{ path: '/combat', label: '🛠️ PvP admin' }] : []),
-  ];
+  const navLinks = CAVE_DESTINY_ONLY_MODE && !isAdmin
+    ? [{ path: '/', label: '🕯️ Cave Destiny' }]
+    : [
+        { path: '/', label: '🕯️ Cave Destiny' },
+        ...(isAdmin || !CAVE_DESTINY_ONLY_MODE
+          ? [{ path: '/perso', label: '🏠 Personnage' }]
+          : []),
+        { path: '/dungeons', label: '🏰 Donjons' },
+        { path: '/labyrinthe-infini', label: '🌀 Labyrinthe infini' },
+        { path: '/boss-rush', label: '💀 Boss Rush' },
+        { path: '/mirror', label: '🪞 Miroir' },
+        { path: '/cataclysme', label: '☄️ Cataclysme' },
+        { path: '/tournament', label: '🏆 Tournoi' },
+        { path: '/training', label: '🎯 Entraînement' },
+        { path: '/taverne', label: '🍺 Taverne' },
+        { path: '/encyclopedie', label: '📚 Encyclopédie' },
+        { path: '/hall-of-fame', label: '👑 Hall of Fame' },
+        { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
+        { path: '/pvp', label: '⚔️ PvP' },
+        { path: '/pvp-classement', label: '🏆 Classement PvP' },
+        ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
+        ...(isAdmin ? [{ path: '/combat', label: '🛠️ PvP admin' }] : []),
+      ];
 
   return (
     <>
