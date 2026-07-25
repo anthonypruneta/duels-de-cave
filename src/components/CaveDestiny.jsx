@@ -301,9 +301,6 @@ function CharacterIdentity({ character, compact = false }) {
           subclass={null}
           className="mt-0.5"
         />
-        <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
-          Créateur : {character.ownerPseudo || 'Inconnu'}
-        </p>
       </div>
     </div>
   );
@@ -374,10 +371,11 @@ function RunEntryCard({ entry, rank = null, showPlayer = false }) {
             Joueur : {entry.userPseudo || 'Anonyme'}
           </p>
         )}
-        <p className="text-[11px] italic text-stone-500 mt-0.5 truncate">
-          Créateur : {entry.ownerPseudo || 'Inconnu'}
-          {entry.ambition ? ` · ${entry.ambition}` : ''}
-        </p>
+        {entry.ambition ? (
+          <p className="text-[11px] italic text-stone-500 mt-0.5 truncate">
+            {entry.ambition}
+          </p>
+        ) : null}
         <p className="text-xs text-stone-500 mt-0.5">
           {entry.tierLabel || '—'}
           {formatRunDate(entry.date) ? ` · ${formatRunDate(entry.date)}` : ''}
@@ -961,10 +959,11 @@ const CaveDestiny = () => {
               subclass={career.subclass}
               className="mt-0.5"
             />
-            <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
-              Créateur : {career.character.ownerPseudo || 'Inconnu'}
-              {career.mentor?.name ? ` · Mentor : ${career.mentor.name}` : ''}
-            </p>
+            {career.mentor?.name ? (
+              <p className="text-[11px] italic text-stone-500 truncate mt-0.5">
+                Mentor : {career.mentor.name}
+              </p>
+            ) : null}
           </div>
           <div className="text-right shrink-0">
             <p className="text-sm font-bold text-stone-200">
