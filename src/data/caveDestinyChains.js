@@ -47,7 +47,13 @@ export const CAVE_DESTINY_CHAINS = {
     id: 'couronne',
     ambition: 'tournoi',
     label: 'Voie de la couronne',
-    steps: ['hall_of_fame', 'tournoi_anciens', 'tournoi_samedi'],
+    // Qualif → Anciens → porte de la finale → couronne du samedi
+    steps: [
+      'tournoi_qualification',
+      'tournoi_anciens',
+      'tournoi_qualif_finale',
+      'tournoi_samedi',
+    ],
   },
 
   // ——— Forge ———
@@ -55,7 +61,13 @@ export const CAVE_DESTINY_CHAINS = {
     id: 'forge_ornn',
     ambition: 'forge',
     label: 'Chemin de la Forge',
-    steps: ['arme_upgrade_chemin', 'ornn_jugement', 'arme_legendaire_revelation'],
+    // Upgrade → Forge des Légendes → Jugement → révélation légendaire (via Ornn)
+    steps: [
+      'arme_upgrade_chemin',
+      'forge_ornn',
+      'ornn_jugement',
+      'arme_legendaire_revelation',
+    ],
   },
 
   // ——— Ombres ———

@@ -748,6 +748,24 @@ export function resolveChoice(career, optionIndex) {
     }
   }
 
+  // Suite Ornn : la finale impose l’arme légendaire si la suite n’est pas brisée
+  if (
+    variant !== 'malus' &&
+    career.ambition?.id === 'forge' &&
+    isAmbitionChainFinale(career.currentEvent.id, 'forge') &&
+    weapon?.rarity !== RARITY.LEGENDAIRE
+  ) {
+    const forced = grantLegendaryDestinyWeapon(weapon);
+    if (forced.changed || Object.keys(forced.statDelta || {}).length) {
+      weapon = forced.weapon;
+      stats = applyEffects(stats, forced.statDelta);
+      Object.assign(weaponDeltas, forced.statDelta);
+      outcomeText = `${outcomeText} Ornn scelle la lignée : ${forced.message || 'votre arme devient légendaire.'}`;
+    } else if (forced.message) {
+      outcomeText = `${outcomeText} ${forced.message}`;
+    }
+  }
+
   if (subclassGain?.id && !subclass) {
     subclass = { id: subclassGain.id, name: subclassGain.name };
     outcomeText = `${outcomeText} Sous-classe obtenue : ${subclass.name}.`;

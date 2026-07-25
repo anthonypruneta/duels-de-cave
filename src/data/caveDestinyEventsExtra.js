@@ -1374,4 +1374,82 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       },
     ],
   },
+  {
+    id: 'tournoi_qualification',
+    title: 'Qualifications du samedi',
+    text: 'Avant la couronne, il faut un ticket. L’arène des qualifications sent la sueur et l’encre des listes — un seul passage mène au vrai tournoi.',
+    rarity: 'uncommon',
+    tags: ['tournoi', 'combat'],
+    options: [
+      {
+        id: 'combattre',
+        label: 'Gagner votre place dans le sang',
+        check: { auto: 1.1, spd: 0.7, def: 0.5 },
+        outcomes: trio(
+          { text: 'Vous tranchez le bracket. Votre nom s’inscrit sur la liste du samedi — encre encore chaude.', deltas: { renommee: 6, auto: 3, moral: 4, hp: -4 } },
+          { text: 'Matchs serrés, place obtenue sans éclat. Vous êtes dedans ; le public, lui, attend encore.', deltas: { renommee: 2, hp: -5 } },
+          { text: 'Éliminé dès les poules. La liste se ferme sans vous — papier froid, regard des autres.', deltas: { renommee: -3, moral: -6, hp: -6 } },
+        ),
+      },
+      {
+        id: 'parade',
+        label: 'Impressionner les juges en parade',
+        check: { charisme: 1.2, renommee: 0.5 },
+        outcomes: trio(
+          { text: 'Les juges hochent. Une wildcard vous tombe dans la main — sourire, tampon, destin ouvert.', deltas: { renommee: 5, charisme: 3, moral: 3 } },
+          { text: 'Parade correcte, place de justesse. Assez pour entrer ; pas assez pour qu’on crie votre nom.', deltas: { charisme: 1, renommee: 1 } },
+          { text: 'Trop de style, pas assez de fond. On vous raye d’un trait — l’arène n’a pas ri.', deltas: { moral: -5, renommee: -2 } },
+        ),
+      },
+      {
+        id: 'parier_place',
+        label: 'Racheter une place à la Taverne',
+        check: { or: 0.2, charisme: 0.8 },
+        outcomes: trio(
+          { text: 'Un parieur craque. Votre place est payée — or qui brûle, billet qui sent la bière et la chance.', deltas: { or: -10, renommee: 2, moral: 2 } },
+          { text: 'Marché tiède. Vous payez trop pour une place moyenne — mais vous êtes inscrit.', deltas: { or: -6 } },
+          { text: 'Arnaque. Plus d’or, pas de ticket — rires dans le fond de la Taverne.', deltas: { or: -8, moral: -4, renommee: -1 } },
+        ),
+      },
+    ],
+  },
+  {
+    id: 'tournoi_qualif_finale',
+    title: 'Porte de la finale',
+    text: 'Demi-finales. L’air de l’arène est plus dense : une seule victoire ouvre la porte de la couronne, l’autre renvoie aux gradins.',
+    rarity: 'rare',
+    tags: ['tournoi', 'combat'],
+    options: [
+      {
+        id: 'forcer',
+        label: 'Forcer l’entrée en finale',
+        check: { auto: 1.3, spd: 0.8, def: 0.6 },
+        outcomes: trio(
+          { text: 'Vous brisez le dernier obstacle. La finale vous attend — torches, hush, couronne déjà trop proche.', deltas: { renommee: 8, auto: 3, hp: -6, moral: 5 } },
+          { text: 'Combat long, qualification arrachée. Vous passez ; les jambes tremblent encore.', deltas: { renommee: 3, hp: -7 } },
+          { text: 'La porte se referme. Demi-finaliste, pas finaliste — le Hall n’écrit pas les presque.', deltas: { renommee: -2, moral: -7, hp: -8 } },
+        ),
+      },
+      {
+        id: 'lire',
+        label: 'Lire l’adversaire avant le coup',
+        check: { cap: 1.1, charisme: 0.6 },
+        outcomes: trio(
+          { text: 'Vous voyez la faille. Un seul geste suffit — la finale s’ouvre comme une porte trop bien huilée.', deltas: { cap: 3, renommee: 6, spd: 2 } },
+          { text: 'Lecture correcte, duel serré. Vous passez sans panache ; la couronne, elle, attend encore.', deltas: { cap: 1, hp: -4 } },
+          { text: 'Vous avez mal lu. Contre piégé ; les gradins comprennent avant vous.', deltas: { moral: -5, hp: -7, renommee: -1 } },
+        ),
+      },
+      {
+        id: 'public',
+        label: 'Soulever le public pour le momentum',
+        check: { charisme: 1.4, renommee: 0.6 },
+        outcomes: trio(
+          { text: 'L’arène scande votre nom. L’adversaire plie sous le bruit — vous entrez en finale porté par la foule.', deltas: { charisme: 4, renommee: 7, moral: 4 } },
+          { text: 'Quelques cris, assez pour tenir. Qualification sans mythe.', deltas: { charisme: 1, renommee: 2 } },
+          { text: 'Le public se tait. Votre élan meurt avant le dernier échange.', deltas: { moral: -6, renommee: -2, hp: -5 } },
+        ),
+      },
+    ],
+  },
 ];
