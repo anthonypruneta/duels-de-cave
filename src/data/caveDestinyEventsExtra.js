@@ -37,7 +37,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         outcomes: trio(
           { text: 'Vous volez une idée de garde.', deltas: { def: 2, moral: 2 } },
           { text: 'Spectateur utile… à peine.', deltas: { moral: 1 } },
-          { text: 'Vous vous ennuyez. La forme baisse.', deltas: { hp: -3, moral: -2 } },
+          { text: 'Vous vous ennuyez. Vos PV baissent.', deltas: { hp: -3, moral: -2 } },
         ),
       },
     ],
@@ -384,7 +384,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   {
     id: 'blessure',
     title: 'Blessure tenace',
-    text: 'Une entaille refuse de se fermer. La forme vacille.',
+    text: 'Une entaille refuse de se fermer. Vos PV vacillent.',
     rarity: 'uncommon',
     tags: ['social'],
     options: [
