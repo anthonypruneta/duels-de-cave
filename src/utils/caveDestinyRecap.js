@@ -318,7 +318,7 @@ export function buildParcours(career) {
 
     if (!isHighlight && history.length > 8) continue;
 
-    let badge = h.variant === 'bonus' ? 'ÉCLAT' : h.variant === 'malus' ? 'ÉPREUVE' : 'PAS';
+    let badge = h.variant === 'bonus' ? 'RÉUSSITE' : h.variant === 'malus' ? 'ÉCHEC' : 'NEUTRE';
     let badgeTone = h.variant === 'bonus' ? 'amber' : h.variant === 'malus' ? 'rose' : 'stone';
     if (trophyGain.length) {
       const [key] = trophyGain[0];
@@ -381,6 +381,7 @@ export function buildStatRows(career) {
   const history = Array.isArray(career?.history) ? career.history : [];
   const bonusCount = history.filter((h) => h.variant === 'bonus').length;
   const malusCount = history.filter((h) => h.variant === 'malus').length;
+  const neutreCount = history.filter((h) => h.variant === 'neutre').length;
   const ambitionCount =
     Number(career?.ambitionEventsFaced) ||
     history.filter((h) => h.ambitionLinked).length;
@@ -388,8 +389,9 @@ export function buildStatRows(career) {
     { label: 'Saisons jouées', value: String(career?.maxSeasons || CAVE_DESTINY_SEASON_COUNT) },
     { label: 'Événements vécus', value: String(history.length) },
     { label: 'Voie d’ambition', value: String(ambitionCount) },
-    { label: 'Éclats (bonus)', value: String(bonusCount) },
-    { label: 'Épreuves (malus)', value: String(malusCount) },
+    { label: 'Réussites', value: String(bonusCount) },
+    { label: 'Neutres', value: String(neutreCount) },
+    { label: 'Échecs', value: String(malusCount) },
     { label: 'Renommée', value: String(Math.round(s.renommee || 0)) },
     { label: 'Or amassé', value: String(Math.round(s.or || 0)), icon: '🪙' },
     { label: 'PV restants', value: String(Math.round(s.hp ?? s.forme ?? 0)) },
