@@ -47,7 +47,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'L’Encyclopédie',
     text: 'Grimoires, bestiaires, notes de vainqueurs. Le savoir attend ceux qui lisent.',
     rarity: 'common',
-    tags: ['ombres'],
+    tags: ['ombres', 'donjons', 'social'],
     options: [
       {
         id: 'bestiaire',
@@ -83,7 +83,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Repos à la Taverne',
     text: 'Bières, chants, chibis endormis sur les tables. Parfois, ne rien faire est un choix.',
     rarity: 'common',
-    tags: ['social'],
+    tags: ['social', 'taverne'],
     options: [
       {
         id: 'boire',
@@ -159,15 +159,15 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Duel amical',
     text: 'Un autre combattant propose un affrontement sans enjeu… enfin, presque.',
     rarity: 'common',
-    tags: ['combat', 'social'],
+    tags: ['combat', 'social', 'pvp'],
     options: [
       {
         id: 'accepter',
         label: 'Accepter le duel',
         outcomes: trio(
-          { text: 'Victoire nette. Respect mutuel.', deltas: { renommee: 3, auto: 2, charisme: 2 } },
-          { text: 'Match serré. Vous apprenez.', deltas: { def: 1, forme: -3 } },
-          { text: 'Défaite amicale… l’ego moins.', deltas: { moral: -5, forme: -4 } },
+          { text: 'Victoire nette. Respect mutuel.', deltas: { renommee: 3, auto: 2, charisme: 2, trophies: { pvp: 1 } }, unlockFlag: 'pvp_won', flags: { pvp_fought: true } },
+          { text: 'Match serré. Vous apprenez.', deltas: { def: 1, forme: -3 }, unlockFlag: 'pvp_fought' },
+          { text: 'Défaite amicale… l’ego moins.', deltas: { moral: -5, forme: -4 }, unlockFlag: 'pvp_fought' },
         ),
       },
       {
@@ -231,15 +231,15 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Classement PvP',
     text: 'Les duels classés appellent. Chaque défaite s’affiche. Chaque victoire aussi.',
     rarity: 'uncommon',
-    tags: ['ombres', 'combat'],
+    tags: ['pvp', 'combat'],
     options: [
       {
         id: 'grimper',
         label: 'Enchaîner les duels pour grimper',
         outcomes: trio(
-          { text: 'Série gagnante. Votre rang monte.', deltas: { renommee: 8, auto: 3, forme: -6, trophies: { pvp: 1 } } },
-          { text: 'Équilibre victoires / défaites.', deltas: { renommee: 2, forme: -4 } },
-          { text: 'Dégringolade. Le classement est cruel.', deltas: { renommee: -6, moral: -7, forme: -5 } },
+          { text: 'Série gagnante. Votre rang monte.', deltas: { renommee: 8, auto: 3, forme: -6, trophies: { pvp: 1 } }, unlockFlag: 'pvp_won', flags: { pvp_fought: true } },
+          { text: 'Équilibre victoires / défaites.', deltas: { renommee: 2, forme: -4 }, unlockFlag: 'pvp_fought' },
+          { text: 'Dégringolade. Le classement est cruel.', deltas: { renommee: -6, moral: -7, forme: -5 }, unlockFlag: 'pvp_fought' },
         ),
       },
       {
@@ -386,7 +386,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Blessure tenace',
     text: 'Une entaille refuse de se fermer. La forme vacille.',
     rarity: 'uncommon',
-    tags: ['social'],
+    tags: ['social', 'taverne'],
     options: [
       {
         id: 'soigner',
@@ -432,7 +432,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Salamèche dans l’arène',
     text: 'Chez Red, une flamme cracheuse bloque le passage. Petite. Vicieuse.',
     rarity: 'uncommon',
-    tags: ['donjons', 'combat'],
+    tags: ['donjons', 'combat', 'coop'],
     options: [
       {
         id: 'eau',
@@ -725,7 +725,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Ronflex endormi',
     text: 'Dans l’arène de Red, un Ronflex bloque tout le couloir. Il ronfle. Fort.',
     rarity: 'rare',
-    tags: ['donjons'],
+    tags: ['donjons', 'coop'],
     options: [
       {
         id: 'reveiller',
@@ -1077,7 +1077,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
     title: 'Pointeau ADN',
     text: 'Au bout de l’arène de Red, le Pointeau ADN attend ceux qui ont tout vaincu.',
     rarity: 'legendary',
-    tags: ['donjons'],
+    tags: ['donjons', 'coop'],
+    requiresAnyEvent: ['coop_red', 'coop_ping_red', 'coop_dracaufeu'],
+    followsFlag: 'coop_cleared',
     options: [
       {
         id: 'prendre',

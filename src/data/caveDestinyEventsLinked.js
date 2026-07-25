@@ -23,9 +23,9 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
     ['pvp', 'combat'],
     [
       opt('accepter', 'Accepter le duel', trio(
-        { text: 'Victoire nette. Le lobby retient votre pseudo.', deltas: { auto: 3, renommee: 4, trophies: { pvp: 1 } }, unlockFlag: 'pvp_won' },
-        { text: 'Match serré. Respect mutuel.', deltas: { auto: 1, forme: -3 } },
-        { text: 'Défaite sèche. Le chat est cruel.', deltas: { moral: -6, forme: -5 } },
+        { text: 'Victoire nette. Le lobby retient votre pseudo.', deltas: { auto: 3, renommee: 4, trophies: { pvp: 1 } }, unlockFlag: 'pvp_won', flags: { pvp_fought: true } },
+        { text: 'Match serré. Respect mutuel.', deltas: { auto: 1, forme: -3 }, unlockFlag: 'pvp_fought' },
+        { text: 'Défaite sèche. Le chat est cruel.', deltas: { moral: -6, forme: -5 }, unlockFlag: 'pvp_fought' },
       ), { check: { auto: 1.2, spd: 0.7 } }),
       opt('observer', 'Regarder d’abord les autres duels', trio(
         { text: 'Vous lisez les styles. Avantage mental.', deltas: { cap: 2, charisme: 2 } },
@@ -62,12 +62,12 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'On vous trouve peureux.', deltas: { renommee: -3 } },
       )),
     ],
-    { requiresEvent: 'pvp_defi_ouvert', followsEvent: 'pvp_defi_ouvert' }
+    { requiresAnyEvent: ['pvp_defi_ouvert', 'classement_pvp', 'duel_ami'], requiresFlag: 'pvp_fought', followsFlag: 'pvp_fought' }
   ),
   ev(
     'pvp_classement',
-    'Classement des duels',
-    'Le tableau ELO clignote. Une place juste au-dessus de vous…',
+    'Retour au classement des duels',
+    'Le tableau ELO clignote encore. Une place juste au-dessus de vous…',
     'uncommon',
     ['pvp'],
     [
@@ -86,7 +86,8 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Repos.', deltas: { moral: 1 } },
         { text: 'Vous y pensez quand même.', deltas: { moral: -2 } },
       )),
-    ]
+    ],
+    { requiresAnyEvent: ['classement_pvp', 'pvp_defi_ouvert'], followsEvent: 'classement_pvp' }
   ),
   ev(
     'pvp_mirror_style',
@@ -209,7 +210,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'On se moque.', deltas: { renommee: -2 } },
       )),
     ],
-    { requiresFlag: 'pvp_won' }
+    { requiresFlag: 'pvp_won', followsFlag: 'mirror_read' }
   ),
   ev(
     'pvp_apres_serie',
@@ -222,7 +223,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Vous devenez le boss du soir.', deltas: { renommee: 6, auto: 2, trophies: { pvp: 1 } } },
         { text: 'Quelques wins, quelques pertes.', deltas: { forme: -4, renommee: 2 } },
         { text: 'Trop. Vous cassez.', deltas: { forme: -12, moral: -6 } },
-      ), { check: { auto: 1, forme: 0.5 } }),
+      ), { check: { auto: 1, def: 0.5 } }),
       opt('comptoir', 'Raconter à la Taverne', trio(
         { text: 'Pots offerts. Légende du comptoir.', deltas: { charisme: 4, or: 6, trophies: { taverne: 1 } } },
         { text: 'Quelques rires.', deltas: { charisme: 2, or: 2 } },
@@ -270,13 +271,13 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
     ['coop', 'donjons'],
     [
       opt('rejoindre', 'Rejoindre le duo', trio(
-        { text: 'Synchro parfaite. Pointeau mérité.', deltas: { charisme: 3, def: 2, or: 5, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared' },
-        { text: 'Clear correct.', deltas: { or: 2, forme: -4 } },
-        { text: 'Wipe. Votre allié ragequit.', deltas: { moral: -6, forme: -7 } },
+        { text: 'Synchro parfaite. Pointeau mérité.', deltas: { charisme: 3, def: 2, or: 5, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared', flags: { coop_queued: true } },
+        { text: 'Clear correct.', deltas: { or: 2, forme: -4 }, unlockFlag: 'coop_queued' },
+        { text: 'Wipe. Votre allié ragequit.', deltas: { moral: -6, forme: -7 }, unlockFlag: 'coop_queued' },
       ), { check: { def: 0.9, charisme: 0.8, auto: 0.6 } }),
       opt('host', 'Host vous-même', trio(
-        { text: 'Bon lobby. Clear propre.', deltas: { charisme: 4, renommee: 2, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared' },
-        { text: 'Invité moyen.', deltas: { forme: -3 } },
+        { text: 'Bon lobby. Clear propre.', deltas: { charisme: 4, renommee: 2, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared', flags: { coop_queued: true } },
+        { text: 'Invité moyen.', deltas: { forme: -3 }, unlockFlag: 'coop_queued' },
         { text: 'Personne ne join.', deltas: { moral: -3 } },
       ), { check: { charisme: 1.1 } }),
       opt('passer', 'Passer son tour', trio(
@@ -309,12 +310,12 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Mauvaise call. Wipe.', deltas: { moral: -5, renommee: -1 } },
       ), { check: { charisme: 1.2, cap: 0.5 } }),
     ],
-    { followsEvent: 'coop_ping_red', requiresEvent: 'coop_ping_red' }
+    { requiresFlag: 'coop_queued', followsFlag: 'coop_queued' }
   ),
   ev(
     'coop_ronflex',
-    'Ronflex bloque le couloir',
-    'Encore. Il ronfle. Votre duo soupire.',
+    'Ronflex… encore',
+    'Votre duo revoit le même Ronflex. Cette fois, vous êtes deux à soupirer.',
     'common',
     ['coop', 'donjons'],
     [
@@ -334,7 +335,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Grillés.', deltas: { forme: -8 } },
       ), { check: { spd: 1.3 } }),
     ],
-    { requiresFlag: 'coop_cleared', followsFlag: 'coop_cleared' }
+    { requiresEvent: 'ronflex_red', requiresFlag: 'coop_queued', followsEvent: 'ronflex_red' }
   ),
   ev(
     'coop_dracaufeu',
@@ -349,7 +350,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Wipe au souffle.', deltas: { forme: -14, moral: -6 } },
       ), { check: { auto: 1.1, cap: 0.8, charisme: 0.5 } }),
       opt('tank_call', 'Tank + calls de dodge', trio(
-        { text: 'Aucun souffle pris.', deltas: { def: 4, charisme: 3, forme: -5, trophies: { coop: 1 } } },
+        { text: 'Aucun souffle pris.', deltas: { def: 4, charisme: 3, forme: -5, trophies: { coop: 1 } }, unlockFlag: 'coop_dragon' },
         { text: 'Quelques brûlures.', deltas: { def: 2, forme: -6 } },
         { text: 'Mauvaise call.', deltas: { forme: -12, moral: -4 } },
       ), { check: { def: 1.2, charisme: 0.9 } }),
@@ -359,7 +360,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Honneur blessé.', deltas: { renommee: -2, moral: -3 } },
       )),
     ],
-    { requiresEvent: 'coop_strategie' }
+    { requiresFlag: 'coop_queued', followsEvent: 'coop_strategie' }
   ),
   ev(
     'coop_apres_dragon',
@@ -515,7 +516,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
   ev(
     'taverne_comptoir',
     'Comptoir de la Taverne',
-    'Bruit, mousse, rumeurs. Le vrai hub des Duels.',
+    'Après vos premières soirées, le tavernier vous laisse approcher le vrai hub : dettes, cotes, rumeurs.',
     'common',
     ['taverne', 'social'],
     [
@@ -534,7 +535,8 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Un verre.', deltas: { moral: 1, or: -1 } },
         { text: 'Trop. La nuit est floue.', deltas: { forme: -6, moral: -2, or: -3 } },
       )),
-    ]
+    ],
+    { requiresAnyEvent: ['taverne', 'repos_taverne'], followsEvent: 'taverne' }
   ),
   ev(
     'taverne_pari_secret',
@@ -763,17 +765,17 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
   ev(
     'rush_porte',
     'Porte du Boss Rush',
-    'Six bosses. Une seule vie. La porte attend.',
+    'Après votre premier contact avec les six, une porte prioritaire s’ouvre. Une seule vie.',
     'uncommon',
     ['rush', 'combat', 'ombres'],
     [
       opt('entrer', 'Entrer dans le Rush', trio(
-        { text: 'Vous nettoyez la moitié… puis le reste.', deltas: { auto: 3, def: 3, forme: -10, trophies: { bossRush: 1 } }, unlockFlag: 'rush_cleared' },
-        { text: 'Trois bosses. Honneur.', deltas: { auto: 2, forme: -8 } },
-        { text: 'Mort au premier.', deltas: { forme: -12, moral: -6 } },
+        { text: 'Vous nettoyez la moitié… puis le reste.', deltas: { auto: 3, def: 3, forme: -10, trophies: { bossRush: 1 } }, unlockFlag: 'rush_cleared', flags: { rush_entered: true } },
+        { text: 'Trois bosses. Honneur.', deltas: { auto: 2, forme: -8 }, unlockFlag: 'rush_entered' },
+        { text: 'Mort au premier.', deltas: { forme: -12, moral: -6 }, unlockFlag: 'rush_entered' },
       ), { check: { auto: 1.1, def: 1.0, spd: 0.6 } }),
       opt('préparer', 'Préparer potions et plan', trio(
-        { text: 'Plan solide. Confiance.', deltas: { cap: 2, forme: 3, moral: 2 } },
+        { text: 'Plan solide. Confiance.', deltas: { cap: 2, forme: 3, moral: 2 }, unlockFlag: 'rush_entered' },
         { text: 'Préparation ok.', deltas: { forme: 1 } },
         { text: 'Vous perdez votre créneau.', deltas: { moral: -3 } },
       )),
@@ -782,7 +784,8 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Ok.', deltas: {} },
         { text: 'Peur visible.', deltas: { renommee: -2 } },
       )),
-    ]
+    ],
+    { requiresFlag: 'rush_entered', followsFlag: 'rush_entered' }
   ),
   ev(
     'rush_checkpoint',
@@ -807,7 +810,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Info fausse.', deltas: { moral: -3, forme: -2 } },
       ), { check: { cap: 1.1 } }),
     ],
-    { requiresEvent: 'rush_porte', followsEvent: 'rush_porte' }
+    { requiresAnyEvent: ['rush_porte', 'boss_rush'], requiresFlag: 'rush_entered', followsEvent: 'rush_porte' }
   ),
   ev(
     'rush_dernier',
@@ -981,12 +984,12 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Impatience.', deltas: { moral: -2 } },
       )),
     ],
-    { requiresAnyEvent: ['rush_porte', 'rush_dernier'] }
+    { requiresAnyEvent: ['rush_porte', 'rush_dernier', 'boss_rush'] }
   ),
   ev(
     'rush_legend_whisper',
     'Murmure légendaire post-Rush',
-    'Une arme légendaire ne se révèle qu’aux survivants du sixième.',
+    'Une arme légendaire ne se révèle qu’après avoir forgé le Rush dans le fer.',
     'legendary',
     ['rush', 'arme', 'arme_legendaire'],
     [
@@ -1010,7 +1013,7 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
         { text: 'Arnaque.', deltas: { or: -4, moral: -3 } },
       )),
     ],
-    { requiresFlag: 'rush_cleared', requiresAllEvents: ['rush_porte'] }
+    { requiresFlag: 'rush_weapon', followsFlag: 'rush_weapon' }
   ),
 
   // ========== CHAÎNES CROISÉES / LIÉS À L’EXISTANT ==========
@@ -1138,6 +1141,31 @@ export const CAVE_DESTINY_EVENTS_LINKED = [
       )),
     ],
     { requiresFlag: 'taverne_favor', followsFlag: 'taverne_favor' }
+  ),
+  ev(
+    'taverne_cave_reseau',
+    'Réseau de la cave secrète',
+    'Les habitués de la cave se souviennent de vous. Un cercle se forme.',
+    'rare',
+    ['taverne', 'ombres'],
+    [
+      opt('intégrer', 'Intégrer le cercle', trio(
+        { text: 'Contacts rares. La Cave vous ouvre d’autres portes.', deltas: { charisme: 4, renommee: 5, or: 8, trophies: { taverne: 1 } } },
+        { text: 'On vous tolère.', deltas: { charisme: 2, or: 3 } },
+        { text: 'Trop bavard. On vous écarte.', deltas: { renommee: -3, moral: -3 } },
+      ), { check: { charisme: 1.2 } }),
+      opt('info', 'Acheter une info exclusive', trio(
+        { text: 'Tip PvP + créneau Rush. Double levier.', deltas: { renommee: 3, or: -6 }, unlockFlag: 'pvp_tip' },
+        { text: 'Info correcte.', deltas: { or: -3, charisme: 1 } },
+        { text: 'Intox payante.', deltas: { or: -8, moral: -2 } },
+      ), { require: { stats: { or: 8 } } }),
+      opt('discret', 'Rester à la lisière', trio(
+        { text: 'Mystère utile.', deltas: { moral: 2, spd: 1 } },
+        { text: 'Ok.', deltas: {} },
+        { text: 'Occasion manquée.', deltas: { moral: -1 } },
+      )),
+    ],
+    { requiresFlag: 'taverne_cellar', followsFlag: 'taverne_cellar' }
   ),
   ev(
     'lien_pvp_tip',

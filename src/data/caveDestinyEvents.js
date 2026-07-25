@@ -572,13 +572,13 @@ const CAVE_DESTINY_EVENTS_CORE = [
     title: 'La Taverne',
     text: 'Musique, paris, chibis sur les tables. Les champions du tournoi boivent… et jugent.',
     rarity: 'common',
-    tags: ['social'],
+    tags: ['social', 'taverne'],
     options: [
       {
         id: 'recit',
         label: 'Raconter vos exploits (enjolivés)',
         outcomes: trio(
-          { text: 'L’assemblée croit assez pour vous offrir une tournée… et un contact.', deltas: { charisme: 6, renommee: 3, or: -2 } },
+          { text: 'L’assemblée croit assez pour vous offrir une tournée… et un contact.', deltas: { charisme: 6, renommee: 3, or: -2, trophies: { taverne: 1 } }, unlockFlag: 'taverne_rumor' },
           { text: 'Quelques rires polis.', deltas: { charisme: 2 } },
           { text: 'On vous coupe : « Encore une histoire. »', deltas: { charisme: -3, moral: -4 } },
         ),
@@ -587,7 +587,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
         id: 'pari',
         label: 'Rejoindre la table des paris',
         outcomes: trio(
-          { text: 'Votre intuition paie. La Taverne murmure votre nom.', deltas: { or: 14, renommee: 3, charisme: 2 } },
+          { text: 'Votre intuition paie. La Taverne murmure votre nom.', deltas: { or: 14, renommee: 3, charisme: 2, trophies: { taverne: 1 } } },
           { text: 'Ni riche, ni ruiné.', deltas: { or: 2 } },
           { text: 'Mauvaise série. La bourse fond.', deltas: { or: -12, moral: -5 } },
         ),
@@ -596,7 +596,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
         id: 'ecouter',
         label: 'Écouter les rumeurs de combats et de donjons',
         outcomes: trio(
-          { text: 'Une rumeur vraie sur un boss. Avantage net.', deltas: { cap: 3, spd: 2, moral: 2 } },
+          { text: 'Une rumeur vraie sur un boss. Avantage net.', deltas: { cap: 3, spd: 2, moral: 2 }, unlockFlag: 'taverne_rumor' },
           { text: 'Des demi-vérités. Toujours ça.', deltas: { cap: 1 } },
           { text: 'Rumeur fausse. Vous perdrez du temps plus tard.', deltas: { moral: -3 } },
         ),
@@ -628,33 +628,33 @@ const CAVE_DESTINY_EVENTS_CORE = [
     title: 'Boss Rush',
     text: 'Vyraxion, Licorne, Liche, Ornn, Gojo, Koro Sensei… Six épreuves. Une seule respiration.',
     rarity: 'rare',
-    tags: ['combat', 'ombres'],
+    tags: ['combat', 'ombres', 'rush'],
     options: [
       {
         id: 'full',
         label: 'Affronter les six épreuves d’affilée',
         outcomes: trio(
-          { text: 'Les six tombent. Vos mains tremblent encore.', deltas: { def: 5, auto: 4, forme: -11, renommee: 9, trophies: { bossRush: 1 } } },
-          { text: 'Vous tombez au milieu… puis recommencez plus sage.', deltas: { def: 2, forme: -8, moral: -2 } },
-          { text: 'Vyraxion vous écrase d’entrée. Repos forcé.', deltas: { forme: -14, moral: -7 } },
+          { text: 'Les six tombent. Vos mains tremblent encore.', deltas: { def: 5, auto: 4, forme: -11, renommee: 9, trophies: { bossRush: 1 } }, unlockFlag: 'rush_cleared', flags: { rush_entered: true } },
+          { text: 'Vous tombez au milieu… puis recommencez plus sage.', deltas: { def: 2, forme: -8, moral: -2 }, unlockFlag: 'rush_entered' },
+          { text: 'Vyraxion vous écrase d’entrée. Repos forcé.', deltas: { forme: -14, moral: -7 }, unlockFlag: 'rush_entered' },
         ),
       },
       {
         id: 'checkpoint',
         label: 'S’arrêter après trois bosses',
         outcomes: trio(
-          { text: 'Trois scalpés. Orgueil intact, gains solides.', deltas: { def: 3, or: 6, renommee: 3, forme: -4 } },
-          { text: 'Progression honorable.', deltas: { def: 1, or: 3, forme: -3 } },
-          { text: 'Même trois, c’était trop.', deltas: { forme: -9, moral: -4 } },
+          { text: 'Trois scalpés. Orgueil intact, gains solides.', deltas: { def: 3, or: 6, renommee: 3, forme: -4 }, unlockFlag: 'rush_entered' },
+          { text: 'Progression honorable.', deltas: { def: 1, or: 3, forme: -3 }, unlockFlag: 'rush_entered' },
+          { text: 'Même trois, c’était trop.', deltas: { forme: -9, moral: -4 }, unlockFlag: 'rush_entered' },
         ),
       },
       {
         id: 'gojo',
         label: 'Garder des forces pour Satoru Gojo',
         outcomes: trio(
-          { text: 'Bleu, Rouge, Violet… vous survivez au territoire.', deltas: { cap: 5, renommee: 6, forme: -6 } },
-          { text: 'Vous passez Gojo de justesse.', deltas: { cap: 2, forme: -7 } },
-          { text: 'Le Violet vous efface.', deltas: { forme: -13, moral: -6 } },
+          { text: 'Bleu, Rouge, Violet… vous survivez au territoire.', deltas: { cap: 5, renommee: 6, forme: -6 }, unlockFlag: 'rush_entered' },
+          { text: 'Vous passez Gojo de justesse.', deltas: { cap: 2, forme: -7 }, unlockFlag: 'rush_entered' },
+          { text: 'Le Violet vous efface.', deltas: { forme: -13, moral: -6 }, unlockFlag: 'rush_entered' },
         ),
       },
       {
@@ -662,9 +662,9 @@ const CAVE_DESTINY_EVENTS_CORE = [
         label: 'Compter sur la polyvalence humaine',
         ifRace: ['Humain'],
         outcomes: trio(
-          { text: 'Un peu de tout, au bon moment. Victoire nette.', deltas: { auto: 2, def: 2, cap: 2, spd: 2, renommee: 3 } },
-          { text: 'Polyvalence correcte.', deltas: { auto: 1, cap: 1 } },
-          { text: 'Trop dispersé. Aucune force ne suffit.', deltas: { moral: -4, forme: -5 } },
+          { text: 'Un peu de tout, au bon moment. Victoire nette.', deltas: { auto: 2, def: 2, cap: 2, spd: 2, renommee: 3 }, unlockFlag: 'rush_entered' },
+          { text: 'Polyvalence correcte.', deltas: { auto: 1, cap: 1 }, unlockFlag: 'rush_entered' },
+          { text: 'Trop dispersé. Aucune force ne suffit.', deltas: { moral: -4, forme: -5 }, unlockFlag: 'rush_entered' },
         ),
       },
       {
@@ -672,9 +672,9 @@ const CAVE_DESTINY_EVENTS_CORE = [
         label: 'Enchaîner le cycle Feu / Vie / Acide',
         ifClass: ['Alchimiste'],
         outcomes: trio(
-          { text: 'Le cycle est parfait. Les bosses fondent.', deltas: { cap: 5, def: 2, or: 4, renommee: 3 } },
-          { text: 'Flasques utiles, timing moyen.', deltas: { cap: 2 } },
-          { text: 'Mauvaise flasque au mauvais boss.', deltas: { forme: -9, moral: -4 } },
+          { text: 'Le cycle est parfait. Les bosses fondent.', deltas: { cap: 5, def: 2, or: 4, renommee: 3 }, unlockFlag: 'rush_entered' },
+          { text: 'Flasques utiles, timing moyen.', deltas: { cap: 2 }, unlockFlag: 'rush_entered' },
+          { text: 'Mauvaise flasque au mauvais boss.', deltas: { forme: -9, moral: -4 }, unlockFlag: 'rush_entered' },
         ),
       },
     ],
@@ -740,33 +740,33 @@ const CAVE_DESTINY_EVENTS_CORE = [
     title: 'L’arène de Red',
     text: 'Deux combattants. Les créatures de Red. Au bout : le Pointeau ADN.',
     rarity: 'uncommon',
-    tags: ['donjons', 'social'],
+    tags: ['donjons', 'social', 'coop'],
     options: [
       {
         id: 'mener',
         label: 'Mener le duo face à Dracaufeu',
         outcomes: trio(
-          { text: 'Duo parfait. Pointeau ADN en récompense.', deltas: { charisme: 5, renommee: 6, or: 8, trophies: { coop: 1 } } },
-          { text: 'Victoire correcte, coordination moyenne.', deltas: { charisme: 2, or: 3, forme: -4 } },
-          { text: 'Défaite spectaculaire sur Florizarre.', deltas: { charisme: -3, moral: -6, forme: -6 } },
+          { text: 'Duo parfait. Pointeau ADN en récompense.', deltas: { charisme: 5, renommee: 6, or: 8, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared', flags: { coop_queued: true } },
+          { text: 'Victoire correcte, coordination moyenne.', deltas: { charisme: 2, or: 3, forme: -4 }, unlockFlag: 'coop_queued' },
+          { text: 'Défaite spectaculaire sur Florizarre.', deltas: { charisme: -3, moral: -6, forme: -6 }, unlockFlag: 'coop_queued' },
         ),
       },
       {
         id: 'soutien',
         label: 'Jouer le soutien discret',
         outcomes: trio(
-          { text: 'Vous portez sans briller. Votre allié s’en souvient.', deltas: { def: 3, cap: 2, or: 5, moral: 3 } },
-          { text: 'Soutien honnête.', deltas: { def: 1, or: 2 } },
-          { text: 'On oublie de vous laisser le butin.', deltas: { or: 1, moral: -4 } },
+          { text: 'Vous portez sans briller. Votre allié s’en souvient.', deltas: { def: 3, cap: 2, or: 5, moral: 3, trophies: { coop: 1 } }, unlockFlag: 'coop_cleared', flags: { coop_queued: true } },
+          { text: 'Soutien honnête.', deltas: { def: 1, or: 2 }, unlockFlag: 'coop_queued' },
+          { text: 'On oublie de vous laisser le butin.', deltas: { or: 1, moral: -4 }, unlockFlag: 'coop_queued' },
         ),
       },
       {
         id: 'pikachu',
         label: 'Prioriser Pikachu avant qu’il charge',
         outcomes: trio(
-          { text: 'Priorité parfaite. La salle s’ouvre.', deltas: { spd: 4, renommee: 3, or: 4 } },
-          { text: 'Vous le baissez… un peu tard.', deltas: { spd: 1, forme: -3 } },
-          { text: 'La foudre vous trouve d’abord.', deltas: { forme: -10, moral: -4 } },
+          { text: 'Priorité parfaite. La salle s’ouvre.', deltas: { spd: 4, renommee: 3, or: 4 }, unlockFlag: 'coop_queued' },
+          { text: 'Vous le baissez… un peu tard.', deltas: { spd: 1, forme: -3 }, unlockFlag: 'coop_queued' },
+          { text: 'La foudre vous trouve d’abord.', deltas: { forme: -10, moral: -4 }, unlockFlag: 'coop_queued' },
         ),
       },
       {
