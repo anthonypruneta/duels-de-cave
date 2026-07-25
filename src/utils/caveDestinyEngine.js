@@ -16,6 +16,7 @@ import {
   grantLegendaryDestinyWeapon,
   fillWeaponPlaceholders,
   isWeaponMaxed,
+  pickRandomGameCharacters,
 } from '../data/caveDestiny';
 import { getEventBaseWeight } from '../data/caveDestinyRarity';
 import {
@@ -374,11 +375,222 @@ function characterBonus(character, deltas) {
   return next;
 }
 
+/** Profil compagnon compact (save locale + options d’event). */
+export function slimCompanionProfile(char) {
+  if (!char) return null;
+  return {
+    id: char.id || char.userId,
+    name: char.name || 'Allié',
+    race: char.race || null,
+    class: char.class || null,
+    characterImage: char.characterImage || null,
+    ownerPseudo: char.ownerPseudo || null,
+    baseStats: char.baseStats || null,
+  };
+}
+
 /**
- * @param {{ character: object, ambitionId: string, mentorId: string, weaponId: string }} opts
+ * Échantillon de persos réels pour la quête Red (évite de sérialiser tout le roster).
+ */
+export function buildCompanionPool(allCharacters, playerId, count = 18) {
+  const list = Array.isArray(allCharacters) ? allCharacters : [];
+  if (!list.length) return [];
+
+  // Pool déjà en profils Destiny (baseStats) — échantillon direct
+  if (list[0]?.baseStats && !list[0]?.base) {
+    const exclude = new Set(playerId ? [String(playerId)] : []);
+    const filtered = list.filter((c) => c?.id && !exclude.has(String(c.id)));
+    const source = filtered.length ? filtered : list.filter((c) => c?.id);
+    const shuffled = [...source];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, count).map(slimCompanionProfile).filter((c) => c?.id);
+  }
+
+  const picked = pickRandomGameCharacters(list, count, {
+    excludeIds: playerId ? [playerId] : [],
+  });
+  return picked.map(slimCompanionProfile).filter((c) => c?.id);
+}
+
+const RED_ARENA_EVENT_IDS = new Set(['salameche_red', 'ronflex_red', 'coop_red']);
+
+function pickRedCompanions(career, count = 3) {
+  const pool = Array.isArray(career?.companionPool) ? career.companionPool : [];
+  const used = new Set(
+    [...(career?.flags?.redAlliesUsed || []), career?.character?.id]
+      .filter(Boolean)
+      .map(String)
+  );
+  const available = pool.filter((c) => c?.id && !used.has(String(c.id)));
+  const source = available.length >= count ? available : pool.filter((c) => c?.id);
+  if (!source.length) return [];
+  // Mélange simple
+  const shuffled = [...source];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, count).map(slimCompanionProfile);
+}
+
+function companionStatHint(ally) {
+  const s = ally?.baseStats || {};
+  const ranked = [
+    ['auto', s.auto],
+    ['def', s.def],
+    ['cap', s.cap],
+    ['spd', s.spd],
+    ['charisme', s.charisme],
+  ]
+    .filter(([, v]) => typeof v === 'number')
+    .sort((a, b) => b[1] - a[1]);
+  return ranked[0]?.[0] || 'charisme';
+}
+
+function withAllyTip(deltas, ally) {
+  const next = { ...deltas };
+  const tip = companionStatHint(ally);
+  next[tip] = (Number(next[tip]) || 0) + 2;
+  return next;
+}
+
+function buildRedAllyOutcomes(eventId, ally) {
+  const name = ally?.name || 'votre allié';
+
+  if (eventId === 'salameche_red') {
+    return trio(
+      {
+        text: `${name} et vous étouffez la Salamèche. Vapeur, rires, Red qui hoche — le duo tient.`,
+        deltas: withAllyTip({ charisme: 3, or: 4, renommee: 2, hp: -3 }, ally),
+      },
+      {
+        text: `${name} couvre votre flanc. La flamme baisse assez pour passer — brûlures partagées.`,
+        deltas: { charisme: 1, hp: -5, or: 2 },
+      },
+      {
+        text: `Mauvais timing avec ${name}. Le feu vous sépare ; Red ricane, l’arène reste fermée.`,
+        deltas: { hp: -10, moral: -4, charisme: -1 },
+      },
+      [32, 40, 28],
+    );
+  }
+  if (eventId === 'ronflex_red') {
+    return trio(
+      {
+        text: `${name} trouve l’angle. Le Ronflex s’écarte — baie partagée, couloir libre, duo soudé.`,
+        deltas: withAllyTip({ charisme: 3, or: 6, hp: 2, renommee: 2 }, ally),
+      },
+      {
+        text: `Avec ${name}, vous grimpez / poussez / attendez… assez pour passer, pas pour la légende.`,
+        deltas: { charisme: 1, spd: 1, hp: -2 },
+      },
+      {
+        text: `${name} et vous finissez sous la masse. Ronflement, noir, moral en miettes.`,
+        deltas: { hp: -12, moral: -5, charisme: -2 },
+      },
+      [32, 40, 28],
+    );
+  }
+  // coop_red finale
+  return trio(
+    {
+      text: `Duo parfait avec ${name}. Dracaufeu tombe ; le Pointeau ADN reconnaît deux noms.`,
+      deltas: withAllyTip(
+        { charisme: 5, renommee: 6, or: 8, hp: -4, trophies: { coop: 1 } },
+        ally
+      ),
+    },
+    {
+      text: `Victoire correcte aux côtés de ${name}. Coordination moyenne, butin partagé, respect muet.`,
+      deltas: { charisme: 2, or: 3, hp: -5, renommee: 2 },
+    },
+    {
+      text: `Florizarre vous ensevelit. ${name} vous regarde, muet — le duo se brise sous les racines.`,
+      deltas: { charisme: -3, moral: -6, hp: -8 },
+    },
+    [34, 38, 28],
+  );
+}
+
+function buildRedRefuseOutcomes(eventId) {
+  const mid = eventId !== 'salameche_red';
+  return trio(
+    {
+      text: mid
+        ? 'Vous saluez Red et sortez. L’arène reste ouverte… pour d’autres duos.'
+        : 'Vous déclinez. Red hausse les épaules — d’autres cherchent un allié.',
+      deltas: { moral: 2 },
+    },
+    {
+      text: 'Pas ce soir. Vous laissez l’arène derrière vous, sans gloire ni brûlure.',
+      deltas: {},
+    },
+    {
+      text: 'Quelques regards en coin. Refuser Red n’est pas une honte… mais ce n’est pas non plus une couronne.',
+      deltas: { moral: -2, renommee: -1 },
+    },
+    [40, 45, 15],
+  );
+}
+
+/** Options dynamiques : 3 personnages réels + refus (suite Arène de Red). */
+function expandRedArenaEvent(event, career) {
+  if (!RED_ARENA_EVENT_IDS.has(event?.id)) return event;
+  // Offre déjà matérialisée (save / même tirage)
+  if (event.options?.some((o) => o.companion)) return event;
+
+  const allies = pickRedCompanions(career, 3);
+  const allyOptions = allies.map((ally) => ({
+    id: `ally_${ally.id}`,
+    label: `Combattre avec ${ally.name}`,
+    detail: [ally.race, ally.class, ally.ownerPseudo].filter(Boolean).join(' · '),
+    companion: ally,
+    outcomes: buildRedAllyOutcomes(event.id, ally),
+  }));
+
+  // Filet si pool vide : choix générique pour ne pas bloquer la run
+  if (!allyOptions.length) {
+    allyOptions.push({
+      id: 'ally_generic',
+      label: 'Combattre avec un allié de fortune',
+      detail: 'Aucun perso réel disponible dans le pool',
+      companion: null,
+      outcomes: buildRedAllyOutcomes(event.id, { name: 'un allié de fortune', baseStats: {} }),
+    });
+  }
+
+  const texts = {
+    salameche_red:
+      'Red vous propose un duo. Une Salamèche cracheuse bloque le passage — choisissez un allié parmi les vrais caves, ou refusez.',
+    ronflex_red:
+      'Un Ronflex barre le couloir. Red attend votre prochain duo — un autre perso réel… ou la sortie.',
+    coop_red:
+      'Finale chez Red. Choisissez un dernier allié réel pour affronter l’arène — ou refusez et partez.',
+  };
+
+  return {
+    ...event,
+    text: texts[event.id] || event.text,
+    options: [
+      ...allyOptions,
+      {
+        id: 'refuser',
+        label: 'Refuser et quitter l’arène de Red',
+        exitChain: true,
+        outcomes: buildRedRefuseOutcomes(event.id),
+      },
+    ],
+  };
+}
+
+/**
+ * @param {{ character: object, ambitionId: string, mentorId: string, weaponId: string, companionPool?: object[] }} opts
  * `character` = profil déjà construit via buildDestinyCharacterFromGame
  */
-export function createCareer({ character, ambitionId, mentorId, weaponId }) {
+export function createCareer({ character, ambitionId, mentorId, weaponId, companionPool = [] }) {
   const ambition = CAVE_DESTINY_AMBITIONS.find((a) => a.id === ambitionId);
   const mentor = CAVE_DESTINY_MENTORS.find((m) => m.id === mentorId);
   const weapon = getDestinyWeaponById(weaponId);
@@ -409,9 +621,13 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
 
   // Pas de sous-classe au départ : elle se gagne en run (Collège, etc.)
   const careerCharacter = { ...character, subclass: null };
+  const pool =
+    Array.isArray(companionPool) && companionPool.length
+      ? companionPool.map(slimCompanionProfile).filter((c) => c?.id)
+      : [];
 
   return {
-    version: 8,
+    version: 9,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -421,6 +637,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
     mentor,
     weapon,
     subclass: null,
+    companionPool: pool,
     stats,
     trophies: emptyTrophies(),
     runScore: 0,
@@ -665,6 +882,7 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
 
 function materializeEvent(raw, career) {
   let event = expandSubclassEvent(raw, career.character, career);
+  event = expandRedArenaEvent(event, career);
   const options = getOptionsForEvent(event, career.character, career);
   const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
   const ambitionLinked = isAmbitionLinkedEvent(localized, career);
@@ -682,6 +900,10 @@ function materializeEvent(raw, career) {
     ambitionName: ambitionLinked ? career.ambition?.name || null : null,
     ambitionIcon: ambitionLinked ? career.ambition?.icon || '🎯' : null,
   };
+}
+
+function redEventNeedsExpand(event) {
+  return RED_ARENA_EVENT_IDS.has(event?.id) && !event?.options?.some((o) => o.companion || o.id === 'refuser');
 }
 
 export function drawEvent(career) {
@@ -714,7 +936,16 @@ export function drawEvent(career) {
 
 export function ensureCurrentEvent(career) {
   if (career.phase !== 'playing') return career;
-  if (career.currentEvent) return career;
+  if (career.currentEvent) {
+    // Migre les saves / tirages Red sans options compagnons
+    if (redEventNeedsExpand(career.currentEvent)) {
+      const raw = CAVE_DESTINY_EVENTS.find((e) => e.id === career.currentEvent.id);
+      if (raw) {
+        return { ...career, currentEvent: materializeEvent(raw, career) };
+      }
+    }
+    return career;
+  }
   const currentEvent = drawEvent(career);
   const clearedQueue =
     career.queuedEventId && currentEvent?.id === career.queuedEventId
@@ -725,6 +956,19 @@ export function ensureCurrentEvent(career) {
     currentEvent,
     queuedEventId: clearedQueue,
   };
+}
+
+/** Réinjecte un pool compagnons (reprise de save / pool chargé tardivement). */
+export function withCompanionPool(career, rawPool) {
+  if (!career) return career;
+  if (Array.isArray(career.companionPool) && career.companionPool.length >= 3) {
+    return ensureCurrentEvent(career);
+  }
+  const nextPool = buildCompanionPool(rawPool, career.character?.id, 18);
+  return ensureCurrentEvent({
+    ...career,
+    companionPool: nextPool.length ? nextPool : career.companionPool || [],
+  });
 }
 
 /** Met à jour la progression de suite après un choix. */
@@ -820,8 +1064,13 @@ export function resolveChoice(career, optionIndex) {
       outcomeText = `${outcomeText} (Votre lignée légendaire a tenu — une forge divine l’aurait rendue plus sûre encore.)`;
     }
   }
+  const redRefuse =
+    RED_ARENA_EVENT_IDS.has(career.currentEvent.id) &&
+    (option.id === 'refuser' || option.exitChain);
   const chainMeta = buildChainUiMeta(career.currentEvent.id);
-  if (ambitionLinked && career.ambition?.name) {
+  if (redRefuse && chainMeta) {
+    outcomeText = `${outcomeText} La quête « ${chainMeta.label} » s’arrête ici.`;
+  } else if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
         ? `Finale de suite : sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
@@ -887,6 +1136,16 @@ export function resolveChoice(career, optionIndex) {
       delete nextFlags.ornn_duel_pending;
     }
   }
+  // Arène de Red : mémorise l’allié choisi (et évite de le reproposer)
+  if (RED_ARENA_EVENT_IDS.has(career.currentEvent.id) && option.companion?.id) {
+    nextFlags.redAlly = slimCompanionProfile(option.companion);
+    const used = new Set([...(nextFlags.redAlliesUsed || []).map(String)]);
+    used.add(String(option.companion.id));
+    nextFlags.redAlliesUsed = Array.from(used);
+  }
+  if (RED_ARENA_EVENT_IDS.has(career.currentEvent.id) && option.id === 'refuser') {
+    delete nextFlags.redAlly;
+  }
 
   if (subclassGain?.id && !subclass) {
     subclass = { id: subclassGain.id, name: subclassGain.name };
@@ -937,15 +1196,22 @@ export function resolveChoice(career, optionIndex) {
         spd: career.character?.prefersSpeed ? 1 : 0,
       });
 
-  // Suites 1 étape « optionnelles » : décliner / reporter ne casse pas la progression
+  // Suites optionnelles : décliner / reporter / refuser Red → pas d’étape forcée
   const softLeave =
     (career.currentEvent.id === 'tournoi_anciens' && option.id !== 'participer') ||
-    (career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter');
-  const chainState = dead
-    ? { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null }
-    : softLeave
-      ? { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null }
-      : advanceChainState(career, career.currentEvent.id, variant);
+    (career.currentEvent.id === 'ornn_jugement' && option.id === 'reporter') ||
+    redRefuse;
+  let chainState;
+  if (dead) {
+    chainState = { chainProgress: { ...(career.chainProgress || {}) }, queuedEventId: null };
+  } else if (softLeave) {
+    const chainProgress = { ...(career.chainProgress || {}) };
+    // Refus Red : reset la quête (pourra être relancée plus tard)
+    if (redRefuse) delete chainProgress.arene_red;
+    chainState = { chainProgress, queuedEventId: null };
+  } else {
+    chainState = advanceChainState(career, career.currentEvent.id, variant);
+  }
 
   let next = {
     ...career,

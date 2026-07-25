@@ -430,39 +430,11 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   {
     id: 'salameche_red',
     title: 'Salamèche dans l’arène',
-    text: 'Chez Red, une flamme cracheuse bloque le passage. Petite. Vicieuse. L’air sent déjà le poil brûlé.',
+    text: 'Red vous propose un duo. Une flamme cracheuse bloque le passage — choisissez un allié réel, ou refusez l’arène.',
     rarity: 'uncommon',
-    tags: ['donjons', 'combat'],
-    options: [
-      {
-        id: 'eau',
-        label: 'Étouffer la flamme d’un sort d’eau',
-        outcomes: trio(
-          { text: 'Vapeur. Le chemin s’ouvre — sifflement, cendre mouillée, et Red qui hoche ailleurs.', deltas: { cap: 3, or: 4, renommee: 2 } },
-          { text: 'La flamme baisse… puis revient. Vous avancez à demi brûlé, à demi victorieux.', deltas: { cap: 1, hp: -3 } },
-          { text: 'Vous ratez. Brûlure — peau qui claque, odeur amère, moral qui fond avec la manche.', deltas: { hp: -8, moral: -2 } },
-        ),
-      },
-      {
-        id: 'corps',
-        label: 'Passer en force',
-        outcomes: trio(
-          { text: 'Vous encaissez et tranchez. Feu sur l’épaule, lame juste — le passage est à vous.', deltas: { def: 3, auto: 2, hp: -4 } },
-          { text: 'Passage brûlant. Vous traversez en courant, cicatrices chaudes, butin tiède au bout.', deltas: { hp: -5, or: 2 } },
-          { text: 'Trop de feu. Recul. La flamme vous chasse comme un chien, crachats et honte.', deltas: { hp: -9, moral: -3 } },
-        ),
-      },
-      {
-        id: 'turtle',
-        label: 'Avancer sous carapace',
-        ifRace: ['Turtlekin', 'Écailleux', 'Dragonkin'],
-        outcomes: trio(
-          { text: 'Les flammes glissent. Avancée royale — écailles qui luisent, feu qui glisse, orgueil intact.', deltas: { def: 5, renommee: 2 } },
-          { text: 'Vous tiédisez, mais avancez. La carapace tient ; la chaleur, elle, s’installe quand même.', deltas: { def: 2, hp: -2 } },
-          { text: 'Même la carapace chauffe trop. Vous sortez fumant, plus lent, moins fier.', deltas: { hp: -7 } },
-        ),
-      },
-    ],
+    tags: ['donjons', 'combat', 'social'],
+    // Options injectées dynamiquement (3 personnages réels + refus)
+    options: [],
   },
   {
     id: 'arme_commune',
@@ -738,38 +710,11 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   {
     id: 'ronflex_red',
     title: 'Ronflex endormi',
-    text: 'Dans l’arène de Red, un Ronflex bloque tout le couloir. Il ronfle. Fort. Le sol vibre à chaque expiration.',
+    text: 'Le couloir est bloqué par un Ronflex. Red attend votre duo — un autre allié réel… ou la sortie.',
     rarity: 'rare',
-    tags: ['donjons'],
-    options: [
-      {
-        id: 'reveiller',
-        label: 'Le réveiller… doucement',
-        outcomes: trio(
-          { text: 'Il s’écarte. Chemin libre + baie mystérieuse — douceur sucrée, passage enfin ouvert.', deltas: { or: 8, hp: 3, renommee: 2 } },
-          { text: 'Il grogne, puis se rendort ailleurs. Vous glissez dans l’espace libre, cœur battant.', deltas: { or: 2 } },
-          { text: 'Il se lève de travers. Charge — masse, odeur, et vous contre le mur comme une puce.', deltas: { hp: -11, moral: -4 } },
-        ),
-      },
-      {
-        id: 'grimper',
-        label: 'Grimper par-dessus',
-        outcomes: trio(
-          { text: 'Escalade absurde réussie. Fourrure sous les doigts, équilibre de funambule, rires étouffés.', deltas: { spd: 3, charisme: 2 } },
-          { text: 'Vous glissez, mais passez. Une chute molle, un genou meurtri, le couloir enfin libre.', deltas: { hp: -3 } },
-          { text: 'Il se retourne. Vous tombe dessus — noir soudain, poids du monde, moral en miettes.', deltas: { hp: -12, moral: -5 } },
-        ),
-      },
-      {
-        id: 'attendre',
-        label: 'Attendre qu’il bouge',
-        outcomes: trio(
-          { text: 'Patience. Il part seul. Vous méditez — souffle calme, ronflement qui s’éloigne, paix rare.', deltas: { moral: 4, hp: 2 } },
-          { text: 'Longue attente. Les heures traînent ; vous gagnez un peu de repos, rien d’éclatant.', deltas: { hp: 1 } },
-          { text: 'Des heures perdues. Frustration — chaque ronflement vous rappelle que le temps fuit sans vous.', deltas: { moral: -4 } },
-        ),
-      },
-    ],
+    tags: ['donjons', 'social'],
+    // Options injectées dynamiquement (3 personnages réels + refus)
+    options: [],
   },
   {
     id: 'mjollnir',

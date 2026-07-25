@@ -737,58 +737,11 @@ const CAVE_DESTINY_EVENTS_CORE = [
   {
     id: 'coop_red',
     title: 'L’arène de Red',
-    text: 'Deux combattants. Les créatures de Red. Au bout : le Pointeau ADN — et la preuve que vous savez partager le sang.',
+    text: 'Finale chez Red. Les créatures attendent. Choisissez un dernier allié réel pour le duo — ou refusez et sortez.',
     rarity: 'uncommon',
     tags: ['donjons', 'social'],
-    options: [
-      {
-        id: 'mener',
-        label: 'Mener le duo face à Dracaufeu',
-        outcomes: trio(
-          { text: 'Duo parfait. Pointeau ADN en récompense ; Dracaufeu s’effondre sous votre rythme commun.', deltas: { charisme: 5, renommee: 6, or: 8, trophies: { coop: 1 } } },
-          { text: 'Victoire correcte, coordination moyenne. Vous gagnez ; le duo reste un peu désaccordé.', deltas: { charisme: 2, or: 3, hp: -4 } },
-          { text: 'Défaite spectaculaire sur Florizarre. Les racines vous prennent ; votre allié vous regarde, muet.', deltas: { charisme: -3, moral: -6, hp: -6 } },
-        ),
-      },
-      {
-        id: 'soutien',
-        label: 'Jouer le soutien discret',
-        outcomes: trio(
-          { text: 'Vous portez sans briller. Votre allié s’en souvient : le Pointeau a deux noms, même si un seul hurle.', deltas: { def: 3, cap: 2, or: 5, moral: 3 } },
-          { text: 'Soutien honnête. Vous avez tenu la ligne ; le butin vous frôle sans vraiment vous choisir.', deltas: { def: 1, or: 2 } },
-          { text: 'On oublie de vous laisser le butin. Votre rôle discret devient invisible — et ça pique.', deltas: { or: 1, moral: -4 } },
-        ),
-      },
-      {
-        id: 'pikachu',
-        label: 'Prioriser Pikachu avant qu’il charge',
-        outcomes: trio(
-          { text: 'Priorité parfaite. La salle s’ouvre ; Pikachu tombe avant la charge, et le duo respire.', deltas: { spd: 4, renommee: 3, or: 4 } },
-          { text: 'Vous le baissez… un peu tard. La charge vous érafle ; la salle reste ouverte, à demi.', deltas: { spd: 1, hp: -3 } },
-          { text: 'La foudre vous trouve d’abord. Pikachu charge ; vous goûtez l’éclair avant même d’avoir priorisé.', deltas: { hp: -10, moral: -4 } },
-        ),
-      },
-      {
-        id: 'demoniste',
-        label: 'Laisser le familier ouvrir la voie',
-        ifClass: ['Demoniste'],
-        outcomes: trio(
-          { text: 'Le familier retient les créatures. Vous finissez : la voie s’ouvre dans un souffle de pacte tenu.', deltas: { cap: 5, renommee: 3, or: 4 } },
-          { text: 'Familier utile, pas décisif. Il tient un temps ; vous devez encore porter le coup.', deltas: { cap: 2 } },
-          { text: 'Le familier tombe trop vite. La voie se referme ; vous restez seul face aux créatures de Red.', deltas: { cap: -1, moral: -4, hp: -3 } },
-        ),
-      },
-      {
-        id: 'gnome',
-        label: 'Gagner le duel de vitesse',
-        ifRace: ['Gnome', 'Elfe'],
-        outcomes: trio(
-          { text: 'Vous frappez toujours en premier. L’arène s’incline ; la vitesse devient votre signature.', deltas: { spd: 6, auto: 2, renommee: 3 } },
-          { text: 'Légère avance de vitesse. Assez pour esquiver un coup, pas pour dicter toute l’arène.', deltas: { spd: 2 } },
-          { text: 'L’ennemi est plus rapide. Mauvaise surprise : vous goûtez le second rang, et le sol.', deltas: { moral: -4, hp: -4 } },
-        ),
-      },
-    ],
+    // Options injectées dynamiquement (3 personnages réels + refus)
+    options: [],
   },
 ];
 

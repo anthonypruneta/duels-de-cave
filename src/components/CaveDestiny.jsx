@@ -24,6 +24,8 @@ import {
   formatDelta,
   computeScore,
   getTier,
+  buildCompanionPool,
+  withCompanionPool,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
@@ -453,11 +455,23 @@ const CaveDestiny = () => {
   }, [ensurePool]);
 
   useEffect(() => {
-    const saved = loadSave();
-    if (saved?.phase === 'playing') {
-      setCareer(ensureCurrentEvent(saved));
-    }
-  }, []);
+    let cancelled = false;
+    const boot = async () => {
+      const saved = loadSave();
+      if (!saved || saved.phase !== 'playing') return;
+      try {
+        const pool = await ensurePool();
+        if (cancelled) return;
+        setCareer(withCompanionPool(ensureCurrentEvent(saved), pool));
+      } catch {
+        if (!cancelled) setCareer(ensureCurrentEvent(saved));
+      }
+    };
+    boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [ensurePool]);
 
   useEffect(() => {
     if (career) persistSave(career);
@@ -568,10 +582,19 @@ const CaveDestiny = () => {
     setScreen('arme');
   };
 
-  const selectWeapon = (id) => {
+  const selectWeapon = async (id) => {
     const nextSetup = { ...setup, weaponId: id };
     setSetup(nextSetup);
-    const created = ensureCurrentEvent(createCareer(nextSetup));
+    let companionPool = [];
+    try {
+      const pool = await ensurePool();
+      companionPool = buildCompanionPool(pool, nextSetup.character?.id, 18);
+    } catch {
+      companionPool = [];
+    }
+    const created = ensureCurrentEvent(
+      createCareer({ ...nextSetup, companionPool })
+    );
     setCareer(created);
     setScreen('game');
   };
@@ -1176,6 +1199,7 @@ const CaveDestiny = () => {
                 {event.options.map((opt, i) => {
                   const locked = !!opt.locked;
                   const requireLabels = opt.requireLabels || [];
+                  const companion = opt.companion;
                   return (
                     <button
                       key={opt.id || opt.label}
@@ -1185,31 +1209,59 @@ const CaveDestiny = () => {
                       className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition ${
                         locked
                           ? 'border-stone-700/80 bg-stone-950/40 text-stone-500 cursor-not-allowed'
-                          : event.ambitionLinked
-                            ? 'border-violet-600/45 text-stone-100 hover:border-violet-400/70 hover:bg-violet-950/35'
-                            : 'border-stone-600 text-stone-100 hover:border-amber-500/60 hover:bg-amber-950/25'
+                          : opt.exitChain || opt.id === 'refuser'
+                            ? 'border-stone-600/80 text-stone-300 hover:border-stone-400/70 hover:bg-stone-900/50'
+                            : companion
+                              ? 'border-rose-700/45 text-stone-100 hover:border-rose-400/70 hover:bg-rose-950/30'
+                            : event.ambitionLinked
+                              ? 'border-violet-600/45 text-stone-100 hover:border-violet-400/70 hover:bg-violet-950/35'
+                              : 'border-stone-600 text-stone-100 hover:border-amber-500/60 hover:bg-amber-950/25'
                       }`}
                     >
-                      <span className="flex items-start justify-between gap-2">
-                        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                          <span>{opt.label}</span>
-                          {!locked && requireLabels.length > 0 && (
-                            <span className="text-[11px] font-medium text-emerald-400/95">
-                              {requireLabels.join(' · ')}
+                      <span className="flex items-start gap-3">
+                        {companion && (
+                          <CharacterPortrait
+                            src={companion.characterImage}
+                            alt={companion.name}
+                            size="sm"
+                            className="shrink-0"
+                          />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="flex flex-col gap-0.5">
+                              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span>{opt.label}</span>
+                                {!locked && requireLabels.length > 0 && (
+                                  <span className="text-[11px] font-medium text-emerald-400/95">
+                                    {requireLabels.join(' · ')}
+                                  </span>
+                                )}
+                              </span>
+                              {companion && (
+                                <span className="text-[11px] text-rose-200/85">
+                                  {[companion.race, companion.class, companion.ownerPseudo]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </span>
+                              )}
+                              {!companion && opt.detail && (
+                                <span className="text-[11px] text-stone-400">{opt.detail}</span>
+                              )}
+                            </span>
+                            {locked && (
+                              <span className="shrink-0 text-[10px] uppercase tracking-wide text-stone-500">
+                                🔒
+                              </span>
+                            )}
+                          </span>
+                          {locked && opt.lockReasons?.length > 0 && (
+                            <span className="block mt-1 text-[11px] text-stone-500 leading-snug">
+                              Requis : {opt.lockReasons.join(' · ')}
                             </span>
                           )}
                         </span>
-                        {locked && (
-                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-stone-500">
-                            🔒
-                          </span>
-                        )}
                       </span>
-                      {locked && opt.lockReasons?.length > 0 && (
-                        <span className="block mt-1 text-[11px] text-stone-500 leading-snug">
-                          Requis : {opt.lockReasons.join(' · ')}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
