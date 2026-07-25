@@ -346,7 +346,7 @@ const CaveDestiny = () => {
             Cave Destiny
           </h1>
           <p className="mt-4 text-sm text-stone-300 leading-relaxed max-w-sm">
-            Incarnez un perso de Duels de Cave et surviving la saison… en cave.
+            Incarnez un perso de Duels de Cave et survivez à la saison — donjons, tournoi, forge… en vrai cave.
           </p>
 
           <div className="mt-10 w-full space-y-3 max-w-sm">
@@ -420,7 +420,7 @@ const CaveDestiny = () => {
         <StepDots step="personnage" />
         <ScreenTitle
           title="Choisissez un personnage"
-          sub="Trois persos réels de Duels de Cave. Bonne chance, cave."
+          sub="Trois persos réels tirés du roster. Choisissez votre destin, cave."
         />
 
         {charsLoading && (

@@ -116,7 +116,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 2,
+    version: 3,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -273,15 +273,15 @@ export function buildFinalStory(career) {
   const owner = career.character?.ownerPseudo;
 
   let arc = owner
-    ? `${name} (${owner}) a chase « ${ambition} » pendant ${career.maxSeasons} saisons en mode cave assumé.`
-    : `${name} a chase « ${ambition} » pendant ${career.maxSeasons} saisons en mode cave assumé.`;
-  if (wins >= 2) arc += ' Les tournois du samedi ont même eu peur.';
-  else if (wins === 1) arc += ' Une couronne. Probablement un bracket soft.';
-  else arc += ' Zéro titre. Beaucoup de « skill issue ».';
+    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`
+    : `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons — un vrai cave des Duels.`;
+  if (wins >= 2) arc += ' Les tournois du samedi ont appris à craindre son nom.';
+  else if (wins === 1) arc += ' Une couronne arrachée sous les acclamations de l’arène.';
+  else arc += ' Aucune couronne… mais des histoires à la Taverne.';
 
-  if (forge >= 1) arc += ' Ornn a quand même forgé quelque chose.';
-  if (score >= 360) arc += ' On arrête (presque) de l’appeler cave.';
-  else if (score < 160) arc += ' Cave jusqu’au bout. Respect.';
+  if (forge >= 1) arc += ' Ornn a reconnu son bras dans le feu de la forge.';
+  if (score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
+  else if (score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
 
   return { score, tier, story: arc };
 }
