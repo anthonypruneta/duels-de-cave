@@ -1177,4 +1177,155 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       },
     ],
   },
+
+  {
+    id: 'arme_upgrade_chemin',
+    title: 'L’appel du fer',
+    text: 'Votre {arme} vibre. Une forge ambulante, un coffre, un artisan… quelque chose peut la faire évoluer vers {arme_rare}.',
+    rarity: 'uncommon',
+    tags: ['arme', 'arme_upgrade', 'forge'],
+    options: [
+      {
+        id: 'forger',
+        label: 'Confier {arme} à l’artisan',
+        outcomes: trio(
+          {
+            text: 'Le métal se tend. Nouvelle forme.',
+            deltas: { or: -5, forme: -2 },
+            weaponProgress: 'upgrade',
+          },
+          { text: 'Travail correct, pas de miracle.', deltas: { puissance: 1, or: -2 } },
+          { text: 'Il abîme le pommeau. Rage contenue.', deltas: { or: -4, moral: -4 } },
+        ),
+      },
+      {
+        id: 'coffre',
+        label: 'Chercher les plans d’upgrade dans un coffre',
+        outcomes: trio(
+          {
+            text: 'Plans trouvés. Vous appliquez la méthode.',
+            deltas: { magie: 1 },
+            weaponProgress: 'upgrade',
+          },
+          { text: 'Plans incomplets. Inspiration tiède.', deltas: { magie: 1, or: 2 } },
+          { text: 'Piège. Le coffre claque sur vos doigts.', deltas: { forme: -7, moral: -3 } },
+        ),
+      },
+      {
+        id: 'patienter',
+        label: 'Garder {arme} telle quelle',
+        outcomes: trio(
+          { text: 'Patience. Vous affinez votre geste.', deltas: { moral: 3, vitesse: 1 } },
+          { text: 'Rien ne change.', deltas: {} },
+          { text: 'Vous doutez de votre choix d’arme.', deltas: { moral: -3 } },
+        ),
+      },
+    ],
+  },
+  {
+    id: 'arme_legendaire_revelation',
+    title: 'Révélation de lignée',
+    text: 'Un ancien murmure : la lignée de {arme} culmine en {arme_legendaire}. Très peu y touchent.',
+    rarity: 'epic',
+    tags: ['arme', 'arme_legendaire', 'forge'],
+    options: [
+      {
+        id: 'rituel',
+        label: 'Tenter le rituel de lignée',
+        outcomes: [
+          {
+            variant: 'bonus',
+            weight: 10,
+            text: 'Le ciel de la forge se fend.',
+            deltas: { renommee: 6, forme: -8, or: -6, trophies: { forge: 1 } },
+            weaponProgress: 'legendary',
+          },
+          {
+            variant: 'neutre',
+            weight: 45,
+            text: 'Le rituel n’atteint pas le mythe… mais avance d’un cran.',
+            deltas: { or: -3, forme: -4 },
+            weaponProgress: 'upgrade',
+          },
+          {
+            variant: 'malus',
+            weight: 45,
+            text: 'Le rituel échoue. Votre esprit vacille.',
+            deltas: { forme: -10, moral: -6 },
+          },
+        ],
+      },
+      {
+        id: 'etudier',
+        label: 'Étudier les runes sans forcer',
+        outcomes: trio(
+          { text: 'Compréhension. Votre prochain upgrade sera plus sûr.', deltas: { magie: 4, moral: 2 } },
+          { text: 'Quelques notes utiles.', deltas: { magie: 1 } },
+          { text: 'Les runes mentent. Vertige.', deltas: { moral: -4 } },
+        ),
+      },
+      {
+        id: 'renoncer',
+        label: 'Renoncer au mythe pour cette saison',
+        outcomes: trio(
+          { text: 'Humilité. La Taverne respecte ça… parfois.', deltas: { charisme: 2, moral: 3 } },
+          { text: 'Vous repartez.', deltas: {} },
+          { text: 'On murmure lâcheté.', deltas: { renommee: -3, moral: -2 } },
+        ),
+      },
+    ],
+  },
+  {
+    id: 'arme_donjon_echo',
+    title: 'Écho d’arme dans le donjon',
+    text: 'Au fond d’une salle, un socle porte l’empreinte de {arme_legendaire}. Votre {arme} réagit.',
+    rarity: 'rare',
+    tags: ['arme', 'arme_upgrade', 'donjons'],
+    options: [
+      {
+        id: 'poser',
+        label: 'Poser {arme} sur le socle',
+        outcomes: [
+          {
+            variant: 'bonus',
+            weight: 8,
+            text: 'L’empreinte s’empare du métal. Lignée accomplie.',
+            deltas: { renommee: 5, forme: -5 },
+            weaponProgress: 'legendary',
+          },
+          {
+            variant: 'neutre',
+            weight: 52,
+            text: 'Le socle chauffe. Upgrade stable.',
+            deltas: { forme: -3 },
+            weaponProgress: 'upgrade',
+          },
+          {
+            variant: 'malus',
+            weight: 40,
+            text: 'Rejet. Une décharge vous renvoie.',
+            deltas: { forme: -9, moral: -4 },
+          },
+        ],
+      },
+      {
+        id: 'prier',
+        label: 'Prier la lignée sans toucher',
+        outcomes: trio(
+          { text: 'Une bénédiction discrète vous suit.', deltas: { moral: 4, magie: 2 } },
+          { text: 'Silence respectueux.', deltas: { moral: 1 } },
+          { text: 'Rien. Juste le froid de la pierre.', deltas: { moral: -2 } },
+        ),
+      },
+      {
+        id: 'briser',
+        label: 'Briser le socle pour le butin',
+        outcomes: trio(
+          { text: 'Or et fragments. Pas de gloire d’arme.', deltas: { or: 14, renommee: -1 } },
+          { text: 'Quelques pièces.', deltas: { or: 4 } },
+          { text: 'Le socle se venge. Malédiction légère.', deltas: { forme: -8, moral: -3, or: 2 } },
+        ),
+      },
+    ],
+  },
 ];

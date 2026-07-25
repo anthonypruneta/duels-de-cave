@@ -182,15 +182,19 @@ const CAVE_DESTINY_EVENTS_CORE = [
   {
     id: 'forge_ornn',
     title: 'Forge des Légendes',
-    text: 'Les soufflets d’Ornn rugissent. Seul un guerrier digne peut impressionner le Dieu de la Forge.',
+    text: 'Les soufflets d’Ornn rugissent. Votre {arme} attend d’être jugée — rare… ou, les dieux aidant, {arme_legendaire}.',
     rarity: 'rare',
-    tags: ['forge'],
+    tags: ['forge', 'arme', 'arme_upgrade'],
     options: [
       {
         id: 'fight',
-        label: 'Défier Ornn pour reforger votre arme',
+        label: 'Défier Ornn pour reforger {arme}',
         outcomes: trio(
-          { text: 'Ornn incline la tête. La reforgé s’ancre dans le métal.', deltas: { puissance: 8, endurance: 3, or: -6, forme: -7, trophies: { forge: 1 } } },
+          {
+            text: 'Ornn incline la tête. Le métal chante.',
+            deltas: { or: -6, forme: -7, trophies: { forge: 1 } },
+            weaponProgress: 'upgrade',
+          },
           { text: 'Presque. Le dieu exige encore une épreuve.', deltas: { puissance: 2, forme: -8, or: -2 } },
           { text: 'Ornn n’est pas impressionné. Les étincelles s’éteignent.', deltas: { forme: -12, moral: -6 } },
         ),
@@ -206,20 +210,41 @@ const CAVE_DESTINY_EVENTS_CORE = [
       },
       {
         id: 'offrir',
-        label: 'Présenter votre arme légendaire en offrande',
-        outcomes: trio(
-          { text: 'Ornn touche le fer. Un murmure divin vous guide.', deltas: { charisme: 3, puissance: 3, magie: 2 } },
-          { text: 'Il regarde… puis se tait.', deltas: { charisme: 1 } },
-          { text: 'L’offrande est jugée indigne. Humiliation tiède.', deltas: { renommee: -4, moral: -4 } },
-        ),
+        label: 'Présenter {arme} en offrande',
+        outcomes: [
+          {
+            variant: 'bonus',
+            weight: 12,
+            text: 'Miracle. Ornn ne se contente pas d’upgrader — il transcende.',
+            deltas: { renommee: 4, forme: -5, or: -4, trophies: { forge: 1 } },
+            weaponProgress: 'legendary',
+          },
+          {
+            variant: 'neutre',
+            weight: 48,
+            text: 'Il regarde… puis reforgé d’un cran.',
+            deltas: { charisme: 1, or: -2 },
+            weaponProgress: 'upgrade',
+          },
+          {
+            variant: 'malus',
+            weight: 40,
+            text: 'L’offrande est jugée indigne. Humiliation tiède.',
+            deltas: { renommee: -4, moral: -4 },
+          },
+        ],
       },
       {
         id: 'nain',
         label: 'Invoquer la tradition des forges naines',
         ifRace: ['Nain', 'Turtlekin', 'Dragonkin'],
         outcomes: trio(
-          { text: 'Vous tenez comme la montagne. Ornn forge.', deltas: { endurance: 7, puissance: 3, trophies: { forge: 1 } } },
-          { text: 'Vous encaisez… juste assez.', deltas: { endurance: 3, forme: -6 } },
+          {
+            text: 'Vous tenez comme la montagne. Ornn forge.',
+            deltas: { endurance: 3, trophies: { forge: 1 } },
+            weaponProgress: 'upgrade',
+          },
+          { text: 'Vous encaissez… juste assez.', deltas: { endurance: 3, forme: -6 } },
           { text: 'Même la pierre peut se fendre.', deltas: { forme: -13, endurance: -1, moral: -5 } },
         ),
       },

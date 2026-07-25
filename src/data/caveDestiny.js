@@ -180,42 +180,88 @@ export const CAVE_DESTINY_MENTORS = [
     desc: 'Il a porté la couronne. Puis s’est retiré. Il veut un digne successeur.',
     effects: { renommee: 6, puissance: 4, charisme: 3 },
   },
+  {
+    id: 'forestier',
+    name: 'Le forestier de la Forêt enchantée',
+    icon: '🌲',
+    desc: 'Il connaît chaque clairière, chaque embuscade, chaque murmure d’arbre.',
+    effects: { endurance: 5, vitesse: 4, or: 3 },
+  },
+  {
+    id: 'bibliothecaire',
+    name: 'Le bibliothécaire de l’Encyclopédie',
+    icon: '📚',
+    desc: 'Bestiaires, lignées d’armes, notes de vainqueurs : tout est dans sa tête.',
+    effects: { magie: 6, charisme: 3, moral: 3 },
+  },
+  {
+    id: 'parieur',
+    name: 'Un parieur de la Taverne',
+    icon: '🎲',
+    desc: 'Il lit les cotes mieux que les sorts. Chance… ou arnaque.',
+    effects: { or: 10, charisme: 4, moral: -2 },
+  },
+  {
+    id: 'guetteur',
+    name: 'Le Guetteur du Labyrinthe',
+    icon: '🌀',
+    desc: 'Cent vingt étages dans les yeux. Il sait quand un couloir ment.',
+    effects: { vitesse: 7, magie: 3, forme: -3 },
+  },
+  {
+    id: 'nain_forge',
+    name: 'Un maître-nain de la Forge',
+    icon: '⛏️',
+    desc: 'Il a vu Ornn travailler. Il ne le dira jamais… mais il enseigne.',
+    effects: { endurance: 7, puissance: 4, or: -2 },
+  },
+  {
+    id: 'spectre_tour',
+    name: 'Un spectre de la Tour du Mage',
+    icon: '👻',
+    desc: 'Ancien aspirant. Il murmure les passifs oubliés entre deux étages.',
+    effects: { magie: 8, vitesse: 3, moral: -3 },
+  },
+  {
+    id: 'veteran_red',
+    name: 'Un vétéran de l’arène de Red',
+    icon: '🔴',
+    desc: 'Il a survécu à Dracaufeu. Deux fois. Il parle encore trop fort.',
+    effects: { puissance: 5, charisme: 4, endurance: 2 },
+  },
+  {
+    id: 'messager_hall',
+    name: 'Un messager du Hall of Fame',
+    icon: '📜',
+    desc: 'Il grave les noms. Il sait lesquels méritent l’encre… et lesquels non.',
+    effects: { renommee: 8, charisme: 3, moral: 2 },
+  },
 ];
 
-export const CAVE_DESTINY_WEAPONS = [
-  {
-    id: 'epee',
-    name: 'Voie de l’épée',
-    icon: '⚔️',
-    weaponHint: 'Zweihänder',
-    desc: 'Lame lourde, coups francs. La voie du guerrier qui avance.',
-    effects: { puissance: 7, vitesse: 2 },
-  },
-  {
-    id: 'baton',
-    name: 'Voie du bâton',
-    icon: '🪄',
-    weaponHint: 'Branche d’Yggdrasil',
-    desc: 'Arcane et soutien. La sagesse… ou l’illusion de l’avoir.',
-    effects: { magie: 7, endurance: 2 },
-  },
-  {
-    id: 'dague',
-    name: 'Voie de la dague',
-    icon: '🗡️',
-    weaponHint: 'Lævateinn',
-    desc: 'Critiques, esquives, orgueil fragile entre deux ombres.',
-    effects: { vitesse: 7, puissance: 2 },
-  },
-  {
-    id: 'bouclier',
-    name: 'Voie du bouclier',
-    icon: '🛡️',
-    weaponHint: 'Égide d’Athéna',
-    desc: 'Encaisser, protéger, tenir le front quand les autres fléchissent.',
-    effects: { endurance: 8, charisme: 2 },
-  },
-];
+/** Nombre de mentors proposés au tirage (parmi le pool complet). */
+export const CAVE_DESTINY_MENTOR_OFFER_COUNT = 4;
+
+/** Nombre d’armes communes proposées au tirage. */
+export const CAVE_DESTINY_WEAPON_OFFER_COUNT = 4;
+
+export function pickRandomMentors(count = CAVE_DESTINY_MENTOR_OFFER_COUNT) {
+  const pool = [...CAVE_DESTINY_MENTORS];
+  return shuffleInPlace(pool).slice(0, Math.min(count, pool.length));
+}
+
+export {
+  pickRandomCommonWeapons,
+  getDestinyWeaponById,
+  buildDestinyWeapon,
+  upgradeDestinyWeapon,
+  grantLegendaryDestinyWeapon,
+  fillWeaponPlaceholders,
+  isWeaponMaxed,
+  WEAPON_RARITY_LABEL,
+} from './caveDestinyWeapons';
+
+/** @deprecated — utiliser pickRandomCommonWeapons / getDestinyWeaponById */
+export const CAVE_DESTINY_WEAPONS = [];
 
 export const CAVE_DESTINY_TIERS = [
   { minScore: 0, id: 'bronze_cave', label: 'Cave bronze', color: 'text-stone-300' },
