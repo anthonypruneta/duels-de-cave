@@ -17,8 +17,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'sparring',
         label: 'Enchaîner les duels d’entraînement',
         outcomes: trio(
-          { text: 'Vos gestes se durcissent. Le corps répond.', deltas: { puissance: 3, endurance: 2, forme: -3 } },
-          { text: 'Session correcte. Rien d’éclatant.', deltas: { puissance: 1, forme: -2 } },
+          { text: 'Vos gestes se durcissent. Le corps répond.', deltas: { auto: 3, def: 2, forme: -3 } },
+          { text: 'Session correcte. Rien d’éclatant.', deltas: { auto: 1, forme: -2 } },
           { text: 'Vous forcez trop. Une entorse vous rappelle à l’ordre.', deltas: { forme: -8, moral: -2 } },
         ),
       },
@@ -26,8 +26,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'technique',
         label: 'Travailler une feinte précise',
         outcomes: trio(
-          { text: 'La feinte devient réflexe.', deltas: { vitesse: 3, magie: 1 } },
-          { text: 'Progrès discret.', deltas: { vitesse: 1 } },
+          { text: 'La feinte devient réflexe.', deltas: { spd: 3, cap: 1 } },
+          { text: 'Progrès discret.', deltas: { spd: 1 } },
           { text: 'Vous confondez les enchaînements. Frustration.', deltas: { moral: -4 } },
         ),
       },
@@ -35,7 +35,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'repos',
         label: 'Observer les autres s’entraîner',
         outcomes: trio(
-          { text: 'Vous volez une idée de garde.', deltas: { endurance: 2, moral: 2 } },
+          { text: 'Vous volez une idée de garde.', deltas: { def: 2, moral: 2 } },
           { text: 'Spectateur utile… à peine.', deltas: { moral: 1 } },
           { text: 'Vous vous ennuyez. La forme baisse.', deltas: { forme: -3, moral: -2 } },
         ),
@@ -53,8 +53,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'bestiaire',
         label: 'Étudier le bestiaire des donjons',
         outcomes: trio(
-          { text: 'Vous retenez une faiblesse de boss.', deltas: { magie: 3, renommee: 1 } },
-          { text: 'Quelques notes utiles.', deltas: { magie: 1 } },
+          { text: 'Vous retenez une faiblesse de boss.', deltas: { cap: 3, renommee: 1 } },
+          { text: 'Quelques notes utiles.', deltas: { cap: 1 } },
           { text: 'Trop de pages. Rien ne s’imprime.', deltas: { moral: -2 } },
         ),
       },
@@ -62,8 +62,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'armes',
         label: 'Comparer les lignées d’armes',
         outcomes: trio(
-          { text: 'Vous comprenez mieux le lien arme–bras.', deltas: { puissance: 2, magie: 2 } },
-          { text: 'Lecture correcte.', deltas: { puissance: 1 } },
+          { text: 'Vous comprenez mieux le lien arme–bras.', deltas: { auto: 2, cap: 2 } },
+          { text: 'Lecture correcte.', deltas: { auto: 1 } },
           { text: 'Vous mélangez Mjöllnir et Gungnir. Honte douce.', deltas: { moral: -3 } },
         ),
       },
@@ -71,7 +71,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'dormir',
         label: 'S’assoupir sur un tome',
         outcomes: trio(
-          { text: 'Un rêve étrange vous inspire.', deltas: { moral: 4, magie: 1 } },
+          { text: 'Un rêve étrange vous inspire.', deltas: { moral: 4, cap: 1 } },
           { text: 'Sieste. Point.', deltas: { forme: 3 } },
           { text: 'On vous réveille d’un rire. Ego froissé.', deltas: { charisme: -2, moral: -2 } },
         ),
@@ -124,20 +124,20 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'affronter',
         label: 'Bloquer la charge de front',
-        // check secret : bonne endurance (défense) → bien plus de succès
-        check: { endurance: 1.5, puissance: 0.55 },
+        // check secret : bonne Déf → bien plus de succès
+        check: { def: 1.5, auto: 0.55 },
         outcomes: trio(
-          { text: 'Vous encaissez la charge. Le sanglier s’effondre. Viande et gloire mineure.', deltas: { endurance: 2, or: 4, forme: -2 } },
-          { text: 'Vous le chassez… après une course.', deltas: { endurance: 1, forme: -4 } },
+          { text: 'Vous encaissez la charge. Le sanglier s’effondre. Viande et gloire mineure.', deltas: { def: 2, or: 4, forme: -2 } },
+          { text: 'Vous le chassez… après une course.', deltas: { def: 1, forme: -4 } },
           { text: 'Il vous renverse. Départ humiliant.', deltas: { forme: -9, moral: -3 } },
         ),
       },
       {
         id: 'esquiver',
         label: 'L’attirer hors du sentier',
-        check: { vitesse: 1.4, charisme: 0.3 },
+        check: { spd: 1.4, charisme: 0.3 },
         outcomes: trio(
-          { text: 'Piège parfait. Butin sans une égratignure.', deltas: { vitesse: 3, or: 5 } },
+          { text: 'Piège parfait. Butin sans une égratignure.', deltas: { spd: 3, or: 5 } },
           { text: 'Vous gagnez… salement.', deltas: { or: 2, forme: -2 } },
           { text: 'Vous trébuchez. Les défenses vous trouvent.', deltas: { forme: -7, moral: -2 } },
         ),
@@ -145,7 +145,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'fuir',
         label: 'Contourner le territoire',
-        check: { vitesse: 0.8, charisme: 0.5 },
+        check: { spd: 0.8, charisme: 0.5 },
         outcomes: trio(
           { text: 'Sagesse. Vous trouvez un autre sentier riche.', deltas: { or: 3, moral: 1 } },
           { text: 'Vous perdez du temps, rien de plus.', deltas: {} },
@@ -165,8 +165,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'accepter',
         label: 'Accepter le duel',
         outcomes: trio(
-          { text: 'Victoire nette. Respect mutuel.', deltas: { renommee: 3, puissance: 2, charisme: 2 } },
-          { text: 'Match serré. Vous apprenez.', deltas: { endurance: 1, forme: -3 } },
+          { text: 'Victoire nette. Respect mutuel.', deltas: { renommee: 3, auto: 2, charisme: 2 } },
+          { text: 'Match serré. Vous apprenez.', deltas: { def: 1, forme: -3 } },
           { text: 'Défaite amicale… l’ego moins.', deltas: { moral: -5, forme: -4 } },
         ),
       },
@@ -174,7 +174,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'conseil',
         label: 'Échanger des conseils après l’échauffement',
         outcomes: trio(
-          { text: 'Astuce précieuse sur une capacité.', deltas: { magie: 2, charisme: 2 } },
+          { text: 'Astuce précieuse sur une capacité.', deltas: { cap: 2, charisme: 2 } },
           { text: 'Conversation polie.', deltas: { charisme: 1 } },
           { text: 'Malentendu. L’ambiance se gâte.', deltas: { charisme: -2, moral: -2 } },
         ),
@@ -201,8 +201,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'rush',
         label: 'Frapper avant qu’il se lève',
         outcomes: trio(
-          { text: 'Assaut parfait. Le bosquet vous appartient.', deltas: { puissance: 4, or: 7, forme: -5, trophies: { donjon: 1 } } },
-          { text: 'Victoire difficile.', deltas: { puissance: 1, forme: -6, or: 2 } },
+          { text: 'Assaut parfait. Le bosquet vous appartient.', deltas: { auto: 4, or: 7, forme: -5, trophies: { donjon: 1 } } },
+          { text: 'Victoire difficile.', deltas: { auto: 1, forme: -6, or: 2 } },
           { text: 'Une patte vous envoie au sol.', deltas: { forme: -11, moral: -4 } },
         ),
       },
@@ -210,8 +210,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'piege',
         label: 'Utiliser le terrain contre lui',
         outcomes: trio(
-          { text: 'Racines, pente, surprise. Beau travail.', deltas: { magie: 3, vitesse: 2, or: 5 } },
-          { text: 'Le piège aide un peu.', deltas: { magie: 1, forme: -3 } },
+          { text: 'Racines, pente, surprise. Beau travail.', deltas: { cap: 3, spd: 2, or: 5 } },
+          { text: 'Le piège aide un peu.', deltas: { cap: 1, forme: -3 } },
           { text: 'Vous tombez dans votre propre embuscade.', deltas: { forme: -8, moral: -3 } },
         ),
       },
@@ -237,7 +237,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'grimper',
         label: 'Enchaîner les duels pour grimper',
         outcomes: trio(
-          { text: 'Série gagnante. Votre rang monte.', deltas: { renommee: 8, puissance: 3, forme: -6, trophies: { pvp: 1 } } },
+          { text: 'Série gagnante. Votre rang monte.', deltas: { renommee: 8, auto: 3, forme: -6, trophies: { pvp: 1 } } },
           { text: 'Équilibre victoires / défaites.', deltas: { renommee: 2, forme: -4 } },
           { text: 'Dégringolade. Le classement est cruel.', deltas: { renommee: -6, moral: -7, forme: -5 } },
         ),
@@ -246,8 +246,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'etudier',
         label: 'Étudier les styles du top',
         outcomes: trio(
-          { text: 'Vous adaptez une garde du haut du tableau.', deltas: { magie: 3, vitesse: 2 } },
-          { text: 'Quelques idées.', deltas: { magie: 1 } },
+          { text: 'Vous adaptez une garde du haut du tableau.', deltas: { cap: 3, spd: 2 } },
+          { text: 'Quelques idées.', deltas: { cap: 1 } },
           { text: 'Trop d’infos. Paralysie.', deltas: { moral: -3 } },
         ),
       },
@@ -273,8 +273,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'briser',
         label: 'Briser le noyau avant qu’il se forme',
         outcomes: trio(
-          { text: 'Les os s’effondrent. Vous grimpez.', deltas: { magie: 4, puissance: 2, forme: -4 } },
-          { text: 'Combat long. Victoire.', deltas: { magie: 2, forme: -6 } },
+          { text: 'Les os s’effondrent. Vous grimpez.', deltas: { cap: 4, auto: 2, forme: -4 } },
+          { text: 'Combat long. Victoire.', deltas: { cap: 2, forme: -6 } },
           { text: 'Le golem se referme sur vous.', deltas: { forme: -10, moral: -4 } },
         ),
       },
@@ -282,7 +282,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'detour',
         label: 'Contourner la galerie',
         outcomes: trio(
-          { text: 'Détour intelligent. Passif mineur trouvé.', deltas: { magie: 2, or: 3 } },
+          { text: 'Détour intelligent. Passif mineur trouvé.', deltas: { cap: 2, or: 3 } },
           { text: 'Vous perdez un étage de temps.', deltas: { forme: -2 } },
           { text: 'Cul-de-sac. Le golem vous attendait.', deltas: { forme: -8, moral: -3 } },
         ),
@@ -292,8 +292,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Frapper comme un forgeron nain',
         ifRace: ['Nain'],
         outcomes: trio(
-          { text: 'Un coup. Le crâne éclate.', deltas: { puissance: 5, endurance: 2, renommee: 2 } },
-          { text: 'Bon travail de masse.', deltas: { puissance: 2, forme: -3 } },
+          { text: 'Un coup. Le crâne éclate.', deltas: { auto: 5, def: 2, renommee: 2 } },
+          { text: 'Bon travail de masse.', deltas: { auto: 2, forme: -3 } },
           { text: 'L’os est plus dur que prévu.', deltas: { forme: -7, moral: -2 } },
         ),
       },
@@ -302,9 +302,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Étouffer sa magie d’animation',
         ifClass: ['Briseur de Sort', 'Mage'],
         outcomes: trio(
-          { text: 'L’égide coupe le fil. Silence d’os.', deltas: { magie: 5, renommee: 2 } },
-          { text: 'Magie affaiblie, combat plus simple.', deltas: { magie: 2 } },
-          { text: 'Le golem ignore votre égide.', deltas: { magie: -1, forme: -6 } },
+          { text: 'L’égide coupe le fil. Silence d’os.', deltas: { cap: 5, renommee: 2 } },
+          { text: 'Magie affaiblie, combat plus simple.', deltas: { cap: 2 } },
+          { text: 'Le golem ignore votre égide.', deltas: { cap: -1, forme: -6 } },
         ),
       },
     ],
@@ -320,8 +320,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'cours',
         label: 'Suivre un cours intensif',
         outcomes: trio(
-          { text: 'Leçon assimilée. Votre style s’affine.', deltas: { magie: 3, vitesse: 2, moral: 2 } },
-          { text: 'Vous retenez l’essentiel.', deltas: { magie: 1 } },
+          { text: 'Leçon assimilée. Votre style s’affine.', deltas: { cap: 3, spd: 2, moral: 2 } },
+          { text: 'Vous retenez l’essentiel.', deltas: { cap: 1 } },
           { text: 'Trop de théories. Maux de tête.', deltas: { moral: -3, forme: -2 } },
         ),
       },
@@ -329,7 +329,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'examen',
         label: 'Passer l’examen surprise',
         outcomes: trio(
-          { text: 'Réussi. Le collège applaudit.', deltas: { renommee: 5, magie: 2, or: 4 } },
+          { text: 'Réussi. Le collège applaudit.', deltas: { renommee: 5, cap: 2, or: 4 } },
           { text: 'Juste la moyenne.', deltas: { renommee: 1 } },
           { text: 'Échec. Tableau noir de la honte.', deltas: { renommee: -3, moral: -5 } },
         ),
@@ -338,7 +338,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'fugue',
         label: 'Sécher pour explorer les couloirs',
         outcomes: trio(
-          { text: 'Cachette secrète. Petit trésor.', deltas: { or: 8, vitesse: 1 } },
+          { text: 'Cachette secrète. Petit trésor.', deltas: { or: 8, spd: 1 } },
           { text: 'Rien trouvé.', deltas: {} },
           { text: 'Pris sur le fait. Punition.', deltas: { moral: -4, renommee: -2 } },
         ),
@@ -356,8 +356,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'courir',
         label: 'Courir après le rat',
         outcomes: trio(
-          { text: 'Vous récupérez le parchemin. Sagesse mineure.', deltas: { magie: 3, vitesse: 2 } },
-          { text: 'Course absurde. Parchemin déchiré à moitié.', deltas: { magie: 1, forme: -2 } },
+          { text: 'Vous récupérez le parchemin. Sagesse mineure.', deltas: { cap: 3, spd: 2 } },
+          { text: 'Course absurde. Parchemin déchiré à moitié.', deltas: { cap: 1, forme: -2 } },
           { text: 'Vous trébuchez. Le rat s’enfuit.', deltas: { moral: -3, forme: -2 } },
         ),
       },
@@ -365,7 +365,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'piege',
         label: 'Appâter le rat avec une miette',
         outcomes: trio(
-          { text: 'Le rat négocie. Vous gagnez une rune.', deltas: { magie: 2, or: 2, charisme: 1 } },
+          { text: 'Le rat négocie. Vous gagnez une rune.', deltas: { cap: 2, or: 2, charisme: 1 } },
           { text: 'Il prend la miette… et part.', deltas: { or: -1 } },
           { text: 'Plus de rats. Chaos.', deltas: { forme: -4, moral: -2 } },
         ),
@@ -401,7 +401,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'forcer',
         label: 'Combattre quand même',
         outcomes: trio(
-          { text: 'La douleur vous aiguise.', deltas: { puissance: 3, forme: -5, moral: 2 } },
+          { text: 'La douleur vous aiguise.', deltas: { auto: 3, forme: -5, moral: 2 } },
           { text: 'Vous tenez… juste.', deltas: { forme: -3 } },
           { text: 'La blessure s’ouvre. Effondrement.', deltas: { forme: -14, moral: -6 } },
         ),
@@ -411,7 +411,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Vous soigner vous-même',
         ifClass: ['Healer', 'Alchimiste'],
         outcomes: trio(
-          { text: 'Votre art vous sauve. Élégance.', deltas: { forme: 10, magie: 2 } },
+          { text: 'Votre art vous sauve. Élégance.', deltas: { forme: 10, cap: 2 } },
           { text: 'Soin partiel.', deltas: { forme: 5 } },
           { text: 'Mauvais dosage. Vertiges.', deltas: { forme: -3, moral: -2 } },
         ),
@@ -438,8 +438,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'eau',
         label: 'Étouffer la flamme d’un sort d’eau',
         outcomes: trio(
-          { text: 'Vapeur. Le chemin s’ouvre.', deltas: { magie: 3, or: 4, renommee: 2 } },
-          { text: 'La flamme baisse… puis revient.', deltas: { magie: 1, forme: -3 } },
+          { text: 'Vapeur. Le chemin s’ouvre.', deltas: { cap: 3, or: 4, renommee: 2 } },
+          { text: 'La flamme baisse… puis revient.', deltas: { cap: 1, forme: -3 } },
           { text: 'Vous ratez. Brûlure.', deltas: { forme: -8, moral: -2 } },
         ),
       },
@@ -447,7 +447,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'corps',
         label: 'Passer en force',
         outcomes: trio(
-          { text: 'Vous encaisez et tranchez.', deltas: { endurance: 3, puissance: 2, forme: -4 } },
+          { text: 'Vous encaisez et tranchez.', deltas: { def: 3, auto: 2, forme: -4 } },
           { text: 'Passage brûlant.', deltas: { forme: -5, or: 2 } },
           { text: 'Trop de feu. Recul.', deltas: { forme: -9, moral: -3 } },
         ),
@@ -457,8 +457,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Avancer sous carapace',
         ifRace: ['Turtlekin', 'Écailleux', 'Dragonkin'],
         outcomes: trio(
-          { text: 'Les flammes glissent. Avancée royale.', deltas: { endurance: 5, renommee: 2 } },
-          { text: 'Vous tiédisez, mais avancez.', deltas: { endurance: 2, forme: -2 } },
+          { text: 'Les flammes glissent. Avancée royale.', deltas: { def: 5, renommee: 2 } },
+          { text: 'Vous tiédisez, mais avancez.', deltas: { def: 2, forme: -2 } },
           { text: 'Même la carapace chauffe trop.', deltas: { forme: -7 } },
         ),
       },
@@ -475,8 +475,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'prendre',
         label: 'S’équiper immédiatement',
         outcomes: trio(
-          { text: 'L’arme s’accorde à votre main.', deltas: { puissance: 3, or: 2 } },
-          { text: 'Correcte. Rien de plus.', deltas: { puissance: 1 } },
+          { text: 'L’arme s’accorde à votre main.', deltas: { auto: 3, or: 2 } },
+          { text: 'Correcte. Rien de plus.', deltas: { auto: 1 } },
           { text: 'Mauvaise balance. Vous la jetez.', deltas: { moral: -2 } },
         ),
       },
@@ -493,7 +493,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'offrir_ornn',
         label: 'La garder pour Ornn',
         outcomes: trio(
-          { text: 'Ornn appréciera le matériau.', deltas: { moral: 2, endurance: 1 } },
+          { text: 'Ornn appréciera le matériau.', deltas: { moral: 2, def: 1 } },
           { text: 'Vous trimballez du fer inutile… pour l’instant.', deltas: {} },
           { text: 'Vous la perdez en route.', deltas: { moral: -3 } },
         ),
@@ -511,7 +511,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'contempler',
         label: 'Contempler les légendes',
         outcomes: trio(
-          { text: 'L’inspiration vous traverse.', deltas: { moral: 6, renommee: 2, puissance: 1 } },
+          { text: 'L’inspiration vous traverse.', deltas: { moral: 6, renommee: 2, auto: 1 } },
           { text: 'Respect silencieux.', deltas: { moral: 2 } },
           { text: 'L’ombre des grands vous écrase.', deltas: { moral: -5 } },
         ),
@@ -520,7 +520,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'defier',
         label: 'Jurer de graver votre nom',
         outcomes: trio(
-          { text: 'Serment tenu en esprit. Vous partez plus dur.', deltas: { renommee: 5, moral: 4, puissance: 2 } },
+          { text: 'Serment tenu en esprit. Vous partez plus dur.', deltas: { renommee: 5, moral: 4, auto: 2 } },
           { text: 'Serment… pour plus tard.', deltas: { moral: 1 } },
           { text: 'Les murs semblent rire.', deltas: { moral: -4, renommee: -1 } },
         ),
@@ -529,9 +529,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'etudier',
         label: 'Étudier les styles des vainqueurs',
         outcomes: trio(
-          { text: 'Vous volez une posture légendaire.', deltas: { magie: 3, vitesse: 3, renommee: 2 } },
-          { text: 'Quelques notes.', deltas: { magie: 1, vitesse: 1 } },
-          { text: 'Trop d’idoles. Vous perdez votre style.', deltas: { moral: -3, puissance: -1 } },
+          { text: 'Vous volez une posture légendaire.', deltas: { cap: 3, spd: 3, renommee: 2 } },
+          { text: 'Quelques notes.', deltas: { cap: 1, spd: 1 } },
+          { text: 'Trop d’idoles. Vous perdez votre style.', deltas: { moral: -3, auto: -1 } },
         ),
       },
     ],
@@ -547,8 +547,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'duel',
         label: 'Accepter le duel pédagogique',
         outcomes: trio(
-          { text: 'Vous touchez… une fois. Il applaudit.', deltas: { vitesse: 6, renommee: 6, forme: -7 } },
-          { text: 'Leçon rude. Vous tenez.', deltas: { vitesse: 2, forme: -8 } },
+          { text: 'Vous touchez… une fois. Il applaudit.', deltas: { spd: 6, renommee: 6, forme: -7 } },
+          { text: 'Leçon rude. Vous tenez.', deltas: { spd: 2, forme: -8 } },
           { text: 'Vous ne voyez même pas les coups.', deltas: { forme: -12, moral: -5 } },
         ),
       },
@@ -556,8 +556,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'ecouter',
         label: 'Écouter le cours sans combattre',
         outcomes: trio(
-          { text: 'Conseil d’assassin. Précieux.', deltas: { magie: 3, vitesse: 3, moral: 2 } },
-          { text: 'Cours correct.', deltas: { magie: 1 } },
+          { text: 'Conseil d’assassin. Précieux.', deltas: { cap: 3, spd: 3, moral: 2 } },
+          { text: 'Cours correct.', deltas: { cap: 1 } },
           { text: 'Vous décrochez. Interrogation surprise.', deltas: { moral: -4 } },
         ),
       },
@@ -566,8 +566,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Tenter de matcher sa vitesse',
         ifRace: ['Elfe', 'Gnome'],
         outcomes: trio(
-          { text: 'Presque. Il s’incline, amusé.', deltas: { vitesse: 7, renommee: 4 } },
-          { text: 'Vous suivez… un temps.', deltas: { vitesse: 3, forme: -4 } },
+          { text: 'Presque. Il s’incline, amusé.', deltas: { spd: 7, renommee: 4 } },
+          { text: 'Vous suivez… un temps.', deltas: { spd: 3, forme: -4 } },
           { text: 'Humiliation éclair.', deltas: { moral: -6, forme: -5 } },
         ),
       },
@@ -584,8 +584,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'affronter',
         label: 'L’affronter pour sa faveur',
         outcomes: trio(
-          { text: 'Elle s’incline. Magie pure en vous.', deltas: { magie: 6, renommee: 5, or: 6, trophies: { donjon: 1 } } },
-          { text: 'Duel égal. Elle part sans colère.', deltas: { magie: 2, forme: -5 } },
+          { text: 'Elle s’incline. Magie pure en vous.', deltas: { cap: 6, renommee: 5, or: 6, trophies: { donjon: 1 } } },
+          { text: 'Duel égal. Elle part sans colère.', deltas: { cap: 2, forme: -5 } },
           { text: 'Sa corne vous repousse hors du sanctuaire.', deltas: { forme: -10, moral: -4 } },
         ),
       },
@@ -593,7 +593,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'offrir',
         label: 'Offrir une offrande de respect',
         outcomes: trio(
-          { text: 'Elle bénit votre voie.', deltas: { moral: 5, magie: 3, forme: 4 } },
+          { text: 'Elle bénit votre voie.', deltas: { moral: 5, cap: 3, forme: 4 } },
           { text: 'Elle accepte… froidement.', deltas: { moral: 2 } },
           { text: 'Offrande jugée impure.', deltas: { moral: -5, renommee: -2 } },
         ),
@@ -603,8 +603,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Parler le langage de la sève',
         ifRace: ['Sylvari'],
         outcomes: trio(
-          { text: 'La forêt traduit. Alliance rare.', deltas: { magie: 5, endurance: 3, forme: 3 } },
-          { text: 'Compréhension partielle.', deltas: { magie: 2 } },
+          { text: 'La forêt traduit. Alliance rare.', deltas: { cap: 5, def: 3, forme: 3 } },
+          { text: 'Compréhension partielle.', deltas: { cap: 2 } },
           { text: 'Même la sève se tait.', deltas: { moral: -4 } },
         ),
       },
@@ -621,7 +621,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'entrer',
         label: 'Entrer contre les anciens',
         outcomes: trio(
-          { text: 'Vous renversez un mythe. L’arène hurle.', deltas: { renommee: 12, puissance: 4, forme: -8, trophies: { tournoi: 1 } } },
+          { text: 'Vous renversez un mythe. L’arène hurle.', deltas: { renommee: 12, auto: 4, forme: -8, trophies: { tournoi: 1 } } },
           { text: 'Belle défaite face à un géant.', deltas: { renommee: 3, forme: -6 } },
           { text: 'Balayé au premier échange.', deltas: { forme: -11, moral: -6, renommee: -2 } },
         ),
@@ -630,7 +630,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'servir',
         label: 'Servir d’écuyer à un ancien',
         outcomes: trio(
-          { text: 'Il vous enseigne une garde oubliée.', deltas: { endurance: 4, charisme: 3, or: 4 } },
+          { text: 'Il vous enseigne une garde oubliée.', deltas: { def: 4, charisme: 3, or: 4 } },
           { text: 'Travail discret, pourboire discret.', deltas: { or: 3 } },
           { text: 'Il vous ignore. Frustration.', deltas: { moral: -4 } },
         ),
@@ -657,8 +657,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'grimper',
         label: 'Escalader la tour',
         outcomes: trio(
-          { text: 'L’arc pulse entre vos mains.', deltas: { vitesse: 5, puissance: 3, renommee: 4 } },
-          { text: 'Vous trouvez une corde… pas l’arc.', deltas: { vitesse: 2, or: 3 } },
+          { text: 'L’arc pulse entre vos mains.', deltas: { spd: 5, auto: 3, renommee: 4 } },
+          { text: 'Vous trouvez une corde… pas l’arc.', deltas: { spd: 2, or: 3 } },
           { text: 'Chute. L’arc reste un mythe.', deltas: { forme: -10, moral: -4 } },
         ),
       },
@@ -667,8 +667,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Tenter l’accord parfait',
         ifClass: ['Archer'],
         outcomes: trio(
-          { text: 'L’arc vous choisit. Flèches bénies.', deltas: { vitesse: 7, puissance: 3, renommee: 5 } },
-          { text: 'Accord partiel.', deltas: { vitesse: 3 } },
+          { text: 'L’arc vous choisit. Flèches bénies.', deltas: { spd: 7, auto: 3, renommee: 5 } },
+          { text: 'Accord partiel.', deltas: { spd: 3 } },
           { text: 'L’arc refuse votre main.', deltas: { moral: -5 } },
         ),
       },
@@ -676,7 +676,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'laisser',
         label: 'Laisser l’arc à son sommeil',
         outcomes: trio(
-          { text: 'Respect. Une plume céleste tombe à vos pieds.', deltas: { magie: 3, moral: 3 } },
+          { text: 'Respect. Une plume céleste tombe à vos pieds.', deltas: { cap: 3, moral: 3 } },
           { text: 'Vous repartez vides.', deltas: {} },
           { text: 'Un autre s’en empare. Regret.', deltas: { moral: -4, renommee: -1 } },
         ),
@@ -694,8 +694,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'lancer',
         label: 'Tenter le lancer rituel',
         outcomes: trio(
-          { text: 'La lance revient. Elle vous accepte.', deltas: { puissance: 5, vitesse: 3, renommee: 4 } },
-          { text: 'Presque. Elle vibre… puis se tait.', deltas: { puissance: 2 } },
+          { text: 'La lance revient. Elle vous accepte.', deltas: { auto: 5, spd: 3, renommee: 4 } },
+          { text: 'Presque. Elle vibre… puis se tait.', deltas: { auto: 2 } },
           { text: 'Elle vous fuit. Doigts brûlés.', deltas: { forme: -6, moral: -4 } },
         ),
       },
@@ -703,8 +703,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'etudier',
         label: 'Étudier les runes de la haste',
         outcomes: trio(
-          { text: 'Compréhension. Votre prochaine frappe portera plus loin.', deltas: { magie: 4, puissance: 2 } },
-          { text: 'Runes partiellement lues.', deltas: { magie: 1 } },
+          { text: 'Compréhension. Votre prochaine frappe portera plus loin.', deltas: { cap: 4, auto: 2 } },
+          { text: 'Runes partiellement lues.', deltas: { cap: 1 } },
           { text: 'Les runes mentent. Vertige.', deltas: { moral: -3, forme: -2 } },
         ),
       },
@@ -713,7 +713,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Planter Gungnir comme un étendard',
         ifClass: ['Guerrier', 'Paladin'],
         outcomes: trio(
-          { text: 'L’étendard tient. Moral de troupe.', deltas: { renommee: 5, charisme: 3, puissance: 2 } },
+          { text: 'L’étendard tient. Moral de troupe.', deltas: { renommee: 5, charisme: 3, auto: 2 } },
           { text: 'Geste symbolique.', deltas: { charisme: 1 } },
           { text: 'La lance refuse de rester plantée.', deltas: { moral: -3 } },
         ),
@@ -740,7 +740,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'grimper',
         label: 'Grimper par-dessus',
         outcomes: trio(
-          { text: 'Escalade absurde réussie.', deltas: { vitesse: 3, charisme: 2 } },
+          { text: 'Escalade absurde réussie.', deltas: { spd: 3, charisme: 2 } },
           { text: 'Vous glissez, mais passez.', deltas: { forme: -3 } },
           { text: 'Il se retourne. Vous tombe dessus.', deltas: { forme: -12, moral: -5 } },
         ),
@@ -767,8 +767,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'soulever',
         label: 'Tenter de soulever Mjöllnir',
         outcomes: trio(
-          { text: 'Le marteau se lève. Le tonnerre applaudit.', deltas: { puissance: 8, endurance: 4, renommee: 8, trophies: { forge: 1 } } },
-          { text: 'Il bouge… d’un pouce.', deltas: { puissance: 3, forme: -6 } },
+          { text: 'Le marteau se lève. Le tonnerre applaudit.', deltas: { auto: 8, def: 4, renommee: 8, trophies: { forge: 1 } } },
+          { text: 'Il bouge… d’un pouce.', deltas: { auto: 3, forme: -6 } },
           { text: 'Immobile. Humiliation divine.', deltas: { moral: -8, renommee: -3, forme: -4 } },
         ),
       },
@@ -776,7 +776,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'ornn',
         label: 'Demander le jugement d’Ornn',
         outcomes: trio(
-          { text: 'Ornn hoche. Une rune de foudre vous marque.', deltas: { puissance: 5, magie: 3, renommee: 4 } },
+          { text: 'Ornn hoche. Une rune de foudre vous marque.', deltas: { auto: 5, cap: 3, renommee: 4 } },
           { text: '« Reviens plus fort. »', deltas: { moral: 1 } },
           { text: 'Silence glacial.', deltas: { moral: -5 } },
         ),
@@ -786,8 +786,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Invoquer le droit des forgerons',
         ifRace: ['Nain', 'Dragonkin'],
         outcomes: trio(
-          { text: 'Le sang de la forge répond. Mjöllnir cède.', deltas: { puissance: 7, endurance: 3, renommee: 5 } },
-          { text: 'Presque digne.', deltas: { puissance: 3, forme: -4 } },
+          { text: 'Le sang de la forge répond. Mjöllnir cède.', deltas: { auto: 7, def: 3, renommee: 5 } },
+          { text: 'Presque digne.', deltas: { auto: 3, forme: -4 } },
           { text: 'Même le droit ancestral ne suffit pas.', deltas: { moral: -6, forme: -3 } },
         ),
       },
@@ -804,17 +804,17 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'lire',
         label: 'Ouvrir le Codex',
         outcomes: trio(
-          { text: 'Savoir interdit. Votre magie mute.', deltas: { magie: 9, renommee: 5, moral: -2, trophies: { tour: 1 } } },
-          { text: 'Quelques pages. Assez.', deltas: { magie: 4, forme: -3 } },
-          { text: 'L’esprit se fissure. Fermez le livre.', deltas: { magie: 1, moral: -9, forme: -5 } },
+          { text: 'Savoir interdit. Votre magie mute.', deltas: { cap: 9, renommee: 5, moral: -2, trophies: { tour: 1 } } },
+          { text: 'Quelques pages. Assez.', deltas: { cap: 4, forme: -3 } },
+          { text: 'L’esprit se fissure. Fermez le livre.', deltas: { cap: 1, moral: -9, forme: -5 } },
         ),
       },
       {
         id: 'copier',
         label: 'Copier une rune sans lire le reste',
         outcomes: trio(
-          { text: 'Rune stable. Gain propre.', deltas: { magie: 5, vitesse: 2 } },
-          { text: 'Copie imparfaite.', deltas: { magie: 2 } },
+          { text: 'Rune stable. Gain propre.', deltas: { cap: 5, spd: 2 } },
+          { text: 'Copie imparfaite.', deltas: { cap: 2 } },
           { text: 'La rune vous brûle la main.', deltas: { forme: -7, moral: -3 } },
         ),
       },
@@ -823,8 +823,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Absorber une page par l’esprit',
         ifRace: ['Mindflayer'],
         outcomes: trio(
-          { text: 'La page devient vôtre. Terrifiant.', deltas: { magie: 10, renommee: 4 } },
-          { text: 'Absorption partielle.', deltas: { magie: 4 } },
+          { text: 'La page devient vôtre. Terrifiant.', deltas: { cap: 10, renommee: 4 } },
+          { text: 'Absorption partielle.', deltas: { cap: 4 } },
           { text: 'Retour de bâton mental.', deltas: { moral: -8, forme: -4 } },
         ),
       },
@@ -833,8 +833,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Sceller le Codex d’une malédiction',
         ifClass: ['Sorcière', 'Demoniste'],
         outcomes: trio(
-          { text: 'Le sceau tient. Pouvoir détourné.', deltas: { magie: 6, charisme: 3, renommee: 3 } },
-          { text: 'Sceau fragile.', deltas: { magie: 2 } },
+          { text: 'Le sceau tient. Pouvoir détourné.', deltas: { cap: 6, charisme: 3, renommee: 3 } },
+          { text: 'Sceau fragile.', deltas: { cap: 2 } },
           { text: 'Le Codex renvoie la malédiction.', deltas: { moral: -6, forme: -5 } },
         ),
       },
@@ -851,8 +851,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'brandir',
         label: 'Brandir la faux',
         outcomes: trio(
-          { text: 'Thanatos sourit. Votre ombre s’allonge.', deltas: { puissance: 6, magie: 4, renommee: 6, moral: -2 } },
-          { text: 'L’arme obéit… à moitié.', deltas: { puissance: 3, forme: -4 } },
+          { text: 'Thanatos sourit. Votre ombre s’allonge.', deltas: { auto: 6, cap: 4, renommee: 6, moral: -2 } },
+          { text: 'L’arme obéit… à moitié.', deltas: { auto: 3, forme: -4 } },
           { text: 'Elle veut votre âme en acompte.', deltas: { forme: -10, moral: -7 } },
         ),
       },
@@ -860,7 +860,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'sceller',
         label: 'La sceller dans un coffre',
         outcomes: trio(
-          { text: 'Sagesse. Une bénédiction discrète vous suit.', deltas: { moral: 5, endurance: 2, renommee: 2 } },
+          { text: 'Sagesse. Une bénédiction discrète vous suit.', deltas: { moral: 5, def: 2, renommee: 2 } },
           { text: 'Coffre fermé. Silence.', deltas: { moral: 1 } },
           { text: 'Le murmure continue la nuit.', deltas: { moral: -5 } },
         ),
@@ -870,8 +870,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Négocier avec la mort',
         ifRace: ['Mort-vivant'],
         outcomes: trio(
-          { text: 'La faux reconnaît les siens.', deltas: { endurance: 5, magie: 4, renommee: 4 } },
-          { text: 'Accord tiède.', deltas: { endurance: 2 } },
+          { text: 'La faux reconnaît les siens.', deltas: { def: 5, cap: 4, renommee: 4 } },
+          { text: 'Accord tiède.', deltas: { def: 2 } },
           { text: 'Même les morts peuvent être refusés.', deltas: { moral: -6, forme: -4 } },
         ),
       },
@@ -888,8 +888,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'accepter',
         label: 'Accueillir l’éveil',
         outcomes: trio(
-          { text: 'L’héritage s’ancre. Vous n’êtes plus tout à fait le même.', deltas: { puissance: 4, endurance: 4, magie: 4, vitesse: 3, renommee: 6 } },
-          { text: 'Éveil partiel. Prometteur.', deltas: { puissance: 2, magie: 2, forme: -3 } },
+          { text: 'L’héritage s’ancre. Vous n’êtes plus tout à fait le même.', deltas: { auto: 4, def: 4, cap: 4, spd: 3, renommee: 6 } },
+          { text: 'Éveil partiel. Prometteur.', deltas: { auto: 2, cap: 2, forme: -3 } },
           { text: 'Le corps refuse. Douleur sourde.', deltas: { forme: -10, moral: -5 } },
         ),
       },
@@ -899,7 +899,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         outcomes: trio(
           { text: 'Contrôle. Vous choisissez le moment.', deltas: { moral: 4, charisme: 2 } },
           { text: 'L’appel s’éloigne.', deltas: {} },
-          { text: 'L’héritage s’offense. Faiblesse.', deltas: { moral: -4, puissance: -1 } },
+          { text: 'L’héritage s’offense. Faiblesse.', deltas: { moral: -4, auto: -1 } },
         ),
       },
       {
@@ -907,8 +907,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Attiser les braises',
         ifRace: ['Cendrés'],
         outcomes: trio(
-          { text: 'Les braises deviennent brasier.', deltas: { magie: 6, puissance: 4, renommee: 3 } },
-          { text: 'Braises stables.', deltas: { magie: 3 } },
+          { text: 'Les braises deviennent brasier.', deltas: { cap: 6, auto: 4, renommee: 3 } },
+          { text: 'Braises stables.', deltas: { cap: 3 } },
           { text: 'Vous vous consumez trop vite.', deltas: { forme: -9, moral: -3 } },
         ),
       },
@@ -917,8 +917,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Équilibrer toutes les voies',
         ifRace: ['Humain'],
         outcomes: trio(
-          { text: 'Polyvalence absolue. Rare.', deltas: { puissance: 3, endurance: 3, magie: 3, vitesse: 3, renommee: 4 } },
-          { text: 'Équilibre correct.', deltas: { puissance: 1, magie: 1, vitesse: 1 } },
+          { text: 'Polyvalence absolue. Rare.', deltas: { auto: 3, def: 3, cap: 3, spd: 3, renommee: 4 } },
+          { text: 'Équilibre correct.', deltas: { auto: 1, cap: 1, spd: 1 } },
           { text: 'Trop dilué. Aucune voie ne s’ouvre.', deltas: { moral: -5 } },
         ),
       },
@@ -935,7 +935,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'affronter',
         label: 'L’affronter pour purifier son nom',
         outcomes: trio(
-          { text: 'La corruption cède. Le Hall murmure votre gloire.', deltas: { renommee: 14, puissance: 5, magie: 3, forme: -9, trophies: { cataclysme: 1 } } },
+          { text: 'La corruption cède. Le Hall murmure votre gloire.', deltas: { renommee: 14, auto: 5, cap: 3, forme: -9, trophies: { cataclysme: 1 } } },
           { text: 'Vous le repoussez. Pas encore vaincu.', deltas: { renommee: 4, forme: -7 } },
           { text: 'Sa corruption vous marque.', deltas: { forme: -13, moral: -7, renommee: 1 } },
         ),
@@ -954,8 +954,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Riposter la corruption',
         ifClass: ['Paladin', 'Briseur de Sort'],
         outcomes: trio(
-          { text: 'Chaque riposte brûle l’ombre.', deltas: { endurance: 5, renommee: 7, puissance: 3 } },
-          { text: 'Vous tenez la ligne.', deltas: { endurance: 2, forme: -5 } },
+          { text: 'Chaque riposte brûle l’ombre.', deltas: { def: 5, renommee: 7, auto: 3 } },
+          { text: 'Vous tenez la ligne.', deltas: { def: 2, forme: -5 } },
           { text: 'La corruption traverse l’égide.', deltas: { forme: -10, moral: -4 } },
         ),
       },
@@ -972,8 +972,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'fusion',
         label: 'Accepter la double fusion',
         outcomes: trio(
-          { text: 'Deux passifs s’entrelacent. Vous devenez unique.', deltas: { magie: 8, renommee: 7, or: 6, trophies: { extension: 1 } } },
-          { text: 'Fusion instable mais utile.', deltas: { magie: 4, forme: -5 } },
+          { text: 'Deux passifs s’entrelacent. Vous devenez unique.', deltas: { cap: 8, renommee: 7, or: 6, trophies: { extension: 1 } } },
+          { text: 'Fusion instable mais utile.', deltas: { cap: 4, forme: -5 } },
           { text: 'Rejet. Le territoire vous expulse.', deltas: { forme: -12, moral: -6 } },
         ),
       },
@@ -981,9 +981,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'choisir',
         label: 'N’en garder qu’un, parfaitement',
         outcomes: trio(
-          { text: 'Maîtrise pure. Un passif souverain.', deltas: { magie: 5, moral: 3 } },
-          { text: 'Choix correct.', deltas: { magie: 2 } },
-          { text: 'Mauvais choix. Regret immédiat.', deltas: { moral: -4, magie: -1 } },
+          { text: 'Maîtrise pure. Un passif souverain.', deltas: { cap: 5, moral: 3 } },
+          { text: 'Choix correct.', deltas: { cap: 2 } },
+          { text: 'Mauvais choix. Regret immédiat.', deltas: { moral: -4, cap: -1 } },
         ),
       },
       {
@@ -991,9 +991,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Forcer une troisième rune',
         ifClass: ['Mage', 'Sorcière', 'Alchimiste'],
         outcomes: trio(
-          { text: 'Folie géniale. Trois échos.', deltas: { magie: 10, renommee: 5, forme: -6 } },
-          { text: 'La troisième rune cède à moitié.', deltas: { magie: 4, forme: -4 } },
-          { text: 'Surcharge. Noir.', deltas: { forme: -14, moral: -6, magie: -2 } },
+          { text: 'Folie géniale. Trois échos.', deltas: { cap: 10, renommee: 5, forme: -6 } },
+          { text: 'La troisième rune cède à moitié.', deltas: { cap: 4, forme: -4 } },
+          { text: 'Surcharge. Noir.', deltas: { forme: -14, moral: -6, cap: -2 } },
         ),
       },
     ],
@@ -1009,8 +1009,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'defier',
         label: 'Défier le roi du labyrinthe',
         outcomes: trio(
-          { text: 'Le roi tombe. Votre nom devient mythe.', deltas: { renommee: 18, vitesse: 6, puissance: 5, forme: -12, trophies: { labyrinthe: 1 } } },
-          { text: 'Vous survolez… puis fuyez digne.', deltas: { renommee: 6, forme: -9, vitesse: 2 } },
+          { text: 'Le roi tombe. Votre nom devient mythe.', deltas: { renommee: 18, spd: 6, auto: 5, forme: -12, trophies: { labyrinthe: 1 } } },
+          { text: 'Vous survolez… puis fuyez digne.', deltas: { renommee: 6, forme: -9, spd: 2 } },
           { text: 'Le labyrinthe se referme sur vous.', deltas: { forme: -16, moral: -8, renommee: 2 } },
         ),
       },
@@ -1018,8 +1018,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'pacte',
         label: 'Négocier un pacte avec le couloir',
         outcomes: trio(
-          { text: 'Le labyrinthe vous reconnaît. Raccourci éternel.', deltas: { magie: 7, vitesse: 5, renommee: 8 } },
-          { text: 'Pacte mineur.', deltas: { magie: 3, or: 5 } },
+          { text: 'Le labyrinthe vous reconnaît. Raccourci éternel.', deltas: { cap: 7, spd: 5, renommee: 8 } },
+          { text: 'Pacte mineur.', deltas: { cap: 3, or: 5 } },
           { text: 'Le pacte était un piège.', deltas: { moral: -7, forme: -8 } },
         ),
       },
@@ -1028,8 +1028,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Voler un trésor et disparaître',
         ifClass: ['Voleur'],
         outcomes: trio(
-          { text: 'Butin légendaire. Personne ne vous a vu.', deltas: { or: 25, vitesse: 5, renommee: 6 } },
-          { text: 'Fuite avec un coffre moyen.', deltas: { or: 10, vitesse: 2 } },
+          { text: 'Butin légendaire. Personne ne vous a vu.', deltas: { or: 25, spd: 5, renommee: 6 } },
+          { text: 'Fuite avec un coffre moyen.', deltas: { or: 10, spd: 2 } },
           { text: 'Alarme. Les murs vous chassent.', deltas: { forme: -12, moral: -5 } },
         ),
       },
@@ -1046,7 +1046,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'tout',
         label: 'Tout donner contre l’entité',
         outcomes: trio(
-          { text: 'Votre nom sauve une ère. Les chroniques tremblent.', deltas: { renommee: 22, puissance: 6, magie: 5, forme: -14, trophies: { cataclysme: 1 } } },
+          { text: 'Votre nom sauve une ère. Les chroniques tremblent.', deltas: { renommee: 22, auto: 6, cap: 5, forme: -14, trophies: { cataclysme: 1 } } },
           { text: 'Vous retardez l’extinction. Assez pour d’autres.', deltas: { renommee: 8, forme: -10 } },
           { text: 'Balayé. Le monde continue sans vous… pour l’instant.', deltas: { forme: -18, moral: -8, renommee: 3 } },
         ),
@@ -1065,8 +1065,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Opposer le souffle du dragon',
         ifRace: ['Dragonkin', 'Cendrés'],
         outcomes: trio(
-          { text: 'Deux souffles s’entrechoquent. Le vôtre tient.', deltas: { magie: 8, endurance: 5, renommee: 10 } },
-          { text: 'Vous absorbez une part du choc.', deltas: { endurance: 3, forme: -8 } },
+          { text: 'Deux souffles s’entrechoquent. Le vôtre tient.', deltas: { cap: 8, def: 5, renommee: 10 } },
+          { text: 'Vous absorbez une part du choc.', deltas: { def: 3, forme: -8 } },
           { text: 'Votre souffle s’éteint trop tôt.', deltas: { forme: -14, moral: -6 } },
         ),
       },
@@ -1083,8 +1083,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'prendre',
         label: 'Saisir le Pointeau',
         outcomes: trio(
-          { text: 'Le pouvoir change votre essence. Rare. Irréversible.', deltas: { puissance: 5, endurance: 5, magie: 5, vitesse: 5, renommee: 12, trophies: { coop: 1 } } },
-          { text: 'Le Pointeau pulse… puis se calme.', deltas: { puissance: 2, magie: 2, renommee: 4 } },
+          { text: 'Le pouvoir change votre essence. Rare. Irréversible.', deltas: { auto: 5, def: 5, cap: 5, spd: 5, renommee: 12, trophies: { coop: 1 } } },
+          { text: 'Le Pointeau pulse… puis se calme.', deltas: { auto: 2, cap: 2, renommee: 4 } },
           { text: 'Rejet. Votre corps n’est pas prêt.', deltas: { forme: -12, moral: -6 } },
         ),
       },
@@ -1101,7 +1101,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'garder',
         label: 'Le sceller pour plus tard',
         outcomes: trio(
-          { text: 'Patience de sage. Le sceau vous bénit.', deltas: { moral: 6, magie: 3, renommee: 3 } },
+          { text: 'Patience de sage. Le sceau vous bénit.', deltas: { moral: 6, cap: 3, renommee: 3 } },
           { text: 'Vous repartez les mains vides… pour l’instant.', deltas: {} },
           { text: 'Quelqu’un le vole derrière vous.', deltas: { moral: -7, renommee: -3 } },
         ),
@@ -1119,7 +1119,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'offrande',
         label: 'Présenter votre arme légendaire',
         outcomes: trio(
-          { text: 'Ornn forge. Le métal devient mythe.', deltas: { puissance: 9, endurance: 5, renommee: 10, or: -8, trophies: { forge: 1 } } },
+          { text: 'Ornn forge. Le métal devient mythe.', deltas: { auto: 9, def: 5, renommee: 10, or: -8, trophies: { forge: 1 } } },
           { text: 'Il retient l’arme… pour « plus tard ».', deltas: { renommee: 3, forme: -4 } },
           { text: 'Indigne. Les soufflets s’éteignent.', deltas: { moral: -8, renommee: -4 } },
         ),
@@ -1128,8 +1128,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'defi',
         label: 'Survivre à sa forge brûlante',
         outcomes: trio(
-          { text: 'Vous tenez. Une rune d’endurance vous marque.', deltas: { endurance: 8, puissance: 3, renommee: 8, forme: -10, trophies: { forge: 1 } } },
-          { text: 'Vous sortez brûlé mais vivant.', deltas: { endurance: 3, forme: -9 } },
+          { text: 'Vous tenez. Une rune d’endurance vous marque.', deltas: { def: 8, auto: 3, renommee: 8, forme: -10, trophies: { forge: 1 } } },
+          { text: 'Vous sortez brûlé mais vivant.', deltas: { def: 3, forme: -9 } },
           { text: 'La chaleur vous brise.', deltas: { forme: -16, moral: -7 } },
         ),
       },
@@ -1138,8 +1138,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         label: 'Devenir le rempart de l’épreuve',
         ifClass: ['Bastion', 'Paladin'],
         outcomes: trio(
-          { text: 'Ornn reconnaît le mur. Reforgé digne.', deltas: { endurance: 9, renommee: 7, forme: -6 } },
-          { text: 'Vous encaisez l’essentiel.', deltas: { endurance: 4, forme: -7 } },
+          { text: 'Ornn reconnaît le mur. Reforgé digne.', deltas: { def: 9, renommee: 7, forme: -6 } },
+          { text: 'Vous encaisez l’essentiel.', deltas: { def: 4, forme: -7 } },
           { text: 'Le rempart cède trop tôt.', deltas: { forme: -13, moral: -5 } },
         ),
       },
@@ -1156,9 +1156,9 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'accelerer',
         label: 'Accélérer votre destin',
         outcomes: trio(
-          { text: 'Deux saisons d’expérience en un battement.', deltas: { puissance: 5, magie: 5, vitesse: 5, renommee: 8, forme: -6 } },
-          { text: 'Léger gain de temps.', deltas: { vitesse: 3, magie: 2 } },
-          { text: 'Le temps vous mord. Vieilli trop vite.', deltas: { forme: -12, moral: -5, endurance: -2 } },
+          { text: 'Deux saisons d’expérience en un battement.', deltas: { auto: 5, cap: 5, spd: 5, renommee: 8, forme: -6 } },
+          { text: 'Léger gain de temps.', deltas: { spd: 3, cap: 2 } },
+          { text: 'Le temps vous mord. Vieilli trop vite.', deltas: { forme: -12, moral: -5, def: -2 } },
         ),
       },
       {
@@ -1167,14 +1167,14 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         outcomes: trio(
           { text: 'Le malheur passe à côté. Chance rare.', deltas: { moral: 8, forme: 6, renommee: 4 } },
           { text: 'Présage atténué.', deltas: { moral: 3 } },
-          { text: 'Vous figez… votre propre élan.', deltas: { vitesse: -2, moral: -4 } },
+          { text: 'Vous figez… votre propre élan.', deltas: { spd: -2, moral: -4 } },
         ),
       },
       {
         id: 'rendre',
         label: 'Rendre le pendule au silence',
         outcomes: trio(
-          { text: 'Chronos approuve. Bénédiction discrète.', deltas: { magie: 4, moral: 5, charisme: 3 } },
+          { text: 'Chronos approuve. Bénédiction discrète.', deltas: { cap: 4, moral: 5, charisme: 3 } },
           { text: 'Silence. Paix.', deltas: { moral: 2 } },
           { text: 'Le pendule refuse d’être rendu.', deltas: { moral: -5, forme: -3 } },
         ),
@@ -1198,7 +1198,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
             deltas: { or: -5, forme: -2 },
             weaponProgress: 'upgrade',
           },
-          { text: 'Travail correct, pas de miracle.', deltas: { puissance: 1, or: -2 } },
+          { text: 'Travail correct, pas de miracle.', deltas: { auto: 1, or: -2 } },
           { text: 'Il abîme le pommeau. Rage contenue.', deltas: { or: -4, moral: -4 } },
         ),
       },
@@ -1208,10 +1208,10 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         outcomes: trio(
           {
             text: 'Plans trouvés. Vous appliquez la méthode.',
-            deltas: { magie: 1 },
+            deltas: { cap: 1 },
             weaponProgress: 'upgrade',
           },
-          { text: 'Plans incomplets. Inspiration tiède.', deltas: { magie: 1, or: 2 } },
+          { text: 'Plans incomplets. Inspiration tiède.', deltas: { cap: 1, or: 2 } },
           { text: 'Piège. Le coffre claque sur vos doigts.', deltas: { forme: -7, moral: -3 } },
         ),
       },
@@ -1219,7 +1219,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'patienter',
         label: 'Garder {arme} telle quelle',
         outcomes: trio(
-          { text: 'Patience. Vous affinez votre geste.', deltas: { moral: 3, vitesse: 1 } },
+          { text: 'Patience. Vous affinez votre geste.', deltas: { moral: 3, spd: 1 } },
           { text: 'Rien ne change.', deltas: {} },
           { text: 'Vous doutez de votre choix d’arme.', deltas: { moral: -3 } },
         ),
@@ -1263,8 +1263,8 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'etudier',
         label: 'Étudier les runes sans forcer',
         outcomes: trio(
-          { text: 'Compréhension. Votre prochain upgrade sera plus sûr.', deltas: { magie: 4, moral: 2 } },
-          { text: 'Quelques notes utiles.', deltas: { magie: 1 } },
+          { text: 'Compréhension. Votre prochain upgrade sera plus sûr.', deltas: { cap: 4, moral: 2 } },
+          { text: 'Quelques notes utiles.', deltas: { cap: 1 } },
           { text: 'Les runes mentent. Vertige.', deltas: { moral: -4 } },
         ),
       },
@@ -1316,7 +1316,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'prier',
         label: 'Prier la lignée sans toucher',
         outcomes: trio(
-          { text: 'Une bénédiction discrète vous suit.', deltas: { moral: 4, magie: 2 } },
+          { text: 'Une bénédiction discrète vous suit.', deltas: { moral: 4, cap: 2 } },
           { text: 'Silence respectueux.', deltas: { moral: 1 } },
           { text: 'Rien. Juste le froid de la pierre.', deltas: { moral: -2 } },
         ),
@@ -1344,7 +1344,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'placeholder',
         label: 'Écouter le discours d’ouverture',
         outcomes: trio(
-          { text: 'Le discours inspire. Les voies s’éclaircissent.', deltas: { magie: 2, moral: 2 } },
+          { text: 'Le discours inspire. Les voies s’éclaircissent.', deltas: { cap: 2, moral: 2 } },
           { text: 'Long discours.', deltas: {} },
           { text: 'Vous ratez le début.', deltas: { moral: -2 } },
         ),
@@ -1353,7 +1353,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'placeholder2',
         label: 'Prendre des notes',
         outcomes: trio(
-          { text: 'Notes utiles pour plus tard.', deltas: { magie: 1, charisme: 1 } },
+          { text: 'Notes utiles pour plus tard.', deltas: { cap: 1, charisme: 1 } },
           { text: 'Quelques griffonnages.', deltas: {} },
           { text: 'Votre stylo casse.', deltas: { moral: -1 } },
         ),

@@ -39,8 +39,8 @@ export function buildDestinyCharacterFromGame(char) {
     return Math.round(14 + t * 10 + Math.min(level, 100) * 0.02);
   };
 
-  // HP jeu (~120–200) ne doit pas exploser l’endurance Destiny
-  const enduranceSource = Number.isFinite(Number(base.def))
+  // HP jeu (~120–200) ne doit pas exploser la Déf Destiny
+  const defSource = Number.isFinite(Number(base.def))
     ? Number(base.def)
     : Number.isFinite(Number(base.hp))
       ? Number(base.hp) / 8
@@ -72,10 +72,10 @@ export function buildDestinyCharacterFromGame(char) {
       : `${race} ${classe} de Duels de Cave.`,
     playstyle: classAbility || `${race} · ${classe}`,
     baseStats: {
-      puissance: scaleStat(base.auto, 18),
-      endurance: scaleStat(enduranceSource, 18),
-      magie: scaleStat(base.cap, 18),
-      vitesse: scaleStat(base.spd, 18),
+      auto: scaleStat(base.auto, 18),
+      def: scaleStat(defSource, 18),
+      cap: scaleStat(base.cap, 18),
+      spd: scaleStat(base.spd, 18),
       charisme: Math.round(16 + Math.min(level, 100) * 0.04),
     },
     trait: races[race]?.awakening?.description
@@ -149,28 +149,28 @@ export const CAVE_DESTINY_AMBITIONS = [
     name: 'Couronne du samedi',
     icon: '🏆',
     desc: 'Vaincre l’arène du tournoi et graver son nom au Hall of Fame.',
-    effects: { renommee: 8, puissance: 4, or: -2 },
+    effects: { renommee: 8, auto: 4, or: -2 },
   },
   {
     id: 'donjons',
     name: 'Maître des donjons',
     icon: '🏰',
     desc: 'Forêt enchantée, Tour du Mage, Grotte aux merveilles, Extension… tout explorer.',
-    effects: { endurance: 5, magie: 3, or: 4 },
+    effects: { def: 5, cap: 3, or: 4 },
   },
   {
     id: 'forge',
     name: 'Forgé par Ornn',
     icon: '🔨',
     desc: 'Impressionner le Dieu de la Forge et reforger une arme légendaire.',
-    effects: { puissance: 5, endurance: 3, or: -4 },
+    effects: { auto: 5, def: 3, or: -4 },
   },
   {
     id: 'ombres',
     name: 'Affronter les épreuves sombres',
     icon: '🪞',
     desc: 'Miroir, Cataclysme, Labyrinthe Infini : là où la légende se juge.',
-    effects: { vitesse: 6, magie: 3, charisme: -2 },
+    effects: { spd: 6, cap: 3, charisme: -2 },
   },
 ];
 
@@ -187,35 +187,35 @@ export const CAVE_DESTINY_MENTORS = [
     name: 'L’apprenti d’Ornn',
     icon: '⚒️',
     desc: 'Peu de mots. Beaucoup de martelage. Il juge le fer… et le bras.',
-    effects: { puissance: 6, endurance: 5, or: -3 },
+    effects: { auto: 6, def: 5, or: -3 },
   },
   {
     id: 'archimage',
     name: 'Un archimage de la Tour',
     icon: '🔮',
     desc: 'Il connaît les passifs des étages. Vous, pas encore. Alliance précieuse.',
-    effects: { magie: 9, vitesse: 2, moral: -2 },
+    effects: { cap: 9, spd: 2, moral: -2 },
   },
   {
     id: 'champion',
     name: 'Un ancien vainqueur',
     icon: '👑',
     desc: 'Il a porté la couronne. Puis s’est retiré. Il veut un digne successeur.',
-    effects: { renommee: 6, puissance: 4, charisme: 3 },
+    effects: { renommee: 6, auto: 4, charisme: 3 },
   },
   {
     id: 'forestier',
     name: 'Le forestier de la Forêt enchantée',
     icon: '🌲',
     desc: 'Il connaît chaque clairière, chaque embuscade, chaque murmure d’arbre.',
-    effects: { endurance: 5, vitesse: 4, or: 3 },
+    effects: { def: 5, spd: 4, or: 3 },
   },
   {
     id: 'bibliothecaire',
     name: 'Le bibliothécaire de l’Encyclopédie',
     icon: '📚',
     desc: 'Bestiaires, lignées d’armes, notes de vainqueurs : tout est dans sa tête.',
-    effects: { magie: 6, charisme: 3, moral: 3 },
+    effects: { cap: 6, charisme: 3, moral: 3 },
   },
   {
     id: 'parieur',
@@ -229,28 +229,28 @@ export const CAVE_DESTINY_MENTORS = [
     name: 'Le Guetteur du Labyrinthe',
     icon: '🌀',
     desc: 'Cent vingt étages dans les yeux. Il sait quand un couloir ment.',
-    effects: { vitesse: 7, magie: 3, forme: -3 },
+    effects: { spd: 7, cap: 3, forme: -3 },
   },
   {
     id: 'nain_forge',
     name: 'Un maître-nain de la Forge',
     icon: '⛏️',
     desc: 'Il a vu Ornn travailler. Il ne le dira jamais… mais il enseigne.',
-    effects: { endurance: 7, puissance: 4, or: -2 },
+    effects: { def: 7, auto: 4, or: -2 },
   },
   {
     id: 'spectre_tour',
     name: 'Un spectre de la Tour du Mage',
     icon: '👻',
     desc: 'Ancien aspirant. Il murmure les passifs oubliés entre deux étages.',
-    effects: { magie: 8, vitesse: 3, moral: -3 },
+    effects: { cap: 8, spd: 3, moral: -3 },
   },
   {
     id: 'veteran_red',
     name: 'Un vétéran de l’arène de Red',
     icon: '🔴',
     desc: 'Il a survécu à Dracaufeu. Deux fois. Il parle encore trop fort.',
-    effects: { puissance: 5, charisme: 4, endurance: 2 },
+    effects: { auto: 5, charisme: 4, def: 2 },
   },
   {
     id: 'messager_hall',
