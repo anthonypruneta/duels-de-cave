@@ -75,6 +75,58 @@ body.cave-destiny-plain::before {
   display: none !important;
 }
 
+.cave-destiny-shell {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(120, 53, 15, 0.22), transparent 55%),
+    #1c1917;
+}
+
+.cave-destiny-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  opacity: 0.45;
+  animation: cave-destiny-drift 18s ease-in-out infinite;
+}
+
+.cave-destiny-orb-a {
+  width: 280px;
+  height: 280px;
+  top: 12%;
+  left: -80px;
+  background: rgba(180, 83, 9, 0.28);
+}
+
+.cave-destiny-orb-b {
+  width: 320px;
+  height: 320px;
+  bottom: 8%;
+  right: -100px;
+  background: rgba(68, 64, 60, 0.55);
+  animation-delay: -8s;
+  animation-duration: 22s;
+}
+
+.cave-destiny-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+@keyframes cave-destiny-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, -18px, 0) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cave-destiny-orb {
+    animation: none;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

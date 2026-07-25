@@ -89,37 +89,34 @@ export function hasCharacterImage(char) {
 }
 
 /**
- * Tire `count` personnages distincts au hasard.
- * Priorité au pool avec image (mais tirage 100% aléatoire dans ce pool),
- * en évitant les IDs du tirage précédent.
+ * Tire `count` personnages distincts au hasard dans TOUT le pool
+ * (plus de restriction aux seuls persos avec image — c’était ça qui
+ * renvoyait toujours les mêmes 3).
+ * Évite autant que possible les IDs récemment proposés.
  */
 export function pickRandomGameCharacters(allCharacters, count = 3, options = {}) {
   const excludeIds = new Set((options.excludeIds || []).map(String));
   const active = (allCharacters || []).filter(
-    (c) => c && !c.disabled && !c.archived && c.name && c.race && c.class
+    (c) => c && !c.disabled && c.name && c.race && c.class
   );
 
-  const pictured = active.filter(hasCharacterImage);
-  const basePool = pictured.length >= count ? pictured : active;
+  if (active.length === 0) return [];
 
-  let pool = basePool.filter((c) => !excludeIds.has(String(c.id || c.userId)));
-  // Si l’exclusion vide trop le pool, on ignore l’exclusion
-  if (pool.length < count) pool = [...basePool];
+  let pool = active.filter((c) => !excludeIds.has(String(c.id || c.userId)));
+  // Si trop peu restent, élargit progressivement
+  if (pool.length < count) {
+    const recent = (options.excludeIds || []).map(String);
+    const softExclude = new Set(recent.slice(0, Math.max(0, recent.length - count * 2)));
+    pool = active.filter((c) => !softExclude.has(String(c.id || c.userId)));
+  }
+  if (pool.length < count) pool = [...active];
 
   const ordered = shuffleInPlace([...pool]);
-
-  if (ordered.length < count) {
-    const pickedIds = new Set(ordered.map((c) => String(c.id || c.userId)));
-    const fillers = shuffleInPlace(
-      active.filter((c) => !pickedIds.has(String(c.id || c.userId)))
-    );
-    ordered.push(...fillers);
-  }
-
   return ordered.slice(0, count).map(buildDestinyCharacterFromGame);
 }
 
 export const LAST_OFFERED_STORAGE_KEY = 'caveDestiny:lastOfferedIds';
+export const LAST_OFFERED_HISTORY_LIMIT = 24;
 
 export const CAVE_DESTINY_AMBITIONS = [
   {
