@@ -316,10 +316,7 @@ export {
 /** @deprecated — utiliser pickRandomCommonWeapons / getDestinyWeaponById */
 export const CAVE_DESTINY_WEAPONS = [];
 
-/**
- * Paliers de score — exigeants.
- * Ex. run Dr Galzi (~439 ancien score, 0 forge, 8 échecs) → désormais ~1★ Cave.
- */
+/** Paliers de score — exigeants (run sans trophée / ambition ratée ≠ Légende). */
 export const CAVE_DESTINY_TIERS = [
   { minScore: 0, id: 'bronze_cave', label: 'Cave bronze', color: 'text-stone-300' },
   { minScore: 220, id: 'cave_confirme', label: 'Cave confirmé', color: 'text-emerald-300' },
