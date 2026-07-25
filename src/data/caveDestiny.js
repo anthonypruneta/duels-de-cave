@@ -65,20 +65,44 @@ export function buildDestinyCharacterFromGame(char) {
   };
 }
 
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /**
  * Tire `count` personnages actifs distincts au hasard.
+ * Préfère ceux qui ont une image ; évite les IDs exclus (dernier tirage).
  */
-export function pickRandomGameCharacters(allCharacters, count = 3) {
+export function pickRandomGameCharacters(allCharacters, count = 3, options = {}) {
+  const excludeIds = new Set((options.excludeIds || []).map(String));
   const active = (allCharacters || []).filter(
     (c) => c && !c.disabled && !c.archived && c.name && c.race && c.class
   );
-  const shuffled = [...active];
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+
+  const eligible = active.filter((c) => !excludeIds.has(String(c.id || c.userId)));
+  const pool = eligible.length >= count ? eligible : active;
+
+  const withImage = shuffleInPlace(pool.filter((c) => c.characterImage));
+  const withoutImage = shuffleInPlace(pool.filter((c) => !c.characterImage));
+  const ordered = [...withImage, ...withoutImage];
+
+  // Si trop peu après exclusion, complète depuis le reste
+  if (ordered.length < count) {
+    const pickedIds = new Set(ordered.map((c) => String(c.id || c.userId)));
+    const fillers = shuffleInPlace(
+      active.filter((c) => !pickedIds.has(String(c.id || c.userId)))
+    );
+    ordered.push(...fillers);
   }
-  return shuffled.slice(0, count).map(buildDestinyCharacterFromGame);
+
+  return ordered.slice(0, count).map(buildDestinyCharacterFromGame);
 }
+
+export const LAST_OFFERED_STORAGE_KEY = 'caveDestiny:lastOfferedIds';
 
 export const CAVE_DESTINY_AMBITIONS = [
   {
