@@ -2,52 +2,19 @@
  * Événements Cave Destiny — 100 % univers Duels de Cave.
  * Chaque choix : 3 issues (bonus / neutre / malus).
  * Options supplémentaires selon race / classe.
+ * Rareté : common | uncommon | rare | epic | legendary.
  */
 
-/** Construit le trio obligatoire bonus / neutre / malus */
-export function trio(bonus, neutre, malus, weights = [30, 40, 30]) {
-  return [
-    { variant: 'bonus', weight: weights[0], text: bonus.text, deltas: bonus.deltas },
-    { variant: 'neutre', weight: weights[1], text: neutre.text, deltas: neutre.deltas },
-    { variant: 'malus', weight: weights[2], text: malus.text, deltas: malus.deltas },
-  ];
-}
+import { CAVE_DESTINY_EVENTS_EXTRA } from './caveDestinyEventsExtra';
 
-function optionMatches(opt, character) {
-  const race = character?.race;
-  const classe = character?.class;
-  if (opt.ifRace?.length && !opt.ifRace.includes(race)) return false;
-  if (opt.ifClass?.length && !opt.ifClass.includes(classe)) return false;
-  return true;
-}
+export { trio, getOptionsForEvent } from './caveDestinyEventUtils';
 
-/**
- * Options visibles pour un perso : génériques + spécifiques race/classe.
- * Garantit au moins 3 choix.
- */
-export function getOptionsForEvent(event, character) {
-  const all = event?.options || [];
-  const matched = all.filter((o) => optionMatches(o, character));
-  if (matched.length >= 3) return matched;
-
-  const generics = all.filter((o) => !o.ifRace?.length && !o.ifClass?.length);
-  const ids = new Set(matched.map((o) => o.id || o.label));
-  for (const g of generics) {
-    const key = g.id || g.label;
-    if (ids.has(key)) continue;
-    matched.push(g);
-    ids.add(key);
-    if (matched.length >= 3) break;
-  }
-  return matched;
-}
-
-export const CAVE_DESTINY_EVENTS = [
+const CAVE_DESTINY_EVENTS_CORE = [
   {
     id: 'tournoi_samedi',
     title: 'Tournoi du samedi',
     text: 'L’arène se remplit. Les lots du tournoi sont tirés. Le Hall of Fame attend un nouveau nom… ou un nouvel oublié.',
-    weight: 12,
+    rarity: 'uncommon',
     tags: ['tournoi', 'combat'],
     options: [
       {
@@ -103,7 +70,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'foret',
     title: 'La Forêt enchantée',
     text: 'Clairière, bosquet, sanctuaire… Les arbres murmurent. Quelque chose de vieux veille encore.',
-    weight: 11,
+    rarity: 'common',
     tags: ['donjons', 'combat'],
     options: [
       {
@@ -159,7 +126,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'tour_mage',
     title: 'Tour du Mage',
     text: 'Hall des grimoires, galerie d’os, sommet nécromant. Chaque étage offre un passif… et un prix.',
-    weight: 10,
+    rarity: 'uncommon',
     tags: ['donjons', 'magie'],
     options: [
       {
@@ -215,7 +182,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'forge_ornn',
     title: 'Forge des Légendes',
     text: 'Les soufflets d’Ornn rugissent. Seul un guerrier digne peut impressionner le Dieu de la Forge.',
-    weight: 8,
+    rarity: 'rare',
     tags: ['forge'],
     options: [
       {
@@ -271,7 +238,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'labyrinthe',
     title: 'Labyrinthe Infini',
     text: 'Cent vingt étages qui se reforment. Rois et dieux du labyrinthe attendent au fond du couloir.',
-    weight: 9,
+    rarity: 'uncommon',
     tags: ['ombres', 'combat'],
     options: [
       {
@@ -327,7 +294,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'miroir',
     title: 'Le Miroir',
     text: 'Un reflet maudit vous attend. Même race, même classe… meilleurs choix ?',
-    weight: 8,
+    rarity: 'rare',
     tags: ['ombres', 'combat'],
     options: [
       {
@@ -383,7 +350,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'cataclysme',
     title: 'Cataclysme',
     text: 'Le ciel se fend. Une entité menace le monde entier. Au dixième souffle : EXTINCTION.',
-    weight: 7,
+    rarity: 'epic',
     tags: ['ombres', 'combat'],
     options: [
       {
@@ -439,7 +406,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'grotte_merveilles',
     title: 'La Grotte aux merveilles',
     text: 'Forteresse gobeline, repaire des bandits, antre du dragon… Des armes y dorment encore.',
-    weight: 9,
+    rarity: 'uncommon',
     tags: ['donjons', 'loot'],
     options: [
       {
@@ -495,7 +462,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'taverne',
     title: 'La Taverne',
     text: 'Musique, paris, chibis sur les tables. Les champions du tournoi boivent… et jugent.',
-    weight: 9,
+    rarity: 'common',
     tags: ['social'],
     options: [
       {
@@ -551,7 +518,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'boss_rush',
     title: 'Boss Rush',
     text: 'Vyraxion, Licorne, Liche, Ornn, Gojo, Koro Sensei… Six épreuves. Une seule respiration.',
-    weight: 7,
+    rarity: 'rare',
     tags: ['combat', 'ombres'],
     options: [
       {
@@ -607,7 +574,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'extension',
     title: 'Extension du Territoire',
     text: 'Un domaine arcanique s’ouvre. On y fusionne un second passif mystique… si l’on survit.',
-    weight: 7,
+    rarity: 'rare',
     tags: ['donjons', 'magie'],
     options: [
       {
@@ -663,7 +630,7 @@ export const CAVE_DESTINY_EVENTS = [
     id: 'coop_red',
     title: 'L’arène de Red',
     text: 'Deux combattants. Les créatures de Red. Au bout : le Pointeau ADN.',
-    weight: 7,
+    rarity: 'uncommon',
     tags: ['donjons', 'social'],
     options: [
       {
@@ -715,4 +682,9 @@ export const CAVE_DESTINY_EVENTS = [
       },
     ],
   },
+];
+
+export const CAVE_DESTINY_EVENTS = [
+  ...CAVE_DESTINY_EVENTS_CORE,
+  ...CAVE_DESTINY_EVENTS_EXTRA,
 ];

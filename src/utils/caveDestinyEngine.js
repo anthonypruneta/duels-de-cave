@@ -13,6 +13,7 @@ import {
   STORAGE_KEY_PANTHEON,
   getOptionsForEvent,
 } from '../data/caveDestiny';
+import { getEventBaseWeight } from '../data/caveDestinyRarity';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -116,7 +117,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
   stats = applyEffects(stats, weapon.effects);
 
   return {
-    version: 3,
+    version: 4,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -135,7 +136,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
 }
 
 function eventWeight(event, career) {
-  let w = event.weight || 1;
+  let w = getEventBaseWeight(event);
   const ambitionId = career.ambition?.id;
   if (ambitionId && event.tags?.includes(ambitionId)) w *= 1.7;
   if (career.stats.forme < 35 && event.id === 'blessure') w *= 2.2;
@@ -156,6 +157,7 @@ export function drawEvent(career) {
     title: raw.title,
     text: raw.text,
     tags: raw.tags,
+    rarity: raw.rarity || 'common',
     options,
   };
 }
