@@ -142,13 +142,14 @@ function loadImage(src) {
 }
 
 function starsFromTier(tier) {
+  // 5★ réservé au mythe ; une run faible / moyenne reste à 1–2★
   const map = {
-    mythe: 5,
-    legende_arene: 4,
-    champion_local: 3,
-    aventurier: 2,
-    cave_confirme: 2,
     bronze_cave: 1,
+    cave_confirme: 1,
+    aventurier: 2,
+    champion_local: 3,
+    legende_arene: 4,
+    mythe: 5,
   };
   return map[tier?.id] || 1;
 }

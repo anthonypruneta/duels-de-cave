@@ -651,13 +651,15 @@ export function buildCareerRecap(career, opts = {}) {
   const nickname = buildNickname(career);
 
   const legendBadge =
-    tier?.id === 'mythe' || tier?.id === 'legende_arene'
-      ? 'UNE LÉGENDE'
-      : tier?.id === 'champion_local'
-        ? 'UN CHAMPION'
-        : tier?.id === 'aventurier'
-          ? 'UN AVENTURIER'
-          : 'UN CAVE';
+    tier?.id === 'mythe'
+      ? 'UN MYTHE'
+      : tier?.id === 'legende_arene'
+        ? 'UNE LÉGENDE'
+        : tier?.id === 'champion_local'
+          ? 'UN CHAMPION'
+          : tier?.id === 'aventurier'
+            ? 'UN AVENTURIER'
+            : 'UN CAVE';
 
   return {
     score,
