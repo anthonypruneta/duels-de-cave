@@ -832,7 +832,7 @@ const CaveDestiny = () => {
         )}
         <ScreenTitle
           title="Votre ambition"
-          sub="Elle attire des événements de votre voie — visibles et aux gains renforcés."
+          sub="Elle lance des suites (étages → boss). L’ambition ne s’allume qu’à la finale."
         />
         <div className="space-y-2">
           {CAVE_DESTINY_AMBITIONS.map((a) => (
@@ -1029,7 +1029,9 @@ const CaveDestiny = () => {
               ? 'border-2 border-violet-500/60 bg-violet-950/30 shadow-[0_0_28px_rgba(139,92,246,0.18)]'
               : outcomeFlash?.ambitionLinked
                 ? 'border-2 border-violet-500/50 bg-violet-950/25 shadow-[0_0_22px_rgba(139,92,246,0.14)]'
-                : 'border border-stone-600 bg-stone-950/85'
+                : event?.chain && !outcomeFlash
+                  ? 'border-2 border-teal-600/45 bg-teal-950/20 shadow-[0_0_22px_rgba(20,184,166,0.12)]'
+                  : 'border border-stone-600 bg-stone-950/85'
           }`}
         >
             {outcomeFlash ? (
@@ -1121,27 +1123,53 @@ const CaveDestiny = () => {
               <div className="flex items-center justify-between gap-2">
                 <p
                   className={`text-[11px] uppercase tracking-wider font-bold ${
-                    event.ambitionLinked ? 'text-violet-300' : 'text-amber-500/90'
+                    event.ambitionLinked
+                      ? 'text-violet-300'
+                      : event.chain
+                        ? 'text-teal-300'
+                        : 'text-amber-500/90'
                   }`}
                 >
-                  {event.ambitionLinked ? 'Voie de l’ambition' : 'Événement'}
+                  {event.ambitionLinked
+                    ? 'Finale d’ambition'
+                    : event.chain
+                      ? 'Suite'
+                      : 'Événement'}
                 </p>
                 <RarityBadge rarity={event.rarity} />
               </div>
-              {event.ambitionLinked && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-950/60 px-2.5 py-1 text-[11px] font-semibold text-violet-100">
-                  <span aria-hidden="true">{event.ambitionIcon || career.ambition?.icon || '🎯'}</span>
+              {event.chain && (
+                <div
+                  className={`mt-2 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                    event.ambitionLinked
+                      ? 'border-violet-500/50 bg-violet-950/60 text-violet-100'
+                      : 'border-teal-600/45 bg-teal-950/45 text-teal-100'
+                  }`}
+                >
+                  <span aria-hidden="true">
+                    {event.ambitionLinked
+                      ? event.ambitionIcon || career.ambition?.icon || '🎯'
+                      : '🗺️'}
+                  </span>
                   <span>
-                    Ambition · {event.ambitionName || career.ambition?.name || 'Votre voie'}
+                    {event.chain.label} · {event.chain.step}/{event.chain.total}
+                    {event.ambitionLinked ? ' · ambition' : ''}
                   </span>
                 </div>
               )}
               <h3 className="text-lg font-bold text-amber-50 mt-2">{event.title}</h3>
-              {event.ambitionLinked && (
+              {event.ambitionLinked ? (
                 <p className="mt-1.5 text-xs text-violet-200/90 leading-relaxed">
-                  Cet événement résonne avec votre ambition — les gains y sont renforcés.
+                  Fin de suite — votre ambition s’allume : les gains sont renforcés.
                 </p>
-              )}
+              ) : event.chain ? (
+                <p className="mt-1.5 text-xs text-teal-200/85 leading-relaxed">
+                  Étape {event.chain.step}/{event.chain.total}
+                  {event.chain.isFinale
+                    ? ''
+                    : ' — réussissez pour enchaîner vers la suite.'}
+                </p>
+              ) : null}
               <p className="mt-3 text-[15px] sm:text-base text-stone-200 leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif]">
                 {event.text}
               </p>
