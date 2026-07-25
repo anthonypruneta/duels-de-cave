@@ -26,6 +26,7 @@ import {
   getTier,
   buildCompanionPool,
   withCompanionPool,
+  listActiveChainQuests,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
@@ -1072,12 +1073,34 @@ const CaveDestiny = () => {
           <Gauge label="Moral" value={career.stats.moral} colorClass="bg-sky-500" />
         </div>
 
-        <div className="h-1 rounded-full bg-stone-900 border border-stone-700 overflow-hidden mb-6">
+        <div className="h-1 rounded-full bg-stone-900 border border-stone-700 overflow-hidden mb-2">
           <div
             className="h-full bg-gradient-to-r from-amber-700 to-amber-400 transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>
+
+        {(() => {
+          const activeQuests = listActiveChainQuests(career);
+          if (!activeQuests.length) return <div className="mb-6" />;
+          return (
+            <div className="mb-6 flex flex-wrap gap-1.5">
+              {activeQuests.map((q) => (
+                <span
+                  key={q.chainId}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-teal-700/45 bg-teal-950/40 px-2.5 py-1 text-[11px] font-semibold text-teal-100"
+                  title={`Prochaine étape possible : ${q.nextStep}/${q.total}`}
+                >
+                  <span aria-hidden="true">🗺️</span>
+                  <span className="truncate max-w-[12rem]">{q.label}</span>
+                  <span className="text-teal-300/90 tabular-nums">
+                    {q.done}/{q.total}
+                  </span>
+                </span>
+              ))}
+            </div>
+          );
+        })()}
 
         <div
           className={`rounded-2xl p-5 min-h-[260px] flex flex-col ${
@@ -1223,7 +1246,7 @@ const CaveDestiny = () => {
                   Étape {event.chain.step}/{event.chain.total}
                   {event.chain.isFinale
                     ? ''
-                    : ' — réussissez pour enchaîner vers la suite.'}
+                    : ' — réussissez pour débloquer la suite (tirage ultérieur).'}
                 </p>
               ) : null}
               <p className="mt-3 text-[15px] sm:text-base text-stone-200 leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif]">
