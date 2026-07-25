@@ -155,7 +155,7 @@ export const CAVE_DESTINY_AMBITIONS = [
     id: 'donjons',
     name: 'Maître des donjons',
     icon: '🏰',
-    desc: 'La Cave n’ouvre ses trésors qu’aux obstinés. Enchaînez les étages — Forêt, Tour, Red, Grotte — jusqu’au boss final.',
+    desc: 'La Cave n’ouvre ses trésors qu’aux obstinés. Enchaînez les étages — Forêt, Tour, Grotte, Extension — jusqu’au boss final.',
     effects: { def: 5, cap: 3, or: 4 },
   },
   {

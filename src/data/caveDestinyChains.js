@@ -23,12 +23,6 @@ export const CAVE_DESTINY_CHAINS = {
     label: 'Tour du Mage',
     steps: ['rat_grimoires', 'golem_os', 'tour_mage'],
   },
-  arene_red: {
-    id: 'arene_red',
-    ambition: 'donjons',
-    label: 'Arène de Red',
-    steps: ['salameche_red', 'ronflex_red', 'coop_red'],
-  },
   grotte: {
     id: 'grotte',
     ambition: 'donjons',
