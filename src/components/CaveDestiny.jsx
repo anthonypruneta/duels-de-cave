@@ -346,7 +346,7 @@ const CaveDestiny = () => {
             Cave Destiny
           </h1>
           <p className="mt-4 text-sm text-stone-300 leading-relaxed max-w-sm">
-            Incarnez un personnage de la Cave et écrivez sa carrière, saison après saison.
+            Incarnez un perso de Duels de Cave et surviving la saison… en cave.
           </p>
 
           <div className="mt-10 w-full space-y-3 max-w-sm">
@@ -420,7 +420,7 @@ const CaveDestiny = () => {
         <StepDots step="personnage" />
         <ScreenTitle
           title="Choisissez un personnage"
-          sub="Trois personnages existants de Duels de Cave."
+          sub="Trois persos réels de Duels de Cave. Bonne chance, cave."
         />
 
         {charsLoading && (
@@ -678,15 +678,30 @@ const CaveDestiny = () => {
         </div>
 
         <div className="rounded-2xl border border-stone-600 bg-stone-950/85 p-5 min-h-[260px] flex flex-col">
-          {outcomeFlash ? (
-            <>
-              <p className="text-[11px] uppercase tracking-wider text-amber-500/90 font-bold">
-                Saison {outcomeFlash.season}
-              </p>
-              <h3 className="text-lg font-bold text-amber-50 mt-1">{outcomeFlash.title}</h3>
-              <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">
-                {outcomeFlash.text}
-              </p>
+            {outcomeFlash ? (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] uppercase tracking-wider text-amber-500/90 font-bold">
+                    Saison {outcomeFlash.season}
+                  </p>
+                  {outcomeFlash.variant && (
+                    <span
+                      className={`text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${
+                        outcomeFlash.variant === 'bonus'
+                          ? 'border-emerald-600/50 bg-emerald-950/50 text-emerald-300'
+                          : outcomeFlash.variant === 'malus'
+                            ? 'border-red-700/50 bg-red-950/50 text-red-300'
+                            : 'border-stone-600 bg-stone-900 text-stone-300'
+                      }`}
+                    >
+                      {outcomeFlash.variant}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-amber-50 mt-1">{outcomeFlash.title}</h3>
+                <p className="text-sm text-stone-300 mt-3 leading-relaxed flex-1">
+                  {outcomeFlash.text}
+                </p>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {formatDelta(outcomeFlash.deltas).map((d) => (
                   <span

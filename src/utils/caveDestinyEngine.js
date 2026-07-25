@@ -11,6 +11,7 @@ import {
   CAVE_DESTINY_SEASON_COUNT,
   STORAGE_KEY_SAVE,
   STORAGE_KEY_PANTHEON,
+  getOptionsForEvent,
 } from '../data/caveDestiny';
 
 function clamp(n, min, max) {
@@ -148,7 +149,15 @@ export function drawEvent(career) {
     ...e,
     weight: eventWeight(e, career),
   }));
-  return pickWeighted(pool);
+  const raw = pickWeighted(pool);
+  const options = getOptionsForEvent(raw, career.character);
+  return {
+    id: raw.id,
+    title: raw.title,
+    text: raw.text,
+    tags: raw.tags,
+    options,
+  };
 }
 
 export function ensureCurrentEvent(career) {
@@ -162,7 +171,15 @@ export function resolveChoice(career, optionIndex) {
   const option = career.currentEvent.options[optionIndex];
   if (!option) return career;
 
-  const outcome = pickWeighted(option.outcomes);
+  // Garantit un trio bonus/neutre/malus même sur d’anciennes saves
+  let outcomes = option.outcomes || [];
+  const variants = new Set(outcomes.map((o) => o.variant).filter(Boolean));
+  if (!variants.has('bonus') || !variants.has('neutre') || !variants.has('malus')) {
+    // fallback : redistribue poids existants
+    outcomes = outcomes.length ? outcomes : [{ weight: 100, text: 'Rien ne se passe.', deltas: {} }];
+  }
+
+  const outcome = pickWeighted(outcomes);
   let deltas = { ...(outcome.deltas || {}) };
   const trophyDelta = deltas.trophies;
   delete deltas.trophies;
@@ -177,6 +194,7 @@ export function resolveChoice(career, optionIndex) {
     title: career.currentEvent.title,
     choice: option.label,
     text: outcome.text,
+    variant: outcome.variant || 'neutre',
     deltas,
   };
 
@@ -255,15 +273,15 @@ export function buildFinalStory(career) {
   const owner = career.character?.ownerPseudo;
 
   let arc = owner
-    ? `${name} (${owner}) a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons dans la Cave.`
-    : `${name} a poursuivi « ${ambition} » pendant ${career.maxSeasons} saisons dans la Cave.`;
-  if (wins >= 2) arc += ' Les tournois du samedi se souviennent encore de ses finales.';
-  else if (wins === 1) arc += ' Une couronne de tournoi brille dans son palmarès.';
-  else arc += ' Le trône du tournoi lui a échappé — d’autres gloires restent.';
+    ? `${name} (${owner}) a chase « ${ambition} » pendant ${career.maxSeasons} saisons en mode cave assumé.`
+    : `${name} a chase « ${ambition} » pendant ${career.maxSeasons} saisons en mode cave assumé.`;
+  if (wins >= 2) arc += ' Les tournois du samedi ont même eu peur.';
+  else if (wins === 1) arc += ' Une couronne. Probablement un bracket soft.';
+  else arc += ' Zéro titre. Beaucoup de « skill issue ».';
 
-  if (forge >= 1) arc += ' L’empreinte d’Ornn marque son arme pour toujours.';
-  if (score >= 360) arc += ' On murmure déjà son nom dans le Hall of Fame.';
-  else if (score < 160) arc += ' Une carrière humble, mais bien réelle.';
+  if (forge >= 1) arc += ' Ornn a quand même forgé quelque chose.';
+  if (score >= 360) arc += ' On arrête (presque) de l’appeler cave.';
+  else if (score < 160) arc += ' Cave jusqu’au bout. Respect.';
 
   return { score, tier, story: arc };
 }
