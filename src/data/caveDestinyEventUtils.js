@@ -3,10 +3,10 @@
  */
 
 const STAT_LABELS = {
-  puissance: 'Puissance',
-  endurance: 'Endurance',
-  magie: 'Magie',
-  vitesse: 'Vitesse',
+  auto: 'Auto',
+  def: 'Déf',
+  cap: 'Cap',
+  spd: 'VIT',
   charisme: 'Charisme',
   renommee: 'Renommée',
   or: 'Or',

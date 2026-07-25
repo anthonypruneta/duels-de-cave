@@ -236,10 +236,10 @@ function RaceClassLine({ race, classe, subclass, className = '', centered = fals
 function RpgStatsBar({ stats, weapon, compact = false }) {
   if (!stats) return null;
   const rows = [
-    ['PUJ', 'Puissance', stats.puissance],
-    ['END', 'Endurance', stats.endurance],
-    ['MAG', 'Magie', stats.magie],
-    ['VIT', 'Vitesse', stats.vitesse],
+    ['Auto', 'Auto (Attaque)', stats.auto],
+    ['Déf', 'Déf (Défense)', stats.def],
+    ['Cap', 'Cap (Capacité)', stats.cap],
+    ['VIT', 'VIT (Vitesse)', stats.spd],
     ['CHA', 'Charisme', stats.charisme],
   ];
   return (

@@ -38,22 +38,22 @@ function pickWeighted(items) {
 }
 
 /** Stats pouvant influencer secrètement un choix */
-const CHECKABLE_STATS = ['puissance', 'endurance', 'magie', 'vitesse', 'charisme', 'renommee'];
+const CHECKABLE_STATS = ['auto', 'def', 'cap', 'spd', 'charisme', 'renommee'];
 
 const CHECK_KEYWORDS = {
-  puissance: [
+  auto: [
     'force', 'frappe', 'attaq', 'coup', 'puissan', 'rage', 'combat', 'duel', 'brut',
     'affronter', 'charger', 'charge', 'tournoi', 'arène', 'assaut',
   ],
-  endurance: [
+  def: [
     'bloqu', 'défense', 'defens', 'encaiss', 'tenir', 'résist', 'resist', 'bouclier',
     'rempart', 'tank', 'sanglier', 'endure', 'protect', 'choc', 'front', 'égide', 'egide',
   ],
-  magie: [
+  cap: [
     'sort', 'arcan', 'magie', 'rituel', 'enchant', 'mage', 'runique', 'mystiq', 'collège',
     'college', 'koro', 'passif', 'tome',
   ],
-  vitesse: [
+  spd: [
     'fuir', 'esquiv', 'rapide', 'sprint', 'course', 'ombre', 'discret', 'voleur', 'archer',
     'précis', 'precis', 'éviter', 'eviter', 'contourner', 'attirer', 'piège', 'piege',
   ],
@@ -96,13 +96,13 @@ function inferCheckStats(option, event) {
 
   const tags = event?.tags || [];
   if (tags.includes('combat') || tags.includes('tournoi') || tags.includes('donjons')) {
-    bump('puissance', 0.35);
-    bump('endurance', 0.3);
-    bump('vitesse', 0.2);
+    bump('auto', 0.35);
+    bump('def', 0.3);
+    bump('spd', 0.2);
   }
-  if (tags.includes('forge')) bump('endurance', 0.35);
+  if (tags.includes('forge')) bump('def', 0.35);
   if (tags.includes('social') || tags.includes('taverne')) bump('charisme', 0.45);
-  if (tags.includes('magie') || tags.includes('subclass')) bump('magie', 0.4);
+  if (tags.includes('magie') || tags.includes('subclass')) bump('cap', 0.4);
 
   const bonus = (option?.outcomes || []).find((o) => o.variant === 'bonus');
   if (bonus?.deltas) {
@@ -115,7 +115,7 @@ function inferCheckStats(option, event) {
   const ranked = Object.entries(weights).sort((a, b) => b[1] - a[1]).slice(0, 3);
   if (!ranked.length) {
     // Défaut soft selon tags
-    if (tags.includes('combat')) return { puissance: 0.7, endurance: 0.7 };
+    if (tags.includes('combat')) return { auto: 0.7, def: 0.7 };
     return { charisme: 0.5, renommee: 0.35 };
   }
   return Object.fromEntries(ranked);
@@ -139,7 +139,7 @@ function computeCheckScore(stats, checkWeights, season = 1) {
 
 /**
  * Ajuste les poids bonus/neutre/malus selon les stats (secret).
- * Une bonne défense (endurance) sur un blocage augmente nettement le bonus.
+ * Une bonne Déf sur un blocage augmente nettement le bonus.
  */
 function applySecretStatWeights(outcomes, career, option, event) {
   const check = inferCheckStats(option, event);
@@ -225,14 +225,14 @@ function characterBonus(character, deltas) {
   if (character.prefersGrit && (next.renommee || 0) > 0 && (next.forme || 0) < 0) {
     next.renommee += 3;
   }
-  if (character.prefersMagic && (next.magie || 0) > 0) {
-    next.magie += 1;
+  if (character.prefersMagic && (next.cap || 0) > 0) {
+    next.cap += 1;
   }
   if (character.prefersRebound && (next.moral || 0) < 0) {
     next.moral += 3;
   }
-  if (character.prefersSpeed && (next.vitesse || 0) > 0) {
-    next.vitesse += 1;
+  if (character.prefersSpeed && (next.spd || 0) > 0) {
+    next.spd += 1;
   }
   return next;
 }
@@ -254,10 +254,10 @@ export function createCareer({ character, ambitionId, mentorId, weaponId }) {
 
   let stats = {
     ...(character.baseStats || {
-      puissance: 18,
-      endurance: 18,
-      magie: 18,
-      vitesse: 18,
+      auto: 18,
+      def: 18,
+      cap: 18,
+      spd: 18,
       charisme: 16,
     }),
     renommee: 0,
@@ -335,19 +335,19 @@ function expandSubclassEvent(event, character, career) {
     require: career?.subclass
       ? { noSubclass: true }
       : idx === 0
-        ? { stats: { magie: 24 }, noSubclass: true }
-        : { stats: { puissance: 24 }, noSubclass: true },
+        ? { stats: { cap: 24 }, noSubclass: true }
+        : { stats: { auto: 24 }, noSubclass: true },
     subclassId: sc.id,
     subclassName: sc.name,
     outcomes: trio(
       {
         text: `La voie « ${sc.name} » s’ancre. Votre style de ${className} change.`,
-        deltas: { renommee: 5, magie: 2, puissance: 2, moral: 3 },
+        deltas: { renommee: 5, cap: 2, auto: 2, moral: 3 },
         subclassGain: { id: sc.id, name: sc.name },
       },
       {
         text: `Vous entrevoyez « ${sc.name} »… sans l’embrasser pleinement.`,
-        deltas: { magie: 1, moral: 1 },
+        deltas: { cap: 1, moral: 1 },
       },
       {
         text: 'L’examen vous dépasse. Retour aux bancs.',
@@ -367,8 +367,8 @@ function expandSubclassEvent(event, character, career) {
         id: 'observer',
         label: 'Assister aux cours sans s’engager',
         outcomes: trio(
-          { text: 'Vous comprenez mieux les voies. Plus tard peut-être.', deltas: { magie: 2, moral: 2 } },
-          { text: 'Cours correct.', deltas: { magie: 1 } },
+          { text: 'Vous comprenez mieux les voies. Plus tard peut-être.', deltas: { cap: 2, moral: 2 } },
+          { text: 'Cours correct.', deltas: { cap: 1 } },
           { text: 'Vous vous endormez. Interrogation surprise ratée.', deltas: { moral: -3 } }
         ),
       },
@@ -377,7 +377,7 @@ function expandSubclassEvent(event, character, career) {
         id: 'elite',
         label: 'Forcer la voie d’élite du Collège',
         require: {
-          stats: { magie: 30, puissance: 28 },
+          stats: { cap: 30, auto: 28 },
           minRenommee: 18,
           weaponRarities: ['rare', 'légendaire'],
           noSubclass: true,
@@ -387,7 +387,7 @@ function expandSubclassEvent(event, character, career) {
             variant: 'bonus',
             weight: 35,
             text: 'Koro Sensei applaudit. Les deux voies vous inspirent — vous choisissez la plus dure.',
-            deltas: { renommee: 8, magie: 3, puissance: 3, forme: -4 },
+            deltas: { renommee: 8, cap: 3, auto: 3, forme: -4 },
             subclassGain: list[1]
               ? { id: list[1].id, name: list[1].name }
               : list[0]
@@ -398,7 +398,7 @@ function expandSubclassEvent(event, character, career) {
             variant: 'neutre',
             weight: 40,
             text: 'Presque. Une seule voie s’ouvre à demi.',
-            deltas: { magie: 2, forme: -3 },
+            deltas: { cap: 2, forme: -3 },
             subclassGain: list[0] ? { id: list[0].id, name: list[0].name } : null,
           },
           {
@@ -545,10 +545,10 @@ export function resolveChoice(career, optionIndex) {
   const retired = nextSeason > career.maxSeasons;
 
   const agedStats = applyEffects(stats, {
-    puissance: 1,
-    endurance: 1,
-    magie: career.character?.prefersMagic ? 1 : 0,
-    vitesse: career.character?.prefersSpeed ? 1 : 0,
+    auto: 1,
+    def: 1,
+    cap: career.character?.prefersMagic ? 1 : 0,
+    spd: career.character?.prefersSpeed ? 1 : 0,
   });
 
   let next = {
@@ -588,10 +588,10 @@ export function computeScore(career) {
     (t.coop || 0) * 10;
 
   return Math.round(
-    (s.puissance || 0) * 1.2 +
-      (s.endurance || 0) * 1.1 +
-      (s.magie || 0) * 1.2 +
-      (s.vitesse || 0) * 1.1 +
+    (s.auto || 0) * 1.2 +
+      (s.def || 0) * 1.1 +
+      (s.cap || 0) * 1.2 +
+      (s.spd || 0) * 1.1 +
       (s.charisme || 0) * 1.0 +
       (s.renommee || 0) * 1.4 +
       (s.or || 0) * 0.35 +
@@ -637,11 +637,47 @@ export function buildFinalStory(career) {
   return { score, tier, story: arc };
 }
 
+/** Migre les anciennes clés Destiny (puissance/endurance/…) vers Auto/Déf/Cap/VIT. */
+function migrateDestinyStatKeys(stats) {
+  if (!stats || typeof stats !== 'object') return stats;
+  const map = { puissance: 'auto', endurance: 'def', magie: 'cap', vitesse: 'spd' };
+  const next = { ...stats };
+  for (const [oldKey, newKey] of Object.entries(map)) {
+    if (next[oldKey] == null) continue;
+    if (next[newKey] == null) next[newKey] = next[oldKey];
+    delete next[oldKey];
+  }
+  return next;
+}
+
+function migrateCareerStatKeys(career) {
+  if (!career || typeof career !== 'object') return career;
+  const next = { ...career, stats: migrateDestinyStatKeys(career.stats) };
+  if (next.character?.baseStats) {
+    next.character = {
+      ...next.character,
+      baseStats: migrateDestinyStatKeys(next.character.baseStats),
+    };
+  }
+  if (Array.isArray(next.history)) {
+    next.history = next.history.map((h) =>
+      h?.deltas ? { ...h, deltas: migrateDestinyStatKeys(h.deltas) } : h
+    );
+  }
+  if (next.lastOutcome?.deltas) {
+    next.lastOutcome = {
+      ...next.lastOutcome,
+      deltas: migrateDestinyStatKeys(next.lastOutcome.deltas),
+    };
+  }
+  return next;
+}
+
 export function loadSave() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_SAVE);
     if (!raw) return null;
-    return JSON.parse(raw);
+    return migrateCareerStatKeys(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -713,10 +749,10 @@ export function clearSave() {
 
 export function formatDelta(deltas = {}) {
   const labels = {
-    puissance: 'Puissance',
-    endurance: 'Endurance',
-    magie: 'Magie',
-    vitesse: 'Vitesse',
+    auto: 'Auto',
+    def: 'Déf',
+    cap: 'Cap',
+    spd: 'VIT',
     charisme: 'Charisme',
     renommee: 'Renommée',
     or: 'Or',

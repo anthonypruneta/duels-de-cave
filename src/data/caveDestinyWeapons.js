@@ -47,10 +47,10 @@ export function destinyEffectsFromGameWeapon(weapon) {
     weapon.rarete === RARITY.LEGENDAIRE ? 3 : weapon.rarete === RARITY.RARE ? 1 : 0;
 
   return {
-    puissance: Math.round((s.auto || 0) * 0.9) + rarityBonus,
-    endurance: Math.round((s.def || 0) * 0.8 + (s.rescap || 0) * 0.6 + (s.hp || 0) * 0.12),
-    magie: Math.round((s.cap || 0) * 0.9) + (weapon.famille === 'tome' || weapon.famille === 'baton' || weapon.famille === 'sceptre' ? 1 : 0),
-    vitesse: Math.round((s.spd || 0) * 0.9) + (weapon.famille === 'dague' || weapon.famille === 'arc' ? 1 : 0),
+    auto: Math.round((s.auto || 0) * 0.9) + rarityBonus,
+    def: Math.round((s.def || 0) * 0.8 + (s.rescap || 0) * 0.6 + (s.hp || 0) * 0.12),
+    cap: Math.round((s.cap || 0) * 0.9) + (weapon.famille === 'tome' || weapon.famille === 'baton' || weapon.famille === 'sceptre' ? 1 : 0),
+    spd: Math.round((s.spd || 0) * 0.9) + (weapon.famille === 'dague' || weapon.famille === 'arc' ? 1 : 0),
     charisme: weapon.rarete === RARITY.LEGENDAIRE ? 2 : weapon.rarete === RARITY.RARE ? 1 : 0,
   };
 }
