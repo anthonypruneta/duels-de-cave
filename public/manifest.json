@@ -1,7 +1,7 @@
 {
-  "name": "Duels de Cave",
-  "short_name": "Duels de Cave",
-  "description": "Jeu de combat RPG tour par tour",
+  "name": "Cave Destiny",
+  "short_name": "Cave Destiny",
+  "description": "Écrivez votre légende dans la Cave — carrière à choix",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1c1917",
