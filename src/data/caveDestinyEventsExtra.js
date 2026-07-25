@@ -1129,19 +1129,20 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   {
     id: 'ornn_jugement',
     title: 'Défi mythique d’Ornn',
-    text: 'Le Dieu de la Forge vous fixe. Pas une offrande — un duel. Vous pouvez le lancer maintenant… ou attendre que {arme} soit devenue {arme_legendaire}.',
+    text: 'Le Dieu de la Forge vous fixe. Pas une offrande — un duel. Sans {arme_legendaire}, c’est une folie. Avec elle, le choc devient tenable ; si Ornn l’a lui-même reforgée, le fer incline enfin le destin.',
     rarity: 'legendary',
     tags: ['forge', 'combat'],
     options: [
       {
         id: 'affronter_maintenant',
-        label: 'Lancer le défi tout de suite',
+        label: 'Lancer le défi tout de suite (très dur sans légendaire)',
         ambitionPayoff: true,
         check: { auto: 1.2, def: 1.0, hp: 0.3 },
         outcomes: trio(
-          { text: 'Sans lignée mythique, vous tenez quand même. Ornn incline la tête — rare, brûlant, mérité.', deltas: { auto: 6, def: 4, renommee: 8, hp: -14, trophies: { forge: 1 } }, ambitionPayoff: true },
-          { text: 'Vous sortez brûlé mais debout. Le dieu n’est pas vaincu ; vous non plus n’êtes pas cendre.', deltas: { def: 2, auto: 2, hp: -12 }, ambitionPayoff: true },
-          { text: 'Trop tôt. Le marteau divin vous jette au sol — ambition en miettes, forge qui ricane.', deltas: { hp: -18, moral: -8, renommee: -3 } },
+          { text: 'Miracle rare : sans lignée mythique, vous tenez quand même. Ornn incline la tête — brûlant, mérité, presque impossible.', deltas: { auto: 5, def: 3, renommee: 10, hp: -20, trophies: { forge: 1 } }, ambitionPayoff: true },
+          { text: 'Vous sortez à demi cendre. Le dieu n’est pas vaincu ; vous non plus… à peine.', deltas: { def: 1, auto: 1, hp: -16, moral: -3 }, ambitionPayoff: true },
+          { text: 'Trop tôt. Le marteau divin vous écrase — ambition en miettes, forge qui ricane.', deltas: { hp: -24, moral: -10, renommee: -5, auto: -1 } },
+          [18, 32, 50],
         ),
       },
       {
@@ -1158,10 +1159,10 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       },
       {
         id: 'reporter',
-        label: 'Reporter le défi (attendre l’arme légendaire)',
+        label: 'Reporter le défi (arme légendaire… ou forgée)',
         outcomes: trio(
           {
-            text: 'Ornn grogne… puis accepte. « Reviens quand le fer sera digne. » Le défi reste ouvert.',
+            text: 'Ornn grogne… puis accepte. « Reviens quand le fer sera digne — mieux encore, quand je l’aurai touché. » Le défi reste ouvert.',
             deltas: { moral: 3, renommee: 1 },
             flags: { ornn_duel_pending: true },
           },

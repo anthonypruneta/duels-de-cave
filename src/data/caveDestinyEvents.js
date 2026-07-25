@@ -207,7 +207,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
   {
     id: 'forge_ornn',
     title: 'Forge des Légendes',
-    text: 'Les soufflets d’Ornn rugissent. Votre {arme} attend d’être jugée — rare… ou, les dieux aidant, {arme_legendaire}.',
+    text: 'Les soufflets d’Ornn rugissent. Votre {arme} attend d’être jugée — rare… ou, les dieux aidant, {arme_legendaire}. Une arme qu’il a touchée pèse autrement quand le duel mythique viendra.',
     rarity: 'rare',
     tags: ['forge', 'arme', 'arme_upgrade'],
     options: [
