@@ -501,25 +501,37 @@ export function loadPantheon() {
   }
 }
 
-export function pushToPantheon(career) {
+/** Snapshot d’une carrière terminée (local + serveur). */
+export function buildRunEntry(career, extras = {}) {
   const { score, tier, story } = buildFinalStory(career);
-  const entry = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    date: Date.now(),
-    name: career.character.name,
-    race: career.character.race,
-    class: career.character.class,
-    ownerPseudo: career.character.ownerPseudo || null,
-    characterImage: career.character.characterImage || null,
-    ambition: career.ambition.name,
-    weapon: career.weapon.name,
+  const subclass = career.subclass || career.character?.subclass || null;
+  return {
+    id: extras.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    date: extras.date || Date.now(),
+    userId: extras.userId || null,
+    userPseudo: extras.userPseudo || null,
+    name: career.character?.name || 'Aventurier',
+    race: career.character?.race || null,
+    class: career.character?.class || null,
+    subclass: subclass?.name || subclass || null,
+    ownerPseudo: career.character?.ownerPseudo || null,
+    characterImage: career.character?.characterImage || null,
+    ambition: career.ambition?.name || null,
+    mentor: career.mentor?.name || null,
+    weapon: career.weapon?.name || null,
+    weaponRarity: career.weapon?.rarity || null,
+    weaponIcon: career.weapon?.icon || null,
     score,
     tierId: tier.id,
     tierLabel: tier.label,
-    trophies: career.trophies,
+    trophies: career.trophies || {},
     story,
-    stats: career.stats,
+    stats: career.stats || {},
   };
+}
+
+export function pushToPantheon(career, extras = {}) {
+  const entry = buildRunEntry(career, extras);
   const list = [entry, ...loadPantheon()].slice(0, 20);
   try {
     localStorage.setItem(STORAGE_KEY_PANTHEON, JSON.stringify(list));

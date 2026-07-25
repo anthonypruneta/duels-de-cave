@@ -20,7 +20,6 @@ import {
   loadSave,
   persistSave,
   clearSave,
-  loadPantheon,
   pushToPantheon,
   buildFinalStory,
   formatDelta,
@@ -29,6 +28,12 @@ import {
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
+import {
+  saveCaveDestinyFinishedRun,
+  loadMyCaveDestinyRuns,
+  loadCaveDestinyPantheon,
+  migrateLocalCaveDestinyPantheon,
+} from '../services/caveDestinyRunsService';
 import { useAuth } from '../contexts/AuthContext';
 
 const SETUP_STEPS = ['personnage', 'ambition', 'mentor', 'arme'];
@@ -313,8 +318,78 @@ function RarityBadge({ rarity }) {
   );
 }
 
+function formatRunDate(date) {
+  if (!date) return '';
+  try {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function RunEntryCard({ entry, rank = null, showPlayer = false }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/70 p-3">
+      {rank != null && (
+        <span
+          className={`shrink-0 w-8 text-center text-sm font-bold tabular-nums ${
+            rank === 1
+              ? 'text-amber-300'
+              : rank === 2
+                ? 'text-stone-300'
+                : rank === 3
+                  ? 'text-amber-700'
+                  : 'text-stone-500'
+          }`}
+        >
+          #{rank}
+        </span>
+      )}
+      <CharacterPortrait
+        src={entry.characterImage}
+        alt={entry.name}
+        size="sm"
+        className="shrink-0"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-amber-50 truncate">{entry.name}</p>
+        <RaceClassLine
+          race={entry.race}
+          classe={entry.class}
+          subclass={
+            entry.subclass
+              ? typeof entry.subclass === 'string'
+                ? { name: entry.subclass }
+                : entry.subclass
+              : null
+          }
+          className="mt-0.5"
+        />
+        {showPlayer && (
+          <p className="text-[11px] text-amber-200/80 mt-0.5 truncate">
+            Joueur : {entry.userPseudo || 'Anonyme'}
+          </p>
+        )}
+        <p className="text-[11px] italic text-stone-500 mt-0.5 truncate">
+          Créateur : {entry.ownerPseudo || 'Inconnu'}
+          {entry.ambition ? ` · ${entry.ambition}` : ''}
+        </p>
+        <p className="text-xs text-stone-500 mt-0.5">
+          {entry.tierLabel || '—'}
+          {formatRunDate(entry.date) ? ` · ${formatRunDate(entry.date)}` : ''}
+        </p>
+      </div>
+      <p className="text-sm font-bold text-amber-300 shrink-0 tabular-nums">{entry.score}</p>
+    </div>
+  );
+}
+
 const CaveDestiny = () => {
-  const { logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [screen, setScreen] = useState('home');
   const [setup, setSetup] = useState({
@@ -324,7 +399,10 @@ const CaveDestiny = () => {
     weaponId: null,
   });
   const [career, setCareer] = useState(null);
+  const [myRuns, setMyRuns] = useState([]);
   const [pantheon, setPantheon] = useState([]);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [runsError, setRunsError] = useState(null);
   const [outcomeFlash, setOutcomeFlash] = useState(null);
   const [allGameCharacters, setAllGameCharacters] = useState([]);
   const [offeredCharacters, setOfferedCharacters] = useState([]);
@@ -336,6 +414,7 @@ const CaveDestiny = () => {
   const [mentorDrawNonce, setMentorDrawNonce] = useState(0);
   const [weaponDrawNonce, setWeaponDrawNonce] = useState(0);
   const poolRef = useRef([]);
+  const savingRunRef = useRef(false);
 
   useEffect(() => {
     document.body.classList.add('cave-destiny-plain');
@@ -376,7 +455,6 @@ const CaveDestiny = () => {
   }, [ensurePool]);
 
   useEffect(() => {
-    setPantheon(loadPantheon());
     const saved = loadSave();
     if (saved?.phase === 'playing') {
       setCareer(ensureCurrentEvent(saved));
@@ -386,6 +464,51 @@ const CaveDestiny = () => {
   useEffect(() => {
     if (career) persistSave(career);
   }, [career]);
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    migrateLocalCaveDestinyPantheon(currentUser.uid).catch(() => {});
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    if (screen !== 'mesRuns' && screen !== 'pantheon') return;
+    let cancelled = false;
+
+    const load = async () => {
+      setRunsLoading(true);
+      setRunsError(null);
+      try {
+        if (screen === 'mesRuns') {
+          if (!currentUser?.uid) {
+            if (!cancelled) {
+              setMyRuns([]);
+              setRunsError('Connexion requise.');
+            }
+            return;
+          }
+          await migrateLocalCaveDestinyPantheon(currentUser.uid);
+          const res = await loadMyCaveDestinyRuns(currentUser.uid);
+          if (cancelled) return;
+          if (!res.success) setRunsError(res.error || 'Chargement impossible.');
+          setMyRuns(res.runs || []);
+        } else {
+          const res = await loadCaveDestinyPantheon();
+          if (cancelled) return;
+          if (!res.success) setRunsError(res.error || 'Chargement impossible.');
+          setPantheon(res.runs || []);
+        }
+      } catch (e) {
+        if (!cancelled) setRunsError(e?.message || 'Chargement impossible.');
+      } finally {
+        if (!cancelled) setRunsLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [screen, currentUser?.uid]);
 
   // Nouveau tirage à chaque visite de l’écran (drawNonce incrémenté à l’entrée)
   useEffect(() => {
@@ -450,8 +573,33 @@ const CaveDestiny = () => {
     setOutcomeFlash(next.lastOutcome);
     setCareer(next);
     if (next.phase === 'finished') {
-      const list = pushToPantheon(next);
-      setPantheon(list);
+      const uid = currentUser?.uid || null;
+      pushToPantheon(next, { userId: uid });
+      if (uid && !savingRunRef.current) {
+        savingRunRef.current = true;
+        saveCaveDestinyFinishedRun({ userId: uid, career: next })
+          .then((res) => {
+            if (res.success && res.entry) {
+              setMyRuns((prev) => {
+                const without = prev.filter((r) => r.id !== res.entry.id);
+                return [res.entry, ...without].sort(
+                  (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
+                );
+              });
+              setPantheon((prev) => {
+                const without = prev.filter((r) => r.id !== res.entry.id);
+                return [res.entry, ...without].sort(
+                  (a, b) => (b.score || 0) - (a.score || 0) || (b.date || 0) - (a.date || 0)
+                );
+              });
+            } else if (!res.success) {
+              console.error('Sauvegarde run Cave Destiny:', res.error);
+            }
+          })
+          .finally(() => {
+            savingRunRef.current = false;
+          });
+      }
     }
   };
 
@@ -499,14 +647,9 @@ const CaveDestiny = () => {
               </PrimaryButton>
             )}
             <PrimaryButton onClick={startFresh}>Commencer une carrière</PrimaryButton>
+            <GhostButton onClick={() => setScreen('mesRuns')}>Mes runs</GhostButton>
             <GhostButton onClick={() => setScreen('pantheon')}>Panthéon</GhostButton>
           </div>
-
-          {pantheon[0] && (
-            <p className="mt-8 text-xs text-stone-500">
-              Dernière légende : {pantheon[0].name}
-            </p>
-          )}
 
           <button
             type="button"
@@ -520,38 +663,61 @@ const CaveDestiny = () => {
     );
   }
 
+  /* ---------- MES RUNS ---------- */
+  if (screen === 'mesRuns') {
+    return (
+      <Shell>
+        <BackLink onClick={() => setScreen('home')} />
+        <ScreenTitle
+          title="Mes runs"
+          sub="Vos carrières terminées, du meilleur score au plus faible."
+        />
+        <div className="space-y-2">
+          {runsLoading && (
+            <p className="text-center text-sm text-stone-500 py-12">Chargement…</p>
+          )}
+          {!runsLoading && runsError && (
+            <p className="text-center text-sm text-red-400/90 py-8">{runsError}</p>
+          )}
+          {!runsLoading && !runsError && myRuns.length === 0 && (
+            <p className="text-center text-sm text-stone-500 py-12">
+              Aucune carrière enregistrée pour l’instant.
+            </p>
+          )}
+          {!runsLoading &&
+            myRuns.map((entry, i) => (
+              <RunEntryCard key={entry.id} entry={entry} rank={i + 1} />
+            ))}
+        </div>
+      </Shell>
+    );
+  }
+
   /* ---------- PANTHEON ---------- */
   if (screen === 'pantheon') {
     return (
       <Shell>
         <BackLink onClick={() => setScreen('home')} />
-        <ScreenTitle title="Panthéon" sub="Les carrières que vous avez terminées." />
+        <ScreenTitle
+          title="Panthéon"
+          sub="Toutes les carrières des joueurs, du meilleur score au plus nul."
+        />
         <div className="space-y-2">
-          {pantheon.length === 0 && (
-            <p className="text-center text-sm text-stone-500 py-12">Aucune carrière pour l’instant.</p>
+          {runsLoading && (
+            <p className="text-center text-sm text-stone-500 py-12">Chargement…</p>
           )}
-          {pantheon.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/70 p-3"
-            >
-              <CharacterPortrait
-                src={entry.characterImage}
-                alt={entry.name}
-                size="sm"
-                className="shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-amber-50 truncate">{entry.name}</p>
-                <RaceClassLine race={entry.race} classe={entry.class} className="mt-0.5" />
-                <p className="text-[11px] italic text-stone-500 mt-0.5">
-                  Créateur : {entry.ownerPseudo || 'Inconnu'}
-                </p>
-                <p className="text-xs text-stone-500 mt-0.5">{entry.tierLabel}</p>
-              </div>
-              <p className="text-sm font-bold text-amber-300 shrink-0">{entry.score}</p>
-            </div>
-          ))}
+          {!runsLoading && runsError && (
+            <p className="text-center text-sm text-red-400/90 py-8">{runsError}</p>
+          )}
+          {!runsLoading && !runsError && pantheon.length === 0 && (
+            <p className="text-center text-sm text-stone-500 py-12">
+              Le Panthéon est encore vide. Terminez une carrière pour y entrer.
+            </p>
+          )}
+          {!runsLoading &&
+            pantheon.map((entry, i) => (
+              <RunEntryCard key={entry.id} entry={entry} rank={i + 1} showPlayer />
+            ))}
         </div>
       </Shell>
     );

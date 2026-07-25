@@ -45,10 +45,14 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DUELSDECAVE }}
 
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Deploy Firestore rules & indexes
+        run: firebase deploy --only firestore:rules,firestore:indexes --project duelsdecave
+
       - name: Deploy Cloud Functions
-        run: |
-          npm i -g firebase-tools
-          firebase deploy --only functions --project duelsdecave
+        run: firebase deploy --only functions --project duelsdecave
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
