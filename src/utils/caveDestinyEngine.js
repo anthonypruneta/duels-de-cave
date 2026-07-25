@@ -639,10 +639,10 @@ export function resolveChoice(career, optionIndex) {
   if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
-        ? `La voie « ${career.ambition.name} » s’ouvre un peu plus — gains renforcés.`
+        ? `Sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
         : variant === 'malus'
-          ? `Même dans l’échec, « ${career.ambition.name} » laisse une trace : l’épreuve a compté.`
-          : `Cet épisode marque votre ambition « ${career.ambition.name} ».`;
+          ? `La voie « ${career.ambition.name} » se souvient aussi des chutes — celle-ci laisse une cicatrice utile.`
+          : `« ${career.ambition.name} » grave ce soir dans le livre, sans fanfare ni sentence.`;
     outcomeText = `${outcomeText} ${mark}`;
   }
   const weaponDeltas = {};

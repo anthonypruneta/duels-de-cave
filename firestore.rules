@@ -319,6 +319,10 @@ service cloud.firestore {
     // ============================================================
     // Cave Destiny (runs perso + Panthéon global)
     // ============================================================
+    // Accès : TOUT joueur authentifié (pas réservé admin).
+    // - Lire Mes runs / Panthéon : auth
+    // - Écrire sa propre run + entrée panthéon : propriétaire (uid)
+    // - Supprimer : admin seulement
     // Structure :
     // - caveDestinyRuns/{userId}/runs/{runId}
     // - caveDestinyPantheon/{runId}

@@ -112,17 +112,28 @@ export async function saveCaveDestinyFinishedRun({ userId, career, runId: forced
   }
 }
 
+async function loadOrderedOrFallback(collectionRef, { max = 50 } = {}) {
+  try {
+    const q = query(collectionRef, orderBy('score', 'desc'), limit(max));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean);
+  } catch (orderedError) {
+    // Fallback sans index / orderBy (tri client) — tous joueurs authentifiés
+    console.warn('Cave Destiny: orderBy score indisponible, fallback client', orderedError?.message || orderedError);
+    const snap = await getDocs(query(collectionRef, limit(Math.max(max, 100))));
+    return sortRunsBestFirst(
+      snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean)
+    ).slice(0, max);
+  }
+}
+
 /** Liste des runs du joueur, du meilleur score au plus faible. */
 export async function loadMyCaveDestinyRuns(userId, { max = 50 } = {}) {
   if (!userId) return { success: false, error: 'Utilisateur requis.', runs: [] };
   try {
     await waitForFirestore();
     const runsRef = collection(db, 'caveDestinyRuns', userId, 'runs');
-    const q = query(runsRef, orderBy('score', 'desc'), limit(max));
-    const snap = await getDocs(q);
-    const runs = sortRunsBestFirst(
-      snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean)
-    );
+    const runs = sortRunsBestFirst(await loadOrderedOrFallback(runsRef, { max }));
     return { success: true, runs };
   } catch (error) {
     console.error('Erreur lecture Mes runs Cave Destiny:', error);
@@ -134,11 +145,8 @@ export async function loadMyCaveDestinyRuns(userId, { max = 50 } = {}) {
 export async function loadCaveDestinyPantheon({ max = 100 } = {}) {
   try {
     await waitForFirestore();
-    const q = query(collection(db, 'caveDestinyPantheon'), orderBy('score', 'desc'), limit(max));
-    const snap = await getDocs(q);
-    const runs = sortRunsBestFirst(
-      snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean)
-    );
+    const pantheonRef = collection(db, 'caveDestinyPantheon');
+    const runs = sortRunsBestFirst(await loadOrderedOrFallback(pantheonRef, { max }));
     return { success: true, runs };
   } catch (error) {
     console.error('Erreur lecture Panthéon Cave Destiny:', error);

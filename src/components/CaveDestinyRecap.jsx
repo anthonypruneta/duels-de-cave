@@ -3,7 +3,8 @@
  */
 import React, { useMemo, useState } from 'react';
 import { getRaceIcon, getClassIcon } from '../data/caveDestiny';
-import { buildCareerRecap, formatRecapShareText } from '../utils/caveDestinyRecap';
+import { buildCareerRecap } from '../utils/caveDestinyRecap';
+import { shareCaveDestinyRecapImage } from '../utils/caveDestinyShareCard';
 
 function CharacterPortrait({ src, alt, className = '' }) {
   const [failed, setFailed] = useState(false);
@@ -177,6 +178,7 @@ export default function CaveDestinyRecap({
   onMyRuns,
 }) {
   const [shareMsg, setShareMsg] = useState(null);
+  const [sharing, setSharing] = useState(false);
   const [showAllParcours, setShowAllParcours] = useState(false);
 
   const recap = useMemo(
@@ -190,26 +192,21 @@ export default function CaveDestinyRecap({
     : recap.parcours.slice(0, 6);
 
   const handleShare = async () => {
-    const text = formatRecapShareText(recap);
+    if (sharing) return;
+    setSharing(true);
+    setShareMsg('Génération de la carte…');
     try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({
-          title: `${id.name} — Cave Destiny`,
-          text,
-        });
-        setShareMsg('Partagé');
-        return;
-      }
-    } catch {
-      /* fallback clipboard */
+      const result = await shareCaveDestinyRecapImage(recap);
+      if (result === 'shared') setShareMsg('Carte partagée');
+      else if (result === 'downloaded') setShareMsg('Image téléchargée');
+      else setShareMsg(null);
+    } catch (err) {
+      console.error('Partage carte Cave Destiny:', err);
+      setShareMsg('Partage image impossible');
+    } finally {
+      setSharing(false);
+      setTimeout(() => setShareMsg(null), 2400);
     }
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareMsg('Récap copié');
-    } catch {
-      setShareMsg('Partage impossible');
-    }
-    setTimeout(() => setShareMsg(null), 2200);
   };
 
   return (
@@ -459,9 +456,10 @@ export default function CaveDestinyRecap({
           <button
             type="button"
             onClick={handleShare}
-            className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition"
+            disabled={sharing}
+            className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition disabled:opacity-60"
           >
-            📤 Partager
+            {sharing ? '⏳ Carte…' : '📤 Partager'}
           </button>
           <button
             type="button"

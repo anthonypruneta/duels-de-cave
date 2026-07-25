@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "runs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caveDestinyPantheon",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "score", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pvpDuelCharStats",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
