@@ -13,6 +13,11 @@ Les constantes d’équilibrage (races, classes, armes, passifs, bosses) sont au
 
 Sans cela, les changements dans le code seront ignorés au profit de l’ancienne config Firestore.
 
+## Prose joueur (Cave Destiny / UI)
+
+- **Interdit** : le tiret cadratin `—` dans les textes visibles (événements, outcomes, récits, UI).
+- Préférer des phrases complètes, points, virgules, ou deux-points. Pas de slogans hachés ni de « punchlines » artificielles.
+
 ## Préparation combattant (`preparerCombattant`)
 
 - **Affichage** (cartes, PV, état synchronisé avec le moteur) : `preparerCombattant(donnéesBrutes)` depuis `src/utils/tournamentCombat.js`.

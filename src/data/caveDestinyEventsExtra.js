@@ -229,7 +229,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
   {
     id: 'classement_pvp',
     title: 'Classement PvP',
-    text: 'Les duels classés appellent. Chaque défaite s’affiche. Chaque victoire aussi — le tableau ne ment jamais.',
+    text: 'Les duels classés appellent. Chaque défaite s’affiche. Chaque victoire aussi. Le tableau ne ment jamais.',
     rarity: 'uncommon',
     tags: ['ombres', 'combat'],
     options: [
@@ -237,27 +237,54 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'grimper',
         label: 'Enchaîner les duels pour grimper',
         outcomes: trio(
-          { text: 'Série gagnante. Votre rang monte — les noms sous le vôtre tremblent un peu.', deltas: { renommee: 8, auto: 3, hp: -6, trophies: { pvp: 1 } } },
-          { text: 'Équilibre victoires / défaites. Le classement bouge à peine ; vos bleus, beaucoup.', deltas: { renommee: 2, hp: -4 } },
-          { text: 'Dégringolade. Le classement est cruel : chiffres en chute, gorge serrée, arène froide.', deltas: { renommee: -6, moral: -7, hp: -5 } },
+          {
+            text: 'Vous enchaînez les victoires. Votre nom grimpe dans le tableau, et ceux juste en dessous commencent à vous étudier avant de vous croiser.',
+            deltas: { renommee: 8, auto: 3, hp: -6, trophies: { pvp: 1 } },
+          },
+          {
+            text: 'Autant de wins que de pertes. Le rang bouge à peine, mais vos bleus racontent mieux la soirée que les chiffres.',
+            deltas: { renommee: 2, hp: -4 },
+          },
+          {
+            text: 'La série casse. Vous descendez rang après rang, la gorge serrée, pendant que le tableau affiche froidement la chute.',
+            deltas: { renommee: -6, moral: -7, hp: -5 },
+          },
         ),
       },
       {
         id: 'etudier',
         label: 'Étudier les styles du top',
         outcomes: trio(
-          { text: 'Vous adaptez une garde du haut du tableau — un angle volé aux meilleurs, déjà dans vos muscles.', deltas: { cap: 3, spd: 2 } },
-          { text: 'Quelques idées notées au bas d’une page. Pas de révolution, juste un peu plus d’œil.', deltas: { cap: 1 } },
-          { text: 'Trop d’infos. Paralysie : chaque style contredit l’autre, votre propre garde hésite.', deltas: { moral: -3 } },
+          {
+            text: 'Vous piquez une garde au haut du tableau. Un angle volé aux meilleurs, déjà ancré dans vos muscles.',
+            deltas: { cap: 3, spd: 2 },
+          },
+          {
+            text: 'Quelques notes en bas de page. Rien de révolutionnaire, juste un œil un peu plus aiguisé.',
+            deltas: { cap: 1 },
+          },
+          {
+            text: 'Trop de styles, trop d’avis. Chaque garde contredit la suivante, et la vôtre finit par hésiter.',
+            deltas: { moral: -3 },
+          },
         ),
       },
       {
         id: 'pause',
         label: 'Rester hors du classement cette saison',
         outcomes: trio(
-          { text: 'Repos stratégique. Vous revenez frais — muscles calmes, tête claire, soif intacte.', deltas: { hp: 5, moral: 2 } },
-          { text: 'Vous regardez les autres progresser. Un pincement discret, rien de plus.', deltas: { moral: -1 } },
-          { text: 'On vous oublie du tableau. Votre nom s’efface comme une craie sous la pluie.', deltas: { renommee: -3 } },
+          {
+            text: 'Vous laissez le tableau aux autres. Au retour, muscles calmes, tête claire, et la soif de grimper intacte.',
+            deltas: { hp: 5, moral: 2 },
+          },
+          {
+            text: 'Vous regardez les autres progresser. Un pincement discret, rien de plus.',
+            deltas: { moral: -1 },
+          },
+          {
+            text: 'On vous oublie du tableau. Votre nom s’efface comme une craie sous la pluie.',
+            deltas: { renommee: -3 },
+          },
         ),
       },
     ],
