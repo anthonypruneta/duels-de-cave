@@ -1496,7 +1496,7 @@ export function resolveChoice(career, optionIndex) {
   } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
     outcomeText = appendOutcomeProse(
       outcomeText,
-      `L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée.\nLa suite pourra revenir plus tard, pas forcément dès la prochaine saison.`,
+      `L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée.`,
     );
   } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
     outcomeText = appendOutcomeProse(
