@@ -537,7 +537,10 @@ const CaveDestiny = () => {
       if (screen === 'final') {
         // Panthéon pour percentile réel / rival — silencieux
         try {
-          const res = await loadCaveDestinyPantheon({ max: 500 });
+          const res = await loadCaveDestinyPantheon({
+            max: 500,
+            userId: currentUser?.uid || null,
+          });
           if (!cancelled && res.success) setPantheon(res.runs || []);
         } catch {
           /* ignore */
@@ -562,7 +565,9 @@ const CaveDestiny = () => {
           if (!res.success) setRunsError(res.error || 'Chargement impossible.');
           setMyRuns(res.runs || []);
         } else {
-          const res = await loadCaveDestinyPantheon();
+          const res = await loadCaveDestinyPantheon({
+            userId: currentUser?.uid || null,
+          });
           if (cancelled) return;
           if (!res.success) setRunsError(res.error || 'Chargement impossible.');
           setPantheon(res.runs || []);
