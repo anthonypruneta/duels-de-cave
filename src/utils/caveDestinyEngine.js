@@ -33,8 +33,97 @@ import {
 
 export { listActiveChainQuests };
 import { RARITY } from '../data/weapons';
-import { getSubclassesForClass } from '../data/subclasses';
+import { getSubclassesForClass, getSubclassStatBonuses } from '../data/subclasses';
 import { trio, CAVE_DESTINY_TRIO_WEIGHTS } from '../data/caveDestinyEventUtils';
+
+const DESTINY_SUBCLASS_STAT_MAP = {
+  auto: 'auto',
+  def: 'def',
+  cap: 'cap',
+  spd: 'spd',
+  hp: 'hp',
+  rescap: 'def',
+};
+
+const DESTINY_STAT_LABEL = {
+  auto: 'Auto',
+  def: 'Défense',
+  cap: 'Cap',
+  spd: 'Vitesse',
+  hp: 'PV',
+};
+
+/** Focus Destiny d’une sous-classe (sans afficher les % combat). */
+function destinySubclassFocus(sc) {
+  const raw = getSubclassStatBonuses(sc?.id);
+  if (raw && Object.keys(raw).length) return { ...raw };
+  // Crit / voies sans entrée numérique : oriente vers VIT + Auto
+  if (/critique/i.test(sc?.bonus || '') || /critique/i.test(sc?.description || '')) {
+    return { spd: 0.08, auto: 0.05 };
+  }
+  return { auto: 0.05, cap: 0.05 };
+}
+
+/** Indice UI Destiny (pas le bonus combat). */
+function subclassDestinyDetail(sc) {
+  const focus = destinySubclassFocus(sc);
+  const labels = Object.keys(focus)
+    .map((k) => DESTINY_STAT_LABEL[DESTINY_SUBCLASS_STAT_MAP[k] || k])
+    .filter(Boolean);
+  const uniq = [...new Set(labels)];
+  if (!uniq.length) return 'Une voie qui redéfinit votre style au Collège.';
+  if (uniq.length === 1) return `Oriente votre progression vers ${uniq[0]}.`;
+  if (uniq.length === 2) return `Oriente votre progression vers ${uniq[0]} et ${uniq[1]}.`;
+  return `Oriente votre progression vers ${uniq.slice(0, -1).join(', ')} et ${uniq[uniq.length - 1]}.`;
+}
+
+/**
+ * Deltas Destiny selon la sous-classe.
+ * intensity : 1 réussite, ~0.4 aperçu neutre, 0 échec (pas de gain de focus).
+ */
+function destinyDeltasFromSubclass(sc, intensity = 1) {
+  const focus = destinySubclassFocus(sc);
+  const deltas = {};
+  for (const [k, pct] of Object.entries(focus)) {
+    const dest = DESTINY_SUBCLASS_STAT_MAP[k];
+    if (!dest || typeof pct !== 'number') continue;
+    // 10% → +3 en réussite ; plancher 1 si intensity > 0
+    const points = Math.round(pct * 30 * intensity);
+    if (points === 0 && intensity > 0) {
+      deltas[dest] = (deltas[dest] || 0) + 1;
+    } else if (points !== 0) {
+      deltas[dest] = (deltas[dest] || 0) + points;
+    }
+  }
+  return deltas;
+}
+
+function buildSubclassEmbraceOutcomes(sc, className) {
+  const name = sc.name;
+  const focusLabels = Object.keys(destinySubclassFocus(sc))
+    .map((k) => DESTINY_STAT_LABEL[DESTINY_SUBCLASS_STAT_MAP[k] || k])
+    .filter(Boolean);
+  const focusPhrase = [...new Set(focusLabels)].join(' et ') || 'votre style';
+
+  const bonusFocus = destinyDeltasFromSubclass(sc, 1);
+  const neutreFocus = destinyDeltasFromSubclass(sc, 0.4);
+
+  return trio(
+    {
+      text: `La voie « ${name} » s’ancre en vous.\nVotre ${className} gagne surtout en ${focusPhrase}, et le Collège grave ce choix.`,
+      deltas: { renommee: 5, moral: 3, ...bonusFocus },
+      subclassGain: { id: sc.id, name: sc.name },
+    },
+    {
+      text: `Vous entrevoyez « ${name} », sans l’embrasser pleinement.\nUn peu de ${focusPhrase} s’accroche, et la porte reste entrouverte.`,
+      deltas: { moral: 1, ...neutreFocus },
+    },
+    {
+      text: `L’examen de la voie « ${name} » vous dépasse.\nVous regagnez les bancs du Collège, un peu plus humble.`,
+      deltas: { hp: -6, moral: -4 },
+    },
+  );
+}
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -787,7 +876,7 @@ function expandSubclassEvent(event, character, career) {
   const subclassOptions = list.map((sc, idx) => ({
     id: `sc_${sc.id}`,
     label: `Embrasser la voie « ${sc.name} »`,
-    detail: sc.bonus || sc.description,
+    detail: subclassDestinyDetail(sc),
     require: career?.subclass
       ? { noSubclass: true }
       : idx === 0
@@ -795,22 +884,13 @@ function expandSubclassEvent(event, character, career) {
         : { stats: { auto: 24 }, noSubclass: true },
     subclassId: sc.id,
     subclassName: sc.name,
-    outcomes: trio(
-      {
-        text: `La voie « ${sc.name} » s’ancre en vous.\nVotre style de ${className} change pour de bon.`,
-        deltas: { renommee: 5, cap: 2, auto: 2, moral: 3 },
-        subclassGain: { id: sc.id, name: sc.name },
-      },
-      {
-        text: `Vous entrevoyez « ${sc.name} », sans l’embrasser pleinement.\nLa porte reste entrouverte pour une autre saison.`,
-        deltas: { cap: 1, moral: 1 },
-      },
-      {
-        text: 'L’examen vous dépasse.\nVous regagnez les bancs du Collège, un peu plus humble.',
-        deltas: { hp: -6, moral: -4 },
-      }
-    ),
+    outcomes: buildSubclassEmbraceOutcomes(sc, className),
   }));
+
+  const eliteHard = list[1] || list[0] || null;
+  const eliteSoft = list[0] || null;
+  const eliteHardFocus = eliteHard ? destinyDeltasFromSubclass(eliteHard, 1.15) : {};
+  const eliteSoftFocus = eliteSoft ? destinyDeltasFromSubclass(eliteSoft, 0.55) : {};
 
   return {
     ...event,
@@ -851,20 +931,24 @@ function expandSubclassEvent(event, character, career) {
           {
             variant: 'bonus',
             weight: 35,
-            text: 'Koro Sensei applaudit.\nLes deux voies vous inspirent, et vous choisissez la plus dure.',
-            deltas: { renommee: 8, cap: 3, auto: 3, hp: -4 },
-            subclassGain: list[1]
-              ? { id: list[1].id, name: list[1].name }
-              : list[0]
-                ? { id: list[0].id, name: list[0].name }
-                : null,
+            text: eliteHard
+              ? `Koro Sensei applaudit.\nLes deux voies vous inspirent, et vous forcez la plus dure : « ${eliteHard.name} ».`
+              : 'Koro Sensei applaudit.\nLes deux voies vous inspirent, et vous choisissez la plus dure.',
+            deltas: { renommee: 8, moral: 2, hp: -4, ...eliteHardFocus },
+            subclassGain: eliteHard
+              ? { id: eliteHard.id, name: eliteHard.name }
+              : null,
           },
           {
             variant: 'neutre',
             weight: 40,
-            text: 'Vous touchez presque le but.\nUne seule voie s’ouvre à demi sous vos pas.',
-            deltas: { cap: 2, hp: -3 },
-            subclassGain: list[0] ? { id: list[0].id, name: list[0].name } : null,
+            text: eliteSoft
+              ? `Vous touchez presque le but.\nLa voie « ${eliteSoft.name} » s’ouvre à demi sous vos pas.`
+              : 'Vous touchez presque le but.\nUne seule voie s’ouvre à demi sous vos pas.',
+            deltas: { hp: -3, moral: 1, ...eliteSoftFocus },
+            subclassGain: eliteSoft
+              ? { id: eliteSoft.id, name: eliteSoft.name }
+              : null,
           },
           {
             variant: 'malus',
