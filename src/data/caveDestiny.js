@@ -316,7 +316,7 @@ export {
 /** @deprecated — utiliser pickRandomCommonWeapons / getDestinyWeaponById */
 export const CAVE_DESTINY_WEAPONS = [];
 
-/** Paliers sur score /100 (départ ~50–60). */
+/** Paliers sur score /100 (départ ~50–60 ; +4 / 0 / −2 par event). */
 export const CAVE_DESTINY_TIERS = [
   { minScore: 0, id: 'bronze_cave', label: 'Cave bronze', color: 'text-stone-300' },
   { minScore: 45, id: 'cave_confirme', label: 'Cave confirmé', color: 'text-emerald-300' },
