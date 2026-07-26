@@ -9,13 +9,18 @@ import {
   doc,
   getDocs,
   limit,
-  orderBy,
   query,
   setDoc,
 } from 'firebase/firestore';
 import { db, waitForFirestore } from '../firebase/config';
 import { getOwnerPseudoFromAccount } from './characterService';
-import { buildRunEntry, loadPantheon } from '../utils/caveDestinyEngine';
+import {
+  buildRunEntry,
+  loadPantheon,
+  migrateRunEntryScore,
+  getTier,
+} from '../utils/caveDestinyEngine';
+import { CAVE_DESTINY_SCORE_MAX } from '../data/caveDestiny';
 
 const LOCAL_MIGRATED_KEY = 'caveDestiny:localPantheonMigrated';
 
@@ -55,7 +60,7 @@ function sortRunsBestFirst(list) {
 
 function normalizeEntry(raw, fallbackId) {
   if (!raw || typeof raw !== 'object') return null;
-  return {
+  const base = {
     id: raw.id || fallbackId,
     date: Number(raw.date) || 0,
     userId: raw.userId || null,
@@ -74,10 +79,45 @@ function normalizeEntry(raw, fallbackId) {
     score: Number(raw.score) || 0,
     tierId: raw.tierId || null,
     tierLabel: raw.tierLabel || null,
+    scoreScale: raw.scoreScale || null,
+    scoreLegacy: raw.scoreLegacy || null,
     trophies: raw.trophies || {},
     story: raw.story || '',
     stats: raw.stats || {},
+    runScore: raw.runScore != null ? Number(raw.runScore) : undefined,
+    endReason: raw.endReason || null,
   };
+  return migrateRunEntryScore(base);
+}
+
+/** Persiste la migration /100 pour les runs dont on est propriétaire. */
+async function persistScoreMigrations(entries, { userId } = {}) {
+  if (!userId || !Array.isArray(entries) || !entries.length) return;
+  const jobs = [];
+  for (const entry of entries) {
+    if (!entry?._needsScorePersist || !entry?.id || entry.userId !== userId) continue;
+    const { _needsScorePersist, ...rest } = entry;
+    const tier = getTier(rest.score);
+    const payload = stripUndefined({
+      ...rest,
+      score: rest.score,
+      tierId: tier.id,
+      tierLabel: tier.label,
+      scoreScale: 100,
+      scoreLegacy: rest.scoreLegacy,
+    });
+    jobs.push(
+      setDoc(getUserRunRef(userId, entry.id), payload, { merge: true }).catch(() => {}),
+      setDoc(getPantheonRef(entry.id), payload, { merge: true }).catch(() => {})
+    );
+  }
+  if (jobs.length) await Promise.all(jobs);
+}
+
+function stripPersistFlag(entry) {
+  if (!entry || !entry._needsScorePersist) return entry;
+  const { _needsScorePersist, ...rest } = entry;
+  return rest;
 }
 
 async function writeRunDocuments(entry) {
@@ -113,13 +153,14 @@ export async function saveCaveDestinyFinishedRun({ userId, career, runId: forced
 }
 
 async function loadOrderedOrFallback(collectionRef, { max = 50 } = {}) {
+  // Charge large puis trie après conversion /100 (orderBy score brut mélange ancien/nouveau)
   try {
-    const q = query(collectionRef, orderBy('score', 'desc'), limit(max));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean);
+    const snap = await getDocs(query(collectionRef, limit(Math.max(max * 3, 150))));
+    return sortRunsBestFirst(
+      snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean)
+    ).slice(0, max);
   } catch (orderedError) {
-    // Fallback sans index / orderBy (tri client) — tous joueurs authentifiés
-    console.warn('Cave Destiny: orderBy score indisponible, fallback client', orderedError?.message || orderedError);
+    console.warn('Cave Destiny: lecture runs indisponible', orderedError?.message || orderedError);
     const snap = await getDocs(query(collectionRef, limit(Math.max(max, 100))));
     return sortRunsBestFirst(
       snap.docs.map((d) => normalizeEntry(d.data(), d.id)).filter(Boolean)
@@ -133,8 +174,9 @@ export async function loadMyCaveDestinyRuns(userId, { max = 50 } = {}) {
   try {
     await waitForFirestore();
     const runsRef = collection(db, 'caveDestinyRuns', userId, 'runs');
-    const runs = sortRunsBestFirst(await loadOrderedOrFallback(runsRef, { max }));
-    return { success: true, runs };
+    const loaded = await loadOrderedOrFallback(runsRef, { max });
+    await persistScoreMigrations(loaded, { userId });
+    return { success: true, runs: loaded.map(stripPersistFlag) };
   } catch (error) {
     console.error('Erreur lecture Mes runs Cave Destiny:', error);
     return { success: false, error: error?.message || 'Lecture impossible.', runs: [] };
@@ -142,12 +184,14 @@ export async function loadMyCaveDestinyRuns(userId, { max = 50 } = {}) {
 }
 
 /** Classement global, du meilleur score au plus faible. */
-export async function loadCaveDestinyPantheon({ max = 100 } = {}) {
+export async function loadCaveDestinyPantheon({ max = 100, userId = null } = {}) {
   try {
     await waitForFirestore();
     const pantheonRef = collection(db, 'caveDestinyPantheon');
-    const runs = sortRunsBestFirst(await loadOrderedOrFallback(pantheonRef, { max }));
-    return { success: true, runs };
+    const loaded = await loadOrderedOrFallback(pantheonRef, { max });
+    // Réécrit seulement tes propres docs (règles Firestore)
+    if (userId) await persistScoreMigrations(loaded, { userId });
+    return { success: true, runs: loaded.map(stripPersistFlag) };
   } catch (error) {
     console.error('Erreur lecture Panthéon Cave Destiny:', error);
     return { success: false, error: error?.message || 'Lecture impossible.', runs: [] };
