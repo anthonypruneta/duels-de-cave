@@ -1361,15 +1361,15 @@ export function resolveChoice(career, optionIndex) {
   } else if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
-        ? `Finale de suite : sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
+        ? `Sous le signe de « ${career.ambition.name} », cette finale laisse la Cave vous devoir encore une dette.`
         : variant === 'malus'
-          ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes — cicatrice utile.`
-          : `Finale de « ${chainMeta?.label || career.ambition.name} » : l’ambition grave ce soir sans fanfare.`;
+          ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes, et la cicatrice reste utile.`
+          : `Cette finale de « ${chainMeta?.label || career.ambition.name} » grave votre ambition sans fanfare, mais elle compte.`;
     outcomeText = `${outcomeText} ${mark}`;
   } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
-    outcomeText = `${outcomeText} Suite « ${chainMeta.label} » : étape ${chainMeta.step}/${chainMeta.total} validée — la suite peut revenir plus tard (pas forcément la prochaine saison).`;
+    outcomeText = `${outcomeText} L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée : la suite pourra revenir plus tard, pas forcément dès la prochaine saison.`;
   } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
-    outcomeText = `${outcomeText} La suite « ${chainMeta.label} » se brise ici — il faudra reprendre depuis le début.`;
+    outcomeText = `${outcomeText} La suite ${chainMeta.label} se brise ici, et il faudra tout reprendre depuis le début si vous voulez y revenir.`;
   }
   const weaponDeltas = {};
 
