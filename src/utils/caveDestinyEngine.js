@@ -1232,8 +1232,11 @@ export function drawEvent(career) {
 export function ensureCurrentEvent(career) {
   if (career.phase !== 'playing') return career;
   if (career.currentEvent) {
-    // Migre les saves / tirages Red sans options compagnons
-    if (redEventNeedsExpand(career.currentEvent)) {
+    // Migre les saves : Red sans compagnons, ou tag ambitionQuest manquant
+    const needsRematerialize =
+      redEventNeedsExpand(career.currentEvent) ||
+      typeof career.currentEvent.ambitionQuest !== 'boolean';
+    if (needsRematerialize) {
       const raw = CAVE_DESTINY_EVENTS.find((e) => e.id === career.currentEvent.id);
       if (raw) {
         return { ...career, currentEvent: materializeEvent(raw, career) };
