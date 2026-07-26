@@ -523,18 +523,18 @@ function buildRedRefuseOutcomes(eventId) {
   return trio(
     {
       text: mid
-        ? 'Vous saluez Red et sortez la tête haute. L’arène reste ouverte… pour d’autres duos plus assoiffés.'
-        : 'Vous déclinez avec panache. Red hausse les épaules — respect muet, place libérée.',
+        ? 'Vous saluez Red et quittez l’arène la tête haute. Elle reste ouverte pour d’autres duos plus assoiffés, et votre départ digne vous redonne du souffle autant que de la tenue.'
+        : 'Vous déclinez l’invitation avec panache. Red hausse les épaules, un respect muet passe entre vous, et vous repartez plus léger, prêt à un autre combat.',
       deltas: { charisme: 2, moral: 3, spd: 1 },
     },
     {
-      text: 'Pas ce soir. Vous laissez l’arène derrière vous, sans gloire ni brûlure.',
+      text: 'Pas ce soir. Vous laissez l’arène derrière vous, sans gloire ni brûlure, simplement parce que le moment n’est pas le bon.',
       deltas: { moral: 1 },
     },
     {
       text: mid
-        ? 'Vous quittez trop vite. Un sifflet fuse — Red n’aime pas les alliés qui lâchent au milieu.'
-        : 'Quelques regards en coin. Fuir Red n’est pas une couronne… plutôt une rumeur.',
+        ? 'Vous quittez trop vite, et un sifflet fuse dans vos oreilles. Red n’aime pas les alliés qui lâchent au milieu du chemin, et la rumeur part avant même que vous ayez refermé la porte.'
+        : 'Quelques regards en coin vous suivent jusqu’à la sortie. Fuir Red n’apporte aucune couronne : seulement une rumeur qui s’accroche à votre nom.',
       deltas: { moral: -3, renommee: -2, charisme: -1 },
     },
     [30, 40, 30],
@@ -929,7 +929,7 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
 
 /**
  * Sortie RP d’une suite : libère le slot + vrai trio (réussite / neutre / échec).
- * Pas un simple « Refuser » — un choix narratif avec gains ou pertes.
+ * Prose fluide : vraies phrases, pas de slogans hachés.
  */
 function buildChainExitChoice(info) {
   const isOpening = info.stepIndex === 0;
@@ -940,17 +940,17 @@ function buildChainExitChoice(info) {
     donjons: {
       open: {
         label: 'Faire demi-tour avant l’entrée',
-        detail: 'Ranger le sac, laisser le donjon aux obstinés',
+        detail: 'Ranger le sac et laisser le donjon aux obstinés',
         bonus: {
-          text: `Vous faites demi-tour proprement. « ${label} » peut attendre — vos jambes, elles, vous remercient.`,
+          text: `Vous faites demi-tour proprement : ${label} peut attendre. Elle se referme derrière vous, et vous en profitez pour souffler et reprendre vos marques.`,
           deltas: { spd: 2, moral: 3, hp: 2 },
         },
         neutre: {
-          text: `Pas d’exploit aujourd’hui. Vous laissez « ${label} » derrière la porte, sans gloire ni regret.`,
+          text: `Vous laissez ${label} derrière la porte sans chercher l’exploit. Ce n’est ni une gloire ni une honte, seulement une saison où vous choisissez un autre chemin.`,
           deltas: { moral: 1 },
         },
         malus: {
-          text: `Vous reculez trop vite. Un rire s’élève dans le couloir — « ${label} » n’oublie pas les peureux.`,
+          text: `Vous reculez trop vite, et un rire file dans le couloir. ${label} n’oublie pas ceux qui fuient avant même d’avoir franchi le seuil, et la rumeur vous colle déjà aux talons.`,
           deltas: { moral: -3, renommee: -2, charisme: -1 },
         },
       },
@@ -958,15 +958,15 @@ function buildChainExitChoice(info) {
         label: 'Repartir vivant, les mains vides',
         detail: 'Abandonner la progression pour sauver sa peau',
         bonus: {
-          text: `Retraite sage. Vous sortez de « ${label} » sans trophée, mais avec le sang encore chaud.`,
+          text: `Vous choisissez de partir vivant. ${label} garde ses trophées, mais votre sang reste chaud et votre garde plus solide : parfois la sagesse vaut mieux qu’un butin.`,
           deltas: { def: 2, moral: 2, hp: 3 },
         },
         neutre: {
-          text: `Vous tournez les talons. « ${label} » se referme — il faudrait tout recommencer.`,
+          text: `Vous tournez les talons et ${label} se referme sans cérémonie. Il faudra tout reprendre depuis le début si vous osez y revenir un jour.`,
           deltas: {},
         },
         malus: {
-          text: `Fuite maladroite. Une pierre vous accroche ; « ${label} » vous crache dehors, humilié.`,
+          text: `Votre retraite est maladroite : une pierre vous accroche, la sortie vous humilie, et ${label} semble vous cracher dehors sous le regard des autres caves.`,
           deltas: { hp: -4, moral: -3, renommee: -2 },
         },
       },
@@ -974,33 +974,33 @@ function buildChainExitChoice(info) {
     tournoi: {
       open: {
         label: 'Rendre les armes avant le Hall',
-        detail: 'Décliner le bracket — d’autres se battront',
+        detail: 'Décliner le bracket et laisser les autres se battre',
         bonus: {
-          text: `Vous saluez le Hall et rangez les armes. « ${label} » respectera un refus digne.`,
+          text: `Vous saluez le Hall et rangez vos armes avec dignité. Refuser ${label} de cette manière n’offense personne : on respecte ceux qui savent partir la tête haute.`,
           deltas: { charisme: 3, moral: 2 },
         },
         neutre: {
-          text: `Pas de couronne cette saison. Vous laissez « ${label} » aux autres noms.`,
+          text: `Pas de couronne cette saison. Vous laissez ${label} aux autres noms, sans fanfare ni regret particulier, et le Hall passe déjà à la suite.`,
           deltas: { moral: 1 },
         },
         malus: {
-          text: `On murmure que vous avez peur du public. « ${label} » vous raye sans cérémonie.`,
+          text: `On murmure que vous avez peur du public. ${label} vous raye sans cérémonie, et le mot « peureux » voyage plus vite qu’une bonne nouvelle à la Taverne.`,
           deltas: { renommee: -3, charisme: -2, moral: -2 },
         },
       },
       mid: {
         label: 'Quitter le bracket sans fanfare',
-        detail: 'Sortir du tournoi — la place se libère',
+        detail: 'Sortir du tournoi et libérer votre place',
         bonus: {
-          text: `Vous partez la tête haute. Mieux vaut un forfait propre qu’une défaite ridicule sur « ${label} ».`,
+          text: `Vous quittez le bracket la tête haute. Mieux vaut un forfait propre sur ${label} qu’une défaite ridicule sous les yeux de toute l’arène, et quelques regards approuvent votre choix.`,
           deltas: { charisme: 2, moral: 3, renommee: 1 },
         },
         neutre: {
-          text: `Fin de parcours. « ${label} » continue sans vous.`,
+          text: `Votre parcours s’arrête là. ${label} continue sans vous, les combats s’enchaînent, et votre nom glisse hors du tableau sans faire de bruit.`,
           deltas: {},
         },
         malus: {
-          text: `Vous abandonnez sous les sifflets. Le Hall retient le nom… pour s’en moquer.`,
+          text: `Vous abandonnez sous les sifflets. Le Hall retient votre nom, non pour la gloire, mais pour s’en moquer jusqu’à la pinte suivante.`,
           deltas: { renommee: -4, moral: -3, charisme: -1 },
         },
       },
@@ -1008,33 +1008,33 @@ function buildChainExitChoice(info) {
     forge: {
       open: {
         label: 'Laisser le fer dormir ce soir',
-        detail: 'Éteindre l’enclume — la forge attendra',
+        detail: 'Éteindre l’enclume et laisser la forge attendre',
         bonus: {
-          text: `Vous posez le marteau. Même Ornn comprend qu’un bras fatigué gâche le fer de « ${label} ».`,
+          text: `Vous posez le marteau et laissez le fer dormir. Même Ornn comprend qu’un bras fatigué gâche le travail de ${label}, et cette prudence vous rend un peu d’or et de sang-froid.`,
           deltas: { def: 2, moral: 2, or: 2 },
         },
         neutre: {
-          text: `Pas de braise aujourd’hui. « ${label} » reste froide.`,
+          text: `Pas de braise aujourd’hui. ${label} reste froide, l’enclume se tait, et vous repartez sans avoir ni gagné ni perdu grand-chose.`,
           deltas: {},
         },
         malus: {
-          text: `Les soufflets sifflent votre absence. La forge juge le refus comme une insulte.`,
+          text: `Les soufflets sifflent votre absence comme un affront. La forge juge votre refus comme une insulte, et l’humiliation vous coupe un peu le bras avant même le premier coup.`,
           deltas: { moral: -3, renommee: -2, auto: -1 },
         },
       },
       mid: {
         label: 'Éteindre la forge et partir',
-        detail: 'Abandonner la voie du fer — tout reprendre plus tard',
+        detail: 'Abandonner la voie du fer et tout reprendre plus tard',
         bonus: {
-          text: `Vous retirez le fer du feu à temps. « ${label} » n’est pas ruinée — seulement reportée.`,
+          text: `Vous retirez le fer du feu à temps. ${label} n’est pas ruinée : elle est seulement reportée, et votre main, elle, reste assez ferme pour un autre jour.`,
           deltas: { auto: 1, def: 2, moral: 2 },
         },
         neutre: {
-          text: `Braise morte. « ${label} » devra être reprise depuis la première étincelle.`,
+          text: `La braise meurt entre vos doigts. ${label} devra être reprise depuis la première étincelle, et ce constat vous laisse un goût de cendre.`,
           deltas: { moral: -1 },
         },
         malus: {
-          text: `Vous fuyez la chaleur. Une étincelle vous brûle le poignet — orgueil puni.`,
+          text: `Vous fuyez la chaleur trop vite. Une étincelle vous brûle le poignet, comme si la forge punissait l’orgueil de ceux qui lâchent au milieu du travail.`,
           deltas: { hp: -5, moral: -3, renommee: -2 },
         },
       },
@@ -1042,33 +1042,33 @@ function buildChainExitChoice(info) {
     ombres: {
       open: {
         label: 'Reculer avant l’obscurité',
-        detail: 'Ne pas descendre — garder la lumière',
+        detail: 'Ne pas descendre et garder la lumière',
         bonus: {
-          text: `Vous restez au seuil. « ${label} » murmure… puis se tait. La prudence vous va bien.`,
+          text: `Vous restez au seuil et laissez ${label} murmurer dans le noir. L’ombre se tait peu à peu, et cette prudence vous redonne du souffle ainsi qu’un peu de clarté d’esprit.`,
           deltas: { spd: 2, cap: 1, moral: 3 },
         },
         neutre: {
-          text: `Pas ce noir-là. Vous laissez « ${label} » aux fous courageux.`,
+          text: `Pas ce noir-là, pas ce soir. Vous laissez ${label} aux fous courageux et regagnez la lumière sans autre incident.`,
           deltas: { moral: 1 },
         },
         malus: {
-          text: `En reculant, vous trébuchez. L’ombre rit — « ${label} » n’aime pas les demi-mesures.`,
+          text: `En reculant, vous trébuchez, et quelque chose rit dans l’ombre. ${label} n’aime pas les demi-mesures : votre moral et votre concentration en gardent la marque.`,
           deltas: { moral: -4, cap: -1, renommee: -1 },
         },
       },
       mid: {
         label: 'Remonter sans regarder derrière',
-        detail: 'Abandonner la descente — la place se libère',
+        detail: 'Abandonner la descente et libérer la place',
         bonus: {
-          text: `Vous remontez à temps. « ${label} » garde ses secrets ; vous gardez votre souffle.`,
+          text: `Vous remontez à temps, sans vous retourner. ${label} garde ses secrets, mais vous gardez votre souffle et une part de votre force : c’est déjà une victoire discrète.`,
           deltas: { spd: 2, hp: 2, moral: 2 },
         },
         neutre: {
-          text: `Retour à la surface. « ${label} » se referme comme si vous n’aviez jamais été là.`,
+          text: `Vous regagnez la surface. ${label} se referme comme si vous n’aviez jamais foulé ses marches, et le monde d’en haut reprend son cours.`,
           deltas: {},
         },
         malus: {
-          text: `Quelque chose vous suit jusqu’à la sortie. Vous échappez à « ${label} »… pas à la peur.`,
+          text: `Quelque chose vous suit jusqu’à la sortie. Vous échappez à ${label}, mais pas à la peur qu’elle a plantée dans votre nuque, et vos pas restent lourds longtemps après.`,
           deltas: { hp: -4, moral: -4, charisme: -1 },
         },
       },
@@ -1076,33 +1076,33 @@ function buildChainExitChoice(info) {
     autre: {
       open: {
         label: 'Passer son chemin, le regard ailleurs',
-        detail: `Ne pas s’engager dans « ${label} »`,
+        detail: `Ne pas s’engager dans ${label}`,
         bonus: {
-          text: `Vous croisez « ${label} » et continuez. Un détour évité, une leçon discrète empochée.`,
+          text: `Vous croisez ${label} et continuez votre route. En évitant ce détour, vous gagnez un peu d’or, un peu de tenue, et la sensation d’avoir choisi juste.`,
           deltas: { charisme: 2, or: 2, moral: 2 },
         },
         neutre: {
-          text: `Pas cette histoire. « ${label} » attendra un autre cave.`,
+          text: `Pas cette histoire-là. ${label} attendra un autre cave, et vous poursuivez la vôtre sans que rien d’important ne change.`,
           deltas: { moral: 1 },
         },
         malus: {
-          text: `Vous refusez trop sèchement. On retient le geste — pas votre gloire.`,
+          text: `Vous refusez trop sèchement, et ceux qui regardaient retiennent le geste plutôt que votre gloire. La rumeur part petite, mais elle part quand même.`,
           deltas: { renommee: -2, moral: -2 },
         },
       },
       mid: {
         label: 'Couper le fil et s’en aller',
-        detail: `Abandonner « ${label} » — tout recommencer plus tard`,
+        detail: `Abandonner ${label} et tout recommencer plus tard`,
         bonus: {
-          text: `Vous coupez le fil proprement. « ${label} » n’est plus votre fardeau — pour l’instant.`,
+          text: `Vous coupez le fil proprement. ${label} n’est plus votre fardeau pour l’instant, et cette liberté retrouvée vous allège l’esprit autant que la bourse.`,
           deltas: { spd: 1, moral: 3, or: 1 },
         },
         neutre: {
-          text: `Fin de fil. « ${label} » retombe à zéro.`,
+          text: `Le fil se brise sans drame. ${label} retombe à zéro, comme une page qu’on referme au milieu du chapitre.`,
           deltas: {},
         },
         malus: {
-          text: `Vous lâchez trop vite. Ceux qui suivaient « ${label} » retiennent votre dos.`,
+          text: `Vous lâchez trop vite, et ceux qui suivaient ${label} ne retiennent que votre dos. La place se libère, mais votre réputation prend un coup au passage.`,
           deltas: { renommee: -3, moral: -3, hp: -2 },
         },
       },
@@ -1355,26 +1355,21 @@ export function resolveChoice(career, optionIndex) {
     !!option.exitChain ||
     option.id === 'refuser_quete' ||
     (RED_ARENA_EVENT_IDS.has(career.currentEvent.id) && option.id === 'refuser');
+  // Sortie de quête : le texte d’outcome porte déjà la prose (pas de suffixe haché)
   if (questRefuse && chainMeta) {
-    const exitMark =
-      variant === 'bonus'
-        ? ` « ${chainMeta.label} » se referme — sortie digne, place libérée.`
-        : variant === 'malus'
-          ? ` « ${chainMeta.label} » s’arrête dans la douleur : il faudra tout reprendre.`
-          : ` « ${chainMeta.label} » est abandonnée. La place se libère.`;
-    outcomeText = `${outcomeText}${exitMark}`;
+    /* no-op */
   } else if (ambitionLinked && career.ambition?.name) {
     const mark =
       variant === 'bonus'
-        ? `Finale de suite : sous le signe de « ${career.ambition.name} », la Cave vous doit encore une dette.`
+        ? `Sous le signe de « ${career.ambition.name} », cette finale laisse la Cave vous devoir encore une dette.`
         : variant === 'malus'
-          ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes — cicatrice utile.`
-          : `Finale de « ${chainMeta?.label || career.ambition.name} » : l’ambition grave ce soir sans fanfare.`;
+          ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes, et la cicatrice reste utile.`
+          : `Cette finale de « ${chainMeta?.label || career.ambition.name} » grave votre ambition sans fanfare, mais elle compte.`;
     outcomeText = `${outcomeText} ${mark}`;
   } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
-    outcomeText = `${outcomeText} Suite « ${chainMeta.label} » : étape ${chainMeta.step}/${chainMeta.total} validée — la suite peut revenir plus tard (pas forcément la prochaine saison).`;
+    outcomeText = `${outcomeText} L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée : la suite pourra revenir plus tard, pas forcément dès la prochaine saison.`;
   } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
-    outcomeText = `${outcomeText} La suite « ${chainMeta.label} » se brise ici — il faudra reprendre depuis le début.`;
+    outcomeText = `${outcomeText} La suite ${chainMeta.label} se brise ici, et il faudra tout reprendre depuis le début si vous voulez y revenir.`;
   }
   const weaponDeltas = {};
 
