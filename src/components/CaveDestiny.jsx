@@ -156,7 +156,7 @@ function ChoiceRow({ title, description, onClick }) {
     >
       <p className="font-semibold text-amber-50">{title}</p>
       {description && (
-        <p className="mt-1 text-sm text-stone-400 leading-relaxed">{description}</p>
+        <p className="mt-1 text-sm text-stone-400 leading-relaxed whitespace-pre-line">{description}</p>
       )}
     </button>
   );
