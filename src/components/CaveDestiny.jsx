@@ -356,6 +356,18 @@ function RarityBadge({ rarity }) {
   );
 }
 
+function AmbitionBadge({ icon }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-violet-500/55 bg-violet-950/55 text-violet-100"
+      title="Suite liée à votre ambition"
+    >
+      <span aria-hidden="true">{icon || '🎯'}</span>
+      Ambition
+    </span>
+  );
+}
+
 function formatRunDate(date) {
   if (!date) return '';
   try {
@@ -1305,24 +1317,29 @@ const CaveDestiny = () => {
                       ? 'Suite'
                       : 'Événement'}
                 </p>
-                <RarityBadge rarity={event.rarity} />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <RarityBadge rarity={event.rarity} />
+                  {event.ambitionQuest && (
+                    <AmbitionBadge icon={event.ambitionIcon || career.ambition?.icon} />
+                  )}
+                </div>
               </div>
               {event.chain && (
                 <div
                   className={`mt-2 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                    event.ambitionLinked
+                    event.ambitionLinked || event.ambitionQuest
                       ? 'border-violet-500/50 bg-violet-950/60 text-violet-100'
                       : 'border-teal-600/45 bg-teal-950/45 text-teal-100'
                   }`}
                 >
                   <span aria-hidden="true">
-                    {event.ambitionLinked
+                    {event.ambitionLinked || event.ambitionQuest
                       ? event.ambitionIcon || career.ambition?.icon || '🎯'
                       : '🗺️'}
                   </span>
                   <span>
                     {event.chain.label} · {event.chain.step}/{event.chain.total}
-                    {event.ambitionLinked ? ' · ambition' : ''}
+                    {event.ambitionQuest ? ' · ambition' : ''}
                   </span>
                 </div>
               )}

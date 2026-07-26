@@ -1174,6 +1174,12 @@ function materializeEvent(raw, career) {
   const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
   const ambitionLinked = isAmbitionLinkedEvent(localized, career);
   const chain = buildChainUiMeta(localized.id);
+  const ambitionQuest = !!(
+    career.ambition?.id &&
+    chain?.ambition &&
+    chain.ambition === career.ambition.id
+  );
+  const showAmbitionMeta = ambitionLinked || ambitionQuest;
   return {
     id: localized.id,
     title: localized.title,
@@ -1183,9 +1189,11 @@ function materializeEvent(raw, career) {
     options: localized.options,
     chain,
     ambitionLinked,
-    ambitionId: ambitionLinked ? career.ambition?.id || null : null,
-    ambitionName: ambitionLinked ? career.ambition?.name || null : null,
-    ambitionIcon: ambitionLinked ? career.ambition?.icon || '🎯' : null,
+    /** Suite / ouverture alignée sur l’ambition du joueur (tag UI). */
+    ambitionQuest,
+    ambitionId: showAmbitionMeta ? career.ambition?.id || null : null,
+    ambitionName: showAmbitionMeta ? career.ambition?.name || null : null,
+    ambitionIcon: showAmbitionMeta ? career.ambition?.icon || '🎯' : null,
   };
 }
 
