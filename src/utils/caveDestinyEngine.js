@@ -1634,6 +1634,91 @@ export function getTier(score) {
   return tier;
 }
 
+/**
+ * Convertit un ancien score cumulatif (>100) vers le barème /100.
+ * Ancres = anciens paliers → nouveaux paliers.
+ * Les scores déjà ≤100 sont laissés tels quels.
+ */
+export function normalizeDestinyScoreToHundred(rawScore) {
+  const s = Number(rawScore);
+  if (!Number.isFinite(s) || s <= 0) return 0;
+  if (s <= CAVE_DESTINY_SCORE_MAX) return Math.round(s);
+
+  const anchors = [
+    [0, 0],
+    [220, 45],
+    [300, 55],
+    [400, 68],
+    [520, 80],
+    [640, 90],
+    [800, 100],
+  ];
+  if (s >= anchors[anchors.length - 1][0]) return CAVE_DESTINY_SCORE_MAX;
+  for (let i = 1; i < anchors.length; i += 1) {
+    const [x0, y0] = anchors[i - 1];
+    const [x1, y1] = anchors[i];
+    if (s <= x1) {
+      const t = (s - x0) / (x1 - x0 || 1);
+      return clampScore(y0 + t * (y1 - y0));
+    }
+  }
+  return CAVE_DESTINY_SCORE_MAX;
+}
+
+/**
+ * Renvoie une entrée panthéon/run migrée (score + tier).
+ * Si conversion depuis l’ancien barème : pose `_needsScorePersist` pour réécriture Firestore.
+ */
+export function migrateRunEntryScore(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const raw = Number(entry.score);
+  if (!Number.isFinite(raw) || raw < 0) {
+    const tier = getTier(0);
+    return {
+      ...entry,
+      score: 0,
+      tierId: tier.id,
+      tierLabel: tier.label,
+      scoreScale: 100,
+    };
+  }
+  // Déjà au format /100 en base
+  if (entry.scoreScale === 100 && raw <= CAVE_DESTINY_SCORE_MAX) {
+    const score = Math.round(raw);
+    const tier = getTier(score);
+    return {
+      ...entry,
+      score,
+      tierId: tier.id,
+      tierLabel: tier.label,
+    };
+  }
+  // Score déjà ≤100 mais pas encore flagué
+  if (raw <= CAVE_DESTINY_SCORE_MAX) {
+    const score = Math.round(raw);
+    const tier = getTier(score);
+    return {
+      ...entry,
+      score,
+      tierId: tier.id,
+      tierLabel: tier.label,
+      scoreScale: 100,
+    };
+  }
+  // Ancien barème cumulatif → /100
+  const score = normalizeDestinyScoreToHundred(raw);
+  const tier = getTier(score);
+  return {
+    ...entry,
+    score,
+    tierId: tier.id,
+    tierLabel: tier.label,
+    scoreScale: 100,
+    scoreLegacy: raw,
+    _needsScorePersist: true,
+  };
+}
+
 export function buildFinalStory(career) {
   const score = computeScore(career);
   const tier = getTier(score);
@@ -1779,7 +1864,17 @@ export function loadPantheon() {
     const raw = localStorage.getItem(STORAGE_KEY_PANTHEON);
     if (!raw) return [];
     const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    const migrated = list.map(migrateRunEntryScore);
+    const changed = migrated.some((e, i) => e !== list[i] && e?.score !== list[i]?.score);
+    if (changed) {
+      try {
+        localStorage.setItem(STORAGE_KEY_PANTHEON, JSON.stringify(migrated));
+      } catch {
+        /* ignore */
+      }
+    }
+    return migrated;
   } catch {
     return [];
   }
@@ -1808,6 +1903,7 @@ export function buildRunEntry(career, extras = {}) {
     score,
     tierId: tier.id,
     tierLabel: tier.label,
+    scoreScale: 100,
     trophies: career.trophies || {},
     story,
     stats: normalizeHpKey(career.stats || {}),
