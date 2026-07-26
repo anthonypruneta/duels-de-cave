@@ -828,8 +828,7 @@ const CaveDestiny = () => {
         <BackLink onClick={() => setScreen('home')} />
         <ScreenTitle
           title="Mes runs"
-          {/* sub updated below */}
-          sub="Vos carrières terminées, du meilleur score au plus faible."
+          sub="Vos carrières terminées. Touchez une carte pour le récap."
         />
         <div className="space-y-2">
           {runsLoading && (
