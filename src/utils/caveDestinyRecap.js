@@ -577,12 +577,12 @@ export function buildNarratives(career, ambitionEval, traits) {
 
   if ((t.tournoi || 0) >= 1 && (t.taverne || 0) >= 1) {
     paragraphs.push(
-      'Entre les acclamations du samedi et les bières du soir, le mythe s’est construit en deux temps — lame et mousse.'
+      'Entre les acclamations du samedi et les bières du soir, le mythe s’est construit en deux temps : lame et mousse.'
     );
   }
   if (career?.endReason === 'death') {
     paragraphs.push(
-      'Les PV ont touché zéro. La Cave n’offre pas de seconde manche — seulement un tombeau et des rumeurs.'
+      'Les PV ont touché zéro.\nLa Cave n’offre pas de seconde manche : seulement un tombeau et des rumeurs.'
     );
   } else if ((s.hp ?? s.forme ?? 100) < 40 && (s.renommee || 0) >= 25) {
     paragraphs.push(
@@ -606,7 +606,7 @@ export function buildNarratives(career, ambitionEval, traits) {
   if (earlyMalus) {
     whatIf = `En saison ${earlyMalus.season}, un autre choix après « ${earlyMalus.title} » aurait peut‑être tout changé. Nul ne saura jamais où il vous aurait mené.`;
   } else if (earlyBonus) {
-    whatIf = `Dès la saison ${earlyBonus.season}, la Cave vous a ouvert une porte. D’autres chemins existaient — plus sûrs, plus ternes.`;
+    whatIf = `Dès la saison ${earlyBonus.season}, la Cave vous a ouvert une porte.\nD’autres chemins existaient, plus sûrs, plus ternes.`;
   } else {
     whatIf =
       'À vos débuts, un autre chemin s’offrait à vous. Nul ne saura jamais où il vous aurait mené.';
@@ -707,7 +707,7 @@ export function buildCareerRecap(career, opts = {}) {
 export function formatRecapShareText(recap) {
   if (!recap) return '';
   const lines = [
-    `${recap.identity.name} — ${recap.tier.label}`,
+    `${recap.identity.name} · ${recap.tier.label}`,
     recap.nickname,
     `Score : ${recap.score}`,
     recap.ambition?.succeeded
@@ -722,7 +722,7 @@ export function formatRecapShareText(recap) {
     '',
     recap.story,
     '',
-    '— Duels de Cave · Cave Destiny',
+    'Duels de Cave · Cave Destiny',
   ].filter((l) => l != null);
   return lines.join('\n');
 }
