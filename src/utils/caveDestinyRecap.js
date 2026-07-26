@@ -397,9 +397,9 @@ export function buildStatRows(career) {
     { label: 'PV restants', value: String(Math.round(s.hp ?? s.forme ?? 0)) },
     { label: 'Moral final', value: `${Math.round(s.moral || 0)} %` },
     {
-      label: 'Score des events',
-      value: String(Math.round(career?.runScore || 0)),
-    },
+      label: 'Score',
+      value: `${Math.round(career?.runScore ?? 0)}/100`,
+    }
   ];
 }
 
@@ -411,7 +411,10 @@ export const PERCENTILE_MIN_SAMPLE = 5;
  * @returns {{ percentile: number|null, sampleSize: number, ready: boolean, label: string }}
  */
 export function computePercentile(score, comparisonScores = []) {
-  const scores = comparisonScores.filter((n) => typeof n === 'number' && Number.isFinite(n));
+  // Ignore l’ancien barème (scores > 100) pour ne pas fausser le %
+  const scores = comparisonScores.filter(
+    (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 100
+  );
   if (scores.length < PERCENTILE_MIN_SAMPLE) {
     const label =
       scores.length <= 0

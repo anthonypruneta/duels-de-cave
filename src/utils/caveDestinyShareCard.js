@@ -124,7 +124,10 @@ function drawScoreCircle(ctx, cx, cy, score) {
 
   ctx.fillStyle = COLORS.text;
   ctx.font = '800 96px Cinzel, Georgia, serif';
-  ctx.fillText(String(score ?? 0), cx, cy + 28);
+  ctx.fillText(String(score ?? 0), cx, cy + 18);
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.font = '600 28px Cinzel, Georgia, serif';
+  ctx.fillText('/ 100', cx, cy + 58);
 }
 
 function loadImage(src) {
