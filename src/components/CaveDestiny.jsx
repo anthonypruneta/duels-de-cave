@@ -1122,7 +1122,7 @@ const CaveDestiny = () => {
         <div className="flex gap-4 text-sm mb-3">
           <div>
             <p className="text-[11px] text-stone-500">Score</p>
-            <p className="font-bold text-amber-300">{liveScore}</p>
+            <p className="font-bold text-amber-300">{liveScore}<span className="text-stone-500 font-semibold">/100</span></p>
           </div>
           <div>
             <p className="text-[11px] text-stone-500">Or</p>
@@ -1251,15 +1251,18 @@ const CaveDestiny = () => {
                     {d}
                   </span>
                 ))}
-                {typeof outcomeFlash.scoreGain === 'number' && outcomeFlash.scoreGain > 0 && (
+                {typeof outcomeFlash.scoreGain === 'number' && outcomeFlash.scoreGain !== 0 && (
                   <span
                     className={`text-xs px-2 py-0.5 rounded border ${
-                      outcomeFlash.ambitionLinked
-                        ? 'border-violet-500/50 bg-violet-950/50 text-violet-200'
-                        : 'border-amber-700/50 bg-amber-950/40 text-amber-300'
+                      outcomeFlash.scoreGain < 0
+                        ? 'border-red-700/50 bg-red-950/40 text-red-300'
+                        : outcomeFlash.ambitionLinked
+                          ? 'border-violet-500/50 bg-violet-950/50 text-violet-200'
+                          : 'border-amber-700/50 bg-amber-950/40 text-amber-300'
                     }`}
                   >
-                    +{outcomeFlash.scoreGain} score
+                    {outcomeFlash.scoreGain > 0 ? '+' : ''}
+                    {outcomeFlash.scoreGain} score
                     {outcomeFlash.ambitionLinked ? ' · ambition' : ''}
                   </span>
                 )}

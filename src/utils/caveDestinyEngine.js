@@ -9,6 +9,9 @@ import {
   CAVE_DESTINY_TIERS,
   CAVE_DESTINY_SEASON_COUNT,
   EXTEND_SEASON_HP_COST,
+  CAVE_DESTINY_SCORE_MAX,
+  CAVE_DESTINY_SCORE_START_MIN,
+  CAVE_DESTINY_SCORE_START_MAX,
   STORAGE_KEY_SAVE,
   STORAGE_KEY_PANTHEON,
   getOptionsForEvent,
@@ -321,18 +324,23 @@ function scaleHpLossByMoral(deltas, moral) {
   return next;
 }
 
+function clampScore(n) {
+  return Math.max(0, Math.min(CAVE_DESTINY_SCORE_MAX, Math.round(Number(n) || 0)));
+}
+
+function rollStartingScore() {
+  const span = CAVE_DESTINY_SCORE_START_MAX - CAVE_DESTINY_SCORE_START_MIN + 1;
+  return CAVE_DESTINY_SCORE_START_MIN + Math.floor(Math.random() * span);
+}
+
 /**
- * Points de score gagnés sur un event.
- * Or + renommée multiplient le gain (plafonds).
- * Les trophées restent comptés à part dans computeScore.
+ * Variation de score /100 selon le variant.
+ * Réussite +, neutre 0, échec −. Ambition amplifie un peu.
  */
-function computeEventScoreGain(variant, stats) {
-  const base = variant === 'bonus' ? 14 : variant === 'malus' ? 4 : 8;
-  const renown = Number(stats?.renommee) || 0;
-  const gold = Number(stats?.or) || 0;
-  const mult =
-    1 + Math.min(0.9, renown * 0.015) + Math.min(0.7, gold * 0.012);
-  return Math.max(0, Math.round(base * mult));
+function computeEventScoreGain(variant, _stats, { ambitionLinked = false } = {}) {
+  if (variant === 'bonus') return ambitionLinked ? 4 : 3;
+  if (variant === 'malus') return ambitionLinked ? -4 : -3;
+  return 0;
 }
 
 /** Famille d’arme requise pour qu’un event soit tirable. */
@@ -536,8 +544,7 @@ function buildRedRefuseOutcomes(eventId) {
 /** Options dynamiques : 3 personnages réels + refus (suite Arène de Red). */
 function expandRedArenaEvent(event, career) {
   if (!RED_ARENA_EVENT_IDS.has(event?.id)) return event;
-  // Offre déjà matérialisée (save / même tirage)
-  if (event.options?.some((o) => o.companion)) return event;
+  // Toujours reconstruire (évite options compagnons fantômes hors Red)
 
   const allies = pickRedCompanions(career, 3);
   const allyOptions = allies.map((ally) => ({
@@ -630,7 +637,7 @@ export function createCareer({ character, ambitionId, mentorId, weaponId, compan
       : [];
 
   return {
-    version: 9,
+    version: 10,
     createdAt: Date.now(),
     season: 1,
     maxSeasons: CAVE_DESTINY_SEASON_COUNT,
@@ -643,7 +650,8 @@ export function createCareer({ character, ambitionId, mentorId, weaponId, compan
     companionPool: pool,
     stats,
     trophies: emptyTrophies(),
-    runScore: 0,
+    runScore: rollStartingScore(),
+    scoreScale: 100,
     ambitionEventsFaced: 0,
     chainProgress: {},
     queuedEventId: null,
@@ -912,7 +920,10 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
     }
   }
 
-  const gain = Math.max(scoreGain + 6, Math.round(scoreGain * 1.6));
+  // Score /100 : ambition = ±1 en plus du variant (déjà calculé en amont si besoin)
+  let gain = scoreGain;
+  if (variant === 'bonus') gain = Math.max(gain, 4);
+  else if (variant === 'malus') gain = Math.min(gain, -4);
   return { deltas: next, trophyDelta: trophies, scoreGain: gain };
 }
 
@@ -1129,10 +1140,36 @@ function expandChainRefuseOption(event, career) {
   };
 }
 
+function cloneEventDef(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  return {
+    ...raw,
+    tags: Array.isArray(raw.tags) ? [...raw.tags] : raw.tags,
+    options: (raw.options || []).map((o) => ({
+      ...o,
+      outcomes: (o.outcomes || []).map((x) => ({ ...x, deltas: x.deltas ? { ...x.deltas } : x.deltas })),
+    })),
+  };
+}
+
+function stripCompanionOptions(event) {
+  if (!event || RED_ARENA_EVENT_IDS.has(event.id)) return event;
+  const options = (event.options || []).filter((o) => {
+    if (o?.companion) return false;
+    const id = String(o?.id || '');
+    if (id === 'ally_generic' || id.startsWith('ally_')) return false;
+    return true;
+  });
+  return options.length === (event.options || []).length ? event : { ...event, options };
+}
+
 function materializeEvent(raw, career) {
-  let event = expandSubclassEvent(raw, career.character, career);
+  let event = cloneEventDef(raw);
+  event = expandSubclassEvent(event, career.character, career);
   event = expandRedArenaEvent(event, career);
   event = expandChainRefuseOption(event, career);
+  // Filet : aucun choix coop hors arène de Red
+  event = stripCompanionOptions(event);
   const options = getOptionsForEvent(event, career.character, career);
   const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
   const ambitionLinked = isAmbitionLinkedEvent(localized, career);
@@ -1279,12 +1316,11 @@ export function resolveChoice(career, optionIndex) {
   // Moral amortit (ou aggrave) les pertes de PV
   deltas = scaleHpLossByMoral(deltas, career.stats?.moral);
 
-  // Score d’event : or + renommée influencent le gain (stats avant l’event)
   const variant = outcome.variant || 'neutre';
-  let scoreGain = computeEventScoreGain(variant, career.stats);
   let resolvedTrophyDelta = trophyDelta;
 
   const ambitionLinked = isAmbitionPayoff(career.currentEvent, career, option, outcome);
+  let scoreGain = computeEventScoreGain(variant, career.stats, { ambitionLinked });
   if (ambitionLinked) {
     const boosted = applyAmbitionEventImpact(deltas, resolvedTrophyDelta, scoreGain, variant);
     deltas = boosted.deltas;
@@ -1292,7 +1328,7 @@ export function resolveChoice(career, optionIndex) {
     scoreGain = boosted.scoreGain;
   }
 
-  const runScore = (Number(career.runScore) || 0) + scoreGain;
+  const runScore = clampScore((Number(career.runScore) || 0) + scoreGain);
 
   let stats = applyEffects(career.stats, deltas);
   const trophies = applyTrophies(career.trophies, resolvedTrophyDelta);
@@ -1581,37 +1617,11 @@ export function retireFromExtend(career) {
 }
 
 export function computeScore(career) {
-  const s = career.stats || {};
-  const t = career.trophies || {};
-  // Les faits d’armes pèsent plus que le grind de stats.
-  const trophyPoints =
-    (t.tournoi || 0) * 36 +
-    (t.donjon || 0) * 16 +
-    (t.tour || 0) * 18 +
-    (t.forge || 0) * 30 +
-    (t.labyrinthe || 0) * 20 +
-    (t.cataclysme || 0) * 28 +
-    (t.pvp || 0) * 14 +
-    (t.bossRush || 0) * 18 +
-    (t.extension || 0) * 16 +
-    (t.coop || 0) * 14;
-
-  // Or / renommée boostent surtout les gains par event (runScore).
-  const runScore = Number(career.runScore) || 0;
-
-  // Stats de combat : elles montent même sur une run faible (events neutres).
-  // Coefficient bas pour éviter « Légende » sans trophée ni réussite d’ambition.
-  const statsPoints =
-    (s.auto || 0) * 0.4 +
-    (s.def || 0) * 0.35 +
-    (s.cap || 0) * 0.4 +
-    (s.spd || 0) * 0.35 +
-    (s.charisme || 0) * 0.3;
-
-  let score = Math.round(statsPoints + runScore * 0.7 + trophyPoints);
+  // Score unique /100 : démarrage 50–60, puis ± selon les variants d’events.
+  let score = clampScore(career?.runScore);
   // Mort en run : la Cave ne garde que la moitié de la légende
   if (career?.endReason === 'death') {
-    score = Math.round(score / 2);
+    score = clampScore(score / 2);
   }
   return score;
 }
@@ -1652,8 +1662,8 @@ export function buildFinalStory(career) {
   } else if (weaponName && weaponRarity === RARITY.RARE) {
     arc += ` ${weaponName} a été améliorée en chemin.`;
   }
-  if (!died && score >= 360) arc += ' On murmure déjà « légende » plutôt que « cave ».';
-  else if (!died && score < 160) arc += ' Cave jusqu’au bout — et fier de l’être.';
+  if (!died && score >= 80) arc += ' On murmure déjà « légende » plutôt que « cave ».';
+  else if (!died && score < 50) arc += ' Cave jusqu’au bout — et fier de l’être.';
 
   return { score, tier, story: arc, died };
 }
@@ -1721,14 +1731,26 @@ function migrateCareerStatKeys(career) {
       deltas: normalizeHpKey(migrateDestinyStatKeys(next.lastOutcome.deltas)),
     };
   }
-  // Backfill runScore pour les saves entamées avant ce système
-  if (!next.runScore && Array.isArray(next.history) && next.history.length) {
-    let total = 0;
-    for (const h of next.history) {
-      if (typeof h.scoreGain === 'number') total += h.scoreGain;
-      else total += computeEventScoreGain(h.variant || 'neutre', next.stats);
+  // Migration score /100 (anciennes saves cumulatives → reconstruit depuis l’historique)
+  if (next.scoreScale !== 100) {
+    let score = 55;
+    for (const h of next.history || []) {
+      const v = h?.variant || 'neutre';
+      const linked = !!h?.ambitionLinked;
+      if (typeof h?.scoreGain === 'number' && Math.abs(h.scoreGain) <= 6) {
+        score += h.scoreGain;
+      } else {
+        score += computeEventScoreGain(v, next.stats, { ambitionLinked: linked });
+      }
     }
-    next.runScore = total;
+    next.runScore = clampScore(score);
+    next.scoreScale = 100;
+  } else {
+    next.runScore = clampScore(next.runScore);
+  }
+  // Filet : event courant hors Red ne doit jamais garder des options coop
+  if (next.currentEvent && !RED_ARENA_EVENT_IDS.has(next.currentEvent.id)) {
+    next.currentEvent = stripCompanionOptions(next.currentEvent);
   }
   return next;
 }

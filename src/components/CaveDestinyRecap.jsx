@@ -232,6 +232,7 @@ export default function CaveDestinyRecap({
           <div className="text-right shrink-0">
             <p className={`text-3xl font-black tabular-nums ${recap.tier.color}`}>
               {recap.score}
+              <span className="text-base font-bold text-stone-500">/100</span>
             </p>
             <p className="text-[10px] uppercase tracking-wide text-stone-500">score</p>
             {career?.endReason === 'death' && (

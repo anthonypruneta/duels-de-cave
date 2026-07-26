@@ -397,9 +397,9 @@ export function buildStatRows(career) {
     { label: 'PV restants', value: String(Math.round(s.hp ?? s.forme ?? 0)) },
     { label: 'Moral final', value: `${Math.round(s.moral || 0)} %` },
     {
-      label: 'Score des events',
-      value: String(Math.round(career?.runScore || 0)),
-    },
+      label: 'Score',
+      value: `${Math.round(career?.runScore ?? 0)}/100`,
+    }
   ];
 }
 
