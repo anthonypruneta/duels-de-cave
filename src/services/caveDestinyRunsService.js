@@ -72,7 +72,11 @@ function normalizeEntry(raw, fallbackId) {
     ownerPseudo: raw.ownerPseudo || null,
     characterImage: raw.characterImage || null,
     ambition: raw.ambition || null,
+    ambitionId: raw.ambitionId || null,
+    ambitionIcon: raw.ambitionIcon || null,
     mentor: raw.mentor || null,
+    mentorId: raw.mentorId || null,
+    mentorIcon: raw.mentorIcon || null,
     weapon: raw.weapon || null,
     weaponRarity: raw.weaponRarity || null,
     weaponIcon: raw.weaponIcon || null,
@@ -86,6 +90,9 @@ function normalizeEntry(raw, fallbackId) {
     stats: raw.stats || {},
     runScore: raw.runScore != null ? Number(raw.runScore) : undefined,
     endReason: raw.endReason || null,
+    subclassId: raw.subclassId || null,
+    maxSeasons: raw.maxSeasons != null ? Number(raw.maxSeasons) : undefined,
+    history: Array.isArray(raw.history) ? raw.history : undefined,
   };
   return migrateRunEntryScore(base);
 }

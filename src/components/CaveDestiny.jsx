@@ -31,6 +31,7 @@ import {
   canExtendSeason,
   extendCareerSeason,
   retireFromExtend,
+  runEntryToCareer,
 } from '../utils/caveDestinyEngine';
 import { getRarityMeta } from '../data/caveDestinyRarity';
 import { loadCaveDestinyCharacterPool } from '../services/caveDestinyCharacters';
@@ -381,9 +382,15 @@ function formatRunDate(date) {
   }
 }
 
-function RunEntryCard({ entry, rank = null, showPlayer = false }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/70 p-3">
+function RunEntryCard({ entry, rank = null, showPlayer = false, onClick = null }) {
+  const interactive = typeof onClick === 'function';
+  const className = `w-full flex items-center gap-3 rounded-xl border border-stone-700 bg-stone-950/70 p-3 text-left transition ${
+    interactive
+      ? 'hover:border-amber-500/55 hover:bg-amber-950/20 cursor-pointer'
+      : ''
+  }`;
+  const body = (
+    <>
       {rank != null && (
         <span
           className={`shrink-0 w-8 text-center text-sm font-bold tabular-nums ${
@@ -435,8 +442,17 @@ function RunEntryCard({ entry, rank = null, showPlayer = false }) {
         </p>
       </div>
       <p className="text-sm font-bold text-amber-300 shrink-0 tabular-nums">{entry.score}</p>
-    </div>
+    </>
   );
+
+  if (interactive) {
+    return (
+      <button type="button" onClick={() => onClick(entry)} className={className}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
 const CaveDestiny = () => {
@@ -454,6 +470,8 @@ const CaveDestiny = () => {
   const [pantheon, setPantheon] = useState([]);
   const [runsLoading, setRunsLoading] = useState(false);
   const [runsError, setRunsError] = useState(null);
+  const [viewedRunEntry, setViewedRunEntry] = useState(null);
+  const [viewedRunFrom, setViewedRunFrom] = useState('pantheon');
   const [outcomeFlash, setOutcomeFlash] = useState(null);
   const [allGameCharacters, setAllGameCharacters] = useState([]);
   const [offeredCharacters, setOfferedCharacters] = useState([]);
@@ -541,13 +559,27 @@ const CaveDestiny = () => {
     migrateLocalCaveDestinyPantheon(currentUser.uid).catch(() => {});
   }, [currentUser?.uid]);
 
+  const openRunRecap = (entry, from) => {
+    if (!entry) return;
+    setViewedRunEntry(entry);
+    setViewedRunFrom(from || 'pantheon');
+    setScreen('runRecap');
+  };
+
   useEffect(() => {
-    if (screen !== 'mesRuns' && screen !== 'pantheon' && screen !== 'final') return;
+    if (
+      screen !== 'mesRuns' &&
+      screen !== 'pantheon' &&
+      screen !== 'final' &&
+      screen !== 'runRecap'
+    ) {
+      return;
+    }
     let cancelled = false;
 
     const load = async () => {
-      if (screen === 'final') {
-        // Panthéon pour percentile réel / rival — silencieux
+      if (screen === 'final' || screen === 'runRecap') {
+        // Panthéon pour percentile réel / rival (silencieux)
         try {
           const res = await loadCaveDestinyPantheon({
             max: 500,
@@ -796,7 +828,7 @@ const CaveDestiny = () => {
         <BackLink onClick={() => setScreen('home')} />
         <ScreenTitle
           title="Mes runs"
-          sub="Vos carrières terminées, du meilleur score au plus faible."
+          sub="Vos carrières terminées. Touchez une carte pour le récap."
         />
         <div className="space-y-2">
           {runsLoading && (
@@ -812,7 +844,12 @@ const CaveDestiny = () => {
           )}
           {!runsLoading &&
             myRuns.map((entry, i) => (
-              <RunEntryCard key={entry.id} entry={entry} rank={i + 1} />
+              <RunEntryCard
+                key={entry.id}
+                entry={entry}
+                rank={i + 1}
+                onClick={(e) => openRunRecap(e, 'mesRuns')}
+              />
             ))}
         </div>
       </Shell>
@@ -826,7 +863,7 @@ const CaveDestiny = () => {
         <BackLink onClick={() => setScreen('home')} />
         <ScreenTitle
           title="Panthéon"
-          sub="Toutes les carrières des joueurs, du meilleur score au plus nul."
+          sub="Toutes les carrières des joueurs, du meilleur score au plus nul. Touchez une carte pour le récap."
         />
         <div className="space-y-2">
           {runsLoading && (
@@ -842,9 +879,53 @@ const CaveDestiny = () => {
           )}
           {!runsLoading &&
             pantheon.map((entry, i) => (
-              <RunEntryCard key={entry.id} entry={entry} rank={i + 1} showPlayer />
+              <RunEntryCard
+                key={entry.id}
+                entry={entry}
+                rank={i + 1}
+                showPlayer
+                onClick={(e) => openRunRecap(e, 'pantheon')}
+              />
             ))}
         </div>
+      </Shell>
+    );
+  }
+
+  /* ---------- RUN RECAP (Panthéon / Mes runs) ---------- */
+  if (screen === 'runRecap' && viewedRunEntry) {
+    const viewedCareer = runEntryToCareer(viewedRunEntry);
+    return (
+      <Shell>
+        <BackLink
+          onClick={() => {
+            setViewedRunEntry(null);
+            setScreen(viewedRunFrom || 'pantheon');
+          }}
+        />
+        <div className="mb-4 text-center">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-amber-500/80 font-bold">
+            Carte récap
+          </p>
+          <h2 className="font-[Cinzel,serif] text-2xl font-bold text-amber-100 mt-1">
+            {viewedRunEntry.name || 'Destin'}
+          </h2>
+        </div>
+        <CaveDestinyRecap
+          career={viewedCareer}
+          pantheon={pantheon}
+          mode="viewer"
+          excludeRunId={viewedRunEntry.id}
+          playerLabel={viewedRunEntry.userPseudo || null}
+          onBack={() => {
+            setViewedRunEntry(null);
+            setScreen(viewedRunFrom || 'pantheon');
+          }}
+          onHome={() => {
+            setViewedRunEntry(null);
+            setScreen('home');
+          }}
+        />
       </Shell>
     );
   }

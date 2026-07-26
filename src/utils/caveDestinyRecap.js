@@ -667,7 +667,7 @@ export function buildCareerRecap(career, opts = {}) {
   return {
     score,
     tier,
-    story: base.story,
+    story: career?.savedStory || base.story,
     ambition: ambitionEval,
     legendBadge,
     headline,
