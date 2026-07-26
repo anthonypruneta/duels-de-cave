@@ -34,7 +34,7 @@ import {
 export { listActiveChainQuests };
 import { RARITY } from '../data/weapons';
 import { getSubclassesForClass } from '../data/subclasses';
-import { trio } from '../data/caveDestinyEventUtils';
+import { trio, CAVE_DESTINY_TRIO_WEIGHTS } from '../data/caveDestinyEventUtils';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -335,11 +335,11 @@ function rollStartingScore() {
 
 /**
  * Variation de score /100 selon le variant.
- * Réussite +, neutre 0, échec −. Ambition amplifie un peu.
+ * Réussite +4, neutre 0, échec −2. Ambition : +5 / −3.
  */
 function computeEventScoreGain(variant, _stats, { ambitionLinked = false } = {}) {
-  if (variant === 'bonus') return ambitionLinked ? 4 : 3;
-  if (variant === 'malus') return ambitionLinked ? -4 : -3;
+  if (variant === 'bonus') return ambitionLinked ? 5 : 4;
+  if (variant === 'malus') return ambitionLinked ? -3 : -2;
   return 0;
 }
 
@@ -537,7 +537,7 @@ function buildRedRefuseOutcomes(eventId) {
         : 'Quelques regards en coin vous suivent jusqu’à la sortie. Fuir Red n’apporte aucune couronne : seulement une rumeur qui s’accroche à votre nom.',
       deltas: { moral: -3, renommee: -2, charisme: -1 },
     },
-    [30, 40, 30],
+    CAVE_DESTINY_TRIO_WEIGHTS,
   );
 }
 
@@ -920,10 +920,10 @@ function applyAmbitionEventImpact(deltas, trophyDelta, scoreGain, variant) {
     }
   }
 
-  // Score /100 : ambition = ±1 en plus du variant (déjà calculé en amont si besoin)
+  // Score /100 : ambition = +5 / −3 (filet si l’amont n’a pas déjà amplifié)
   let gain = scoreGain;
-  if (variant === 'bonus') gain = Math.max(gain, 4);
-  else if (variant === 'malus') gain = Math.min(gain, -4);
+  if (variant === 'bonus') gain = Math.max(gain, 5);
+  else if (variant === 'malus') gain = Math.min(gain, -3);
   return { deltas: next, trophyDelta: trophies, scoreGain: gain };
 }
 
@@ -1115,7 +1115,7 @@ function buildChainExitChoice(info) {
     exitChain: true,
     label: pack.label,
     detail: pack.detail,
-    outcomes: trio(pack.bonus, pack.neutre, pack.malus, [30, 40, 30]),
+    outcomes: trio(pack.bonus, pack.neutre, pack.malus, CAVE_DESTINY_TRIO_WEIGHTS),
   };
 }
 
@@ -1623,7 +1623,7 @@ export function retireFromExtend(career) {
 }
 
 export function computeScore(career) {
-  // Score unique /100 : démarrage 50–60, puis ± selon les variants d’events.
+  // Score unique /100 : démarrage 50–60, puis +4 / 0 / −2 (ambition +5 / −3).
   let score = clampScore(career?.runScore);
   // Mort en run : la Cave ne garde que la moitié de la légende
   if (career?.endReason === 'death') {

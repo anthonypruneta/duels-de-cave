@@ -21,8 +21,11 @@ const RARITY_LABELS = {
   légendaire: 'légendaire',
 };
 
+/** Poids défaut : 30 % réussite / 45 % neutre / 25 % échec */
+export const CAVE_DESTINY_TRIO_WEIGHTS = [30, 45, 25];
+
 /** Construit le trio obligatoire bonus / neutre / malus */
-export function trio(bonus, neutre, malus, weights = [30, 40, 30]) {
+export function trio(bonus, neutre, malus, weights = CAVE_DESTINY_TRIO_WEIGHTS) {
   const pack = (variant, weight, o) => ({
     variant,
     weight,
