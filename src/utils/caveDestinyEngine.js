@@ -2025,6 +2025,23 @@ export function loadPantheon() {
 export function buildRunEntry(career, extras = {}) {
   const { score, tier, story } = buildFinalStory(career);
   const subclass = career.subclass || null;
+  const history = Array.isArray(career.history)
+    ? career.history.map((h) => ({
+        season: h.season,
+        eventId: h.eventId,
+        title: h.title,
+        choice: h.choice,
+        text: h.text,
+        variant: h.variant,
+        deltas: h.deltas || {},
+        scoreGain: h.scoreGain,
+        died: !!h.died,
+        ambitionLinked: !!h.ambitionLinked,
+        weaponProgress: h.weaponProgress || null,
+        weaponName: h.weaponName || null,
+        subclassName: h.subclassName || null,
+      }))
+    : [];
   return {
     id: extras.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     date: extras.date || Date.now(),
@@ -2034,10 +2051,15 @@ export function buildRunEntry(career, extras = {}) {
     race: career.character?.race || null,
     class: career.character?.class || null,
     subclass: subclass?.name || subclass || null,
+    subclassId: subclass?.id || null,
     ownerPseudo: career.character?.ownerPseudo || null,
     characterImage: career.character?.characterImage || null,
     ambition: career.ambition?.name || null,
+    ambitionId: career.ambition?.id || null,
+    ambitionIcon: career.ambition?.icon || null,
     mentor: career.mentor?.name || null,
+    mentorId: career.mentor?.id || null,
+    mentorIcon: career.mentor?.icon || null,
     weapon: career.weapon?.name || null,
     weaponRarity: career.weapon?.rarity || null,
     weaponIcon: career.weapon?.icon || null,
@@ -2050,6 +2072,101 @@ export function buildRunEntry(career, extras = {}) {
     stats: normalizeHpKey(career.stats || {}),
     runScore: Number(career.runScore) || 0,
     endReason: career.endReason || null,
+    maxSeasons: Number(career.maxSeasons) || CAVE_DESTINY_SEASON_COUNT,
+    history,
+  };
+}
+
+/**
+ * Reconstruit une carrière « lecture seule » depuis une entrée Panthéon / Mes runs,
+ * pour afficher la carte récap.
+ */
+export function runEntryToCareer(entry) {
+  if (!entry) return null;
+
+  const ambitionFromId = entry.ambitionId
+    ? CAVE_DESTINY_AMBITIONS.find((a) => a.id === entry.ambitionId)
+    : null;
+  const ambitionFromName = entry.ambition
+    ? CAVE_DESTINY_AMBITIONS.find((a) => a.name === entry.ambition)
+    : null;
+  const ambitionSrc = ambitionFromId || ambitionFromName;
+  const ambition = ambitionSrc
+    ? { id: ambitionSrc.id, name: ambitionSrc.name, icon: ambitionSrc.icon }
+    : entry.ambition
+      ? {
+          id: entry.ambitionId || null,
+          name: entry.ambition,
+          icon: entry.ambitionIcon || '🎯',
+        }
+      : null;
+
+  const mentorFromId = entry.mentorId
+    ? CAVE_DESTINY_MENTORS.find((m) => m.id === entry.mentorId)
+    : null;
+  const mentorFromName = entry.mentor
+    ? CAVE_DESTINY_MENTORS.find((m) => m.name === entry.mentor)
+    : null;
+  const mentorSrc = mentorFromId || mentorFromName;
+  const mentor = mentorSrc
+    ? { id: mentorSrc.id, name: mentorSrc.name, icon: mentorSrc.icon }
+    : entry.mentor
+      ? {
+          id: entry.mentorId || null,
+          name: entry.mentor,
+          icon: entry.mentorIcon || '🧭',
+        }
+      : null;
+
+  const subclass =
+    entry.subclassId || entry.subclass
+      ? {
+          id: entry.subclassId || null,
+          name:
+            typeof entry.subclass === 'string'
+              ? entry.subclass
+              : entry.subclass?.name || null,
+        }
+      : null;
+
+  const maxSeasons =
+    Number(entry.maxSeasons) ||
+    (Array.isArray(entry.history) && entry.history.length
+      ? Math.max(...entry.history.map((h) => Number(h.season) || 0), CAVE_DESTINY_SEASON_COUNT)
+      : CAVE_DESTINY_SEASON_COUNT);
+
+  return {
+    phase: 'finished',
+    character: {
+      name: entry.name || 'Aventurier',
+      race: entry.race || null,
+      class: entry.class || null,
+      subclass,
+      ownerPseudo: entry.ownerPseudo || null,
+      characterImage: entry.characterImage || null,
+    },
+    ambition,
+    mentor,
+    weapon: entry.weapon
+      ? {
+          name: entry.weapon,
+          rarity: entry.weaponRarity || null,
+          icon: entry.weaponIcon || null,
+        }
+      : null,
+    subclass,
+    stats: normalizeHpKey(entry.stats || {}),
+    trophies: entry.trophies || {},
+    history: Array.isArray(entry.history) ? entry.history : [],
+    maxSeasons,
+    season: maxSeasons,
+    runScore:
+      entry.runScore != null
+        ? Number(entry.runScore)
+        : Number(entry.score) || 0,
+    endReason: entry.endReason || null,
+    savedStory: entry.story || null,
+    fromRunEntryId: entry.id || null,
   };
 }
 

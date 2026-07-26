@@ -165,9 +165,13 @@ function FaceOff({ faceOff, youName, youTitle }) {
  * @param {{
  *   career: object,
  *   pantheon?: object[],
- *   onReplay: () => void,
+ *   onReplay?: () => void,
  *   onHome: () => void,
  *   onMyRuns?: () => void,
+ *   onBack?: () => void,
+ *   mode?: 'final' | 'viewer',
+ *   excludeRunId?: string|null,
+ *   playerLabel?: string|null,
  * }} props
  */
 export default function CaveDestinyRecap({
@@ -176,14 +180,23 @@ export default function CaveDestinyRecap({
   onReplay,
   onHome,
   onMyRuns,
+  onBack,
+  mode = 'final',
+  excludeRunId = null,
+  playerLabel = null,
 }) {
+  const isViewer = mode === 'viewer';
   const [shareMsg, setShareMsg] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [showAllParcours, setShowAllParcours] = useState(false);
 
   const recap = useMemo(
-    () => buildCareerRecap(career, { pantheon }),
-    [career, pantheon]
+    () =>
+      buildCareerRecap(career, {
+        pantheon,
+        excludeRunId: excludeRunId || career?.fromRunEntryId || null,
+      }),
+    [career, pantheon, excludeRunId]
   );
 
   const id = recap.identity;
@@ -220,6 +233,11 @@ export default function CaveDestinyRecap({
               <span className="text-stone-600 mx-1.5">·</span>
               <span className="text-stone-400">Retraite · {id.seasons} saisons</span>
             </p>
+            {playerLabel ? (
+              <p className="mt-1 text-[11px] text-amber-200/85 truncate">
+                Joueur : {playerLabel}
+              </p>
+            ) : null}
             <span className="inline-block mt-2 text-[10px] uppercase tracking-[0.18em] font-black px-2.5 py-1 rounded-full border border-amber-500/60 bg-amber-950/70 text-amber-200">
               {recap.legendBadge}
             </span>
@@ -451,40 +469,65 @@ export default function CaveDestinyRecap({
 
       {/* Actions */}
       <div className="pt-2 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={handleShare}
-            disabled={sharing}
-            className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition disabled:opacity-60"
-          >
-            {sharing ? '⏳ Carte…' : '📤 Partager'}
-          </button>
-          <button
-            type="button"
-            onClick={onMyRuns || onHome}
-            className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition"
-          >
-            💾 Mes runs
-          </button>
-        </div>
-        {shareMsg ? (
-          <p className="text-center text-xs text-emerald-400">{shareMsg}</p>
-        ) : null}
-        <button
-          type="button"
-          onClick={onReplay}
-          className="w-full py-3.5 rounded-xl border-2 border-amber-500/80 bg-amber-700/40 text-amber-50 text-sm font-bold uppercase tracking-wide hover:bg-amber-600/50 transition"
-        >
-          Rejouer une carrière
-        </button>
-        <button
-          type="button"
-          onClick={onHome}
-          className="w-full py-3 rounded-xl border border-stone-600 text-stone-300 text-sm hover:bg-stone-800/70 transition"
-        >
-          Accueil
-        </button>
+        {isViewer ? (
+          <>
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={sharing}
+              className="w-full py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition disabled:opacity-60"
+            >
+              {sharing ? '⏳ Carte…' : '📤 Partager la carte'}
+            </button>
+            {shareMsg ? (
+              <p className="text-center text-xs text-emerald-400">{shareMsg}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={onBack || onHome}
+              className="w-full py-3.5 rounded-xl border-2 border-amber-500/80 bg-amber-700/40 text-amber-50 text-sm font-bold uppercase tracking-wide hover:bg-amber-600/50 transition"
+            >
+              Retour
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleShare}
+                disabled={sharing}
+                className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition disabled:opacity-60"
+              >
+                {sharing ? '⏳ Carte…' : '📤 Partager'}
+              </button>
+              <button
+                type="button"
+                onClick={onMyRuns || onHome}
+                className="py-3 rounded-xl border border-stone-500 bg-stone-100 text-stone-900 text-xs font-bold uppercase tracking-wide hover:bg-white transition"
+              >
+                💾 Mes runs
+              </button>
+            </div>
+            {shareMsg ? (
+              <p className="text-center text-xs text-emerald-400">{shareMsg}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={onReplay}
+              className="w-full py-3.5 rounded-xl border-2 border-amber-500/80 bg-amber-700/40 text-amber-50 text-sm font-bold uppercase tracking-wide hover:bg-amber-600/50 transition"
+            >
+              Rejouer une carrière
+            </button>
+            <button
+              type="button"
+              onClick={onHome}
+              className="w-full py-3 rounded-xl border border-stone-600 text-stone-300 text-sm hover:bg-stone-800/70 transition"
+            >
+              Accueil
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
