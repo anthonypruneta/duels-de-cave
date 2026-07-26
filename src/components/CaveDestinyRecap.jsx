@@ -437,7 +437,7 @@ export default function CaveDestinyRecap({
       {/* Narratif */}
       <Section title="Destin">
         <Panel>
-          <p className="text-sm text-stone-300 leading-relaxed">{recap.story}</p>
+          <p className="text-sm text-stone-300 leading-relaxed whitespace-pre-line">{recap.story}</p>
           {recap.narratives.paragraphs.map((p) => (
             <p key={p.slice(0, 40)} className="mt-3 text-sm text-stone-400 leading-relaxed">
               {p}

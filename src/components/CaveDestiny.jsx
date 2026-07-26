@@ -758,7 +758,7 @@ const CaveDestiny = () => {
             Cave Destiny
           </h1>
           <p className="mt-4 text-sm text-stone-300 leading-relaxed max-w-sm">
-            Incarnez un perso de Duels de Cave et survivez à la saison — donjons, tournoi, forge… en vrai cave.
+            Incarnez un perso de Duels de Cave et survivez à la saison : donjons, tournoi, forge… en vrai cave.
           </p>
           <p className="mt-2 text-xs text-stone-500 max-w-sm">
             Ouvert à tous les joueurs connectés : carrière, Mes runs et Panthéon.
@@ -768,8 +768,8 @@ const CaveDestiny = () => {
             {canResume && (
               <PrimaryButton onClick={resume}>
                 {career.phase === 'extendOffer'
-                  ? `Reprendre — fin de saison ${career.maxSeasons}`
-                  : `Reprendre — saison ${career.season}/${career.maxSeasons}`}
+                  ? `Reprendre (fin de saison ${career.maxSeasons})`
+                  : `Reprendre (saison ${career.season}/${career.maxSeasons})`}
               </PrimaryButton>
             )}
             <PrimaryButton onClick={startFresh}>Commencer une carrière</PrimaryButton>
@@ -1027,7 +1027,7 @@ const CaveDestiny = () => {
       <Shell>
         <ScreenTitle
           title="Le livre tremble"
-          sub={`Saison ${career.maxSeasons} achevée. La Cave peut encore tourner une page — contre votre sang.`}
+          sub={`Saison ${career.maxSeasons} achevée. La Cave peut encore tourner une page, contre votre sang.`}
         />
         <div className="rounded-2xl border-2 border-rose-700/45 bg-rose-950/20 px-4 py-5 shadow-[0_0_22px_rgba(225,29,72,0.12)]">
           <p className="text-[11px] uppercase tracking-wider text-rose-300/90 font-bold">
@@ -1046,7 +1046,7 @@ const CaveDestiny = () => {
           </p>
           <div className="mt-6 space-y-3">
             <PrimaryButton onClick={handleExtendSeason} disabled={!canPay}>
-              Sacrifier {cost} PV — continuer
+              Sacrifier {cost} PV pour continuer
             </PrimaryButton>
             <GhostButton onClick={handleRetireFromExtend}>
               Prendre sa retraite
@@ -1245,7 +1245,7 @@ const CaveDestiny = () => {
                   </p>
                 )}
                 <p
-                  className={`mt-4 text-[15px] sm:text-base leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif] ${
+                  className={`mt-4 text-[15px] sm:text-base leading-relaxed whitespace-pre-line flex-1 font-[Cormorant_Garamond,Georgia,serif] ${
                     outcomeFlash.variant === 'bonus'
                       ? 'text-amber-50'
                       : outcomeFlash.variant === 'malus'
@@ -1286,7 +1286,7 @@ const CaveDestiny = () => {
               </div>
               {outcomeFlash.died && (
                 <p className="mt-3 text-sm font-semibold text-red-300">
-                  💀 Mort — PV à 0. Score final divisé par 2.
+                  💀 Mort : PV à 0. Score final divisé par 2.
                 </p>
               )}
               <div className="mt-5">
@@ -1346,17 +1346,17 @@ const CaveDestiny = () => {
               <h3 className="text-lg font-bold text-amber-50 mt-2">{event.title}</h3>
               {event.ambitionLinked ? (
                 <p className="mt-1.5 text-xs text-violet-200/90 leading-relaxed">
-                  Fin de suite — votre ambition s’allume : les gains sont renforcés.
+                  Fin de suite : votre ambition s’allume, et les gains sont renforcés.
                 </p>
               ) : event.chain ? (
                 <p className="mt-1.5 text-xs text-teal-200/85 leading-relaxed">
                   Étape {event.chain.step}/{event.chain.total}
                   {event.chain.isFinale
                     ? ''
-                    : ' — réussissez pour débloquer la suite (tirage ultérieur).'}
+                    : ' : réussissez pour débloquer la suite (tirage ultérieur).'}
                 </p>
               ) : null}
-              <p className="mt-3 text-[15px] sm:text-base text-stone-200 leading-relaxed flex-1 font-[Cormorant_Garamond,Georgia,serif]">
+              <p className="mt-3 text-[15px] sm:text-base text-stone-200 leading-relaxed whitespace-pre-line flex-1 font-[Cormorant_Garamond,Georgia,serif]">
                 {event.text}
               </p>
               <div className="mt-5 space-y-2">

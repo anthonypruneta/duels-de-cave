@@ -120,7 +120,12 @@ export function upgradeDestinyWeapon(weapon) {
   const nextRarity = weapon.rarity === RARITY.COMMUNE ? RARITY.RARE : RARITY.LEGENDAIRE;
   const nextDoc = getWeaponByFamilyAndRarity(weapon.family, nextRarity);
   if (!nextDoc) {
-    return { weapon, statDelta: {}, changed: false, message: 'Aucune upgrade trouvée.' };
+    return {
+      weapon,
+      statDelta: {},
+      changed: false,
+      message: 'Aucune amélioration n’a été trouvée pour cette arme.',
+    };
   }
 
   const next = buildDestinyWeapon(nextDoc);
@@ -131,8 +136,8 @@ export function upgradeDestinyWeapon(weapon) {
     changed: true,
     message:
       nextRarity === RARITY.LEGENDAIRE
-        ? `Légendaire ! ${next.name} pulse entre vos mains.`
-        : `Upgrade : ${weapon.name} devient ${next.name}.`,
+        ? `${next.name} pulse entre vos mains dans sa forme légendaire.`
+        : `${weapon.name} devient ${next.name}.\nLe métal a changé de lignée sous vos doigts.`,
   };
 }
 
@@ -163,7 +168,7 @@ export function grantLegendaryDestinyWeapon(weapon) {
     weapon: next,
     statDelta,
     changed: true,
-    message: `Miracle d’acier : ${next.name} vous choisit.`,
+    message: `${next.name} vous choisit.\nC’est un miracle d’acier, net et définitif.`,
   };
 }
 

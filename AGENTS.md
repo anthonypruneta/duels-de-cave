@@ -15,8 +15,10 @@ Sans cela, les changements dans le code seront ignorés au profit de l’ancienn
 
 ## Prose joueur (Cave Destiny / UI)
 
-- **Interdit** : le tiret cadratin `—` dans les textes visibles (événements, outcomes, récits, UI).
-- Préférer des phrases complètes, points, virgules, ou deux-points. Pas de slogans hachés ni de « punchlines » artificielles.
+- **Interdit** : le tiret cadratin `—` (et demi-cadratin `–`) dans les textes visibles (événements, outcomes, récits, UI).
+- **Interdit** : phrases de 1–2 mots (« Plans trouvés. », « Miracle. », « Victoire nette. »). Toujours sujet + verbe.
+- **Retours à la ligne** : après chaque phrase dans les `text:` / outcomes (`\n` dans la string) ; l’UI utilise `whitespace-pre-line`.
+- Préférer points, virgules, ou deux-points. Pas de slogans hachés.
 
 ## Préparation combattant (`preparerCombattant`)
 

@@ -68,7 +68,7 @@ export function buildDestinyCharacterFromGame(char) {
     keyword: char.keyword || null,
     tagline: ownerPseudo ? `${ownerPseudo} · Niv. ${level}` : `Niv. ${level}`,
     blurb: raceBonus
-      ? `${race} ${classe} — ${String(raceBonus).split('\n')[0]}`
+      ? `${race} ${classe} : ${String(raceBonus).split('\n')[0]}`
       : `${race} ${classe} de Duels de Cave.`,
     playstyle: classAbility || `${race} · ${classe}`,
     baseStats: {
@@ -148,28 +148,28 @@ export const CAVE_DESTINY_AMBITIONS = [
     id: 'tournoi',
     name: 'Couronne du samedi',
     icon: '🏆',
-    desc: 'Le Hall murmure déjà votre nom. Qualifiez-vous, forcez la porte de la finale, arrachez la couronne — et parfois, une erreur vous jette chez les Anciens.',
+    desc: 'Le Hall murmure déjà votre nom.\nQualifiez-vous, forcez la porte de la finale, arrachez la couronne.\nParfois, une erreur vous jette chez les Anciens.',
     effects: { renommee: 8, auto: 4, or: -2 },
   },
   {
     id: 'donjons',
     name: 'Maître des donjons',
     icon: '🏰',
-    desc: 'La Cave n’ouvre ses trésors qu’aux obstinés. Enchaînez les étages — Forêt, Tour, Grotte, Extension — jusqu’au boss final.',
+    desc: 'La Cave n’ouvre ses trésors qu’aux obstinés.\nEnchaînez les étages (Forêt, Tour, Grotte, Extension) jusqu’au boss final.',
     effects: { def: 5, cap: 3, or: 4 },
   },
   {
     id: 'forge',
     name: 'Forgé par Ornn',
     icon: '🔨',
-    desc: 'Le feu d’Ornn ne ment pas. Améliorez le fer, éveillez la lignée, forgez le légendaire — et défiez le dieu quand vous oserez.',
+    desc: 'Le feu d’Ornn ne ment pas.\nAméliorez le fer, éveillez la lignée, forgez le légendaire, et défiez le dieu quand vous oserez.',
     effects: { auto: 5, def: 3, or: -4 },
   },
   {
     id: 'ombres',
     name: 'Affronter les épreuves sombres',
     icon: '🪞',
-    desc: 'Là où la lumière refuse d’entrer. Descendez le Labyrinthe, ou traversez Miroir et Rush jusqu’au Cataclysme.',
+    desc: 'Là où la lumière refuse d’entrer.\nDescendez le Labyrinthe, ou traversez Miroir et Rush jusqu’au Cataclysme.',
     effects: { spd: 6, cap: 3, charisme: -2 },
   },
 ];

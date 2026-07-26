@@ -505,7 +505,7 @@ export async function shareCaveDestinyRecapImage(recap) {
   if (typeof navigator !== 'undefined' && navigator.share) {
     const payload = {
       files: [file],
-      title: `${recap.identity?.name || 'Cave Destiny'} — Cave Destiny`,
+      title: `${recap.identity?.name || 'Cave Destiny'} · Cave Destiny`,
       text: `${recap.identity?.name || 'Aventurier'} · Score ${recap.score} · Duels de Cave`,
     };
     const canFiles =

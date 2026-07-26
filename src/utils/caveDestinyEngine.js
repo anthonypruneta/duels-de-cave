@@ -40,6 +40,15 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+/** Ajoute un paragraphe de prose outcome (retour à la ligne, pas de collage). */
+function appendOutcomeProse(base, addition) {
+  const a = String(addition || '').trim();
+  if (!a) return base || '';
+  const b = String(base || '').trim();
+  if (!b) return a;
+  return `${b}\n${a}`;
+}
+
 function pickWeighted(items) {
   const total = items.reduce((s, it) => s + Math.max(0, it.weight || 1), 0);
   if (total <= 0) return items[items.length - 1];
@@ -466,15 +475,18 @@ function buildRedAllyOutcomes(eventId, ally) {
   if (eventId === 'salameche_red') {
     return trio(
       {
-        text: `${name} et vous étouffez la Salamèche. Vapeur, rires, Red qui hoche — le duo tient.`,
+        text: `${name} et vous étouffez la Salamèche.
+Vapeur, rires, et Red qui hoche : le duo tient.`,
         deltas: withAllyTip({ charisme: 3, or: 4, renommee: 2, hp: -3 }, ally),
       },
       {
-        text: `${name} couvre votre flanc. La flamme baisse assez pour passer — brûlures partagées.`,
+        text: `${name} couvre votre flanc.
+La flamme baisse assez pour passer, brûlures partagées.`,
         deltas: { charisme: 1, hp: -5, or: 2 },
       },
       {
-        text: `Mauvais timing avec ${name}. Le feu vous sépare ; Red ricane, l’arène reste fermée.`,
+        text: `Le timing est mauvais avec ${name}.
+Le feu vous sépare, Red ricane, et l’arène reste fermée.`,
         deltas: { hp: -10, moral: -4, charisme: -1 },
       },
       [32, 40, 28],
@@ -483,15 +495,18 @@ function buildRedAllyOutcomes(eventId, ally) {
   if (eventId === 'ronflex_red') {
     return trio(
       {
-        text: `${name} trouve l’angle. Le Ronflex s’écarte — baie partagée, couloir libre, duo soudé.`,
+        text: `${name} trouve l’angle.
+Le Ronflex s’écarte : baie partagée, couloir libre, duo soudé.`,
         deltas: withAllyTip({ charisme: 3, or: 6, hp: 2, renommee: 2 }, ally),
       },
       {
-        text: `Avec ${name}, vous grimpez / poussez / attendez… assez pour passer, pas pour la légende.`,
+        text: `Avec ${name}, vous grimpez, poussez et attendez.
+C’est assez pour passer, pas pour la légende.`,
         deltas: { charisme: 1, spd: 1, hp: -2 },
       },
       {
-        text: `${name} et vous finissez sous la masse. Ronflement, noir, moral en miettes.`,
+        text: `${name} et vous finissez sous la masse.
+Il ne reste que le ronflement, le noir, et un moral en miettes.`,
         deltas: { hp: -12, moral: -5, charisme: -2 },
       },
       [32, 40, 28],
@@ -500,18 +515,21 @@ function buildRedAllyOutcomes(eventId, ally) {
   // coop_red finale
   return trio(
     {
-      text: `Duo parfait avec ${name}. Dracaufeu tombe ; le Pointeau ADN reconnaît deux noms.`,
+      text: `Le duo avec ${name} est parfait.
+Dracaufeu tombe, et le Pointeau ADN reconnaît deux noms.`,
       deltas: withAllyTip(
         { charisme: 5, renommee: 6, or: 8, hp: -4, trophies: { coop: 1 } },
         ally
       ),
     },
     {
-      text: `Victoire correcte aux côtés de ${name}. Coordination moyenne, butin partagé, respect muet.`,
+      text: `Vous remportez une victoire correcte aux côtés de ${name}.
+La coordination reste moyenne, le butin se partage, et le respect reste muet.`,
       deltas: { charisme: 2, or: 3, hp: -5, renommee: 2 },
     },
     {
-      text: `Florizarre vous ensevelit. ${name} vous regarde, muet — le duo se brise sous les racines.`,
+      text: `Florizarre vous ensevelit.
+${name} vous regarde, muet, et le duo se brise sous les racines.`,
       deltas: { charisme: -3, moral: -6, hp: -8 },
     },
     [34, 38, 28],
@@ -528,7 +546,7 @@ function buildRedRefuseOutcomes(eventId) {
       deltas: { charisme: 2, moral: 3, spd: 1 },
     },
     {
-      text: 'Pas ce soir. Vous laissez l’arène derrière vous, sans gloire ni brûlure, simplement parce que le moment n’est pas le bon.',
+      text: 'Ce n’est pas pour ce soir.\nVous laissez l’arène derrière vous, sans gloire ni brûlure, simplement parce que le moment n’est pas le bon.',
       deltas: { moral: 1 },
     },
     {
@@ -568,11 +586,11 @@ function expandRedArenaEvent(event, career) {
 
   const texts = {
     salameche_red:
-      'Red vous propose un duo. Une Salamèche cracheuse bloque le passage — choisissez un allié parmi les vrais caves, ou refusez.',
+      'Red vous propose un duo.\nUne Salamèche cracheuse bloque le passage.\nChoisissez un allié parmi les vrais caves, ou refusez.',
     ronflex_red:
-      'Un Ronflex barre le couloir. Red attend votre prochain duo — un autre perso réel… ou la sortie.',
+      'Un Ronflex barre le couloir.\nRed attend votre prochain duo : un autre perso réel, ou la sortie.',
     coop_red:
-      'Finale chez Red. Choisissez un dernier allié réel pour affronter l’arène — ou refusez et partez.',
+      'C’est la finale chez Red.\nChoisissez un dernier allié réel pour affronter l’arène, ou refusez et partez.',
   };
 
   return {
@@ -589,7 +607,7 @@ function expandRedArenaEvent(event, career) {
             : event.id === 'ronflex_red'
               ? 'Laisser le Ronflex… et le duo'
               : 'Quitter l’arène avant la finale',
-        detail: 'Sortie RP — libère la suite Arène de Red',
+        detail: 'Sortie RP : libère la suite Arène de Red',
         outcomes: buildRedRefuseOutcomes(event.id),
       },
     ],
@@ -779,16 +797,16 @@ function expandSubclassEvent(event, character, career) {
     subclassName: sc.name,
     outcomes: trio(
       {
-        text: `La voie « ${sc.name} » s’ancre. Votre style de ${className} change.`,
+        text: `La voie « ${sc.name} » s’ancre en vous.\nVotre style de ${className} change pour de bon.`,
         deltas: { renommee: 5, cap: 2, auto: 2, moral: 3 },
         subclassGain: { id: sc.id, name: sc.name },
       },
       {
-        text: `Vous entrevoyez « ${sc.name} »… sans l’embrasser pleinement.`,
+        text: `Vous entrevoyez « ${sc.name} », sans l’embrasser pleinement.\nLa porte reste entrouverte pour une autre saison.`,
         deltas: { cap: 1, moral: 1 },
       },
       {
-        text: 'L’examen vous dépasse. Retour aux bancs.',
+        text: 'L’examen vous dépasse.\nVous regagnez les bancs du Collège, un peu plus humble.',
         deltas: { hp: -6, moral: -4 },
       }
     ),
@@ -797,7 +815,7 @@ function expandSubclassEvent(event, character, career) {
   return {
     ...event,
     text: fillWeaponPlaceholders(
-      `Au Collège Kunugigaoka, Koro Sensei propose une sous-classe à votre ${className}. Deux voies… et des exigences.`,
+      `Au Collège Kunugigaoka, Koro Sensei propose une sous-classe à votre ${className}.\nDeux voies s’ouvrent, chacune avec ses exigences.`,
       career?.weapon
     ),
     options: [
@@ -805,9 +823,18 @@ function expandSubclassEvent(event, character, career) {
         id: 'observer',
         label: 'Assister aux cours sans s’engager',
         outcomes: trio(
-          { text: 'Vous comprenez mieux les voies. Plus tard peut-être.', deltas: { cap: 2, moral: 2 } },
-          { text: 'Cours correct.', deltas: { cap: 1 } },
-          { text: 'Vous vous endormez. Interrogation surprise ratée.', deltas: { moral: -3 } }
+          {
+            text: 'Vous comprenez mieux les voies.\nVous pourrez peut-être vous engager plus tard.',
+            deltas: { cap: 2, moral: 2 },
+          },
+          {
+            text: 'Le cours reste correct, sans révélation.\nVous repartez avec une note et peu d’éclat.',
+            deltas: { cap: 1 },
+          },
+          {
+            text: 'Vous vous endormez au fond de la salle.\nL’interrogation surprise vous tombe dessus, et vous la ratez.',
+            deltas: { moral: -3 },
+          }
         ),
       },
       ...subclassOptions,
@@ -824,7 +851,7 @@ function expandSubclassEvent(event, character, career) {
           {
             variant: 'bonus',
             weight: 35,
-            text: 'Koro Sensei applaudit. Les deux voies vous inspirent — vous choisissez la plus dure.',
+            text: 'Koro Sensei applaudit.\nLes deux voies vous inspirent, et vous choisissez la plus dure.',
             deltas: { renommee: 8, cap: 3, auto: 3, hp: -4 },
             subclassGain: list[1]
               ? { id: list[1].id, name: list[1].name }
@@ -835,14 +862,14 @@ function expandSubclassEvent(event, character, career) {
           {
             variant: 'neutre',
             weight: 40,
-            text: 'Presque. Une seule voie s’ouvre à demi.',
+            text: 'Vous touchez presque le but.\nUne seule voie s’ouvre à demi sous vos pas.',
             deltas: { cap: 2, hp: -3 },
             subclassGain: list[0] ? { id: list[0].id, name: list[0].name } : null,
           },
           {
             variant: 'malus',
             weight: 25,
-            text: 'Trop tôt. Le Collège vous renvoie.',
+            text: 'Vous êtes arrivé trop tôt.\nLe Collège vous renvoie sans cérémonie.',
             deltas: { hp: -10, moral: -6, renommee: -2 },
           },
         ],
@@ -1306,7 +1333,9 @@ export function resolveChoice(career, optionIndex) {
   const variants = new Set(outcomes.map((o) => o.variant).filter(Boolean));
   if (!variants.has('bonus') || !variants.has('neutre') || !variants.has('malus')) {
     // fallback : redistribue poids existants
-    outcomes = outcomes.length ? outcomes : [{ weight: 100, text: 'Rien ne se passe.', deltas: {} }];
+    outcomes = outcomes.length
+      ? outcomes
+      : [{ weight: 100, text: 'Rien de notable ne se produit cette fois.', deltas: {} }];
   }
 
   // Influence secrète des stats (jamais exposée à l’UI)
@@ -1358,7 +1387,10 @@ export function resolveChoice(career, optionIndex) {
     } else if (forged) {
       outcomeText = `${outcomeText} (Le fer reforgé par Ornn a parlé pour vous.)`;
     } else {
-      outcomeText = `${outcomeText} (Votre lignée légendaire a tenu — une forge divine l’aurait rendue plus sûre encore.)`;
+      outcomeText = appendOutcomeProse(
+        outcomeText,
+        'Votre lignée légendaire a tenu.\nUne forge divine l’aurait rendue plus sûre encore.',
+      );
     }
   }
   const chainMeta = buildChainUiMeta(career.currentEvent.id);
@@ -1376,11 +1408,17 @@ export function resolveChoice(career, optionIndex) {
         : variant === 'malus'
           ? `Même à la finale, « ${career.ambition.name} » se souvient des chutes, et la cicatrice reste utile.`
           : `Cette finale de « ${chainMeta?.label || career.ambition.name} » grave votre ambition sans fanfare, mais elle compte.`;
-    outcomeText = `${outcomeText} ${mark}`;
+    outcomeText = appendOutcomeProse(outcomeText, mark);
   } else if (chainMeta && !chainMeta.isFinale && variant !== 'malus') {
-    outcomeText = `${outcomeText} L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée : la suite pourra revenir plus tard, pas forcément dès la prochaine saison.`;
+    outcomeText = appendOutcomeProse(
+      outcomeText,
+      `L’étape ${chainMeta.step} sur ${chainMeta.total} de ${chainMeta.label} est validée.\nLa suite pourra revenir plus tard, pas forcément dès la prochaine saison.`,
+    );
   } else if (chainMeta && !chainMeta.isFinale && variant === 'malus') {
-    outcomeText = `${outcomeText} La suite ${chainMeta.label} se brise ici, et il faudra tout reprendre depuis le début si vous voulez y revenir.`;
+    outcomeText = appendOutcomeProse(
+      outcomeText,
+      `La suite ${chainMeta.label} se brise ici.\nIl faudra tout reprendre depuis le début si vous voulez y revenir.`,
+    );
   }
   const weaponDeltas = {};
 
@@ -1394,10 +1432,10 @@ export function resolveChoice(career, optionIndex) {
       stats = applyEffects(stats, result.statDelta);
       Object.assign(weaponDeltas, result.statDelta);
       if (result.message) {
-        outcomeText = `${outcomeText} ${result.message}`;
+        outcomeText = appendOutcomeProse(outcomeText, result.message);
       }
     } else if (result.message) {
-      outcomeText = `${outcomeText} ${result.message}`;
+      outcomeText = appendOutcomeProse(outcomeText, result.message);
     }
   }
 
@@ -1448,13 +1486,19 @@ export function resolveChoice(career, optionIndex) {
 
   if (subclassGain?.id && !subclass) {
     subclass = { id: subclassGain.id, name: subclassGain.name };
-    outcomeText = `${outcomeText} Sous-classe obtenue : ${subclass.name}.`;
+    outcomeText = appendOutcomeProse(
+      outcomeText,
+      `Vous obtenez la sous-classe « ${subclass.name} ».`,
+    );
   }
 
   const dead = (Number(stats.hp) || 0) <= 0;
   if (dead) {
     stats = { ...stats, hp: 0 };
-    outcomeText = `${outcomeText} Vos PV tombent à 0 — la Cave referme le livre.`;
+    outcomeText = appendOutcomeProse(
+      outcomeText,
+      'Vos PV tombent à 0.\nLa Cave referme le livre.',
+    );
   }
 
   const mergedDeltas = normalizeHpKey({ ...deltas, ...weaponDeltas });
@@ -1584,7 +1628,7 @@ export function extendCareerSeason(career) {
     eventId: 'prolongation',
     title: 'Une saison de plus',
     choice: `Sacrifier ${cost} PV`,
-    text: `Vous versez ${cost} PV à la Cave. Elle vous rend une saison — fragile, brûlante, encore jouable.`,
+    text: `Vous versez ${cost} PV à la Cave.\nElle vous rend une saison fragile, brûlante, encore jouable.`,
     variant: 'neutre',
     deltas: { hp: -cost },
     scoreGain: 0,
@@ -1735,28 +1779,35 @@ export function buildFinalStory(career) {
   const seasonsLived = career.season || career.maxSeasons;
   const died = career.endReason === 'death';
 
-  let arc = `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''} — un vrai cave des Duels.`;
+  const storyParts = [
+    `${name} a poursuivi « ${ambition} » pendant ${seasonsLived} saison${seasonsLived > 1 ? 's' : ''}.\nC’était un vrai cave des Duels.`,
+  ];
 
   if (died) {
-    arc += ' La mort l’a cueilli avant la retraite : PV à zéro. La Cave ne garde que la moitié de ses points.';
+    storyParts.push(
+      'La mort l’a cueilli avant la retraite : PV à zéro.\nLa Cave ne garde que la moitié de ses points.',
+    );
   }
 
-  if (wins >= 2) arc += ' Les tournois du samedi ont appris à craindre son nom.';
-  else if (wins === 1) arc += ' Une couronne arrachée sous les acclamations de l’arène.';
-  else arc += ' Aucune couronne… mais des histoires à la Taverne.';
+  if (wins >= 2) storyParts.push('Les tournois du samedi ont appris à craindre son nom.');
+  else if (wins === 1) storyParts.push('Une couronne a été arrachée sous les acclamations de l’arène.');
+  else storyParts.push('Aucune couronne n’est venue, mais des histoires restent à la Taverne.');
 
-  if (forge >= 1) arc += ' Ornn a reconnu son bras dans le feu de la forge.';
+  if (forge >= 1) storyParts.push('Ornn a reconnu son bras dans le feu de la forge.');
   const weaponName = career.weapon?.name;
   const weaponRarity = career.weapon?.rarity;
   if (weaponName && weaponRarity === RARITY.LEGENDAIRE) {
-    arc += ` ${weaponName} a révélé sa forme légendaire.`;
+    storyParts.push(`${weaponName} a révélé sa forme légendaire.`);
   } else if (weaponName && weaponRarity === RARITY.RARE) {
-    arc += ` ${weaponName} a été améliorée en chemin.`;
+    storyParts.push(`${weaponName} a été améliorée en chemin.`);
   }
-  if (!died && score >= 80) arc += ' On murmure déjà « légende » plutôt que « cave ».';
-  else if (!died && score < 50) arc += ' Cave jusqu’au bout — et fier de l’être.';
+  if (!died && score >= 80) {
+    storyParts.push('On murmure déjà « légende » plutôt que « cave ».');
+  } else if (!died && score < 50) {
+    storyParts.push('Cave jusqu’au bout, et fier de l’être.');
+  }
 
-  return { score, tier, story: arc, died };
+  return { score, tier, story: storyParts.join('\n'), died };
 }
 
 /** Migre les anciennes clés Destiny (puissance/endurance/…) vers Auto/Déf/Cap/VIT. */
