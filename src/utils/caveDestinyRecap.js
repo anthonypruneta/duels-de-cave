@@ -9,17 +9,43 @@ import * as DestinyEngine from './caveDestinyEngine';
 
 const { buildFinalStory, computeScore, getTier, loadPantheon } = DestinyEngine;
 
+/** Score déjà intégré au runScore via les finales d’ambition (+5 / −3). */
+function sumAmbitionScoreGain(career) {
+  const history = Array.isArray(career?.history) ? career.history : [];
+  return history
+    .filter((h) => h?.ambitionLinked)
+    .reduce((sum, h) => {
+      if (typeof h.scoreGain === 'number') return sum + h.scoreGain;
+      if (h.variant === 'bonus') return sum + 5;
+      if (h.variant === 'malus') return sum - 3;
+      return sum;
+    }, 0);
+}
+
 /** Ambition eval — utilise le moteur si dispo, sinon heuristique trophées. */
 function resolveAmbitionEval(career, fromStory) {
-  if (fromStory && typeof fromStory.succeeded === 'boolean') return fromStory;
+  if (fromStory && typeof fromStory.succeeded === 'boolean') {
+    return {
+      ...fromStory,
+      bonus:
+        typeof fromStory.bonus === 'number'
+          ? fromStory.bonus
+          : sumAmbitionScoreGain(career),
+    };
+  }
   // Accès dynamique : `evaluateAmbition` n’existe qu’après les PRs ambition.
   const evaluateAmbitionFn = DestinyEngine['evaluateAmbition'];
   if (typeof evaluateAmbitionFn === 'function') {
-    return evaluateAmbitionFn(career);
+    const evaluated = evaluateAmbitionFn(career);
+    if (evaluated && typeof evaluated.bonus !== 'number') {
+      return { ...evaluated, bonus: sumAmbitionScoreGain(career) };
+    }
+    return evaluated;
   }
   const id = career?.ambition?.id || null;
   const name = career?.ambition?.name || 'Ambition';
   const t = career?.trophies || {};
+  const bonus = sumAmbitionScoreGain(career);
   const base = {
     id,
     name,
@@ -49,7 +75,8 @@ function resolveAmbitionEval(career, fromStory) {
     succeeded: ok,
     progress: ok ? 1 : 0,
     detail: ok ? 'Objectif atteint' : 'Objectif non atteint',
-    bonus: ok ? 40 : 0,
+    // Pas de +40 de fin : le score vient des finales (+5 / −3 déjà dans le runScore)
+    bonus,
   };
 }
 

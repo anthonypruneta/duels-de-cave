@@ -334,7 +334,9 @@ export default function CaveDestinyRecap({
             }`}
           >
             {recap.ambition.succeeded
-              ? `🎯 Ambition réussie · +${recap.ambition.bonus} pts · ${recap.ambition.detail}`
+              ? typeof recap.ambition.bonus === 'number' && recap.ambition.bonus !== 0
+                ? `🎯 Ambition réussie · ${recap.ambition.bonus > 0 ? '+' : ''}${recap.ambition.bonus} pts en finale · ${recap.ambition.detail}`
+                : `🎯 Ambition réussie · finales +5 / −3 · ${recap.ambition.detail}`
               : `Ambition non réussie · ${recap.ambition.detail}`}
           </p>
         )}
