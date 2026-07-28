@@ -1331,8 +1331,8 @@ function materializeEvent(raw, career) {
   const chain = rawChain?.total > 1 ? rawChain : null;
   const ambitionQuest = !!(
     career.ambition?.id &&
-    chain?.ambition &&
-    chain.ambition === career.ambition.id
+    rawChain?.ambition &&
+    rawChain.ambition === career.ambition.id
   );
   const showAmbitionMeta = ambitionLinked || ambitionQuest;
   return {

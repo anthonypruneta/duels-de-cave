@@ -1385,7 +1385,7 @@ const CaveDestiny = () => {
               <div className="flex items-center justify-between gap-2">
                 <p
                   className={`text-[11px] uppercase tracking-wider font-bold ${
-                    event.ambitionLinked
+                    event.ambitionLinked || event.ambitionQuest
                       ? 'text-violet-300'
                       : event.chain
                         ? 'text-teal-300'
@@ -1394,6 +1394,8 @@ const CaveDestiny = () => {
                 >
                   {event.ambitionLinked
                     ? 'Finale d’ambition'
+                    : event.ambitionQuest
+                      ? 'Ambition'
                     : event.chain
                       ? 'Suite'
                       : 'Événement'}
