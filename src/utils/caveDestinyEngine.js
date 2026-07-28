@@ -176,6 +176,30 @@ const CHECK_KEYWORDS = {
   renommee: ['gloire', 'renom', 'légende', 'legende', 'prestige', 'foule', 'public', 'couronne'],
 };
 
+function optionHasUnlockRequirement(option) {
+  const require = option?.require;
+  if (!require || typeof require !== 'object') return false;
+  return Object.keys(require).some((key) => {
+    if (key === 'stats') return Object.keys(require.stats || {}).length > 0;
+    if (key === 'minRenommee') return Number.isFinite(Number(require.minRenommee));
+    const value = require[key];
+    if (Array.isArray(value)) return value.length > 0;
+    return value != null;
+  });
+}
+
+function isSoftRefusalOption(event, option) {
+  if (!option) return false;
+  if (option.exitChain) return true;
+  const id = String(option.id || '');
+  if (['refuser', 'refuser_quete', 'decliner', 'reporter', 'abandonner'].includes(id)) {
+    return true;
+  }
+  if (event?.id === 'tournoi_anciens' && id === 'decliner') return true;
+  if (event?.id === 'ornn_jugement' && id === 'reporter') return true;
+  return false;
+}
+
 /**
  * Infère les stats qui influencent un choix (jamais affichées).
  * `option.check` explicite prime si présent sur la définition d’event.
@@ -262,7 +286,25 @@ function applySecretStatWeights(outcomes, career, option, event) {
   const soft =
     clamp((hp - 50) / 70, -0.25, 0.25) * 0.2 +
     clamp((moral - 50) / 70, -0.25, 0.25) * 0.15;
-  const factor = clamp(checkScore + soft, -0.55, 0.55);
+  const chain = event?.id ? buildChainUiMeta(event.id) : null;
+  const playerAmbition = career?.ambition?.id || null;
+  const alignedAmbition =
+    !!(playerAmbition && chain?.ambition && chain.ambition === playerAmbition);
+  const rivalAmbition =
+    !!(playerAmbition && chain?.ambition && chain.ambition !== playerAmbition);
+
+  let factor = checkScore + soft;
+
+  // Une option vraiment débloquée par une condition mérite un léger bonus caché.
+  if (optionHasUnlockRequirement(option)) factor += 0.1;
+
+  // Votre voie doit être un peu plus favorable quand vous osez l'engager.
+  if (alignedAmbition && !isSoftRefusalOption(event, option)) factor += 0.1;
+
+  // Les voies des autres ambitions sont moins hospitalières, sauf si vous refusez proprement.
+  if (rivalAmbition && !isSoftRefusalOption(event, option)) factor -= 0.14;
+
+  factor = clamp(factor, -0.55, 0.55);
 
   return (outcomes || []).map((o) => {
     let w = o.weight || 1;
@@ -786,9 +828,10 @@ function eventWeight(event, career, { seen = null, allowRepeat = false } = {}) {
   const suitesStarted = Number(career.suitesStarted) || 0;
   const activeSuites = Object.keys(career.chainProgress || {}).length;
   const isOpening = chainInfo && chainInfo.stepIndex === 0;
+  const isMultiStepQuest = (chainInfo?.chain?.steps?.length || 0) > 1;
 
   // Cible ~3 suites / run (20 saisons) : freiner les ouvertures après 2–3 démarrages
-  if (isOpening) {
+  if (isOpening && isMultiStepQuest) {
     if (suitesStarted >= 4) w *= 0.06;
     else if (suitesStarted >= 3) w *= 0.22;
     else if (suitesStarted >= 2) w *= 0.5;
@@ -1284,7 +1327,8 @@ function materializeEvent(raw, career) {
   const options = getOptionsForEvent(event, career.character, career);
   const localized = localizeEventForWeapon({ ...event, options }, career.weapon);
   const ambitionLinked = isAmbitionLinkedEvent(localized, career);
-  const chain = buildChainUiMeta(localized.id);
+  const rawChain = buildChainUiMeta(localized.id);
+  const chain = rawChain?.total > 1 ? rawChain : null;
   const ambitionQuest = !!(
     career.ambition?.id &&
     chain?.ambition &&
@@ -1655,7 +1699,8 @@ export function resolveChoice(career, optionIndex) {
     !softLeave &&
     variant !== 'malus' &&
     openedChain &&
-    openedChain.stepIndex === 0
+    openedChain.stepIndex === 0 &&
+    (openedChain.chain?.steps?.length || 0) > 1
   ) {
     suitesStarted += 1;
   }

@@ -52,6 +52,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'bestiaire',
         label: 'Étudier le bestiaire des donjons',
+        check: { cap: 1.2, renommee: 0.35 },
         outcomes: trio(
           { text: 'Vous retenez une faiblesse de boss : un flanc, un rythme.\nLa Tour du Mage n’aura plus le même goût.', deltas: { cap: 3, renommee: 1 } },
           { text: 'Vous griffonnez à la hâte quelques notes utiles, assez pour ne pas mourir bête.', deltas: { cap: 1 } },
@@ -173,6 +174,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'conseil',
         label: 'Échanger des conseils après l’échauffement',
+        check: { cap: 0.95, charisme: 0.95 },
         outcomes: trio(
           { text: 'Vous glanez une astuce précieuse sur une capacité : un timing, un souffle.\nVous repartez plus malin.', deltas: { cap: 2, charisme: 2 } },
           { text: 'La conversation reste polie, avec quelques formules banales et un sourire qui ne change pas grand-chose.', deltas: { charisme: 1 } },
@@ -209,6 +211,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'piege',
         label: 'Utiliser le terrain contre lui',
+        check: { cap: 1.05, spd: 0.9 },
         outcomes: trio(
           { text: 'Racines, pente, surprise : le travail est beau.\nLa bête s’écroule sans comprendre le piège.', deltas: { cap: 3, spd: 2, or: 5 } },
           { text: 'Le piège aide un peu.\nAssez pour finir, pas assez pour vous laisser intact.', deltas: { cap: 1, hp: -3 } },
@@ -254,6 +257,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'etudier',
         label: 'Étudier les styles du top',
+        check: { cap: 1.15, renommee: 0.35, spd: 0.55 },
         outcomes: trio(
           {
             text: 'Vous piquez une garde au haut du tableau.\nUn angle volé aux meilleurs s’ancre déjà dans vos muscles.',
@@ -346,6 +350,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'cours',
         label: 'Suivre un cours intensif',
+        check: { cap: 1.1, spd: 0.6 },
         outcomes: trio(
           { text: 'La leçon s’assimile.\nVotre style s’affine : chaque geste un peu plus propre, un peu plus mortel.', deltas: { cap: 3, spd: 2, moral: 2 } },
           { text: 'Vous retenez l’essentiel.\nC’est assez pour ne pas ridiculiser le Collège, ni vous-même.', deltas: { cap: 1 } },
@@ -355,6 +360,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'examen',
         label: 'Passer l’examen surprise',
+        check: { renommee: 1, cap: 0.85 },
         outcomes: trio(
           { text: 'Vous réussissez l’examen.\nLe collège applaudit, et même Koro Sensei semble presque fier.', deltas: { renommee: 5, cap: 2, or: 4 } },
           { text: 'Vous obtenez juste la moyenne.\nUn tampon tiède, un regard neutre, rien qui restera au Hall of Fame.', deltas: { renommee: 1 } },
@@ -518,6 +524,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'defier',
         label: 'Jurer de graver votre nom',
+        check: { renommee: 1.2, charisme: 0.55 },
         outcomes: trio(
           { text: 'Le serment tient en esprit.\nVous partez plus dur : mâchoire serrée, geste déjà plus net.', deltas: { renommee: 5, moral: 4, auto: 2 } },
           { text: 'Le serment reste pour plus tard.\nLes mots restent tièdes ; l’arène, elle, n’attend pas.', deltas: { moral: 1 } },
@@ -527,6 +534,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'etudier',
         label: 'Étudier les styles des vainqueurs',
+        check: { cap: 1.15, renommee: 0.45, spd: 0.7 },
         outcomes: trio(
           { text: 'Vous volez une posture légendaire : hanche, regard, timing.\nElle s’installe déjà dans votre ombre.', deltas: { cap: 3, spd: 3, renommee: 2 } },
           { text: 'Quelques notes suffisent.\nAssez pour ajuster une garde, pas assez pour voler une couronne.', deltas: { cap: 1, spd: 1 } },
@@ -724,6 +732,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'affronter',
         label: 'L’affronter pour purifier son nom',
+        check: { renommee: 1.1, auto: 0.9, cap: 0.55 },
         outcomes: trio(
           { text: 'La corruption cède.\nLe Hall murmure votre gloire : pierre qui s’éclaircit, mythe rendu propre.', deltas: { renommee: 14, auto: 5, cap: 3, hp: -9, trophies: { cataclysme: 1 } } },
           { text: 'Vous le repoussez.\nIl n’est pas encore vaincu : ombre en retraite, vous en sang, combat à reprendre.', deltas: { renommee: 4, hp: -7 } },
@@ -761,6 +770,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'fusion',
         label: 'Accepter la double fusion',
+        check: { cap: 1.25, renommee: 0.5 },
         outcomes: trio(
           { text: 'Deux passifs s’entrelacent.\nVous devenez unique : auras croisées, territoire qui vous reconnaît.', deltas: { cap: 8, renommee: 7, or: 6, trophies: { extension: 1 } } },
           { text: 'La fusion reste instable mais utile.\nÇa tient tant que vous ne respirez pas trop fort.', deltas: { cap: 4, hp: -5 } },
@@ -770,6 +780,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'choisir',
         label: 'N’en garder qu’un, parfaitement',
+        check: { cap: 1.2 },
         outcomes: trio(
           { text: 'La maîtrise est pure.\nUn passif souverain s’installe : net, stable, déjà collé à vos gestes comme une seconde peau.', deltas: { cap: 5, moral: 3 } },
           { text: 'Le choix reste correct.\nPas de génie, pas de catastrophe : juste une aura qui tient bien.', deltas: { cap: 2 } },
@@ -780,6 +791,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
         id: 'mage',
         label: 'Forcer une troisième rune',
         ifClass: ['Mage', 'Sorcière', 'Alchimiste'],
+        check: { cap: 1.35, renommee: 0.35 },
         outcomes: trio(
           { text: 'La folie est géniale.\nTrois échos répondent : le territoire plie, votre magie danse, le prix brûle déjà.', deltas: { cap: 10, renommee: 5, hp: -6 } },
           { text: 'La troisième rune cède à moitié.\nAssez pour briller ; trop pour rester sans cicatrice.', deltas: { cap: 4, hp: -4 } },
@@ -807,6 +819,7 @@ export const CAVE_DESTINY_EVENTS_EXTRA = [
       {
         id: 'pacte',
         label: 'Négocier un pacte avec le couloir',
+        check: { cap: 1.15, charisme: 0.75, renommee: 0.45 },
         outcomes: trio(
           { text: 'Le labyrinthe vous reconnaît.\nUn raccourci éternel s’ouvre : les murs s’écartent pour vous seuls.', deltas: { cap: 7, spd: 5, renommee: 8 } },
           { text: 'Le pacte reste mineur.\nUn passage plus court, un prix discret : le couloir n’offre jamais tout.', deltas: { cap: 3, or: 5 } },

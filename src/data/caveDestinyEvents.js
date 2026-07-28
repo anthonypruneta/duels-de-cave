@@ -63,6 +63,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
         id: 'mage_burst',
         label: 'Préparer une explosion arcanique décisive',
         ifClass: ['Mage', 'Sorcière', 'Demoniste'],
+        check: { cap: 1.25, renommee: 0.45 },
         outcomes: trio(
           { text: 'L’explosion clôt le duel d’un souffle blanc.\nLes gradins retiennent l’air, puis éclatent.', deltas: { cap: 7, renommee: 8, trophies: { tournoi: 1 } } },
           { text: 'Le sort lacère l’armure sans achever.\nVous infligez de gros dégâts, le duel reste ouvert, et vos poumons brûlent.', deltas: { cap: 3, hp: -3 } },
@@ -121,6 +122,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'licorne',
         label: 'Suivre la trace de la Licorne',
+        check: { cap: 1.15, renommee: 0.35 },
         outcomes: trio(
           { text: 'Vous l’affrontez sous la lune.\nSa faveur mystique s’ancre en vous, entre corne, lumière et serment.', deltas: { cap: 5, renommee: 4, or: 6 } },
           { text: 'Vous l’apercevez entre deux hêtres, puis elle disparaît.\nIl reste un frisson et une leçon incomplète.', deltas: { cap: 2, moral: 1 } },
@@ -159,6 +161,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'push',
         label: 'Gravir l’étage suivant sans détour',
+        check: { cap: 1.1, renommee: 0.35 },
         outcomes: trio(
           { text: 'Vous conquérez l’étage.\nUn passif rare s’ancre sous votre peau comme une rune encore chaude.', deltas: { cap: 7, renommee: 5, hp: -5, trophies: { tour: 1 } } },
           { text: 'Vous passez avec très peu de PV.\nL’escalier suivant sent déjà le sang et la poussière d’os.', deltas: { cap: 3, hp: -8 } },
@@ -168,6 +171,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'passif',
         label: 'Choisir un passif avec soin',
+        check: { cap: 1.25 },
         outcomes: trio(
           { text: 'La synergie tombe parfaitement.\nVotre aura change de teinte, et l’étage suivant semble déjà plus bas.', deltas: { cap: 5, spd: 2, moral: 3 } },
           { text: 'Vous choisissez un passif correct, rien d’éclatant.\nVous grimpez avec un outil utile, pas une révélation.', deltas: { cap: 2 } },
@@ -177,6 +181,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'liche',
         label: 'Affronter les ombres de la Liche',
+        check: { cap: 1.1, renommee: 0.3 },
         outcomes: trio(
           { text: 'La barrière macabre cède.\nVous grimpez dans un souffle d’os et de victoire froide.', deltas: { cap: 6, renommee: 4, or: 5 } },
           { text: 'Vous survolez la galerie d’os sans la conquérir.\nVous avancez assez pour progresser, pas pour briller.', deltas: { cap: 2, hp: -4 } },
@@ -197,6 +202,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
         id: 'healer',
         label: 'Soutenir la montée par des soins précis',
         ifClass: ['Healer', 'Alchimiste'],
+        check: { cap: 1.05, charisme: 0.6 },
         outcomes: trio(
           { text: 'Vos soins portent l’assaut.\nL’étage tombe sous une lumière verte qui sent l’herbe et la victoire.', deltas: { cap: 5, charisme: 4, or: 5 } },
           { text: 'Vous maintenez le rythme avec assez de baume pour ne pas mourir.\nIl n’y en a pas assez pour dominer.', deltas: { cap: 2, hp: 1 } },
@@ -237,6 +243,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'offrir',
         label: 'Présenter {arme} en offrande',
+        check: { renommee: 0.9, def: 0.7, auto: 0.45 },
         outcomes: [
           {
             variant: 'bonus',
@@ -288,6 +295,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
         id: 'gated_legend',
         label: 'Exiger la forme légendaire immédiatement',
         require: { stats: { def: 30, auto: 28 }, weaponRarities: ['rare'], minRenommee: 16 },
+        check: { renommee: 1.15, def: 1, auto: 0.85 },
         outcomes: [
           {
             variant: 'bonus',
@@ -323,6 +331,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'record',
         label: 'Pousser pour un nouveau palier',
+        check: { renommee: 1, spd: 0.9 },
         outcomes: trio(
           { text: 'Vous posez un nouveau record.\nVotre nom monte au classement hebdomadaire, et les murs applaudissent en silence.', deltas: { spd: 5, renommee: 8, hp: -7, trophies: { labyrinthe: 1 } } },
           { text: 'Vous gagnez un palier correct, sans rien d’historique.\nVous prenez un étage, perdez du sang, et gardez l’honneur.', deltas: { spd: 2, hp: -5, or: 2 } },
@@ -341,6 +350,7 @@ const CAVE_DESTINY_EVENTS_CORE = [
       {
         id: 'carte',
         label: 'Cartographier les détours avant d’avancer',
+        check: { cap: 1.2, spd: 0.8, renommee: 0.35 },
         outcomes: trio(
           { text: 'Votre carte ment moins que les murs.\nLe prochain couloir s’ouvre comme une porte connue.', deltas: { cap: 3, spd: 3, renommee: 2 } },
           { text: 'Vous prenez quelques notes utiles au crayon.\nLa carte n’est pas parfaite, mais moins de pièges attendent sous vos pieds.', deltas: { cap: 1 } },
