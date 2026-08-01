@@ -1,0 +1,20 @@
+---
+description: Commit + push implique aussi merge dans main
+alwaysApply: true
+---
+
+# Commit, push et merge main
+
+Quand l’utilisateur demande un **commit & push** (ou l’action équivalente diff-tab / « commit-and-push ») :
+
+1. Stage uniquement les fichiers liés au travail en cours (exclure les fichiers non liés).
+2. Créer le commit (message concis).
+3. **Push** la branche courante vers `origin`.
+4. **Merger dans `main`** ensuite, sauf indication contraire explicite :
+   - `git fetch origin main`
+   - checkout `main`, pull à jour
+   - merge de la branche de travail (ou fast-forward si possible)
+   - push `origin main`
+   - revenir sur la branche de travail si besoin
+
+Ne pas forcer le push (`--force`) sur `main`. En cas de conflits, les résoudre proprement ou signaler le blocage.
