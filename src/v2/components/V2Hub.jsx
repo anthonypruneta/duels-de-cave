@@ -1,13 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  V2_PASSIVE,
-  V2_STAT_KEYS,
-  V2_STAT_LABELS,
-  V2_WEAPON,
-  computeFinalStats,
-} from '../data/v2Kit';
+import { V2_STAT_KEYS, V2_STAT_LABELS } from '../data/v2Kit';
 import { getLocalDateKey } from '../data/v2LoreStories';
 import {
   ensureV2Prototype,
@@ -15,6 +9,7 @@ import {
   resetV2Prototype,
   saveV2Prototype,
 } from '../services/v2PrototypeService';
+import V2CharacterCard from './V2CharacterCard';
 import V2RotationEditor from './V2RotationEditor';
 
 export default function V2Hub() {
@@ -63,12 +58,11 @@ export default function V2Hub() {
   };
 
   const ready = hasV2Champion(proto);
-  const finals = ready ? computeFinalStats(proto) : null;
   const loreDoneToday = proto?.lore?.lastCompletedDate === getLocalDateKey();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 text-stone-100">
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <Link to="/perso" className="text-xs text-stone-500 hover:text-amber-500">
@@ -111,45 +105,16 @@ export default function V2Hub() {
           </section>
         )}
 
-        {ready && finals && (
+        {ready && proto && (
           <>
-            <section className="rounded-lg border border-stone-700 bg-stone-900/60 p-4 flex flex-wrap gap-4">
-              {proto.characterImage ? (
-                <img
-                  src={proto.characterImage}
-                  alt={proto.name}
-                  className="w-24 h-24 object-contain bg-stone-950 rounded"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded bg-stone-950 border border-stone-700 flex items-center justify-center text-xs text-stone-500 text-center px-1">
-                  Pas d’image
-                </div>
-              )}
-              <div className="flex-1 min-w-[12rem]">
-                <h2 className="text-xl font-bold">{proto.name}</h2>
-                <p className="text-sm text-stone-400">
-                  {proto.race} / {proto.class}
-                </p>
-                <p className="text-sm text-amber-300 mt-1">
-                  Niveau {proto.level} — XP {proto.xp}/{proto.xpToNext || '—'}
-                </p>
-                <p className="text-xs text-stone-500 mt-2">
-                  {V2_WEAPON.name} · {V2_PASSIVE.name}
-                </p>
-                {saving && <p className="text-[10px] text-stone-500">Sauvegarde…</p>}
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                {V2_STAT_KEYS.map((k) => (
-                  <div key={k} className="rounded bg-stone-950/70 border border-stone-700 px-2 py-1">
-                    <div className="text-stone-500">{V2_STAT_LABELS[k]}</div>
-                    <div className="font-semibold text-stone-100">{finals[k]}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <div className="flex justify-center">
+              <V2CharacterCard proto={proto} detailsPlacement="right" />
+            </div>
+            {saving && <p className="text-center text-[10px] text-stone-500">Sauvegarde…</p>}
 
-            {(proto.loreBoosts && Object.values(proto.loreBoosts).some((v) => Number(v) > 0)) && (
-              <p className="text-xs text-emerald-400/90">
+            {(proto.loreBoosts &&
+              Object.values(proto.loreBoosts).some((v) => Number(v) > 0)) && (
+              <p className="text-xs text-emerald-400/90 text-center">
                 Boosts lore :{' '}
                 {V2_STAT_KEYS.filter((k) => proto.loreBoosts[k] > 0)
                   .map((k) => `+${proto.loreBoosts[k]} ${V2_STAT_LABELS[k]}`)
