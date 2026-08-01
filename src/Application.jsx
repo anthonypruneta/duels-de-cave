@@ -37,6 +37,8 @@ import V2Hub from './v2/components/V2Hub';
 import V2XpDungeon from './v2/components/V2XpDungeon';
 import V2Labyrinth from './v2/components/V2Labyrinth';
 import V2LoreQuest from './v2/components/V2LoreQuest';
+import V2ChampionSelect from './v2/components/V2ChampionSelect';
+import V2RequireChampion from './v2/components/V2RequireChampion';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import MaintenanceShutdown from './components/MaintenanceShutdown';
 import { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
@@ -152,10 +154,20 @@ function Application() {
                 }
               />
               <Route
+                path="/v2/champion"
+                element={
+                  <ProtectedRoute>
+                    <V2ChampionSelect />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/v2/donjon-xp"
                 element={
                   <ProtectedRoute>
-                    <V2XpDungeon />
+                    <V2RequireChampion>
+                      <V2XpDungeon />
+                    </V2RequireChampion>
                   </ProtectedRoute>
                 }
               />
@@ -163,7 +175,9 @@ function Application() {
                 path="/v2/labyrinthe"
                 element={
                   <ProtectedRoute>
-                    <V2Labyrinth />
+                    <V2RequireChampion>
+                      <V2Labyrinth />
+                    </V2RequireChampion>
                   </ProtectedRoute>
                 }
               />
@@ -171,7 +185,9 @@ function Application() {
                 path="/v2/lore"
                 element={
                   <ProtectedRoute>
-                    <V2LoreQuest />
+                    <V2RequireChampion>
+                      <V2LoreQuest />
+                    </V2RequireChampion>
                   </ProtectedRoute>
                 }
               />

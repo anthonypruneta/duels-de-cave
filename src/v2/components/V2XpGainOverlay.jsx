@@ -200,108 +200,101 @@ export default function V2XpGainOverlay({
   const raceClass = [beforeProto?.race, beforeProto?.class].filter(Boolean).join(' · ');
 
   return (
-    <div className="fixed inset-0 z-[300] bg-stone-950 text-stone-100 overflow-hidden">
-      {/* Fond */}
-      <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-amber-950/30 to-stone-950" />
-      <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_30%_40%,rgba(251,191,36,0.25),transparent_55%)]" />
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-stone-950/95 text-stone-100 p-3 sm:p-6 overflow-auto">
+      <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 pointer-events-none" />
 
-      {/* Portrait grand — gauche / centre */}
-      <div className="absolute inset-y-0 left-0 right-[min(42%,22rem)] flex items-end justify-center pointer-events-none">
-        {image ? (
-          <img
-            src={image}
-            alt={name}
-            className={`max-h-[92vh] max-w-full object-contain drop-shadow-2xl transition duration-500 ${
-              levelFlash ? 'brightness-110 scale-[1.02]' : ''
-            }`}
-          />
-        ) : (
-          <div className="text-stone-600 text-6xl mb-24">?</div>
-        )}
-      </div>
-
-      {/* Bandeau nom haut */}
-      <div className="absolute top-0 left-0 right-0 z-10 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-xl sm:text-2xl font-bold text-white drop-shadow">{name}</h2>
-          <span className="text-amber-300 font-semibold">Lv. {displayLevel}</span>
-          {raceClass && <span className="text-stone-400 text-sm">{raceClass}</span>}
+      <div className="relative z-10 w-full max-w-md sm:max-w-xl sm:pr-24">
+        {/* Nom */}
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-1">
+          <h2 className="text-lg font-bold text-white">{name}</h2>
+          <span className="text-amber-300 text-sm font-semibold">Lv. {displayLevel}</span>
+          {raceClass && <span className="text-stone-500 text-xs">{raceClass}</span>}
+          {phase === 'xp' && (
+            <span className="text-amber-400/90 text-xs font-medium ml-auto">+{xpGained} EXP</span>
+          )}
         </div>
-        {phase === 'xp' && (
-          <p className="text-amber-400/90 text-sm mt-1 font-medium">+{xpGained} EXP</p>
-        )}
-      </div>
 
-      {/* Panneau stats bas-droite (FE Heroes) */}
-      <div
-        className={`absolute z-20 bottom-20 sm:bottom-24 right-3 sm:right-6 w-[min(100%-1.5rem,17.5rem)] transition-all duration-400 ${
-          showLevelPanel
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-4 pointer-events-none'
-        }`}
-      >
-        <div
-          className={`rounded-2xl border-2 overflow-hidden shadow-2xl backdrop-blur-md ${
-            levelFlash
-              ? 'border-amber-300 bg-amber-900/50'
-              : 'border-sky-300/70 bg-sky-950/75'
-          }`}
-        >
-          {/* En-tête Lv */}
-          <div className="relative text-center py-2.5 bg-gradient-to-b from-sky-800/90 to-sky-950/80 border-b border-sky-400/40">
-            <div className="absolute inset-x-0 -top-1 flex justify-center">
-              <div className="w-16 h-2 rounded-b-full bg-sky-300/40" />
-            </div>
-            <span
-              className={`text-2xl font-black tracking-wide text-white drop-shadow ${
-                levelFlash ? 'animate-pulse text-amber-200' : ''
-              }`}
-            >
-              Lv. {displayLevel}
-            </span>
+        {/* Zone portrait + panneau stats */}
+        <div className="relative mx-auto w-fit max-w-full">
+          <div
+            className={`w-[min(100%,13rem)] sm:w-52 transition duration-300 ${
+              levelFlash ? 'brightness-110' : ''
+            }`}
+          >
+            {image ? (
+              <img
+                src={image}
+                alt={name}
+                className="w-full h-auto max-h-[38vh] object-contain drop-shadow-xl"
+              />
+            ) : (
+              <div className="h-40 flex items-center justify-center text-stone-600 text-4xl">?</div>
+            )}
           </div>
 
-          <ul className="py-1.5 px-2 space-y-1">
-            {V2_STAT_KEYS.map((key) => {
-              const gain = Number(statGains[key]) || 0;
-              const hasGain = gain > 0;
-              return (
-                <li
-                  key={key}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
-                    hasGain ? 'bg-sky-800/50' : 'bg-sky-950/40'
+          {/* Panneau stats compact — coin bas-droit du portrait */}
+          <div
+            className={`absolute -right-1 sm:-right-28 bottom-2 w-[10.5rem] transition-all duration-300 ${
+              showLevelPanel
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-2 pointer-events-none'
+            }`}
+          >
+            <div
+              className={`rounded-xl border overflow-hidden shadow-xl backdrop-blur-md ${
+                levelFlash
+                  ? 'border-amber-300 bg-amber-900/55'
+                  : 'border-sky-300/60 bg-sky-950/80'
+              }`}
+            >
+              <div className="text-center py-1.5 bg-sky-900/80 border-b border-sky-400/30">
+                <span
+                  className={`text-base font-black tracking-wide text-white ${
+                    levelFlash ? 'animate-pulse text-amber-200' : ''
                   }`}
                 >
-                  <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-wide text-sky-200/90">
-                    {V2_STAT_LABELS[key]}
-                  </span>
-                  <span
-                    className={`flex-1 text-center text-lg font-bold tabular-nums ${
-                      hasGain ? 'text-white drop-shadow-[0_0_8px_rgba(125,211,252,0.9)]' : 'text-sky-50'
-                    }`}
-                  >
-                    {displayStats[key]}
-                  </span>
-                  <span className="w-12 shrink-0 flex justify-end">
-                    {hasGain ? (
-                      <span className="inline-flex items-center justify-center min-w-[2.25rem] px-1.5 py-0.5 rounded-full bg-sky-300 text-sky-950 text-sm font-black shadow-[0_0_12px_rgba(125,211,252,0.85)] animate-[v2PopIn_0.35s_ease-out]">
-                        +{gain}
+                  Lv. {displayLevel}
+                </span>
+              </div>
+              <ul className="py-1 px-1.5 space-y-0.5">
+                {V2_STAT_KEYS.map((key) => {
+                  const gain = Number(statGains[key]) || 0;
+                  const hasGain = gain > 0;
+                  return (
+                    <li
+                      key={key}
+                      className={`flex items-center gap-1 rounded-md px-1.5 py-1 ${
+                        hasGain ? 'bg-sky-800/45' : 'bg-transparent'
+                      }`}
+                    >
+                      <span className="w-9 shrink-0 text-[10px] font-bold uppercase text-sky-200/90">
+                        {V2_STAT_LABELS[key]}
                       </span>
-                    ) : (
-                      <span className="w-9" />
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                      <span
+                        className={`flex-1 text-center text-sm font-bold tabular-nums ${
+                          hasGain ? 'text-white' : 'text-sky-50/90'
+                        }`}
+                      >
+                        {displayStats[key]}
+                      </span>
+                      <span className="w-9 shrink-0 flex justify-end">
+                        {hasGain ? (
+                          <span className="inline-flex items-center justify-center min-w-[1.75rem] px-1 py-0.5 rounded-full bg-sky-300 text-sky-950 text-[11px] font-black shadow-[0_0_8px_rgba(125,211,252,0.7)] animate-[v2PopIn_0.35s_ease-out]">
+                            +{gain}
+                          </span>
+                        ) : null}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Barre EXP */}
-      <div className="absolute z-20 left-3 right-3 sm:left-6 sm:right-[min(42%,20rem)] bottom-20 sm:bottom-24">
-        <div className="rounded-xl border border-amber-700/40 bg-black/55 backdrop-blur-sm px-3 py-2">
-          <div className="flex justify-between text-[11px] text-amber-200/80 mb-1">
+        {/* Barre EXP — largeur du bloc, pas tout l’écran */}
+        <div className="mt-3 rounded-lg border border-amber-700/35 bg-black/50 px-2.5 py-1.5">
+          <div className="flex justify-between text-[10px] text-amber-200/75 mb-0.5">
             <span className="font-semibold tracking-wide">EXP</span>
             <span>
               {displayLevel >= V2_MAX_LEVEL
@@ -309,42 +302,41 @@ export default function V2XpGainOverlay({
                 : `${Math.floor(displayXp)} / ${displayNeed || '—'}`}
             </span>
           </div>
-          <div className="h-3.5 rounded-full bg-stone-900 border border-stone-600 overflow-hidden">
+          <div className="h-2 rounded-full bg-stone-900 border border-stone-600 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-amber-700 via-yellow-400 to-amber-200"
               style={{ width: `${Math.max(0, Math.min(100, barPct))}%` }}
             />
           </div>
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="absolute z-30 bottom-4 left-0 right-0 flex justify-center gap-3 px-4">
-        {!finished && (
+        <div className="mt-3 flex justify-center gap-2">
+          {!finished && (
+            <button
+              type="button"
+              onClick={() => {
+                skipRef.current = true;
+              }}
+              className="px-3 py-1.5 rounded-md border border-stone-600 bg-stone-900/80 text-stone-300 text-xs hover:bg-stone-800"
+            >
+              Accélérer
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => {
-              skipRef.current = true;
-            }}
-            className="px-5 py-2.5 rounded-lg border border-stone-500 bg-stone-900/80 text-stone-200 text-sm hover:bg-stone-800"
+            onClick={onDone}
+            disabled={!finished}
+            className="px-5 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs disabled:opacity-35"
           >
-            Accélérer
+            Continuer
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onDone}
-          disabled={!finished}
-          className="px-8 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-sm disabled:opacity-35 shadow-lg"
-        >
-          Continuer
-        </button>
+        </div>
       </div>
 
       <style>{`
         @keyframes v2PopIn {
           0% { transform: scale(0.4); opacity: 0; }
-          70% { transform: scale(1.15); opacity: 1; }
+          70% { transform: scale(1.12); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
