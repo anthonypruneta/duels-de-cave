@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isAdminEmail } from './AdminOnlyRoute';
 import { CAVE_DESTINY_ONLY_MODE } from '../config/maintenanceMode';
+import { isV2PrototypeEnabled } from '../data/featureFlags';
 
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isAndroid = () => /Android/.test(navigator.userAgent);
@@ -154,6 +155,7 @@ function Header() {
         { path: '/mes-anciens-personnages', label: '📜 Mes anciens persos' },
         { path: '/pvp', label: '⚔️ PvP' },
         { path: '/pvp-classement', label: '🏆 Classement PvP' },
+        ...(isV2PrototypeEnabled() ? [{ path: '/v2', label: '🧪 Proto V2' }] : []),
         ...(isAdmin ? [{ path: '/roguelike', label: '🟣 Rogue-like', rogueLike: true }] : []),
         ...(isAdmin ? [{ path: '/combat', label: '🛠️ PvP admin' }] : []),
       ];
