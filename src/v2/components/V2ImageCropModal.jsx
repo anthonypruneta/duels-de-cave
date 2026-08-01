@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-const OUTPUT_SIZE = 512;
+/** Export 3:4 */
+const OUTPUT_W = 384;
+const OUTPUT_H = 512;
+const ASPECT = 3 / 4; // width / height
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 
 /**
- * Modal cadrage image : zoom + déplacement, export carré JPEG.
+ * Modal cadrage image : zoom + déplacement, export JPEG 3:4.
  */
 export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }) {
   const viewportRef = useRef(null);
@@ -15,15 +18,16 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
-  const [viewport, setViewport] = useState(280);
+  const [frame, setFrame] = useState({ w: 240, h: 320 });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return undefined;
     const measure = () => {
-      const side = Math.min(el.clientWidth || 280, 360);
-      setViewport(side);
+      const maxW = Math.min(el.clientWidth || 240, 300);
+      const h = maxW / ASPECT;
+      setFrame({ w: maxW, h });
     };
     measure();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
@@ -39,10 +43,9 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
     setReady(true);
   };
 
-  /** Taille affichée de l’image pour couvrir le viewport au zoom donné. */
   const coverBase = (() => {
-    if (!imgSize.w || !imgSize.h || !viewport) return { w: 0, h: 0 };
-    const scale = Math.max(viewport / imgSize.w, viewport / imgSize.h);
+    if (!imgSize.w || !imgSize.h || !frame.w || !frame.h) return { w: 0, h: 0 };
+    const scale = Math.max(frame.w / imgSize.w, frame.h / imgSize.h);
     return { w: imgSize.w * scale, h: imgSize.h * scale };
   })();
 
@@ -53,14 +56,14 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
     (x, y, z = zoom) => {
       const dw = coverBase.w * z;
       const dh = coverBase.h * z;
-      const maxX = Math.max(0, (dw - viewport) / 2);
-      const maxY = Math.max(0, (dh - viewport) / 2);
+      const maxX = Math.max(0, (dw - frame.w) / 2);
+      const maxY = Math.max(0, (dh - frame.h) / 2);
       return {
         x: Math.min(maxX, Math.max(-maxX, x)),
         y: Math.min(maxY, Math.max(-maxY, y)),
       };
     },
-    [coverBase.w, coverBase.h, viewport, zoom]
+    [coverBase.w, coverBase.h, frame.w, frame.h, zoom]
   );
 
   useEffect(() => {
@@ -94,24 +97,23 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
   const handleConfirm = async () => {
     if (!ready || !imgRef.current || busy) return;
     const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_SIZE;
-    canvas.height = OUTPUT_SIZE;
+    canvas.width = OUTPUT_W;
+    canvas.height = OUTPUT_H;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Mapping viewport → image naturelle
-    // Coin haut-gauche du cadre dans l’espace image affichée (centré + offset)
-    const left = (displayW - viewport) / 2 - offset.x;
-    const top = (displayH - viewport) / 2 - offset.y;
+    const left = (displayW - frame.w) / 2 - offset.x;
+    const top = (displayH - frame.h) / 2 - offset.y;
     const scaleToNatural = imgSize.w / displayW;
 
     const sx = left * scaleToNatural;
     const sy = top * scaleToNatural;
-    const sSize = viewport * scaleToNatural;
+    const sw = frame.w * scaleToNatural;
+    const sh = frame.h * scaleToNatural;
 
     ctx.fillStyle = '#0c0a09';
-    ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-    ctx.drawImage(imgRef.current, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    ctx.fillRect(0, 0, OUTPUT_W, OUTPUT_H);
+    ctx.drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H);
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     onConfirm?.(dataUrl);
@@ -123,13 +125,13 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
         <div>
           <h3 className="text-lg font-bold text-amber-400">Cadrer l’image</h3>
           <p className="text-xs text-stone-400 mt-1">
-            Zoom et déplace pour cadrer ton champion dans le carré.
+            Zoom et déplace pour cadrer ton champion (format 3:4).
           </p>
         </div>
 
         <div
           ref={viewportRef}
-          className="relative mx-auto w-full max-w-[360px] aspect-square rounded-lg overflow-hidden border-2 border-amber-500/70 bg-stone-950 touch-none cursor-grab active:cursor-grabbing select-none"
+          className="relative mx-auto w-full max-w-[280px] aspect-[3/4] rounded-lg overflow-hidden border-2 border-amber-500/70 bg-stone-950 touch-none cursor-grab active:cursor-grabbing select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -150,7 +152,6 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
               }}
             />
           )}
-          {/* Coins du cadre */}
           <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_2px_rgba(251,191,36,0.5)]" />
         </div>
 
