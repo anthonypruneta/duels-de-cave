@@ -69,6 +69,10 @@ export default function CharacterCardContent({
   imageClassName = '',
   /** Contenu overlay sur l'image (ex: brume du miroir) */
   imageOverlayContent = null,
+  /** Masque les lignes de stats sur la carte (ex. overlay custom) */
+  hideStats = false,
+  /** Override du nom affiché sur la carte ; chaîne vide pour masquer */
+  nameOnCard = undefined,
   /** Override de bordure Canvas (ex: 'lava' pour un boss). Si absent, utilise character.equippedBorder. */
   borderId: borderIdOverride = null,
   /** Si true, l'effet Canvas bordure n'apparaît que sur l'image */
@@ -455,12 +459,12 @@ export default function CharacterCardContent({
 
   const cardProps = {
     header,
-    name: displayName,
+    name: nameOnCard !== undefined ? nameOnCard : displayName,
     title: displayTitle,
     image: displayImage,
     fallback: cardFallback,
-    topStats,
-    mainStats,
+    topStats: hideStats ? null : topStats,
+    mainStats: hideStats ? null : mainStats,
     hpText: showHpBar ? `${displayName} — PV ${safeCurrentHP}/${safeMaxHP}` : undefined,
     hpPercent: showHpBar ? hpPercent : undefined,
     hpClass: showHpBar ? hpClass : undefined,
@@ -503,9 +507,10 @@ export default function CharacterCardContent({
       </div>
     );
 
-    const sidePanelCardProps = includeStatsInPanel
-      ? { ...cardProps, hideInfoOnLg: true }
-      : cardProps;
+    const sidePanelCardProps =
+      includeStatsInPanel || hideStats
+        ? { ...cardProps, hideInfoOnLg: true }
+        : cardProps;
 
     return (
       <div className="flex gap-3 items-start">
