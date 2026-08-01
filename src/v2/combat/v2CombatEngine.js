@@ -2,7 +2,7 @@
  * Moteur de combat V2 — rotation de sorts, pas de CD classiques.
  */
 
-import { V2_SPELL_IDS, computeFinalStats, getSpellById } from '../data/v2Kit';
+import { V2_SPELL_IDS, computeFinalStats, flattenSpellCycles, getSpellById, normalizeSpellCycles } from '../data/v2Kit';
 import { createEmptyStatus, hasFureurSang, hasStigmate, tickStatuses } from './v2Status';
 
 const MAX_TURNS = 40;
@@ -95,15 +95,14 @@ function enemyAutoAttack(attacker, defender, log) {
 export function preparerCombattantV2(prototype) {
   const base = computeFinalStats(prototype);
   const maxHP = base.hp;
+  const spellOrder = flattenSpellCycles(normalizeSpellCycles(prototype));
   return {
     name: prototype.name || 'Revolte',
     isPlayer: true,
     base: { ...base },
     currentHP: maxHP,
     maxHP,
-    spellOrder: Array.isArray(prototype.spellOrder) && prototype.spellOrder.length === 4
-      ? [...prototype.spellOrder]
-      : null,
+    spellOrder: spellOrder.length > 0 ? spellOrder : null,
     spellIndex: 0,
     damageTakenSincePurge: 0,
     status: createEmptyStatus(),

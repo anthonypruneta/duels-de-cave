@@ -5,7 +5,9 @@ import {
   V2_SPELLS,
   V2_STAT_LABELS,
   computeFinalStats,
+  flattenSpellCycles,
   getSpellById,
+  normalizeSpellCycles,
 } from '../data/v2Kit';
 
 /** Ordre d’affichage style FE Heroes (HP → Atk → Spd → Def → Res…). */
@@ -71,7 +73,7 @@ function V2FeHeroesPanel({ proto, stats }) {
   const xpLabel = xpToNext > 0 ? `${xp}/${xpToNext}` : 'MAX';
 
   const skillRows = useMemo(() => {
-    const order = Array.isArray(proto?.spellOrder) ? proto.spellOrder : [];
+    const order = flattenSpellCycles(normalizeSpellCycles(proto));
     return order.map((id, i) => {
       const spell = getSpellById(id) || V2_SPELLS[id];
       const badge = SOURCE_BADGE[spell?.source] || SOURCE_BADGE.passive;
@@ -84,7 +86,7 @@ function V2FeHeroesPanel({ proto, stats }) {
         id,
       };
     });
-  }, [proto?.spellOrder]);
+  }, [proto]);
 
   const subtitle = [proto?.race, proto?.class].filter(Boolean).join(' · ');
 

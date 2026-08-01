@@ -10,7 +10,9 @@ import {
   V2_IMPOSED_CHARACTER,
   V2_PASSIVE,
   V2_WEAPON,
+  flattenSpellCycles,
   getEmptyV2StatBlock,
+  normalizeSpellCycles,
 } from '../data/v2Kit';
 import { createInitialXpState } from '../data/v2XpCurve';
 
@@ -26,6 +28,7 @@ export function hasV2Champion(proto) {
 export function createDefaultV2Prototype(userId, options = {}) {
   const xpState = createInitialXpState();
   const name = String(options.name || '').trim() || V2_IMPOSED_CHARACTER.name;
+  const spellCycles = normalizeSpellCycles({ spellOrder: V2_DEFAULT_SPELL_ORDER });
   return {
     userId,
     name,
@@ -42,7 +45,8 @@ export function createDefaultV2Prototype(userId, options = {}) {
     level: xpState.level,
     xp: xpState.xp,
     xpToNext: xpState.xpToNext,
-    spellOrder: [...V2_DEFAULT_SPELL_ORDER],
+    spellCycles,
+    spellOrder: flattenSpellCycles(spellCycles),
     weaponId: V2_WEAPON.id,
     passiveId: V2_PASSIVE.id,
     labyrinth: {
@@ -130,11 +134,19 @@ export async function createV2Champion(userId, { name, characterImage, portraitS
 
 export async function saveV2Prototype(userId, partial) {
   try {
+    const payload = { ...partial };
+    if (payload.spellCycles) {
+      payload.spellCycles = normalizeSpellCycles(payload.spellCycles);
+      payload.spellOrder = flattenSpellCycles(payload.spellCycles);
+    } else if (payload.spellOrder) {
+      payload.spellCycles = normalizeSpellCycles({ spellOrder: payload.spellOrder });
+      payload.spellOrder = flattenSpellCycles(payload.spellCycles);
+    }
     const refDoc = doc(db, COLLECTION, userId);
     await setDoc(
       refDoc,
       {
-        ...partial,
+        ...payload,
         userId,
         updatedAt: serverTimestamp(),
       },
