@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   V2_PASSIVE,
@@ -11,18 +11,18 @@ import {
 import { getLocalDateKey } from '../data/v2LoreStories';
 import {
   ensureV2Prototype,
+  hasV2Champion,
   resetV2Prototype,
   saveV2Prototype,
 } from '../services/v2PrototypeService';
-import V2PortraitBrowser from './V2PortraitBrowser';
 import V2RotationEditor from './V2RotationEditor';
 
 export default function V2Hub() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [proto, setProto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [catalogWarning, setCatalogWarning] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -35,7 +35,6 @@ export default function V2Hub() {
       setProto(null);
     } else {
       setProto(res.data);
-      setCatalogWarning(res.catalogError || null);
     }
     setLoading(false);
   }, [currentUser?.uid]);
@@ -52,32 +51,19 @@ export default function V2Hub() {
     setSaving(false);
   };
 
-  const handlePortraitSelect = async (portrait) => {
-    if (!currentUser?.uid || !proto || !portrait?.characterImage) return;
-    const patch = {
-      characterImage: portrait.characterImage,
-      portraitSourceId: portrait.sourceId,
-      portraitName: portrait.name,
-    };
-    setProto({ ...proto, ...patch });
-    setSaving(true);
-    await saveV2Prototype(currentUser.uid, patch);
-    setSaving(false);
-  };
-
   const handleReset = async () => {
     if (!currentUser?.uid) return;
-    if (!window.confirm('Réinitialiser le proto V2 (niveau 1, lore, labyrinthe) ?')) return;
+    if (!window.confirm('Réinitialiser le proto V2 (champion, lore, labyrinthe) ?')) return;
     setSaving(true);
     const res = await resetV2Prototype(currentUser.uid);
     setSaving(false);
     if (res.success) {
       setProto(res.data);
-      setCatalogWarning(res.catalogError || null);
     } else setError(res.error);
   };
 
-  const finals = proto ? computeFinalStats(proto) : null;
+  const ready = hasV2Champion(proto);
+  const finals = ready ? computeFinalStats(proto) : null;
   const loreDoneToday = proto?.lore?.lastCompletedDate === getLocalDateKey();
 
   return (
@@ -94,25 +80,38 @@ export default function V2Hub() {
               Rotation de sorts · XP Fire Emblem · lore quotidien · laby 10 étages
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={saving || loading}
-            className="text-xs px-3 py-1.5 rounded border border-red-800/60 text-red-300 hover:bg-red-950/40"
-          >
-            Reset proto
-          </button>
+          {ready && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={saving || loading}
+              className="text-xs px-3 py-1.5 rounded border border-red-800/60 text-red-300 hover:bg-red-950/40"
+            >
+              Reset proto
+            </button>
+          )}
         </div>
 
         {loading && <p className="text-stone-400">Chargement…</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {catalogWarning && (
-          <p className="text-amber-400/90 text-xs">
-            Catalogue portraits : {catalogWarning}
-          </p>
+
+        {!loading && !ready && (
+          <section className="rounded-xl border border-amber-700/40 bg-amber-950/15 p-8 text-center space-y-4">
+            <p className="text-stone-300 text-sm max-w-md mx-auto">
+              Un roll t’attend : Orc / Masochiste. Choisis ton nom et ton image, puis commence
+              par la quête du jour.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/v2/champion')}
+              className="inline-flex px-8 py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-lg shadow-lg"
+            >
+              Choisir son champion
+            </button>
+          </section>
         )}
 
-        {proto && finals && (
+        {ready && finals && (
           <>
             <section className="rounded-lg border border-stone-700 bg-stone-900/60 p-4 flex flex-wrap gap-4">
               {proto.characterImage ? (
@@ -131,11 +130,6 @@ export default function V2Hub() {
                 <p className="text-sm text-stone-400">
                   {proto.race} / {proto.class}
                 </p>
-                {proto.portraitName && (
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Portrait BDD : {proto.portraitName}
-                  </p>
-                )}
                 <p className="text-sm text-amber-300 mt-1">
                   Niveau {proto.level} — XP {proto.xp}/{proto.xpToNext || '—'}
                 </p>
@@ -153,12 +147,6 @@ export default function V2Hub() {
                 ))}
               </div>
             </section>
-
-            <V2PortraitBrowser
-              selectedImage={proto.characterImage}
-              onSelect={handlePortraitSelect}
-              disabled={saving}
-            />
 
             {(proto.loreBoosts && Object.values(proto.loreBoosts).some((v) => Number(v) > 0)) && (
               <p className="text-xs text-emerald-400/90">
