@@ -12,6 +12,7 @@ import {
   hasV2Champion,
   uploadV2ChampionImage,
 } from '../services/v2PrototypeService';
+import V2ImageCropModal from './V2ImageCropModal';
 
 const MIN_NAME = 2;
 const MAX_NAME = 40;
@@ -34,6 +35,8 @@ export default function V2ChampionSelect() {
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [cropSrc, setCropSrc] = useState(null);
+  const [pendingFileName, setPendingFileName] = useState(null);
 
   useEffect(() => {
     if (!currentUser?.uid) return;
@@ -98,25 +101,33 @@ export default function V2ChampionSelect() {
       setError('Fichier image requis.');
       return;
     }
-    setBusy(true);
     setError(null);
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const up = await uploadV2ChampionImage(currentUser.uid, dataUrl);
-      if (!up.success) {
-        setError(up.error);
-        setBusy(false);
-        return;
-      }
-      setSelectedUrl(up.imageUrl);
-      setSelectedMeta({
-        portraitSourceId: 'upload',
-        portraitName: file.name,
-      });
+      setPendingFileName(file.name);
+      setCropSrc(dataUrl);
     } catch (err) {
       setError(err.message || 'Lecture image impossible');
     }
+  };
+
+  const handleCropConfirm = async (croppedDataUrl) => {
+    if (!currentUser?.uid) return;
+    setBusy(true);
+    setError(null);
+    const up = await uploadV2ChampionImage(currentUser.uid, croppedDataUrl);
     setBusy(false);
+    if (!up.success) {
+      setError(up.error);
+      return;
+    }
+    setSelectedUrl(up.imageUrl);
+    setSelectedMeta({
+      portraitSourceId: 'upload',
+      portraitName: pendingFileName || 'upload',
+    });
+    setCropSrc(null);
+    setPendingFileName(null);
   };
 
   const handleConfirm = async () => {
@@ -171,7 +182,6 @@ export default function V2ChampionSelect() {
           </p>
         </div>
 
-        {/* Roll imposé */}
         <section className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
           <p className="text-[10px] uppercase tracking-widest text-amber-500/80 mb-2">Roll obtenu</p>
           <div className="flex flex-wrap items-center gap-3">
@@ -184,7 +194,6 @@ export default function V2ChampionSelect() {
           </p>
         </section>
 
-        {/* Nom */}
         <label className="block space-y-1.5">
           <span className="text-sm font-medium text-stone-300">Nom du champion</span>
           <input
@@ -197,7 +206,6 @@ export default function V2ChampionSelect() {
           />
         </label>
 
-        {/* Image */}
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wide">
@@ -205,7 +213,7 @@ export default function V2ChampionSelect() {
             </h2>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || Boolean(cropSrc)}
               onClick={() => fileRef.current?.click()}
               className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-300 hover:border-amber-600 hover:text-amber-300 disabled:opacity-50"
             >
@@ -222,11 +230,8 @@ export default function V2ChampionSelect() {
 
           {selectedUrl && (
             <div className="flex items-center gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/20 p-2">
-              <img src={selectedUrl} alt="" className="w-16 h-16 object-contain bg-stone-950 rounded" />
-              <p className="text-xs text-emerald-300">
-                Image sélectionnée
-                {selectedMeta?.portraitName ? ` · ${selectedMeta.portraitName}` : ''}
-              </p>
+              <img src={selectedUrl} alt="" className="w-16 h-16 object-cover bg-stone-950 rounded" />
+              <p className="text-xs text-emerald-300">Image sélectionnée</p>
             </div>
           )}
 
@@ -250,11 +255,10 @@ export default function V2ChampionSelect() {
                 >
                   <img
                     src={p.characterImage}
-                    alt={p.name}
+                    alt=""
                     className="w-full aspect-square object-contain bg-stone-900"
                     loading="lazy"
                   />
-                  <div className="text-[10px] text-stone-400 truncate mt-1">{p.name}</div>
                 </button>
               );
             })}
@@ -277,6 +281,19 @@ export default function V2ChampionSelect() {
           {busy ? 'Création…' : 'Valider et commencer'}
         </button>
       </div>
+
+      {cropSrc && (
+        <V2ImageCropModal
+          imageSrc={cropSrc}
+          busy={busy}
+          onCancel={() => {
+            if (busy) return;
+            setCropSrc(null);
+            setPendingFileName(null);
+          }}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }
