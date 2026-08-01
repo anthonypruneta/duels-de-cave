@@ -12,10 +12,15 @@ import {
   getEmptyV2StatBlock,
 } from '../data/v2Kit';
 import { createInitialXpState } from '../data/v2XpCurve';
+import {
+  isLocalV2PlaceholderImage,
+  loadV2PortraitsFromFirestore,
+  pickPortraitForKit,
+} from './v2PortraitCatalog';
 
 const COLLECTION = 'v2Prototype';
 
-export function createDefaultV2Prototype(userId) {
+export function createDefaultV2Prototype(userId, portrait = null) {
   const xpState = createInitialXpState();
   return {
     userId,
@@ -23,7 +28,9 @@ export function createDefaultV2Prototype(userId) {
     race: V2_IMPOSED_CHARACTER.race,
     class: V2_IMPOSED_CHARACTER.class,
     gender: V2_IMPOSED_CHARACTER.gender,
-    characterImage: V2_IMPOSED_CHARACTER.characterImage,
+    characterImage: portrait?.characterImage || null,
+    portraitSourceId: portrait?.sourceId || null,
+    portraitName: portrait?.name || null,
     base: { ...V2_IMPOSED_CHARACTER.base },
     growthGains: getEmptyV2StatBlock(),
     loreBoosts: getEmptyV2StatBlock(),
@@ -47,6 +54,19 @@ export function createDefaultV2Prototype(userId) {
   };
 }
 
+async function resolveImposedPortrait() {
+  const catalog = await loadV2PortraitsFromFirestore();
+  if (!catalog.success) {
+    return { portrait: null, catalogError: catalog.error, portraits: [] };
+  }
+  const portrait = pickPortraitForKit(
+    catalog.portraits,
+    V2_IMPOSED_CHARACTER.race,
+    V2_IMPOSED_CHARACTER.class
+  );
+  return { portrait, catalogError: null, portraits: catalog.portraits };
+}
+
 export async function getV2Prototype(userId) {
   try {
     const ref = doc(db, COLLECTION, userId);
@@ -64,13 +84,34 @@ export async function getV2Prototype(userId) {
 export async function ensureV2Prototype(userId) {
   const existing = await getV2Prototype(userId);
   if (!existing.success) return existing;
-  if (existing.data) return existing;
 
-  const payload = createDefaultV2Prototype(userId);
+  if (existing.data) {
+    // Migre les anciens protos qui pointaient vers un sprite repo
+    if (isLocalV2PlaceholderImage(existing.data.characterImage)) {
+      const { portrait, catalogError } = await resolveImposedPortrait();
+      if (portrait?.characterImage) {
+        await saveV2Prototype(userId, {
+          characterImage: portrait.characterImage,
+          portraitSourceId: portrait.sourceId,
+          portraitName: portrait.name,
+        });
+        const again = await getV2Prototype(userId);
+        if (again.success) {
+          return { ...again, catalogError };
+        }
+      }
+      return { ...existing, catalogError: catalogError || 'Aucun portrait Orc/Masochiste en BDD' };
+    }
+    return existing;
+  }
+
+  const { portrait, catalogError } = await resolveImposedPortrait();
+  const payload = createDefaultV2Prototype(userId, portrait);
   try {
     await setDoc(doc(db, COLLECTION, userId), payload);
     const again = await getV2Prototype(userId);
-    return again;
+    if (!again.success) return again;
+    return { ...again, catalogError };
   } catch (error) {
     console.error('V2 ensureV2Prototype:', error);
     return { success: false, error: error.message || 'Erreur création proto V2' };
@@ -97,11 +138,13 @@ export async function saveV2Prototype(userId, partial) {
 }
 
 export async function resetV2Prototype(userId) {
-  const payload = createDefaultV2Prototype(userId);
+  const { portrait, catalogError } = await resolveImposedPortrait();
+  const payload = createDefaultV2Prototype(userId, portrait);
   try {
     await setDoc(doc(db, COLLECTION, userId), payload);
     const again = await getV2Prototype(userId);
-    return again;
+    if (!again.success) return again;
+    return { ...again, catalogError };
   } catch (error) {
     console.error('V2 resetV2Prototype:', error);
     return { success: false, error: error.message || 'Erreur reset proto V2' };
