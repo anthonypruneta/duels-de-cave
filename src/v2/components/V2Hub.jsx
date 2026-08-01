@@ -108,7 +108,7 @@ export default function V2Hub() {
         {ready && proto && (
           <>
             <div className="flex justify-center">
-              <V2CharacterCard proto={proto} detailsPlacement="right" />
+              <V2CharacterCard proto={proto} />
             </div>
             {saving && <p className="text-center text-[10px] text-stone-500">Sauvegarde…</p>}
 

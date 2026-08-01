@@ -154,7 +154,18 @@ const UnifiedCharacterCard = ({
     </div>
   );
 
-  const infoSection = (
+  const hasInfoContent = Boolean(
+    topStats ||
+    mainStats ||
+    details ||
+    hpText ||
+    aboveHpBar ||
+    typeof hpPercent === 'number' ||
+    displayedShield > 0 ||
+    targetShield > 0
+  );
+
+  const infoSection = hasInfoContent ? (
     <div className={`bg-stone-800 p-3 ${infoSide ? 'flex-1 overflow-y-auto overflow-x-hidden min-w-0' : 'border-t border-stone-600'} ${hideInfoOnLg ? 'lg:hidden' : ''}`}>
       {topStats && (
         <div className="flex justify-between text-xs text-white mb-2 font-bold">
@@ -176,15 +187,17 @@ const UnifiedCharacterCard = ({
       {mainStats && <div className="grid grid-cols-2 gap-1 mb-3 text-xs text-gray-300">{mainStats}</div>}
       {details && <div className="space-y-2">{details}</div>}
     </div>
-  );
+  ) : null;
 
   if (infoSide) {
     return (
       <div className={`w-full ${cardClassName}`.trim()}>
         <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-            {header}
-          </div>
+          {header ? (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-4 py-1 text-[11px] font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+              {header}
+            </div>
+          ) : null}
           <div className={`${baseBorder} bg-stone-900 hidden md:flex md:flex-row`}>
             {infoSide === 'left' ? <>{infoSection}{imageSection}</> : <>{imageSection}{infoSection}</>}
           </div>
@@ -198,11 +211,13 @@ const UnifiedCharacterCard = ({
   }
 
   return (
-    <div className={`w-full max-w-[340px] mx-auto ${cardClassName}`.trim()}>
+    <div className={`w-full mx-auto ${cardClassName?.includes('max-w-') ? cardClassName : `max-w-[340px] ${cardClassName || ''}`.trim()}`.trim()}>
       <div className={`relative shadow-2xl overflow-hidden ${wrapperGlow}`}>
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
-          {header}
-        </div>
+        {header ? (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-200 px-5 py-1 text-xs font-bold shadow-lg z-10 border border-stone-600 text-center whitespace-nowrap">
+            {header}
+          </div>
+        ) : null}
         <div className={`${baseBorder} bg-stone-900`}>
           {imageSection}
           {infoSection}
