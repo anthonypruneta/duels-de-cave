@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import SharedTooltip from '../../components/SharedTooltip';
 import {
   V2_DEFAULT_SPELL_ORDER,
   getSpellById,
@@ -7,6 +8,20 @@ import {
 } from '../data/v2Kit';
 
 const CYCLE_LABELS = ['Cycle 1', 'Cycle 2', 'Cycle 3'];
+
+function KitSpellTooltip({ spell, fallbackId }) {
+  return (
+    <span className="whitespace-normal block text-left max-w-[260px] leading-relaxed">
+      <span className="text-amber-300 font-semibold">
+        {spell?.icon} {spell?.name || fallbackId}
+      </span>
+      <br />
+      <span className="text-stone-400">Provenance : {spell?.sourceLabel || '—'}</span>
+      <br />
+      <span className="text-stone-200">{spell?.description || ''}</span>
+    </span>
+  );
+}
 
 /**
  * Déplace / réordonne un sort. Unicité par cycle uniquement.
@@ -128,18 +143,23 @@ export default function V2RotationEditor({ spellCycles, spellOrder, onChange, di
           {V2_DEFAULT_SPELL_ORDER.map((id) => {
             const spell = getSpellById(id);
             return (
-              <div
+              <SharedTooltip
                 key={`kit-${id}`}
-                draggable={!disabled}
-                onDragStart={(e) => onDragStartKit(e, id)}
-                onDragEnd={onDragEnd}
-                className={`inline-flex items-center gap-1.5 rounded-full border border-sky-700/50 bg-sky-950/50 px-2.5 py-1 text-xs cursor-grab active:cursor-grabbing select-none ${
-                  disabled ? 'opacity-50' : 'hover:border-amber-500/60'
-                }`}
+                content={<KitSpellTooltip spell={spell} fallbackId={id} />}
+                tooltipClassName="whitespace-normal px-3 py-2 max-w-[280px] leading-relaxed"
               >
-                <span>{spell?.icon}</span>
-                <span className="text-stone-200 font-medium">{spell?.name}</span>
-              </div>
+                <div
+                  draggable={!disabled}
+                  onDragStart={(e) => onDragStartKit(e, id)}
+                  onDragEnd={onDragEnd}
+                  className={`inline-flex items-center gap-1.5 rounded-full border border-sky-700/50 bg-sky-950/50 px-2.5 py-1 text-xs cursor-grab active:cursor-grabbing select-none ${
+                    disabled ? 'opacity-50' : 'hover:border-amber-500/60'
+                  }`}
+                >
+                  <span>{spell?.icon}</span>
+                  <span className="text-stone-200 font-medium">{spell?.name}</span>
+                </div>
+              </SharedTooltip>
             );
           })}
         </div>
