@@ -47,3 +47,10 @@ const SUBCLASS_DUNGEON_VISIBLE_DATE = new Date('2026-03-02T00:00:00+01:00');
 export function isSubclassDungeonVisible() {
   return new Date() >= SUBCLASS_DUNGEON_VISIBLE_DATE;
 }
+
+/** Sandbox proto V2 (`/v2`) — activé pour tests. */
+export const V2_PROTOTYPE_ENABLED = true;
+
+export function isV2PrototypeEnabled() {
+  return V2_PROTOTYPE_ENABLED === true;
+}

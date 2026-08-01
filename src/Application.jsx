@@ -33,9 +33,14 @@ import MirrorMode from './components/MirrorMode';
 import PvpLobby from './components/PvpLobby';
 import PvpLeaderboard from './components/PvpLeaderboard';
 import CaveDestiny from './components/CaveDestiny';
+import V2Hub from './v2/components/V2Hub';
+import V2XpDungeon from './v2/components/V2XpDungeon';
+import V2Labyrinth from './v2/components/V2Labyrinth';
+import V2LoreQuest from './v2/components/V2LoreQuest';
 import { loadPersistedBalanceConfig } from './services/balanceConfigService';
 import MaintenanceShutdown from './components/MaintenanceShutdown';
 import { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
+import { isV2PrototypeEnabled } from './data/featureFlags';
 
 /** Repasser à `false` dans `src/config/maintenanceMode.js` pour rouvrir le site. */
 export { FERMETURE_TEMPORAIRE_ACTIVE } from './config/maintenanceMode';
@@ -135,6 +140,43 @@ function Application() {
           <Route path="/boss-rush" element={classicMode(<BossRush />)} />
           <Route path="/mirror" element={classicMode(<MirrorMode />)} />
           <Route path="/cataclysme" element={classic(<WorldBoss />)} />
+
+          {isV2PrototypeEnabled() && (
+            <>
+              <Route
+                path="/v2"
+                element={
+                  <ProtectedRoute>
+                    <V2Hub />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/v2/donjon-xp"
+                element={
+                  <ProtectedRoute>
+                    <V2XpDungeon />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/v2/labyrinthe"
+                element={
+                  <ProtectedRoute>
+                    <V2Labyrinth />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/v2/lore"
+                element={
+                  <ProtectedRoute>
+                    <V2LoreQuest />
+                  </ProtectedRoute>
+                }
+              />
+            </>
+          )}
 
           <Route
             path="/roguelike"
