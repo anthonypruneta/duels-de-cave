@@ -60,6 +60,11 @@ export default function CharacterCardContent({
   infoSide = null,
   /** 'left' | 'right' | null — affiche les détails (arme/passif/race/sort) dans un panneau latéral séparé */
   detailsPlacement = null,
+  /**
+   * Si false avec detailsPlacement : stats restent sur la carte, panneau latéral = détails seulement.
+   * Si omis : comportement historique (!showHpBar).
+   */
+  sidePanelIncludeStats = null,
   /** Classe CSS additionnelle sur l'image (ex: 'scale-x-[-1]' pour miroir) */
   imageClassName = '',
   /** Contenu overlay sur l'image (ex: brume du miroir) */
@@ -471,7 +476,7 @@ export default function CharacterCardContent({
   };
 
   if (detailsPlacement) {
-    const includeStatsInPanel = !showHpBar;
+    const includeStatsInPanel = sidePanelIncludeStats ?? !showHpBar;
 
     const sidePanelContent = (
       <>
@@ -485,8 +490,8 @@ export default function CharacterCardContent({
             </div>
           </div>
         )}
-        {includeStatsInPanel && <div className="border-t border-stone-700/60 pt-3">{details}</div>}
-        {!includeStatsInPanel && details}
+        {includeStatsInPanel && <div className="border-t border-stone-700/60 pt-3">{effectiveDetails}</div>}
+        {!includeStatsInPanel && effectiveDetails}
       </>
     );
 
