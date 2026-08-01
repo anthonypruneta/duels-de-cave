@@ -144,7 +144,9 @@ const UnifiedCharacterCard = ({
         />
       )}
       <div className={`absolute ${title ? 'bottom-2' : 'bottom-5'} left-2 right-2 py-1 text-center z-[10]`}>
-        <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
+        {name ? (
+          <div className="character-card-name font-bold text-lg leading-tight" style={nameStyle}>{name}</div>
+        ) : null}
         {title && (
           <div className="character-card-name text-sm leading-tight mt-0.5" style={nameStyle}>{title}</div>
         )}
