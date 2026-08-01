@@ -41,8 +41,8 @@ export default function CharacterCardContent({
   fallbackOverride = null,
   /** Ajoute du contenu dans la section détails (au-dessus des détails standard). */
   detailsAppend = null,
-  /** Remplace entièrement la section détails (rare). */
-  detailsOverride = null,
+  /** Remplace entièrement la section détails (rare). Passer null pour masquer. */
+  detailsOverride = undefined,
   showHpBar = false,
   currentHP,
   maxHP,
@@ -444,7 +444,7 @@ export default function CharacterCardContent({
     </div>
   );
 
-  const effectiveDetails = detailsOverride ?? details;
+  const effectiveDetails = detailsOverride !== undefined ? detailsOverride : details;
 
   const headerRacePart = (character?.additionalAwakeningRaces?.length > 0 && character?.race)
     ? `${character.race} + ${character.additionalAwakeningRaces[0]}`

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { V2_STAT_KEYS, V2_STAT_LABELS } from '../data/v2Kit';
+import { flattenSpellCycles, normalizeSpellCycles } from '../data/v2Kit';
 import { getLocalDateKey } from '../data/v2LoreStories';
 import {
   ensureV2Prototype,
@@ -29,7 +29,17 @@ export default function V2Hub() {
       setError(res.error || 'Impossible de charger le proto V2');
       setProto(null);
     } else {
-      setProto(res.data);
+      const data = res.data;
+      if (data) {
+        const spellCycles = normalizeSpellCycles(data);
+        setProto({
+          ...data,
+          spellCycles,
+          spellOrder: flattenSpellCycles(spellCycles),
+        });
+      } else {
+        setProto(null);
+      }
     }
     setLoading(false);
   }, [currentUser?.uid]);
@@ -38,11 +48,13 @@ export default function V2Hub() {
     load();
   }, [load]);
 
-  const handleSpellOrderChange = async (nextOrder) => {
+  const handleSpellCyclesChange = async (nextCycles) => {
     if (!currentUser?.uid || !proto) return;
-    setProto({ ...proto, spellOrder: nextOrder });
+    const spellCycles = normalizeSpellCycles(nextCycles);
+    const spellOrder = flattenSpellCycles(spellCycles);
+    setProto({ ...proto, spellCycles, spellOrder });
     setSaving(true);
-    await saveV2Prototype(currentUser.uid, { spellOrder: nextOrder });
+    await saveV2Prototype(currentUser.uid, { spellCycles, spellOrder });
     setSaving(false);
   };
 
@@ -71,7 +83,7 @@ export default function V2Hub() {
             <p className="text-xs uppercase tracking-widest text-amber-500/80 mt-2">Sandbox</p>
             <h1 className="text-3xl font-bold text-amber-400">Proto V2</h1>
             <p className="text-sm text-stone-400 mt-1">
-              Rotation de sorts · XP Fire Emblem · lore quotidien · laby 10 étages
+              Cycles de sorts · XP Fire Emblem · lore quotidien · laby 10 étages
             </p>
           </div>
           {ready && (
@@ -112,20 +124,10 @@ export default function V2Hub() {
             </div>
             {saving && <p className="text-center text-[10px] text-stone-500">Sauvegarde…</p>}
 
-            {(proto.loreBoosts &&
-              Object.values(proto.loreBoosts).some((v) => Number(v) > 0)) && (
-              <p className="text-xs text-emerald-400/90 text-center">
-                Boosts lore :{' '}
-                {V2_STAT_KEYS.filter((k) => proto.loreBoosts[k] > 0)
-                  .map((k) => `+${proto.loreBoosts[k]} ${V2_STAT_LABELS[k]}`)
-                  .join(', ')}
-                {proto.lore?.lastPathLabel ? ` (${proto.lore.lastPathLabel})` : ''}
-              </p>
-            )}
-
             <V2RotationEditor
+              spellCycles={proto.spellCycles}
               spellOrder={proto.spellOrder}
-              onChange={handleSpellOrderChange}
+              onChange={handleSpellCyclesChange}
               disabled={saving}
             />
 

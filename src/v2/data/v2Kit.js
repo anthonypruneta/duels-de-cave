@@ -145,3 +145,53 @@ export function computeFinalStats(prototype) {
 export function getSpellById(spellId) {
   return V2_SPELLS[spellId] || null;
 }
+
+/**
+ * 3 cycles ; unicité par cycle seulement (le même sort peut être dans plusieurs cycles).
+ */
+export function sanitizeSpellCycles(cycles) {
+  const raw = Array.isArray(cycles) ? cycles : [];
+  return [0, 1, 2].map((i) => {
+    const seen = new Set();
+    const out = [];
+    for (const id of raw[i] || []) {
+      if (!id || !V2_SPELLS[id] || seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+    return out;
+  });
+}
+
+/**
+ * Normalise spellCycles. Migre l’ancien spellOrder plat → cycle 1.
+ */
+export function normalizeSpellCycles(prototypeOrCycles) {
+  if (Array.isArray(prototypeOrCycles)) {
+    const sanitized = sanitizeSpellCycles(prototypeOrCycles);
+    if (sanitized.some((c) => c.length > 0)) return sanitized;
+  }
+  const rawCycles = prototypeOrCycles?.spellCycles;
+  if (Array.isArray(rawCycles) && rawCycles.some((c) => Array.isArray(c) && c.length > 0)) {
+    return sanitizeSpellCycles(rawCycles);
+  }
+  const flat = Array.isArray(prototypeOrCycles?.spellOrder)
+    ? prototypeOrCycles.spellOrder.filter((id) => V2_SPELLS[id])
+    : [...V2_DEFAULT_SPELL_ORDER];
+  const uniqueFlat = [];
+  const seen = new Set();
+  for (const id of flat) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    uniqueFlat.push(id);
+  }
+  return [uniqueFlat.length ? uniqueFlat : [...V2_DEFAULT_SPELL_ORDER], [], []];
+}
+
+/** Aplatit les 3 cycles dans l’ordre pour le moteur de combat. */
+export function flattenSpellCycles(cycles) {
+  const flat = sanitizeSpellCycles(
+    Array.isArray(cycles) ? cycles : normalizeSpellCycles(cycles)
+  ).flat();
+  return flat.length > 0 ? flat : [...V2_DEFAULT_SPELL_ORDER];
+}
