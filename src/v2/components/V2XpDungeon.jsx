@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { simulerMatchV2 } from '../combat/v2CombatEngine';
-import { V2_STAT_LABELS } from '../data/v2Kit';
 import { V2_XP_DUNGEON_FLOORS, getXpDungeonFloor } from '../data/v2XpDungeon';
 import { applyXpGain } from '../services/v2Progression';
 import { ensureV2Prototype, saveV2Prototype } from '../services/v2PrototypeService';
 import V2CombatView from './V2CombatView';
+import V2XpGainOverlay from './V2XpGainOverlay';
 
 export default function V2XpDungeon() {
   const { currentUser } = useAuth();
@@ -15,8 +14,7 @@ export default function V2XpDungeon() {
   const [floor, setFloor] = useState(1);
   const [combatResult, setCombatResult] = useState(null);
   const [floorData, setFloorData] = useState(null);
-  const [levelUps, setLevelUps] = useState([]);
-  const [message, setMessage] = useState(null);
+  const [xpAnim, setXpAnim] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,8 +34,7 @@ export default function V2XpDungeon() {
     const data = getXpDungeonFloor(n);
     if (!data) return;
     setError(null);
-    setMessage(null);
-    setLevelUps([]);
+    setXpAnim(null);
     setFloor(n);
     setFloorData(data);
     const result = simulerMatchV2(proto, data.enemy);
@@ -47,6 +44,7 @@ export default function V2XpDungeon() {
   const claimVictory = async () => {
     if (!currentUser?.uid || !proto || !floorData || combatResult?.winner !== 'player') return;
     setBusy(true);
+    const beforeProto = { ...proto };
     const xpResult = applyXpGain(proto, floorData.xpReward);
     const patch = {
       level: xpResult.level,
@@ -60,18 +58,20 @@ export default function V2XpDungeon() {
       setError(save.error);
       return;
     }
-    setProto({ ...proto, ...patch });
-    setLevelUps(xpResult.levelUps);
-    setMessage(`+${floorData.xpReward} XP`);
+    const afterProto = { ...proto, ...patch };
+    setProto(afterProto);
     setCombatResult(null);
-    if (floor < 3) {
-      setFloor(floor + 1);
-    }
+    setXpAnim({
+      beforeProto,
+      afterProto,
+      xpGained: floorData.xpReward,
+      levelUps: xpResult.levelUps,
+    });
+    if (floor < 3) setFloor(floor + 1);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 text-stone-100">
-      <Header />
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -88,24 +88,8 @@ export default function V2XpDungeon() {
         </div>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {message && <p className="text-emerald-400 text-sm">{message}</p>}
 
-        {levelUps.length > 0 && (
-          <div className="rounded border border-amber-700/50 bg-amber-950/30 p-3 space-y-2">
-            <h3 className="font-bold text-amber-300">Level up !</h3>
-            {levelUps.map((lu) => (
-              <div key={lu.level} className="text-sm text-stone-200">
-                Niveau {lu.level} :{' '}
-                {Object.entries(lu.gains)
-                  .filter(([, v]) => v > 0)
-                  .map(([k, v]) => `+${v} ${V2_STAT_LABELS[k]}`)
-                  .join(', ') || 'aucun gain'}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!combatResult && (
+        {!combatResult && !xpAnim && (
           <div className="space-y-3">
             {V2_XP_DUNGEON_FLOORS.map((f) => (
               <button
@@ -147,6 +131,16 @@ export default function V2XpDungeon() {
           />
         )}
       </div>
+
+      {xpAnim && (
+        <V2XpGainOverlay
+          beforeProto={xpAnim.beforeProto}
+          afterProto={xpAnim.afterProto}
+          xpGained={xpAnim.xpGained}
+          levelUps={xpAnim.levelUps}
+          onDone={() => setXpAnim(null)}
+        />
+      )}
     </div>
   );
 }

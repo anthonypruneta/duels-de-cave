@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   V2_PASSIVE,
@@ -15,6 +14,7 @@ import {
   resetV2Prototype,
   saveV2Prototype,
 } from '../services/v2PrototypeService';
+import V2PortraitBrowser from './V2PortraitBrowser';
 import V2RotationEditor from './V2RotationEditor';
 
 export default function V2Hub() {
@@ -22,6 +22,7 @@ export default function V2Hub() {
   const [proto, setProto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [catalogWarning, setCatalogWarning] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -34,6 +35,7 @@ export default function V2Hub() {
       setProto(null);
     } else {
       setProto(res.data);
+      setCatalogWarning(res.catalogError || null);
     }
     setLoading(false);
   }, [currentUser?.uid]);
@@ -50,14 +52,29 @@ export default function V2Hub() {
     setSaving(false);
   };
 
+  const handlePortraitSelect = async (portrait) => {
+    if (!currentUser?.uid || !proto || !portrait?.characterImage) return;
+    const patch = {
+      characterImage: portrait.characterImage,
+      portraitSourceId: portrait.sourceId,
+      portraitName: portrait.name,
+    };
+    setProto({ ...proto, ...patch });
+    setSaving(true);
+    await saveV2Prototype(currentUser.uid, patch);
+    setSaving(false);
+  };
+
   const handleReset = async () => {
     if (!currentUser?.uid) return;
     if (!window.confirm('Réinitialiser le proto V2 (niveau 1, lore, labyrinthe) ?')) return;
     setSaving(true);
     const res = await resetV2Prototype(currentUser.uid);
     setSaving(false);
-    if (res.success) setProto(res.data);
-    else setError(res.error);
+    if (res.success) {
+      setProto(res.data);
+      setCatalogWarning(res.catalogError || null);
+    } else setError(res.error);
   };
 
   const finals = proto ? computeFinalStats(proto) : null;
@@ -65,11 +82,13 @@ export default function V2Hub() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 text-stone-100">
-      <Header />
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-widest text-amber-500/80">Sandbox</p>
+            <Link to="/perso" className="text-xs text-stone-500 hover:text-amber-500">
+              ← Jeu classique
+            </Link>
+            <p className="text-xs uppercase tracking-widest text-amber-500/80 mt-2">Sandbox</p>
             <h1 className="text-3xl font-bold text-amber-400">Proto V2</h1>
             <p className="text-sm text-stone-400 mt-1">
               Rotation de sorts · XP Fire Emblem · lore quotidien · laby 10 étages
@@ -87,21 +106,36 @@ export default function V2Hub() {
 
         {loading && <p className="text-stone-400">Chargement…</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
+        {catalogWarning && (
+          <p className="text-amber-400/90 text-xs">
+            Catalogue portraits : {catalogWarning}
+          </p>
+        )}
 
         {proto && finals && (
           <>
             <section className="rounded-lg border border-stone-700 bg-stone-900/60 p-4 flex flex-wrap gap-4">
-              <img
-                src={proto.characterImage}
-                alt={proto.name}
-                className="w-24 h-24 object-contain"
-                style={{ imageRendering: 'pixelated' }}
-              />
+              {proto.characterImage ? (
+                <img
+                  src={proto.characterImage}
+                  alt={proto.name}
+                  className="w-24 h-24 object-contain bg-stone-950 rounded"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded bg-stone-950 border border-stone-700 flex items-center justify-center text-xs text-stone-500 text-center px-1">
+                  Pas d’image
+                </div>
+              )}
               <div className="flex-1 min-w-[12rem]">
                 <h2 className="text-xl font-bold">{proto.name}</h2>
                 <p className="text-sm text-stone-400">
                   {proto.race} / {proto.class}
                 </p>
+                {proto.portraitName && (
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Portrait BDD : {proto.portraitName}
+                  </p>
+                )}
                 <p className="text-sm text-amber-300 mt-1">
                   Niveau {proto.level} — XP {proto.xp}/{proto.xpToNext || '—'}
                 </p>
@@ -119,6 +153,12 @@ export default function V2Hub() {
                 ))}
               </div>
             </section>
+
+            <V2PortraitBrowser
+              selectedImage={proto.characterImage}
+              onSelect={handlePortraitSelect}
+              disabled={saving}
+            />
 
             {(proto.loreBoosts && Object.values(proto.loreBoosts).some((v) => Number(v) > 0)) && (
               <p className="text-xs text-emerald-400/90">

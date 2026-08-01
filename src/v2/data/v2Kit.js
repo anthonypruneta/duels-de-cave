@@ -93,7 +93,8 @@ export const V2_IMPOSED_CHARACTER = {
   race: 'Orc',
   class: 'Masochiste',
   gender: 'male',
-  characterImage: '/assets/v2/revolte.png',
+  /** Image résolue depuis Firestore (annuaire) — pas de sprite repo. */
+  characterImage: null,
   weaponId: V2_WEAPON.id,
   passiveId: V2_PASSIVE.id,
   /** Stats de départ (avant growth / lore). */

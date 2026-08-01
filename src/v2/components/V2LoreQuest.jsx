@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   V2_LORE_STORY,
@@ -68,7 +67,6 @@ export default function V2LoreQuest() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 text-stone-100">
-      <Header />
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
         <Link to="/v2" className="text-xs text-amber-500 hover:underline">
           ← Hub V2

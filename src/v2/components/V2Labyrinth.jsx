@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header';
 import { useAuth } from '../../contexts/AuthContext';
 import { simulerMatchV2 } from '../combat/v2CombatEngine';
 import {
@@ -9,18 +8,17 @@ import {
   getV2LabyrinthXpReward,
   isV2LabyrinthBossFloor,
 } from '../data/v2Labyrinth';
-import { V2_STAT_LABELS } from '../data/v2Kit';
 import { applyXpGain } from '../services/v2Progression';
 import { ensureV2Prototype, saveV2Prototype } from '../services/v2PrototypeService';
 import V2CombatView from './V2CombatView';
+import V2XpGainOverlay from './V2XpGainOverlay';
 
 export default function V2Labyrinth() {
   const { currentUser } = useAuth();
   const [proto, setProto] = useState(null);
   const [combatResult, setCombatResult] = useState(null);
   const [enemy, setEnemy] = useState(null);
-  const [levelUps, setLevelUps] = useState([]);
-  const [message, setMessage] = useState(null);
+  const [xpAnim, setXpAnim] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -44,8 +42,7 @@ export default function V2Labyrinth() {
     const floor = Math.min(currentFloor, V2_LABYRINTH_FLOOR_COUNT);
     const e = buildV2LabyrinthEnemy(floor);
     setEnemy(e);
-    setLevelUps([]);
-    setMessage(null);
+    setXpAnim(null);
     setError(null);
     setCombatResult(simulerMatchV2(proto, e));
   };
@@ -53,6 +50,7 @@ export default function V2Labyrinth() {
   const claimVictory = async () => {
     if (!currentUser?.uid || !proto || !enemy || combatResult?.winner !== 'player') return;
     setBusy(true);
+    const beforeProto = { ...proto };
     const floor = enemy.floor;
     const xpReward = getV2LabyrinthXpReward(floor);
     const xpResult = applyXpGain(proto, xpReward);
@@ -76,16 +74,20 @@ export default function V2Labyrinth() {
       setError(save.error);
       return;
     }
-    setProto({ ...proto, ...patch });
-    setLevelUps(xpResult.levelUps);
-    setMessage(`Étage ${floor} vaincu · +${xpReward} XP`);
+    const afterProto = { ...proto, ...patch };
+    setProto(afterProto);
     setCombatResult(null);
     setEnemy(null);
+    setXpAnim({
+      beforeProto,
+      afterProto,
+      xpGained: xpReward,
+      levelUps: xpResult.levelUps,
+    });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950 text-stone-100">
-      <Header />
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -103,24 +105,8 @@ export default function V2Labyrinth() {
         </div>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {message && <p className="text-emerald-400 text-sm">{message}</p>}
 
-        {levelUps.length > 0 && (
-          <div className="rounded border border-amber-700/50 bg-amber-950/30 p-3 space-y-2">
-            <h3 className="font-bold text-amber-300">Level up !</h3>
-            {levelUps.map((lu) => (
-              <div key={lu.level} className="text-sm text-stone-200">
-                Niveau {lu.level} :{' '}
-                {Object.entries(lu.gains)
-                  .filter(([, v]) => v > 0)
-                  .map(([k, v]) => `+${v} ${V2_STAT_LABELS[k]}`)
-                  .join(', ')}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!combatResult && (
+        {!combatResult && !xpAnim && (
           <div className="rounded-lg border border-stone-700 bg-stone-900/60 p-5 space-y-4">
             {finished ? (
               <p className="text-emerald-300">Labyrinthe terminé. Reset le proto pour recommencer.</p>
@@ -185,6 +171,16 @@ export default function V2Labyrinth() {
           />
         )}
       </div>
+
+      {xpAnim && (
+        <V2XpGainOverlay
+          beforeProto={xpAnim.beforeProto}
+          afterProto={xpAnim.afterProto}
+          xpGained={xpAnim.xpGained}
+          levelUps={xpAnim.levelUps}
+          onDone={() => setXpAnim(null)}
+        />
+      )}
     </div>
   );
 }
