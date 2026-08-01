@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Export 3:4 */
-const OUTPUT_W = 384;
-const OUTPUT_H = 512;
+/** Export 3:4 — taille réduite pour Storage (carte / portrait suffit). */
+const OUTPUT_W = 288;
+const OUTPUT_H = 384;
+const JPEG_QUALITY = 0.82;
 const ASPECT = 3 / 4; // width / height
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 
 /**
- * Modal cadrage image : zoom + déplacement, export JPEG 3:4.
+ * Modal cadrage image : zoom + déplacement, export JPEG 3:4 compressé.
  */
 export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }) {
   const viewportRef = useRef(null);
@@ -115,7 +116,7 @@ export default function V2ImageCropModal({ imageSrc, onCancel, onConfirm, busy }
     ctx.fillRect(0, 0, OUTPUT_W, OUTPUT_H);
     ctx.drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, OUTPUT_W, OUTPUT_H);
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
     onConfirm?.(dataUrl);
   };
 
