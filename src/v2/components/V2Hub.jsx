@@ -19,6 +19,26 @@ export default function V2Hub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [draftCycles, setDraftCycles] = useState(null);
+  const [cyclesDirty, setCyclesDirty] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState(null);
+
+  const applyProto = useCallback((data) => {
+    if (!data) {
+      setProto(null);
+      setDraftCycles(null);
+      setCyclesDirty(false);
+      return;
+    }
+    const spellCycles = normalizeSpellCycles(data);
+    setProto({
+      ...data,
+      spellCycles,
+      spellOrder: flattenSpellCycles(spellCycles),
+    });
+    setDraftCycles(spellCycles);
+    setCyclesDirty(false);
+  }, []);
 
   const load = useCallback(async () => {
     if (!currentUser?.uid) return;
@@ -27,35 +47,40 @@ export default function V2Hub() {
     const res = await ensureV2Prototype(currentUser.uid);
     if (!res.success) {
       setError(res.error || 'Impossible de charger le proto V2');
-      setProto(null);
+      applyProto(null);
     } else {
-      const data = res.data;
-      if (data) {
-        const spellCycles = normalizeSpellCycles(data);
-        setProto({
-          ...data,
-          spellCycles,
-          spellOrder: flattenSpellCycles(spellCycles),
-        });
-      } else {
-        setProto(null);
-      }
+      applyProto(res.data);
     }
     setLoading(false);
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, applyProto]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const handleSpellCyclesChange = async (nextCycles) => {
-    if (!currentUser?.uid || !proto) return;
-    const spellCycles = normalizeSpellCycles(nextCycles);
+  const handleSpellCyclesChange = (nextCycles) => {
+    if (!proto) return;
+    setDraftCycles(normalizeSpellCycles(nextCycles));
+    setCyclesDirty(true);
+    setSaveFeedback(null);
+  };
+
+  const handleSaveSpellCycles = async () => {
+    if (!currentUser?.uid || !proto || !draftCycles || !cyclesDirty) return;
+    const spellCycles = normalizeSpellCycles(draftCycles);
     const spellOrder = flattenSpellCycles(spellCycles);
-    setProto({ ...proto, spellCycles, spellOrder });
     setSaving(true);
-    await saveV2Prototype(currentUser.uid, { spellCycles, spellOrder });
+    setSaveFeedback(null);
+    const res = await saveV2Prototype(currentUser.uid, { spellCycles, spellOrder });
     setSaving(false);
+    if (!res.success) {
+      setSaveFeedback(res.error || 'Échec de la sauvegarde');
+      return;
+    }
+    setProto({ ...proto, spellCycles, spellOrder });
+    setDraftCycles(spellCycles);
+    setCyclesDirty(false);
+    setSaveFeedback('Cycles enregistrés');
   };
 
   const handleReset = async () => {
@@ -65,7 +90,7 @@ export default function V2Hub() {
     const res = await resetV2Prototype(currentUser.uid);
     setSaving(false);
     if (res.success) {
-      setProto(res.data);
+      applyProto(res.data);
     } else setError(res.error);
   };
 
@@ -122,12 +147,14 @@ export default function V2Hub() {
             <div className="flex justify-center">
               <V2CharacterCard proto={proto} />
             </div>
-            {saving && <p className="text-center text-[10px] text-stone-500">Sauvegarde…</p>}
-
             <V2RotationEditor
-              spellCycles={proto.spellCycles}
+              spellCycles={draftCycles ?? proto.spellCycles}
               spellOrder={proto.spellOrder}
               onChange={handleSpellCyclesChange}
+              onSave={handleSaveSpellCycles}
+              dirty={cyclesDirty}
+              saving={saving}
+              saveFeedback={saveFeedback}
               disabled={saving}
             />
 

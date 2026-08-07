@@ -67,7 +67,16 @@ export function removeSpellFromCycle(cycles, cycleIndex, spellIndex) {
  * 3 colonnes = 3 cycles + kit source. Glisser-déposer.
  * Un sort peut figurer dans plusieurs cycles, une seule fois par cycle.
  */
-export default function V2RotationEditor({ spellCycles, spellOrder, onChange, disabled }) {
+export default function V2RotationEditor({
+  spellCycles,
+  spellOrder,
+  onChange,
+  onSave,
+  dirty = false,
+  saving = false,
+  saveFeedback = null,
+  disabled,
+}) {
   const cycles = useMemo(
     () => normalizeSpellCycles(spellCycles ?? { spellOrder }),
     [spellCycles, spellOrder]
@@ -131,7 +140,7 @@ export default function V2RotationEditor({ spellCycles, spellOrder, onChange, di
         </h3>
         <p className="text-xs text-stone-400 mt-1">
           3 cycles enchaînés en combat. Glisse depuis le kit ou entre colonnes. Un sort ne peut
-          apparaître qu’une fois dans un même cycle.
+          apparaître qu’une fois dans un même cycle. Pense à enregistrer pour garder tes choix.
         </p>
       </div>
 
@@ -241,6 +250,22 @@ export default function V2RotationEditor({ spellCycles, spellOrder, onChange, di
             </ul>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-stone-700/60">
+        <p className="text-[11px] text-stone-500">
+          {dirty
+            ? 'Modifications non enregistrées'
+            : saveFeedback || 'Aucun changement en attente'}
+        </p>
+        <button
+          type="button"
+          onClick={() => onSave?.()}
+          disabled={disabled || saving || !dirty}
+          className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
       </div>
     </div>
   );
