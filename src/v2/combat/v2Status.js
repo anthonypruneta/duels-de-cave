@@ -4,7 +4,6 @@
 
 export function createEmptyStatus() {
   return {
-    fureurSang: 0,
     stigmate: 0,
     /** Esquive totale (prochaine action adverse) */
     esquive: 0,
@@ -24,20 +23,14 @@ export function createEmptyStatus() {
 export function tickStatuses(status) {
   return {
     ...status,
-    fureurSang: Math.max(0, (status.fureurSang || 0) - 1),
     stigmate: Math.max(0, (status.stigmate || 0) - 1),
     antiHeal: Math.max(0, (status.antiHeal || 0) - 1),
-    // familiar : décrémenté à chaque action bonus (pas au tick de tour)
     familiar: status.familiar || 0,
     esquive: status.esquive || 0,
     riposteArmed: !!status.riposteArmed,
     aegisArmed: !!status.aegisArmed,
     nextAttackPenalty: status.nextAttackPenalty || 0,
   };
-}
-
-export function hasFureurSang(status) {
-  return (status?.fureurSang || 0) > 0;
 }
 
 export function hasStigmate(status) {
