@@ -39,10 +39,23 @@ function applyDamage(attacker, defender, raw, log, label) {
   return dmg;
 }
 
+/**
+ * @returns {{ damageToEnemy: number, damageToPlayer: number, healToPlayer: number }}
+ */
 function castSpell(attacker, defender, spellId, log) {
   const spell = getSpellById(spellId);
   const spellName = spell?.name || spellId;
   log.push(`✨ ${attacker.name} lance ${spellName} !`);
+
+  let damageToEnemy = 0;
+  let damageToPlayer = 0;
+  let healToPlayer = 0;
+
+  const hitEnemy = (raw, label) => {
+    const d = applyDamage(attacker, defender, raw, log, label);
+    damageToEnemy += d;
+    return d;
+  };
 
   switch (spellId) {
     case V2_SPELL_IDS.FUREUR_SANG: {
@@ -56,21 +69,20 @@ function castSpell(attacker, defender, spellId, log) {
       break;
     }
     case V2_SPELL_IDS.PLUIE_CELESTE: {
-      const hit1 = physDamage(attacker, defender);
-      applyDamage(attacker, defender, hit1, log, 'Pluie Céleste (1)');
+      hitEnemy(physDamage(attacker, defender), 'Pluie Céleste (1)');
       if (defender.currentHP > 0) {
-        const hit2 = Math.max(1, Math.round(physDamage(attacker, defender) * 0.7));
-        applyDamage(attacker, defender, hit2, log, 'Pluie Céleste (2)');
+        hitEnemy(Math.max(1, Math.round(physDamage(attacker, defender) * 0.7)), 'Pluie Céleste (2)');
       }
       break;
     }
     case V2_SPELL_IDS.PURGE_SANGLANTE: {
       const taken = attacker.damageTakenSincePurge || 0;
       const raw = Math.max(1, Math.round(taken * 0.07 + attacker.base.cap * 0.005));
-      applyDamage(attacker, defender, raw, log, 'Purge sanglante');
+      hitEnemy(raw, 'Purge sanglante');
       const heal = Math.max(0, Math.round(taken * 0.12));
       if (heal > 0) {
         attacker.currentHP = Math.min(attacker.maxHP, attacker.currentHP + heal);
+        healToPlayer = heal;
         log.push(`💚 ${attacker.name} se soigne de ${heal} PV (${attacker.currentHP}/${attacker.maxHP}).`);
       }
       attacker.damageTakenSincePurge = 0;
@@ -78,20 +90,24 @@ function castSpell(attacker, defender, spellId, log) {
       break;
     }
     default: {
-      const raw = physDamage(attacker, defender);
-      applyDamage(attacker, defender, raw, log, 'Attaque');
+      hitEnemy(physDamage(attacker, defender), 'Attaque');
     }
   }
+
+  if (!attacker.isPlayer) {
+    damageToPlayer = damageToEnemy;
+    damageToEnemy = 0;
+  }
+
+  return { damageToEnemy, damageToPlayer, healToPlayer };
 }
 
 function enemyAutoAttack(attacker, defender, log) {
   const raw = physDamage(attacker, defender);
-  applyDamage(attacker, defender, raw, log, 'Attaque');
+  const dmg = applyDamage(attacker, defender, raw, log, 'Attaque');
+  return { damageToEnemy: 0, damageToPlayer: dmg, healToPlayer: 0 };
 }
 
-/**
- * Prépare un combattant joueur depuis le document proto.
- */
 export function preparerCombattantV2(prototype) {
   const base = computeFinalStats(prototype);
   const maxHP = base.hp;
@@ -110,9 +126,6 @@ export function preparerCombattantV2(prototype) {
   };
 }
 
-/**
- * Prépare un ennemi brut { name, base, ... }.
- */
 export function preparerEnnemiV2(enemy) {
   const base = { ...enemy.base };
   const maxHP = base.hp;
@@ -130,24 +143,24 @@ export function preparerEnnemiV2(enemy) {
   };
 }
 
+function nextPlayerSpellId(player) {
+  if (!player.spellOrder?.length) return null;
+  return player.spellOrder[player.spellIndex % player.spellOrder.length];
+}
+
 function takeTurn(attacker, defender, log) {
   attacker.status = tickStatuses(attacker.status);
 
   if (attacker.isPlayer && attacker.spellOrder?.length) {
     const spellId = attacker.spellOrder[attacker.spellIndex % attacker.spellOrder.length];
     attacker.spellIndex += 1;
-    castSpell(attacker, defender, spellId, log);
-  } else {
-    enemyAutoAttack(attacker, defender, log);
+    const fx = castSpell(attacker, defender, spellId, log);
+    return { spellId, ...fx };
   }
+  const fx = enemyAutoAttack(attacker, defender, log);
+  return { spellId: null, ...fx };
 }
 
-/**
- * Simule un match V2.
- * @param {object} prototypeDoc — doc joueur brut
- * @param {object} enemyRaw — { name, base, icon? }
- * @returns {{ winner: 'player'|'enemy'|'draw', log: string[], steps: object[], playerFinal, enemyFinal }}
- */
 export function simulerMatchV2(prototypeDoc, enemyRaw) {
   const player = preparerCombattantV2(prototypeDoc);
   const enemy = preparerEnnemiV2(enemyRaw);
@@ -155,7 +168,7 @@ export function simulerMatchV2(prototypeDoc, enemyRaw) {
   const steps = [];
 
   log.push(`⚔️ ${player.name} vs ${enemy.name} !`);
-  steps.push(snapshotStep(0, player, enemy, log[log.length - 1]));
+  steps.push(snapshotStep(0, player, enemy, log[log.length - 1], {}));
 
   let turn = 0;
   while (turn < MAX_TURNS && player.currentHP > 0 && enemy.currentHP > 0) {
@@ -168,8 +181,8 @@ export function simulerMatchV2(prototypeDoc, enemyRaw) {
     for (const actor of order) {
       if (player.currentHP <= 0 || enemy.currentHP <= 0) break;
       const target = actor === player ? enemy : player;
-      takeTurn(actor, target, log);
-      steps.push(snapshotStep(turn, player, enemy, log[log.length - 1]));
+      const fx = takeTurn(actor, target, log);
+      steps.push(snapshotStep(turn, player, enemy, log[log.length - 1], fx));
     }
   }
 
@@ -192,10 +205,11 @@ export function simulerMatchV2(prototypeDoc, enemyRaw) {
     steps,
     playerFinal: { currentHP: player.currentHP, maxHP: player.maxHP },
     enemyFinal: { currentHP: enemy.currentHP, maxHP: enemy.maxHP },
+    spellOrder: player.spellOrder ? [...player.spellOrder] : [],
   };
 }
 
-function snapshotStep(turn, player, enemy, lastLine) {
+function snapshotStep(turn, player, enemy, lastLine, fx = {}) {
   return {
     turn,
     playerHP: player.currentHP,
@@ -205,5 +219,11 @@ function snapshotStep(turn, player, enemy, lastLine) {
     playerStatus: { ...player.status },
     enemyStatus: { ...enemy.status },
     line: lastLine,
+    damageToEnemy: fx.damageToEnemy || 0,
+    damageToPlayer: fx.damageToPlayer || 0,
+    healToPlayer: fx.healToPlayer || 0,
+    spellId: fx.spellId || null,
+    nextSpellId: nextPlayerSpellId(player),
+    spellOrder: player.spellOrder ? [...player.spellOrder] : [],
   };
 }
