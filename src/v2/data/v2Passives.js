@@ -24,7 +24,7 @@ export function getV2Passive(passiveId) {
   return V2_PASSIVES[passiveId] || null;
 }
 
-/** Normalise [id|null, id|null] (longueur 2). */
+/** Normalise [id|null, id|null] (longueur 2). Emplacements vides autorisés (départ à zéro). */
 export function normalizePassiveIds(prototypeOrIds) {
   let raw = [];
   if (Array.isArray(prototypeOrIds)) {
@@ -34,14 +34,13 @@ export function normalizePassiveIds(prototypeOrIds) {
   } else if (prototypeOrIds?.passiveId) {
     raw = [prototypeOrIds.passiveId];
   } else {
-    raw = [V2_DEFAULT_PASSIVE_ID];
+    raw = [null, null];
   }
   const out = [null, null];
   for (let i = 0; i < V2_PASSIVE_SLOT_COUNT; i += 1) {
     const id = raw[i];
     out[i] = id && V2_PASSIVES[id] ? id : null;
   }
-  if (!out[0] && !out[1]) out[0] = V2_DEFAULT_PASSIVE_ID;
   return out;
 }
 

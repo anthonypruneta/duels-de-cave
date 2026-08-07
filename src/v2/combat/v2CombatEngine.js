@@ -15,7 +15,16 @@ import {
   getSpellById,
   normalizeSpellCycles,
 } from '../data/v2Kit';
-import { V2_RACE_PASSIVES, isOrcFureurActive } from '../data/v2Races';
+import {
+  V2_RACE_PASSIVES,
+  consumeCendresBraisesIfNeeded,
+  createEmptyRaceState,
+  getGnomeDodgeChance,
+  getRaceCritChance,
+  getRaceCritDamageMult,
+  getRaceSpellPowerMult,
+  isOrcFureurActive,
+} from '../data/v2Races';
 import {
   createEmptyStatus,
   hasAntiHeal,
@@ -44,7 +53,6 @@ function rawFromPower(defender, power, damageType, ignoreResist = 0) {
 
 function outgoingMultiplier(attacker) {
   let m = 1;
-  // Passif race Orc — Fureur du sang
   if (isOrcFureurActive(attacker)) {
     m *= V2_RACE_PASSIVES.Orc.damageBonus;
   }
@@ -59,44 +67,97 @@ function incomingMultiplier(defender) {
   return m;
 }
 
+function tryRevive(target, log) {
+  if (target?.race !== 'Mort-vivant' || !target.raceState) return false;
+  if (target.raceState.revived || target.currentHP > 0) return false;
+  const pct = V2_RACE_PASSIVES['Mort-vivant'].revivePercent;
+  target.raceState.revived = true;
+  target.currentHP = Math.max(1, Math.round(target.maxHP * pct));
+  log.push(`☠️ ${target.name} revient à ${target.currentHP} PV (Non-mort) !`);
+  return true;
+}
+
+function registerHpDamageTaken(target, hpLoss, log) {
+  if (hpLoss <= 0 || !target?.raceState) return;
+  if (target.race === 'Cendrés') {
+    const p = V2_RACE_PASSIVES.Cendrés;
+    const before = Math.floor(target.raceState.cendresDamage / (target.maxHP * p.hpDamageThreshold));
+    target.raceState.cendresDamage += hpLoss;
+    const after = Math.floor(target.raceState.cendresDamage / (target.maxHP * p.hpDamageThreshold));
+    const gained = after - before;
+    if (gained > 0) {
+      target.raceState.cendresBank += gained;
+      log.push(`🔥 ${target.name} gagne ${gained} braise(s) (banque ${target.raceState.cendresBank}).`);
+    }
+  }
+}
+
 /**
  * Dégâts directs (riposte déjà mitigée) — sans retrigger esquive / aegis / riposte.
  */
 function applyDirectHpLoss(target, amount, log, label) {
   const dmg = Math.max(0, Math.round(amount));
   if (dmg <= 0) return 0;
+  let dealt = dmg;
   if (target.shield > 0) {
     const absorbed = Math.min(target.shield, dmg);
     target.shield -= absorbed;
-    const rest = dmg - absorbed;
+    dealt = dmg - absorbed;
     if (absorbed > 0) log.push(`🛡️ Bouclier absorbe ${absorbed} (${label}).`);
-    if (rest <= 0) return absorbed;
-    target.currentHP = Math.max(0, target.currentHP - rest);
-    target.damageTakenSincePurge = (target.damageTakenSincePurge || 0) + rest;
-    return dmg;
+    if (dealt <= 0) return absorbed;
   }
-  target.currentHP = Math.max(0, target.currentHP - dmg);
-  target.damageTakenSincePurge = (target.damageTakenSincePurge || 0) + dmg;
+  target.currentHP = Math.max(0, target.currentHP - dealt);
+  target.damageTakenSincePurge = (target.damageTakenSincePurge || 0) + dealt;
+  registerHpDamageTaken(target, dealt, log);
+  if (target.currentHP <= 0) tryRevive(target, log);
   return dmg;
 }
 
 /**
  * Pipeline de dégâts : `raw` = déjà calculé (power − 0,5 × resist).
+ * @param {{ isCapacity?: boolean, damageType?: 'phys'|'mag' }} [opts]
  * @returns {number} dégâts PV réellement infligés (après bouclier)
  */
-function applyDamage(attacker, defender, raw, log, label) {
+function applyDamage(attacker, defender, raw, log, label, opts = {}) {
   if ((defender.status.esquive || 0) > 0) {
     defender.status.esquive = 0;
     log.push(`🌀 ${defender.name} esquive totalement (${label}) !`);
     return 0;
   }
 
+  const gnomeDodge = getGnomeDodgeChance(defender, attacker);
+  if (gnomeDodge > 0 && Math.random() < gnomeDodge) {
+    log.push(`🧬 ${defender.name} esquive (Gnome, ${Math.round(gnomeDodge * 100)} %) !`);
+    return 0;
+  }
+
   let dmg = Math.max(1, Math.round(raw * outgoingMultiplier(attacker) * incomingMultiplier(defender)));
+
+  const critChance = getRaceCritChance(attacker, defender);
+  if (critChance > 0 && Math.random() < critChance) {
+    const critMult = getRaceCritDamageMult(attacker, defender);
+    dmg = Math.max(1, Math.round(dmg * critMult));
+    log.push(`💥 Critique ×${critMult.toFixed(2)} !`);
+  }
 
   if (attacker.status.nextAttackPenalty > 0) {
     dmg = Math.max(1, Math.round(dmg * (1 - attacker.status.nextAttackPenalty)));
     attacker.status.nextAttackPenalty = 0;
     log.push(`💋 Attaque affaiblie…`);
+  }
+
+  // Turtlekin : premier gros coup plafonné
+  if (
+    defender.race === 'Turtlekin' &&
+    defender.raceState &&
+    !defender.raceState.turtlekinUsed
+  ) {
+    const cap = Math.round(defender.maxHP * V2_RACE_PASSIVES.Turtlekin.firstHitCapPercent);
+    if (dmg > cap) {
+      defender.raceState.turtlekinUsed = true;
+      log.push(`🐢 Carapace : coup plafonné à ${cap} PV.`);
+      dmg = cap;
+    }
   }
 
   if (defender.shield > 0) {
@@ -115,9 +176,49 @@ function applyDamage(attacker, defender, raw, log, label) {
 
   defender.currentHP = Math.max(0, defender.currentHP - dmg);
   defender.damageTakenSincePurge = (defender.damageTakenSincePurge || 0) + dmg;
+  registerHpDamageTaken(defender, dmg, log);
   log.push(
     `${attacker.name} — ${label} : ${dmg} dégâts → ${defender.name} (${defender.currentHP}/${defender.maxHP} PV)`
   );
+
+  if (defender.currentHP <= 0) tryRevive(defender, log);
+
+  // Lycan : saignement
+  if (attacker.race === 'Lycan' && dmg > 0) {
+    const add = V2_RACE_PASSIVES.Lycan.bleedPerHit || 1;
+    defender.status.bleedStacks = (defender.status.bleedStacks || 0) + add;
+    log.push(`🐺 Saignement ×${defender.status.bleedStacks} sur ${defender.name}.`);
+  }
+
+  // Sirène : stack sur capacité reçue
+  if (
+    opts.isCapacity &&
+    defender.race === 'Sirène' &&
+    defender.raceState &&
+    dmg > 0
+  ) {
+    const p = V2_RACE_PASSIVES.Sirène;
+    if (defender.raceState.sireneStacks < p.maxStacks) {
+      defender.raceState.sireneStacks += 1;
+      log.push(
+        `🧜 ${defender.name} : chant ×${defender.raceState.sireneStacks} (+${Math.round(p.stackBonus * 100)} % / stack).`
+      );
+    }
+  }
+
+  // Mindflayer : copie la 1ʳᵉ capacité reçue
+  if (
+    opts.isCapacity &&
+    defender.race === 'Mindflayer' &&
+    defender.raceState &&
+    !defender.raceState.mindflayerDone &&
+    !defender.raceState.mindflayerPending &&
+    dmg > 0
+  ) {
+    const dtype = opts.damageType || 'phys';
+    defender.raceState.mindflayerPending = { raw: dmg, damageType: dtype };
+    log.push(`🦑 ${defender.name} mémorise l’attaque (${label}).`);
+  }
 
   if (defender.status.aegisArmed) {
     defender.status.aegisArmed = false;
@@ -130,7 +231,6 @@ function applyDamage(attacker, defender, raw, log, label) {
     );
   }
 
-  // Riposte = magique : power = % des dégâts, mitigé par ResC de l’attaquant
   if (defender.status.riposteArmed) {
     defender.status.riposteArmed = false;
     const C = V2_CLASS_CONSTANTS.paladin;
@@ -144,8 +244,12 @@ function applyDamage(attacker, defender, raw, log, label) {
   return dmg;
 }
 
-function applyHeal(target, amount, log) {
+function applyHeal(target, amount, log, healer = null, defenderForMult = null) {
   let heal = Math.max(0, Math.round(amount));
+  if (healer && defenderForMult) {
+    heal = Math.max(0, Math.round(heal * getRaceSpellPowerMult(healer, defenderForMult)));
+    consumeCendresBraisesIfNeeded(healer, log);
+  }
   if (heal <= 0) return 0;
   if (hasAntiHeal(target.status)) {
     const reduced = Math.max(
@@ -193,15 +297,20 @@ function castSpell(attacker, defender, spellId, log) {
   const fx = { damageToEnemy: 0, damageToPlayer: 0, healToPlayer: 0 };
 
   const hit = (power, damageType, label, ignoreResist = 0) => {
-    const raw = rawFromPower(defender, power, damageType, ignoreResist);
-    const d = applyDamage(attacker, defender, raw, log, label);
+    const scaled = power * getRaceSpellPowerMult(attacker, defender);
+    consumeCendresBraisesIfNeeded(attacker, log);
+    const raw = rawFromPower(defender, scaled, damageType, ignoreResist);
+    const d = applyDamage(attacker, defender, raw, log, label, {
+      isCapacity: true,
+      damageType,
+    });
     if (attacker.isPlayer) fx.damageToEnemy += d;
     else fx.damageToPlayer += d;
     return d;
   };
 
   const healSelf = (amount) => {
-    const h = applyHeal(attacker, amount, log);
+    const h = applyHeal(attacker, amount, log, attacker, defender);
     if (attacker.isPlayer) fx.healToPlayer += h;
     return h;
   };
@@ -400,11 +509,70 @@ function castSpell(attacker, defender, spellId, log) {
 
 function enemyAutoAttack(attacker, defender, log) {
   const fx = { damageToEnemy: 0, damageToPlayer: 0, healToPlayer: 0 };
-  const raw = rawFromPower(defender, attacker.base.auto, 'phys');
-  const dmg = applyDamage(attacker, defender, raw, log, 'Attaque');
+  const power = attacker.base.auto * getRaceSpellPowerMult(attacker, defender);
+  consumeCendresBraisesIfNeeded(attacker, log);
+  const raw = rawFromPower(defender, power, 'phys');
+  const dmg = applyDamage(attacker, defender, raw, log, 'Attaque', {
+    isCapacity: true,
+    damageType: 'phys',
+  });
   if (attacker.isPlayer) fx.damageToEnemy = dmg;
   else fx.damageToPlayer = dmg;
   return fx;
+}
+
+function applyStartOfTurnRace(attacker, defender, log, fx) {
+  // Sylvari regen
+  if (attacker.race === 'Sylvari') {
+    const pct = V2_RACE_PASSIVES.Sylvari.regenPercent;
+    const amount = attacker.maxHP * pct;
+    const h = applyHeal(attacker, amount, log);
+    if (attacker.isPlayer) fx.healToPlayer += h;
+  }
+
+  // Lycan bleed DoT on self at start of turn
+  const stacks = attacker.status?.bleedStacks || 0;
+  if (stacks > 0) {
+    const pct = V2_RACE_PASSIVES.Lycan.bleedPercentPerStack;
+    const raw = Math.max(1, Math.round(attacker.maxHP * pct * stacks));
+    const dealt = applyDirectHpLoss(attacker, raw, log, 'Saignement');
+    log.push(`🐺 Saignement (${stacks}) : ${dealt} PV.`);
+    if (attacker.isPlayer) fx.damageToPlayer += dealt;
+    else fx.damageToEnemy += dealt;
+  }
+
+  // Cendrés : pool de braises
+  if (attacker.race === 'Cendrés' && attacker.raceState) {
+    const p = V2_RACE_PASSIVES.Cendrés;
+    const fromBank = attacker.raceState.cendresBank || 0;
+    attacker.raceState.cendresPool = p.guaranteedBraisesPerTurn + fromBank;
+    attacker.raceState.cendresBank = 0;
+    attacker.raceState.cendresSpent = false;
+    if (attacker.raceState.cendresPool > 0) {
+      log.push(`🔥 Pool de braises : ${attacker.raceState.cendresPool}.`);
+    }
+  }
+
+  // Mindflayer : relance la copie mémorisée
+  if (
+    attacker.race === 'Mindflayer' &&
+    attacker.raceState?.mindflayerPending &&
+    !attacker.raceState.mindflayerDone
+  ) {
+    const pending = attacker.raceState.mindflayerPending;
+    attacker.raceState.mindflayerPending = null;
+    attacker.raceState.mindflayerDone = true;
+    const bonus =
+      attacker.base.cap * V2_RACE_PASSIVES.Mindflayer.stealSpellCapDamageScale;
+    const power = pending.raw + bonus;
+    const raw = rawFromPower(defender, power, pending.damageType || 'phys');
+    const d = applyDamage(attacker, defender, raw, log, 'Vol mental', {
+      isCapacity: false,
+      damageType: pending.damageType || 'phys',
+    });
+    if (attacker.isPlayer) fx.damageToEnemy += d;
+    else fx.damageToPlayer += d;
+  }
 }
 
 export function preparerCombattantV2(prototype) {
@@ -412,7 +580,7 @@ export function preparerCombattantV2(prototype) {
   const maxHP = base.hp;
   const spellOrder = flattenSpellCycles(normalizeSpellCycles(prototype));
   return {
-    name: prototype.name || 'Revolte',
+    name: prototype.name || 'Champion',
     isPlayer: true,
     race: prototype.race || null,
     className: prototype.class || null,
@@ -424,6 +592,7 @@ export function preparerCombattantV2(prototype) {
     spellIndex: 0,
     damageTakenSincePurge: 0,
     status: createEmptyStatus(),
+    raceState: createEmptyRaceState(),
     characterImage: prototype.characterImage || null,
   };
 }
@@ -434,6 +603,7 @@ export function preparerEnnemiV2(enemy) {
   return {
     name: enemy.name || 'Ennemi',
     isPlayer: false,
+    race: enemy.race || null,
     base,
     currentHP: maxHP,
     maxHP,
@@ -442,6 +612,7 @@ export function preparerEnnemiV2(enemy) {
     spellIndex: 0,
     damageTakenSincePurge: 0,
     status: createEmptyStatus(),
+    raceState: createEmptyRaceState(),
     icon: enemy.icon || null,
   };
 }
@@ -453,15 +624,31 @@ function nextPlayerSpellId(player) {
 
 function takeTurn(attacker, defender, log) {
   attacker.status = tickStatuses(attacker.status);
+  const fx = { damageToEnemy: 0, damageToPlayer: 0, healToPlayer: 0 };
+
+  applyStartOfTurnRace(attacker, defender, log, fx);
+  if (attacker.currentHP <= 0 || defender.currentHP <= 0) {
+    return { spellId: null, ...fx };
+  }
 
   if (attacker.isPlayer && attacker.spellOrder?.length) {
     const spellId = attacker.spellOrder[attacker.spellIndex % attacker.spellOrder.length];
     attacker.spellIndex += 1;
-    const fx = castSpell(attacker, defender, spellId, log);
-    return { spellId, ...fx };
+    const castFx = castSpell(attacker, defender, spellId, log);
+    return {
+      spellId,
+      damageToEnemy: fx.damageToEnemy + castFx.damageToEnemy,
+      damageToPlayer: fx.damageToPlayer + castFx.damageToPlayer,
+      healToPlayer: fx.healToPlayer + castFx.healToPlayer,
+    };
   }
-  const fx = enemyAutoAttack(attacker, defender, log);
-  return { spellId: null, ...fx };
+  const autoFx = enemyAutoAttack(attacker, defender, log);
+  return {
+    spellId: null,
+    damageToEnemy: fx.damageToEnemy + autoFx.damageToEnemy,
+    damageToPlayer: fx.damageToPlayer + autoFx.damageToPlayer,
+    healToPlayer: fx.healToPlayer + autoFx.healToPlayer,
+  };
 }
 
 export function simulerMatchV2(prototypeDoc, enemyRaw) {

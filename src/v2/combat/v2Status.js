@@ -17,6 +17,8 @@ export function createEmptyStatus() {
     antiHeal: 0,
     /** Prochaine attaque sortante réduite (0–1), ex. Succube 0.5 */
     nextAttackPenalty: 0,
+    /** Stacks de saignement Lycan */
+    bleedStacks: 0,
   };
 }
 
@@ -30,6 +32,7 @@ export function tickStatuses(status) {
     riposteArmed: !!status.riposteArmed,
     aegisArmed: !!status.aegisArmed,
     nextAttackPenalty: status.nextAttackPenalty || 0,
+    bleedStacks: status.bleedStacks || 0,
   };
 }
 

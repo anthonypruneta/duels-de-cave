@@ -10,13 +10,12 @@ import {
   isOnceInRotationSpell,
 } from './v2Classes';
 import {
-  V2_DEFAULT_PASSIVE_ID,
   getEquippedPassiveSpellIds,
   getV2Passive,
   normalizePassiveIds,
 } from './v2Passives';
+import { applyEcailleuxStatLink, getRaceStatBonuses } from './v2Races';
 import {
-  V2_DEFAULT_WEAPON_ID,
   V2_WEAPON_SPELL_IDS,
   V2_WEAPONS,
   getV2Weapon,
@@ -143,27 +142,16 @@ export const V2_SPELLS = {
   ...V2_CLASS_SPELLS,
 };
 
-/** @deprecated Prefer getV2Weapon — conservé pour imports existants. */
-export const V2_WEAPON = V2_WEAPONS[V2_DEFAULT_WEAPON_ID];
-
-/** @deprecated Prefer getV2Passive — conservé pour imports existants. */
-export const V2_PASSIVE = {
-  id: V2_DEFAULT_PASSIVE_ID,
-  name: 'Marque du Martyr',
-  spellId: V2_SPELL_IDS.STIGMATE,
-  description: 'Passif adapté V2 — sort Stigmate.',
-};
-
-/** Stats / defaults de création (race/classe viennent du roll joueur). */
+/** Stats / defaults de création — départ à zéro (pas d’arme / passif équipé). */
 export const V2_IMPOSED_CHARACTER = {
   name: 'Champion',
   race: 'Humain',
   class: 'Guerrier',
   gender: 'male',
   characterImage: null,
-  weaponId: V2_DEFAULT_WEAPON_ID,
-  passiveId: V2_DEFAULT_PASSIVE_ID,
-  passiveIds: [V2_DEFAULT_PASSIVE_ID, null],
+  weaponId: null,
+  passiveId: null,
+  passiveIds: [null, null],
   base: {
     hp: 140,
     auto: 22,
@@ -191,11 +179,11 @@ export function replaceSpellInCycles(cycles, oldSpellId, newSpellId) {
   return sanitizeSpellCycles(next);
 }
 
-/** Kit : base + arme + passifs équipés + classe (les races sont des passifs, pas des sorts). */
+/** Kit : base + arme (si équipée) + passifs équipés + classe (races = passifs hors rotation). */
 export function getAvailableKitSpellIds(prototype = V2_IMPOSED_CHARACTER) {
   const ids = [...V2_BASIC_SPELL_IDS];
 
-  const weapon = getV2Weapon(prototype?.weaponId) || getV2Weapon(V2_DEFAULT_WEAPON_ID);
+  const weapon = getV2Weapon(prototype?.weaponId);
   if (weapon?.spellId) ids.push(weapon.spellId);
 
   ids.push(...getEquippedPassiveSpellIds(prototype));
@@ -266,11 +254,14 @@ export function mergeV2Stats(...blocks) {
 }
 
 export function computeFinalStats(prototype) {
-  return mergeV2Stats(
+  const raceName = prototype?.race || V2_IMPOSED_CHARACTER.race;
+  const merged = mergeV2Stats(
     prototype?.base || V2_IMPOSED_CHARACTER.base,
+    getRaceStatBonuses(raceName),
     prototype?.growthGains,
     prototype?.loreBoosts
   );
+  return applyEcailleuxStatLink(merged, raceName);
 }
 
 export function getSpellById(spellId) {
