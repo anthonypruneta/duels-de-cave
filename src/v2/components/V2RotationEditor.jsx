@@ -2,7 +2,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import SharedTooltip from '../../components/SharedTooltip';
 import {
   V2_DEFAULT_SPELL_ORDER,
+  getSpellBorderClass,
   getSpellById,
+  isOnceInRotationSpell,
   normalizeSpellCycles,
   sanitizeSpellCycles,
 } from '../data/v2Kit';
@@ -10,11 +12,29 @@ import {
 const CYCLE_LABELS = ['Cycle 1', 'Cycle 2', 'Cycle 3'];
 
 function KitSpellTooltip({ spell, fallbackId }) {
+  const typeLabel =
+    spell?.source === 'basic'
+      ? 'Sort de base'
+      : spell?.damageType === 'phys'
+        ? 'Physique (vs DEF)'
+        : spell?.damageType === 'mag'
+          ? 'Magique (vs ResC)'
+          : spell?.damageType === 'heal'
+            ? 'Soin'
+            : spell?.damageType === 'util'
+              ? 'Utilitaire'
+              : null;
   return (
     <span className="whitespace-normal block text-left max-w-[260px] leading-relaxed">
       <span className="text-amber-300 font-semibold">
         {spell?.icon} {spell?.name || fallbackId}
       </span>
+      {typeLabel && (
+        <>
+          <br />
+          <span className="text-sky-300/90">{typeLabel}</span>
+        </>
+      )}
       <br />
       <span className="text-stone-400">Provenance : {spell?.sourceLabel || '—'}</span>
       <br />
@@ -49,6 +69,7 @@ export function addSpellToCycle(cycles, spellId, toCycle, toIndex) {
   const next = sanitizeSpellCycles(cycles).map((c) => [...c]);
   if (!getSpellById(spellId) || toCycle < 0 || toCycle > 2) return next;
   if (next[toCycle].includes(spellId)) return next;
+  if (isOnceInRotationSpell(spellId) && next.flat().includes(spellId)) return next;
   let insertAt = typeof toIndex === 'number' ? toIndex : next[toCycle].length;
   insertAt = Math.max(0, Math.min(insertAt, next[toCycle].length));
   next[toCycle].splice(insertAt, 0, spellId);
@@ -70,6 +91,7 @@ export function removeSpellFromCycle(cycles, cycleIndex, spellIndex) {
 export default function V2RotationEditor({
   spellCycles,
   spellOrder,
+  kitSpellIds,
   onChange,
   onSave,
   dirty = false,
@@ -80,6 +102,11 @@ export default function V2RotationEditor({
   const cycles = useMemo(
     () => normalizeSpellCycles(spellCycles ?? { spellOrder }),
     [spellCycles, spellOrder]
+  );
+
+  const kitIds = useMemo(
+    () => (Array.isArray(kitSpellIds) && kitSpellIds.length ? kitSpellIds : V2_DEFAULT_SPELL_ORDER),
+    [kitSpellIds]
   );
 
   const [dragOver, setDragOver] = useState(null);
@@ -140,7 +167,8 @@ export default function V2RotationEditor({
         </h3>
         <p className="text-xs text-stone-400 mt-1">
           3 cycles enchaînés en combat. Glisse depuis le kit ou entre colonnes. Un sort ne peut
-          apparaître qu’une fois dans un même cycle. Pense à enregistrer pour garder tes choix.
+          apparaître qu’une fois dans un même cycle (flasques d’Alchimiste : une seule fois dans
+          toute la rotation). Pense à enregistrer pour garder tes choix.
         </p>
       </div>
 
@@ -149,8 +177,10 @@ export default function V2RotationEditor({
           Kit — glisser vers un cycle
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {V2_DEFAULT_SPELL_ORDER.map((id) => {
+          {kitIds.map((id) => {
             const spell = getSpellById(id);
+            const usedOnce =
+              isOnceInRotationSpell(id) && cycles.flat().includes(id);
             return (
               <SharedTooltip
                 key={`kit-${id}`}
@@ -158,11 +188,13 @@ export default function V2RotationEditor({
                 tooltipClassName="whitespace-normal px-3 py-2 max-w-[280px] leading-relaxed"
               >
                 <div
-                  draggable={!disabled}
+                  draggable={!disabled && !usedOnce}
                   onDragStart={(e) => onDragStartKit(e, id)}
                   onDragEnd={onDragEnd}
-                  className={`inline-flex items-center gap-1.5 rounded-full border border-sky-700/50 bg-sky-950/50 px-2.5 py-1 text-xs cursor-grab active:cursor-grabbing select-none ${
-                    disabled ? 'opacity-50' : 'hover:border-amber-500/60'
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs select-none ${getSpellBorderClass(spell)} ${
+                    disabled || usedOnce
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'cursor-grab active:cursor-grabbing hover:brightness-110'
                   }`}
                 >
                   <span>{spell?.icon}</span>
@@ -218,8 +250,8 @@ export default function V2RotationEditor({
                         onDragOverSlot(e, cycleIndex, spellIndex);
                       }}
                       onDrop={(e) => onDrop(e, cycleIndex, spellIndex)}
-                      className={`flex items-start gap-1.5 rounded border border-stone-600/80 bg-stone-900/80 px-2 py-1.5 cursor-grab active:cursor-grabbing select-none ${
-                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-amber-600/50'
+                      className={`flex items-start gap-1.5 rounded border px-2 py-1.5 cursor-grab active:cursor-grabbing select-none ${getSpellBorderClass(spell)} ${
+                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-110'
                       }`}
                     >
                       <span className="text-stone-500 text-[10px] w-3 pt-0.5">{spellIndex + 1}</span>
@@ -253,7 +285,7 @@ export default function V2RotationEditor({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-stone-700/60">
-        <p className="text-[11px] text-stone-500">
+        <p className={`text-[11px] ${saveFeedback?.includes('Échec') || saveFeedback?.includes('Erreur') ? 'text-red-400' : 'text-stone-500'}`}>
           {dirty
             ? 'Modifications non enregistrées'
             : saveFeedback || 'Aucun changement en attente'}
@@ -261,7 +293,7 @@ export default function V2RotationEditor({
         <button
           type="button"
           onClick={() => onSave?.()}
-          disabled={disabled || saving || !dirty}
+          disabled={disabled || saving}
           className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {saving ? 'Enregistrement…' : 'Enregistrer'}

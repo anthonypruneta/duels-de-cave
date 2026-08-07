@@ -8,19 +8,20 @@ import { db, storage } from '../../firebase/config';
 import {
   V2_DEFAULT_SPELL_ORDER,
   V2_IMPOSED_CHARACTER,
-  V2_PASSIVE,
-  V2_WEAPON,
   flattenSpellCycles,
   getEmptyV2StatBlock,
+  normalizePassiveIds,
   normalizeSpellCycles,
+  spellCyclesToFirestore,
 } from '../data/v2Kit';
+import { V2_DEFAULT_PASSIVE_ID } from '../data/v2Passives';
+import { V2_DEFAULT_WEAPON_ID } from '../data/v2Weapons';
 import { createInitialXpState } from '../data/v2XpCurve';
 
 const COLLECTION = 'v2Prototype';
 
 export function hasV2Champion(proto) {
   if (!proto?.name || !proto?.characterImage) return false;
-  // setupComplete === false → landing ; true ou absent (anciens protos) → OK
   if (proto.setupComplete === false) return false;
   return true;
 }
@@ -29,6 +30,7 @@ export function createDefaultV2Prototype(userId, options = {}) {
   const xpState = createInitialXpState();
   const name = String(options.name || '').trim() || V2_IMPOSED_CHARACTER.name;
   const spellCycles = normalizeSpellCycles({ spellOrder: V2_DEFAULT_SPELL_ORDER });
+  const passiveIds = normalizePassiveIds([V2_DEFAULT_PASSIVE_ID, null]);
   return {
     userId,
     name,
@@ -45,10 +47,11 @@ export function createDefaultV2Prototype(userId, options = {}) {
     level: xpState.level,
     xp: xpState.xp,
     xpToNext: xpState.xpToNext,
-    spellCycles,
+    spellCycles: spellCyclesToFirestore(spellCycles),
     spellOrder: flattenSpellCycles(spellCycles),
-    weaponId: V2_WEAPON.id,
-    passiveId: V2_PASSIVE.id,
+    weaponId: V2_DEFAULT_WEAPON_ID,
+    passiveId: passiveIds[0],
+    passiveIds,
     labyrinth: {
       currentFloor: 1,
       highestCleared: 0,
@@ -70,7 +73,12 @@ export async function getV2Prototype(userId) {
     if (!snap.exists()) {
       return { success: true, data: null };
     }
-    return { success: true, data: { id: snap.id, ...snap.data() } };
+    const data = { id: snap.id, ...snap.data() };
+    const passiveIds = normalizePassiveIds(data);
+    data.passiveIds = passiveIds;
+    data.passiveId = passiveIds[0];
+    if (!data.weaponId) data.weaponId = V2_DEFAULT_WEAPON_ID;
+    return { success: true, data };
   } catch (error) {
     console.error('V2 getV2Prototype:', error);
     return { success: false, error: error.message || 'Erreur lecture proto V2' };
@@ -136,11 +144,18 @@ export async function saveV2Prototype(userId, partial) {
   try {
     const payload = { ...partial };
     if (payload.spellCycles) {
-      payload.spellCycles = normalizeSpellCycles(payload.spellCycles);
-      payload.spellOrder = flattenSpellCycles(payload.spellCycles);
+      const cycles = normalizeSpellCycles(payload.spellCycles);
+      payload.spellCycles = spellCyclesToFirestore(cycles);
+      payload.spellOrder = flattenSpellCycles(cycles);
     } else if (payload.spellOrder) {
-      payload.spellCycles = normalizeSpellCycles({ spellOrder: payload.spellOrder });
-      payload.spellOrder = flattenSpellCycles(payload.spellCycles);
+      const cycles = normalizeSpellCycles({ spellOrder: payload.spellOrder });
+      payload.spellCycles = spellCyclesToFirestore(cycles);
+      payload.spellOrder = flattenSpellCycles(cycles);
+    }
+    if (payload.passiveIds || payload.passiveId) {
+      const passiveIds = normalizePassiveIds(payload.passiveIds ?? [payload.passiveId, null]);
+      payload.passiveIds = passiveIds;
+      payload.passiveId = passiveIds[0];
     }
     const refDoc = doc(db, COLLECTION, userId);
     await setDoc(

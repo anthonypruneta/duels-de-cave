@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { flattenSpellCycles, normalizeSpellCycles } from '../data/v2Kit';
+import { flattenSpellCycles, getAvailableKitSpellIds, normalizeSpellCycles } from '../data/v2Kit';
 import { getLocalDateKey } from '../data/v2LoreStories';
 import {
   ensureV2Prototype,
@@ -66,21 +66,26 @@ export default function V2Hub() {
   };
 
   const handleSaveSpellCycles = async () => {
-    if (!currentUser?.uid || !proto || !draftCycles || !cyclesDirty) return;
+    if (!currentUser?.uid || !proto || !draftCycles) return;
     const spellCycles = normalizeSpellCycles(draftCycles);
     const spellOrder = flattenSpellCycles(spellCycles);
     setSaving(true);
     setSaveFeedback(null);
-    const res = await saveV2Prototype(currentUser.uid, { spellCycles, spellOrder });
-    setSaving(false);
-    if (!res.success) {
-      setSaveFeedback(res.error || 'Échec de la sauvegarde');
-      return;
+    try {
+      const res = await saveV2Prototype(currentUser.uid, { spellCycles, spellOrder });
+      if (!res.success) {
+        setSaveFeedback(res.error || 'Échec de la sauvegarde');
+        return;
+      }
+      setProto({ ...proto, spellCycles, spellOrder });
+      setDraftCycles(spellCycles);
+      setCyclesDirty(false);
+      setSaveFeedback('Cycles enregistrés');
+    } catch (err) {
+      setSaveFeedback(err?.message || 'Erreur inattendue');
+    } finally {
+      setSaving(false);
     }
-    setProto({ ...proto, spellCycles, spellOrder });
-    setDraftCycles(spellCycles);
-    setCyclesDirty(false);
-    setSaveFeedback('Cycles enregistrés');
   };
 
   const handleReset = async () => {
@@ -150,6 +155,7 @@ export default function V2Hub() {
             <V2RotationEditor
               spellCycles={draftCycles ?? proto.spellCycles}
               spellOrder={proto.spellOrder}
+              kitSpellIds={getAvailableKitSpellIds(proto)}
               onChange={handleSpellCyclesChange}
               onSave={handleSaveSpellCycles}
               dirty={cyclesDirty}
@@ -158,7 +164,7 @@ export default function V2Hub() {
               disabled={saving}
             />
 
-            <nav className="grid sm:grid-cols-3 gap-3">
+            <nav className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <ModeLink
                 to="/v2/lore"
                 title="Quête du jour"
@@ -166,6 +172,12 @@ export default function V2Hub() {
                 ready={!loreDoneToday}
               />
               <ModeLink to="/v2/donjon-xp" title="Donjon XP" subtitle="3 étages · level-ups FE" ready />
+              <ModeLink
+                to="/v2/donjon-armes"
+                title="Donjon d’armes"
+                subtitle="3 étages · commune → légendaire"
+                ready
+              />
               <ModeLink
                 to="/v2/labyrinthe"
                 title="Labyrinthe"

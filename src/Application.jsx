@@ -35,6 +35,7 @@ import PvpLeaderboard from './components/PvpLeaderboard';
 import CaveDestiny from './components/CaveDestiny';
 import V2Hub from './v2/components/V2Hub';
 import V2XpDungeon from './v2/components/V2XpDungeon';
+import V2WeaponDungeon from './v2/components/V2WeaponDungeon';
 import V2Labyrinth from './v2/components/V2Labyrinth';
 import V2LoreQuest from './v2/components/V2LoreQuest';
 import V2ChampionSelect from './v2/components/V2ChampionSelect';
@@ -167,6 +168,16 @@ function Application() {
                   <ProtectedRoute>
                     <V2RequireChampion>
                       <V2XpDungeon />
+                    </V2RequireChampion>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/v2/donjon-armes"
+                element={
+                  <ProtectedRoute>
+                    <V2RequireChampion>
+                      <V2WeaponDungeon />
                     </V2RequireChampion>
                   </ProtectedRoute>
                 }
