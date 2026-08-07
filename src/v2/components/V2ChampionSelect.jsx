@@ -345,26 +345,23 @@ export default function V2ChampionSelect() {
             </label>
 
             <section className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
                 <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wide">
-                  Image — {picked.race} / {picked.class} uniquement
+                  Image — {picked.race} / {picked.class}
                 </h2>
-                <button
-                  type="button"
-                  disabled={busy || Boolean(cropSrc)}
-                  onClick={() => fileRef.current?.click()}
-                  className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-300 hover:border-amber-600 hover:text-amber-300 disabled:opacity-50"
-                >
-                  Uploader mon image
-                </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFile}
-                />
+                <p className="text-xs text-stone-500 mt-1">
+                  Galerie filtrée sur ta combinaison. Tu peux aussi uploader ta propre image à tout
+                  moment.
+                </p>
               </div>
+
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFile}
+              />
 
               {selectedUrl && (
                 <div className="flex items-center gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/20 p-2">
@@ -373,7 +370,14 @@ export default function V2ChampionSelect() {
                     alt=""
                     className="w-16 h-16 object-cover bg-stone-950 rounded"
                   />
-                  <p className="text-xs text-emerald-300">Image sélectionnée</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-emerald-300">Image sélectionnée</p>
+                    {selectedMeta?.portraitSourceId === 'upload' && (
+                      <p className="text-[10px] text-stone-500 truncate">
+                        Upload : {selectedMeta.portraitName}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -383,6 +387,21 @@ export default function V2ChampionSelect() {
               {catalogError && <p className="text-xs text-amber-400">{catalogError}</p>}
 
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
+                <button
+                  type="button"
+                  disabled={busy || Boolean(cropSrc)}
+                  onClick={() => fileRef.current?.click()}
+                  className={`rounded border border-dashed p-1.5 flex flex-col items-center justify-center aspect-square gap-1 transition ${
+                    selectedMeta?.portraitSourceId === 'upload' && selectedUrl
+                      ? 'border-amber-500 bg-amber-950/40'
+                      : 'border-stone-500 bg-stone-950/40 hover:border-amber-500/70 hover:bg-amber-950/20'
+                  } disabled:opacity-50`}
+                >
+                  <span className="text-2xl leading-none">📤</span>
+                  <span className="text-[10px] font-semibold text-amber-300 text-center px-1">
+                    Uploader mon image
+                  </span>
+                </button>
                 {kitPortraits.map((p) => {
                   const selected = selectedUrl === p.characterImage;
                   return (
@@ -409,7 +428,8 @@ export default function V2ChampionSelect() {
               </div>
               {!loadingCatalog && !kitPortraits.length && (
                 <p className="text-xs text-stone-500">
-                  Aucun portrait {picked.race}/{picked.class} en BDD — utilise l’upload.
+                  Aucun portrait {picked.race}/{picked.class} en BDD — uploade la tienne via la
+                  case 📤.
                 </p>
               )}
             </section>

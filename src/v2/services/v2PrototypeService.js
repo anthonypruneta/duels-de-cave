@@ -14,8 +14,6 @@ import {
   normalizeSpellCycles,
   spellCyclesToFirestore,
 } from '../data/v2Kit';
-import { V2_DEFAULT_PASSIVE_ID } from '../data/v2Passives';
-import { V2_DEFAULT_WEAPON_ID } from '../data/v2Weapons';
 import { createInitialXpState } from '../data/v2XpCurve';
 
 const COLLECTION = 'v2Prototype';
@@ -34,13 +32,13 @@ export function createDefaultV2Prototype(userId, options = {}) {
   const kitProto = {
     race,
     class: className,
-    weaponId: V2_DEFAULT_WEAPON_ID,
-    passiveIds: normalizePassiveIds([V2_DEFAULT_PASSIVE_ID, null]),
+    weaponId: null,
+    passiveIds: [null, null],
   };
   const spellCycles = normalizeSpellCycles({
     spellOrder: getAvailableKitSpellIds(kitProto),
   });
-  const passiveIds = kitProto.passiveIds;
+  const passiveIds = normalizePassiveIds(kitProto.passiveIds);
   return {
     userId,
     name,
@@ -59,8 +57,8 @@ export function createDefaultV2Prototype(userId, options = {}) {
     xpToNext: xpState.xpToNext,
     spellCycles: spellCyclesToFirestore(spellCycles),
     spellOrder: flattenSpellCycles(spellCycles),
-    weaponId: V2_DEFAULT_WEAPON_ID,
-    passiveId: passiveIds[0],
+    weaponId: null,
+    passiveId: null,
     passiveIds,
     labyrinth: {
       currentFloor: 1,
@@ -86,8 +84,8 @@ export async function getV2Prototype(userId) {
     const data = { id: snap.id, ...snap.data() };
     const passiveIds = normalizePassiveIds(data);
     data.passiveIds = passiveIds;
-    data.passiveId = passiveIds[0];
-    if (!data.weaponId) data.weaponId = V2_DEFAULT_WEAPON_ID;
+    data.passiveId = passiveIds[0] || null;
+    if (data.weaponId == null) data.weaponId = null;
     return { success: true, data };
   } catch (error) {
     console.error('V2 getV2Prototype:', error);
@@ -171,10 +169,12 @@ export async function saveV2Prototype(userId, partial) {
       payload.spellCycles = spellCyclesToFirestore(cycles);
       payload.spellOrder = flattenSpellCycles(cycles);
     }
-    if (payload.passiveIds || payload.passiveId) {
-      const passiveIds = normalizePassiveIds(payload.passiveIds ?? [payload.passiveId, null]);
+    if (payload.passiveIds !== undefined || payload.passiveId !== undefined) {
+      const passiveIds = normalizePassiveIds(
+        payload.passiveIds ?? [payload.passiveId ?? null, null]
+      );
       payload.passiveIds = passiveIds;
-      payload.passiveId = passiveIds[0];
+      payload.passiveId = passiveIds[0] || null;
     }
     const refDoc = doc(db, COLLECTION, userId);
     await setDoc(
