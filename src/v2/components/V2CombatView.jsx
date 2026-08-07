@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { V2_DEFAULT_SPELL_ORDER, getSpellById } from '../data/v2Kit';
-import { hasFureurSang, hasStigmate } from '../combat/v2Status';
+import { V2_DEFAULT_SPELL_ORDER, getSpellBorderClass, getSpellById } from '../data/v2Kit';
+import {
+  hasAntiHeal,
+  hasEsquive,
+  hasFamiliar,
+  hasFureurSang,
+  hasStigmate,
+} from '../combat/v2Status';
 
 /**
  * Replay combat style Pokémon :
@@ -174,6 +180,17 @@ export default function V2CombatView({
               {hasStigmate(step.enemyStatus) && (
                 <span className="px-1 rounded bg-violet-900/60 text-violet-200">Stigmate</span>
               )}
+              {hasAntiHeal(step.enemyStatus) && (
+                <span className="px-1 rounded bg-rose-900/60 text-rose-200">Anti-soin</span>
+              )}
+              {(step.enemyShield || 0) > 0 && (
+                <span className="px-1 rounded bg-sky-900/60 text-sky-200">
+                  Bouclier {step.enemyShield}
+                </span>
+              )}
+              {(step.enemyStatus?.nextAttackPenalty || 0) > 0 && (
+                <span className="px-1 rounded bg-pink-900/60 text-pink-200">Affaibli</span>
+              )}
             </div>
           </div>
           {/* Floating dmg ennemi */}
@@ -229,6 +246,26 @@ export default function V2CombatView({
             {hasFureurSang(step.playerStatus) && (
               <span className="px-1 rounded bg-red-900/50 text-red-200">Fureur</span>
             )}
+            {hasFamiliar(step.playerStatus) && (
+              <span className="px-1 rounded bg-violet-900/50 text-violet-200">Familier</span>
+            )}
+            {hasEsquive(step.playerStatus) && (
+              <span className="px-1 rounded bg-cyan-900/50 text-cyan-200">Esquive</span>
+            )}
+            {step.playerStatus?.riposteArmed && (
+              <span className="px-1 rounded bg-amber-900/50 text-amber-200">Riposte</span>
+            )}
+            {step.playerStatus?.aegisArmed && (
+              <span className="px-1 rounded bg-stone-700 text-stone-200">Égide</span>
+            )}
+            {(step.playerShield || 0) > 0 && (
+              <span className="px-1 rounded bg-sky-900/50 text-sky-200">
+                Bouclier {step.playerShield}
+              </span>
+            )}
+            {hasAntiHeal(step.playerStatus) && (
+              <span className="px-1 rounded bg-rose-900/50 text-rose-200">Anti-soin</span>
+            )}
           </div>
         </div>
 
@@ -240,6 +277,7 @@ export default function V2CombatView({
                 <div className="text-sm font-bold text-amber-100 truncate">{playerName}</div>
                 <div className="text-xs text-stone-300 tabular-nums">
                   {step.playerHP}/{step.playerMaxHP} PV
+                  {(step.playerShield || 0) > 0 ? ` · 🛡️ ${step.playerShield}` : ''}
                 </div>
               </div>
             </div>
@@ -264,10 +302,10 @@ export default function V2CombatView({
                   key={`${id}-${i}`}
                   className={`rounded-md border px-2 py-1.5 flex items-center gap-2 min-h-[2.75rem] transition ${
                     onCd
-                      ? 'border-red-900/60 bg-red-950/55 text-red-100/80'
+                      ? 'border-red-900/60 bg-red-950/55 text-red-100/80 opacity-70'
                       : isCasting
                         ? 'border-amber-400/70 bg-amber-950/50 text-amber-50 ring-1 ring-amber-400/40'
-                        : 'border-stone-600 bg-stone-900/80 text-stone-100'
+                        : `${getSpellBorderClass(spell)} text-stone-100`
                   }`}
                 >
                   <span className="text-[10px] text-stone-500 w-3 shrink-0">{i + 1}</span>
