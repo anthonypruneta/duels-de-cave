@@ -6,9 +6,9 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase/config';
 import {
-  V2_DEFAULT_SPELL_ORDER,
   V2_IMPOSED_CHARACTER,
   flattenSpellCycles,
+  getAvailableKitSpellIds,
   getEmptyV2StatBlock,
   normalizePassiveIds,
   normalizeSpellCycles,
@@ -28,20 +28,30 @@ export function hasV2Champion(proto) {
 
 export function createDefaultV2Prototype(userId, options = {}) {
   const xpState = createInitialXpState();
-  const name = String(options.name || '').trim() || V2_IMPOSED_CHARACTER.name;
-  const spellCycles = normalizeSpellCycles({ spellOrder: V2_DEFAULT_SPELL_ORDER });
-  const passiveIds = normalizePassiveIds([V2_DEFAULT_PASSIVE_ID, null]);
+  const name = String(options.name || '').trim() || 'Champion';
+  const race = String(options.race || '').trim() || V2_IMPOSED_CHARACTER.race;
+  const className = String(options.class || '').trim() || V2_IMPOSED_CHARACTER.class;
+  const kitProto = {
+    race,
+    class: className,
+    weaponId: V2_DEFAULT_WEAPON_ID,
+    passiveIds: normalizePassiveIds([V2_DEFAULT_PASSIVE_ID, null]),
+  };
+  const spellCycles = normalizeSpellCycles({
+    spellOrder: getAvailableKitSpellIds(kitProto),
+  });
+  const passiveIds = kitProto.passiveIds;
   return {
     userId,
     name,
-    race: V2_IMPOSED_CHARACTER.race,
-    class: V2_IMPOSED_CHARACTER.class,
-    gender: V2_IMPOSED_CHARACTER.gender,
+    race,
+    class: className,
+    gender: options.gender || V2_IMPOSED_CHARACTER.gender,
     characterImage: options.characterImage || null,
     portraitSourceId: options.portraitSourceId || null,
     portraitName: options.portraitName || null,
     setupComplete: options.setupComplete === true,
-    base: { ...V2_IMPOSED_CHARACTER.base },
+    base: { ...(options.base || V2_IMPOSED_CHARACTER.base) },
     growthGains: getEmptyV2StatBlock(),
     loreBoosts: getEmptyV2StatBlock(),
     level: xpState.level,
@@ -111,9 +121,12 @@ export async function uploadV2ChampionImage(userId, dataUrl) {
 }
 
 /**
- * Valide le roll imposé + nom + image, crée le perso et marque setupComplete.
+ * Crée le champion V2 à partir du roll choisi (race/classe) + nom + image.
  */
-export async function createV2Champion(userId, { name, characterImage, portraitSourceId, portraitName }) {
+export async function createV2Champion(
+  userId,
+  { name, characterImage, race, class: className, portraitSourceId, portraitName, gender }
+) {
   const trimmed = String(name || '').trim();
   if (trimmed.length < 2 || trimmed.length > 40) {
     return { success: false, error: 'Le nom doit faire entre 2 et 40 caractères.' };
@@ -121,10 +134,16 @@ export async function createV2Champion(userId, { name, characterImage, portraitS
   if (!characterImage || typeof characterImage !== 'string') {
     return { success: false, error: 'Choisis ou uploade une image.' };
   }
+  if (!race || !className) {
+    return { success: false, error: 'Race et classe requises.' };
+  }
 
   const payload = createDefaultV2Prototype(userId, {
     name: trimmed,
     characterImage,
+    race,
+    class: className,
+    gender: gender || 'male',
     portraitSourceId: portraitSourceId || null,
     portraitName: portraitName || null,
     setupComplete: true,

@@ -9,6 +9,7 @@ import {
   normalizePassiveIds,
 } from '../data/v2Kit';
 import { getV2Passive } from '../data/v2Passives';
+import { getRacePassive } from '../data/v2Races';
 
 /** Ordre d’affichage style FE Heroes (HP → Atk → Spd → Def → Res…). */
 const FE_STAT_ROWS = [
@@ -141,6 +142,7 @@ function V2FeHeroesPanel({ proto, stats }) {
   }, [proto]);
 
   const subtitle = [proto?.race, proto?.class].filter(Boolean).join(' · ');
+  const racePassive = getRacePassive(proto?.race);
 
   return (
     <div className="absolute inset-x-0 bottom-0 flex flex-col justify-end">
@@ -149,6 +151,14 @@ function V2FeHeroesPanel({ proto, stats }) {
           <div className="text-[8px] uppercase tracking-[0.14em] text-amber-200/80 font-semibold truncate">
             {subtitle}
           </div>
+          {racePassive && (
+            <div
+              className="text-[8px] text-red-200/90 truncate"
+              title={racePassive.description}
+            >
+              {racePassive.icon} {racePassive.name}
+            </div>
+          )}
           <div
             className="character-card-name text-base font-bold text-white leading-tight truncate"
             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.85)' }}

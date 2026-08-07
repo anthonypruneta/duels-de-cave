@@ -1,5 +1,6 @@
 /**
- * Kit imposé du proto V2 — Revolte (Orc / Masochiste).
+ * Kit proto V2 — arme / passifs / sorts de classe + sorts de base.
+ * Les races sont des passifs (pas des sorts de rotation).
  */
 
 import {
@@ -24,7 +25,6 @@ import {
 export const V2_MAX_LEVEL = 20;
 
 export const V2_SPELL_IDS = {
-  FUREUR_SANG: 'fureur_sang',
   STIGMATE: 'stigmate',
   COUP_DE_PIED: 'coup_de_pied',
   CROCHET: 'crochet',
@@ -129,15 +129,6 @@ const V2_WEAPON_SPELLS = {
 };
 
 export const V2_SPELLS = {
-  [V2_SPELL_IDS.FUREUR_SANG]: {
-    id: V2_SPELL_IDS.FUREUR_SANG,
-    name: 'Fureur du sang',
-    source: 'race',
-    sourceLabel: 'Orc',
-    icon: '🪓',
-    damageType: 'util',
-    description: 'Buff 3 tours : +25 % de dégâts si vos PV ≤ 50 %.',
-  },
   [V2_SPELL_IDS.STIGMATE]: {
     id: V2_SPELL_IDS.STIGMATE,
     name: 'Stigmate',
@@ -152,10 +143,6 @@ export const V2_SPELLS = {
   ...V2_CLASS_SPELLS,
 };
 
-export const V2_RACE_SPELL_BY_NAME = {
-  Orc: V2_SPELL_IDS.FUREUR_SANG,
-};
-
 /** @deprecated Prefer getV2Weapon — conservé pour imports existants. */
 export const V2_WEAPON = V2_WEAPONS[V2_DEFAULT_WEAPON_ID];
 
@@ -167,10 +154,11 @@ export const V2_PASSIVE = {
   description: 'Passif adapté V2 — sort Stigmate.',
 };
 
+/** Stats / defaults de création (race/classe viennent du roll joueur). */
 export const V2_IMPOSED_CHARACTER = {
-  name: 'Revolte',
-  race: 'Orc',
-  class: 'Masochiste',
+  name: 'Champion',
+  race: 'Humain',
+  class: 'Guerrier',
   gender: 'male',
   characterImage: null,
   weaponId: V2_DEFAULT_WEAPON_ID,
@@ -203,11 +191,9 @@ export function replaceSpellInCycles(cycles, oldSpellId, newSpellId) {
   return sanitizeSpellCycles(next);
 }
 
-/** Kit : base + race + arme + passifs + classe. */
+/** Kit : base + arme + passifs équipés + classe (les races sont des passifs, pas des sorts). */
 export function getAvailableKitSpellIds(prototype = V2_IMPOSED_CHARACTER) {
   const ids = [...V2_BASIC_SPELL_IDS];
-  const raceSpell = V2_RACE_SPELL_BY_NAME[prototype?.race];
-  if (raceSpell) ids.push(raceSpell);
 
   const weapon = getV2Weapon(prototype?.weaponId) || getV2Weapon(V2_DEFAULT_WEAPON_ID);
   if (weapon?.spellId) ids.push(weapon.spellId);

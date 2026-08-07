@@ -15,11 +15,11 @@ import {
   getSpellById,
   normalizeSpellCycles,
 } from '../data/v2Kit';
+import { V2_RACE_PASSIVES, isOrcFureurActive } from '../data/v2Races';
 import {
   createEmptyStatus,
   hasAntiHeal,
   hasFamiliar,
-  hasFureurSang,
   hasStigmate,
   tickStatuses,
 } from './v2Status';
@@ -44,8 +44,9 @@ function rawFromPower(defender, power, damageType, ignoreResist = 0) {
 
 function outgoingMultiplier(attacker) {
   let m = 1;
-  if (hasFureurSang(attacker.status) && attacker.currentHP <= attacker.maxHP * 0.5) {
-    m *= 1.25;
+  // Passif race Orc — Fureur du sang
+  if (isOrcFureurActive(attacker)) {
+    m *= V2_RACE_PASSIVES.Orc.damageBonus;
   }
   return m;
 }
@@ -206,11 +207,6 @@ function castSpell(attacker, defender, spellId, log) {
   };
 
   switch (spellId) {
-    case V2_SPELL_IDS.FUREUR_SANG: {
-      attacker.status.fureurSang = 3;
-      log.push(`🔥 ${attacker.name} entre en Fureur du sang (3 tours).`);
-      break;
-    }
     case V2_SPELL_IDS.STIGMATE: {
       defender.status.stigmate = 4;
       log.push(`💠 ${defender.name} est marqué par Stigmate (4 tours, +15 % dégâts reçus).`);
@@ -418,6 +414,7 @@ export function preparerCombattantV2(prototype) {
   return {
     name: prototype.name || 'Revolte',
     isPlayer: true,
+    race: prototype.race || null,
     className: prototype.class || null,
     base: { ...base },
     currentHP: maxHP,
@@ -521,6 +518,8 @@ function snapshotStep(turn, player, enemy, lastLine, fx = {}) {
     playerHP: player.currentHP,
     playerMaxHP: player.maxHP,
     playerShield: player.shield || 0,
+    playerRace: player.race || null,
+    orcFureur: isOrcFureurActive(player),
     enemyHP: enemy.currentHP,
     enemyMaxHP: enemy.maxHP,
     enemyShield: enemy.shield || 0,

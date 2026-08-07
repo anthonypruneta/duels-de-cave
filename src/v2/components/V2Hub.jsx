@@ -134,8 +134,8 @@ export default function V2Hub() {
         {!loading && !ready && (
           <section className="rounded-xl border border-amber-700/40 bg-amber-950/15 p-8 text-center space-y-4">
             <p className="text-stone-300 text-sm max-w-md mx-auto">
-              Un roll t’attend : Orc / Masochiste. Choisis ton nom et ton image, puis commence
-              par la quête du jour.
+              Un roll t’attend : 3 combinaisons race / classe au hasard. Choisis-en une, puis ton
+              nom et une image de cette combinaison.
             </p>
             <button
               type="button"

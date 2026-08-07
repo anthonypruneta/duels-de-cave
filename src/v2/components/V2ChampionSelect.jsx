@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { V2_IMPOSED_CHARACTER, V2_PASSIVE, V2_WEAPON } from '../data/v2Kit';
+import { getClassSpellIds } from '../data/v2Classes';
+import {
+  getClassIcon,
+  getRaceIcon,
+  rollV2CharacterOffers,
+} from '../data/v2CharacterRoll';
+import { getRacePassive } from '../data/v2Races';
+import { getSpellById } from '../data/v2Kit';
 import {
   getPortraitsForRaceClass,
   loadV2PortraitsFromFirestore,
@@ -18,7 +25,7 @@ const MIN_NAME = 2;
 const MAX_NAME = 40;
 
 /**
- * Écran post-roll : nom + image (galerie race/classe ou upload) → lore.
+ * Création champion : 3 rolls race/classe → nom + images filtrées par combo.
  */
 export default function V2ChampionSelect() {
   const { currentUser } = useAuth();
@@ -27,6 +34,9 @@ export default function V2ChampionSelect() {
 
   const [checking, setChecking] = useState(true);
   const [alreadyReady, setAlreadyReady] = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [picked, setPicked] = useState(null);
+
   const [name, setName] = useState('');
   const [selectedUrl, setSelectedUrl] = useState(null);
   const [selectedMeta, setSelectedMeta] = useState(null);
@@ -46,6 +56,27 @@ export default function V2ChampionSelect() {
       if (cancelled) return;
       if (res.success && hasV2Champion(res.data)) {
         setAlreadyReady(true);
+      } else {
+        const storageKey = `v2_roll_offers_${currentUser.uid}`;
+        try {
+          const cached = sessionStorage.getItem(storageKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length >= 3) {
+              setOffers(parsed.slice(0, 3));
+            } else {
+              const rolled = rollV2CharacterOffers(3);
+              sessionStorage.setItem(storageKey, JSON.stringify(rolled));
+              setOffers(rolled);
+            }
+          } else {
+            const rolled = rollV2CharacterOffers(3);
+            sessionStorage.setItem(storageKey, JSON.stringify(rolled));
+            setOffers(rolled);
+          }
+        } catch {
+          setOffers(rollV2CharacterOffers(3));
+        }
       }
       setChecking(false);
     })();
@@ -74,15 +105,24 @@ export default function V2ChampionSelect() {
     };
   }, []);
 
-  const kitPortraits = useMemo(
-    () =>
-      getPortraitsForRaceClass(
-        portraits,
-        V2_IMPOSED_CHARACTER.race,
-        V2_IMPOSED_CHARACTER.class
-      ),
-    [portraits]
-  );
+  const kitPortraits = useMemo(() => {
+    if (!picked) return [];
+    return getPortraitsForRaceClass(portraits, picked.race, picked.class);
+  }, [portraits, picked]);
+
+  const classSpells = useMemo(() => {
+    if (!picked) return [];
+    return getClassSpellIds(picked.class).map((id) => getSpellById(id)).filter(Boolean);
+  }, [picked]);
+
+  const racePassive = picked ? getRacePassive(picked.race) : null;
+
+  const handlePickOffer = (offer) => {
+    setPicked(offer);
+    setSelectedUrl(null);
+    setSelectedMeta(null);
+    setError(null);
+  };
 
   const handleSelectPortrait = (p) => {
     setSelectedUrl(p.characterImage);
@@ -131,14 +171,14 @@ export default function V2ChampionSelect() {
   };
 
   const handleConfirm = async () => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid || !picked) return;
     const trimmed = name.trim();
     if (trimmed.length < MIN_NAME || trimmed.length > MAX_NAME) {
       setError(`Nom : ${MIN_NAME} à ${MAX_NAME} caractères.`);
       return;
     }
     if (!selectedUrl) {
-      setError('Choisis une image du roll ou uploade la tienne.');
+      setError('Choisis une image de ta combinaison ou uploade la tienne.');
       return;
     }
     setBusy(true);
@@ -146,6 +186,8 @@ export default function V2ChampionSelect() {
     const res = await createV2Champion(currentUser.uid, {
       name: trimmed,
       characterImage: selectedUrl,
+      race: picked.race,
+      class: picked.class,
       portraitSourceId: selectedMeta?.portraitSourceId,
       portraitName: selectedMeta?.portraitName,
     });
@@ -153,6 +195,11 @@ export default function V2ChampionSelect() {
     if (!res.success) {
       setError(res.error);
       return;
+    }
+    try {
+      sessionStorage.removeItem(`v2_roll_offers_${currentUser.uid}`);
+    } catch {
+      /* ignore */
     }
     navigate('/v2/lore', { replace: true });
   };
@@ -176,110 +223,209 @@ export default function V2ChampionSelect() {
           <Link to="/v2" className="text-xs text-stone-500 hover:text-amber-500">
             ← Retour
           </Link>
-          <h1 className="text-2xl font-bold text-amber-400 mt-2">Ton roll</h1>
+          <h1 className="text-2xl font-bold text-amber-400 mt-2">
+            {picked ? 'Personnalise ton champion' : 'Choisis ton roll'}
+          </h1>
           <p className="text-sm text-stone-400 mt-1">
-            Personnalise ton champion avant de plonger dans la Cave.
+            {picked
+              ? 'Nom + image filtrée sur ta combinaison race / classe.'
+              : '3 propositions aléatoires — choisis celle qui te plaît.'}
           </p>
         </div>
 
-        <section className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
-          <p className="text-[10px] uppercase tracking-widest text-amber-500/80 mb-2">Roll obtenu</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-2xl font-bold text-amber-300">{V2_IMPOSED_CHARACTER.race}</span>
-            <span className="text-stone-500">/</span>
-            <span className="text-2xl font-bold text-amber-300">{V2_IMPOSED_CHARACTER.class}</span>
-          </div>
-          <p className="text-xs text-stone-500 mt-2">
-            Kit : {V2_WEAPON.name} · {V2_PASSIVE.name}
-          </p>
-        </section>
-
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-stone-300">Nom du champion</span>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={MAX_NAME}
-            placeholder="Ex. Revolte"
-            className="w-full rounded-lg border border-stone-600 bg-stone-950 px-3 py-2.5 text-stone-100 placeholder:text-stone-600 focus:border-amber-600 focus:outline-none"
-          />
-        </label>
-
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wide">
-              Image — {V2_IMPOSED_CHARACTER.race} / {V2_IMPOSED_CHARACTER.class}
-            </h2>
-            <button
-              type="button"
-              disabled={busy || Boolean(cropSrc)}
-              onClick={() => fileRef.current?.click()}
-              className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-300 hover:border-amber-600 hover:text-amber-300 disabled:opacity-50"
-            >
-              Uploader mon image
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFile}
-            />
-          </div>
-
-          {selectedUrl && (
-            <div className="flex items-center gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/20 p-2">
-              <img src={selectedUrl} alt="" className="w-16 h-16 object-cover bg-stone-950 rounded" />
-              <p className="text-xs text-emerald-300">Image sélectionnée</p>
-            </div>
-          )}
-
-          {loadingCatalog && <p className="text-xs text-stone-500">Chargement des portraits…</p>}
-          {catalogError && <p className="text-xs text-amber-400">{catalogError}</p>}
-
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
-            {kitPortraits.map((p) => {
-              const selected = selectedUrl === p.characterImage;
+        {!picked && (
+          <div className="space-y-3">
+            {offers.map((offer) => {
+              const portraitCount = getPortraitsForRaceClass(
+                portraits,
+                offer.race,
+                offer.class
+              ).length;
               return (
                 <button
-                  key={p.id}
+                  key={offer.id}
                   type="button"
-                  disabled={busy}
-                  onClick={() => handleSelectPortrait(p)}
-                  className={`rounded border p-1.5 text-left transition ${
-                    selected
-                      ? 'border-amber-500 bg-amber-950/40'
-                      : 'border-stone-700 bg-stone-950/50 hover:border-stone-500'
-                  }`}
+                  onClick={() => handlePickOffer(offer)}
+                  className="w-full text-left rounded-xl border border-stone-600 bg-stone-900/70 hover:border-amber-500/70 hover:bg-amber-950/20 p-4 transition"
                 >
-                  <img
-                    src={p.characterImage}
-                    alt=""
-                    className="w-full aspect-square object-contain bg-stone-900"
-                    loading="lazy"
-                  />
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{getRaceIcon(offer.race)}</span>
+                    <span className="text-3xl">{getClassIcon(offer.class)}</span>
+                    <div className="min-w-0">
+                      <div className="text-lg font-bold text-amber-300">
+                        {offer.race} / {offer.class}
+                      </div>
+                      <div className="text-xs text-stone-500 mt-0.5">
+                        {portraitCount === 0
+                          ? 'Aucun portrait en BDD (upload possible)'
+                          : `${portraitCount} portrait${portraitCount > 1 ? 's' : ''} disponible${portraitCount > 1 ? 's' : ''}`}
+                      </div>
+                    </div>
+                  </div>
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => {
+                const rolled = rollV2CharacterOffers(3);
+                setOffers(rolled);
+                if (currentUser?.uid) {
+                  try {
+                    sessionStorage.setItem(
+                      `v2_roll_offers_${currentUser.uid}`,
+                      JSON.stringify(rolled)
+                    );
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }}
+              className="w-full text-xs text-stone-500 hover:text-amber-400 py-2"
+            >
+              Relancer les 3 propositions
+            </button>
           </div>
-          {!loadingCatalog && !kitPortraits.length && (
-            <p className="text-xs text-stone-500">
-              Aucun portrait Orc/Masochiste en BDD — utilise l’upload.
-            </p>
-          )}
-        </section>
+        )}
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {picked && (
+          <>
+            <section className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-amber-500/80 mb-1">
+                    Combinaison choisie
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-xl font-bold text-amber-300">
+                    <span>
+                      {getRaceIcon(picked.race)} {picked.race}
+                    </span>
+                    <span className="text-stone-500">/</span>
+                    <span>
+                      {getClassIcon(picked.class)} {picked.class}
+                    </span>
+                  </div>
+                  {racePassive && (
+                    <p className="text-xs text-red-200/90 mt-1">
+                      Passif race : {racePassive.icon} {racePassive.name} — {racePassive.description}
+                    </p>
+                  )}
+                  {classSpells.length > 0 && (
+                    <p className="text-xs text-stone-400 mt-1">
+                      Sort{classSpells.length > 1 ? 's' : ''} de classe :{' '}
+                      {classSpells.map((s) => `${s.icon} ${s.name}`).join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPicked(null);
+                    setSelectedUrl(null);
+                    setSelectedMeta(null);
+                    setError(null);
+                  }}
+                  className="text-xs text-stone-400 underline hover:text-amber-400"
+                >
+                  Changer de roll
+                </button>
+              </div>
+            </section>
 
-        <button
-          type="button"
-          disabled={busy}
-          onClick={handleConfirm}
-          className="w-full py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold disabled:opacity-50"
-        >
-          {busy ? 'Création…' : 'Valider et commencer'}
-        </button>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-stone-300">Nom du champion</span>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={MAX_NAME}
+                placeholder="Nom du personnage"
+                className="w-full rounded-lg border border-stone-600 bg-stone-950 px-3 py-2.5 text-stone-100 placeholder:text-stone-600 focus:border-amber-600 focus:outline-none"
+              />
+            </label>
+
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-bold text-amber-400 uppercase tracking-wide">
+                  Image — {picked.race} / {picked.class} uniquement
+                </h2>
+                <button
+                  type="button"
+                  disabled={busy || Boolean(cropSrc)}
+                  onClick={() => fileRef.current?.click()}
+                  className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-300 hover:border-amber-600 hover:text-amber-300 disabled:opacity-50"
+                >
+                  Uploader mon image
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFile}
+                />
+              </div>
+
+              {selectedUrl && (
+                <div className="flex items-center gap-3 rounded-lg border border-emerald-800/40 bg-emerald-950/20 p-2">
+                  <img
+                    src={selectedUrl}
+                    alt=""
+                    className="w-16 h-16 object-cover bg-stone-950 rounded"
+                  />
+                  <p className="text-xs text-emerald-300">Image sélectionnée</p>
+                </div>
+              )}
+
+              {loadingCatalog && (
+                <p className="text-xs text-stone-500">Chargement des portraits…</p>
+              )}
+              {catalogError && <p className="text-xs text-amber-400">{catalogError}</p>}
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
+                {kitPortraits.map((p) => {
+                  const selected = selectedUrl === p.characterImage;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleSelectPortrait(p)}
+                      className={`rounded border p-1.5 text-left transition ${
+                        selected
+                          ? 'border-amber-500 bg-amber-950/40'
+                          : 'border-stone-700 bg-stone-950/50 hover:border-stone-500'
+                      }`}
+                    >
+                      <img
+                        src={p.characterImage}
+                        alt=""
+                        className="w-full aspect-square object-contain bg-stone-900"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              {!loadingCatalog && !kitPortraits.length && (
+                <p className="text-xs text-stone-500">
+                  Aucun portrait {picked.race}/{picked.class} en BDD — utilise l’upload.
+                </p>
+              )}
+            </section>
+
+            {error && <p className="text-sm text-red-400">{error}</p>}
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleConfirm}
+              className="w-full py-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold disabled:opacity-50"
+            >
+              {busy ? 'Création…' : 'Valider et commencer'}
+            </button>
+          </>
+        )}
       </div>
 
       {cropSrc && (

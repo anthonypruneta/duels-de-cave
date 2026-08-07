@@ -4,7 +4,6 @@ import {
   hasAntiHeal,
   hasEsquive,
   hasFamiliar,
-  hasFureurSang,
   hasStigmate,
 } from '../combat/v2Status';
 
@@ -243,8 +242,8 @@ export default function V2CombatView({
             <span className="text-stone-200">{step.line || '—'}</span>
           </p>
           <div className="mt-1 flex flex-wrap gap-1 text-[9px]">
-            {hasFureurSang(step.playerStatus) && (
-              <span className="px-1 rounded bg-red-900/50 text-red-200">Fureur</span>
+            {step.orcFureur && (
+              <span className="px-1 rounded bg-red-900/50 text-red-200">Fureur (race)</span>
             )}
             {hasFamiliar(step.playerStatus) && (
               <span className="px-1 rounded bg-violet-900/50 text-violet-200">Familier</span>
